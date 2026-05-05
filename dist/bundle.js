@@ -403,15 +403,12 @@
 
     const MOD_NAME = "EmeryBC";
     const MOD_VERSION = "0.1.0";
-    const modAPI = bcModSDK.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
     // ─── Load indicator ───────────────────────────────────────────────────────────
-    // Small badge drawn above BCAR's buttons (BCAR upperleft starts at y=135)
     function drawLoadIndicator() {
         DrawRect(0, 92, 45, 38, "#2a0a4a");
         DrawEmptyRect(0, 92, 45, 38, "#7c3fbf", 1);
         DrawText("NA", 22, 111, "#c084fc");
     }
-    // One-time popup notice per session, styled like MPA's notification
     let noticeShown = false;
     function showLoadNotice() {
         if (noticeShown)
@@ -419,36 +416,23 @@
         noticeShown = true;
         const wrap = document.createElement("div");
         wrap.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        width: 260px;
-        font-family: Arial, sans-serif;
-        font-size: 13px;
-        border: 2px solid #4a0080;
-        border-radius: 6px;
+        position: fixed; top: 10px; right: 10px; width: 260px;
+        font-family: Arial, sans-serif; font-size: 13px;
+        border: 2px solid #4a0080; border-radius: 6px;
         box-shadow: 0 3px 12px rgba(0,0,0,0.6);
-        z-index: 99999;
-        cursor: pointer;
-        user-select: none;
+        z-index: 99999; cursor: pointer; user-select: none;
     `;
         const title = document.createElement("div");
         title.style.cssText = `
-        background: #4a0080;
-        color: white;
-        font-weight: bold;
-        text-align: center;
-        padding: 6px 10px;
-        border-radius: 4px 4px 0 0;
-        font-size: 14px;
+        background: #4a0080; color: white; font-weight: bold;
+        text-align: center; padding: 6px 10px;
+        border-radius: 4px 4px 0 0; font-size: 14px;
     `;
         title.textContent = "EmeryBC Loaded";
         const body = document.createElement("div");
         body.style.cssText = `
-        background: #7c3fbf;
-        color: white;
-        padding: 8px 12px;
-        line-height: 1.6;
+        background: #7c3fbf; color: white;
+        padding: 8px 12px; line-height: 1.6;
         border-radius: 0 0 4px 4px;
     `;
         body.innerHTML = `
@@ -463,47 +447,6 @@
         document.body.appendChild(wrap);
         setTimeout(() => wrap.remove(), 10000);
     }
-    // ─── In-game hooks ────────────────────────────────────────────────────────────
-    modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
-        next(args);
-        try {
-            drawActionButtons();
-        }
-        catch ( /* silent */_a) { /* silent */ }
-        try {
-            drawLoadIndicator();
-        }
-        catch ( /* silent */_b) { /* silent */ }
-    });
-    // Show notice once when first entering a room
-    modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
-        const result = next(args);
-        try {
-            showLoadNotice();
-        }
-        catch ( /* silent */_a) { /* silent */ }
-        return result;
-    });
-    modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
-        try {
-            if (handleActionButtonClick())
-                return;
-        }
-        catch ( /* silent */_a) { /* silent */ }
-        return next(args);
-    });
-    // Intercept slash commands before BC processes them
-    modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
-        try {
-            const input = document.getElementById("InputChat");
-            if (input && handleOutfitCommand(input.value)) {
-                input.value = "";
-                return;
-            }
-        }
-        catch ( /* silent */_a) { /* silent */ }
-        return next(args);
-    });
     let activeTab = "actions";
     const TAB_BTN_Y = 65;
     const TAB_BTN_H = 50;
@@ -512,7 +455,7 @@
         DrawButton(290, TAB_BTN_Y, 220, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "#4a2a7a" : "#2a1a4a");
     }
     function settingsRun() {
-        DrawRect(0, 0, 1000, 65, "#0f0720"); // tab bar background
+        DrawRect(0, 0, 1000, 65, "#0f0720");
         drawTabs();
         if (activeTab === "actions")
             settingsRun$1();
@@ -520,7 +463,6 @@
             outfitSettingsRun();
     }
     function settingsClick() {
-        // Tab switching
         if (MouseY >= TAB_BTN_Y && MouseY <= TAB_BTN_Y + TAB_BTN_H) {
             if (MouseX >= 60 && MouseX <= 280 && activeTab !== "actions") {
                 outfitSettingsExit();
@@ -545,14 +487,63 @@
             outfitSettingsExit();
         activeTab = "actions";
     }
-    PreferenceRegisterExtensionSetting({
-        Identifier: MOD_NAME,
-        ButtonText: "EmeryBC",
-        Image: "",
-        run: settingsRun,
-        click: settingsClick,
-        exit: settingsExit,
-    });
-    console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
+    // ─── Init — wait for bcModSDK then boot ──────────────────────────────────────
+    function init() {
+        const modAPI = bcModSDK.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
+        modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
+            next(args);
+            try {
+                drawActionButtons();
+            }
+            catch ( /* silent */_a) { /* silent */ }
+            try {
+                drawLoadIndicator();
+            }
+            catch ( /* silent */_b) { /* silent */ }
+        });
+        modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
+            const result = next(args);
+            try {
+                showLoadNotice();
+            }
+            catch ( /* silent */_a) { /* silent */ }
+            return result;
+        });
+        modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
+            try {
+                if (handleActionButtonClick())
+                    return;
+            }
+            catch ( /* silent */_a) { /* silent */ }
+            return next(args);
+        });
+        modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
+            try {
+                const input = document.getElementById("InputChat");
+                if (input && handleOutfitCommand(input.value)) {
+                    input.value = "";
+                    return;
+                }
+            }
+            catch ( /* silent */_a) { /* silent */ }
+            return next(args);
+        });
+        PreferenceRegisterExtensionSetting({
+            Identifier: MOD_NAME,
+            ButtonText: "EmeryBC",
+            Image: "",
+            run: settingsRun,
+            click: settingsClick,
+            exit: settingsExit,
+        });
+        console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
+    }
+    // Poll until bcModSDK is ready (BC loads its scripts asynchronously)
+    const readyInterval = setInterval(() => {
+        if (typeof bcModSDK !== "undefined") {
+            clearInterval(readyInterval);
+            init();
+        }
+    }, 100);
 
 })();
