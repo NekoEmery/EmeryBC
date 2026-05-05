@@ -5,7 +5,8 @@ export default {
     input: "src/main.ts",
     output: {
         file: "dist/bundle.js",
-        format: "es",
+        format: "iife",
+        name: "EmeryBC",
     },
     plugins: [
         resolve({ browser: true }),
