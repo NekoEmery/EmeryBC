@@ -907,7 +907,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.20";
+    const MOD_VERSION = "0.1.21";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -924,6 +924,12 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.21",
+            changes: [
+                "Stripped version line from EBC badge — now just a small subtle EBC chip.",
+            ],
+        },
         {
             version: "0.1.20",
             changes: [
@@ -1180,7 +1186,6 @@
         return !!getSharedPresence(character);
     }
     function drawPresenceMarker(args) {
-        var _a;
         if (CurrentScreen !== "ChatRoom")
             return;
         const character = args[0];
@@ -1189,9 +1194,9 @@
         const zoom = typeof args[3] === "number" ? args[3] : 1;
         if (!character || left == null || top == null || !hasEmeryBC(character))
             return;
-        const presence = getSharedPresence(character);
-        const width = Math.max(36, 42 * zoom);
-        const height = Math.max(15, 18 * zoom);
+        getSharedPresence(character);
+        const width = Math.max(30, 34 * zoom);
+        const height = Math.max(12, 14 * zoom);
         const x = left + 258 * zoom;
         const y = top + 26 * zoom;
         const badgeLeft = x - width / 2;
@@ -1199,8 +1204,7 @@
         DrawRect(badgeLeft + 1, badgeTop + 1, width, height, "rgba(0, 0, 0, 0.28)");
         DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
         DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
-        DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + height * 0.35, width - 8, UI.accent);
-        DrawTextFit(`v${(_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : MOD_VERSION}`, badgeLeft + width / 2, badgeTop + height * 0.75, width - 8, UI.textMuted);
+        DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 6, UI.accent);
     }
     function showRoomLoadNotice() {
         if (noticeShown)
