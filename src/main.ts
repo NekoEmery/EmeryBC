@@ -241,13 +241,26 @@ function registerSettings(): void {
     }
 }
 
+function tryHookFunction(
+    modAPI: ModSDKModAPI,
+    funcName: string,
+    priority: number,
+    hook: (args: unknown[], next: (args: unknown[]) => unknown) => unknown
+): void {
+    try {
+        modAPI.hookFunction(funcName, priority, hook);
+    } catch (error) {
+        console.warn(`[${MOD_NAME}] Optional hook "${funcName}" unavailable:`, error);
+    }
+}
+
 function init(): void {
     const modAPI = bcModSDK.registerMod(
         { name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION },
         { allowReplace: true }
     );
 
-    modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
+    tryHookFunction(modAPI, "ChatRoomMenuDraw", 3, (args, next) => {
         next(args);
         try {
             drawActionButtons();
@@ -256,7 +269,7 @@ function init(): void {
         }
     });
 
-    modAPI.hookFunction("ChatRoomDrawCharacter", 3, (args, next) => {
+    tryHookFunction(modAPI, "ChatRoomDrawCharacter", 3, (args, next) => {
         const result = next(args);
         try {
             drawPresenceMarker(args);

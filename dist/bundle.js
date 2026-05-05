@@ -946,9 +946,17 @@
             console.error("[EmeryBC] Extension registration failed:", error);
         }
     }
+    function tryHookFunction(modAPI, funcName, priority, hook) {
+        try {
+            modAPI.hookFunction(funcName, priority, hook);
+        }
+        catch (error) {
+            console.warn(`[${MOD_NAME}] Optional hook "${funcName}" unavailable:`, error);
+        }
+    }
     function init() {
         const modAPI = bcModSDK.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
-        modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
+        tryHookFunction(modAPI, "ChatRoomMenuDraw", 3, (args, next) => {
             next(args);
             try {
                 drawActionButtons();
@@ -957,7 +965,7 @@
                 // Ignore draw failures so the room UI still renders.
             }
         });
-        modAPI.hookFunction("ChatRoomDrawCharacter", 3, (args, next) => {
+        tryHookFunction(modAPI, "ChatRoomDrawCharacter", 3, (args, next) => {
             const result = next(args);
             try {
                 drawPresenceMarker(args);
