@@ -3,14 +3,13 @@
 
     // Action buttons drawn below BCAR's upperleft buttons (EAR/TAIL/WINGS end at y=270)
     const DEFAULT_BUTTONS = [
-        { label: "NOD", emote: "*nods their head*", enabled: true },
-        { label: "SHAKE", emote: "*shakes their head*", enabled: true },
-        { label: "WAVE", emote: "*waves*", enabled: true },
-        { label: "BOW", emote: "*bows their head politely*", enabled: true },
-        { label: "", emote: "", enabled: false },
-        { label: "", emote: "", enabled: false },
+        { label: "NOD", emote: "nods their head", color: "#c2185b", enabled: true },
+        { label: "SHAKE", emote: "shakes their head", color: "#c2185b", enabled: true },
+        { label: "WAVE", emote: "waves", color: "#c2185b", enabled: true },
+        { label: "BOW", emote: "bows their head politely", color: "#c2185b", enabled: true },
+        { label: "", emote: "", color: "#c2185b", enabled: false },
+        { label: "", emote: "", color: "#c2185b", enabled: false },
     ];
-    // BCAR upperleft buttons end at y=270; we start there
     const BTN_X = 0;
     const BTN_START_Y = 270;
     const BTN_SIZE = 45;
@@ -23,18 +22,18 @@
         return DEFAULT_BUTTONS;
     }
     function saveButtons(buttons) {
-        if (!Player.ExtensionSettings.EmeryBC) {
+        if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
-        }
         Player.ExtensionSettings.EmeryBC.actionButtons = buttons;
         ServerSend("AccountUpdate", { ExtensionSettings: Player.ExtensionSettings });
     }
     function sendEmote(text) {
         if (!text.trim())
             return;
-        ServerSend("ChatRoomChat", { Content: text, Type: "Emote" });
+        // Sends as /me — BC wraps it as "* Name text *"
+        ServerSend("ChatRoomChat", { Content: text.trim(), Type: "Emote" });
     }
-    // --- Drawing ---
+    // ─── Drawing ──────────────────────────────────────────────────────────────────
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
@@ -44,10 +43,10 @@
             if (!(btn === null || btn === void 0 ? void 0 : btn.enabled) || !btn.label)
                 continue;
             const y = BTN_START_Y + i * BTN_SIZE;
-            DrawButton(BTN_X, y, BTN_SIZE, BTN_SIZE, btn.label, "#2a1a4a", "", btn.emote);
+            DrawButton(BTN_X, y, BTN_SIZE, BTN_SIZE, btn.label, btn.color || "#c2185b", "", btn.emote);
         }
     }
-    // --- Click handling ---
+    // ─── Click handling ───────────────────────────────────────────────────────────
     function handleActionButtonClick() {
         if (CurrentScreen !== "ChatRoom")
             return false;
@@ -65,72 +64,90 @@
         }
         return false;
     }
-    // --- Settings screen ---
+    // ─── Settings screen ─────────────────────────────────────────────────────────
     let settingsButtons = [];
+    const INPUT_PREFIX = "EmeryBtn";
+    function inputId(slot, field) {
+        return `${INPUT_PREFIX}_${field}_${slot}`;
+    }
     function settingsRun$1() {
         settingsButtons = getButtons().map(b => (Object.assign({}, b)));
         DrawRect(0, 60, 1000, 940, "#1a0a2e");
         DrawText("Action Buttons", 500, 105, "White", "Black");
-        DrawText("Label", 200, 160, "#aaaaaa");
-        DrawText("Emote / Action text", 620, 160, "#aaaaaa");
-        DrawText("On", 90, 160, "#aaaaaa");
+        DrawText("On", 75, 160, "#aaaaaa");
+        DrawText("Label", 185, 160, "#aaaaaa");
+        DrawText("Color", 305, 160, "#aaaaaa");
+        DrawText("Action text  (sent as /me ...)", 630, 160, "#aaaaaa");
         for (let i = 0; i < MAX_SLOTS; i++) {
             const btn = settingsButtons[i];
             const y = 190 + i * 100;
+            DrawRect(55, y, 890, 90, "#221440");
+            DrawEmptyRect(55, y, 890, 90, "#3a2a5a");
             // Enabled toggle
-            DrawButton(60, y, 45, 45, btn.enabled ? "✓" : "", btn.enabled ? "#4a2a6a" : "#2a1a3a");
+            DrawButton(60, y + 22, 45, 45, btn.enabled ? "✓" : "", btn.enabled ? "#7b1fa2" : "#2a1a3a");
             // Label input
-            const labelEl = document.getElementById(`EmeryBtn_Label_${i}`);
-            if (!labelEl) {
-                ElementCreateInput(`EmeryBtn_Label_${i}`, "text", btn.label, "6");
-            }
-            ElementPosition(`EmeryBtn_Label_${i}`, 200, y + 22, 160, 45);
+            if (!document.getElementById(inputId(i, "label")))
+                ElementCreateInput(inputId(i, "label"), "text", btn.label, "6");
+            ElementPosition(inputId(i, "label"), 185, y + 44, 160, 42);
+            // Color input
+            if (!document.getElementById(inputId(i, "color")))
+                ElementCreateInput(inputId(i, "color"), "text", btn.color || "#c2185b", "7");
+            ElementPosition(inputId(i, "color"), 340, y + 44, 140, 42);
+            // Color preview swatch
+            DrawRect(425, y + 15, 42, 60, btn.color || "#c2185b");
+            DrawEmptyRect(425, y + 15, 42, 60, "#ffffff", 1);
             // Emote input
-            const emoteEl = document.getElementById(`EmeryBtn_Emote_${i}`);
-            if (!emoteEl) {
-                ElementCreateInput(`EmeryBtn_Emote_${i}`, "text", btn.emote, "120");
-            }
-            ElementPosition(`EmeryBtn_Emote_${i}`, 620, y + 22, 600, 45);
+            if (!document.getElementById(inputId(i, "emote")))
+                ElementCreateInput(inputId(i, "emote"), "text", btn.emote, "120");
+            ElementPosition(inputId(i, "emote"), 680, y + 44, 560, 42);
         }
-        DrawButton(200, 840, 250, 64, "Save", "#3a6a3a");
-        DrawButton(550, 840, 250, 64, "Reset defaults", "#6a3a1a");
+        DrawButton(200, 810, 250, 60, "Save", "#2a5a2a");
+        DrawButton(550, 810, 280, 60, "Reset defaults", "#5a3a1a");
+        DrawText("/me action text — e.g. \"waves goodbye\" appears as  * Name waves goodbye *", 500, 895, "#666688");
     }
     function settingsClick$1() {
-        // Enabled toggles
+        var _a;
         for (let i = 0; i < MAX_SLOTS; i++) {
             const y = 190 + i * 100;
-            if (MouseX >= 60 && MouseX <= 105 && MouseY >= y && MouseY <= y + 45) {
+            if (MouseX >= 60 && MouseX <= 105 && MouseY >= y + 22 && MouseY <= y + 67) {
                 settingsButtons[i].enabled = !settingsButtons[i].enabled;
+                // Refresh color preview from input when toggling
+                const col = (_a = document.getElementById(inputId(i, "color"))) === null || _a === void 0 ? void 0 : _a.value;
+                if (col)
+                    settingsButtons[i].color = col;
                 return;
             }
         }
-        // Save
-        if (MouseX >= 200 && MouseX <= 450 && MouseY >= 840 && MouseY <= 904) {
+        if (MouseX >= 200 && MouseX <= 450 && MouseY >= 810 && MouseY <= 870) {
             for (let i = 0; i < MAX_SLOTS; i++) {
-                settingsButtons[i].label = ElementValue(`EmeryBtn_Label_${i}`).trim().slice(0, 6);
-                settingsButtons[i].emote = ElementValue(`EmeryBtn_Emote_${i}`).trim();
+                settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
+                settingsButtons[i].emote = ElementValue(inputId(i, "emote")).trim();
+                settingsButtons[i].color = ElementValue(inputId(i, "color")).trim() || "#c2185b";
             }
             saveButtons(settingsButtons);
             return;
         }
-        // Reset
-        if (MouseX >= 550 && MouseX <= 800 && MouseY >= 840 && MouseY <= 904) {
+        if (MouseX >= 550 && MouseX <= 830 && MouseY >= 810 && MouseY <= 870) {
             settingsButtons = DEFAULT_BUTTONS.map(b => (Object.assign({}, b)));
             for (let i = 0; i < MAX_SLOTS; i++) {
-                const el = document.getElementById(`EmeryBtn_Label_${i}`);
-                if (el)
-                    el.value = settingsButtons[i].label;
-                const el2 = document.getElementById(`EmeryBtn_Emote_${i}`);
-                if (el2)
-                    el2.value = settingsButtons[i].emote;
+                const l = document.getElementById(inputId(i, "label"));
+                const e = document.getElementById(inputId(i, "emote"));
+                const c = document.getElementById(inputId(i, "color"));
+                if (l)
+                    l.value = settingsButtons[i].label;
+                if (e)
+                    e.value = settingsButtons[i].emote;
+                if (c)
+                    c.value = settingsButtons[i].color;
             }
             saveButtons(settingsButtons);
         }
     }
     function settingsExit$1() {
         for (let i = 0; i < MAX_SLOTS; i++) {
-            ElementRemove(`EmeryBtn_Label_${i}`);
-            ElementRemove(`EmeryBtn_Emote_${i}`);
+            ElementRemove(inputId(i, "label"));
+            ElementRemove(inputId(i, "emote"));
+            ElementRemove(inputId(i, "color"));
         }
     }
 
@@ -403,17 +420,13 @@
 
     const MOD_NAME = "EmeryBC";
     const MOD_VERSION = "0.1.0";
-    // ─── Load indicator ───────────────────────────────────────────────────────────
-    function drawLoadIndicator() {
-        DrawRect(0, 92, 45, 38, "#2a0a4a");
-        DrawEmptyRect(0, 92, 45, 38, "#7c3fbf", 1);
-        DrawText("NA", 22, 111, "#c084fc");
-    }
+    // ─── Load notice ──────────────────────────────────────────────────────────────
     let noticeShown = false;
     function showLoadNotice() {
         if (noticeShown)
             return;
         noticeShown = true;
+        // Popup in top-right corner
         const wrap = document.createElement("div");
         wrap.style.cssText = `
         position: fixed; top: 10px; right: 10px; width: 260px;
@@ -436,7 +449,7 @@
         border-radius: 0 0 4px 4px;
     `;
         body.innerHTML = `
-        Current Version: ${MOD_VERSION}<br>
+        Version: ${MOD_VERSION}<br>
         ✓ Action Buttons<br>
         ✓ Outfit Commands<br>
         <span style="font-size:11px;opacity:0.7;">(click to dismiss)</span>
@@ -446,6 +459,20 @@
         wrap.addEventListener("click", () => wrap.remove());
         document.body.appendChild(wrap);
         setTimeout(() => wrap.remove(), 10000);
+        // Message in chat log
+        const log = document.getElementById("TextAreaChatLog");
+        if (log) {
+            const msg = document.createElement("div");
+            msg.style.cssText = `
+            background: #2a0a4a; color: #c084fc;
+            border-left: 3px solid #7c3fbf;
+            padding: 4px 8px; margin: 2px 0;
+            font-style: italic; font-size: 12px;
+        `;
+            msg.textContent = `✓ EmeryBC v${MOD_VERSION} loaded — configure in Preferences > Extensions`;
+            log.appendChild(msg);
+            log.scrollTop = log.scrollHeight;
+        }
     }
     let activeTab = "actions";
     const TAB_BTN_Y = 65;
@@ -487,7 +514,19 @@
             outfitSettingsExit();
         activeTab = "actions";
     }
-    // ─── Init — wait for bcModSDK then boot ──────────────────────────────────────
+    // ─── Init ─────────────────────────────────────────────────────────────────────
+    function registerSettings() {
+        if (typeof PreferenceRegisterExtensionSetting !== "function")
+            return;
+        PreferenceRegisterExtensionSetting({
+            Identifier: MOD_NAME,
+            ButtonText: "EmeryBC",
+            Image: "",
+            run: settingsRun,
+            click: settingsClick,
+            exit: settingsExit,
+        });
+    }
     function init() {
         const modAPI = bcModSDK.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
         modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
@@ -496,10 +535,6 @@
                 drawActionButtons();
             }
             catch ( /* silent */_a) { /* silent */ }
-            try {
-                drawLoadIndicator();
-            }
-            catch ( /* silent */_b) { /* silent */ }
         });
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             const result = next(args);
@@ -509,11 +544,6 @@
             catch ( /* silent */_a) { /* silent */ }
             return result;
         });
-        // Also show immediately if already in a room when the addon loads
-        try {
-            showLoadNotice();
-        }
-        catch ( /* silent */_a) { /* silent */ }
         modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
             try {
                 if (handleActionButtonClick())
@@ -533,17 +563,21 @@
             catch ( /* silent */_a) { /* silent */ }
             return next(args);
         });
-        PreferenceRegisterExtensionSetting({
-            Identifier: MOD_NAME,
-            ButtonText: "EmeryBC",
-            Image: "",
-            run: settingsRun,
-            click: settingsClick,
-            exit: settingsExit,
+        // Register extension settings — retry on PreferenceLoad in case BC isn't ready yet
+        registerSettings();
+        modAPI.hookFunction("PreferenceLoad", 5, (args, next) => {
+            next(args);
+            try {
+                registerSettings();
+            }
+            catch ( /* silent */_a) { /* silent */ }
         });
+        try {
+            showLoadNotice();
+        }
+        catch ( /* silent */_a) { /* silent */ }
         console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
     }
-    // Poll until bcModSDK is ready (BC loads its scripts asynchronously)
     const readyInterval = setInterval(() => {
         if (typeof bcModSDK !== "undefined") {
             clearInterval(readyInterval);

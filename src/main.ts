@@ -15,19 +15,14 @@ import {
 const MOD_NAME    = "EmeryBC";
 const MOD_VERSION = "0.1.0";
 
-// ─── Load indicator ───────────────────────────────────────────────────────────
-
-function drawLoadIndicator(): void {
-    DrawRect(0, 92, 45, 38, "#2a0a4a");
-    DrawEmptyRect(0, 92, 45, 38, "#7c3fbf", 1);
-    DrawText("NA", 22, 111, "#c084fc");
-}
+// ─── Load notice ──────────────────────────────────────────────────────────────
 
 let noticeShown = false;
 function showLoadNotice(): void {
     if (noticeShown) return;
     noticeShown = true;
 
+    // Popup in top-right corner
     const wrap = document.createElement("div");
     wrap.style.cssText = `
         position: fixed; top: 10px; right: 10px; width: 260px;
@@ -36,7 +31,6 @@ function showLoadNotice(): void {
         box-shadow: 0 3px 12px rgba(0,0,0,0.6);
         z-index: 99999; cursor: pointer; user-select: none;
     `;
-
     const title = document.createElement("div");
     title.style.cssText = `
         background: #4a0080; color: white; font-weight: bold;
@@ -52,17 +46,31 @@ function showLoadNotice(): void {
         border-radius: 0 0 4px 4px;
     `;
     body.innerHTML = `
-        Current Version: ${MOD_VERSION}<br>
+        Version: ${MOD_VERSION}<br>
         ✓ Action Buttons<br>
         ✓ Outfit Commands<br>
         <span style="font-size:11px;opacity:0.7;">(click to dismiss)</span>
     `;
-
     wrap.appendChild(title);
     wrap.appendChild(body);
     wrap.addEventListener("click", () => wrap.remove());
     document.body.appendChild(wrap);
     setTimeout(() => wrap.remove(), 10000);
+
+    // Message in chat log
+    const log = document.getElementById("TextAreaChatLog");
+    if (log) {
+        const msg = document.createElement("div");
+        msg.style.cssText = `
+            background: #2a0a4a; color: #c084fc;
+            border-left: 3px solid #7c3fbf;
+            padding: 4px 8px; margin: 2px 0;
+            font-style: italic; font-size: 12px;
+        `;
+        msg.textContent = `✓ EmeryBC v${MOD_VERSION} loaded — configure in Preferences > Extensions`;
+        log.appendChild(msg);
+        log.scrollTop = log.scrollHeight;
+    }
 }
 
 // ─── Settings screen ─────────────────────────────────────────────────────────
@@ -110,7 +118,19 @@ function settingsExit(): void {
     activeTab = "actions";
 }
 
-// ─── Init — wait for bcModSDK then boot ──────────────────────────────────────
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+function registerSettings(): void {
+    if (typeof PreferenceRegisterExtensionSetting !== "function") return;
+    PreferenceRegisterExtensionSetting({
+        Identifier: MOD_NAME,
+        ButtonText:  "EmeryBC",
+        Image:       "",
+        run:   settingsRun,
+        click: settingsClick,
+        exit:  settingsExit,
+    });
+}
 
 function init(): void {
     const modAPI = bcModSDK.registerMod(
@@ -120,8 +140,7 @@ function init(): void {
 
     modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
         next(args);
-        try { drawActionButtons();  } catch { /* silent */ }
-        try { drawLoadIndicator(); } catch { /* silent */ }
+        try { drawActionButtons(); } catch { /* silent */ }
     });
 
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
@@ -129,9 +148,6 @@ function init(): void {
         try { showLoadNotice(); } catch { /* silent */ }
         return result;
     });
-
-    // Also show immediately if already in a room when the addon loads
-    try { showLoadNotice(); } catch { /* silent */ }
 
     modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
         try { if (handleActionButtonClick()) return; } catch { /* silent */ }
@@ -149,19 +165,18 @@ function init(): void {
         return next(args);
     });
 
-    PreferenceRegisterExtensionSetting({
-        Identifier: MOD_NAME,
-        ButtonText:  "EmeryBC",
-        Image:       "",
-        run:   settingsRun,
-        click: settingsClick,
-        exit:  settingsExit,
+    // Register extension settings — retry on PreferenceLoad in case BC isn't ready yet
+    registerSettings();
+    modAPI.hookFunction("PreferenceLoad", 5, (args, next) => {
+        next(args);
+        try { registerSettings(); } catch { /* silent */ }
     });
+
+    try { showLoadNotice(); } catch { /* silent */ }
 
     console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
 }
 
-// Poll until bcModSDK is ready (BC loads its scripts asynchronously)
 const readyInterval = setInterval(() => {
     if (typeof bcModSDK !== "undefined") {
         clearInterval(readyInterval);
