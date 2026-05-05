@@ -50,6 +50,7 @@ let editingOutfitId: string | null = null;
 const MAX_SERIALIZE_DEPTH = 12;
 let outfitApplyPending = false;
 let refreshScheduled = false;
+let cachedOutfits: ConfiguredOutfit[] | null = null;
 
 function placeInput(id: string, left: number, y: number, width: number, height: number): void {
     ElementPosition(id, left + width / 2, y + height / 2, width, height);
@@ -62,13 +63,21 @@ function getAddon(): Record<string, unknown> {
     return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
 }
 
-export function getOutfits(): ConfiguredOutfit[] {
+function loadOutfitsFromSettings(): ConfiguredOutfit[] {
     const list = getAddon().outfits;
-    return Array.isArray(list) ? (list as ConfiguredOutfit[]).map(sanitizeOutfit) : [];
+    const outfits = Array.isArray(list) ? (list as ConfiguredOutfit[]).map(sanitizeOutfit) : [];
+    cachedOutfits = outfits;
+    return outfits;
+}
+
+export function getOutfits(): ConfiguredOutfit[] {
+    return cachedOutfits ?? loadOutfitsFromSettings();
 }
 
 function saveOutfits(list: ConfiguredOutfit[]): void {
-    getAddon().outfits = list.map(sanitizeOutfit);
+    const sanitized = list.map(sanitizeOutfit);
+    cachedOutfits = sanitized;
+    getAddon().outfits = sanitized;
     ServerPlayerExtensionSettingsSync("EmeryBC");
 }
 
@@ -180,11 +189,10 @@ function cloneAppearanceItem(item: Item): Item | null {
 }
 
 function buildAppearanceItem(saved: SerializedItem): Item | null {
-    const sanitizedItem = sanitizeItem(saved);
-    const asset = AssetGet(Player.AssetFamily, sanitizedItem.Group, sanitizedItem.Name);
+    const asset = AssetGet(Player.AssetFamily, saved.Group, saved.Name);
     if (!asset) return null;
 
-    const property = sanitizeProperty(sanitizedItem.Property);
+    const property = saved.Property ? { ...saved.Property } : undefined;
     if (property) {
         delete property["LockedBy"];
         delete property["LockMemberNumber"];
@@ -195,10 +203,10 @@ function buildAppearanceItem(saved: SerializedItem): Item | null {
 
     return {
         Asset: asset,
-        Color: sanitizedItem.Color,
-        Difficulty: sanitizedItem.Difficulty,
+        Color: saved.Color,
+        Difficulty: saved.Difficulty,
         Property: property,
-        Craft: sanitizeCraft(sanitizedItem.Craft),
+        Craft: saved.Craft ? { ...saved.Craft } : undefined,
     };
 }
 
@@ -350,6 +358,7 @@ function beginEditing(outfit: ConfiguredOutfit): void {
 }
 
 export function outfitSettingsLoad(): void {
+    loadOutfitsFromSettings();
     settingsPage = 0;
     editingOutfitId = null;
     addIncludeRestraints = false;

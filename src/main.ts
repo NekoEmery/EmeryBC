@@ -60,9 +60,23 @@ function drawPresenceMarker(args: unknown[]): void {
 
     if (!character || left == null || top == null || !hasEmeryBC(character)) return;
 
+    const width = Math.max(54, 64 * zoom);
+    const height = Math.max(18, 20 * zoom);
     const x = left + 250 * zoom;
-    const y = top + 34 * zoom;
-    DrawText("EBC", x, y, UI.accent, UI.cardMuted);
+    const y = top + 22 * zoom;
+    const badgeLeft = x - width / 2;
+    const badgeTop = y - height / 2;
+    const iconWidth = Math.max(18, 22 * zoom);
+
+    DrawRect(badgeLeft + 2, badgeTop + 2, width, height, "rgba(0, 0, 0, 0.28)");
+    DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
+    DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
+
+    DrawRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accentSoft);
+    DrawEmptyRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accent, 1);
+
+    DrawTextFit("=:3", badgeLeft + 2 + iconWidth / 2, y + 1, iconWidth - 4, UI.text);
+    DrawTextFit("EBC", badgeLeft + iconWidth + (width - iconWidth) / 2, y + 1, width - iconWidth - 6, UI.accent);
 }
 
 function showLoadNotice(): void {

@@ -292,6 +292,7 @@
     const MAX_SERIALIZE_DEPTH = 12;
     let outfitApplyPending = false;
     let refreshScheduled = false;
+    let cachedOutfits = null;
     function placeInput(id, left, y, width, height) {
         ElementPosition(id, left + width / 2, y + height / 2, width, height);
     }
@@ -301,12 +302,19 @@
         }
         return Player.ExtensionSettings.EmeryBC;
     }
-    function getOutfits() {
+    function loadOutfitsFromSettings() {
         const list = getAddon().outfits;
-        return Array.isArray(list) ? list.map(sanitizeOutfit) : [];
+        const outfits = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
+        cachedOutfits = outfits;
+        return outfits;
+    }
+    function getOutfits() {
+        return cachedOutfits !== null && cachedOutfits !== void 0 ? cachedOutfits : loadOutfitsFromSettings();
     }
     function saveOutfits(list) {
-        getAddon().outfits = list.map(sanitizeOutfit);
+        const sanitized = list.map(sanitizeOutfit);
+        cachedOutfits = sanitized;
+        getAddon().outfits = sanitized;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function uid() {
@@ -407,11 +415,10 @@
         };
     }
     function buildAppearanceItem(saved) {
-        const sanitizedItem = sanitizeItem(saved);
-        const asset = AssetGet(Player.AssetFamily, sanitizedItem.Group, sanitizedItem.Name);
+        const asset = AssetGet(Player.AssetFamily, saved.Group, saved.Name);
         if (!asset)
             return null;
-        const property = sanitizeProperty(sanitizedItem.Property);
+        const property = saved.Property ? Object.assign({}, saved.Property) : undefined;
         if (property) {
             delete property["LockedBy"];
             delete property["LockMemberNumber"];
@@ -421,10 +428,10 @@
         }
         return {
             Asset: asset,
-            Color: sanitizedItem.Color,
-            Difficulty: sanitizedItem.Difficulty,
+            Color: saved.Color,
+            Difficulty: saved.Difficulty,
             Property: property,
-            Craft: sanitizeCraft(sanitizedItem.Craft),
+            Craft: saved.Craft ? Object.assign({}, saved.Craft) : undefined,
         };
     }
     function sendRoomAppearanceUpdate() {
@@ -568,6 +575,7 @@
         setEditorValues(outfit.command, outfit.displayName, outfit.announceText, outfit.includeRestraints);
     }
     function outfitSettingsLoad() {
+        loadOutfitsFromSettings();
         settingsPage = 0;
         editingOutfitId = null;
         addIncludeRestraints = false;
@@ -768,9 +776,20 @@
         const zoom = typeof args[3] === "number" ? args[3] : 1;
         if (!character || left == null || top == null || !hasEmeryBC(character))
             return;
+        const width = Math.max(54, 64 * zoom);
+        const height = Math.max(18, 20 * zoom);
         const x = left + 250 * zoom;
-        const y = top + 34 * zoom;
-        DrawText("EBC", x, y, UI.accent, UI.cardMuted);
+        const y = top + 22 * zoom;
+        const badgeLeft = x - width / 2;
+        const badgeTop = y - height / 2;
+        const iconWidth = Math.max(18, 22 * zoom);
+        DrawRect(badgeLeft + 2, badgeTop + 2, width, height, "rgba(0, 0, 0, 0.28)");
+        DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
+        DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
+        DrawRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accentSoft);
+        DrawEmptyRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accent, 1);
+        DrawTextFit("=:3", badgeLeft + 2 + iconWidth / 2, y + 1, iconWidth - 4, UI.text);
+        DrawTextFit("EBC", badgeLeft + iconWidth + (width - iconWidth) / 2, y + 1, width - iconWidth - 6, UI.accent);
     }
     function showLoadNotice() {
         if (noticeShown)
