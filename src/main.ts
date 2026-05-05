@@ -84,14 +84,16 @@ const TAB_BTN_Y = 65;
 const TAB_BTN_H = 50;
 
 function drawTabs(): void {
-    DrawButton( 60, TAB_BTN_Y, 220, TAB_BTN_H, "Action Buttons",
-        activeTab === "actions" ? "#4a2a7a" : "#2a1a4a");
-    DrawButton(290, TAB_BTN_Y, 220, TAB_BTN_H, "Outfits",
-        activeTab === "outfits" ? "#4a2a7a" : "#2a1a4a");
+    DrawButton( 10, TAB_BTN_Y, 310, TAB_BTN_H, "Action Buttons",
+        activeTab === "actions" ? "#5a3a8a" : "#2a1a4a");
+    DrawButton(330, TAB_BTN_Y, 310, TAB_BTN_H, "Outfits",
+        activeTab === "outfits" ? "#5a3a8a" : "#2a1a4a");
 }
 
+const PANEL_W = 650;
+
 function settingsRun(): void {
-    DrawRect(0, 0, 1000, 65, "#0f0720");
+    DrawRect(0, 0, PANEL_W, 65, "#0f0720");
     drawTabs();
     if (activeTab === "actions") actionSettingsRun();
     else                         outfitSettingsRun();
@@ -99,14 +101,16 @@ function settingsRun(): void {
 
 function settingsClick(): void {
     if (MouseY >= TAB_BTN_Y && MouseY <= TAB_BTN_Y + TAB_BTN_H) {
-        if (MouseX >= 60  && MouseX <= 280  && activeTab !== "actions") {
+        if (MouseX >= 10  && MouseX <= 320  && activeTab !== "actions") {
             outfitSettingsExit();
             activeTab = "actions";
+            actionSettingsLoad();
             return;
         }
-        if (MouseX >= 290 && MouseX <= 510  && activeTab !== "outfits") {
+        if (MouseX >= 330 && MouseX <= 640  && activeTab !== "outfits") {
             actionSettingsExit();
             activeTab = "outfits";
+            outfitSettingsLoad();
             return;
         }
     }

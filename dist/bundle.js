@@ -15,7 +15,7 @@
     const BTN_SIZE = 45;
     const MAX_SLOTS = 6;
     // Left-panel width — BC shows character preview on the right half
-    const PANEL_W$1 = 650;
+    const PANEL_W$2 = 650;
     function getButtons() {
         var _a;
         const stored = (_a = Player.ExtensionSettings.EmeryBC) === null || _a === void 0 ? void 0 : _a.actionButtons;
@@ -85,21 +85,21 @@
     function settingsRun$1() {
         var _a, _b, _c;
         // Dark panel on left only
-        DrawRect(0, 60, PANEL_W$1, 940, "#130920");
-        DrawText("Action Buttons", PANEL_W$1 / 2, 95, "White");
+        DrawRect(0, 60, PANEL_W$2, 940, "#130920");
+        DrawText("Action Buttons", PANEL_W$2 / 2, 95, "White");
         // Column headers
-        DrawRect(0, 108, PANEL_W$1, 1, "#3a2a5a");
+        DrawRect(0, 108, PANEL_W$2, 1, "#3a2a5a");
         DrawText("On", 55, 128, "#9966cc");
         DrawText("Label", 140, 128, "#9966cc");
         DrawText("Color", 270, 128, "#9966cc");
         DrawText("/me action text", 460, 128, "#9966cc");
-        DrawRect(0, 138, PANEL_W$1, 1, "#3a2a5a");
+        DrawRect(0, 138, PANEL_W$2, 1, "#3a2a5a");
         ensureInputs$1();
         for (let i = 0; i < MAX_SLOTS; i++) {
             const btn = (_a = settingsButtons[i]) !== null && _a !== void 0 ? _a : DEFAULT_BUTTONS[i];
             const y = SLOTS_Y + i * SLOT_H;
             // Row background — alternate shade
-            DrawRect(0, y, PANEL_W$1, SLOT_H - 4, i % 2 === 0 ? "#1a0d30" : "#160a28");
+            DrawRect(0, y, PANEL_W$2, SLOT_H - 4, i % 2 === 0 ? "#1a0d30" : "#160a28");
             // Toggle
             DrawButton(20, y + 30, 42, 42, btn.enabled ? "✓" : "", btn.enabled ? "#7b1fa2" : "#33204a");
             // Label input
@@ -115,8 +115,8 @@
         const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
         DrawButton(30, btnY, 200, 52, "Save", "#1a4a1a");
         DrawButton(250, btnY, 240, 52, "Reset defaults", "#4a2a0a");
-        DrawRect(0, btnY + 66, PANEL_W$1, 1, "#3a2a5a");
-        DrawText("Action text is sent as /me — e.g. \"waves\" → * Name waves *", PANEL_W$1 / 2, btnY + 82, "#554466");
+        DrawRect(0, btnY + 66, PANEL_W$2, 1, "#3a2a5a");
+        DrawText("Action text is sent as /me — e.g. \"waves\" → * Name waves *", PANEL_W$2 / 2, btnY + 82, "#554466");
     }
     function settingsClick$1() {
         for (let i = 0; i < MAX_SLOTS; i++) {
@@ -265,7 +265,7 @@
         log.scrollTop = log.scrollHeight;
     }
     // ─── Settings screen ─────────────────────────────────────────────────────────
-    const PANEL_W = 650;
+    const PANEL_W$1 = 650;
     const OUTFITS_PER_PAGE = 5;
     const ROW_H = 62;
     const LIST_Y = 180;
@@ -285,12 +285,12 @@
         addIncludeRestraints = false;
     }
     function outfitSettingsRun() {
-        DrawRect(0, 60, PANEL_W, 940, "#130920");
-        DrawText("Outfit Commands", PANEL_W / 2, 95, "White");
+        DrawRect(0, 60, PANEL_W$1, 940, "#130920");
+        DrawText("Outfit Commands", PANEL_W$1 / 2, 95, "White");
         // Hint
-        DrawRect(0, 108, PANEL_W, 1, "#3a2a5a");
-        DrawText("Dress up → Save Current to capture.  Type /command in chat to load.", PANEL_W / 2, 125, "#9966cc");
-        DrawRect(0, 138, PANEL_W, 1, "#3a2a5a");
+        DrawRect(0, 108, PANEL_W$1, 1, "#3a2a5a");
+        DrawText("Dress up → Save Current to capture.  Type /command in chat to load.", PANEL_W$1 / 2, 125, "#9966cc");
+        DrawRect(0, 138, PANEL_W$1, 1, "#3a2a5a");
         ensureInputs();
         const outfits = getOutfits();
         const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
@@ -298,16 +298,16 @@
         const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
         // Page nav
         DrawButton(20, 152, 80, 28, "◀ Prev", page > 0 ? "#3a2a5a" : "#1a0d2a", "", "", page === 0);
-        DrawText(`${page + 1} / ${totalPages}`, PANEL_W / 2, 166, "#666688");
+        DrawText(`${page + 1} / ${totalPages}`, PANEL_W$1 / 2, 166, "#666688");
         DrawButton(550, 152, 80, 28, "Next ▶", page < totalPages - 1 ? "#3a2a5a" : "#1a0d2a", "", "", page >= totalPages - 1);
         // Outfit rows
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             const y = LIST_Y + i * ROW_H;
             const shade = i % 2 === 0 ? "#1a0d30" : "#160a28";
-            DrawRect(0, y, PANEL_W, ROW_H - 2, shade);
+            DrawRect(0, y, PANEL_W$1, ROW_H - 2, shade);
             if (!outfit) {
-                DrawText("— empty —", PANEL_W / 2, y + ROW_H / 2 - 1, "#333355");
+                DrawText("— empty —", PANEL_W$1 / 2, y + ROW_H / 2 - 1, "#333355");
                 continue;
             }
             // Command badge
@@ -328,10 +328,10 @@
             // Buttons
             DrawButton(520, y + 8, 58, 22, "Update", "#1a3a1a", "", "Save current appearance");
             DrawButton(520, y + 34, 58, 22, "Delete", "#3a1010");
-            DrawRect(0, y + ROW_H - 2, PANEL_W, 2, "#2a1a4a");
+            DrawRect(0, y + ROW_H - 2, PANEL_W$1, 2, "#2a1a4a");
         }
         // ── Add New ───────────────────────────────────────────────────────────────
-        DrawRect(0, ADD_Y - 2, PANEL_W, 2, "#4a2a7a");
+        DrawRect(0, ADD_Y - 2, PANEL_W$1, 2, "#4a2a7a");
         DrawText("Add New Outfit", 160, ADD_Y + 22, "#c084fc");
         // Row 1: command + name
         DrawText("/", 24, ADD_Y + 60, "#7c5cbf");
@@ -344,7 +344,7 @@
         DrawText("/me", 24, ADD_Y + 155, "#7c5cbf");
         ElementPosition("EmeryOF_Announce", 70, ADD_Y + 155, 480, 36);
         // Save button
-        DrawButton(20, ADD_Y + 205, PANEL_W - 40, 50, "+ Save Current Appearance as New Outfit", "#1a4a1a");
+        DrawButton(20, ADD_Y + 205, PANEL_W$1 - 40, 50, "+ Save Current Appearance as New Outfit", "#1a4a1a");
     }
     function outfitSettingsClick() {
         const outfits = getOutfits();
@@ -383,7 +383,7 @@
             return;
         }
         // Add new
-        if (mouseInRect(20, ADD_Y + 205, PANEL_W - 40, 50)) {
+        if (mouseInRect(20, ADD_Y + 205, PANEL_W$1 - 40, 50)) {
             const cmd = ElementValue("EmeryOF_Cmd").trim().replace(/\s+/g, "").toLowerCase();
             const name = ElementValue("EmeryOF_Name").trim();
             const announce = ElementValue("EmeryOF_Announce").trim();
@@ -483,11 +483,12 @@
     const TAB_BTN_Y = 65;
     const TAB_BTN_H = 50;
     function drawTabs() {
-        DrawButton(60, TAB_BTN_Y, 220, TAB_BTN_H, "Action Buttons", activeTab === "actions" ? "#4a2a7a" : "#2a1a4a");
-        DrawButton(290, TAB_BTN_Y, 220, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "#4a2a7a" : "#2a1a4a");
+        DrawButton(10, TAB_BTN_Y, 310, TAB_BTN_H, "Action Buttons", activeTab === "actions" ? "#5a3a8a" : "#2a1a4a");
+        DrawButton(330, TAB_BTN_Y, 310, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "#5a3a8a" : "#2a1a4a");
     }
+    const PANEL_W = 650;
     function settingsRun() {
-        DrawRect(0, 0, 1000, 65, "#0f0720");
+        DrawRect(0, 0, PANEL_W, 65, "#0f0720");
         drawTabs();
         if (activeTab === "actions")
             settingsRun$1();
@@ -496,14 +497,16 @@
     }
     function settingsClick() {
         if (MouseY >= TAB_BTN_Y && MouseY <= TAB_BTN_Y + TAB_BTN_H) {
-            if (MouseX >= 60 && MouseX <= 280 && activeTab !== "actions") {
+            if (MouseX >= 10 && MouseX <= 320 && activeTab !== "actions") {
                 outfitSettingsExit();
                 activeTab = "actions";
+                settingsLoad();
                 return;
             }
-            if (MouseX >= 290 && MouseX <= 510 && activeTab !== "outfits") {
+            if (MouseX >= 330 && MouseX <= 640 && activeTab !== "outfits") {
                 settingsExit$1();
                 activeTab = "outfits";
+                outfitSettingsLoad();
                 return;
             }
         }
