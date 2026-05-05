@@ -28,66 +28,6 @@ const TAB_BTN_Y = 82;
 const TAB_BTN_H = 28;
 const TAB_BTN_W = 102;
 
-function getAddonSettings(): Record<string, unknown> | null {
-    if (typeof Player === "undefined" || !Player) return null;
-    const extensionSettings = Player.ExtensionSettings;
-    if (!extensionSettings || typeof extensionSettings !== "object") return null;
-
-    const existingAddon = extensionSettings["EmeryBC"];
-    if (existingAddon && typeof existingAddon === "object") {
-        return existingAddon as Record<string, unknown>;
-    }
-
-    const addonSettings: Record<string, unknown> = {};
-    extensionSettings["EmeryBC"] = addonSettings;
-    return addonSettings;
-}
-
-function syncPresenceMarker(): void {
-    const settings = getAddonSettings();
-    if (!settings) return;
-    if (settings["marker"] === MOD_VERSION) return;
-    settings["marker"] = MOD_VERSION;
-    try {
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    } catch {
-        // Ignore sync failures here.
-    }
-}
-
-function hasEmeryBC(character: Character | null | undefined): boolean {
-    const settings = character?.ExtensionSettings?.EmeryBC;
-    return !!settings && typeof settings === "object";
-}
-
-function drawPresenceMarker(args: unknown[]): void {
-    if (CurrentScreen !== "ChatRoom") return;
-    const character = args[0] as Character | undefined;
-    const left = typeof args[1] === "number" ? args[1] : null;
-    const top = typeof args[2] === "number" ? args[2] : null;
-    const zoom = typeof args[3] === "number" ? args[3] : 1;
-
-    if (!character || left == null || top == null || !hasEmeryBC(character)) return;
-
-    const width = Math.max(54, 64 * zoom);
-    const height = Math.max(18, 20 * zoom);
-    const x = left + 250 * zoom;
-    const y = top + 22 * zoom;
-    const badgeLeft = x - width / 2;
-    const badgeTop = y - height / 2;
-    const iconWidth = Math.max(18, 22 * zoom);
-
-    DrawRect(badgeLeft + 2, badgeTop + 2, width, height, "rgba(0, 0, 0, 0.28)");
-    DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
-    DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
-
-    DrawRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accentSoft);
-    DrawEmptyRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accent, 1);
-
-    DrawTextFit("=:3", badgeLeft + 2 + iconWidth / 2, y + 1, iconWidth - 4, UI.text);
-    DrawTextFit("EBC", badgeLeft + iconWidth + (width - iconWidth) / 2, y + 1, width - iconWidth - 6, UI.accent);
-}
-
 function showLoadNotice(): void {
     if (noticeShown) return;
     noticeShown = true;
@@ -241,26 +181,13 @@ function registerSettings(): void {
     }
 }
 
-function tryHookFunction(
-    modAPI: ModSDKModAPI,
-    funcName: string,
-    priority: number,
-    hook: (args: unknown[], next: (args: unknown[]) => unknown) => unknown
-): void {
-    try {
-        modAPI.hookFunction(funcName, priority, hook);
-    } catch (error) {
-        console.warn(`[${MOD_NAME}] Optional hook "${funcName}" unavailable:`, error);
-    }
-}
-
 function init(): void {
     const modAPI = bcModSDK.registerMod(
         { name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION },
         { allowReplace: true }
     );
 
-    tryHookFunction(modAPI, "ChatRoomMenuDraw", 3, (args, next) => {
+    modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
         next(args);
         try {
             drawActionButtons();
@@ -269,23 +196,8 @@ function init(): void {
         }
     });
 
-    tryHookFunction(modAPI, "ChatRoomDrawCharacter", 3, (args, next) => {
-        const result = next(args);
-        try {
-            drawPresenceMarker(args);
-        } catch {
-            // Ignore marker draw failures.
-        }
-        return result;
-    });
-
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);
-        try {
-            syncPresenceMarker();
-        } catch {
-            // Ignore presence sync failures.
-        }
         try {
             showLoadNotice();
         } catch {
