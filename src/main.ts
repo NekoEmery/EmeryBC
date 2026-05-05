@@ -27,6 +27,70 @@ let settingsRegistered = false;
 const TAB_BTN_Y = 82;
 const TAB_BTN_H = 28;
 const TAB_BTN_W = 102;
+const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.1",
+        changes: [
+            "Removed unstable overhead marker hooks so the addon loads safely again.",
+            "Improved outfit command handling and reduced refresh delay during swaps.",
+            "Updated the userscript loader and bundle versioning for cleaner updates.",
+        ],
+    },
+    {
+        version: "0.1.0",
+        changes: [
+            "Added action buttons and outfit command support.",
+            "Added editable outfit name, command, restraint mode, and announce text settings.",
+            "Added refreshed EmeryBC settings styling and startup notice.",
+        ],
+    },
+];
+
+function appendLocalLogLine(text: string, color = UI.accent): void {
+    const log = document.getElementById("TextAreaChatLog");
+    if (!log) return;
+
+    const msg = document.createElement("div");
+    msg.style.cssText = `
+        background: ${UI.cardMuted};
+        color: ${color};
+        border-left: 3px solid ${UI.accent};
+        padding: 4px 8px;
+        margin: 2px 0;
+        font-style: italic;
+        font-size: 12px;
+    `;
+    msg.textContent = text;
+    log.appendChild(msg);
+    log.scrollTop = log.scrollHeight;
+}
+
+function showVersionInfo(): void {
+    appendLocalLogLine(`[EmeryBC] Version ${MOD_VERSION}`, UI.gold);
+    for (const entry of CHANGELOG) {
+        appendLocalLogLine(`[EmeryBC] v${entry.version}`, UI.textMuted);
+        for (const change of entry.changes) {
+            appendLocalLogLine(`- ${change}`, UI.accent);
+        }
+    }
+}
+
+function handleMetaCommand(inputValue: string): boolean {
+    const trimmed = inputValue.trim();
+    if (!trimmed.startsWith("/")) return false;
+
+    const parts = trimmed.slice(1).split(/\s+/);
+    if (parts[0]?.toLowerCase() !== "ebc") return false;
+
+    const subcommand = (parts[1] || "version").toLowerCase();
+    if (["version", "ver", "v", "changelog", "changes"].includes(subcommand)) {
+        showVersionInfo();
+        return true;
+    }
+
+    appendLocalLogLine("[EmeryBC] Usage: /ebc version", UI.gold);
+    return true;
+}
 
 function showLoadNotice(): void {
     if (noticeShown) return;
@@ -89,19 +153,7 @@ function showLoadNotice(): void {
 
     const log = document.getElementById("TextAreaChatLog");
     if (log) {
-        const msg = document.createElement("div");
-        msg.style.cssText = `
-            background: ${UI.cardMuted};
-            color: ${UI.accent};
-            border-left: 3px solid ${UI.accent};
-            padding: 4px 8px;
-            margin: 2px 0;
-            font-style: italic;
-            font-size: 12px;
-        `;
-        msg.textContent = `EmeryBC v${MOD_VERSION} loaded - open Preferences > Extensions to configure it.`;
-        log.appendChild(msg);
-        log.scrollTop = log.scrollHeight;
+        appendLocalLogLine(`EmeryBC v${MOD_VERSION} loaded - open Preferences > Extensions to configure it.`);
     }
 }
 
@@ -219,7 +271,7 @@ function init(): void {
         try {
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = document.getElementById("InputChat") as HTMLInputElement | null;
-                if (input && handleOutfitCommand(input.value)) {
+                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value))) {
                     input.value = "";
                     return;
                 }
@@ -233,7 +285,7 @@ function init(): void {
     modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
         try {
             const input = document.getElementById("InputChat") as HTMLInputElement | null;
-            if (input && handleOutfitCommand(input.value)) {
+            if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value))) {
                 input.value = "";
                 return;
             }
