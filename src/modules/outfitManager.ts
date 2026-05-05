@@ -48,6 +48,7 @@ let settingsPage = 0;
 let addIncludeRestraints = false;
 let editingOutfitId: string | null = null;
 const MAX_SERIALIZE_DEPTH = 12;
+let outfitApplyPending = false;
 
 function placeInput(id: string, left: number, y: number, width: number, height: number): void {
     ElementPosition(id, left + width / 2, y + height / 2, width, height);
@@ -165,6 +166,15 @@ function sanitizeLiveAppearance(): void {
     }
 }
 
+function sendRoomAppearanceUpdate(): void {
+    if (Player.OnlineID == null) return;
+    ServerSend("ChatRoomCharacterUpdate", {
+        ID: Player.OnlineID,
+        ActivePose: Player.ActivePose ?? null,
+        Appearance: ServerAppearanceBundle(Player.Appearance),
+    });
+}
+
 function captureAppearance(includeRestraints: boolean): SerializedItem[] {
     return Player.Appearance
         .filter(item => includeRestraints || !RESTRAINT_GROUPS.has(item.Asset.Group.Name))
@@ -179,6 +189,12 @@ function captureAppearance(includeRestraints: boolean): SerializedItem[] {
 }
 
 function applyOutfit(outfit: ConfiguredOutfit): void {
+    if (outfitApplyPending) {
+        localNotice("An outfit swap is already in progress.", "#ffb7c7");
+        return;
+    }
+    outfitApplyPending = true;
+
     for (const item of [...Player.Appearance]) {
         const group = item.Asset.Group.Name;
         const isLocked = !!item.Property?.LockedBy;
@@ -218,11 +234,18 @@ function applyOutfit(outfit: ConfiguredOutfit): void {
 
     sanitizeLiveAppearance();
     CharacterRefresh(Player, false, false);
-    ChatRoomCharacterUpdate(Player);
+    sendRoomAppearanceUpdate();
 
-    if (outfit.announceText.trim()) {
-        ServerSend("ChatRoomChat", { Content: outfit.announceText.trim(), Type: "Emote" });
-    }
+    // Let the appearance update hit the send queue before we add the optional emote.
+    window.setTimeout(() => {
+        try {
+            if (outfit.announceText.trim()) {
+                ServerSend("ChatRoomChat", { Content: outfit.announceText.trim(), Type: "Emote" });
+            }
+        } finally {
+            outfitApplyPending = false;
+        }
+    }, 80);
 
     localNotice(`Loaded "${outfit.displayName}" (/${outfit.command})`);
 }

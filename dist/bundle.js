@@ -290,6 +290,7 @@
     let addIncludeRestraints = false;
     let editingOutfitId = null;
     const MAX_SERIALIZE_DEPTH = 12;
+    let outfitApplyPending = false;
     function placeInput(id, left, y, width, height) {
         ElementPosition(id, left + width / 2, y + height / 2, width, height);
     }
@@ -392,6 +393,16 @@
             item.Craft = sanitizeCraft(item.Craft);
         }
     }
+    function sendRoomAppearanceUpdate() {
+        var _a;
+        if (Player.OnlineID == null)
+            return;
+        ServerSend("ChatRoomCharacterUpdate", {
+            ID: Player.OnlineID,
+            ActivePose: (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : null,
+            Appearance: ServerAppearanceBundle(Player.Appearance),
+        });
+    }
     function captureAppearance(includeRestraints) {
         return Player.Appearance
             .filter(item => includeRestraints || !RESTRAINT_GROUPS.has(item.Asset.Group.Name))
@@ -406,6 +417,11 @@
     }
     function applyOutfit(outfit) {
         var _a, _b;
+        if (outfitApplyPending) {
+            localNotice("An outfit swap is already in progress.", "#ffb7c7");
+            return;
+        }
+        outfitApplyPending = true;
         for (const item of [...Player.Appearance]) {
             const group = item.Asset.Group.Name;
             const isLocked = !!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy);
@@ -436,10 +452,18 @@
         }
         sanitizeLiveAppearance();
         CharacterRefresh(Player, false, false);
-        ChatRoomCharacterUpdate(Player);
-        if (outfit.announceText.trim()) {
-            ServerSend("ChatRoomChat", { Content: outfit.announceText.trim(), Type: "Emote" });
-        }
+        sendRoomAppearanceUpdate();
+        // Let the appearance update hit the send queue before we add the optional emote.
+        window.setTimeout(() => {
+            try {
+                if (outfit.announceText.trim()) {
+                    ServerSend("ChatRoomChat", { Content: outfit.announceText.trim(), Type: "Emote" });
+                }
+            }
+            finally {
+                outfitApplyPending = false;
+            }
+        }, 80);
         localNotice(`Loaded "${outfit.displayName}" (/${outfit.command})`);
     }
     function handleOutfitCommand(inputValue) {
