@@ -41,9 +41,15 @@ const ROW_H = 70;
 const NAV_Y = 186;
 const LIST_Y = 224;
 const ADD_Y = LIST_Y + OUTFITS_PER_PAGE * ROW_H + 16;
+const CARD_LEFT = 24;
+const CARD_WIDTH = PANEL_W - 48;
 
 let settingsPage = 0;
 let addIncludeRestraints = false;
+
+function placeInput(id: string, left: number, y: number, width: number, height: number): void {
+    ElementPosition(id, left + width / 2, y, width, height);
+}
 
 function getAddon(): Record<string, unknown> {
     if (!Player.ExtensionSettings.EmeryBC) {
@@ -205,7 +211,7 @@ export function outfitSettingsRun(): void {
         const outfit = visible[i];
         const y = LIST_Y + i * ROW_H;
 
-        drawCard(24, y, PANEL_W - 48, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
+        drawCard(CARD_LEFT, y, CARD_WIDTH, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
 
         if (!outfit) {
             DrawText("Empty slot", PANEL_W / 2, y + 24, UI.textMuted);
@@ -239,16 +245,16 @@ export function outfitSettingsRun(): void {
         drawChromeButton(500, y + 38, 98, 22, "Delete", "danger");
     }
 
-    drawCard(24, ADD_Y, PANEL_W - 48, 210, "muted");
+    drawCard(CARD_LEFT, ADD_Y, CARD_WIDTH, 210, "muted");
     DrawText("Add New Outfit", 126, ADD_Y + 22, UI.text);
     DrawTextFit("Dress your character first, then save the current appearance into a command slot.", 334, ADD_Y + 22, 410, UI.textSoft);
 
     drawInsetLabel("Command", 96, ADD_Y + 48);
     DrawText("/", 56, ADD_Y + 80, UI.accent);
-    ElementPosition("EmeryOF_Cmd", 82, ADD_Y + 62, 120, 34);
+    placeInput("EmeryOF_Cmd", 82, ADD_Y + 62, 120, 34);
 
     drawInsetLabel("Display Name", 316, ADD_Y + 48);
-    ElementPosition("EmeryOF_Name", 248, ADD_Y + 62, 200, 34);
+    placeInput("EmeryOF_Name", 248, ADD_Y + 62, 200, 34);
 
     drawInsetLabel("Restraint Mode", 522, ADD_Y + 48);
     drawChromeButton(
@@ -262,7 +268,7 @@ export function outfitSettingsRun(): void {
 
     drawInsetLabel("Announce Text", 114, ADD_Y + 108);
     DrawText("/me", 58, ADD_Y + 138, UI.accent);
-    ElementPosition("EmeryOF_Announce", 86, ADD_Y + 120, 470, 34);
+    placeInput("EmeryOF_Announce", 86, ADD_Y + 120, 470, 34);
 
     drawChromeButton(44, ADD_Y + 164, PANEL_W - 88, 34, "Save Current Appearance as New Outfit", "success");
 }

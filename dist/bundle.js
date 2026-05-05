@@ -123,6 +123,8 @@
     const BTN_START_Y = 270;
     const BTN_SIZE = 45;
     const MAX_SLOTS = 6;
+    const ROW_LEFT = 24;
+    const ROW_WIDTH = PANEL_W - 48;
     function getButtons() {
         var _a;
         const stored = (_a = Player.ExtensionSettings.EmeryBC) === null || _a === void 0 ? void 0 : _a.actionButtons;
@@ -193,6 +195,9 @@
     }
     const SLOT_H = 84;
     const SLOTS_Y = 188;
+    function placeInput$1(id, left, y, width, height) {
+        ElementPosition(id, left + width / 2, y, width, height);
+    }
     function settingsRun$1() {
         var _a, _b, _c;
         ensureInputs$1();
@@ -206,21 +211,21 @@
             const y = SLOTS_Y + i * SLOT_H;
             const previewColor = ((_b = document.getElementById(inputId(i, "color"))) === null || _b === void 0 ? void 0 : _b.value) || btn.color || "#c2185b";
             const previewLabel = (((_c = document.getElementById(inputId(i, "label"))) === null || _c === void 0 ? void 0 : _c.value) || btn.label || "EMPTY").slice(0, 6);
-            drawCard(24, y, PANEL_W - 48, SLOT_H - 10, i % 2 === 0 ? "default" : "alt");
+            drawCard(ROW_LEFT, y, ROW_WIDTH, SLOT_H - 10, i % 2 === 0 ? "default" : "alt");
             DrawRect(36, y + 10, 68, 52, UI.cardMuted);
             DrawEmptyRect(36, y + 10, 68, 52, UI.panelEdge, 1);
             drawPill(44, y + 16, 52, 16, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
             DrawRect(44, y + 38, 52, 18, previewColor);
             DrawEmptyRect(44, y + 38, 52, 18, UI.swatchBorder, 1);
             DrawTextFit(previewLabel || "EMPTY", 70, y + 48, 46, "#fff7fa");
-            drawInsetLabel("Label", 150, y + 22);
-            drawInsetLabel("Color", 264, y + 22);
-            drawInsetLabel("Action", 408, y + 22);
-            drawInsetLabel("State", 556, y + 22);
-            ElementPosition(inputId(i, "label"), 118, y + 34, 86, 32);
-            ElementPosition(inputId(i, "color"), 224, y + 34, 92, 32);
-            ElementPosition(inputId(i, "emote"), 334, y + 34, 164, 32);
-            drawChromeButton(516, y + 22, 78, 28, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
+            drawInsetLabel("Label", 170, y + 22);
+            drawInsetLabel("Color", 286, y + 22);
+            drawInsetLabel("Action", 438, y + 22);
+            drawInsetLabel("State", 554, y + 22);
+            placeInput$1(inputId(i, "label"), 118, y + 34, 86, 32);
+            placeInput$1(inputId(i, "color"), 224, y + 34, 92, 32);
+            placeInput$1(inputId(i, "emote"), 334, y + 34, 170, 32);
+            drawChromeButton(516, y + 26, 78, 26, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
         }
         const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
         drawChromeButton(34, btnY, 206, 46, "Save Layout", "success");
@@ -279,8 +284,13 @@
     const NAV_Y = 186;
     const LIST_Y = 224;
     const ADD_Y = LIST_Y + OUTFITS_PER_PAGE * ROW_H + 16;
+    const CARD_LEFT = 24;
+    const CARD_WIDTH = PANEL_W - 48;
     let settingsPage = 0;
     let addIncludeRestraints = false;
+    function placeInput(id, left, y, width, height) {
+        ElementPosition(id, left + width / 2, y, width, height);
+    }
     function getAddon() {
         if (!Player.ExtensionSettings.EmeryBC) {
             Player.ExtensionSettings.EmeryBC = {};
@@ -414,7 +424,7 @@
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             const y = LIST_Y + i * ROW_H;
-            drawCard(24, y, PANEL_W - 48, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
+            drawCard(CARD_LEFT, y, CARD_WIDTH, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
             if (!outfit) {
                 DrawText("Empty slot", PANEL_W / 2, y + 24, UI.textMuted);
                 DrawTextFit("Create a new outfit below to fill this space.", PANEL_W / 2, y + 44, 420, UI.textSoft);
@@ -429,19 +439,19 @@
             drawChromeButton(500, y + 12, 98, 22, "Update", "success", false, "Save current appearance");
             drawChromeButton(500, y + 38, 98, 22, "Delete", "danger");
         }
-        drawCard(24, ADD_Y, PANEL_W - 48, 210, "muted");
+        drawCard(CARD_LEFT, ADD_Y, CARD_WIDTH, 210, "muted");
         DrawText("Add New Outfit", 126, ADD_Y + 22, UI.text);
         DrawTextFit("Dress your character first, then save the current appearance into a command slot.", 334, ADD_Y + 22, 410, UI.textSoft);
         drawInsetLabel("Command", 96, ADD_Y + 48);
         DrawText("/", 56, ADD_Y + 80, UI.accent);
-        ElementPosition("EmeryOF_Cmd", 82, ADD_Y + 62, 120, 34);
+        placeInput("EmeryOF_Cmd", 82, ADD_Y + 62, 120, 34);
         drawInsetLabel("Display Name", 316, ADD_Y + 48);
-        ElementPosition("EmeryOF_Name", 248, ADD_Y + 62, 200, 34);
+        placeInput("EmeryOF_Name", 248, ADD_Y + 62, 200, 34);
         drawInsetLabel("Restraint Mode", 522, ADD_Y + 48);
         drawChromeButton(470, ADD_Y + 56, 126, 28, addIncludeRestraints ? "Include restraints" : "Clothes only", addIncludeRestraints ? "danger" : "success");
         drawInsetLabel("Announce Text", 114, ADD_Y + 108);
         DrawText("/me", 58, ADD_Y + 138, UI.accent);
-        ElementPosition("EmeryOF_Announce", 86, ADD_Y + 120, 470, 34);
+        placeInput("EmeryOF_Announce", 86, ADD_Y + 120, 470, 34);
         drawChromeButton(44, ADD_Y + 164, PANEL_W - 88, 34, "Save Current Appearance as New Outfit", "success");
     }
     function outfitSettingsClick() {

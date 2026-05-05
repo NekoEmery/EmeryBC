@@ -31,6 +31,8 @@ const BTN_X       = 0;
 const BTN_START_Y = 270;
 const BTN_SIZE    = 45;
 const MAX_SLOTS   = 6;
+const ROW_LEFT    = 24;
+const ROW_WIDTH   = PANEL_W - 48;
 
 function getButtons(): ActionButton[] {
     const stored = (Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined)?.actionButtons;
@@ -106,6 +108,10 @@ export function settingsLoad(): void {
 const SLOT_H      = 84;
 const SLOTS_Y     = 188;
 
+function placeInput(id: string, left: number, y: number, width: number, height: number): void {
+    ElementPosition(id, left + width / 2, y, width, height);
+}
+
 export function settingsRun(): void {
     ensureInputs();
     const activeCount = settingsButtons.filter(btn => btn.enabled && btn.label.trim()).length;
@@ -121,7 +127,7 @@ export function settingsRun(): void {
         const previewColor = (document.getElementById(inputId(i, "color")) as HTMLInputElement | null)?.value || btn.color || "#c2185b";
         const previewLabel = ((document.getElementById(inputId(i, "label")) as HTMLInputElement | null)?.value || btn.label || "EMPTY").slice(0, 6);
 
-        drawCard(24, y, PANEL_W - 48, SLOT_H - 10, i % 2 === 0 ? "default" : "alt");
+        drawCard(ROW_LEFT, y, ROW_WIDTH, SLOT_H - 10, i % 2 === 0 ? "default" : "alt");
 
         DrawRect(36, y + 10, 68, 52, UI.cardMuted);
         DrawEmptyRect(36, y + 10, 68, 52, UI.panelEdge, 1);
@@ -130,16 +136,16 @@ export function settingsRun(): void {
         DrawEmptyRect(44, y + 38, 52, 18, UI.swatchBorder, 1);
         DrawTextFit(previewLabel || "EMPTY", 70, y + 48, 46, "#fff7fa");
 
-        drawInsetLabel("Label", 150, y + 22);
-        drawInsetLabel("Color", 264, y + 22);
-        drawInsetLabel("Action", 408, y + 22);
-        drawInsetLabel("State", 556, y + 22);
+        drawInsetLabel("Label", 170, y + 22);
+        drawInsetLabel("Color", 286, y + 22);
+        drawInsetLabel("Action", 438, y + 22);
+        drawInsetLabel("State", 554, y + 22);
 
-        ElementPosition(inputId(i, "label"), 118, y + 34, 86, 32);
-        ElementPosition(inputId(i, "color"), 224, y + 34, 92, 32);
-        ElementPosition(inputId(i, "emote"), 334, y + 34, 164, 32);
+        placeInput(inputId(i, "label"), 118, y + 34, 86, 32);
+        placeInput(inputId(i, "color"), 224, y + 34, 92, 32);
+        placeInput(inputId(i, "emote"), 334, y + 34, 170, 32);
 
-        drawChromeButton(516, y + 22, 78, 28, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
+        drawChromeButton(516, y + 26, 78, 26, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
     }
 
     const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
