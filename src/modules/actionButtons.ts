@@ -103,8 +103,8 @@ export function settingsLoad(): void {
     settingsButtons = Array.from({ length: MAX_SLOTS }, (_, i) => ({ ...(stored[i] ?? DEFAULT_BUTTONS[i]) }));
 }
 
-const SLOT_H      = 105;
-const SLOTS_Y     = 208;
+const SLOT_H      = 84;
+const SLOTS_Y     = 188;
 
 export function settingsRun(): void {
     ensureInputs();
@@ -123,37 +123,38 @@ export function settingsRun(): void {
 
         drawCard(24, y, PANEL_W - 48, SLOT_H - 10, i % 2 === 0 ? "default" : "alt");
 
-        DrawRect(38, y + 14, 74, 64, UI.cardMuted);
-        DrawEmptyRect(38, y + 14, 74, 64, UI.panelEdge, 1);
-        drawPill(48, y + 22, 54, 18, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
-        DrawRect(48, y + 46, 54, 24, previewColor);
-        DrawEmptyRect(48, y + 46, 54, 24, UI.swatchBorder, 1);
-        DrawTextFit(previewLabel || "EMPTY", 75, y + 59, 48, "#fff7fa");
+        DrawRect(36, y + 10, 68, 52, UI.cardMuted);
+        DrawEmptyRect(36, y + 10, 68, 52, UI.panelEdge, 1);
+        drawPill(44, y + 16, 52, 16, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
+        DrawRect(44, y + 38, 52, 18, previewColor);
+        DrawEmptyRect(44, y + 38, 52, 18, UI.swatchBorder, 1);
+        DrawTextFit(previewLabel || "EMPTY", 70, y + 48, 46, "#fff7fa");
 
-        drawInsetLabel("Label", 168, y + 26);
-        drawInsetLabel("Color", 294, y + 26);
-        drawInsetLabel("Action", 474, y + 26);
+        drawInsetLabel("Label", 150, y + 22);
+        drawInsetLabel("Color", 264, y + 22);
+        drawInsetLabel("Action", 408, y + 22);
+        drawInsetLabel("State", 556, y + 22);
 
-        ElementPosition(inputId(i, "label"), 168, y + 56, 100, 38);
-        ElementPosition(inputId(i, "color"), 294, y + 56, 110, 38);
-        ElementPosition(inputId(i, "emote"), 474, y + 56, 222, 38);
+        ElementPosition(inputId(i, "label"), 118, y + 34, 86, 32);
+        ElementPosition(inputId(i, "color"), 224, y + 34, 92, 32);
+        ElementPosition(inputId(i, "emote"), 334, y + 34, 164, 32);
 
-        drawChromeButton(532, y + 20, 78, 30, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
+        drawChromeButton(516, y + 22, 78, 28, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
     }
 
     const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
-    drawChromeButton(34, btnY, 220, 50, "Save Layout", "success");
-    drawChromeButton(272, btnY, 220, 50, "Reset Defaults", "gold");
+    drawChromeButton(34, btnY, 206, 46, "Save Layout", "success");
+    drawChromeButton(254, btnY, 206, 46, "Reset Defaults", "gold");
 
-    drawCard(24, btnY + 70, PANEL_W - 48, 62, "muted");
-    DrawText("Action text becomes a /me emote in chat.", PANEL_W / 2, btnY + 92, UI.textMuted);
-    DrawText("Example: \"waves\" sends * Name waves *", PANEL_W / 2, btnY + 116, UI.textSoft);
+    drawCard(24, btnY + 56, PANEL_W - 48, 52, "muted");
+    DrawTextFit("Action text becomes a /me emote in chat.", PANEL_W / 2, btnY + 76, 520, UI.textMuted);
+    DrawTextFit("Example: \"waves\" sends * Name waves *", PANEL_W / 2, btnY + 96, 520, UI.textSoft);
 }
 
 export function settingsClick(): void {
     for (let i = 0; i < MAX_SLOTS; i++) {
         const y = SLOTS_Y + i * SLOT_H;
-        if (mouseInRect(532, y + 20, 78, 30)) {
+        if (mouseInRect(516, y + 22, 78, 28)) {
             settingsButtons[i].enabled = !settingsButtons[i].enabled;
             return;
         }
@@ -162,7 +163,7 @@ export function settingsClick(): void {
     const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
 
     // Save
-    if (MouseX >= 34 && MouseX <= 254 && MouseY >= btnY && MouseY <= btnY + 50) {
+    if (MouseX >= 34 && MouseX <= 240 && MouseY >= btnY && MouseY <= btnY + 46) {
         for (let i = 0; i < MAX_SLOTS; i++) {
             settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
             settingsButtons[i].color = ElementValue(inputId(i, "color")).trim() || "#c2185b";
@@ -173,7 +174,7 @@ export function settingsClick(): void {
     }
 
     // Reset
-    if (MouseX >= 272 && MouseX <= 492 && MouseY >= btnY && MouseY <= btnY + 50) {
+    if (MouseX >= 254 && MouseX <= 460 && MouseY >= btnY && MouseY <= btnY + 46) {
         settingsButtons = DEFAULT_BUTTONS.map(b => ({ ...b }));
         for (let i = 0; i < MAX_SLOTS; i++) {
             (document.getElementById(inputId(i, "label")) as HTMLInputElement).value = settingsButtons[i].label;

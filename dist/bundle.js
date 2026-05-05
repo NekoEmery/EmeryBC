@@ -46,18 +46,18 @@
         DrawRect(10, 70, PANEL_W - 20, 920, UI.panel);
         DrawRect(18, 78, PANEL_W - 36, 904, UI.panelInner);
         DrawEmptyRect(10, 70, PANEL_W - 20, 920, UI.panelEdge, 2);
-        DrawRect(18, 78, PANEL_W - 36, 126, UI.panelGlow);
+        DrawRect(18, 78, PANEL_W - 36, 108, UI.panelGlow);
         DrawRect(18, 78, 8, 904, UI.accentDeep);
-        DrawRect(18, 188, PANEL_W - 36, 2, UI.panelEdge);
-        drawPill(34, 92, 92, 24, "EMERYBC", UI.accentSoft, UI.accent);
-        DrawText(title, 170, 142, UI.text);
-        DrawText(subtitle, 204, 170, UI.textMuted);
-        const statWidth = 118;
-        const statGap = 12;
+        DrawRect(18, 176, PANEL_W - 36, 2, UI.panelEdge);
+        drawPill(34, 88, 88, 22, "EMERYBC", UI.accentSoft, UI.accent);
+        DrawTextFit(title, 206, 126, 280, UI.text);
+        DrawTextFit(subtitle, 232, 154, 330, UI.textMuted);
+        const statWidth = 88;
+        const statGap = 10;
         const totalWidth = stats.length * statWidth + Math.max(0, stats.length - 1) * statGap;
-        let left = PANEL_W - 34 - totalWidth;
+        let left = PANEL_W - 30 - totalWidth;
         for (const stat of stats) {
-            drawStatCard(left, 96, statWidth, 58, stat.label, stat.value, (_a = stat.tone) !== null && _a !== void 0 ? _a : "muted");
+            drawStatCard(left, 86, statWidth, 48, stat.label, stat.value, (_a = stat.tone) !== null && _a !== void 0 ? _a : "muted");
             left += statWidth + statGap;
         }
     }
@@ -66,8 +66,8 @@
         DrawRect(left, top, width, height, "#12070d");
         DrawRect(left + 2, top + 2, width - 4, height - 4, style.fill);
         DrawEmptyRect(left + 2, top + 2, width - 4, height - 4, style.border, 1);
-        DrawText(label, left + width / 2, top + 18, UI.textSoft);
-        DrawTextFit(value, left + width / 2, top + 40, width - 16, style.text);
+        DrawTextFit(label, left + width / 2, top + 14, width - 12, UI.textSoft);
+        DrawTextFit(value, left + width / 2, top + 33, width - 12, style.text);
     }
     function drawCard(left, top, width, height, tone = "default") {
         const fill = tone === "alt" ? UI.cardAlt : tone === "muted" ? UI.cardMuted : UI.card;
@@ -191,8 +191,8 @@
         const stored = getButtons();
         settingsButtons = Array.from({ length: MAX_SLOTS }, (_, i) => { var _a; return (Object.assign({}, ((_a = stored[i]) !== null && _a !== void 0 ? _a : DEFAULT_BUTTONS[i]))); });
     }
-    const SLOT_H = 105;
-    const SLOTS_Y = 208;
+    const SLOT_H = 84;
+    const SLOTS_Y = 188;
     function settingsRun$1() {
         var _a, _b, _c;
         ensureInputs$1();
@@ -207,38 +207,39 @@
             const previewColor = ((_b = document.getElementById(inputId(i, "color"))) === null || _b === void 0 ? void 0 : _b.value) || btn.color || "#c2185b";
             const previewLabel = (((_c = document.getElementById(inputId(i, "label"))) === null || _c === void 0 ? void 0 : _c.value) || btn.label || "EMPTY").slice(0, 6);
             drawCard(24, y, PANEL_W - 48, SLOT_H - 10, i % 2 === 0 ? "default" : "alt");
-            DrawRect(38, y + 14, 74, 64, UI.cardMuted);
-            DrawEmptyRect(38, y + 14, 74, 64, UI.panelEdge, 1);
-            drawPill(48, y + 22, 54, 18, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
-            DrawRect(48, y + 46, 54, 24, previewColor);
-            DrawEmptyRect(48, y + 46, 54, 24, UI.swatchBorder, 1);
-            DrawTextFit(previewLabel || "EMPTY", 75, y + 59, 48, "#fff7fa");
-            drawInsetLabel("Label", 168, y + 26);
-            drawInsetLabel("Color", 294, y + 26);
-            drawInsetLabel("Action", 474, y + 26);
-            ElementPosition(inputId(i, "label"), 168, y + 56, 100, 38);
-            ElementPosition(inputId(i, "color"), 294, y + 56, 110, 38);
-            ElementPosition(inputId(i, "emote"), 474, y + 56, 222, 38);
-            drawChromeButton(532, y + 20, 78, 30, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
+            DrawRect(36, y + 10, 68, 52, UI.cardMuted);
+            DrawEmptyRect(36, y + 10, 68, 52, UI.panelEdge, 1);
+            drawPill(44, y + 16, 52, 16, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
+            DrawRect(44, y + 38, 52, 18, previewColor);
+            DrawEmptyRect(44, y + 38, 52, 18, UI.swatchBorder, 1);
+            DrawTextFit(previewLabel || "EMPTY", 70, y + 48, 46, "#fff7fa");
+            drawInsetLabel("Label", 150, y + 22);
+            drawInsetLabel("Color", 264, y + 22);
+            drawInsetLabel("Action", 408, y + 22);
+            drawInsetLabel("State", 556, y + 22);
+            ElementPosition(inputId(i, "label"), 118, y + 34, 86, 32);
+            ElementPosition(inputId(i, "color"), 224, y + 34, 92, 32);
+            ElementPosition(inputId(i, "emote"), 334, y + 34, 164, 32);
+            drawChromeButton(516, y + 22, 78, 28, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
         }
         const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
-        drawChromeButton(34, btnY, 220, 50, "Save Layout", "success");
-        drawChromeButton(272, btnY, 220, 50, "Reset Defaults", "gold");
-        drawCard(24, btnY + 70, PANEL_W - 48, 62, "muted");
-        DrawText("Action text becomes a /me emote in chat.", PANEL_W / 2, btnY + 92, UI.textMuted);
-        DrawText("Example: \"waves\" sends * Name waves *", PANEL_W / 2, btnY + 116, UI.textSoft);
+        drawChromeButton(34, btnY, 206, 46, "Save Layout", "success");
+        drawChromeButton(254, btnY, 206, 46, "Reset Defaults", "gold");
+        drawCard(24, btnY + 56, PANEL_W - 48, 52, "muted");
+        DrawTextFit("Action text becomes a /me emote in chat.", PANEL_W / 2, btnY + 76, 520, UI.textMuted);
+        DrawTextFit("Example: \"waves\" sends * Name waves *", PANEL_W / 2, btnY + 96, 520, UI.textSoft);
     }
     function settingsClick$1() {
         for (let i = 0; i < MAX_SLOTS; i++) {
             const y = SLOTS_Y + i * SLOT_H;
-            if (mouseInRect(532, y + 20, 78, 30)) {
+            if (mouseInRect(516, y + 22, 78, 28)) {
                 settingsButtons[i].enabled = !settingsButtons[i].enabled;
                 return;
             }
         }
         const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
         // Save
-        if (MouseX >= 34 && MouseX <= 254 && MouseY >= btnY && MouseY <= btnY + 50) {
+        if (MouseX >= 34 && MouseX <= 240 && MouseY >= btnY && MouseY <= btnY + 46) {
             for (let i = 0; i < MAX_SLOTS; i++) {
                 settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
                 settingsButtons[i].color = ElementValue(inputId(i, "color")).trim() || "#c2185b";
@@ -248,7 +249,7 @@
             return;
         }
         // Reset
-        if (MouseX >= 272 && MouseX <= 492 && MouseY >= btnY && MouseY <= btnY + 50) {
+        if (MouseX >= 254 && MouseX <= 460 && MouseY >= btnY && MouseY <= btnY + 46) {
             settingsButtons = DEFAULT_BUTTONS.map(b => (Object.assign({}, b)));
             for (let i = 0; i < MAX_SLOTS; i++) {
                 document.getElementById(inputId(i, "label")).value = settingsButtons[i].label;
@@ -274,10 +275,10 @@
         "ItemTorso", "ItemTorso2", "ItemEars", "ItemNose", "ItemMisc",
     ]);
     const OUTFITS_PER_PAGE = 5;
-    const ROW_H = 78;
-    const NAV_Y = 198;
-    const LIST_Y = 238;
-    const ADD_Y = LIST_Y + OUTFITS_PER_PAGE * ROW_H + 18;
+    const ROW_H = 70;
+    const NAV_Y = 186;
+    const LIST_Y = 224;
+    const ADD_Y = LIST_Y + OUTFITS_PER_PAGE * ROW_H + 16;
     let settingsPage = 0;
     let addIncludeRestraints = false;
     function getAddon() {
@@ -406,53 +407,53 @@
             { label: "OUTFITS", value: `${outfits.length}`, tone: "accent" },
             { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
         ]);
-        drawChromeButton(34, NAV_Y, 90, 30, "Prev", "muted", page === 0);
-        DrawText("Wardrobe", 186, NAV_Y + 18, UI.textMuted);
-        DrawText(`${page + 1} of ${totalPages}`, 322, NAV_Y + 18, UI.textSoft);
-        drawChromeButton(526, NAV_Y, 90, 30, "Next", "muted", page >= totalPages - 1);
+        drawChromeButton(34, NAV_Y, 90, 28, "Prev", "muted", page === 0);
+        DrawText("Wardrobe", 184, NAV_Y + 16, UI.textMuted);
+        DrawText(`${page + 1} of ${totalPages}`, 320, NAV_Y + 16, UI.textSoft);
+        drawChromeButton(526, NAV_Y, 90, 28, "Next", "muted", page >= totalPages - 1);
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             const y = LIST_Y + i * ROW_H;
-            drawCard(24, y, PANEL_W - 48, ROW_H - 10, i % 2 === 0 ? "default" : "alt");
+            drawCard(24, y, PANEL_W - 48, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
             if (!outfit) {
-                DrawText("Empty slot", PANEL_W / 2, y + 27, UI.textMuted);
-                DrawText("Create a new outfit below to fill this space.", PANEL_W / 2, y + 50, UI.textSoft);
+                DrawText("Empty slot", PANEL_W / 2, y + 24, UI.textMuted);
+                DrawTextFit("Create a new outfit below to fill this space.", PANEL_W / 2, y + 44, 420, UI.textSoft);
                 continue;
             }
             const hasSave = outfit.items.length > 0;
-            drawPill(40, y + 18, 94, 26, `/${outfit.command}`, UI.accentSoft, UI.accent);
-            DrawTextFit(outfit.displayName, 228, y + 26, 180, UI.text);
-            DrawTextFit(`/me ${outfit.announceText}`, 248, y + 50, 220, UI.textSoft);
-            drawPill(364, y + 16, 108, 22, outfit.includeRestraints ? "Includes restraints" : "Clothes only", outfit.includeRestraints ? UI.dangerDeep : UI.successDeep, outfit.includeRestraints ? UI.danger : UI.success);
-            drawPill(364, y + 42, 108, 18, hasSave ? `${outfit.items.length} items saved` : "No save data", hasSave ? UI.successDeep : UI.buttonMuted, hasSave ? UI.success : UI.textMuted);
-            drawChromeButton(508, y + 14, 96, 24, "Update", "success", false, "Save current appearance");
-            drawChromeButton(508, y + 42, 96, 24, "Delete", "danger");
+            drawPill(38, y + 16, 94, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
+            DrawTextFit(outfit.displayName, 218, y + 22, 170, UI.text);
+            DrawTextFit(`/me ${outfit.announceText}`, 240, y + 44, 250, UI.textSoft);
+            drawPill(364, y + 14, 108, 20, outfit.includeRestraints ? "Includes restraints" : "Clothes only", outfit.includeRestraints ? UI.dangerDeep : UI.successDeep, outfit.includeRestraints ? UI.danger : UI.success);
+            drawPill(364, y + 38, 108, 18, hasSave ? `${outfit.items.length} items saved` : "No save data", hasSave ? UI.successDeep : UI.buttonMuted, hasSave ? UI.success : UI.textMuted);
+            drawChromeButton(500, y + 12, 98, 22, "Update", "success", false, "Save current appearance");
+            drawChromeButton(500, y + 38, 98, 22, "Delete", "danger");
         }
-        drawCard(24, ADD_Y, PANEL_W - 48, 258, "muted");
-        DrawText("Add New Outfit", 128, ADD_Y + 26, UI.text);
-        DrawText("Dress your character first, then save the current appearance into a command slot.", 305, ADD_Y + 26, UI.textSoft);
-        drawInsetLabel("Command", 92, ADD_Y + 58);
-        DrawText("/", 46, ADD_Y + 90, UI.accent);
-        ElementPosition("EmeryOF_Cmd", 122, ADD_Y + 90, 120, 38);
-        drawInsetLabel("Display Name", 318, ADD_Y + 58);
-        ElementPosition("EmeryOF_Name", 336, ADD_Y + 90, 240, 38);
-        drawInsetLabel("Restraint Mode", 518, ADD_Y + 58);
-        drawChromeButton(458, ADD_Y + 74, 144, 34, addIncludeRestraints ? "Include restraints" : "Clothes only", addIncludeRestraints ? "danger" : "success");
-        drawInsetLabel("Announce Text", 132, ADD_Y + 128);
-        DrawText("/me", 52, ADD_Y + 164, UI.accent);
-        ElementPosition("EmeryOF_Announce", 325, ADD_Y + 164, 520, 38);
-        drawChromeButton(44, ADD_Y + 206, PANEL_W - 88, 42, "Save Current Appearance as New Outfit", "success");
+        drawCard(24, ADD_Y, PANEL_W - 48, 210, "muted");
+        DrawText("Add New Outfit", 126, ADD_Y + 22, UI.text);
+        DrawTextFit("Dress your character first, then save the current appearance into a command slot.", 334, ADD_Y + 22, 410, UI.textSoft);
+        drawInsetLabel("Command", 96, ADD_Y + 48);
+        DrawText("/", 56, ADD_Y + 80, UI.accent);
+        ElementPosition("EmeryOF_Cmd", 82, ADD_Y + 62, 120, 34);
+        drawInsetLabel("Display Name", 316, ADD_Y + 48);
+        ElementPosition("EmeryOF_Name", 248, ADD_Y + 62, 200, 34);
+        drawInsetLabel("Restraint Mode", 522, ADD_Y + 48);
+        drawChromeButton(470, ADD_Y + 56, 126, 28, addIncludeRestraints ? "Include restraints" : "Clothes only", addIncludeRestraints ? "danger" : "success");
+        drawInsetLabel("Announce Text", 114, ADD_Y + 108);
+        DrawText("/me", 58, ADD_Y + 138, UI.accent);
+        ElementPosition("EmeryOF_Announce", 86, ADD_Y + 120, 470, 34);
+        drawChromeButton(44, ADD_Y + 164, PANEL_W - 88, 34, "Save Current Appearance as New Outfit", "success");
     }
     function outfitSettingsClick() {
         const outfits = getOutfits();
         const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
         const page = Math.min(settingsPage, totalPages - 1);
         const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
-        if (mouseInRect(34, NAV_Y, 90, 30)) {
+        if (mouseInRect(34, NAV_Y, 90, 28)) {
             settingsPage = Math.max(0, page - 1);
             return;
         }
-        if (mouseInRect(526, NAV_Y, 90, 30)) {
+        if (mouseInRect(526, NAV_Y, 90, 28)) {
             settingsPage = Math.min(totalPages - 1, page + 1);
             return;
         }
@@ -461,24 +462,24 @@
             if (!outfit)
                 continue;
             const y = LIST_Y + i * ROW_H;
-            if (mouseInRect(508, y + 14, 96, 24)) {
+            if (mouseInRect(500, y + 12, 98, 22)) {
                 const idx = outfits.indexOf(outfit);
                 outfits[idx].items = captureAppearance(outfit.includeRestraints);
                 saveOutfits(outfits);
                 localNotice(`Updated "/${outfit.command}"`);
                 return;
             }
-            if (mouseInRect(508, y + 42, 96, 24)) {
+            if (mouseInRect(500, y + 38, 98, 22)) {
                 saveOutfits(outfits.filter(entry => entry.id !== outfit.id));
                 settingsPage = Math.min(settingsPage, Math.max(0, Math.ceil((outfits.length - 1) / OUTFITS_PER_PAGE) - 1));
                 return;
             }
         }
-        if (mouseInRect(458, ADD_Y + 74, 144, 34)) {
+        if (mouseInRect(470, ADD_Y + 56, 126, 28)) {
             addIncludeRestraints = !addIncludeRestraints;
             return;
         }
-        if (mouseInRect(44, ADD_Y + 206, PANEL_W - 88, 42)) {
+        if (mouseInRect(44, ADD_Y + 164, PANEL_W - 88, 34)) {
             const cmd = ElementValue("EmeryOF_Cmd").trim().replace(/\s+/g, "").toLowerCase();
             const name = ElementValue("EmeryOF_Name").trim();
             const announce = ElementValue("EmeryOF_Announce").trim();
@@ -522,9 +523,9 @@
     let noticeShown = false;
     let activeTab = "actions";
     let settingsRegistered = false;
-    const TAB_BTN_Y = 86;
+    const TAB_BTN_Y = 82;
     const TAB_BTN_H = 28;
-    const TAB_BTN_W = 108;
+    const TAB_BTN_W = 102;
     function showLoadNotice() {
         if (noticeShown)
             return;
@@ -598,8 +599,8 @@
         }
     }
     function drawTabs() {
-        drawChromeButton(140, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
-        drawChromeButton(258, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
+        drawChromeButton(134, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
+        drawChromeButton(246, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
     }
     function settingsRun() {
         if (activeTab === "actions") {
@@ -612,13 +613,13 @@
     }
     function settingsClick() {
         if (MouseY >= TAB_BTN_Y && MouseY <= TAB_BTN_Y + TAB_BTN_H) {
-            if (MouseX >= 140 && MouseX <= 140 + TAB_BTN_W && activeTab !== "actions") {
+            if (MouseX >= 134 && MouseX <= 134 + TAB_BTN_W && activeTab !== "actions") {
                 outfitSettingsExit();
                 activeTab = "actions";
                 settingsLoad();
                 return;
             }
-            if (MouseX >= 258 && MouseX <= 258 + TAB_BTN_W && activeTab !== "outfits") {
+            if (MouseX >= 246 && MouseX <= 246 + TAB_BTN_W && activeTab !== "outfits") {
                 settingsExit$1();
                 activeTab = "outfits";
                 outfitSettingsLoad();

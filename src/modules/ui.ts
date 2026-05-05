@@ -55,20 +55,20 @@ export function drawSettingsScaffold(title: string, subtitle: string, stats: Hea
     DrawRect(10, 70, PANEL_W - 20, 920, UI.panel);
     DrawRect(18, 78, PANEL_W - 36, 904, UI.panelInner);
     DrawEmptyRect(10, 70, PANEL_W - 20, 920, UI.panelEdge, 2);
-    DrawRect(18, 78, PANEL_W - 36, 126, UI.panelGlow);
+    DrawRect(18, 78, PANEL_W - 36, 108, UI.panelGlow);
     DrawRect(18, 78, 8, 904, UI.accentDeep);
-    DrawRect(18, 188, PANEL_W - 36, 2, UI.panelEdge);
+    DrawRect(18, 176, PANEL_W - 36, 2, UI.panelEdge);
 
-    drawPill(34, 92, 92, 24, "EMERYBC", UI.accentSoft, UI.accent);
-    DrawText(title, 170, 142, UI.text);
-    DrawText(subtitle, 204, 170, UI.textMuted);
+    drawPill(34, 88, 88, 22, "EMERYBC", UI.accentSoft, UI.accent);
+    DrawTextFit(title, 206, 126, 280, UI.text);
+    DrawTextFit(subtitle, 232, 154, 330, UI.textMuted);
 
-    const statWidth = 118;
-    const statGap = 12;
+    const statWidth = 88;
+    const statGap = 10;
     const totalWidth = stats.length * statWidth + Math.max(0, stats.length - 1) * statGap;
-    let left = PANEL_W - 34 - totalWidth;
+    let left = PANEL_W - 30 - totalWidth;
     for (const stat of stats) {
-        drawStatCard(left, 96, statWidth, 58, stat.label, stat.value, stat.tone ?? "muted");
+        drawStatCard(left, 86, statWidth, 48, stat.label, stat.value, stat.tone ?? "muted");
         left += statWidth + statGap;
     }
 }
@@ -78,8 +78,8 @@ function drawStatCard(left: number, top: number, width: number, height: number, 
     DrawRect(left, top, width, height, "#12070d");
     DrawRect(left + 2, top + 2, width - 4, height - 4, style.fill);
     DrawEmptyRect(left + 2, top + 2, width - 4, height - 4, style.border, 1);
-    DrawText(label, left + width / 2, top + 18, UI.textSoft);
-    DrawTextFit(value, left + width / 2, top + 40, width - 16, style.text);
+    DrawTextFit(label, left + width / 2, top + 14, width - 12, UI.textSoft);
+    DrawTextFit(value, left + width / 2, top + 33, width - 12, style.text);
 }
 
 export function drawCard(left: number, top: number, width: number, height: number, tone: "default" | "alt" | "muted" = "default"): void {

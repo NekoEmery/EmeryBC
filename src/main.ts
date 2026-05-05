@@ -24,9 +24,9 @@ let noticeShown = false;
 let activeTab: Tab = "actions";
 let settingsRegistered = false;
 
-const TAB_BTN_Y = 86;
+const TAB_BTN_Y = 82;
 const TAB_BTN_H = 28;
-const TAB_BTN_W = 108;
+const TAB_BTN_W = 102;
 
 function showLoadNotice(): void {
     if (noticeShown) return;
@@ -106,8 +106,8 @@ function showLoadNotice(): void {
 }
 
 function drawTabs(): void {
-    drawChromeButton(140, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
-    drawChromeButton(258, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
+    drawChromeButton(134, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
+    drawChromeButton(246, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
 }
 
 function settingsRun(): void {
@@ -121,13 +121,13 @@ function settingsRun(): void {
 
 function settingsClick(): void {
     if (MouseY >= TAB_BTN_Y && MouseY <= TAB_BTN_Y + TAB_BTN_H) {
-        if (MouseX >= 140 && MouseX <= 140 + TAB_BTN_W && activeTab !== "actions") {
+        if (MouseX >= 134 && MouseX <= 134 + TAB_BTN_W && activeTab !== "actions") {
             outfitSettingsExit();
             activeTab = "actions";
             actionSettingsLoad();
             return;
         }
-        if (MouseX >= 258 && MouseX <= 258 + TAB_BTN_W && activeTab !== "outfits") {
+        if (MouseX >= 246 && MouseX <= 246 + TAB_BTN_W && activeTab !== "outfits") {
             actionSettingsExit();
             activeTab = "outfits";
             outfitSettingsLoad();

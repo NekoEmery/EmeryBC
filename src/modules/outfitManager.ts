@@ -37,10 +37,10 @@ const RESTRAINT_GROUPS = new Set([
 ]);
 
 const OUTFITS_PER_PAGE = 5;
-const ROW_H = 78;
-const NAV_Y = 198;
-const LIST_Y = 238;
-const ADD_Y = LIST_Y + OUTFITS_PER_PAGE * ROW_H + 18;
+const ROW_H = 70;
+const NAV_Y = 186;
+const LIST_Y = 224;
+const ADD_Y = LIST_Y + OUTFITS_PER_PAGE * ROW_H + 16;
 
 let settingsPage = 0;
 let addIncludeRestraints = false;
@@ -196,75 +196,75 @@ export function outfitSettingsRun(): void {
         { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
     ]);
 
-    drawChromeButton(34, NAV_Y, 90, 30, "Prev", "muted", page === 0);
-    DrawText("Wardrobe", 186, NAV_Y + 18, UI.textMuted);
-    DrawText(`${page + 1} of ${totalPages}`, 322, NAV_Y + 18, UI.textSoft);
-    drawChromeButton(526, NAV_Y, 90, 30, "Next", "muted", page >= totalPages - 1);
+    drawChromeButton(34, NAV_Y, 90, 28, "Prev", "muted", page === 0);
+    DrawText("Wardrobe", 184, NAV_Y + 16, UI.textMuted);
+    DrawText(`${page + 1} of ${totalPages}`, 320, NAV_Y + 16, UI.textSoft);
+    drawChromeButton(526, NAV_Y, 90, 28, "Next", "muted", page >= totalPages - 1);
 
     for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
         const outfit = visible[i];
         const y = LIST_Y + i * ROW_H;
 
-        drawCard(24, y, PANEL_W - 48, ROW_H - 10, i % 2 === 0 ? "default" : "alt");
+        drawCard(24, y, PANEL_W - 48, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
 
         if (!outfit) {
-            DrawText("Empty slot", PANEL_W / 2, y + 27, UI.textMuted);
-            DrawText("Create a new outfit below to fill this space.", PANEL_W / 2, y + 50, UI.textSoft);
+            DrawText("Empty slot", PANEL_W / 2, y + 24, UI.textMuted);
+            DrawTextFit("Create a new outfit below to fill this space.", PANEL_W / 2, y + 44, 420, UI.textSoft);
             continue;
         }
 
         const hasSave = outfit.items.length > 0;
-        drawPill(40, y + 18, 94, 26, `/${outfit.command}`, UI.accentSoft, UI.accent);
-        DrawTextFit(outfit.displayName, 228, y + 26, 180, UI.text);
-        DrawTextFit(`/me ${outfit.announceText}`, 248, y + 50, 220, UI.textSoft);
+        drawPill(38, y + 16, 94, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
+        DrawTextFit(outfit.displayName, 218, y + 22, 170, UI.text);
+        DrawTextFit(`/me ${outfit.announceText}`, 240, y + 44, 250, UI.textSoft);
         drawPill(
             364,
-            y + 16,
+            y + 14,
             108,
-            22,
+            20,
             outfit.includeRestraints ? "Includes restraints" : "Clothes only",
             outfit.includeRestraints ? UI.dangerDeep : UI.successDeep,
             outfit.includeRestraints ? UI.danger : UI.success
         );
         drawPill(
             364,
-            y + 42,
+            y + 38,
             108,
             18,
             hasSave ? `${outfit.items.length} items saved` : "No save data",
             hasSave ? UI.successDeep : UI.buttonMuted,
             hasSave ? UI.success : UI.textMuted
         );
-        drawChromeButton(508, y + 14, 96, 24, "Update", "success", false, "Save current appearance");
-        drawChromeButton(508, y + 42, 96, 24, "Delete", "danger");
+        drawChromeButton(500, y + 12, 98, 22, "Update", "success", false, "Save current appearance");
+        drawChromeButton(500, y + 38, 98, 22, "Delete", "danger");
     }
 
-    drawCard(24, ADD_Y, PANEL_W - 48, 258, "muted");
-    DrawText("Add New Outfit", 128, ADD_Y + 26, UI.text);
-    DrawText("Dress your character first, then save the current appearance into a command slot.", 305, ADD_Y + 26, UI.textSoft);
+    drawCard(24, ADD_Y, PANEL_W - 48, 210, "muted");
+    DrawText("Add New Outfit", 126, ADD_Y + 22, UI.text);
+    DrawTextFit("Dress your character first, then save the current appearance into a command slot.", 334, ADD_Y + 22, 410, UI.textSoft);
 
-    drawInsetLabel("Command", 92, ADD_Y + 58);
-    DrawText("/", 46, ADD_Y + 90, UI.accent);
-    ElementPosition("EmeryOF_Cmd", 122, ADD_Y + 90, 120, 38);
+    drawInsetLabel("Command", 96, ADD_Y + 48);
+    DrawText("/", 56, ADD_Y + 80, UI.accent);
+    ElementPosition("EmeryOF_Cmd", 82, ADD_Y + 62, 120, 34);
 
-    drawInsetLabel("Display Name", 318, ADD_Y + 58);
-    ElementPosition("EmeryOF_Name", 336, ADD_Y + 90, 240, 38);
+    drawInsetLabel("Display Name", 316, ADD_Y + 48);
+    ElementPosition("EmeryOF_Name", 248, ADD_Y + 62, 200, 34);
 
-    drawInsetLabel("Restraint Mode", 518, ADD_Y + 58);
+    drawInsetLabel("Restraint Mode", 522, ADD_Y + 48);
     drawChromeButton(
-        458,
-        ADD_Y + 74,
-        144,
-        34,
+        470,
+        ADD_Y + 56,
+        126,
+        28,
         addIncludeRestraints ? "Include restraints" : "Clothes only",
         addIncludeRestraints ? "danger" : "success"
     );
 
-    drawInsetLabel("Announce Text", 132, ADD_Y + 128);
-    DrawText("/me", 52, ADD_Y + 164, UI.accent);
-    ElementPosition("EmeryOF_Announce", 325, ADD_Y + 164, 520, 38);
+    drawInsetLabel("Announce Text", 114, ADD_Y + 108);
+    DrawText("/me", 58, ADD_Y + 138, UI.accent);
+    ElementPosition("EmeryOF_Announce", 86, ADD_Y + 120, 470, 34);
 
-    drawChromeButton(44, ADD_Y + 206, PANEL_W - 88, 42, "Save Current Appearance as New Outfit", "success");
+    drawChromeButton(44, ADD_Y + 164, PANEL_W - 88, 34, "Save Current Appearance as New Outfit", "success");
 }
 
 export function outfitSettingsClick(): void {
@@ -273,11 +273,11 @@ export function outfitSettingsClick(): void {
     const page = Math.min(settingsPage, totalPages - 1);
     const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
 
-    if (mouseInRect(34, NAV_Y, 90, 30)) {
+    if (mouseInRect(34, NAV_Y, 90, 28)) {
         settingsPage = Math.max(0, page - 1);
         return;
     }
-    if (mouseInRect(526, NAV_Y, 90, 30)) {
+    if (mouseInRect(526, NAV_Y, 90, 28)) {
         settingsPage = Math.min(totalPages - 1, page + 1);
         return;
     }
@@ -287,7 +287,7 @@ export function outfitSettingsClick(): void {
         if (!outfit) continue;
 
         const y = LIST_Y + i * ROW_H;
-        if (mouseInRect(508, y + 14, 96, 24)) {
+        if (mouseInRect(500, y + 12, 98, 22)) {
             const idx = outfits.indexOf(outfit);
             outfits[idx].items = captureAppearance(outfit.includeRestraints);
             saveOutfits(outfits);
@@ -295,7 +295,7 @@ export function outfitSettingsClick(): void {
             return;
         }
 
-        if (mouseInRect(508, y + 42, 96, 24)) {
+        if (mouseInRect(500, y + 38, 98, 22)) {
             saveOutfits(outfits.filter(entry => entry.id !== outfit.id));
             settingsPage = Math.min(
                 settingsPage,
@@ -305,12 +305,12 @@ export function outfitSettingsClick(): void {
         }
     }
 
-    if (mouseInRect(458, ADD_Y + 74, 144, 34)) {
+    if (mouseInRect(470, ADD_Y + 56, 126, 28)) {
         addIncludeRestraints = !addIncludeRestraints;
         return;
     }
 
-    if (mouseInRect(44, ADD_Y + 206, PANEL_W - 88, 42)) {
+    if (mouseInRect(44, ADD_Y + 164, PANEL_W - 88, 34)) {
         const cmd = ElementValue("EmeryOF_Cmd").trim().replace(/\s+/g, "").toLowerCase();
         const name = ElementValue("EmeryOF_Name").trim();
         const announce = ElementValue("EmeryOF_Announce").trim();
