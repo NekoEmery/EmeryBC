@@ -49,6 +49,7 @@ let addIncludeRestraints = false;
 let editingOutfitId: string | null = null;
 const MAX_SERIALIZE_DEPTH = 12;
 let outfitApplyPending = false;
+let refreshScheduled = false;
 
 function placeInput(id: string, left: number, y: number, width: number, height: number): void {
     ElementPosition(id, left + width / 2, y + height / 2, width, height);
@@ -175,6 +176,18 @@ function sendRoomAppearanceUpdate(): void {
     });
 }
 
+function scheduleAppearanceRefresh(): void {
+    if (refreshScheduled) return;
+    refreshScheduled = true;
+    window.setTimeout(() => {
+        try {
+            CharacterRefresh(Player, false, false);
+        } finally {
+            refreshScheduled = false;
+        }
+    }, 0);
+}
+
 function captureAppearance(includeRestraints: boolean): SerializedItem[] {
     return Player.Appearance
         .filter(item => includeRestraints || !RESTRAINT_GROUPS.has(item.Asset.Group.Name))
@@ -233,8 +246,8 @@ function applyOutfit(outfit: ConfiguredOutfit): void {
     }
 
     sanitizeLiveAppearance();
-    CharacterRefresh(Player, false, false);
     sendRoomAppearanceUpdate();
+    scheduleAppearanceRefresh();
 
     // Let the appearance update hit the send queue before we add the optional emote.
     window.setTimeout(() => {
