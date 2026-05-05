@@ -394,6 +394,39 @@
             item.Craft = sanitizeCraft(item.Craft);
         }
     }
+    function cloneAppearanceItem(item) {
+        const asset = AssetGet(Player.AssetFamily, item.Asset.Group.Name, item.Asset.Name);
+        if (!asset)
+            return null;
+        return {
+            Asset: asset,
+            Color: sanitizeColor(item.Color),
+            Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
+            Property: sanitizeProperty(item.Property),
+            Craft: sanitizeCraft(item.Craft),
+        };
+    }
+    function buildAppearanceItem(saved) {
+        const sanitizedItem = sanitizeItem(saved);
+        const asset = AssetGet(Player.AssetFamily, sanitizedItem.Group, sanitizedItem.Name);
+        if (!asset)
+            return null;
+        const property = sanitizeProperty(sanitizedItem.Property);
+        if (property) {
+            delete property["LockedBy"];
+            delete property["LockMemberNumber"];
+            delete property["CombinationNumber"];
+            delete property["Password"];
+            delete property["MemberNumberListKeys"];
+        }
+        return {
+            Asset: asset,
+            Color: sanitizedItem.Color,
+            Difficulty: sanitizedItem.Difficulty,
+            Property: property,
+            Craft: sanitizeCraft(sanitizedItem.Craft),
+        };
+    }
     function sendRoomAppearanceUpdate() {
         var _a;
         if (Player.OnlineID == null)
@@ -430,40 +463,28 @@
         }));
     }
     function applyOutfit(outfit) {
-        var _a, _b;
         if (outfitApplyPending) {
             localNotice("An outfit swap is already in progress.", "#ffb7c7");
             return;
         }
         outfitApplyPending = true;
-        for (const item of [...Player.Appearance]) {
-            const group = item.Asset.Group.Name;
-            const isLocked = !!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy);
-            if (RESTRAINT_GROUPS.has(group) && !outfit.includeRestraints)
-                continue;
-            if (isLocked && !outfit.includeRestraints)
-                continue;
-            InventoryRemove(Player, group, false);
-        }
-        for (const saved of outfit.items) {
-            const sanitizedItem = sanitizeItem(saved);
-            const asset = AssetGet(Player.AssetFamily, saved.Group, saved.Name);
-            if (!asset)
-                continue;
-            InventoryWear(Player, sanitizedItem.Name, sanitizedItem.Group, sanitizedItem.Color, sanitizedItem.Difficulty, undefined, sanitizedItem.Craft);
-            if (sanitizedItem.Property) {
-                const worn = InventoryGet(Player, sanitizedItem.Group);
-                if (worn) {
-                    const prop = (_b = sanitizeProperty(sanitizedItem.Property)) !== null && _b !== void 0 ? _b : {};
-                    delete prop["LockedBy"];
-                    delete prop["LockMemberNumber"];
-                    delete prop["CombinationNumber"];
-                    delete prop["Password"];
-                    delete prop["MemberNumberListKeys"];
-                    worn.Property = prop;
-                }
+        const nextAppearance = [];
+        if (!outfit.includeRestraints) {
+            for (const currentItem of Player.Appearance) {
+                const group = currentItem.Asset.Group.Name;
+                if (!RESTRAINT_GROUPS.has(group))
+                    continue;
+                const cloned = cloneAppearanceItem(currentItem);
+                if (cloned)
+                    nextAppearance.push(cloned);
             }
         }
+        for (const saved of outfit.items) {
+            const built = buildAppearanceItem(saved);
+            if (built)
+                nextAppearance.push(built);
+        }
+        Player.Appearance = nextAppearance;
         sanitizeLiveAppearance();
         sendRoomAppearanceUpdate();
         scheduleAppearanceRefresh();
@@ -715,6 +736,42 @@
     const TAB_BTN_Y = 82;
     const TAB_BTN_H = 28;
     const TAB_BTN_W = 102;
+    function getAddonSettings() {
+        if (!Player.ExtensionSettings.EmeryBC) {
+            Player.ExtensionSettings.EmeryBC = {};
+        }
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function syncPresenceMarker() {
+        const settings = getAddonSettings();
+        if (settings["marker"] === MOD_VERSION)
+            return;
+        settings["marker"] = MOD_VERSION;
+        try {
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch (_a) {
+            // Ignore sync failures here.
+        }
+    }
+    function hasEmeryBC(character) {
+        var _a;
+        const settings = (_a = character === null || character === void 0 ? void 0 : character.ExtensionSettings) === null || _a === void 0 ? void 0 : _a.EmeryBC;
+        return !!settings && typeof settings === "object";
+    }
+    function drawPresenceMarker(args) {
+        if (CurrentScreen !== "ChatRoom")
+            return;
+        const character = args[0];
+        const left = typeof args[1] === "number" ? args[1] : null;
+        const top = typeof args[2] === "number" ? args[2] : null;
+        const zoom = typeof args[3] === "number" ? args[3] : 1;
+        if (!character || left == null || top == null || !hasEmeryBC(character))
+            return;
+        const x = left + 250 * zoom;
+        const y = top + 34 * zoom;
+        DrawText("EBC", x, y, UI.accent, UI.cardMuted);
+    }
     function showLoadNotice() {
         if (noticeShown)
             return;
@@ -862,6 +919,7 @@
     }
     function init() {
         const modAPI = bcModSDK.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
+        syncPresenceMarker();
         modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
             next(args);
             try {
@@ -870,6 +928,16 @@
             catch (_a) {
                 // Ignore draw failures so the room UI still renders.
             }
+        });
+        modAPI.hookFunction("ChatRoomDrawCharacter", 3, (args, next) => {
+            const result = next(args);
+            try {
+                drawPresenceMarker(args);
+            }
+            catch (_a) {
+                // Ignore marker draw failures.
+            }
+            return result;
         });
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             const result = next(args);

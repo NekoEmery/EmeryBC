@@ -167,6 +167,41 @@ function sanitizeLiveAppearance(): void {
     }
 }
 
+function cloneAppearanceItem(item: Item): Item | null {
+    const asset = AssetGet(Player.AssetFamily, item.Asset.Group.Name, item.Asset.Name);
+    if (!asset) return null;
+    return {
+        Asset: asset,
+        Color: sanitizeColor(item.Color),
+        Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
+        Property: sanitizeProperty(item.Property),
+        Craft: sanitizeCraft(item.Craft),
+    };
+}
+
+function buildAppearanceItem(saved: SerializedItem): Item | null {
+    const sanitizedItem = sanitizeItem(saved);
+    const asset = AssetGet(Player.AssetFamily, sanitizedItem.Group, sanitizedItem.Name);
+    if (!asset) return null;
+
+    const property = sanitizeProperty(sanitizedItem.Property);
+    if (property) {
+        delete property["LockedBy"];
+        delete property["LockMemberNumber"];
+        delete property["CombinationNumber"];
+        delete property["Password"];
+        delete property["MemberNumberListKeys"];
+    }
+
+    return {
+        Asset: asset,
+        Color: sanitizedItem.Color,
+        Difficulty: sanitizedItem.Difficulty,
+        Property: property,
+        Craft: sanitizeCraft(sanitizedItem.Craft),
+    };
+}
+
 function sendRoomAppearanceUpdate(): void {
     if (Player.OnlineID == null) return;
     ServerSend("ChatRoomCharacterUpdate", {
@@ -208,43 +243,23 @@ function applyOutfit(outfit: ConfiguredOutfit): void {
     }
     outfitApplyPending = true;
 
-    for (const item of [...Player.Appearance]) {
-        const group = item.Asset.Group.Name;
-        const isLocked = !!item.Property?.LockedBy;
-        if (RESTRAINT_GROUPS.has(group) && !outfit.includeRestraints) continue;
-        if (isLocked && !outfit.includeRestraints) continue;
-        InventoryRemove(Player, group, false);
-    }
+    const nextAppearance: Item[] = [];
 
-    for (const saved of outfit.items) {
-        const sanitizedItem = sanitizeItem(saved);
-        const asset = AssetGet(Player.AssetFamily, saved.Group, saved.Name);
-        if (!asset) continue;
-
-        InventoryWear(
-            Player,
-            sanitizedItem.Name,
-            sanitizedItem.Group,
-            sanitizedItem.Color,
-            sanitizedItem.Difficulty,
-            undefined,
-            sanitizedItem.Craft
-        );
-
-        if (sanitizedItem.Property) {
-            const worn = InventoryGet(Player, sanitizedItem.Group);
-            if (worn) {
-                const prop = sanitizeProperty(sanitizedItem.Property) ?? {};
-                delete prop["LockedBy"];
-                delete prop["LockMemberNumber"];
-                delete prop["CombinationNumber"];
-                delete prop["Password"];
-                delete prop["MemberNumberListKeys"];
-                worn.Property = prop;
-            }
+    if (!outfit.includeRestraints) {
+        for (const currentItem of Player.Appearance) {
+            const group = currentItem.Asset.Group.Name;
+            if (!RESTRAINT_GROUPS.has(group)) continue;
+            const cloned = cloneAppearanceItem(currentItem);
+            if (cloned) nextAppearance.push(cloned);
         }
     }
 
+    for (const saved of outfit.items) {
+        const built = buildAppearanceItem(saved);
+        if (built) nextAppearance.push(built);
+    }
+
+    Player.Appearance = nextAppearance;
     sanitizeLiveAppearance();
     sendRoomAppearanceUpdate();
     scheduleAppearanceRefresh();
