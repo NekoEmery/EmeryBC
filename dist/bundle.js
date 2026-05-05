@@ -654,8 +654,9 @@
             `background:${UI.cardMuted}`,
             `border-left:3px solid ${UI.accent}`,
             "font-style:italic",
-            "padding:4px 8px",
-            "margin:2px 0",
+            "font-size:11px",
+            "padding:2px 8px",
+            "margin:1px 0",
         ].join(";");
         div.textContent = `[EmeryBC] ${msg}`;
         log.appendChild(div);
