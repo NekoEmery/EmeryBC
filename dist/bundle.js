@@ -907,7 +907,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.14";
+    const MOD_VERSION = "0.1.15";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -924,6 +924,14 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.15",
+            changes: [
+                "Removed login screen popup — no more dialog on startup.",
+                "Added a quiet chat message on room join confirming EmeryBC loaded successfully.",
+                "Fixed badge version text visibility by widening the overhead badge further.",
+            ],
+        },
         {
             version: "0.1.14",
             changes: [
@@ -1151,7 +1159,7 @@
         if (!character || left == null || top == null || !hasEmeryBC(character))
             return;
         const presence = getSharedPresence(character);
-        const width = Math.max(38, 48 * zoom);
+        const width = Math.max(62, 78 * zoom);
         const height = Math.max(28, 34 * zoom);
         const x = left + 228 * zoom;
         const y = top + 16 * zoom;
@@ -1163,65 +1171,11 @@
         DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + height * 0.35, width - 14, UI.accent);
         DrawTextFit(`v${(_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : MOD_VERSION}`, badgeLeft + width / 2, badgeTop + height * 0.75, width - 14, UI.textMuted);
     }
-    function showLoadNotice() {
+    function showRoomLoadNotice() {
         if (noticeShown)
             return;
         noticeShown = true;
-        const wrap = document.createElement("div");
-        wrap.style.cssText = `
-        position: fixed;
-        top: 14px;
-        right: 14px;
-        width: 288px;
-        font-family: "Trebuchet MS", "Palatino Linotype", serif;
-        font-size: 13px;
-        border: 1px solid ${UI.panelEdge};
-        border-radius: 16px;
-        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
-        overflow: hidden;
-        z-index: 99999;
-        cursor: pointer;
-        user-select: none;
-        background: linear-gradient(180deg, #341522 0%, #1b0d17 100%);
-    `;
-        const title = document.createElement("div");
-        title.style.cssText = `
-        background: linear-gradient(90deg, ${UI.accentDeep} 0%, ${UI.accentSoft} 100%);
-        color: ${UI.text};
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        text-align: center;
-        padding: 9px 12px;
-        font-size: 13px;
-    `;
-        title.textContent = "EmeryBC Ready";
-        const body = document.createElement("div");
-        body.style.cssText = `
-        color: ${UI.text};
-        padding: 12px 14px 13px;
-        line-height: 1.65;
-    `;
-        body.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="color:${UI.textMuted};">Version</span>
-            <span style="color:${UI.gold};">${MOD_VERSION}</span>
-        </div>
-        <div style="padding:8px 10px;border:1px solid ${UI.panelEdge};border-radius:12px;background:${UI.cardMuted};">
-            <div style="margin-bottom:4px;">Action Buttons online</div>
-            <div>Outfit Commands online</div>
-        </div>
-        <div style="margin-top:9px;font-size:11px;color:${UI.textSoft};text-align:center;">Click to dismiss</div>
-    `;
-        wrap.appendChild(title);
-        wrap.appendChild(body);
-        wrap.addEventListener("click", () => wrap.remove());
-        document.body.appendChild(wrap);
-        setTimeout(() => wrap.remove(), 10000);
-        const log = document.getElementById("TextAreaChatLog");
-        if (log) {
-            appendLocalLogLine(`EmeryBC v${MOD_VERSION} loaded - open Preferences > Extensions to configure it.`);
-        }
+        appendLocalLogLine(`✓ EmeryBC v${MOD_VERSION} loaded successfully.`);
     }
     function drawTabs() {
         drawChromeButton(TAB_BTN_LEFT, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
@@ -1335,7 +1289,7 @@
                 // Ignore sync failures.
             }
             try {
-                showLoadNotice();
+                showRoomLoadNotice();
             }
             catch (_b) {
                 // Ignore notice failures.
@@ -1386,12 +1340,6 @@
         }
         catch (_a) {
             // Ignore early sync failures.
-        }
-        try {
-            showLoadNotice();
-        }
-        catch (_b) {
-            // Ignore early notice failures.
         }
         console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
     }
