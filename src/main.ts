@@ -125,18 +125,25 @@ function registerSettings(): void {
     if (settingsRegistered) return;
     const g = window as unknown as Record<string, unknown>;
     const reg = g["PreferenceRegisterExtensionSetting"] as ((s: unknown) => void) | undefined;
+    console.log(`[EmeryBC] registerSettings: fn=${typeof reg}, player=${typeof Player !== "undefined" ? Player.MemberNumber : "N/A"}`);
     if (reg) {
-        reg({
-            Identifier: MOD_NAME,
-            ButtonText:  "EmeryBC",
-            Image:       "",
-            load:  () => {},
-            run:   settingsRun,
-            click: settingsClick,
-            exit:  settingsExit,
-        });
-        settingsRegistered = true;
+        try {
+            reg({
+                Identifier: MOD_NAME,
+                ButtonText:  "EmeryBC",
+                Image:       "",
+                load:  () => {},
+                run:   settingsRun,
+                click: settingsClick,
+                exit:  settingsExit,
+            });
+            settingsRegistered = true;
+            console.log("[EmeryBC] Extension settings registered OK");
+        } catch (e) {
+            console.error("[EmeryBC] Registration failed:", e);
+        }
     } else {
+        console.log("[EmeryBC] PreferenceRegisterExtensionSetting not ready yet, retrying in 1s");
         setTimeout(registerSettings, 1000);
     }
 }
