@@ -854,7 +854,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.2";
+    const MOD_VERSION = "0.1.3";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -871,6 +871,14 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.3",
+            changes: [
+                "Synced EmeryBC presence/version data automatically so the overhead badge has real data to read.",
+                "Moved the badge above the character and added a version line under the EBC label.",
+                "Keep the overhead version marker and pushed bundle version in lockstep on update.",
+            ],
+        },
         {
             version: "0.1.2",
             changes: [
@@ -939,12 +947,42 @@
         appendLocalLogLine("[EmeryBC] Usage: /ebc version", UI.gold);
         return true;
     }
+    function getAddonSettings(character, create = false) {
+        if (!character)
+            return null;
+        const extensionSettings = character.ExtensionSettings;
+        if (!extensionSettings)
+            return null;
+        const existing = extensionSettings[MOD_NAME];
+        if (existing && typeof existing === "object") {
+            return existing;
+        }
+        if (!create)
+            return null;
+        const created = {};
+        extensionSettings[MOD_NAME] = created;
+        return created;
+    }
+    function syncPresenceMarker() {
+        const settings = getAddonSettings(Player, true);
+        if (!settings)
+            return;
+        const current = settings.presence;
+        if ((current === null || current === void 0 ? void 0 : current.version) === MOD_VERSION && current.marker === "EBC")
+            return;
+        settings.presence = {
+            version: MOD_VERSION,
+            marker: "EBC",
+        };
+        ServerPlayerExtensionSettingsSync(MOD_NAME);
+    }
     function hasEmeryBC(character) {
         var _a;
-        const settings = (_a = character === null || character === void 0 ? void 0 : character.ExtensionSettings) === null || _a === void 0 ? void 0 : _a.EmeryBC;
-        return !!settings && typeof settings === "object";
+        const presence = (_a = getAddonSettings(character, false)) === null || _a === void 0 ? void 0 : _a.presence;
+        return !!presence && presence.marker === "EBC";
     }
     function drawPresenceMarker(args) {
+        var _a;
         if (CurrentScreen !== "ChatRoom")
             return;
         const character = args[0];
@@ -953,20 +991,23 @@
         const zoom = typeof args[3] === "number" ? args[3] : 1;
         if (!character || left == null || top == null || !hasEmeryBC(character))
             return;
-        const width = Math.max(54, 64 * zoom);
-        const height = Math.max(18, 20 * zoom);
+        const presence = (_a = getAddonSettings(character, false)) === null || _a === void 0 ? void 0 : _a.presence;
+        const versionText = (presence === null || presence === void 0 ? void 0 : presence.version) ? `v${presence.version}` : "v?";
+        const width = Math.max(70, 86 * zoom);
+        const height = Math.max(28, 34 * zoom);
         const x = left + 250 * zoom;
-        const y = top + 22 * zoom;
+        const y = top - 18 * zoom;
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
-        const iconWidth = Math.max(18, 22 * zoom);
+        const iconWidth = Math.max(22, 24 * zoom);
         DrawRect(badgeLeft + 2, badgeTop + 2, width, height, "rgba(0, 0, 0, 0.28)");
         DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
         DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
         DrawRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accentSoft);
         DrawEmptyRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accent, 1);
-        DrawTextFit("=:3", badgeLeft + 2 + iconWidth / 2, y + 1, iconWidth - 4, UI.text);
-        DrawTextFit("EBC", badgeLeft + iconWidth + (width - iconWidth) / 2, y + 1, width - iconWidth - 6, UI.accent);
+        DrawTextFit("=:3", badgeLeft + 2 + iconWidth / 2, badgeTop + height / 2 + 1, iconWidth - 4, UI.text);
+        DrawTextFit("EBC", badgeLeft + iconWidth + (width - iconWidth) / 2, badgeTop + 11, width - iconWidth - 8, UI.accent);
+        DrawTextFit(versionText, badgeLeft + iconWidth + (width - iconWidth) / 2, badgeTop + 24, width - iconWidth - 8, UI.textMuted);
     }
     function showLoadNotice() {
         if (noticeShown)
@@ -1134,9 +1175,15 @@
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             const result = next(args);
             try {
-                showLoadNotice();
+                syncPresenceMarker();
             }
             catch (_a) {
+                // Ignore sync failures.
+            }
+            try {
+                showLoadNotice();
+            }
+            catch (_b) {
                 // Ignore notice failures.
             }
             return result;
@@ -1181,9 +1228,15 @@
         });
         registerSettings();
         try {
-            showLoadNotice();
+            syncPresenceMarker();
         }
         catch (_a) {
+            // Ignore early sync failures.
+        }
+        try {
+            showLoadNotice();
+        }
+        catch (_b) {
             // Ignore early notice failures.
         }
         console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
