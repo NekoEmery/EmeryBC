@@ -28,8 +28,12 @@ const TAB_BTN_Y = 82;
 const TAB_BTN_H = 28;
 const TAB_BTN_W = 102;
 
-function getAddonSettings(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) {
+function getAddonSettings(): Record<string, unknown> | null {
+    if (typeof Player === "undefined" || !Player) return null;
+    if (!Player.ExtensionSettings || typeof Player.ExtensionSettings !== "object") {
+        Player.ExtensionSettings = {};
+    }
+    if (!Player.ExtensionSettings.EmeryBC || typeof Player.ExtensionSettings.EmeryBC !== "object") {
         Player.ExtensionSettings.EmeryBC = {};
     }
     return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
@@ -37,6 +41,7 @@ function getAddonSettings(): Record<string, unknown> {
 
 function syncPresenceMarker(): void {
     const settings = getAddonSettings();
+    if (!settings) return;
     if (settings["marker"] === MOD_VERSION) return;
     settings["marker"] = MOD_VERSION;
     try {
@@ -261,6 +266,11 @@ function init(): void {
 
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);
+        try {
+            syncPresenceMarker();
+        } catch {
+            // Ignore presence sync failures.
+        }
         try {
             showLoadNotice();
         } catch {

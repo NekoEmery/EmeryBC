@@ -745,13 +745,20 @@
     const TAB_BTN_H = 28;
     const TAB_BTN_W = 102;
     function getAddonSettings() {
-        if (!Player.ExtensionSettings.EmeryBC) {
+        if (typeof Player === "undefined" || !Player)
+            return null;
+        if (!Player.ExtensionSettings || typeof Player.ExtensionSettings !== "object") {
+            Player.ExtensionSettings = {};
+        }
+        if (!Player.ExtensionSettings.EmeryBC || typeof Player.ExtensionSettings.EmeryBC !== "object") {
             Player.ExtensionSettings.EmeryBC = {};
         }
         return Player.ExtensionSettings.EmeryBC;
     }
     function syncPresenceMarker() {
         const settings = getAddonSettings();
+        if (!settings)
+            return;
         if (settings["marker"] === MOD_VERSION)
             return;
         settings["marker"] = MOD_VERSION;
@@ -961,9 +968,15 @@
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             const result = next(args);
             try {
-                showLoadNotice();
+                syncPresenceMarker();
             }
             catch (_a) {
+                // Ignore presence sync failures.
+            }
+            try {
+                showLoadNotice();
+            }
+            catch (_b) {
                 // Ignore notice failures.
             }
             return result;
