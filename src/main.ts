@@ -16,7 +16,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.8";
+const MOD_VERSION = "0.1.9";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -39,6 +39,16 @@ const TAB_BTN_W = 132;
 const TAB_BTN_GAP = 14;
 const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.9",
+        changes: [
+            "Fixed outfit page row and editor overlaps — labels, inputs and buttons no longer stack on each other.",
+            "Action buttons now use Type:Action so they show as (Name text.) instead of * Name text *.",
+            "Default action emotes updated to match the new format.",
+            "EBC overhead badge made smaller and drops the version line.",
+            "Outfit notice messages bumped to 12px to match other log messages.",
+        ],
+    },
     {
         version: "0.1.8",
         changes: [
@@ -241,19 +251,17 @@ function drawPresenceMarker(args: unknown[]): void {
     if (!character || left == null || top == null || !hasEmeryBC(character)) return;
 
     const presence = getSharedPresence(character);
-    const versionText = presence?.version ? `v${presence.version}` : "v?";
-    const width = Math.max(64, 82 * zoom);
-    const height = Math.max(26, 32 * zoom);
+    const width = Math.max(30, 38 * zoom);
+    const height = Math.max(14, 18 * zoom);
     const x = left + 228 * zoom;
     const y = top - 34 * zoom;
     const badgeLeft = x - width / 2;
     const badgeTop = y - height / 2;
 
-    DrawRect(badgeLeft + 2, badgeTop + 2, width, height, "rgba(0, 0, 0, 0.28)");
+    DrawRect(badgeLeft + 1, badgeTop + 1, width, height, "rgba(0, 0, 0, 0.28)");
     DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
     DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
-    DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + 10, width - 10, UI.accent);
-    DrawTextFit(versionText, badgeLeft + width / 2, badgeTop + 23, width - 10, UI.textMuted);
+    DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + height / 2, width - 4, UI.accent);
 }
 
 function showLoadNotice(): void {

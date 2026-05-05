@@ -19,10 +19,10 @@ export interface ActionButton {
 }
 
 const DEFAULT_BUTTONS: ActionButton[] = [
-    { label: "NOD",   emote: "nods their head",          color: "#c2185b", enabled: true  },
-    { label: "SHAKE", emote: "shakes their head",        color: "#c2185b", enabled: true  },
-    { label: "WAVE",  emote: "waves",                    color: "#c2185b", enabled: true  },
-    { label: "BOW",   emote: "bows their head politely", color: "#c2185b", enabled: true  },
+    { label: "NOD",   emote: "nods.",                    color: "#c2185b", enabled: true  },
+    { label: "SHAKE", emote: "shakes their head.",       color: "#c2185b", enabled: true  },
+    { label: "WAVE",  emote: "waves.",                   color: "#c2185b", enabled: true  },
+    { label: "BOW",   emote: "bows politely.",           color: "#c2185b", enabled: true  },
     { label: "",      emote: "",                         color: "#c2185b", enabled: false },
     { label: "",      emote: "",                         color: "#c2185b", enabled: false },
 ];
@@ -106,7 +106,7 @@ export function handleActionButtonClick(): boolean {
         const y = BTN_START_Y + i * BTN_SIZE;
         if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
             MouseY >= y    && MouseY <= y + BTN_SIZE) {
-            ServerSend("ChatRoomChat", { Content: btn.emote.trim(), Type: "Emote" });
+            ServerSend("ChatRoomChat", { Content: btn.emote.trim(), Type: "Action" });
             return true;
         }
     }
@@ -231,7 +231,7 @@ export function settingsRun(): void {
     drawChromeButton(CONTENT_LEFT + 460, footerY, 200, 44, "Reset Defaults",  "gold");
 
     DrawTextFit(
-        "Buttons appear in the chatroom sidebar. Click them to send the /me emote to the room.",
+        "Action text is sent as (Name text.) in chat. End with a period for clean formatting.",
         CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
 }
 

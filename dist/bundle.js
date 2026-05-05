@@ -156,10 +156,10 @@
 
     // Action buttons drawn in the chatroom sidebar below BCAR's buttons.
     const DEFAULT_BUTTONS = [
-        { label: "NOD", emote: "nods their head", color: "#c2185b", enabled: true },
-        { label: "SHAKE", emote: "shakes their head", color: "#c2185b", enabled: true },
-        { label: "WAVE", emote: "waves", color: "#c2185b", enabled: true },
-        { label: "BOW", emote: "bows their head politely", color: "#c2185b", enabled: true },
+        { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true },
+        { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true },
+        { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true },
+        { label: "BOW", emote: "bows politely.", color: "#c2185b", enabled: true },
         { label: "", emote: "", color: "#c2185b", enabled: false },
         { label: "", emote: "", color: "#c2185b", enabled: false },
     ];
@@ -239,7 +239,7 @@
             const y = BTN_START_Y + i * BTN_SIZE;
             if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
                 MouseY >= y && MouseY <= y + BTN_SIZE) {
-                ServerSend("ChatRoomChat", { Content: btn.emote.trim(), Type: "Emote" });
+                ServerSend("ChatRoomChat", { Content: btn.emote.trim(), Type: "Action" });
                 return true;
             }
         }
@@ -336,7 +336,7 @@
         drawChromeButton(CONTENT_LEFT, footerY, 228, 44, `＋ Add Slot  (${settingsSlotCount}/${ABSOLUTE_MAX})`, canAdd ? "success" : "muted", !canAdd);
         drawChromeButton(CONTENT_LEFT + 244, footerY, 200, 44, "Save Layout", "accent");
         drawChromeButton(CONTENT_LEFT + 460, footerY, 200, 44, "Reset Defaults", "gold");
-        DrawTextFit("Buttons appear in the chatroom sidebar. Click them to send the /me emote to the room.", CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
+        DrawTextFit("Action text is sent as (Name text.) in chat. End with a period for clean formatting.", CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
     }
     function settingsClick$1() {
         // ── Toggle + Delete per row ──────────────────────────────────────────────
@@ -654,7 +654,7 @@
             `background:${UI.cardMuted}`,
             `border-left:3px solid ${UI.accent}`,
             "font-style:italic",
-            "font-size:11px",
+            "font-size:12px",
             "padding:2px 8px",
             "margin:1px 0",
         ].join(";");
@@ -709,80 +709,86 @@
         const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
         const page = Math.min(settingsPage, totalPages - 1);
         const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
-        const editingOutfit = editingOutfitId ? (_a = outfits.find(outfit => outfit.id === editingOutfitId)) !== null && _a !== void 0 ? _a : null : null;
+        const editingOutfit = editingOutfitId ? (_a = outfits.find(o => o.id === editingOutfitId)) !== null && _a !== void 0 ? _a : null : null;
         drawSettingsScaffold("Outfit Commands", "Capture a look once, then switch with a slash command.", [
             { label: "OUTFITS", value: `${outfits.length}`, tone: "accent" },
             { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
         ]);
+        // ── List nav ────────────────────────────────────────────────────────────
         drawChromeButton(LIST_LEFT, NAV_Y, 88, 30, "◀ Prev", "muted", page === 0);
-        DrawText("Wardrobe", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 15, UI.textMuted);
-        DrawTextFit(`${page + 1} / ${totalPages}`, LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 35, 100, UI.textSoft);
+        DrawTextFit(`Page ${page + 1} of ${totalPages}`, LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 15, LIST_WIDTH - 200, UI.textMuted);
         drawChromeButton(LIST_LEFT + LIST_WIDTH - 88, NAV_Y, 88, 30, "Next ▶", "muted", page >= totalPages - 1);
-        DrawTextFit("Click a row to edit it. Use the row buttons to wear, update, or delete.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 52, LIST_WIDTH - 20, UI.textSoft);
+        DrawTextFit("Click any row to open it in the editor. Use the row buttons to act on it.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 40, LIST_WIDTH - 10, UI.textSoft);
+        // ── Outfit rows ─────────────────────────────────────────────────────────
+        // Button columns (right-aligned, shared across all rows)
+        const btnDel = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 8;
+        const btnUpdate = btnDel - LIST_BTN_W - 6;
+        const btnWear = btnUpdate - LIST_BTN_W - 6;
+        const pillRight = LIST_LEFT + 10 + 90; // pill ends here
+        const nameRight = btnWear - 10; // name text can go up to here
+        const nameCenter = (pillRight + 8 + nameRight) / 2;
+        const nameWidth = nameRight - pillRight - 8;
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             const y = LIST_Y + i * ROW_H;
             const isEditing = editingOutfitId === (outfit === null || outfit === void 0 ? void 0 : outfit.id);
-            drawCard(LIST_LEFT, y, LIST_WIDTH, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
-            if (isEditing) {
-                DrawEmptyRect(LIST_LEFT - 1, y - 1, LIST_WIDTH + 2, ROW_H - 6, UI.accent, 2);
-            }
+            drawCard(LIST_LEFT, y, LIST_WIDTH, ROW_H - 6, i % 2 === 0 ? "default" : "alt");
+            if (isEditing)
+                DrawEmptyRect(LIST_LEFT - 1, y - 1, LIST_WIDTH + 2, ROW_H - 4, UI.accent, 2);
             if (!outfit) {
-                DrawText("Empty slot", LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2 - 8, UI.textMuted);
-                DrawTextFit("Create an outfit using the editor on the right.", LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2 + 14, LIST_WIDTH - 40, UI.textSoft);
+                DrawTextFit("Empty — fill in using the editor on the right", LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2, LIST_WIDTH - 40, UI.textMuted);
                 continue;
             }
-            // Button x positions (right-aligned within the row)
-            const btnDel = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 6;
-            const btnUpdate = btnDel - LIST_BTN_W - 6;
-            const btnWear = btnUpdate - LIST_BTN_W - 6;
-            const textRight = btnWear - 12; // text can go up to here
-            const textW = textRight - LIST_LEFT - 28; // available text width
             const hasSave = outfit.items.length > 0;
-            // Top row: pill + name + buttons
-            drawPill(LIST_LEFT + 10, y + 12, 96, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
-            DrawTextFit(outfit.displayName, LIST_LEFT + 120 + textW / 2 - 20, y + 23, textW - 110, UI.text);
-            drawChromeButton(btnWear, y + 10, LIST_BTN_W, 28, "Wear", "accent");
-            drawChromeButton(btnUpdate, y + 10, LIST_BTN_W, 28, "Update", "success", false, "Save current appearance");
-            drawChromeButton(btnDel, y + 10, LIST_BTN_W, 28, "Delete", "danger");
-            // Bottom row: item count chip + restraint label + announce text
-            const chipLabel = hasSave ? `${outfit.items.length} items` : "⚠ empty";
-            const chipColor = hasSave ? UI.success : UI.gold;
-            DrawTextFit(chipLabel, LIST_LEFT + 14 + 46, y + 52, 90, chipColor);
-            DrawTextFit(outfit.includeRestraints ? "· incl. restraints" : "· clothes only", LIST_LEFT + 116 + 72, y + 52, 140, outfit.includeRestraints ? UI.danger : UI.textMuted);
-            DrawTextFit(`/me ${outfit.announceText}`, LIST_LEFT + 270 + (textRight - LIST_LEFT - 270) / 2, y + 52, textRight - LIST_LEFT - 270, UI.textSoft);
+            // Top line: pill | name | [Wear] [Update] [Delete]
+            drawPill(LIST_LEFT + 10, y + 9, 90, 24, `/${outfit.command}`, UI.accentSoft, UI.accent);
+            DrawTextFit(outfit.displayName, nameCenter, y + 21, nameWidth, UI.text);
+            drawChromeButton(btnWear, y + 8, LIST_BTN_W, 26, "Wear", "accent");
+            drawChromeButton(btnUpdate, y + 8, LIST_BTN_W, 26, "Update", "success", false, "Save current look");
+            drawChromeButton(btnDel, y + 8, LIST_BTN_W, 26, "Delete", "danger");
+            // Divider between top/bottom
+            DrawRect(LIST_LEFT + 8, y + 42, LIST_WIDTH - 16, 1, UI.panelEdge);
+            // Bottom line: items | restraint mode | announce text (spans full row width)
+            const announceCenterX = LIST_LEFT + 272 + (LIST_LEFT + LIST_WIDTH - 10 - (LIST_LEFT + 272)) / 2;
+            const announceWidth = LIST_LEFT + LIST_WIDTH - 10 - (LIST_LEFT + 272);
+            DrawTextFit(hasSave ? `${outfit.items.length} items` : "⚠ empty", LIST_LEFT + 46, y + 64, 80, hasSave ? UI.success : UI.gold);
+            DrawTextFit(outfit.includeRestraints ? "incl. restraints" : "clothes only", LIST_LEFT + 148, y + 64, 100, outfit.includeRestraints ? UI.danger : UI.textMuted);
+            DrawTextFit(`/me ${outfit.announceText}`, announceCenterX, y + 64, announceWidth, UI.textSoft);
         }
+        // ── Editor panel ────────────────────────────────────────────────────────
         drawCard(EDITOR_LEFT, EDITOR_TOP, EDITOR_WIDTH, EDITOR_HEIGHT, "muted");
-        DrawText(editingOutfit ? "Outfit Editor" : "New Outfit Builder", EDITOR_LEFT + 104, EDITOR_TOP + 24, UI.text);
-        DrawTextFit(editingOutfit
-            ? `Editing /${editingOutfit.command}. Save settings here, or refresh its saved look with Update or Save Current Look.`
-            : "Dress your character first, then capture that look here into a reusable slash command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 24, EDITOR_WIDTH - 150, UI.textSoft);
-        drawPill(EDITOR_LEFT + 18, EDITOR_TOP + 44, EDITOR_WIDTH - 36, 22, editingOutfit ? `Currently editing: /${editingOutfit.command}` : "No outfit selected yet", UI.cardMuted, editingOutfit ? UI.accent : UI.textMuted);
-        DrawTextFit("Command", EDITOR_LEFT + 90, EDITOR_TOP + 94, 140, UI.textSoft);
-        DrawText("/", EDITOR_LEFT + 30, EDITOR_TOP + 126, UI.accent);
-        placeInput("EmeryOF_Cmd", EDITOR_LEFT + 56, EDITOR_TOP + 108, 150, 34);
-        DrawTextFit("Display Name", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 160, 180, UI.textSoft);
-        placeInput("EmeryOF_Name", EDITOR_LEFT + 18, EDITOR_TOP + 174, EDITOR_WIDTH - 36, 36);
-        DrawTextFit("Restraint Mode", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 228, 180, UI.textSoft);
-        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 242, EDITOR_WIDTH - 36, 34, addIncludeRestraints ? "Include restraints in the saved outfit" : "Save clothing only and preserve restraints", addIncludeRestraints ? "danger" : "success");
-        DrawTextFit("Announce Text", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 306, 180, UI.textSoft);
-        DrawText("/me", EDITOR_LEFT + 30, EDITOR_TOP + 338, UI.accent);
-        placeInput("EmeryOF_Announce", EDITOR_LEFT + 60, EDITOR_TOP + 320, EDITOR_WIDTH - 78, 36);
-        drawCard(EDITOR_LEFT + 18, EDITOR_TOP + 384, EDITOR_WIDTH - 36, 128, "default");
-        DrawText("Quick Actions", EDITOR_LEFT + 96, EDITOR_TOP + 408, UI.text);
-        DrawTextFit("These buttons either save the command settings or capture the look your character is currently wearing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 408, EDITOR_WIDTH - 90, UI.textSoft);
-        drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 434, EDITOR_WIDTH - 56, 36, editingOutfit ? "Save Outfit Settings" : "Create New Outfit From Current Look", "success");
-        drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 476, EDITOR_WIDTH - 56, 30, editingOutfit ? "Save Current Look Into This Outfit" : "Capture Current Look Preview", editingOutfit ? "accent" : "muted", !editingOutfit);
-        // Notes — large readable lines, no cramped card
-        const notesY = EDITOR_TOP + 528;
-        DrawRect(EDITOR_LEFT + 18, notesY, EDITOR_WIDTH - 36, 1, UI.panelEdge);
-        DrawTextFit("How to use", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 18, EDITOR_WIDTH - 36, UI.textMuted);
-        DrawTextFit("→  Click a row on the left to open it here for editing.", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 40, EDITOR_WIDTH - 36, UI.textSoft);
-        DrawTextFit("→  Wear applies the outfit to your character right now.", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 62, EDITOR_WIDTH - 36, UI.textSoft);
-        DrawTextFit("→  Update replaces the saved look with what you're wearing.", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 84, EDITOR_WIDTH - 36, UI.textSoft);
-        DrawTextFit("→  Announce text is sent as a /me emote when you load the outfit.", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 106, EDITOR_WIDTH - 36, UI.textSoft);
+        // Header
+        DrawTextFit(editingOutfit ? "Editing Outfit" : "New Outfit", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 22, EDITOR_WIDTH - 20, UI.text);
+        drawPill(EDITOR_LEFT + 18, EDITOR_TOP + 38, EDITOR_WIDTH - 36, 22, editingOutfit ? `/${editingOutfit.command}` : "no outfit selected", UI.cardMuted, editingOutfit ? UI.accent : UI.textMuted);
+        // ── Slash command ──
+        DrawTextFit("Slash Command", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 80, EDITOR_WIDTH - 36, UI.textSoft);
+        // "/" label sits to the left of the input, at same vertical center as input center
+        // input top = EDITOR_TOP+94, height=34 → center y = EDITOR_TOP+111
+        DrawTextFit("/", EDITOR_LEFT + 28, EDITOR_TOP + 111, 20, UI.accent);
+        placeInput("EmeryOF_Cmd", EDITOR_LEFT + 48, EDITOR_TOP + 94, EDITOR_WIDTH - 66, 34);
+        // ── Display name ──
+        DrawTextFit("Display Name", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 148, EDITOR_WIDTH - 36, UI.textSoft);
+        placeInput("EmeryOF_Name", EDITOR_LEFT + 18, EDITOR_TOP + 162, EDITOR_WIDTH - 36, 34);
+        // ── Restraint mode ──
+        DrawTextFit("Restraint Mode", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 212, EDITOR_WIDTH - 36, UI.textSoft);
+        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 226, EDITOR_WIDTH - 36, 32, addIncludeRestraints ? "Includes restraints" : "Clothes only (restraints preserved)", addIncludeRestraints ? "danger" : "success");
+        // ── Announce text ──
+        DrawTextFit("Announce Text  (/me ...)", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 274, EDITOR_WIDTH - 36, UI.textSoft);
+        // input top = EDITOR_TOP+288, height=34 → center y = EDITOR_TOP+305  (label is 14px above input)
+        placeInput("EmeryOF_Announce", EDITOR_LEFT + 18, EDITOR_TOP + 288, EDITOR_WIDTH - 36, 34);
+        // ── Save / Create ──
+        DrawRect(EDITOR_LEFT + 18, EDITOR_TOP + 336, EDITOR_WIDTH - 36, 1, UI.panelEdge);
+        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 348, EDITOR_WIDTH - 36, 38, editingOutfit ? "Save Outfit Settings" : "Create Outfit From Current Look", "success");
+        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 394, EDITOR_WIDTH - 36, 32, editingOutfit ? "Refresh Saved Look" : "Capture Look Preview", editingOutfit ? "accent" : "muted", !editingOutfit);
+        // ── Notes ──
+        DrawRect(EDITOR_LEFT + 18, EDITOR_TOP + 440, EDITOR_WIDTH - 36, 1, UI.panelEdge);
+        DrawTextFit("How to use", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 458, EDITOR_WIDTH - 36, UI.textMuted);
+        DrawTextFit("→ Click a row to open it for editing here.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 478, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("→ Wear applies the outfit to your character instantly.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 498, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("→ Update replaces the saved look with what you're wearing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 518, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("→ Announce text is sent as a /me emote when the outfit loads.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 538, EDITOR_WIDTH - 36, UI.textSoft);
         if (editingOutfit) {
-            drawChromeButton(EDITOR_LEFT + 28, notesY + 124, EDITOR_WIDTH - 56, 32, "Cancel Edit", "muted");
+            drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 562, EDITOR_WIDTH - 36, 30, "Cancel Edit", "muted");
         }
     }
     function outfitSettingsClick() {
@@ -798,26 +804,26 @@
             settingsPage = Math.min(totalPages - 1, page + 1);
             return;
         }
+        const btnDel = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 8;
+        const btnUpdate = btnDel - LIST_BTN_W - 6;
+        const btnWear = btnUpdate - LIST_BTN_W - 6;
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             if (!outfit)
                 continue;
             const y = LIST_Y + i * ROW_H;
-            const btnDel = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 6;
-            const btnUpdate = btnDel - LIST_BTN_W - 6;
-            const btnWear = btnUpdate - LIST_BTN_W - 6;
-            if (mouseInRect(btnWear, y + 10, LIST_BTN_W, 28)) {
+            if (mouseInRect(btnWear, y + 8, LIST_BTN_W, 26)) {
                 applyOutfit(outfit);
                 return;
             }
-            if (mouseInRect(btnUpdate, y + 10, LIST_BTN_W, 28)) {
+            if (mouseInRect(btnUpdate, y + 8, LIST_BTN_W, 26)) {
                 const idx = outfits.indexOf(outfit);
                 outfits[idx].items = captureAppearance(outfit.includeRestraints);
                 saveOutfits(outfits);
                 localNotice(`Updated "/${outfit.command}"`);
                 return;
             }
-            if (mouseInRect(btnDel, y + 10, LIST_BTN_W, 28)) {
+            if (mouseInRect(btnDel, y + 8, LIST_BTN_W, 26)) {
                 saveOutfits(outfits.filter(entry => entry.id !== outfit.id));
                 if (editingOutfitId === outfit.id) {
                     resetEditor();
@@ -830,15 +836,15 @@
                 return;
             }
         }
-        if (mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 242, EDITOR_WIDTH - 36, 34)) {
+        if (mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 226, EDITOR_WIDTH - 36, 32)) {
             addIncludeRestraints = !addIncludeRestraints;
             return;
         }
-        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 642, EDITOR_WIDTH - 56, 30)) {
+        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 562, EDITOR_WIDTH - 36, 30)) {
             resetEditor();
             return;
         }
-        if (mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 434, EDITOR_WIDTH - 56, 36)) {
+        if (mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 348, EDITOR_WIDTH - 36, 38)) {
             const cmd = ElementValue("EmeryOF_Cmd").trim().replace(/\s+/g, "").toLowerCase();
             const name = ElementValue("EmeryOF_Name").trim();
             const announce = ElementValue("EmeryOF_Announce").trim();
@@ -881,7 +887,7 @@
             localNotice(`Created "/${cmd}" - ${newOutfit.items.length} items saved.`);
             return;
         }
-        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 476, EDITOR_WIDTH - 56, 30)) {
+        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 394, EDITOR_WIDTH - 36, 32)) {
             const idx = outfits.findIndex(outfit => outfit.id === editingOutfitId);
             if (idx < 0) {
                 resetEditor();
@@ -901,7 +907,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.8";
+    const MOD_VERSION = "0.1.9";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -918,6 +924,16 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.9",
+            changes: [
+                "Fixed outfit page row and editor overlaps — labels, inputs and buttons no longer stack on each other.",
+                "Action buttons now use Type:Action so they show as (Name text.) instead of * Name text *.",
+                "Default action emotes updated to match the new format.",
+                "EBC overhead badge made smaller and drops the version line.",
+                "Outfit notice messages bumped to 12px to match other log messages.",
+            ],
+        },
         {
             version: "0.1.8",
             changes: [
@@ -1101,19 +1117,17 @@
         const zoom = typeof args[3] === "number" ? args[3] : 1;
         if (!character || left == null || top == null || !hasEmeryBC(character))
             return;
-        const presence = getSharedPresence(character);
-        const versionText = (presence === null || presence === void 0 ? void 0 : presence.version) ? `v${presence.version}` : "v?";
-        const width = Math.max(64, 82 * zoom);
-        const height = Math.max(26, 32 * zoom);
+        getSharedPresence(character);
+        const width = Math.max(30, 38 * zoom);
+        const height = Math.max(14, 18 * zoom);
         const x = left + 228 * zoom;
         const y = top - 34 * zoom;
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
-        DrawRect(badgeLeft + 2, badgeTop + 2, width, height, "rgba(0, 0, 0, 0.28)");
+        DrawRect(badgeLeft + 1, badgeTop + 1, width, height, "rgba(0, 0, 0, 0.28)");
         DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
         DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
-        DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + 10, width - 10, UI.accent);
-        DrawTextFit(versionText, badgeLeft + width / 2, badgeTop + 23, width - 10, UI.textMuted);
+        DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + height / 2, width - 4, UI.accent);
     }
     function showLoadNotice() {
         if (noticeShown)
