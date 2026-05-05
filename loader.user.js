@@ -10,6 +10,19 @@
 // @match        https://*.bondageprojects.com/R*/*
 // @match        https://*.bondage-asia.com/club/R*
 // @run-at       document-end
-// @grant        none
-// @require      https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/dist/bundle.js
+// @grant        GM_xmlhttpRequest
+// @connect      raw.githubusercontent.com
 // ==/UserScript==
+
+GM_xmlhttpRequest({
+    method: "GET",
+    url: "https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/dist/bundle.js?v=" + Date.now(),
+    onload: function (res) {
+        const script = document.createElement("script");
+        script.textContent = res.responseText;
+        document.head.appendChild(script);
+    },
+    onerror: function () {
+        console.error("[EmeryBC] Failed to load bundle");
+    }
+});
