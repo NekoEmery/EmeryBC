@@ -1,12 +1,20 @@
 // ==UserScript==
 // @name         EmeryBC
-// @namespace    emerybc
+// @namespace    https://github.com/NekoEmery/EmeryBC
 // @version      0.1.0
-// @description  Loads EmeryBC addon for Bondage Club
-// @match        https://bondageprojects.elementfx.com/*
-// @match        https://www.bondageprojects.com/*
-// @match        https://bondage-europe.com/*
+// @description  EmeryBC addon for Bondage Club
+// @downloadURL  https://raw.githubusercontent.com/NekoEmery/EmeryBC/main/loader.user.js
+// @updateURL    https://raw.githubusercontent.com/NekoEmery/EmeryBC/main/loader.user.js
+// @match        https://*.bondageprojects.elementfx.com/R*/*
+// @match        https://*.bondage-europe.com/R*/*
+// @match        https://*.bondageprojects.com/R*/*
+// @match        https://*.bondage-asia.com/club/R*
 // @run-at       document-end
 // @grant        none
-// @require      https://raw.githubusercontent.com/NekoEmery/EmeryBC/main/dist/bundle.js
 // ==/UserScript==
+
+import(
+    `https://raw.githubusercontent.com/NekoEmery/EmeryBC/main/dist/bundle.js?v=${(
+        Date.now() / 10000
+    ).toFixed(0)}`
+);
