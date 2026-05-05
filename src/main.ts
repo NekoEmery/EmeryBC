@@ -1,6 +1,7 @@
 import {
     drawActionButtons,
     handleActionButtonClick,
+    settingsLoad   as actionSettingsLoad,
     settingsRun    as actionSettingsRun,
     settingsClick  as actionSettingsClick,
     settingsExit   as actionSettingsExit,
@@ -132,7 +133,7 @@ function registerSettings(): void {
                 Identifier: MOD_NAME,
                 ButtonText:  "EmeryBC",
                 Image:       "",
-                load:  () => {},
+                load:  () => { activeTab = "actions"; actionSettingsLoad(); },
                 run:   settingsRun,
                 click: settingsClick,
                 exit:  settingsExit,
