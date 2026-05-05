@@ -289,6 +289,7 @@
     let settingsPage = 0;
     let addIncludeRestraints = false;
     let editingOutfitId = null;
+    const MAX_SERIALIZE_DEPTH = 12;
     function placeInput(id, left, y, width, height) {
         ElementPosition(id, left + width / 2, y + height / 2, width, height);
     }
@@ -300,32 +301,111 @@
     }
     function getOutfits() {
         const list = getAddon().outfits;
-        return Array.isArray(list) ? list : [];
+        return Array.isArray(list) ? list.map(sanitizeOutfit) : [];
     }
     function saveOutfits(list) {
-        getAddon().outfits = list;
+        getAddon().outfits = list.map(sanitizeOutfit);
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function uid() {
         return Math.random().toString(36).slice(2, 9);
     }
+    function sanitizeSerializable(value, seen = new WeakSet(), depth = 0) {
+        if (value == null)
+            return value;
+        if (depth > MAX_SERIALIZE_DEPTH)
+            return undefined;
+        const valueType = typeof value;
+        if (valueType === "string" || valueType === "number" || valueType === "boolean") {
+            return value;
+        }
+        if (Array.isArray(value)) {
+            return value
+                .map(entry => sanitizeSerializable(entry, seen, depth + 1))
+                .filter(entry => entry !== undefined);
+        }
+        if (valueType !== "object")
+            return undefined;
+        const obj = value;
+        if (seen.has(obj))
+            return undefined;
+        seen.add(obj);
+        const proto = Object.getPrototypeOf(obj);
+        if (proto !== Object.prototype && proto !== null) {
+            seen.delete(obj);
+            return undefined;
+        }
+        const clone = {};
+        for (const [key, entry] of Object.entries(obj)) {
+            const sanitized = sanitizeSerializable(entry, seen, depth + 1);
+            if (sanitized !== undefined) {
+                clone[key] = sanitized;
+            }
+        }
+        seen.delete(obj);
+        return clone;
+    }
+    function sanitizeColor(color) {
+        if (typeof color === "string")
+            return color;
+        if (Array.isArray(color)) {
+            return color.filter((entry) => typeof entry === "string");
+        }
+        return undefined;
+    }
+    function sanitizeCraft(craft) {
+        const sanitized = sanitizeSerializable(craft);
+        return sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
+            ? sanitized
+            : undefined;
+    }
+    function sanitizeProperty(property) {
+        const sanitized = sanitizeSerializable(property);
+        return sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
+            ? sanitized
+            : undefined;
+    }
+    function sanitizeItem(item) {
+        return {
+            Group: item.Group,
+            Name: item.Name,
+            Color: sanitizeColor(item.Color),
+            Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
+            Property: sanitizeProperty(item.Property),
+            Craft: sanitizeCraft(item.Craft),
+        };
+    }
+    function sanitizeOutfit(outfit) {
+        return {
+            id: outfit.id,
+            command: outfit.command,
+            displayName: outfit.displayName,
+            announceText: outfit.announceText,
+            includeRestraints: !!outfit.includeRestraints,
+            items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
+        };
+    }
+    function sanitizeLiveAppearance() {
+        for (const item of Player.Appearance) {
+            item.Color = sanitizeColor(item.Color);
+            item.Property = sanitizeProperty(item.Property);
+            item.Craft = sanitizeCraft(item.Craft);
+        }
+    }
     function captureAppearance(includeRestraints) {
         return Player.Appearance
             .filter(item => includeRestraints || !RESTRAINT_GROUPS.has(item.Asset.Group.Name))
-            .map(item => ({
+            .map(item => sanitizeItem({
             Group: item.Asset.Group.Name,
             Name: item.Asset.Name,
             Color: item.Color,
             Difficulty: item.Difficulty,
-            Property: item.Property ? Object.assign({}, item.Property) : undefined,
-            Craft: item.Craft ? Object.assign({}, item.Craft) : undefined,
+            Property: item.Property,
+            Craft: item.Craft,
         }));
     }
-    function clonePlain(value) {
-        return value == null ? value : JSON.parse(JSON.stringify(value));
-    }
     function applyOutfit(outfit) {
-        var _a;
+        var _a, _b;
         for (const item of [...Player.Appearance]) {
             const group = item.Asset.Group.Name;
             const isLocked = !!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy);
@@ -336,14 +416,15 @@
             InventoryRemove(Player, group, false);
         }
         for (const saved of outfit.items) {
+            const sanitizedItem = sanitizeItem(saved);
             const asset = AssetGet(Player.AssetFamily, saved.Group, saved.Name);
             if (!asset)
                 continue;
-            InventoryWear(Player, saved.Name, saved.Group, saved.Color, saved.Difficulty, undefined, saved.Craft);
-            if (saved.Property) {
-                const worn = InventoryGet(Player, saved.Group);
+            InventoryWear(Player, sanitizedItem.Name, sanitizedItem.Group, sanitizedItem.Color, sanitizedItem.Difficulty, undefined, sanitizedItem.Craft);
+            if (sanitizedItem.Property) {
+                const worn = InventoryGet(Player, sanitizedItem.Group);
                 if (worn) {
-                    const prop = clonePlain(saved.Property);
+                    const prop = (_b = sanitizeProperty(sanitizedItem.Property)) !== null && _b !== void 0 ? _b : {};
                     delete prop["LockedBy"];
                     delete prop["LockMemberNumber"];
                     delete prop["CombinationNumber"];
@@ -353,10 +434,8 @@
                 }
             }
         }
+        sanitizeLiveAppearance();
         CharacterRefresh(Player, false, false);
-        if (typeof ServerPlayerAppearanceSync === "function") {
-            ServerPlayerAppearanceSync();
-        }
         ChatRoomCharacterUpdate(Player);
         if (outfit.announceText.trim()) {
             ServerSend("ChatRoomChat", { Content: outfit.announceText.trim(), Type: "Emote" });
