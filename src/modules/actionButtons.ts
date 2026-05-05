@@ -33,7 +33,7 @@ function getButtons(): ActionButton[] {
 function saveButtons(buttons: ActionButton[]): void {
     if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
     (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).actionButtons = buttons;
-    ServerSend("AccountUpdate", { ExtensionSettings: Player.ExtensionSettings });
+    ServerPlayerExtensionSettingsSync("EmeryBC");
 }
 
 // ─── In-game ─────────────────────────────────────────────────────────────────

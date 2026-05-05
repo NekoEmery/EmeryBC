@@ -15,7 +15,7 @@
     const BTN_SIZE = 45;
     const MAX_SLOTS = 6;
     // Left-panel width — BC shows character preview on the right half
-    const PANEL_W = 650;
+    const PANEL_W$1 = 650;
     function getButtons() {
         var _a;
         const stored = (_a = Player.ExtensionSettings.EmeryBC) === null || _a === void 0 ? void 0 : _a.actionButtons;
@@ -27,7 +27,7 @@
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         Player.ExtensionSettings.EmeryBC.actionButtons = buttons;
-        ServerSend("AccountUpdate", { ExtensionSettings: Player.ExtensionSettings });
+        ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     // ─── In-game ─────────────────────────────────────────────────────────────────
     function drawActionButtons() {
@@ -85,21 +85,21 @@
     function settingsRun$1() {
         var _a, _b, _c;
         // Dark panel on left only
-        DrawRect(0, 60, PANEL_W, 940, "#130920");
-        DrawText("Action Buttons", PANEL_W / 2, 95, "White");
+        DrawRect(0, 60, PANEL_W$1, 940, "#130920");
+        DrawText("Action Buttons", PANEL_W$1 / 2, 95, "White");
         // Column headers
-        DrawRect(0, 108, PANEL_W, 1, "#3a2a5a");
+        DrawRect(0, 108, PANEL_W$1, 1, "#3a2a5a");
         DrawText("On", 55, 128, "#9966cc");
         DrawText("Label", 140, 128, "#9966cc");
         DrawText("Color", 270, 128, "#9966cc");
         DrawText("/me action text", 460, 128, "#9966cc");
-        DrawRect(0, 138, PANEL_W, 1, "#3a2a5a");
+        DrawRect(0, 138, PANEL_W$1, 1, "#3a2a5a");
         ensureInputs$1();
         for (let i = 0; i < MAX_SLOTS; i++) {
             const btn = (_a = settingsButtons[i]) !== null && _a !== void 0 ? _a : DEFAULT_BUTTONS[i];
             const y = SLOTS_Y + i * SLOT_H;
             // Row background — alternate shade
-            DrawRect(0, y, PANEL_W, SLOT_H - 4, i % 2 === 0 ? "#1a0d30" : "#160a28");
+            DrawRect(0, y, PANEL_W$1, SLOT_H - 4, i % 2 === 0 ? "#1a0d30" : "#160a28");
             // Toggle
             DrawButton(20, y + 30, 42, 42, btn.enabled ? "✓" : "", btn.enabled ? "#7b1fa2" : "#33204a");
             // Label input
@@ -115,8 +115,8 @@
         const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
         DrawButton(30, btnY, 200, 52, "Save", "#1a4a1a");
         DrawButton(250, btnY, 240, 52, "Reset defaults", "#4a2a0a");
-        DrawRect(0, btnY + 66, PANEL_W, 1, "#3a2a5a");
-        DrawText("Action text is sent as /me — e.g. \"waves\" → * Name waves *", PANEL_W / 2, btnY + 82, "#554466");
+        DrawRect(0, btnY + 66, PANEL_W$1, 1, "#3a2a5a");
+        DrawText("Action text is sent as /me — e.g. \"waves\" → * Name waves *", PANEL_W$1 / 2, btnY + 82, "#554466");
     }
     function settingsClick$1() {
         for (let i = 0; i < MAX_SLOTS; i++) {
@@ -179,7 +179,7 @@
     }
     function saveOutfits(list) {
         getAddon().outfits = list;
-        ServerSend("AccountUpdate", { ExtensionSettings: Player.ExtensionSettings });
+        ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function uid() {
         return Math.random().toString(36).slice(2, 9);
@@ -265,127 +265,125 @@
         log.scrollTop = log.scrollHeight;
     }
     // ─── Settings screen ─────────────────────────────────────────────────────────
+    const PANEL_W = 650;
+    const OUTFITS_PER_PAGE = 5;
+    const ROW_H = 62;
+    const LIST_Y = 180;
+    const ADD_Y = LIST_Y + OUTFITS_PER_PAGE * ROW_H + 20;
     let settingsPage = 0;
     let addIncludeRestraints = false;
-    const OUTFITS_PER_PAGE = 4;
-    const ROW_H = 100;
-    const LIST_START_Y = 175;
-    const ADD_Y = 635;
-    const INPUT_IDS = ["EmeryOF_Cmd", "EmeryOF_Name", "EmeryOF_Announce"];
     function ensureInputs() {
-        if (!document.getElementById("EmeryOF_Cmd")) {
+        if (!document.getElementById("EmeryOF_Cmd"))
             ElementCreateInput("EmeryOF_Cmd", "text", "", "20");
+        if (!document.getElementById("EmeryOF_Name"))
             ElementCreateInput("EmeryOF_Name", "text", "", "40");
-            ElementCreateInput("EmeryOF_Announce", "text", "*changes outfit*", "120");
-        }
+        if (!document.getElementById("EmeryOF_Announce"))
+            ElementCreateInput("EmeryOF_Announce", "text", "changes into her outfit", "120");
+    }
+    function outfitSettingsLoad() {
+        settingsPage = 0;
+        addIncludeRestraints = false;
     }
     function outfitSettingsRun() {
-        DrawRect(0, 60, 1000, 940, "#1a0a2e");
-        DrawText("Outfit Commands", 500, 105, "White", "Black");
-        // How-to hint bar
-        DrawRect(55, 112, 890, 22, "#1a0a3a");
-        DrawText("Set a command below, dress up, then click Save Current.  Type /command in chat to switch outfits.", 500, 123, "#8866aa");
+        DrawRect(0, 60, PANEL_W, 940, "#130920");
+        DrawText("Outfit Commands", PANEL_W / 2, 95, "White");
+        // Hint
+        DrawRect(0, 108, PANEL_W, 1, "#3a2a5a");
+        DrawText("Dress up → Save Current to capture.  Type /command in chat to load.", PANEL_W / 2, 125, "#9966cc");
+        DrawRect(0, 138, PANEL_W, 1, "#3a2a5a");
         ensureInputs();
         const outfits = getOutfits();
         const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
         const page = Math.min(settingsPage, totalPages - 1);
         const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
         // Page nav
-        DrawButton(60, 135, 100, 38, "◀ Prev", page > 0 ? "#3a2a5a" : "#1f1435", "", "", page === 0);
-        DrawText(`${page + 1} / ${totalPages}`, 500, 154, "#888888");
-        DrawButton(840, 135, 100, 38, "Next ▶", page < totalPages - 1 ? "#3a2a5a" : "#1f1435", "", "", page >= totalPages - 1);
-        // Column headers
-        DrawText("Command", 160, 167, "#7c5cbf");
-        DrawText("Name", 350, 167, "#7c5cbf");
-        DrawText("Flags", 640, 167, "#7c5cbf");
+        DrawButton(20, 152, 80, 28, "◀ Prev", page > 0 ? "#3a2a5a" : "#1a0d2a", "", "", page === 0);
+        DrawText(`${page + 1} / ${totalPages}`, PANEL_W / 2, 166, "#666688");
+        DrawButton(550, 152, 80, 28, "Next ▶", page < totalPages - 1 ? "#3a2a5a" : "#1a0d2a", "", "", page >= totalPages - 1);
         // Outfit rows
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
-            const y = LIST_START_Y + i * ROW_H;
-            DrawRect(55, y, 890, ROW_H - 6, outfit ? "#221440" : "#150b2a");
-            DrawEmptyRect(55, y, 890, ROW_H - 6, "#3a2a5a");
+            const y = LIST_Y + i * ROW_H;
+            const shade = i % 2 === 0 ? "#1a0d30" : "#160a28";
+            DrawRect(0, y, PANEL_W, ROW_H - 2, shade);
             if (!outfit) {
-                DrawText("— empty slot —", 500, y + (ROW_H - 6) / 2, "#333355");
+                DrawText("— empty —", PANEL_W / 2, y + ROW_H / 2 - 1, "#333355");
                 continue;
             }
             // Command badge
-            DrawRect(65, y + 12, 140, 38, "#4a2a7a");
-            DrawText(`/${outfit.command}`, 135, y + 31, "White");
-            // Display name
-            DrawTextFit(outfit.displayName, 360, y + 31, 230, "White");
-            // Restraints badge
+            DrawRect(8, y + 12, 120, 34, "#4a2a7a");
+            DrawTextFit(`/${outfit.command}`, 68, y + 29, 110, "White");
+            // Name
+            DrawTextFit(outfit.displayName, 200, y + 20, 165, "White");
+            // Announce preview
+            DrawTextFit(`/me ${outfit.announceText}`, 200, y + 44, 165, "#665577");
+            // Restraints pill
             if (outfit.includeRestraints) {
-                DrawRect(610, y + 14, 120, 34, "#5a1515");
-                DrawText("RESTRAINTS", 670, y + 31, "#ff8888");
+                DrawRect(375, y + 16, 88, 26, "#5a1515");
+                DrawText("RESTRAINTS", 419, y + 29, "#ff9999");
             }
-            // Announce preview (small)
-            if (outfit.announceText) {
-                DrawTextFit(`"${outfit.announceText}"`, 360, y + 63, 355, "#666688");
-            }
+            // Item count
             const hasSave = outfit.items.length > 0;
-            DrawText(hasSave ? `${outfit.items.length} items` : "⚠ unsaved", 760, y + 31, hasSave ? "#668866" : "#cc6622");
-            // Update button
-            DrawButton(800, y + 10, 130, 38, "Save Current", "#2a5a2a", "", "Overwrite with current appearance");
-            // Delete button
-            DrawButton(800, y + 54, 130, 32, "Delete", "#5a1515");
+            DrawText(hasSave ? `${outfit.items.length} items` : "⚠ empty", 472, y + 29, hasSave ? "#558855" : "#cc6622");
+            // Buttons
+            DrawButton(520, y + 8, 58, 22, "Update", "#1a3a1a", "", "Save current appearance");
+            DrawButton(520, y + 34, 58, 22, "Delete", "#3a1010");
+            DrawRect(0, y + ROW_H - 2, PANEL_W, 2, "#2a1a4a");
         }
-        // ── Add New section ──────────────────────────────────────────────────────
-        DrawRect(55, ADD_Y, 890, 310, "#160d2a");
-        DrawEmptyRect(55, ADD_Y, 890, 310, "#4a3a6a", 2);
-        DrawText("Add New Outfit", 260, ADD_Y + 26, "#c084fc");
-        DrawText("Command:", 80, ADD_Y + 70, "#aaaaaa");
-        DrawText("/", 227, ADD_Y + 70, "#7c5cbf");
-        ElementPosition("EmeryOF_Cmd", 310, ADD_Y + 70, 200, 42);
-        DrawText("Name:", 540, ADD_Y + 70, "#aaaaaa");
-        ElementPosition("EmeryOF_Name", 720, ADD_Y + 70, 220, 42);
-        DrawText("Include restraints:", 80, ADD_Y + 140, "#aaaaaa");
-        DrawButton(290, ADD_Y + 118, 45, 45, addIncludeRestraints ? "✓" : "", addIncludeRestraints ? "#6a1a1a" : "#2a1a3a");
-        DrawText("Announce text:", 80, ADD_Y + 210, "#aaaaaa");
-        ElementPosition("EmeryOF_Announce", 310, ADD_Y + 210, 600, 42);
-        DrawButton(280, ADD_Y + 256, 440, 50, "+ Save Current Appearance as New Outfit", "#2a5a2a");
+        // ── Add New ───────────────────────────────────────────────────────────────
+        DrawRect(0, ADD_Y - 2, PANEL_W, 2, "#4a2a7a");
+        DrawText("Add New Outfit", 160, ADD_Y + 22, "#c084fc");
+        // Row 1: command + name
+        DrawText("/", 24, ADD_Y + 60, "#7c5cbf");
+        ElementPosition("EmeryOF_Cmd", 60, ADD_Y + 60, 130, 36);
+        DrawText("Name:", 220, ADD_Y + 60, "#aaaaaa");
+        ElementPosition("EmeryOF_Name", 280, ADD_Y + 60, 220, 36);
+        DrawText("Restraints:", 24, ADD_Y + 108, "#aaaaaa");
+        DrawButton(120, ADD_Y + 90, 36, 36, addIncludeRestraints ? "✓" : "", addIncludeRestraints ? "#6a1a1a" : "#2a1a3a");
+        // Row 2: announce
+        DrawText("/me", 24, ADD_Y + 155, "#7c5cbf");
+        ElementPosition("EmeryOF_Announce", 70, ADD_Y + 155, 480, 36);
+        // Save button
+        DrawButton(20, ADD_Y + 205, PANEL_W - 40, 50, "+ Save Current Appearance as New Outfit", "#1a4a1a");
     }
     function outfitSettingsClick() {
         const outfits = getOutfits();
         const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
         const page = Math.min(settingsPage, totalPages - 1);
         const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
-        // Prev / Next
-        if (mouseInRect(60, 135, 100, 38)) {
+        if (mouseInRect(20, 152, 80, 28)) {
             settingsPage = Math.max(0, page - 1);
             return;
         }
-        if (mouseInRect(840, 135, 100, 38)) {
+        if (mouseInRect(550, 152, 80, 28)) {
             settingsPage = Math.min(totalPages - 1, page + 1);
             return;
         }
-        // Outfit row buttons
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             if (!outfit)
                 continue;
-            const y = LIST_START_Y + i * ROW_H;
-            // Save Current → Update
-            if (mouseInRect(800, y + 10, 130, 38)) {
+            const y = LIST_Y + i * ROW_H;
+            if (mouseInRect(520, y + 8, 58, 22)) {
                 const idx = outfits.indexOf(outfit);
                 outfits[idx].items = captureAppearance(outfit.includeRestraints);
                 saveOutfits(outfits);
-                localNotice(`Saved current appearance to "/${outfit.command}"`);
+                localNotice(`Updated "/${outfit.command}"`);
                 return;
             }
-            // Delete
-            if (mouseInRect(800, y + 54, 130, 32)) {
+            if (mouseInRect(520, y + 34, 58, 22)) {
                 saveOutfits(outfits.filter(o => o.id !== outfit.id));
                 settingsPage = Math.min(settingsPage, Math.max(0, Math.ceil((outfits.length - 1) / OUTFITS_PER_PAGE) - 1));
                 return;
             }
         }
-        // Restraints toggle (add form)
-        if (mouseInRect(290, ADD_Y + 118, 45, 45)) {
+        // Restraints toggle
+        if (mouseInRect(120, ADD_Y + 90, 36, 36)) {
             addIncludeRestraints = !addIncludeRestraints;
             return;
         }
-        // Add new outfit
-        if (mouseInRect(280, ADD_Y + 256, 440, 50)) {
+        // Add new
+        if (mouseInRect(20, ADD_Y + 205, PANEL_W - 40, 50)) {
             const cmd = ElementValue("EmeryOF_Cmd").trim().replace(/\s+/g, "").toLowerCase();
             const name = ElementValue("EmeryOF_Name").trim();
             const announce = ElementValue("EmeryOF_Announce").trim();
@@ -398,29 +396,28 @@
                 return;
             }
             if (outfits.some(o => o.command.toLowerCase() === cmd)) {
-                localNotice(`Command "/${cmd}" already exists.`, "#ff6666");
+                localNotice(`"/${cmd}" already exists.`, "#ff6666");
                 return;
             }
             const newOutfit = {
-                id: uid(),
-                command: cmd,
-                displayName: name,
-                announceText: announce || "*changes outfit*",
+                id: uid(), command: cmd, displayName: name,
+                announceText: announce || "changes outfit",
                 includeRestraints: addIncludeRestraints,
                 items: captureAppearance(addIncludeRestraints),
             };
             saveOutfits([...outfits, newOutfit]);
-            // Clear inputs
             document.getElementById("EmeryOF_Cmd").value = "";
             document.getElementById("EmeryOF_Name").value = "";
-            document.getElementById("EmeryOF_Announce").value = "*changes outfit*";
+            document.getElementById("EmeryOF_Announce").value = "changes into her outfit";
             addIncludeRestraints = false;
-            localNotice(`Created "/${cmd}" with ${newOutfit.items.length} items saved.`);
+            localNotice(`Created "/${cmd}" — ${newOutfit.items.length} items saved.`);
             settingsPage = Math.floor(outfits.length / OUTFITS_PER_PAGE);
         }
     }
     function outfitSettingsExit() {
-        INPUT_IDS.forEach(id => ElementRemove(id));
+        ElementRemove("EmeryOF_Cmd");
+        ElementRemove("EmeryOF_Name");
+        ElementRemove("EmeryOF_Announce");
     }
     function mouseInRect(x, y, w, h) {
         return MouseX >= x && MouseX <= x + w && MouseY >= y && MouseY <= y + h;
@@ -536,7 +533,7 @@
                     Identifier: MOD_NAME,
                     ButtonText: "EmeryBC",
                     Image: "",
-                    load: () => { activeTab = "actions"; settingsLoad(); },
+                    load: () => { activeTab = "actions"; settingsLoad(); outfitSettingsLoad(); },
                     run: settingsRun,
                     click: settingsClick,
                     exit: settingsExit,

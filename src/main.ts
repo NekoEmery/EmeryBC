@@ -8,6 +8,7 @@ import {
 } from "./modules/actionButtons";
 import {
     handleOutfitCommand,
+    outfitSettingsLoad,
     outfitSettingsRun,
     outfitSettingsClick,
     outfitSettingsExit,
@@ -133,7 +134,7 @@ function registerSettings(): void {
                 Identifier: MOD_NAME,
                 ButtonText:  "EmeryBC",
                 Image:       "",
-                load:  () => { activeTab = "actions"; actionSettingsLoad(); },
+                load:  () => { activeTab = "actions"; actionSettingsLoad(); outfitSettingsLoad(); },
                 run:   settingsRun,
                 click: settingsClick,
                 exit:  settingsExit,

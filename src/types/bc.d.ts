@@ -85,6 +85,7 @@ declare function DrawEmptyRect(
 ): void;
 
 declare function ServerSend(type: string, data: unknown): void;
+declare function ServerPlayerExtensionSettingsSync(addonName: string): void;
 
 declare function CharacterRefresh(char: Character, push?: boolean, dirty?: boolean): void;
 declare function ChatRoomCharacterUpdate(char: Character): void;
