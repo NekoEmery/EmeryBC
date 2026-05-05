@@ -1,4 +1,4 @@
-export const PANEL_W = 1180;
+export const PANEL_W = 1260;
 export const PANEL_H = 940;
 export const PANEL_PADDING = 28;
 export const CONTENT_LEFT = PANEL_PADDING;

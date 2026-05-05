@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const PANEL_W = 1180;
+    const PANEL_W = 1260;
     const PANEL_H = 940;
     const PANEL_PADDING = 28;
     const CONTENT_LEFT = PANEL_PADDING;
@@ -24,9 +24,7 @@
         accentSoft: "#5b2439",
         gold: "#c9ab72",
         success: "#79a885",
-        successDeep: "#284132",
         danger: "#cb798c",
-        dangerDeep: "#552332",
         buttonMuted: "#432232",
         buttonDisabled: "#2b1520"};
     const STAT_TONES = {
@@ -89,9 +87,6 @@
         DrawRect(left, top, width, height, fill);
         DrawEmptyRect(left, top, width, height, textColor, 1);
         DrawTextFit(label, left + width / 2, top + height / 2 + 1, width - 12, textColor);
-    }
-    function drawInsetLabel(text, x, y) {
-        DrawText(text, x, y, UI.textSoft);
     }
     let colorInputStylesInjected = false;
     function ensureColorInputStyles() {
@@ -176,7 +171,7 @@
     const GRID_GAP_Y = 18;
     const GRID_TOP = 214;
     const CARD_W = Math.floor((CONTENT_WIDTH - GRID_GAP_X) / GRID_COLS);
-    const CARD_H = 172;
+    const CARD_H = 188;
     const FOOTER_TOP = GRID_TOP + Math.ceil(MAX_SLOTS / GRID_COLS) * CARD_H + (Math.ceil(MAX_SLOTS / GRID_COLS) - 1) * GRID_GAP_Y + 18;
     function getButtons() {
         var _a;
@@ -285,28 +280,28 @@
             drawCard(left, top, CARD_W, CARD_H, i % 2 === 0 ? "default" : "alt");
             drawPill(left + 18, top + 16, 66, 18, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
             drawChromeButton(left + CARD_W - 126, top + 12, 108, 28, btn.enabled ? "Enabled" : "Disabled", btn.enabled ? "accent" : "muted");
-            DrawRect(left + 18, top + 44, 126, 54, UI.cardMuted);
-            DrawEmptyRect(left + 18, top + 44, 126, 54, UI.panelEdge, 1);
-            DrawButton(left + 28, top + 54, 106, 34, previewLabel || "EMPTY", previewColor, "", previewEmote);
-            DrawTextFit("Quickbar preview", left + 81, top + 111, 120, UI.textSoft);
-            drawInsetLabel("Button Label", left + 220, top + 28);
-            placeInput$1(inputId(i, "label"), left + 158, top + 44, 148, 34);
-            drawInsetLabel("Color Picker", left + 394, top + 28);
-            placeInput$1(inputId(i, "color"), left + 332, top + 44, 74, 34);
-            DrawTextFit(previewColor.toUpperCase(), left + 467, top + 62, 112, UI.textMuted);
-            DrawTextFit("Tap the swatch to open the picker", left + 467, top + 86, 126, UI.textSoft);
-            drawInsetLabel("Emote Text", left + 112, top + 112);
-            placeInput$1(inputId(i, "emote"), left + 18, top + 122, CARD_W - 36, 36);
-            DrawTextFit(`/me ${previewEmote}`, left + CARD_W / 2, top + 155, CARD_W - 44, UI.textSoft);
+            DrawRect(left + 18, top + 46, 128, 58, UI.cardMuted);
+            DrawEmptyRect(left + 18, top + 46, 128, 58, UI.panelEdge, 1);
+            DrawButton(left + 28, top + 58, 108, 34, previewLabel || "EMPTY", previewColor, "", previewEmote);
+            DrawTextFit("Quickbar preview", left + 82, top + 114, 120, UI.textSoft);
+            DrawTextFit("Label", left + 232, top + 34, 120, UI.textSoft);
+            placeInput$1(inputId(i, "label"), left + 166, top + 48, 132, 34);
+            DrawTextFit("Color", left + 380, top + 34, 100, UI.textSoft);
+            placeInput$1(inputId(i, "color"), left + 322, top + 48, 78, 34);
+            DrawTextFit(previewColor.toUpperCase(), left + 480, top + 66, 148, UI.textMuted);
+            DrawTextFit("tap swatch to pick", left + 480, top + 90, 148, UI.textSoft);
+            DrawTextFit("Emote Text", left + CARD_W / 2, top + 118, 180, UI.textSoft);
+            placeInput$1(inputId(i, "emote"), left + 18, top + 128, CARD_W - 36, 36);
+            DrawTextFit(`/me ${previewEmote}`, left + CARD_W / 2, top + 171, CARD_W - 44, UI.textSoft);
         }
-        drawCard(CONTENT_LEFT, FOOTER_TOP, CONTENT_WIDTH, 110, "muted");
+        drawCard(CONTENT_LEFT, FOOTER_TOP, CONTENT_WIDTH, 118, "muted");
         DrawText("Layout Actions", CONTENT_LEFT + 112, FOOTER_TOP + 24, UI.text);
-        DrawTextFit("Use the buttons below to save, auto-enable filled slots, or reset the whole quickbar.", CONTENT_LEFT + 370, FOOTER_TOP + 24, 520, UI.textSoft);
-        drawChromeButton(CONTENT_LEFT + 18, FOOTER_TOP + 48, 250, 42, "Save Layout", "success");
-        drawChromeButton(CONTENT_LEFT + 286, FOOTER_TOP + 48, 250, 42, "Enable Filled Slots", "accent");
-        drawChromeButton(CONTENT_LEFT + 554, FOOTER_TOP + 48, 250, 42, "Reset Defaults", "gold");
-        drawChromeButton(CONTENT_LEFT + 822, FOOTER_TOP + 48, 330, 42, "Disable Empty Slots", "muted");
-        DrawTextFit("Action text becomes a /me emote in chat, and the color picker updates the sidebar button immediately.", CONTENT_LEFT + CONTENT_WIDTH / 2, FOOTER_TOP + 102, CONTENT_WIDTH - 44, UI.textMuted);
+        DrawTextFit("Use these controls to save the current builder, auto-toggle filled slots, or reset everything cleanly.", CONTENT_LEFT + 436, FOOTER_TOP + 24, 660, UI.textSoft);
+        drawChromeButton(CONTENT_LEFT + 18, FOOTER_TOP + 50, 268, 42, "Save Layout", "success");
+        drawChromeButton(CONTENT_LEFT + 304, FOOTER_TOP + 50, 268, 42, "Enable Filled Slots", "accent");
+        drawChromeButton(CONTENT_LEFT + 590, FOOTER_TOP + 50, 268, 42, "Reset Defaults", "gold");
+        drawChromeButton(CONTENT_LEFT + 876, FOOTER_TOP + 50, 328, 42, "Disable Empty Slots", "muted");
+        DrawTextFit("Action text becomes a /me emote in chat, and the picker updates the quickbar color immediately.", CONTENT_LEFT + CONTENT_WIDTH / 2, FOOTER_TOP + 106, CONTENT_WIDTH - 44, UI.textMuted);
     }
     function settingsClick$1() {
         for (let i = 0; i < MAX_SLOTS; i++) {
@@ -366,18 +361,18 @@
         "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
         "ItemTorso", "ItemTorso2", "ItemEars", "ItemNose", "ItemMisc",
     ]);
-    const OUTFITS_PER_PAGE = 5;
+    const OUTFITS_PER_PAGE = 4;
     const NAV_Y = 216;
     const LIST_Y = 268;
-    const ROW_H = 86;
+    const ROW_H = 104;
     const LIST_LEFT = CONTENT_LEFT;
-    const LIST_WIDTH = 720;
+    const LIST_WIDTH = 700;
     const LIST_BUTTON_W = 84;
     const EDITOR_GAP = 20;
     const EDITOR_LEFT = LIST_LEFT + LIST_WIDTH + EDITOR_GAP;
     const EDITOR_WIDTH = CONTENT_RIGHT - EDITOR_LEFT;
     const EDITOR_TOP = NAV_Y;
-    const EDITOR_HEIGHT = 590;
+    const EDITOR_HEIGHT = 652;
     let settingsPage = 0;
     let addIncludeRestraints = false;
     let editingOutfitId = null;
@@ -685,10 +680,10 @@
             { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
         ]);
         drawChromeButton(LIST_LEFT, NAV_Y, 96, 30, "Prev", "muted", page === 0);
-        DrawText("Wardrobe", LIST_LEFT + 162, NAV_Y + 18, UI.textMuted);
-        DrawTextFit(`${page + 1} of ${totalPages}`, LIST_LEFT + 314, NAV_Y + 18, 120, UI.textSoft);
+        DrawText("Wardrobe", LIST_LEFT + 154, NAV_Y + 18, UI.textMuted);
+        DrawTextFit(`${page + 1} of ${totalPages}`, LIST_LEFT + 286, NAV_Y + 18, 120, UI.textSoft);
         drawChromeButton(LIST_LEFT + LIST_WIDTH - 96, NAV_Y, 96, 30, "Next", "muted", page >= totalPages - 1);
-        DrawTextFit("Select a row to edit it. Use the quick buttons to wear, refresh, or delete without leaving the screen.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 42, LIST_WIDTH - 40, UI.textSoft);
+        DrawTextFit("Select a row to edit it. Use the row buttons to wear, refresh, or delete without leaving the screen.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 42, LIST_WIDTH - 40, UI.textSoft);
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             const y = LIST_Y + i * ROW_H;
@@ -698,47 +693,47 @@
                 DrawEmptyRect(LIST_LEFT - 1, y - 1, LIST_WIDTH + 2, ROW_H - 6, UI.accent, 2);
             }
             if (!outfit) {
-                DrawText("Empty slot", LIST_LEFT + LIST_WIDTH / 2, y + 26, UI.textMuted);
-                DrawTextFit("Create a new outfit from the editor on the right to fill this space.", LIST_LEFT + LIST_WIDTH / 2, y + 50, 420, UI.textSoft);
+                DrawText("Empty slot", LIST_LEFT + LIST_WIDTH / 2, y + 30, UI.textMuted);
+                DrawTextFit("Create a new outfit from the editor on the right to fill this space.", LIST_LEFT + LIST_WIDTH / 2, y + 58, 420, UI.textSoft);
                 continue;
             }
             const hasSave = outfit.items.length > 0;
-            drawPill(LIST_LEFT + 16, y + 14, 102, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
-            DrawTextFit(outfit.displayName, LIST_LEFT + 224, y + 22, 180, UI.text);
-            DrawTextFit(`/me ${outfit.announceText}`, LIST_LEFT + 256, y + 48, 320, UI.textSoft);
-            drawPill(LIST_LEFT + 338, y + 14, 130, 20, outfit.includeRestraints ? "Includes restraints" : "Clothes only", outfit.includeRestraints ? UI.dangerDeep : UI.successDeep, outfit.includeRestraints ? UI.danger : UI.success);
-            drawPill(LIST_LEFT + 478, y + 14, 110, 18, hasSave ? `${outfit.items.length} items saved` : "No save data", hasSave ? UI.successDeep : UI.buttonMuted, hasSave ? UI.success : UI.textMuted);
-            drawChromeButton(LIST_LEFT + LIST_WIDTH - 286, y + 22, LIST_BUTTON_W, 24, "Wear", "accent");
-            drawChromeButton(LIST_LEFT + LIST_WIDTH - 192, y + 22, LIST_BUTTON_W, 24, "Update", "success", false, "Save current appearance");
-            drawChromeButton(LIST_LEFT + LIST_WIDTH - 98, y + 22, LIST_BUTTON_W, 24, "Delete", "danger");
+            const statusText = `${hasSave ? `${outfit.items.length} items saved` : "No save data"} • ${outfit.includeRestraints ? "includes restraints" : "clothes only"}`;
+            drawPill(LIST_LEFT + 16, y + 16, 104, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
+            DrawTextFit(outfit.displayName, LIST_LEFT + 228, y + 24, 212, UI.text);
+            DrawTextFit(statusText, LIST_LEFT + 296, y + 52, 360, hasSave ? UI.textMuted : UI.textSoft);
+            DrawTextFit(`/me ${outfit.announceText}`, LIST_LEFT + 296, y + 76, 420, UI.textSoft);
+            drawChromeButton(LIST_LEFT + LIST_WIDTH - 286, y + 24, LIST_BUTTON_W, 26, "Wear", "accent");
+            drawChromeButton(LIST_LEFT + LIST_WIDTH - 192, y + 24, LIST_BUTTON_W, 26, "Update", "success", false, "Save current appearance");
+            drawChromeButton(LIST_LEFT + LIST_WIDTH - 98, y + 24, LIST_BUTTON_W, 26, "Delete", "danger");
         }
         drawCard(EDITOR_LEFT, EDITOR_TOP, EDITOR_WIDTH, EDITOR_HEIGHT, "muted");
-        DrawText(editingOutfit ? "Outfit Editor" : "New Outfit Builder", EDITOR_LEFT + 108, EDITOR_TOP + 24, UI.text);
+        DrawText(editingOutfit ? "Outfit Editor" : "New Outfit Builder", EDITOR_LEFT + 104, EDITOR_TOP + 24, UI.text);
         DrawTextFit(editingOutfit
             ? `Editing /${editingOutfit.command}. Save settings here, or refresh its saved look with Update or Save Current Look.`
             : "Dress your character first, then capture that look here into a reusable slash command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 24, EDITOR_WIDTH - 150, UI.textSoft);
         drawPill(EDITOR_LEFT + 18, EDITOR_TOP + 44, EDITOR_WIDTH - 36, 22, editingOutfit ? `Currently editing: /${editingOutfit.command}` : "No outfit selected yet", UI.cardMuted, editingOutfit ? UI.accent : UI.textMuted);
-        drawInsetLabel("Command", EDITOR_LEFT + 90, EDITOR_TOP + 90);
-        DrawText("/", EDITOR_LEFT + 28, EDITOR_TOP + 122, UI.accent);
-        placeInput("EmeryOF_Cmd", EDITOR_LEFT + 52, EDITOR_TOP + 104, 138, 34);
-        drawInsetLabel("Display Name", EDITOR_LEFT + 294, EDITOR_TOP + 90);
-        placeInput("EmeryOF_Name", EDITOR_LEFT + 206, EDITOR_TOP + 104, EDITOR_WIDTH - 224, 34);
-        drawInsetLabel("Restraint Mode", EDITOR_LEFT + 120, EDITOR_TOP + 156);
-        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 170, EDITOR_WIDTH - 36, 30, addIncludeRestraints ? "Include restraints in the saved outfit" : "Save clothing only and preserve restraints", addIncludeRestraints ? "danger" : "success");
-        drawInsetLabel("Announce Text", EDITOR_LEFT + 112, EDITOR_TOP + 230);
-        DrawText("/me", EDITOR_LEFT + 28, EDITOR_TOP + 262, UI.accent);
-        placeInput("EmeryOF_Announce", EDITOR_LEFT + 60, EDITOR_TOP + 244, EDITOR_WIDTH - 78, 34);
-        drawCard(EDITOR_LEFT + 18, EDITOR_TOP + 302, EDITOR_WIDTH - 36, 110, "default");
-        DrawText("Quick Actions", EDITOR_LEFT + 94, EDITOR_TOP + 326, UI.text);
-        DrawTextFit("These buttons either capture the look you are currently wearing or save the metadata for the selected command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 326, EDITOR_WIDTH - 150, UI.textSoft);
-        drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 350, EDITOR_WIDTH - 56, 34, editingOutfit ? "Save Outfit Settings" : "Create New Outfit From Current Look", "success");
-        drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 392, EDITOR_WIDTH - 56, 34, editingOutfit ? "Save Current Look Into This Outfit" : "Capture Current Look Preview", editingOutfit ? "accent" : "muted", !editingOutfit);
-        drawCard(EDITOR_LEFT + 18, EDITOR_TOP + 444, EDITOR_WIDTH - 36, 118, "default");
-        DrawText("Notes", EDITOR_LEFT + 58, EDITOR_TOP + 468, UI.textMuted);
-        DrawTextFit("Use the row buttons on the left to wear or delete saved outfits instantly. Clicking a row opens it here for editing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 492, EDITOR_WIDTH - 52, UI.textSoft);
-        DrawTextFit("The saved announce text becomes a /me emote when you trigger the slash command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 526, EDITOR_WIDTH - 52, UI.textMuted);
+        DrawTextFit("Command", EDITOR_LEFT + 90, EDITOR_TOP + 94, 140, UI.textSoft);
+        DrawText("/", EDITOR_LEFT + 30, EDITOR_TOP + 126, UI.accent);
+        placeInput("EmeryOF_Cmd", EDITOR_LEFT + 56, EDITOR_TOP + 108, 150, 34);
+        DrawTextFit("Display Name", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 160, 180, UI.textSoft);
+        placeInput("EmeryOF_Name", EDITOR_LEFT + 18, EDITOR_TOP + 174, EDITOR_WIDTH - 36, 36);
+        DrawTextFit("Restraint Mode", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 228, 180, UI.textSoft);
+        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 242, EDITOR_WIDTH - 36, 34, addIncludeRestraints ? "Include restraints in the saved outfit" : "Save clothing only and preserve restraints", addIncludeRestraints ? "danger" : "success");
+        DrawTextFit("Announce Text", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 306, 180, UI.textSoft);
+        DrawText("/me", EDITOR_LEFT + 30, EDITOR_TOP + 338, UI.accent);
+        placeInput("EmeryOF_Announce", EDITOR_LEFT + 60, EDITOR_TOP + 320, EDITOR_WIDTH - 78, 36);
+        drawCard(EDITOR_LEFT + 18, EDITOR_TOP + 384, EDITOR_WIDTH - 36, 128, "default");
+        DrawText("Quick Actions", EDITOR_LEFT + 96, EDITOR_TOP + 408, UI.text);
+        DrawTextFit("These buttons either save the command settings or capture the look your character is currently wearing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 408, EDITOR_WIDTH - 90, UI.textSoft);
+        drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 434, EDITOR_WIDTH - 56, 36, editingOutfit ? "Save Outfit Settings" : "Create New Outfit From Current Look", "success");
+        drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 476, EDITOR_WIDTH - 56, 30, editingOutfit ? "Save Current Look Into This Outfit" : "Capture Current Look Preview", editingOutfit ? "accent" : "muted", !editingOutfit);
+        drawCard(EDITOR_LEFT + 18, EDITOR_TOP + 532, EDITOR_WIDTH - 36, 100, "default");
+        DrawText("Notes", EDITOR_LEFT + 60, EDITOR_TOP + 556, UI.textMuted);
+        DrawTextFit("Use the row buttons on the left to wear or delete saved outfits instantly. Clicking a row opens it here for editing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 580, EDITOR_WIDTH - 52, UI.textSoft);
+        DrawTextFit("The saved announce text becomes a /me emote when you trigger the slash command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 608, EDITOR_WIDTH - 52, UI.textMuted);
         if (editingOutfit) {
-            drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 520, EDITOR_WIDTH - 56, 30, "Cancel Edit", "muted");
+            drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 642, EDITOR_WIDTH - 56, 30, "Cancel Edit", "muted");
         }
     }
     function outfitSettingsClick() {
@@ -783,15 +778,15 @@
                 return;
             }
         }
-        if (mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 170, EDITOR_WIDTH - 36, 30)) {
+        if (mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 242, EDITOR_WIDTH - 36, 34)) {
             addIncludeRestraints = !addIncludeRestraints;
             return;
         }
-        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 520, EDITOR_WIDTH - 56, 30)) {
+        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 642, EDITOR_WIDTH - 56, 30)) {
             resetEditor();
             return;
         }
-        if (mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 350, EDITOR_WIDTH - 56, 34)) {
+        if (mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 434, EDITOR_WIDTH - 56, 36)) {
             const cmd = ElementValue("EmeryOF_Cmd").trim().replace(/\s+/g, "").toLowerCase();
             const name = ElementValue("EmeryOF_Name").trim();
             const announce = ElementValue("EmeryOF_Announce").trim();
@@ -834,7 +829,7 @@
             localNotice(`Created "/${cmd}" - ${newOutfit.items.length} items saved.`);
             return;
         }
-        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 392, EDITOR_WIDTH - 56, 34)) {
+        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 476, EDITOR_WIDTH - 56, 30)) {
             const idx = outfits.findIndex(outfit => outfit.id === editingOutfitId);
             if (idx < 0) {
                 resetEditor();
@@ -854,7 +849,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.6";
+    const MOD_VERSION = "0.1.7";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -871,6 +866,14 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.7",
+            changes: [
+                "Moved the overhead EBC badge higher and removed the extra logo chip beside it.",
+                "Spread the action button builder out further to reduce label and picker overlap.",
+                "Reworked the outfit list and editor spacing to reduce overlapping text and controls.",
+            ],
+        },
         {
             version: "0.1.6",
             changes: [
@@ -1046,21 +1049,17 @@
             return;
         const presence = getSharedPresence(character);
         const versionText = (presence === null || presence === void 0 ? void 0 : presence.version) ? `v${presence.version}` : "v?";
-        const width = Math.max(70, 86 * zoom);
-        const height = Math.max(28, 34 * zoom);
+        const width = Math.max(64, 82 * zoom);
+        const height = Math.max(26, 32 * zoom);
         const x = left + 228 * zoom;
-        const y = top - 18 * zoom;
+        const y = top - 34 * zoom;
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
-        const iconWidth = Math.max(22, 24 * zoom);
         DrawRect(badgeLeft + 2, badgeTop + 2, width, height, "rgba(0, 0, 0, 0.28)");
         DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
         DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
-        DrawRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accentSoft);
-        DrawEmptyRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accent, 1);
-        DrawTextFit("=:3", badgeLeft + 2 + iconWidth / 2, badgeTop + height / 2 + 1, iconWidth - 4, UI.text);
-        DrawTextFit("EBC", badgeLeft + iconWidth + (width - iconWidth) / 2, badgeTop + 11, width - iconWidth - 8, UI.accent);
-        DrawTextFit(versionText, badgeLeft + iconWidth + (width - iconWidth) / 2, badgeTop + 24, width - iconWidth - 8, UI.textMuted);
+        DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + 10, width - 10, UI.accent);
+        DrawTextFit(versionText, badgeLeft + width / 2, badgeTop + 23, width - 10, UI.textMuted);
     }
     function showLoadNotice() {
         if (noticeShown)
