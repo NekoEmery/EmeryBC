@@ -16,7 +16,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.1";
+const MOD_VERSION = "0.1.2";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -33,10 +33,20 @@ let noticeShown = false;
 let activeTab: Tab = "actions";
 let settingsRegistered = false;
 
-const TAB_BTN_Y = 82;
-const TAB_BTN_H = 28;
-const TAB_BTN_W = 102;
+const TAB_BTN_Y = 86;
+const TAB_BTN_H = 30;
+const TAB_BTN_W = 132;
+const TAB_BTN_GAP = 14;
+const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.2",
+        changes: [
+            "Redesigned the Extensions UI into wider multi-panel layouts instead of the cramped left-column stack.",
+            "Replaced the action button color hex field with a real click-to-pick color control.",
+            "Added quicker wardrobe-side buttons for wearing, refreshing, and editing saved outfits.",
+        ],
+    },
     {
         version: "0.1.1",
         changes: [
@@ -198,8 +208,8 @@ function showLoadNotice(): void {
 }
 
 function drawTabs(): void {
-    drawChromeButton(134, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
-    drawChromeButton(246, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
+    drawChromeButton(TAB_BTN_LEFT, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
+    drawChromeButton(TAB_BTN_LEFT + TAB_BTN_W + TAB_BTN_GAP, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
 }
 
 function settingsRun(): void {
@@ -213,13 +223,14 @@ function settingsRun(): void {
 
 function settingsClick(): void {
     if (MouseY >= TAB_BTN_Y && MouseY <= TAB_BTN_Y + TAB_BTN_H) {
-        if (MouseX >= 134 && MouseX <= 134 + TAB_BTN_W && activeTab !== "actions") {
+        if (MouseX >= TAB_BTN_LEFT && MouseX <= TAB_BTN_LEFT + TAB_BTN_W && activeTab !== "actions") {
             outfitSettingsExit();
             activeTab = "actions";
             actionSettingsLoad();
             return;
         }
-        if (MouseX >= 246 && MouseX <= 246 + TAB_BTN_W && activeTab !== "outfits") {
+        const outfitsLeft = TAB_BTN_LEFT + TAB_BTN_W + TAB_BTN_GAP;
+        if (MouseX >= outfitsLeft && MouseX <= outfitsLeft + TAB_BTN_W && activeTab !== "outfits") {
             actionSettingsExit();
             activeTab = "outfits";
             outfitSettingsLoad();

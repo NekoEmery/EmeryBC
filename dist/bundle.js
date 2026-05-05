@@ -1,7 +1,12 @@
 (function () {
     'use strict';
 
-    const PANEL_W = 650;
+    const PANEL_W = 1180;
+    const PANEL_H = 940;
+    const PANEL_PADDING = 28;
+    const CONTENT_LEFT = PANEL_PADDING;
+    const CONTENT_RIGHT = PANEL_W - PANEL_PADDING;
+    const CONTENT_WIDTH = CONTENT_RIGHT - CONTENT_LEFT;
     const UI = {
         backdrop: "#12070d",
         panel: "#1b0d17",
@@ -23,9 +28,7 @@
         danger: "#cb798c",
         dangerDeep: "#552332",
         buttonMuted: "#432232",
-        buttonDisabled: "#2b1520",
-        swatchBorder: "#f8dce8",
-    };
+        buttonDisabled: "#2b1520"};
     const STAT_TONES = {
         accent: { fill: "#351622", border: UI.accentDeep, text: UI.accent },
         gold: { fill: "#322313", border: "#7f6132", text: UI.gold },
@@ -42,22 +45,23 @@
     };
     function drawSettingsScaffold(title, subtitle, stats) {
         var _a;
-        DrawRect(0, 60, PANEL_W, 940, UI.backdrop);
-        DrawRect(10, 70, PANEL_W - 20, 920, UI.panel);
-        DrawRect(18, 78, PANEL_W - 36, 904, UI.panelInner);
-        DrawEmptyRect(10, 70, PANEL_W - 20, 920, UI.panelEdge, 2);
-        DrawRect(18, 78, PANEL_W - 36, 108, UI.panelGlow);
-        DrawRect(18, 78, 8, 904, UI.accentDeep);
-        DrawRect(18, 176, PANEL_W - 36, 2, UI.panelEdge);
-        drawPill(34, 88, 88, 22, "EMERYBC", UI.accentSoft, UI.accent);
-        DrawTextFit(title, 206, 126, 280, UI.text);
-        DrawTextFit(subtitle, 232, 154, 330, UI.textMuted);
-        const statWidth = 88;
-        const statGap = 10;
+        DrawRect(0, 60, PANEL_W, PANEL_H, UI.backdrop);
+        DrawRect(10, 70, PANEL_W - 20, PANEL_H - 20, UI.panel);
+        DrawRect(18, 78, PANEL_W - 36, PANEL_H - 36, UI.panelInner);
+        DrawEmptyRect(10, 70, PANEL_W - 20, PANEL_H - 20, UI.panelEdge, 2);
+        DrawRect(18, 78, PANEL_W - 36, 126, UI.panelGlow);
+        DrawRect(18, 78, 10, PANEL_H - 36, UI.accentDeep);
+        DrawRect(18, 202, PANEL_W - 36, 2, UI.panelEdge);
+        drawPill(42, 92, 96, 24, "EMERYBC", UI.accentSoft, UI.accent);
+        DrawTextFit(title, 306, 124, 420, UI.text);
+        DrawTextFit(subtitle, 392, 156, 660, UI.textMuted);
+        DrawTextFit("Quick tools, cleaner layout, faster setup.", PANEL_W - 208, 156, 304, UI.textSoft);
+        const statWidth = 110;
+        const statGap = 12;
         const totalWidth = stats.length * statWidth + Math.max(0, stats.length - 1) * statGap;
-        let left = PANEL_W - 30 - totalWidth;
+        let left = PANEL_W - 36 - totalWidth;
         for (const stat of stats) {
-            drawStatCard(left, 86, statWidth, 48, stat.label, stat.value, (_a = stat.tone) !== null && _a !== void 0 ? _a : "muted");
+            drawStatCard(left, 90, statWidth, 52, stat.label, stat.value, (_a = stat.tone) !== null && _a !== void 0 ? _a : "muted");
             left += statWidth + statGap;
         }
     }
@@ -89,6 +93,38 @@
     function drawInsetLabel(text, x, y) {
         DrawText(text, x, y, UI.textSoft);
     }
+    let colorInputStylesInjected = false;
+    function ensureColorInputStyles() {
+        if (colorInputStylesInjected)
+            return;
+        const style = document.createElement("style");
+        style.textContent = `
+        .emerybc-color-input {
+            appearance: none;
+            -webkit-appearance: none;
+            border: 1px solid #7a465a;
+            border-radius: 12px;
+            background: #1f0d16;
+            padding: 3px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.06);
+            cursor: pointer;
+        }
+        .emerybc-color-input::-webkit-color-swatch-wrapper {
+            padding: 0;
+            border-radius: 9px;
+        }
+        .emerybc-color-input::-webkit-color-swatch {
+            border: none;
+            border-radius: 9px;
+        }
+        .emerybc-color-input::-moz-color-swatch {
+            border: none;
+            border-radius: 9px;
+        }
+    `;
+        document.head.appendChild(style);
+        colorInputStylesInjected = true;
+    }
     function styleInput(id, widthHint = "medium") {
         const input = document.getElementById(id);
         if (!input)
@@ -105,6 +141,18 @@
         input.style.outline = "none";
         input.style.letterSpacing = "0.02em";
         input.autocomplete = "off";
+    }
+    function styleColorInput(id) {
+        const input = document.getElementById(id);
+        if (!input)
+            return;
+        ensureColorInputStyles();
+        input.classList.add("emerybc-color-input");
+        input.style.padding = "2px";
+        input.style.background = UI.cardMuted;
+        input.style.border = "1px solid #7a465a";
+        input.style.borderRadius = "12px";
+        input.style.boxShadow = "inset 0 1px 2px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.06)";
     }
     function mouseInRect(x, y, w, h) {
         return MouseX >= x && MouseX <= x + w && MouseY >= y && MouseY <= y + h;
@@ -123,8 +171,13 @@
     const BTN_START_Y = 270;
     const BTN_SIZE = 45;
     const MAX_SLOTS = 6;
-    const ROW_LEFT = 24;
-    const ROW_WIDTH = PANEL_W - 48;
+    const GRID_COLS = 2;
+    const GRID_GAP_X = 20;
+    const GRID_GAP_Y = 18;
+    const GRID_TOP = 214;
+    const CARD_W = Math.floor((CONTENT_WIDTH - GRID_GAP_X) / GRID_COLS);
+    const CARD_H = 172;
+    const FOOTER_TOP = GRID_TOP + Math.ceil(MAX_SLOTS / GRID_COLS) * CARD_H + (Math.ceil(MAX_SLOTS / GRID_COLS) - 1) * GRID_GAP_Y + 18;
     function getButtons() {
         var _a;
         const stored = (_a = Player.ExtensionSettings.EmeryBC) === null || _a === void 0 ? void 0 : _a.actionButtons;
@@ -137,6 +190,25 @@
             Player.ExtensionSettings.EmeryBC = {};
         Player.ExtensionSettings.EmeryBC.actionButtons = buttons;
         ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function normalizeHexColor(value, fallback = "#c2185b") {
+        const color = (value || "").trim();
+        if (/^#[0-9a-f]{6}$/i.test(color))
+            return color.toLowerCase();
+        const shortMatch = /^#([0-9a-f]{3})$/i.exec(color);
+        if (shortMatch) {
+            const [r, g, b] = shortMatch[1].split("");
+            return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+        }
+        return fallback;
+    }
+    function getSlotPosition(slot) {
+        const col = slot % GRID_COLS;
+        const row = Math.floor(slot / GRID_COLS);
+        return {
+            left: CONTENT_LEFT + col * (CARD_W + GRID_GAP_X),
+            top: GRID_TOP + row * (CARD_H + GRID_GAP_Y),
+        };
     }
     // ─── In-game ─────────────────────────────────────────────────────────────────
     function drawActionButtons() {
@@ -181,11 +253,11 @@
             if (!document.getElementById(inputId(i, "label")))
                 ElementCreateInput(inputId(i, "label"), "text", btn.label, "6");
             if (!document.getElementById(inputId(i, "color")))
-                ElementCreateInput(inputId(i, "color"), "text", btn.color || "#c2185b", "7");
+                ElementCreateInput(inputId(i, "color"), "color", normalizeHexColor(btn.color));
             if (!document.getElementById(inputId(i, "emote")))
                 ElementCreateInput(inputId(i, "emote"), "text", btn.emote, "120");
             styleInput(inputId(i, "label"), "short");
-            styleInput(inputId(i, "color"), "short");
+            styleColorInput(inputId(i, "color"));
             styleInput(inputId(i, "emote"), "long");
         }
     }
@@ -193,75 +265,90 @@
         const stored = getButtons();
         settingsButtons = Array.from({ length: MAX_SLOTS }, (_, i) => { var _a; return (Object.assign({}, ((_a = stored[i]) !== null && _a !== void 0 ? _a : DEFAULT_BUTTONS[i]))); });
     }
-    const SLOT_H = 84;
-    const SLOTS_Y = 188;
     function placeInput$1(id, left, y, width, height) {
         ElementPosition(id, left + width / 2, y + height / 2, width, height);
     }
     function settingsRun$1() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         ensureInputs$1();
         const activeCount = settingsButtons.filter(btn => btn.enabled && btn.label.trim()).length;
         drawSettingsScaffold("Action Buttons", "Quick emote shortcuts for the chatroom sidebar.", [
             { label: "ACTIVE", value: `${activeCount}/${MAX_SLOTS}`, tone: "accent" },
-            { label: "LAYOUT", value: "Quickbar", tone: "gold" },
+            { label: "LAYOUT", value: "2-Column", tone: "gold" },
         ]);
         for (let i = 0; i < MAX_SLOTS; i++) {
             const btn = (_a = settingsButtons[i]) !== null && _a !== void 0 ? _a : DEFAULT_BUTTONS[i];
-            const y = SLOTS_Y + i * SLOT_H;
-            const previewColor = ((_b = document.getElementById(inputId(i, "color"))) === null || _b === void 0 ? void 0 : _b.value) || btn.color || "#c2185b";
+            const { left, top } = getSlotPosition(i);
+            const previewColor = normalizeHexColor((_b = document.getElementById(inputId(i, "color"))) === null || _b === void 0 ? void 0 : _b.value, btn.color || "#c2185b");
             const previewLabel = (((_c = document.getElementById(inputId(i, "label"))) === null || _c === void 0 ? void 0 : _c.value) || btn.label || "EMPTY").slice(0, 6);
-            drawCard(ROW_LEFT, y, ROW_WIDTH, SLOT_H - 10, i % 2 === 0 ? "default" : "alt");
-            DrawRect(36, y + 10, 68, 52, UI.cardMuted);
-            DrawEmptyRect(36, y + 10, 68, 52, UI.panelEdge, 1);
-            drawPill(44, y + 16, 52, 16, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
-            DrawRect(44, y + 38, 52, 18, previewColor);
-            DrawEmptyRect(44, y + 38, 52, 18, UI.swatchBorder, 1);
-            DrawTextFit(previewLabel || "EMPTY", 70, y + 48, 46, "#fff7fa");
-            drawInsetLabel("Label", 170, y + 22);
-            drawInsetLabel("Color", 286, y + 22);
-            drawInsetLabel("Action", 438, y + 22);
-            drawInsetLabel("State", 554, y + 22);
-            placeInput$1(inputId(i, "label"), 118, y + 34, 86, 32);
-            placeInput$1(inputId(i, "color"), 224, y + 34, 92, 32);
-            placeInput$1(inputId(i, "emote"), 334, y + 34, 170, 32);
-            drawChromeButton(516, y + 26, 78, 26, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
+            const previewEmote = ((_d = document.getElementById(inputId(i, "emote"))) === null || _d === void 0 ? void 0 : _d.value) || btn.emote || "Describe the emote text here";
+            drawCard(left, top, CARD_W, CARD_H, i % 2 === 0 ? "default" : "alt");
+            drawPill(left + 18, top + 16, 66, 18, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
+            drawChromeButton(left + CARD_W - 126, top + 12, 108, 28, btn.enabled ? "Enabled" : "Disabled", btn.enabled ? "accent" : "muted");
+            DrawRect(left + 18, top + 44, 126, 54, UI.cardMuted);
+            DrawEmptyRect(left + 18, top + 44, 126, 54, UI.panelEdge, 1);
+            DrawButton(left + 28, top + 54, 106, 34, previewLabel || "EMPTY", previewColor, "", previewEmote);
+            DrawTextFit("Quickbar preview", left + 81, top + 111, 120, UI.textSoft);
+            drawInsetLabel("Button Label", left + 220, top + 28);
+            placeInput$1(inputId(i, "label"), left + 158, top + 44, 148, 34);
+            drawInsetLabel("Color Picker", left + 394, top + 28);
+            placeInput$1(inputId(i, "color"), left + 332, top + 44, 74, 34);
+            DrawTextFit(previewColor.toUpperCase(), left + 467, top + 62, 112, UI.textMuted);
+            DrawTextFit("Tap the swatch to open the picker", left + 467, top + 86, 126, UI.textSoft);
+            drawInsetLabel("Emote Text", left + 112, top + 112);
+            placeInput$1(inputId(i, "emote"), left + 18, top + 122, CARD_W - 36, 36);
+            DrawTextFit(`/me ${previewEmote}`, left + CARD_W / 2, top + 155, CARD_W - 44, UI.textSoft);
         }
-        const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
-        drawChromeButton(34, btnY, 206, 46, "Save Layout", "success");
-        drawChromeButton(254, btnY, 206, 46, "Reset Defaults", "gold");
-        drawCard(24, btnY + 56, PANEL_W - 48, 52, "muted");
-        DrawTextFit("Action text becomes a /me emote in chat.", PANEL_W / 2, btnY + 76, 520, UI.textMuted);
-        DrawTextFit("Example: \"waves\" sends * Name waves *", PANEL_W / 2, btnY + 96, 520, UI.textSoft);
+        drawCard(CONTENT_LEFT, FOOTER_TOP, CONTENT_WIDTH, 110, "muted");
+        DrawText("Layout Actions", CONTENT_LEFT + 112, FOOTER_TOP + 24, UI.text);
+        DrawTextFit("Use the buttons below to save, auto-enable filled slots, or reset the whole quickbar.", CONTENT_LEFT + 370, FOOTER_TOP + 24, 520, UI.textSoft);
+        drawChromeButton(CONTENT_LEFT + 18, FOOTER_TOP + 48, 250, 42, "Save Layout", "success");
+        drawChromeButton(CONTENT_LEFT + 286, FOOTER_TOP + 48, 250, 42, "Enable Filled Slots", "accent");
+        drawChromeButton(CONTENT_LEFT + 554, FOOTER_TOP + 48, 250, 42, "Reset Defaults", "gold");
+        drawChromeButton(CONTENT_LEFT + 822, FOOTER_TOP + 48, 330, 42, "Disable Empty Slots", "muted");
+        DrawTextFit("Action text becomes a /me emote in chat, and the color picker updates the sidebar button immediately.", CONTENT_LEFT + CONTENT_WIDTH / 2, FOOTER_TOP + 102, CONTENT_WIDTH - 44, UI.textMuted);
     }
     function settingsClick$1() {
         for (let i = 0; i < MAX_SLOTS; i++) {
-            const y = SLOTS_Y + i * SLOT_H;
-            if (mouseInRect(516, y + 22, 78, 28)) {
+            const { left, top } = getSlotPosition(i);
+            if (mouseInRect(left + CARD_W - 126, top + 12, 108, 28)) {
                 settingsButtons[i].enabled = !settingsButtons[i].enabled;
                 return;
             }
         }
-        const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
-        // Save
-        if (MouseX >= 34 && MouseX <= 240 && MouseY >= btnY && MouseY <= btnY + 46) {
+        if (mouseInRect(CONTENT_LEFT + 18, FOOTER_TOP + 48, 250, 42)) {
             for (let i = 0; i < MAX_SLOTS; i++) {
                 settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
-                settingsButtons[i].color = ElementValue(inputId(i, "color")).trim() || "#c2185b";
+                settingsButtons[i].color = normalizeHexColor(ElementValue(inputId(i, "color")));
                 settingsButtons[i].emote = ElementValue(inputId(i, "emote")).trim();
             }
             saveButtons(settingsButtons);
             return;
         }
-        // Reset
-        if (MouseX >= 254 && MouseX <= 460 && MouseY >= btnY && MouseY <= btnY + 46) {
+        if (mouseInRect(CONTENT_LEFT + 286, FOOTER_TOP + 48, 250, 42)) {
+            for (let i = 0; i < MAX_SLOTS; i++) {
+                const label = ElementValue(inputId(i, "label")).trim();
+                const emote = ElementValue(inputId(i, "emote")).trim();
+                settingsButtons[i].enabled = !!(label || emote);
+            }
+            return;
+        }
+        if (mouseInRect(CONTENT_LEFT + 554, FOOTER_TOP + 48, 250, 42)) {
             settingsButtons = DEFAULT_BUTTONS.map(b => (Object.assign({}, b)));
             for (let i = 0; i < MAX_SLOTS; i++) {
                 document.getElementById(inputId(i, "label")).value = settingsButtons[i].label;
-                document.getElementById(inputId(i, "color")).value = settingsButtons[i].color;
+                document.getElementById(inputId(i, "color")).value = normalizeHexColor(settingsButtons[i].color);
                 document.getElementById(inputId(i, "emote")).value = settingsButtons[i].emote;
             }
             saveButtons(settingsButtons);
+            return;
+        }
+        if (mouseInRect(CONTENT_LEFT + 822, FOOTER_TOP + 48, 330, 42)) {
+            for (let i = 0; i < MAX_SLOTS; i++) {
+                const label = ElementValue(inputId(i, "label")).trim();
+                const emote = ElementValue(inputId(i, "emote")).trim();
+                settingsButtons[i].enabled = !!(label && emote);
+            }
         }
     }
     function settingsExit$1() {
@@ -280,12 +367,17 @@
         "ItemTorso", "ItemTorso2", "ItemEars", "ItemNose", "ItemMisc",
     ]);
     const OUTFITS_PER_PAGE = 5;
-    const ROW_H = 70;
-    const NAV_Y = 186;
-    const LIST_Y = 224;
-    const ADD_Y = LIST_Y + OUTFITS_PER_PAGE * ROW_H + 16;
-    const CARD_LEFT = 24;
-    const CARD_WIDTH = PANEL_W - 48;
+    const NAV_Y = 216;
+    const LIST_Y = 268;
+    const ROW_H = 86;
+    const LIST_LEFT = CONTENT_LEFT;
+    const LIST_WIDTH = 720;
+    const LIST_BUTTON_W = 84;
+    const EDITOR_GAP = 20;
+    const EDITOR_LEFT = LIST_LEFT + LIST_WIDTH + EDITOR_GAP;
+    const EDITOR_WIDTH = CONTENT_RIGHT - EDITOR_LEFT;
+    const EDITOR_TOP = NAV_Y;
+    const EDITOR_HEIGHT = 590;
     let settingsPage = 0;
     let addIncludeRestraints = false;
     let editingOutfitId = null;
@@ -592,52 +684,61 @@
             { label: "OUTFITS", value: `${outfits.length}`, tone: "accent" },
             { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
         ]);
-        drawChromeButton(34, NAV_Y, 90, 28, "Prev", "muted", page === 0);
-        DrawText("Wardrobe", 184, NAV_Y + 16, UI.textMuted);
-        DrawText(`${page + 1} of ${totalPages}`, 320, NAV_Y + 16, UI.textSoft);
-        drawChromeButton(526, NAV_Y, 90, 28, "Next", "muted", page >= totalPages - 1);
-        DrawTextFit("Click an outfit row to edit its command, name, or change text.", PANEL_W / 2, NAV_Y + 40, 520, UI.textSoft);
+        drawChromeButton(LIST_LEFT, NAV_Y, 96, 30, "Prev", "muted", page === 0);
+        DrawText("Wardrobe", LIST_LEFT + 162, NAV_Y + 18, UI.textMuted);
+        DrawTextFit(`${page + 1} of ${totalPages}`, LIST_LEFT + 314, NAV_Y + 18, 120, UI.textSoft);
+        drawChromeButton(LIST_LEFT + LIST_WIDTH - 96, NAV_Y, 96, 30, "Next", "muted", page >= totalPages - 1);
+        DrawTextFit("Select a row to edit it. Use the quick buttons to wear, refresh, or delete without leaving the screen.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 42, LIST_WIDTH - 40, UI.textSoft);
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             const y = LIST_Y + i * ROW_H;
             const isEditing = editingOutfitId === (outfit === null || outfit === void 0 ? void 0 : outfit.id);
-            drawCard(CARD_LEFT, y, CARD_WIDTH, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
+            drawCard(LIST_LEFT, y, LIST_WIDTH, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
             if (isEditing) {
-                DrawEmptyRect(CARD_LEFT - 1, y - 1, CARD_WIDTH + 2, ROW_H - 6, UI.accent, 2);
+                DrawEmptyRect(LIST_LEFT - 1, y - 1, LIST_WIDTH + 2, ROW_H - 6, UI.accent, 2);
             }
             if (!outfit) {
-                DrawText("Empty slot", PANEL_W / 2, y + 24, UI.textMuted);
-                DrawTextFit("Create a new outfit below to fill this space.", PANEL_W / 2, y + 44, 420, UI.textSoft);
+                DrawText("Empty slot", LIST_LEFT + LIST_WIDTH / 2, y + 26, UI.textMuted);
+                DrawTextFit("Create a new outfit from the editor on the right to fill this space.", LIST_LEFT + LIST_WIDTH / 2, y + 50, 420, UI.textSoft);
                 continue;
             }
             const hasSave = outfit.items.length > 0;
-            drawPill(38, y + 16, 94, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
-            DrawTextFit(outfit.displayName, 218, y + 22, 170, UI.text);
-            DrawTextFit(`/me ${outfit.announceText}`, 240, y + 44, 250, UI.textSoft);
-            drawPill(364, y + 14, 108, 20, outfit.includeRestraints ? "Includes restraints" : "Clothes only", outfit.includeRestraints ? UI.dangerDeep : UI.successDeep, outfit.includeRestraints ? UI.danger : UI.success);
-            drawPill(364, y + 38, 108, 18, hasSave ? `${outfit.items.length} items saved` : "No save data", hasSave ? UI.successDeep : UI.buttonMuted, hasSave ? UI.success : UI.textMuted);
-            drawChromeButton(500, y + 12, 98, 22, "Update", "success", false, "Save current appearance");
-            drawChromeButton(500, y + 38, 98, 22, "Delete", "danger");
+            drawPill(LIST_LEFT + 16, y + 14, 102, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
+            DrawTextFit(outfit.displayName, LIST_LEFT + 224, y + 22, 180, UI.text);
+            DrawTextFit(`/me ${outfit.announceText}`, LIST_LEFT + 256, y + 48, 320, UI.textSoft);
+            drawPill(LIST_LEFT + 338, y + 14, 130, 20, outfit.includeRestraints ? "Includes restraints" : "Clothes only", outfit.includeRestraints ? UI.dangerDeep : UI.successDeep, outfit.includeRestraints ? UI.danger : UI.success);
+            drawPill(LIST_LEFT + 478, y + 14, 110, 18, hasSave ? `${outfit.items.length} items saved` : "No save data", hasSave ? UI.successDeep : UI.buttonMuted, hasSave ? UI.success : UI.textMuted);
+            drawChromeButton(LIST_LEFT + LIST_WIDTH - 286, y + 22, LIST_BUTTON_W, 24, "Wear", "accent");
+            drawChromeButton(LIST_LEFT + LIST_WIDTH - 192, y + 22, LIST_BUTTON_W, 24, "Update", "success", false, "Save current appearance");
+            drawChromeButton(LIST_LEFT + LIST_WIDTH - 98, y + 22, LIST_BUTTON_W, 24, "Delete", "danger");
         }
-        drawCard(CARD_LEFT, ADD_Y, CARD_WIDTH, 210, "muted");
-        DrawText(editingOutfit ? "Edit Outfit" : "Add New Outfit", 126, ADD_Y + 22, UI.text);
-        DrawTextFit(editingOutfit ? `Editing /${editingOutfit.command}. Update text here, and use Update on the row to resave the look.` : "Dress your character first, then save the current appearance into a command slot.", 334, ADD_Y + 22, 410, UI.textSoft);
-        drawInsetLabel("Command", 96, ADD_Y + 48);
-        DrawText("/", 56, ADD_Y + 80, UI.accent);
-        placeInput("EmeryOF_Cmd", 82, ADD_Y + 62, 120, 34);
-        drawInsetLabel("Display Name", 316, ADD_Y + 48);
-        placeInput("EmeryOF_Name", 248, ADD_Y + 62, 200, 34);
-        drawInsetLabel("Restraint Mode", 522, ADD_Y + 48);
-        drawChromeButton(470, ADD_Y + 56, 126, 28, addIncludeRestraints ? "Include restraints" : "Clothes only", addIncludeRestraints ? "danger" : "success");
-        drawInsetLabel("Announce Text", 114, ADD_Y + 108);
-        DrawText("/me", 58, ADD_Y + 138, UI.accent);
-        placeInput("EmeryOF_Announce", 86, ADD_Y + 120, 470, 34);
+        drawCard(EDITOR_LEFT, EDITOR_TOP, EDITOR_WIDTH, EDITOR_HEIGHT, "muted");
+        DrawText(editingOutfit ? "Outfit Editor" : "New Outfit Builder", EDITOR_LEFT + 108, EDITOR_TOP + 24, UI.text);
+        DrawTextFit(editingOutfit
+            ? `Editing /${editingOutfit.command}. Save settings here, or refresh its saved look with Update or Save Current Look.`
+            : "Dress your character first, then capture that look here into a reusable slash command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 24, EDITOR_WIDTH - 150, UI.textSoft);
+        drawPill(EDITOR_LEFT + 18, EDITOR_TOP + 44, EDITOR_WIDTH - 36, 22, editingOutfit ? `Currently editing: /${editingOutfit.command}` : "No outfit selected yet", UI.cardMuted, editingOutfit ? UI.accent : UI.textMuted);
+        drawInsetLabel("Command", EDITOR_LEFT + 90, EDITOR_TOP + 90);
+        DrawText("/", EDITOR_LEFT + 28, EDITOR_TOP + 122, UI.accent);
+        placeInput("EmeryOF_Cmd", EDITOR_LEFT + 52, EDITOR_TOP + 104, 138, 34);
+        drawInsetLabel("Display Name", EDITOR_LEFT + 294, EDITOR_TOP + 90);
+        placeInput("EmeryOF_Name", EDITOR_LEFT + 206, EDITOR_TOP + 104, EDITOR_WIDTH - 224, 34);
+        drawInsetLabel("Restraint Mode", EDITOR_LEFT + 120, EDITOR_TOP + 156);
+        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 170, EDITOR_WIDTH - 36, 30, addIncludeRestraints ? "Include restraints in the saved outfit" : "Save clothing only and preserve restraints", addIncludeRestraints ? "danger" : "success");
+        drawInsetLabel("Announce Text", EDITOR_LEFT + 112, EDITOR_TOP + 230);
+        DrawText("/me", EDITOR_LEFT + 28, EDITOR_TOP + 262, UI.accent);
+        placeInput("EmeryOF_Announce", EDITOR_LEFT + 60, EDITOR_TOP + 244, EDITOR_WIDTH - 78, 34);
+        drawCard(EDITOR_LEFT + 18, EDITOR_TOP + 302, EDITOR_WIDTH - 36, 110, "default");
+        DrawText("Quick Actions", EDITOR_LEFT + 94, EDITOR_TOP + 326, UI.text);
+        DrawTextFit("These buttons either capture the look you are currently wearing or save the metadata for the selected command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 326, EDITOR_WIDTH - 150, UI.textSoft);
+        drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 350, EDITOR_WIDTH - 56, 34, editingOutfit ? "Save Outfit Settings" : "Create New Outfit From Current Look", "success");
+        drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 392, EDITOR_WIDTH - 56, 34, editingOutfit ? "Save Current Look Into This Outfit" : "Capture Current Look Preview", editingOutfit ? "accent" : "muted", !editingOutfit);
+        drawCard(EDITOR_LEFT + 18, EDITOR_TOP + 444, EDITOR_WIDTH - 36, 118, "default");
+        DrawText("Notes", EDITOR_LEFT + 58, EDITOR_TOP + 468, UI.textMuted);
+        DrawTextFit("Use the row buttons on the left to wear or delete saved outfits instantly. Clicking a row opens it here for editing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 492, EDITOR_WIDTH - 52, UI.textSoft);
+        DrawTextFit("The saved announce text becomes a /me emote when you trigger the slash command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 526, EDITOR_WIDTH - 52, UI.textMuted);
         if (editingOutfit) {
-            drawChromeButton(44, ADD_Y + 164, 152, 34, "Cancel Edit", "muted");
-            drawChromeButton(210, ADD_Y + 164, PANEL_W - 254, 34, "Save Outfit Settings", "success");
-        }
-        else {
-            drawChromeButton(44, ADD_Y + 164, PANEL_W - 88, 34, "Save Current Appearance as New Outfit", "success");
+            drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 520, EDITOR_WIDTH - 56, 30, "Cancel Edit", "muted");
         }
     }
     function outfitSettingsClick() {
@@ -645,11 +746,11 @@
         const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
         const page = Math.min(settingsPage, totalPages - 1);
         const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
-        if (mouseInRect(34, NAV_Y, 90, 28)) {
+        if (mouseInRect(LIST_LEFT, NAV_Y, 96, 30)) {
             settingsPage = Math.max(0, page - 1);
             return;
         }
-        if (mouseInRect(526, NAV_Y, 90, 28)) {
+        if (mouseInRect(LIST_LEFT + LIST_WIDTH - 96, NAV_Y, 96, 30)) {
             settingsPage = Math.min(totalPages - 1, page + 1);
             return;
         }
@@ -658,14 +759,18 @@
             if (!outfit)
                 continue;
             const y = LIST_Y + i * ROW_H;
-            if (mouseInRect(500, y + 12, 98, 22)) {
+            if (mouseInRect(LIST_LEFT + LIST_WIDTH - 286, y + 22, LIST_BUTTON_W, 24)) {
+                applyOutfit(outfit);
+                return;
+            }
+            if (mouseInRect(LIST_LEFT + LIST_WIDTH - 192, y + 22, LIST_BUTTON_W, 24)) {
                 const idx = outfits.indexOf(outfit);
                 outfits[idx].items = captureAppearance(outfit.includeRestraints);
                 saveOutfits(outfits);
                 localNotice(`Updated "/${outfit.command}"`);
                 return;
             }
-            if (mouseInRect(500, y + 38, 98, 22)) {
+            if (mouseInRect(LIST_LEFT + LIST_WIDTH - 98, y + 22, LIST_BUTTON_W, 24)) {
                 saveOutfits(outfits.filter(entry => entry.id !== outfit.id));
                 if (editingOutfitId === outfit.id) {
                     resetEditor();
@@ -673,20 +778,20 @@
                 settingsPage = Math.min(settingsPage, Math.max(0, Math.ceil((outfits.length - 1) / OUTFITS_PER_PAGE) - 1));
                 return;
             }
-            if (mouseInRect(CARD_LEFT, y, CARD_WIDTH, ROW_H - 8)) {
+            if (mouseInRect(LIST_LEFT, y, LIST_WIDTH, ROW_H - 8)) {
                 beginEditing(outfit);
                 return;
             }
         }
-        if (mouseInRect(470, ADD_Y + 56, 126, 28)) {
+        if (mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 170, EDITOR_WIDTH - 36, 30)) {
             addIncludeRestraints = !addIncludeRestraints;
             return;
         }
-        if (editingOutfitId && mouseInRect(44, ADD_Y + 164, 152, 34)) {
+        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 520, EDITOR_WIDTH - 56, 30)) {
             resetEditor();
             return;
         }
-        if (mouseInRect(editingOutfitId ? 210 : 44, ADD_Y + 164, editingOutfitId ? PANEL_W - 254 : PANEL_W - 88, 34)) {
+        if (mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 350, EDITOR_WIDTH - 56, 34)) {
             const cmd = ElementValue("EmeryOF_Cmd").trim().replace(/\s+/g, "").toLowerCase();
             const name = ElementValue("EmeryOF_Name").trim();
             const announce = ElementValue("EmeryOF_Announce").trim();
@@ -727,6 +832,18 @@
             resetEditor();
             settingsPage = Math.floor(outfits.length / OUTFITS_PER_PAGE);
             localNotice(`Created "/${cmd}" - ${newOutfit.items.length} items saved.`);
+            return;
+        }
+        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 28, EDITOR_TOP + 392, EDITOR_WIDTH - 56, 34)) {
+            const idx = outfits.findIndex(outfit => outfit.id === editingOutfitId);
+            if (idx < 0) {
+                resetEditor();
+                localNotice("That outfit no longer exists.", "#ffb7c7");
+                return;
+            }
+            outfits[idx].items = captureAppearance(outfits[idx].includeRestraints);
+            saveOutfits(outfits);
+            localNotice(`Updated "/${outfits[idx].command}"`);
         }
     }
     function outfitSettingsExit() {
@@ -737,7 +854,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.1";
+    const MOD_VERSION = "0.1.2";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -748,10 +865,20 @@
     let noticeShown = false;
     let activeTab = "actions";
     let settingsRegistered = false;
-    const TAB_BTN_Y = 82;
-    const TAB_BTN_H = 28;
-    const TAB_BTN_W = 102;
+    const TAB_BTN_Y = 86;
+    const TAB_BTN_H = 30;
+    const TAB_BTN_W = 132;
+    const TAB_BTN_GAP = 14;
+    const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.2",
+            changes: [
+                "Redesigned the Extensions UI into wider multi-panel layouts instead of the cramped left-column stack.",
+                "Replaced the action button color hex field with a real click-to-pick color control.",
+                "Added quicker wardrobe-side buttons for wearing, refreshing, and editing saved outfits.",
+            ],
+        },
         {
             version: "0.1.1",
             changes: [
@@ -902,8 +1029,8 @@
         }
     }
     function drawTabs() {
-        drawChromeButton(134, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
-        drawChromeButton(246, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
+        drawChromeButton(TAB_BTN_LEFT, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
+        drawChromeButton(TAB_BTN_LEFT + TAB_BTN_W + TAB_BTN_GAP, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
     }
     function settingsRun() {
         if (activeTab === "actions") {
@@ -916,13 +1043,14 @@
     }
     function settingsClick() {
         if (MouseY >= TAB_BTN_Y && MouseY <= TAB_BTN_Y + TAB_BTN_H) {
-            if (MouseX >= 134 && MouseX <= 134 + TAB_BTN_W && activeTab !== "actions") {
+            if (MouseX >= TAB_BTN_LEFT && MouseX <= TAB_BTN_LEFT + TAB_BTN_W && activeTab !== "actions") {
                 outfitSettingsExit();
                 activeTab = "actions";
                 settingsLoad();
                 return;
             }
-            if (MouseX >= 246 && MouseX <= 246 + TAB_BTN_W && activeTab !== "outfits") {
+            const outfitsLeft = TAB_BTN_LEFT + TAB_BTN_W + TAB_BTN_GAP;
+            if (MouseX >= outfitsLeft && MouseX <= outfitsLeft + TAB_BTN_W && activeTab !== "outfits") {
                 settingsExit$1();
                 activeTab = "outfits";
                 outfitSettingsLoad();

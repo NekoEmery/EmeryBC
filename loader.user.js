@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      0.1.1
+// @version      0.1.2
 // @description  EmeryBC addon for Bondage Club
 // @downloadURL  https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js
 // @updateURL    https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js

@@ -1,4 +1,9 @@
-export const PANEL_W = 650;
+export const PANEL_W = 1180;
+export const PANEL_H = 940;
+export const PANEL_PADDING = 28;
+export const CONTENT_LEFT = PANEL_PADDING;
+export const CONTENT_RIGHT = PANEL_W - PANEL_PADDING;
+export const CONTENT_WIDTH = CONTENT_RIGHT - CONTENT_LEFT;
 
 export const UI = {
     backdrop: "#12070d",
@@ -51,24 +56,25 @@ const BUTTON_TONES: Record<ButtonTone, { fill: string; border: string; frame: st
 };
 
 export function drawSettingsScaffold(title: string, subtitle: string, stats: HeaderStat[]): void {
-    DrawRect(0, 60, PANEL_W, 940, UI.backdrop);
-    DrawRect(10, 70, PANEL_W - 20, 920, UI.panel);
-    DrawRect(18, 78, PANEL_W - 36, 904, UI.panelInner);
-    DrawEmptyRect(10, 70, PANEL_W - 20, 920, UI.panelEdge, 2);
-    DrawRect(18, 78, PANEL_W - 36, 108, UI.panelGlow);
-    DrawRect(18, 78, 8, 904, UI.accentDeep);
-    DrawRect(18, 176, PANEL_W - 36, 2, UI.panelEdge);
+    DrawRect(0, 60, PANEL_W, PANEL_H, UI.backdrop);
+    DrawRect(10, 70, PANEL_W - 20, PANEL_H - 20, UI.panel);
+    DrawRect(18, 78, PANEL_W - 36, PANEL_H - 36, UI.panelInner);
+    DrawEmptyRect(10, 70, PANEL_W - 20, PANEL_H - 20, UI.panelEdge, 2);
+    DrawRect(18, 78, PANEL_W - 36, 126, UI.panelGlow);
+    DrawRect(18, 78, 10, PANEL_H - 36, UI.accentDeep);
+    DrawRect(18, 202, PANEL_W - 36, 2, UI.panelEdge);
 
-    drawPill(34, 88, 88, 22, "EMERYBC", UI.accentSoft, UI.accent);
-    DrawTextFit(title, 206, 126, 280, UI.text);
-    DrawTextFit(subtitle, 232, 154, 330, UI.textMuted);
+    drawPill(42, 92, 96, 24, "EMERYBC", UI.accentSoft, UI.accent);
+    DrawTextFit(title, 306, 124, 420, UI.text);
+    DrawTextFit(subtitle, 392, 156, 660, UI.textMuted);
+    DrawTextFit("Quick tools, cleaner layout, faster setup.", PANEL_W - 208, 156, 304, UI.textSoft);
 
-    const statWidth = 88;
-    const statGap = 10;
+    const statWidth = 110;
+    const statGap = 12;
     const totalWidth = stats.length * statWidth + Math.max(0, stats.length - 1) * statGap;
-    let left = PANEL_W - 30 - totalWidth;
+    let left = PANEL_W - 36 - totalWidth;
     for (const stat of stats) {
-        drawStatCard(left, 86, statWidth, 48, stat.label, stat.value, stat.tone ?? "muted");
+        drawStatCard(left, 90, statWidth, 52, stat.label, stat.value, stat.tone ?? "muted");
         left += statWidth + statGap;
     }
 }
@@ -125,6 +131,39 @@ export function drawInsetLabel(text: string, x: number, y: number): void {
     DrawText(text, x, y, UI.textSoft);
 }
 
+let colorInputStylesInjected = false;
+
+function ensureColorInputStyles(): void {
+    if (colorInputStylesInjected) return;
+    const style = document.createElement("style");
+    style.textContent = `
+        .emerybc-color-input {
+            appearance: none;
+            -webkit-appearance: none;
+            border: 1px solid #7a465a;
+            border-radius: 12px;
+            background: #1f0d16;
+            padding: 3px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.06);
+            cursor: pointer;
+        }
+        .emerybc-color-input::-webkit-color-swatch-wrapper {
+            padding: 0;
+            border-radius: 9px;
+        }
+        .emerybc-color-input::-webkit-color-swatch {
+            border: none;
+            border-radius: 9px;
+        }
+        .emerybc-color-input::-moz-color-swatch {
+            border: none;
+            border-radius: 9px;
+        }
+    `;
+    document.head.appendChild(style);
+    colorInputStylesInjected = true;
+}
+
 export function styleInput(id: string, widthHint: "short" | "medium" | "long" = "medium"): void {
     const input = document.getElementById(id) as HTMLInputElement | null;
     if (!input) return;
@@ -141,6 +180,19 @@ export function styleInput(id: string, widthHint: "short" | "medium" | "long" = 
     input.style.outline = "none";
     input.style.letterSpacing = "0.02em";
     input.autocomplete = "off";
+}
+
+export function styleColorInput(id: string): void {
+    const input = document.getElementById(id) as HTMLInputElement | null;
+    if (!input) return;
+
+    ensureColorInputStyles();
+    input.classList.add("emerybc-color-input");
+    input.style.padding = "2px";
+    input.style.background = UI.cardMuted;
+    input.style.border = "1px solid #7a465a";
+    input.style.borderRadius = "12px";
+    input.style.boxShadow = "inset 0 1px 2px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.06)";
 }
 
 export function mouseInRect(x: number, y: number, w: number, h: number): boolean {
