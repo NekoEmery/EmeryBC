@@ -16,7 +16,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.3";
+const MOD_VERSION = "0.1.4";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -39,6 +39,12 @@ const TAB_BTN_W = 132;
 const TAB_BTN_GAP = 14;
 const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.4",
+        changes: [
+            "Shifted the overhead EmeryBC badge a little further left for better alignment above characters.",
+        ],
+    },
     {
         version: "0.1.3",
         changes: [
@@ -177,7 +183,7 @@ function drawPresenceMarker(args: unknown[]): void {
     const versionText = presence?.version ? `v${presence.version}` : "v?";
     const width = Math.max(70, 86 * zoom);
     const height = Math.max(28, 34 * zoom);
-    const x = left + 250 * zoom;
+    const x = left + 228 * zoom;
     const y = top - 18 * zoom;
     const badgeLeft = x - width / 2;
     const badgeTop = y - height / 2;
