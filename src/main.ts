@@ -29,18 +29,61 @@ function drawLoadIndicator(): void {
     DrawText("NA", 22, 111, "#c084fc");
 }
 
-// One-time chat notice per session
+// One-time popup notice per session, styled like MPA's notification
 let noticeShown = false;
 function showLoadNotice(): void {
     if (noticeShown) return;
     noticeShown = true;
-    const log = document.getElementById("TextAreaChatLog");
-    if (!log) return;
-    const div = document.createElement("div");
-    div.style.cssText = "color:#c084fc;font-style:italic;padding:3px 5px;border-left:3px solid #7c3fbf;margin:2px 0;";
-    div.textContent = `✓ EmeryBC v${MOD_VERSION} loaded`;
-    log.appendChild(div);
-    log.scrollTop = log.scrollHeight;
+
+    const wrap = document.createElement("div");
+    wrap.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 260px;
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+        border: 2px solid #4a0080;
+        border-radius: 6px;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.6);
+        z-index: 99999;
+        cursor: pointer;
+        user-select: none;
+    `;
+
+    const title = document.createElement("div");
+    title.style.cssText = `
+        background: #4a0080;
+        color: white;
+        font-weight: bold;
+        text-align: center;
+        padding: 6px 10px;
+        border-radius: 4px 4px 0 0;
+        font-size: 14px;
+    `;
+    title.textContent = "EmeryBC Loaded";
+
+    const body = document.createElement("div");
+    body.style.cssText = `
+        background: #7c3fbf;
+        color: white;
+        padding: 8px 12px;
+        line-height: 1.6;
+        border-radius: 0 0 4px 4px;
+    `;
+    body.innerHTML = `
+        Current Version: ${MOD_VERSION}<br>
+        ✓ Action Buttons<br>
+        ✓ Outfit Commands<br>
+        <span style="font-size:11px;opacity:0.7;">(click to dismiss)</span>
+    `;
+
+    wrap.appendChild(title);
+    wrap.appendChild(body);
+    wrap.addEventListener("click", () => wrap.remove());
+    document.body.appendChild(wrap);
+
+    setTimeout(() => wrap.remove(), 10000);
 }
 
 // ─── In-game hooks ────────────────────────────────────────────────────────────

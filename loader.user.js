@@ -11,10 +11,5 @@
 // @match        https://*.bondage-asia.com/club/R*
 // @run-at       document-end
 // @grant        none
+// @require      https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/dist/bundle.js
 // ==/UserScript==
-
-(function () {
-    const script = document.createElement("script");
-    script.src = `https://cdn.jsdelivr.net/gh/NekoEmery/EmeryBC@master/dist/bundle.js?v=${(Date.now() / 10000).toFixed(0)}`;
-    document.head.appendChild(script);
-})();
