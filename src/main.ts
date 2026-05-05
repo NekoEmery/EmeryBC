@@ -16,7 +16,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.0";
+const MOD_VERSION = "0.1.1";
 
 type Tab = "actions" | "outfits";
 
