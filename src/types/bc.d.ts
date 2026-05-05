@@ -35,6 +35,8 @@ interface Character {
     Name: string;
     Appearance: Item[];
     ExtensionSettings: Record<string, unknown>;
+    OnlineSettings?: Record<string, unknown>;
+    OnlineSharedSettings?: Record<string, unknown>;
     AssetFamily: string;
     OnlineID?: string | number;
     ActivePose?: string | string[] | null;

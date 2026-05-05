@@ -854,7 +854,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.5";
+    const MOD_VERSION = "0.1.6";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -871,6 +871,13 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.6",
+            changes: [
+                "Moved EmeryBC presence sharing onto BC's shared online settings path so other clients can receive the head tag.",
+                "The badge now reads shared presence from online settings first, with local settings as a fallback.",
+            ],
+        },
         {
             version: "0.1.5",
             changes: [
@@ -967,6 +974,25 @@
         appendLocalLogLine("[EmeryBC] Usage: /ebc version", UI.gold);
         return true;
     }
+    function getSharedPresence(character) {
+        var _a, _b, _c;
+        if (!character)
+            return null;
+        const shared = (_a = character.OnlineSharedSettings) === null || _a === void 0 ? void 0 : _a[MOD_NAME];
+        if (shared && typeof shared === "object") {
+            const presence = shared.presence;
+            if ((presence === null || presence === void 0 ? void 0 : presence.marker) === "EBC")
+                return presence;
+        }
+        const online = (_b = character.OnlineSettings) === null || _b === void 0 ? void 0 : _b[MOD_NAME];
+        if (online && typeof online === "object") {
+            const presence = online.presence;
+            if ((presence === null || presence === void 0 ? void 0 : presence.marker) === "EBC")
+                return presence;
+        }
+        const addon = (_c = getAddonSettings(character, false)) === null || _c === void 0 ? void 0 : _c.presence;
+        return (addon === null || addon === void 0 ? void 0 : addon.marker) === "EBC" ? addon : null;
+    }
     function getAddonSettings(character, create = false) {
         if (!character)
             return null;
@@ -984,25 +1010,32 @@
         return created;
     }
     function syncPresenceMarker() {
+        var _a;
         const settings = getAddonSettings(Player, true);
         if (!settings)
             return;
         const current = settings.presence;
-        if ((current === null || current === void 0 ? void 0 : current.version) === MOD_VERSION && current.marker === "EBC")
+        const localUpToDate = (current === null || current === void 0 ? void 0 : current.version) === MOD_VERSION && current.marker === "EBC";
+        const onlineSettings = ((_a = Player.OnlineSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSettings = {}));
+        const sharedCurrent = onlineSettings[MOD_NAME];
+        const sharedPresence = sharedCurrent && typeof sharedCurrent === "object"
+            ? sharedCurrent.presence
+            : null;
+        const sharedUpToDate = (sharedPresence === null || sharedPresence === void 0 ? void 0 : sharedPresence.version) === MOD_VERSION && sharedPresence.marker === "EBC";
+        if (localUpToDate && sharedUpToDate)
             return;
         settings.presence = {
             version: MOD_VERSION,
             marker: "EBC",
         };
+        onlineSettings[MOD_NAME] = Object.assign(Object.assign({}, (sharedCurrent && typeof sharedCurrent === "object" ? sharedCurrent : {})), { presence: settings.presence });
         ServerPlayerExtensionSettingsSync(MOD_NAME);
+        ServerSend("AccountUpdate", { OnlineSettings: onlineSettings });
     }
     function hasEmeryBC(character) {
-        var _a;
-        const presence = (_a = getAddonSettings(character, false)) === null || _a === void 0 ? void 0 : _a.presence;
-        return !!presence && presence.marker === "EBC";
+        return !!getSharedPresence(character);
     }
     function drawPresenceMarker(args) {
-        var _a;
         if (CurrentScreen !== "ChatRoom")
             return;
         const character = args[0];
@@ -1011,7 +1044,7 @@
         const zoom = typeof args[3] === "number" ? args[3] : 1;
         if (!character || left == null || top == null || !hasEmeryBC(character))
             return;
-        const presence = (_a = getAddonSettings(character, false)) === null || _a === void 0 ? void 0 : _a.presence;
+        const presence = getSharedPresence(character);
         const versionText = (presence === null || presence === void 0 ? void 0 : presence.version) ? `v${presence.version}` : "v?";
         const width = Math.max(70, 86 * zoom);
         const height = Math.max(28, 34 * zoom);

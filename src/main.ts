@@ -16,7 +16,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.5";
+const MOD_VERSION = "0.1.6";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -39,6 +39,13 @@ const TAB_BTN_W = 132;
 const TAB_BTN_GAP = 14;
 const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.6",
+        changes: [
+            "Moved EmeryBC presence sharing onto BC's shared online settings path so other clients can receive the head tag.",
+            "The badge now reads shared presence from online settings first, with local settings as a fallback.",
+        ],
+    },
     {
         version: "0.1.5",
         changes: [
@@ -151,6 +158,25 @@ interface EmeryAddonSettings {
     [key: string]: unknown;
 }
 
+function getSharedPresence(character: Character | null | undefined): EmeryPresence | null {
+    if (!character) return null;
+
+    const shared = character.OnlineSharedSettings?.[MOD_NAME];
+    if (shared && typeof shared === "object") {
+        const presence = (shared as EmeryAddonSettings).presence;
+        if (presence?.marker === "EBC") return presence;
+    }
+
+    const online = character.OnlineSettings?.[MOD_NAME];
+    if (online && typeof online === "object") {
+        const presence = (online as EmeryAddonSettings).presence;
+        if (presence?.marker === "EBC") return presence;
+    }
+
+    const addon = getAddonSettings(character, false)?.presence;
+    return addon?.marker === "EBC" ? addon : null;
+}
+
 function getAddonSettings(character: Character | null | undefined, create = false): EmeryAddonSettings | null {
     if (!character) return null;
     const extensionSettings = character.ExtensionSettings as Record<string, unknown> | undefined;
@@ -172,18 +198,30 @@ function syncPresenceMarker(): void {
     if (!settings) return;
 
     const current = settings.presence;
-    if (current?.version === MOD_VERSION && current.marker === "EBC") return;
+    const localUpToDate = current?.version === MOD_VERSION && current.marker === "EBC";
+    const onlineSettings = (Player.OnlineSettings ??= {});
+    const sharedCurrent = onlineSettings[MOD_NAME];
+    const sharedPresence = sharedCurrent && typeof sharedCurrent === "object"
+        ? (sharedCurrent as EmeryAddonSettings).presence
+        : null;
+    const sharedUpToDate = sharedPresence?.version === MOD_VERSION && sharedPresence.marker === "EBC";
+
+    if (localUpToDate && sharedUpToDate) return;
 
     settings.presence = {
         version: MOD_VERSION,
         marker: "EBC",
     };
+    onlineSettings[MOD_NAME] = {
+        ...(sharedCurrent && typeof sharedCurrent === "object" ? sharedCurrent as EmeryAddonSettings : {}),
+        presence: settings.presence,
+    };
     ServerPlayerExtensionSettingsSync(MOD_NAME);
+    ServerSend("AccountUpdate", { OnlineSettings: onlineSettings });
 }
 
 function hasEmeryBC(character: Character | null | undefined): boolean {
-    const presence = getAddonSettings(character, false)?.presence;
-    return !!presence && presence.marker === "EBC";
+    return !!getSharedPresence(character);
 }
 
 function drawPresenceMarker(args: unknown[]): void {
@@ -195,7 +233,7 @@ function drawPresenceMarker(args: unknown[]): void {
     const zoom = typeof args[3] === "number" ? args[3] : 1;
     if (!character || left == null || top == null || !hasEmeryBC(character)) return;
 
-    const presence = getAddonSettings(character, false)?.presence;
+    const presence = getSharedPresence(character);
     const versionText = presence?.version ? `v${presence.version}` : "v?";
     const width = Math.max(70, 86 * zoom);
     const height = Math.max(28, 34 * zoom);
