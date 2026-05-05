@@ -854,7 +854,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.4";
+    const MOD_VERSION = "0.1.5";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -871,6 +871,13 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.5",
+            changes: [
+                "Changed /ebc version so it only prints the current addon version.",
+                "Kept the full history on /ebc changelog and /ebc changes.",
+            ],
+        },
         {
             version: "0.1.4",
             changes: [
@@ -930,6 +937,9 @@
     }
     function showVersionInfo() {
         appendLocalLogLine(`[EmeryBC] Version ${MOD_VERSION}`, UI.gold);
+    }
+    function showChangelog() {
+        appendLocalLogLine(`[EmeryBC] Version ${MOD_VERSION}`, UI.gold);
         for (const entry of CHANGELOG) {
             appendLocalLogLine(`[EmeryBC] v${entry.version}`, UI.textMuted);
             for (const change of entry.changes) {
@@ -946,8 +956,12 @@
         if (((_a = parts[0]) === null || _a === void 0 ? void 0 : _a.toLowerCase()) !== "ebc")
             return false;
         const subcommand = (parts[1] || "version").toLowerCase();
-        if (["version", "ver", "v", "changelog", "changes"].includes(subcommand)) {
+        if (["version", "ver", "v"].includes(subcommand)) {
             showVersionInfo();
+            return true;
+        }
+        if (["changelog", "changes"].includes(subcommand)) {
+            showChangelog();
             return true;
         }
         appendLocalLogLine("[EmeryBC] Usage: /ebc version", UI.gold);
