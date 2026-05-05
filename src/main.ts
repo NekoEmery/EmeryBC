@@ -17,6 +17,15 @@ import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
 const MOD_VERSION = "0.1.1";
+const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
+        <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
+        <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
+        <circle cx="34" cy="43" r="4" fill="#f7e6ee"/>
+        <circle cx="56" cy="43" r="4" fill="#f7e6ee"/>
+        <path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>
+    </svg>`
+);
 
 type Tab = "actions" | "outfits";
 
@@ -90,6 +99,37 @@ function handleMetaCommand(inputValue: string): boolean {
 
     appendLocalLogLine("[EmeryBC] Usage: /ebc version", UI.gold);
     return true;
+}
+
+function hasEmeryBC(character: Character | null | undefined): boolean {
+    const settings = character?.ExtensionSettings?.EmeryBC;
+    return !!settings && typeof settings === "object";
+}
+
+function drawPresenceMarker(args: unknown[]): void {
+    if (CurrentScreen !== "ChatRoom") return;
+
+    const character = args[0] as Character | undefined;
+    const left = typeof args[1] === "number" ? args[1] : null;
+    const top = typeof args[2] === "number" ? args[2] : null;
+    const zoom = typeof args[3] === "number" ? args[3] : 1;
+    if (!character || left == null || top == null || !hasEmeryBC(character)) return;
+
+    const width = Math.max(54, 64 * zoom);
+    const height = Math.max(18, 20 * zoom);
+    const x = left + 250 * zoom;
+    const y = top + 22 * zoom;
+    const badgeLeft = x - width / 2;
+    const badgeTop = y - height / 2;
+    const iconWidth = Math.max(18, 22 * zoom);
+
+    DrawRect(badgeLeft + 2, badgeTop + 2, width, height, "rgba(0, 0, 0, 0.28)");
+    DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
+    DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
+    DrawRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accentSoft);
+    DrawEmptyRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accent, 1);
+    DrawTextFit("=:3", badgeLeft + 2 + iconWidth / 2, y + 1, iconWidth - 4, UI.text);
+    DrawTextFit("EBC", badgeLeft + iconWidth + (width - iconWidth) / 2, y + 1, width - iconWidth - 6, UI.accent);
 }
 
 function showLoadNotice(): void {
@@ -217,7 +257,7 @@ function registerSettings(): void {
         register({
             Identifier: MOD_NAME,
             ButtonText: "EmeryBC",
-            Image: "",
+            Image: EXTENSION_ICON,
             load: () => {
                 activeTab = "actions";
                 actionSettingsLoad();
@@ -230,6 +270,19 @@ function registerSettings(): void {
         settingsRegistered = true;
     } catch (error) {
         console.error("[EmeryBC] Extension registration failed:", error);
+    }
+}
+
+function tryHookFunction(
+    modAPI: ModSDKModAPI,
+    funcName: string,
+    priority: number,
+    hook: (args: unknown[], next: (args: unknown[]) => unknown) => unknown
+): void {
+    try {
+        modAPI.hookFunction(funcName, priority, hook);
+    } catch (error) {
+        console.warn(`[${MOD_NAME}] Optional hook "${funcName}" unavailable:`, error);
     }
 }
 
@@ -246,6 +299,16 @@ function init(): void {
         } catch {
             // Ignore draw failures so the room UI still renders.
         }
+    });
+
+    tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
+        const result = next(args);
+        try {
+            drawPresenceMarker(args);
+        } catch {
+            // Ignore marker draw failures.
+        }
+        return result;
     });
 
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {

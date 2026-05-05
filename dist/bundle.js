@@ -738,6 +738,13 @@
 
     const MOD_NAME = "EmeryBC";
     const MOD_VERSION = "0.1.1";
+    const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
+        <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
+        <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
+        <circle cx="34" cy="43" r="4" fill="#f7e6ee"/>
+        <circle cx="56" cy="43" r="4" fill="#f7e6ee"/>
+        <path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>
+    </svg>`);
     let noticeShown = false;
     let activeTab = "actions";
     let settingsRegistered = false;
@@ -804,6 +811,35 @@
         }
         appendLocalLogLine("[EmeryBC] Usage: /ebc version", UI.gold);
         return true;
+    }
+    function hasEmeryBC(character) {
+        var _a;
+        const settings = (_a = character === null || character === void 0 ? void 0 : character.ExtensionSettings) === null || _a === void 0 ? void 0 : _a.EmeryBC;
+        return !!settings && typeof settings === "object";
+    }
+    function drawPresenceMarker(args) {
+        if (CurrentScreen !== "ChatRoom")
+            return;
+        const character = args[0];
+        const left = typeof args[1] === "number" ? args[1] : null;
+        const top = typeof args[2] === "number" ? args[2] : null;
+        const zoom = typeof args[3] === "number" ? args[3] : 1;
+        if (!character || left == null || top == null || !hasEmeryBC(character))
+            return;
+        const width = Math.max(54, 64 * zoom);
+        const height = Math.max(18, 20 * zoom);
+        const x = left + 250 * zoom;
+        const y = top + 22 * zoom;
+        const badgeLeft = x - width / 2;
+        const badgeTop = y - height / 2;
+        const iconWidth = Math.max(18, 22 * zoom);
+        DrawRect(badgeLeft + 2, badgeTop + 2, width, height, "rgba(0, 0, 0, 0.28)");
+        DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
+        DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
+        DrawRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accentSoft);
+        DrawEmptyRect(badgeLeft + 2, badgeTop + 2, iconWidth, height - 4, UI.accent, 1);
+        DrawTextFit("=:3", badgeLeft + 2 + iconWidth / 2, y + 1, iconWidth - 4, UI.text);
+        DrawTextFit("EBC", badgeLeft + iconWidth + (width - iconWidth) / 2, y + 1, width - iconWidth - 6, UI.accent);
     }
     function showLoadNotice() {
         if (noticeShown)
@@ -922,7 +958,7 @@
             register({
                 Identifier: MOD_NAME,
                 ButtonText: "EmeryBC",
-                Image: "",
+                Image: EXTENSION_ICON,
                 load: () => {
                     activeTab = "actions";
                     settingsLoad();
@@ -938,6 +974,14 @@
             console.error("[EmeryBC] Extension registration failed:", error);
         }
     }
+    function tryHookFunction(modAPI, funcName, priority, hook) {
+        try {
+            modAPI.hookFunction(funcName, priority, hook);
+        }
+        catch (error) {
+            console.warn(`[${MOD_NAME}] Optional hook "${funcName}" unavailable:`, error);
+        }
+    }
     function init() {
         const modAPI = bcModSDK.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
         modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
@@ -948,6 +992,16 @@
             catch (_a) {
                 // Ignore draw failures so the room UI still renders.
             }
+        });
+        tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
+            const result = next(args);
+            try {
+                drawPresenceMarker(args);
+            }
+            catch (_a) {
+                // Ignore marker draw failures.
+            }
+            return result;
         });
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
             const result = next(args);
