@@ -907,7 +907,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.25";
+    const MOD_VERSION = "0.1.26";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -924,6 +924,12 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.26",
+            changes: [
+                "/ebc release now skips items locked with owner or lover locks, and reports how many were skipped.",
+            ],
+        },
         {
             version: "0.1.25",
             changes: [
@@ -1134,21 +1140,35 @@
             }
         }
     }
+    function isProtectedLock(item) {
+        var _a;
+        const lock = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy;
+        if (!lock)
+            return false;
+        return lock.toLowerCase().includes("owner") || lock.toLowerCase().includes("lover");
+    }
     function releaseRestraints() {
-        const restraintGroups = Player.Appearance
-            .filter(item => item.Asset.Group.IsRestraint)
-            .map(item => item.Asset.Group.Name);
-        if (restraintGroups.length === 0) {
-            appendLocalLogLine("[EmeryBC] No restraints found to remove.", UI.textMuted);
+        const toRemove = Player.Appearance.filter(item => item.Asset.Group.IsRestraint && !isProtectedLock(item));
+        const skipped = Player.Appearance.filter(item => item.Asset.Group.IsRestraint && isProtectedLock(item));
+        if (toRemove.length === 0) {
+            if (skipped.length > 0) {
+                appendLocalLogLine(`[EmeryBC] All restraints are owner/lover locked — none removed.`, UI.textMuted);
+            }
+            else {
+                appendLocalLogLine("[EmeryBC] No restraints found to remove.", UI.textMuted);
+            }
             return;
         }
-        for (const group of restraintGroups) {
-            InventoryRemove(Player, group, false);
+        for (const item of toRemove) {
+            InventoryRemove(Player, item.Asset.Group.Name, false);
+        }
+        if (skipped.length > 0) {
+            appendLocalLogLine(`[EmeryBC] Skipped ${skipped.length} owner/lover locked item(s).`, UI.textMuted);
         }
         CharacterRefresh(Player, false);
         ChatRoomCharacterUpdate(Player);
         ServerPlayerAppearanceSync();
-        appendLocalLogLine(`[EmeryBC] Released ${restraintGroups.length} restraint(s).`, UI.gold);
+        appendLocalLogLine(`[EmeryBC] Released ${toRemove.length} restraint(s).`, UI.gold);
     }
     function handleMetaCommand(inputValue) {
         var _a;
