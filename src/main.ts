@@ -215,6 +215,21 @@ function init(): void {
         return next(args);
     });
 
+    modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
+        try {
+            if (typeof KeyPress !== "undefined" && KeyPress === 13) {
+                const input = document.getElementById("InputChat") as HTMLInputElement | null;
+                if (input && handleOutfitCommand(input.value)) {
+                    input.value = "";
+                    return;
+                }
+            }
+        } catch {
+            // Ignore keydown failures.
+        }
+        return next(args);
+    });
+
     modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
         try {
             const input = document.getElementById("InputChat") as HTMLInputElement | null;

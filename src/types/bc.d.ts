@@ -55,6 +55,7 @@ declare const Player: Character;
 declare const MouseX: number;
 declare const MouseY: number;
 declare const CurrentScreen: string;
+declare const KeyPress: number;
 
 declare function DrawButton(
     left: number, top: number,
