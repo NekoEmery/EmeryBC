@@ -1,0 +1,21 @@
+{
+  "name": "emerybc",
+  "version": "0.1.0",
+  "description": "Bondage Club addon - action buttons & outfit manager",
+  "license": "GPL-2.0",
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "rollup": "^4.0.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "tslib": "^2.6.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "bondage-club-mod-sdk": "^1.2.0"
+  }
+}
