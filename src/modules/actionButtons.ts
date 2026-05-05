@@ -109,7 +109,7 @@ const SLOT_H      = 84;
 const SLOTS_Y     = 188;
 
 function placeInput(id: string, left: number, y: number, width: number, height: number): void {
-    ElementPosition(id, left + width / 2, y, width, height);
+    ElementPosition(id, left + width / 2, y + height / 2, width, height);
 }
 
 export function settingsRun(): void {

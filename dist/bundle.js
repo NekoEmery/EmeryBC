@@ -196,7 +196,7 @@
     const SLOT_H = 84;
     const SLOTS_Y = 188;
     function placeInput$1(id, left, y, width, height) {
-        ElementPosition(id, left + width / 2, y, width, height);
+        ElementPosition(id, left + width / 2, y + height / 2, width, height);
     }
     function settingsRun$1() {
         var _a, _b, _c;
@@ -288,8 +288,9 @@
     const CARD_WIDTH = PANEL_W - 48;
     let settingsPage = 0;
     let addIncludeRestraints = false;
+    let editingOutfitId = null;
     function placeInput(id, left, y, width, height) {
-        ElementPosition(id, left + width / 2, y, width, height);
+        ElementPosition(id, left + width / 2, y + height / 2, width, height);
     }
     function getAddon() {
         if (!Player.ExtensionSettings.EmeryBC) {
@@ -320,6 +321,9 @@
             Craft: item.Craft ? Object.assign({}, item.Craft) : undefined,
         }));
     }
+    function clonePlain(value) {
+        return value == null ? value : JSON.parse(JSON.stringify(value));
+    }
     function applyOutfit(outfit) {
         var _a;
         for (const item of [...Player.Appearance]) {
@@ -339,7 +343,7 @@
             if (saved.Property) {
                 const worn = InventoryGet(Player, saved.Group);
                 if (worn) {
-                    const prop = Object.assign({}, saved.Property);
+                    const prop = clonePlain(saved.Property);
                     delete prop["LockedBy"];
                     delete prop["LockMemberNumber"];
                     delete prop["CombinationNumber"];
@@ -349,8 +353,10 @@
                 }
             }
         }
-        ServerSend("AccountUpdate", { Appearance: Player.Appearance });
         CharacterRefresh(Player, false, false);
+        if (typeof ServerPlayerAppearanceSync === "function") {
+            ServerPlayerAppearanceSync();
+        }
         ChatRoomCharacterUpdate(Player);
         if (outfit.announceText.trim()) {
             ServerSend("ChatRoomChat", { Content: outfit.announceText.trim(), Type: "Emote" });
@@ -403,16 +409,39 @@
         styleInput("EmeryOF_Name", "medium");
         styleInput("EmeryOF_Announce", "long");
     }
+    function setEditorValues(command, name, announce, includeRestraints) {
+        const cmdInput = document.getElementById("EmeryOF_Cmd");
+        const nameInput = document.getElementById("EmeryOF_Name");
+        const announceInput = document.getElementById("EmeryOF_Announce");
+        if (cmdInput)
+            cmdInput.value = command;
+        if (nameInput)
+            nameInput.value = name;
+        if (announceInput)
+            announceInput.value = announce;
+        addIncludeRestraints = includeRestraints;
+    }
+    function resetEditor() {
+        editingOutfitId = null;
+        setEditorValues("", "", "changes into her outfit", false);
+    }
+    function beginEditing(outfit) {
+        editingOutfitId = outfit.id;
+        setEditorValues(outfit.command, outfit.displayName, outfit.announceText, outfit.includeRestraints);
+    }
     function outfitSettingsLoad() {
         settingsPage = 0;
+        editingOutfitId = null;
         addIncludeRestraints = false;
     }
     function outfitSettingsRun() {
+        var _a;
         ensureInputs();
         const outfits = getOutfits();
         const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
         const page = Math.min(settingsPage, totalPages - 1);
         const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
+        const editingOutfit = editingOutfitId ? (_a = outfits.find(outfit => outfit.id === editingOutfitId)) !== null && _a !== void 0 ? _a : null : null;
         drawSettingsScaffold("Outfit Commands", "Capture a look once, then switch with a slash command.", [
             { label: "OUTFITS", value: `${outfits.length}`, tone: "accent" },
             { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
@@ -421,10 +450,15 @@
         DrawText("Wardrobe", 184, NAV_Y + 16, UI.textMuted);
         DrawText(`${page + 1} of ${totalPages}`, 320, NAV_Y + 16, UI.textSoft);
         drawChromeButton(526, NAV_Y, 90, 28, "Next", "muted", page >= totalPages - 1);
+        DrawTextFit("Click an outfit row to edit its command, name, or change text.", PANEL_W / 2, NAV_Y + 40, 520, UI.textSoft);
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             const y = LIST_Y + i * ROW_H;
+            const isEditing = editingOutfitId === (outfit === null || outfit === void 0 ? void 0 : outfit.id);
             drawCard(CARD_LEFT, y, CARD_WIDTH, ROW_H - 8, i % 2 === 0 ? "default" : "alt");
+            if (isEditing) {
+                DrawEmptyRect(CARD_LEFT - 1, y - 1, CARD_WIDTH + 2, ROW_H - 6, UI.accent, 2);
+            }
             if (!outfit) {
                 DrawText("Empty slot", PANEL_W / 2, y + 24, UI.textMuted);
                 DrawTextFit("Create a new outfit below to fill this space.", PANEL_W / 2, y + 44, 420, UI.textSoft);
@@ -440,8 +474,8 @@
             drawChromeButton(500, y + 38, 98, 22, "Delete", "danger");
         }
         drawCard(CARD_LEFT, ADD_Y, CARD_WIDTH, 210, "muted");
-        DrawText("Add New Outfit", 126, ADD_Y + 22, UI.text);
-        DrawTextFit("Dress your character first, then save the current appearance into a command slot.", 334, ADD_Y + 22, 410, UI.textSoft);
+        DrawText(editingOutfit ? "Edit Outfit" : "Add New Outfit", 126, ADD_Y + 22, UI.text);
+        DrawTextFit(editingOutfit ? `Editing /${editingOutfit.command}. Update text here, and use Update on the row to resave the look.` : "Dress your character first, then save the current appearance into a command slot.", 334, ADD_Y + 22, 410, UI.textSoft);
         drawInsetLabel("Command", 96, ADD_Y + 48);
         DrawText("/", 56, ADD_Y + 80, UI.accent);
         placeInput("EmeryOF_Cmd", 82, ADD_Y + 62, 120, 34);
@@ -452,7 +486,13 @@
         drawInsetLabel("Announce Text", 114, ADD_Y + 108);
         DrawText("/me", 58, ADD_Y + 138, UI.accent);
         placeInput("EmeryOF_Announce", 86, ADD_Y + 120, 470, 34);
-        drawChromeButton(44, ADD_Y + 164, PANEL_W - 88, 34, "Save Current Appearance as New Outfit", "success");
+        if (editingOutfit) {
+            drawChromeButton(44, ADD_Y + 164, 152, 34, "Cancel Edit", "muted");
+            drawChromeButton(210, ADD_Y + 164, PANEL_W - 254, 34, "Save Outfit Settings", "success");
+        }
+        else {
+            drawChromeButton(44, ADD_Y + 164, PANEL_W - 88, 34, "Save Current Appearance as New Outfit", "success");
+        }
     }
     function outfitSettingsClick() {
         const outfits = getOutfits();
@@ -481,7 +521,14 @@
             }
             if (mouseInRect(500, y + 38, 98, 22)) {
                 saveOutfits(outfits.filter(entry => entry.id !== outfit.id));
+                if (editingOutfitId === outfit.id) {
+                    resetEditor();
+                }
                 settingsPage = Math.min(settingsPage, Math.max(0, Math.ceil((outfits.length - 1) / OUTFITS_PER_PAGE) - 1));
+                return;
+            }
+            if (mouseInRect(CARD_LEFT, y, CARD_WIDTH, ROW_H - 8)) {
+                beginEditing(outfit);
                 return;
             }
         }
@@ -489,7 +536,11 @@
             addIncludeRestraints = !addIncludeRestraints;
             return;
         }
-        if (mouseInRect(44, ADD_Y + 164, PANEL_W - 88, 34)) {
+        if (editingOutfitId && mouseInRect(44, ADD_Y + 164, 152, 34)) {
+            resetEditor();
+            return;
+        }
+        if (mouseInRect(editingOutfitId ? 210 : 44, ADD_Y + 164, editingOutfitId ? PANEL_W - 254 : PANEL_W - 88, 34)) {
             const cmd = ElementValue("EmeryOF_Cmd").trim().replace(/\s+/g, "").toLowerCase();
             const name = ElementValue("EmeryOF_Name").trim();
             const announce = ElementValue("EmeryOF_Announce").trim();
@@ -501,8 +552,21 @@
                 localNotice("Name cannot be empty.", "#ffb7c7");
                 return;
             }
-            if (outfits.some(outfit => outfit.command.toLowerCase() === cmd)) {
+            if (outfits.some(outfit => outfit.command.toLowerCase() === cmd && outfit.id !== editingOutfitId)) {
                 localNotice(`"/${cmd}" already exists.`, "#ffb7c7");
+                return;
+            }
+            if (editingOutfitId) {
+                const idx = outfits.findIndex(outfit => outfit.id === editingOutfitId);
+                if (idx < 0) {
+                    resetEditor();
+                    localNotice("That outfit no longer exists.", "#ffb7c7");
+                    return;
+                }
+                outfits[idx] = Object.assign(Object.assign({}, outfits[idx]), { command: cmd, displayName: name, announceText: announce || "changes outfit", includeRestraints: addIncludeRestraints });
+                saveOutfits(outfits);
+                localNotice(`Updated /${cmd} settings.`);
+                resetEditor();
                 return;
             }
             const newOutfit = {
@@ -514,15 +578,13 @@
                 items: captureAppearance(addIncludeRestraints),
             };
             saveOutfits([...outfits, newOutfit]);
-            document.getElementById("EmeryOF_Cmd").value = "";
-            document.getElementById("EmeryOF_Name").value = "";
-            document.getElementById("EmeryOF_Announce").value = "changes into her outfit";
-            addIncludeRestraints = false;
+            resetEditor();
             settingsPage = Math.floor(outfits.length / OUTFITS_PER_PAGE);
             localNotice(`Created "/${cmd}" - ${newOutfit.items.length} items saved.`);
         }
     }
     function outfitSettingsExit() {
+        editingOutfitId = null;
         ElementRemove("EmeryOF_Cmd");
         ElementRemove("EmeryOF_Name");
         ElementRemove("EmeryOF_Announce");
