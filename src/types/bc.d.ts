@@ -43,6 +43,7 @@ interface ExtensionSetting {
     Identifier: string;
     ButtonText: string;
     Image: string;
+    load?(): void;
     run(): void;
     click(): void;
     exit(): void;

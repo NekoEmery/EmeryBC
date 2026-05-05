@@ -164,6 +164,13 @@ export function outfitSettingsRun(): void {
     DrawRect(0, 60, 1000, 940, "#1a0a2e");
     DrawText("Outfit Commands", 500, 105, "White", "Black");
 
+    // How-to hint bar
+    DrawRect(55, 112, 890, 22, "#1a0a3a");
+    DrawText(
+        "Set a command below, dress up, then click Save Current.  Type /command in chat to switch outfits.",
+        500, 123, "#8866aa"
+    );
+
     ensureInputs();
 
     const outfits   = getOutfits();

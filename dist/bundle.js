@@ -277,6 +277,9 @@
     function outfitSettingsRun() {
         DrawRect(0, 60, 1000, 940, "#1a0a2e");
         DrawText("Outfit Commands", 500, 105, "White", "Black");
+        // How-to hint bar
+        DrawRect(55, 112, 890, 22, "#1a0a3a");
+        DrawText("Set a command below, dress up, then click Save Current.  Type /command in chat to switch outfits.", 500, 123, "#8866aa");
         ensureInputs();
         const outfits = getOutfits();
         const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
@@ -515,17 +518,27 @@
         activeTab = "actions";
     }
     // ─── Init ─────────────────────────────────────────────────────────────────────
+    let settingsRegistered = false;
     function registerSettings() {
-        if (typeof PreferenceRegisterExtensionSetting !== "function")
+        if (settingsRegistered)
             return;
-        PreferenceRegisterExtensionSetting({
-            Identifier: MOD_NAME,
-            ButtonText: "EmeryBC",
-            Image: "",
-            run: settingsRun,
-            click: settingsClick,
-            exit: settingsExit,
-        });
+        const g = window;
+        const reg = g["PreferenceRegisterExtensionSetting"];
+        if (reg) {
+            reg({
+                Identifier: MOD_NAME,
+                ButtonText: "EmeryBC",
+                Image: "",
+                load: () => { },
+                run: settingsRun,
+                click: settingsClick,
+                exit: settingsExit,
+            });
+            settingsRegistered = true;
+        }
+        else {
+            setTimeout(registerSettings, 1000);
+        }
     }
     function init() {
         const modAPI = bcModSDK.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
@@ -563,15 +576,7 @@
             catch ( /* silent */_a) { /* silent */ }
             return next(args);
         });
-        // Register extension settings — retry on PreferenceLoad in case BC isn't ready yet
         registerSettings();
-        modAPI.hookFunction("PreferenceLoad", 5, (args, next) => {
-            next(args);
-            try {
-                registerSettings();
-            }
-            catch ( /* silent */_a) { /* silent */ }
-        });
         try {
             showLoadNotice();
         }

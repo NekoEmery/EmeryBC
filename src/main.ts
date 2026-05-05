@@ -120,16 +120,25 @@ function settingsExit(): void {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
+let settingsRegistered = false;
 function registerSettings(): void {
-    if (typeof PreferenceRegisterExtensionSetting !== "function") return;
-    PreferenceRegisterExtensionSetting({
-        Identifier: MOD_NAME,
-        ButtonText:  "EmeryBC",
-        Image:       "",
-        run:   settingsRun,
-        click: settingsClick,
-        exit:  settingsExit,
-    });
+    if (settingsRegistered) return;
+    const g = window as unknown as Record<string, unknown>;
+    const reg = g["PreferenceRegisterExtensionSetting"] as ((s: unknown) => void) | undefined;
+    if (reg) {
+        reg({
+            Identifier: MOD_NAME,
+            ButtonText:  "EmeryBC",
+            Image:       "",
+            load:  () => {},
+            run:   settingsRun,
+            click: settingsClick,
+            exit:  settingsExit,
+        });
+        settingsRegistered = true;
+    } else {
+        setTimeout(registerSettings, 1000);
+    }
 }
 
 function init(): void {
@@ -165,12 +174,7 @@ function init(): void {
         return next(args);
     });
 
-    // Register extension settings — retry on PreferenceLoad in case BC isn't ready yet
     registerSettings();
-    modAPI.hookFunction("PreferenceLoad", 5, (args, next) => {
-        next(args);
-        try { registerSettings(); } catch { /* silent */ }
-    });
 
     try { showLoadNotice(); } catch { /* silent */ }
 
