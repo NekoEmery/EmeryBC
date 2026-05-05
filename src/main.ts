@@ -30,13 +30,17 @@ const TAB_BTN_W = 102;
 
 function getAddonSettings(): Record<string, unknown> | null {
     if (typeof Player === "undefined" || !Player) return null;
-    if (!Player.ExtensionSettings || typeof Player.ExtensionSettings !== "object") {
-        Player.ExtensionSettings = {};
+    const extensionSettings = Player.ExtensionSettings;
+    if (!extensionSettings || typeof extensionSettings !== "object") return null;
+
+    const existingAddon = extensionSettings["EmeryBC"];
+    if (existingAddon && typeof existingAddon === "object") {
+        return existingAddon as Record<string, unknown>;
     }
-    if (!Player.ExtensionSettings.EmeryBC || typeof Player.ExtensionSettings.EmeryBC !== "object") {
-        Player.ExtensionSettings.EmeryBC = {};
-    }
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+
+    const addonSettings: Record<string, unknown> = {};
+    extensionSettings["EmeryBC"] = addonSettings;
+    return addonSettings;
 }
 
 function syncPresenceMarker(): void {

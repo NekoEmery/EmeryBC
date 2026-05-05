@@ -747,13 +747,16 @@
     function getAddonSettings() {
         if (typeof Player === "undefined" || !Player)
             return null;
-        if (!Player.ExtensionSettings || typeof Player.ExtensionSettings !== "object") {
-            Player.ExtensionSettings = {};
+        const extensionSettings = Player.ExtensionSettings;
+        if (!extensionSettings || typeof extensionSettings !== "object")
+            return null;
+        const existingAddon = extensionSettings["EmeryBC"];
+        if (existingAddon && typeof existingAddon === "object") {
+            return existingAddon;
         }
-        if (!Player.ExtensionSettings.EmeryBC || typeof Player.ExtensionSettings.EmeryBC !== "object") {
-            Player.ExtensionSettings.EmeryBC = {};
-        }
-        return Player.ExtensionSettings.EmeryBC;
+        const addonSettings = {};
+        extensionSettings["EmeryBC"] = addonSettings;
+        return addonSettings;
     }
     function syncPresenceMarker() {
         const settings = getAddonSettings();
