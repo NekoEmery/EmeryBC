@@ -945,7 +945,6 @@
     }
     function init() {
         const modAPI = bcModSDK.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
-        syncPresenceMarker();
         modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
             next(args);
             try {

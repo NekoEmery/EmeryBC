@@ -243,8 +243,6 @@ function init(): void {
         { allowReplace: true }
     );
 
-    syncPresenceMarker();
-
     modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
         next(args);
         try {
