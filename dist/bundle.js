@@ -239,7 +239,7 @@
             const y = BTN_START_Y + i * BTN_SIZE;
             if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
                 MouseY >= y && MouseY <= y + BTN_SIZE) {
-                ServerSend("ChatRoomChat", { Content: btn.emote.trim(), Type: "Action" });
+                ServerSend("ChatRoomChat", { Content: btn.emote.trim(), Type: "Emote" });
                 return true;
             }
         }
@@ -336,7 +336,7 @@
         drawChromeButton(CONTENT_LEFT, footerY, 228, 44, `＋ Add Slot  (${settingsSlotCount}/${ABSOLUTE_MAX})`, canAdd ? "success" : "muted", !canAdd);
         drawChromeButton(CONTENT_LEFT + 244, footerY, 200, 44, "Save Layout", "accent");
         drawChromeButton(CONTENT_LEFT + 460, footerY, 200, 44, "Reset Defaults", "gold");
-        DrawTextFit("Action text is sent as (Name text.) in chat. End with a period for clean formatting.", CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
+        DrawTextFit("Action text is sent as * Name text * in chat (BC emote format).", CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
     }
     function settingsClick$1() {
         // ── Toggle + Delete per row ──────────────────────────────────────────────
