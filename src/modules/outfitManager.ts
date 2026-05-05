@@ -38,17 +38,17 @@ const RESTRAINT_GROUPS = new Set([
 ]);
 
 const OUTFITS_PER_PAGE = 4;
-const NAV_Y = 216;
-const LIST_Y = 268;
-const ROW_H = 104;
-const LIST_LEFT = CONTENT_LEFT;
-const LIST_WIDTH = 700;
-const LIST_BUTTON_W = 84;
-const EDITOR_GAP = 20;
+const NAV_Y       = 216;
+const LIST_Y      = 270;
+const ROW_H       = 86;
+const LIST_LEFT   = CONTENT_LEFT;
+const LIST_WIDTH  = 538;
+const LIST_BTN_W  = 68;
+const EDITOR_GAP  = 18;
 const EDITOR_LEFT = LIST_LEFT + LIST_WIDTH + EDITOR_GAP;
 const EDITOR_WIDTH = CONTENT_RIGHT - EDITOR_LEFT;
-const EDITOR_TOP = NAV_Y;
-const EDITOR_HEIGHT = 652;
+const EDITOR_TOP  = NAV_Y;
+const EDITOR_HEIGHT = 660;
 
 let settingsPage = 0;
 let addIncludeRestraints = false;
@@ -384,11 +384,12 @@ export function outfitSettingsRun(): void {
         { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
     ]);
 
-    drawChromeButton(LIST_LEFT, NAV_Y, 96, 30, "Prev", "muted", page === 0);
-    DrawText("Wardrobe", LIST_LEFT + 154, NAV_Y + 18, UI.textMuted);
-    DrawTextFit(`${page + 1} of ${totalPages}`, LIST_LEFT + 286, NAV_Y + 18, 120, UI.textSoft);
-    drawChromeButton(LIST_LEFT + LIST_WIDTH - 96, NAV_Y, 96, 30, "Next", "muted", page >= totalPages - 1);
-    DrawTextFit("Select a row to edit it. Use the row buttons to wear, refresh, or delete without leaving the screen.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 42, LIST_WIDTH - 40, UI.textSoft);
+    drawChromeButton(LIST_LEFT, NAV_Y, 88, 30, "◀ Prev", "muted", page === 0);
+    DrawText("Wardrobe", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 15, UI.textMuted);
+    DrawTextFit(`${page + 1} / ${totalPages}`, LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 35, 100, UI.textSoft);
+    drawChromeButton(LIST_LEFT + LIST_WIDTH - 88, NAV_Y, 88, 30, "Next ▶", "muted", page >= totalPages - 1);
+    DrawTextFit("Click a row to edit it. Use the row buttons to wear, update, or delete.",
+        LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 52, LIST_WIDTH - 20, UI.textSoft);
 
     for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
         const outfit = visible[i];
@@ -401,20 +402,37 @@ export function outfitSettingsRun(): void {
         }
 
         if (!outfit) {
-            DrawText("Empty slot", LIST_LEFT + LIST_WIDTH / 2, y + 30, UI.textMuted);
-            DrawTextFit("Create a new outfit from the editor on the right to fill this space.", LIST_LEFT + LIST_WIDTH / 2, y + 58, 420, UI.textSoft);
+            DrawText("Empty slot", LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2 - 8, UI.textMuted);
+            DrawTextFit("Create an outfit using the editor on the right.",
+                LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2 + 14, LIST_WIDTH - 40, UI.textSoft);
             continue;
         }
 
+        // Button x positions (right-aligned within the row)
+        const btnDel    = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 6;
+        const btnUpdate = btnDel - LIST_BTN_W - 6;
+        const btnWear   = btnUpdate - LIST_BTN_W - 6;
+        const textRight = btnWear - 12;                       // text can go up to here
+        const textW     = textRight - LIST_LEFT - 28;         // available text width
+
         const hasSave = outfit.items.length > 0;
-        const statusText = `${hasSave ? `${outfit.items.length} items saved` : "No save data"} • ${outfit.includeRestraints ? "includes restraints" : "clothes only"}`;
-        drawPill(LIST_LEFT + 16, y + 16, 104, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
-        DrawTextFit(outfit.displayName, LIST_LEFT + 228, y + 24, 212, UI.text);
-        DrawTextFit(statusText, LIST_LEFT + 296, y + 52, 360, hasSave ? UI.textMuted : UI.textSoft);
-        DrawTextFit(`/me ${outfit.announceText}`, LIST_LEFT + 296, y + 76, 420, UI.textSoft);
-        drawChromeButton(LIST_LEFT + LIST_WIDTH - 286, y + 24, LIST_BUTTON_W, 26, "Wear", "accent");
-        drawChromeButton(LIST_LEFT + LIST_WIDTH - 192, y + 24, LIST_BUTTON_W, 26, "Update", "success", false, "Save current appearance");
-        drawChromeButton(LIST_LEFT + LIST_WIDTH - 98, y + 24, LIST_BUTTON_W, 26, "Delete", "danger");
+
+        // Top row: pill + name + buttons
+        drawPill(LIST_LEFT + 10, y + 12, 96, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
+        DrawTextFit(outfit.displayName, LIST_LEFT + 120 + textW / 2 - 20, y + 23, textW - 110, UI.text);
+        drawChromeButton(btnWear,   y + 10, LIST_BTN_W, 28, "Wear",   "accent");
+        drawChromeButton(btnUpdate, y + 10, LIST_BTN_W, 28, "Update", "success", false, "Save current appearance");
+        drawChromeButton(btnDel,    y + 10, LIST_BTN_W, 28, "Delete", "danger");
+
+        // Bottom row: item count chip + restraint label + announce text
+        const chipLabel = hasSave ? `${outfit.items.length} items` : "⚠ empty";
+        const chipColor = hasSave ? UI.success : UI.gold;
+        DrawTextFit(chipLabel, LIST_LEFT + 14 + 46, y + 52, 90, chipColor);
+        DrawTextFit(outfit.includeRestraints ? "· incl. restraints" : "· clothes only",
+            LIST_LEFT + 116 + 72, y + 52, 140, outfit.includeRestraints ? UI.danger : UI.textMuted);
+        DrawTextFit(`/me ${outfit.announceText}`,
+            LIST_LEFT + 270 + (textRight - LIST_LEFT - 270) / 2, y + 52,
+            textRight - LIST_LEFT - 270, UI.textSoft);
     }
 
     drawCard(EDITOR_LEFT, EDITOR_TOP, EDITOR_WIDTH, EDITOR_HEIGHT, "muted");
@@ -466,12 +484,20 @@ export function outfitSettingsRun(): void {
     drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 434, EDITOR_WIDTH - 56, 36, editingOutfit ? "Save Outfit Settings" : "Create New Outfit From Current Look", "success");
     drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 476, EDITOR_WIDTH - 56, 30, editingOutfit ? "Save Current Look Into This Outfit" : "Capture Current Look Preview", editingOutfit ? "accent" : "muted", !editingOutfit);
 
-    drawCard(EDITOR_LEFT + 18, EDITOR_TOP + 532, EDITOR_WIDTH - 36, 100, "default");
-    DrawText("Notes", EDITOR_LEFT + 60, EDITOR_TOP + 556, UI.textMuted);
-    DrawTextFit("Use the row buttons on the left to wear or delete saved outfits instantly. Clicking a row opens it here for editing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 580, EDITOR_WIDTH - 52, UI.textSoft);
-    DrawTextFit("The saved announce text becomes a /me emote when you trigger the slash command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 608, EDITOR_WIDTH - 52, UI.textMuted);
+    // Notes — large readable lines, no cramped card
+    const notesY = EDITOR_TOP + 528;
+    DrawRect(EDITOR_LEFT + 18, notesY, EDITOR_WIDTH - 36, 1, UI.panelEdge);
+    DrawTextFit("How to use", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 18, EDITOR_WIDTH - 36, UI.textMuted);
+    DrawTextFit("→  Click a row on the left to open it here for editing.",
+        EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 40, EDITOR_WIDTH - 36, UI.textSoft);
+    DrawTextFit("→  Wear applies the outfit to your character right now.",
+        EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 62, EDITOR_WIDTH - 36, UI.textSoft);
+    DrawTextFit("→  Update replaces the saved look with what you're wearing.",
+        EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 84, EDITOR_WIDTH - 36, UI.textSoft);
+    DrawTextFit("→  Announce text is sent as a /me emote when you load the outfit.",
+        EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 106, EDITOR_WIDTH - 36, UI.textSoft);
     if (editingOutfit) {
-        drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 642, EDITOR_WIDTH - 56, 30, "Cancel Edit", "muted");
+        drawChromeButton(EDITOR_LEFT + 28, notesY + 124, EDITOR_WIDTH - 56, 32, "Cancel Edit", "muted");
     }
 }
 
@@ -481,11 +507,11 @@ export function outfitSettingsClick(): void {
     const page = Math.min(settingsPage, totalPages - 1);
     const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
 
-    if (mouseInRect(LIST_LEFT, NAV_Y, 96, 30)) {
+    if (mouseInRect(LIST_LEFT, NAV_Y, 88, 30)) {
         settingsPage = Math.max(0, page - 1);
         return;
     }
-    if (mouseInRect(LIST_LEFT + LIST_WIDTH - 96, NAV_Y, 96, 30)) {
+    if (mouseInRect(LIST_LEFT + LIST_WIDTH - 88, NAV_Y, 88, 30)) {
         settingsPage = Math.min(totalPages - 1, page + 1);
         return;
     }
@@ -495,12 +521,16 @@ export function outfitSettingsClick(): void {
         if (!outfit) continue;
 
         const y = LIST_Y + i * ROW_H;
-        if (mouseInRect(LIST_LEFT + LIST_WIDTH - 286, y + 22, LIST_BUTTON_W, 24)) {
+        const btnDel    = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 6;
+        const btnUpdate = btnDel - LIST_BTN_W - 6;
+        const btnWear   = btnUpdate - LIST_BTN_W - 6;
+
+        if (mouseInRect(btnWear, y + 10, LIST_BTN_W, 28)) {
             applyOutfit(outfit);
             return;
         }
 
-        if (mouseInRect(LIST_LEFT + LIST_WIDTH - 192, y + 22, LIST_BUTTON_W, 24)) {
+        if (mouseInRect(btnUpdate, y + 10, LIST_BTN_W, 28)) {
             const idx = outfits.indexOf(outfit);
             outfits[idx].items = captureAppearance(outfit.includeRestraints);
             saveOutfits(outfits);
@@ -508,7 +538,7 @@ export function outfitSettingsClick(): void {
             return;
         }
 
-        if (mouseInRect(LIST_LEFT + LIST_WIDTH - 98, y + 22, LIST_BUTTON_W, 24)) {
+        if (mouseInRect(btnDel, y + 10, LIST_BTN_W, 28)) {
             saveOutfits(outfits.filter(entry => entry.id !== outfit.id));
             if (editingOutfitId === outfit.id) {
                 resetEditor();

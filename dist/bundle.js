@@ -1,9 +1,9 @@
 (function () {
     'use strict';
 
-    const PANEL_W = 1260;
+    const PANEL_W = 998;
     const PANEL_H = 940;
-    const PANEL_PADDING = 28;
+    const PANEL_PADDING = 22;
     const CONTENT_LEFT = PANEL_PADDING;
     const CONTENT_RIGHT = PANEL_W - PANEL_PADDING;
     const CONTENT_WIDTH = CONTENT_RIGHT - CONTENT_LEFT;
@@ -25,6 +25,7 @@
         gold: "#c9ab72",
         success: "#79a885",
         danger: "#cb798c",
+        dangerDeep: "#552332",
         buttonMuted: "#432232",
         buttonDisabled: "#2b1520"};
     const STAT_TONES = {
@@ -153,7 +154,7 @@
         return MouseX >= x && MouseX <= x + w && MouseY >= y && MouseY <= y + h;
     }
 
-    // Action buttons drawn below BCAR's upperleft buttons (EAR/TAIL/WINGS end at y=270)
+    // Action buttons drawn in the chatroom sidebar below BCAR's buttons.
     const DEFAULT_BUTTONS = [
         { label: "NOD", emote: "nods their head", color: "#c2185b", enabled: true },
         { label: "SHAKE", emote: "shakes their head", color: "#c2185b", enabled: true },
@@ -162,55 +163,65 @@
         { label: "", emote: "", color: "#c2185b", enabled: false },
         { label: "", emote: "", color: "#c2185b", enabled: false },
     ];
+    const ABSOLUTE_MAX = 12;
+    const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
+    // In-game sidebar
     const BTN_X = 0;
     const BTN_START_Y = 270;
     const BTN_SIZE = 45;
-    const MAX_SLOTS = 6;
-    const GRID_COLS = 2;
-    const GRID_GAP_X = 20;
-    const GRID_GAP_Y = 18;
-    const GRID_TOP = 214;
-    const CARD_W = Math.floor((CONTENT_WIDTH - GRID_GAP_X) / GRID_COLS);
-    const CARD_H = 188;
-    const FOOTER_TOP = GRID_TOP + Math.ceil(MAX_SLOTS / GRID_COLS) * CARD_H + (Math.ceil(MAX_SLOTS / GRID_COLS) - 1) * GRID_GAP_Y + 18;
-    function getButtons() {
-        var _a;
-        const stored = (_a = Player.ExtensionSettings.EmeryBC) === null || _a === void 0 ? void 0 : _a.actionButtons;
-        if (Array.isArray(stored))
-            return stored;
-        return DEFAULT_BUTTONS;
-    }
-    function saveButtons(buttons) {
+    // Settings list layout — one row per slot
+    const ROW_H$1 = 56;
+    const LIST_Y$1 = 226;
+    const HEADER_Y = 213;
+    // Column x positions (left edges)
+    const COL_TOG = CONTENT_LEFT; // toggle button
+    const COL_LAB = CONTENT_LEFT + 62; // label input
+    const COL_COL = CONTENT_LEFT + 200; // color picker
+    const COL_ME = CONTENT_LEFT + 254; // "/me" prefix text
+    const COL_EMO = CONTENT_LEFT + 292; // emote input
+    const COL_DEL = CONTENT_RIGHT - 76; // delete button
+    const EMO_W = COL_DEL - COL_EMO - 10; // emote input width
+    // ─── Storage ─────────────────────────────────────────────────────────────────
+    function getStore() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
-        Player.ExtensionSettings.EmeryBC.actionButtons = buttons;
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function getButtons() {
+        const stored = getStore().actionButtons;
+        return Array.isArray(stored) ? stored : DEFAULT_BUTTONS;
+    }
+    function getSlotCount() {
+        const store = getStore();
+        const n = store.actionSlotCount;
+        if (typeof n === "number")
+            return Math.min(ABSOLUTE_MAX, Math.max(1, n));
+        const buttons = getButtons();
+        return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
+    }
+    function saveData(buttons, slotCount) {
+        const store = getStore();
+        store.actionButtons = buttons;
+        store.actionSlotCount = slotCount;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function normalizeHexColor(value, fallback = "#c2185b") {
-        const color = (value || "").trim();
-        if (/^#[0-9a-f]{6}$/i.test(color))
-            return color.toLowerCase();
-        const shortMatch = /^#([0-9a-f]{3})$/i.exec(color);
-        if (shortMatch) {
-            const [r, g, b] = shortMatch[1].split("");
-            return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    function normalizeHex(value, fallback = "#c2185b") {
+        const c = (value !== null && value !== void 0 ? value : "").trim();
+        if (/^#[0-9a-f]{6}$/i.test(c))
+            return c.toLowerCase();
+        const m = /^#([0-9a-f]{3})$/i.exec(c);
+        if (m) {
+            const [r, g, b] = m[1].split("");
+            return `#${r}${r}${g}${g}${b}${b}`;
         }
         return fallback;
-    }
-    function getSlotPosition(slot) {
-        const col = slot % GRID_COLS;
-        const row = Math.floor(slot / GRID_COLS);
-        return {
-            left: CONTENT_LEFT + col * (CARD_W + GRID_GAP_X),
-            top: GRID_TOP + row * (CARD_H + GRID_GAP_Y),
-        };
     }
     // ─── In-game ─────────────────────────────────────────────────────────────────
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
         const buttons = getButtons();
-        for (let i = 0; i < MAX_SLOTS; i++) {
+        for (let i = 0; i < buttons.length; i++) {
             const btn = buttons[i];
             if (!(btn === null || btn === void 0 ? void 0 : btn.enabled) || !btn.label)
                 continue;
@@ -221,7 +232,7 @@
         if (CurrentScreen !== "ChatRoom")
             return false;
         const buttons = getButtons();
-        for (let i = 0; i < MAX_SLOTS; i++) {
+        for (let i = 0; i < buttons.length; i++) {
             const btn = buttons[i];
             if (!(btn === null || btn === void 0 ? void 0 : btn.enabled) || !btn.label)
                 continue;
@@ -235,20 +246,19 @@
         return false;
     }
     // ─── Settings ─────────────────────────────────────────────────────────────────
-    // settingsButtons is only initialised in settingsLoad (called once on screen open)
-    // so toggle/edit state persists across frames while the screen is open
     let settingsButtons = [];
+    let settingsSlotCount = DEFAULT_SLOTS;
     function inputId(slot, field) {
         return `EmeryBtn_${field}_${slot}`;
     }
     function ensureInputs$1() {
         var _a;
-        for (let i = 0; i < MAX_SLOTS; i++) {
-            const btn = (_a = settingsButtons[i]) !== null && _a !== void 0 ? _a : DEFAULT_BUTTONS[i];
+        for (let i = 0; i < ABSOLUTE_MAX; i++) {
+            const btn = (_a = settingsButtons[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b"};
             if (!document.getElementById(inputId(i, "label")))
                 ElementCreateInput(inputId(i, "label"), "text", btn.label, "6");
             if (!document.getElementById(inputId(i, "color")))
-                ElementCreateInput(inputId(i, "color"), "color", normalizeHexColor(btn.color));
+                ElementCreateInput(inputId(i, "color"), "color", normalizeHex(btn.color));
             if (!document.getElementById(inputId(i, "emote")))
                 ElementCreateInput(inputId(i, "emote"), "text", btn.emote, "120");
             styleInput(inputId(i, "label"), "short");
@@ -257,97 +267,121 @@
         }
     }
     function settingsLoad() {
-        const stored = getButtons();
-        settingsButtons = Array.from({ length: MAX_SLOTS }, (_, i) => { var _a; return (Object.assign({}, ((_a = stored[i]) !== null && _a !== void 0 ? _a : DEFAULT_BUTTONS[i]))); });
+        const buttons = getButtons();
+        settingsSlotCount = getSlotCount();
+        settingsButtons = Array.from({ length: ABSOLUTE_MAX }, (_, i) => {
+            var _a;
+            return (Object.assign({}, ((_a = buttons[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b", enabled: false })));
+        });
     }
-    function placeInput$1(id, left, y, width, height) {
-        ElementPosition(id, left + width / 2, y + height / 2, width, height);
+    function syncInputsFromButtons() {
+        var _a;
+        for (let i = 0; i < ABSOLUTE_MAX; i++) {
+            (_a = document.getElementById(inputId(i, "label"))) === null || _a === void 0 ? void 0 : _a.setAttribute("value", settingsButtons[i].label);
+            const lbl = document.getElementById(inputId(i, "label"));
+            const clr = document.getElementById(inputId(i, "color"));
+            const emt = document.getElementById(inputId(i, "emote"));
+            if (lbl)
+                lbl.value = settingsButtons[i].label;
+            if (clr)
+                clr.value = normalizeHex(settingsButtons[i].color);
+            if (emt)
+                emt.value = settingsButtons[i].emote;
+        }
+    }
+    function collectFromInputs() {
+        for (let i = 0; i < settingsSlotCount; i++) {
+            settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
+            settingsButtons[i].color = normalizeHex(ElementValue(inputId(i, "color")));
+            settingsButtons[i].emote = ElementValue(inputId(i, "emote")).trim();
+        }
     }
     function settingsRun$1() {
-        var _a, _b, _c, _d;
         ensureInputs$1();
-        const activeCount = settingsButtons.filter(btn => btn.enabled && btn.label.trim()).length;
-        drawSettingsScaffold("Action Buttons", "Quick emote shortcuts for the chatroom sidebar.", [
-            { label: "ACTIVE", value: `${activeCount}/${MAX_SLOTS}`, tone: "accent" },
-            { label: "LAYOUT", value: "2-Column", tone: "gold" },
+        const activeCount = settingsButtons.slice(0, settingsSlotCount).filter(b => b.enabled && b.label.trim()).length;
+        drawSettingsScaffold("Action Buttons", "Quick emote shortcuts shown in the chatroom sidebar.", [
+            { label: "ACTIVE", value: `${activeCount}/${settingsSlotCount}`, tone: "accent" },
+            { label: "SLOTS", value: `${settingsSlotCount}/${ABSOLUTE_MAX}`, tone: "gold" },
         ]);
-        for (let i = 0; i < MAX_SLOTS; i++) {
-            const btn = (_a = settingsButtons[i]) !== null && _a !== void 0 ? _a : DEFAULT_BUTTONS[i];
-            const { left, top } = getSlotPosition(i);
-            const previewColor = normalizeHexColor((_b = document.getElementById(inputId(i, "color"))) === null || _b === void 0 ? void 0 : _b.value, btn.color || "#c2185b");
-            const previewLabel = (((_c = document.getElementById(inputId(i, "label"))) === null || _c === void 0 ? void 0 : _c.value) || btn.label || "EMPTY").slice(0, 6);
-            const previewEmote = ((_d = document.getElementById(inputId(i, "emote"))) === null || _d === void 0 ? void 0 : _d.value) || btn.emote || "Describe the emote text here";
-            drawCard(left, top, CARD_W, CARD_H, i % 2 === 0 ? "default" : "alt");
-            drawPill(left + 18, top + 16, 66, 18, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
-            drawChromeButton(left + CARD_W - 126, top + 12, 108, 28, btn.enabled ? "Enabled" : "Disabled", btn.enabled ? "accent" : "muted");
-            DrawRect(left + 18, top + 46, 128, 58, UI.cardMuted);
-            DrawEmptyRect(left + 18, top + 46, 128, 58, UI.panelEdge, 1);
-            DrawButton(left + 28, top + 58, 108, 34, previewLabel || "EMPTY", previewColor, "", previewEmote);
-            DrawTextFit("Quickbar preview", left + 82, top + 114, 120, UI.textSoft);
-            DrawTextFit("Label", left + 232, top + 34, 120, UI.textSoft);
-            placeInput$1(inputId(i, "label"), left + 166, top + 48, 132, 34);
-            DrawTextFit("Color", left + 380, top + 34, 100, UI.textSoft);
-            placeInput$1(inputId(i, "color"), left + 322, top + 48, 78, 34);
-            DrawTextFit(previewColor.toUpperCase(), left + 480, top + 66, 148, UI.textMuted);
-            DrawTextFit("tap swatch to pick", left + 480, top + 90, 148, UI.textSoft);
-            DrawTextFit("Emote Text", left + CARD_W / 2, top + 118, 180, UI.textSoft);
-            placeInput$1(inputId(i, "emote"), left + 18, top + 128, CARD_W - 36, 36);
-            DrawTextFit(`/me ${previewEmote}`, left + CARD_W / 2, top + 171, CARD_W - 44, UI.textSoft);
+        // ── Column headers ──────────────────────────────────────────────────────
+        DrawRect(CONTENT_LEFT, HEADER_Y - 4, CONTENT_WIDTH, 1, UI.panelEdge);
+        DrawTextFit("On", COL_TOG + 27, HEADER_Y, 54, UI.textSoft);
+        DrawTextFit("Label", COL_LAB + 57, HEADER_Y, 100, UI.textSoft);
+        DrawTextFit("Color", COL_COL + 22, HEADER_Y, 72, UI.textSoft);
+        DrawTextFit("/me Emote Text  (sent as * Name text * in chat)", COL_EMO + EMO_W / 2, HEADER_Y, EMO_W, UI.textSoft);
+        DrawRect(CONTENT_LEFT, HEADER_Y + 6, CONTENT_WIDTH, 1, UI.panelEdge);
+        // ── Rows ────────────────────────────────────────────────────────────────
+        for (let i = 0; i < settingsSlotCount; i++) {
+            const btn = settingsButtons[i];
+            const y = LIST_Y$1 + i * ROW_H$1;
+            DrawRect(CONTENT_LEFT, y, CONTENT_WIDTH, ROW_H$1 - 2, i % 2 === 0 ? UI.card : UI.cardAlt);
+            DrawEmptyRect(CONTENT_LEFT, y, CONTENT_WIDTH, ROW_H$1 - 2, UI.panelEdge, 1);
+            // Toggle
+            DrawButton(COL_TOG + 5, y + 9, 44, ROW_H$1 - 18, btn.enabled ? "✓" : "", btn.enabled ? UI.accentDeep : UI.buttonMuted, "", btn.enabled ? "Click to disable" : "Click to enable");
+            // Label input — centered in cell
+            ElementPosition(inputId(i, "label"), COL_LAB + 57, y + ROW_H$1 / 2, 110, 36);
+            // Color picker
+            ElementPosition(inputId(i, "color"), COL_COL + 22, y + ROW_H$1 / 2, 42, 36);
+            // "/me" prefix label — clearly to the left of the emote input
+            DrawTextFit("/me", COL_ME + 18, y + ROW_H$1 / 2, 36, UI.accent);
+            // Emote input
+            ElementPosition(inputId(i, "emote"), COL_EMO + EMO_W / 2, y + ROW_H$1 / 2, EMO_W, 36);
+            // Delete button
+            DrawButton(COL_DEL + 3, y + 10, 66, ROW_H$1 - 20, "✕ Del", UI.dangerDeep, "", "Remove this slot");
         }
-        drawCard(CONTENT_LEFT, FOOTER_TOP, CONTENT_WIDTH, 118, "muted");
-        DrawText("Layout Actions", CONTENT_LEFT + 112, FOOTER_TOP + 24, UI.text);
-        DrawTextFit("Use these controls to save the current builder, auto-toggle filled slots, or reset everything cleanly.", CONTENT_LEFT + 436, FOOTER_TOP + 24, 660, UI.textSoft);
-        drawChromeButton(CONTENT_LEFT + 18, FOOTER_TOP + 50, 268, 42, "Save Layout", "success");
-        drawChromeButton(CONTENT_LEFT + 304, FOOTER_TOP + 50, 268, 42, "Enable Filled Slots", "accent");
-        drawChromeButton(CONTENT_LEFT + 590, FOOTER_TOP + 50, 268, 42, "Reset Defaults", "gold");
-        drawChromeButton(CONTENT_LEFT + 876, FOOTER_TOP + 50, 328, 42, "Disable Empty Slots", "muted");
-        DrawTextFit("Action text becomes a /me emote in chat, and the picker updates the quickbar color immediately.", CONTENT_LEFT + CONTENT_WIDTH / 2, FOOTER_TOP + 106, CONTENT_WIDTH - 44, UI.textMuted);
+        // ── Footer ───────────────────────────────────────────────────────────────
+        const footerY = LIST_Y$1 + settingsSlotCount * ROW_H$1 + 14;
+        DrawRect(CONTENT_LEFT, footerY - 6, CONTENT_WIDTH, 1, UI.panelEdge);
+        const canAdd = settingsSlotCount < ABSOLUTE_MAX;
+        drawChromeButton(CONTENT_LEFT, footerY, 228, 44, `＋ Add Slot  (${settingsSlotCount}/${ABSOLUTE_MAX})`, canAdd ? "success" : "muted", !canAdd);
+        drawChromeButton(CONTENT_LEFT + 244, footerY, 200, 44, "Save Layout", "accent");
+        drawChromeButton(CONTENT_LEFT + 460, footerY, 200, 44, "Reset Defaults", "gold");
+        DrawTextFit("Buttons appear in the chatroom sidebar. Click them to send the /me emote to the room.", CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
     }
     function settingsClick$1() {
-        for (let i = 0; i < MAX_SLOTS; i++) {
-            const { left, top } = getSlotPosition(i);
-            if (mouseInRect(left + CARD_W - 126, top + 12, 108, 28)) {
+        // ── Toggle + Delete per row ──────────────────────────────────────────────
+        for (let i = 0; i < settingsSlotCount; i++) {
+            const y = LIST_Y$1 + i * ROW_H$1;
+            if (mouseInRect(COL_TOG + 5, y + 9, 44, ROW_H$1 - 18)) {
                 settingsButtons[i].enabled = !settingsButtons[i].enabled;
                 return;
             }
-        }
-        if (mouseInRect(CONTENT_LEFT + 18, FOOTER_TOP + 48, 250, 42)) {
-            for (let i = 0; i < MAX_SLOTS; i++) {
-                settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
-                settingsButtons[i].color = normalizeHexColor(ElementValue(inputId(i, "color")));
-                settingsButtons[i].emote = ElementValue(inputId(i, "emote")).trim();
+            if (mouseInRect(COL_DEL + 3, y + 10, 66, ROW_H$1 - 20)) {
+                collectFromInputs();
+                settingsButtons.splice(i, 1);
+                settingsButtons.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+                settingsSlotCount = Math.max(1, settingsSlotCount - 1);
+                syncInputsFromButtons();
+                return;
             }
-            saveButtons(settingsButtons);
+        }
+        // ── Footer buttons ───────────────────────────────────────────────────────
+        const footerY = LIST_Y$1 + settingsSlotCount * ROW_H$1 + 14;
+        if (canAdd() && mouseInRect(CONTENT_LEFT, footerY, 228, 44)) {
+            collectFromInputs();
+            settingsSlotCount = Math.min(ABSOLUTE_MAX, settingsSlotCount + 1);
             return;
         }
-        if (mouseInRect(CONTENT_LEFT + 286, FOOTER_TOP + 48, 250, 42)) {
-            for (let i = 0; i < MAX_SLOTS; i++) {
-                const label = ElementValue(inputId(i, "label")).trim();
-                const emote = ElementValue(inputId(i, "emote")).trim();
-                settingsButtons[i].enabled = !!(label || emote);
-            }
+        if (mouseInRect(CONTENT_LEFT + 244, footerY, 200, 44)) {
+            collectFromInputs();
+            saveData([...settingsButtons], settingsSlotCount);
             return;
         }
-        if (mouseInRect(CONTENT_LEFT + 554, FOOTER_TOP + 48, 250, 42)) {
-            settingsButtons = DEFAULT_BUTTONS.map(b => (Object.assign({}, b)));
-            for (let i = 0; i < MAX_SLOTS; i++) {
-                document.getElementById(inputId(i, "label")).value = settingsButtons[i].label;
-                document.getElementById(inputId(i, "color")).value = normalizeHexColor(settingsButtons[i].color);
-                document.getElementById(inputId(i, "emote")).value = settingsButtons[i].emote;
-            }
-            saveButtons(settingsButtons);
-            return;
-        }
-        if (mouseInRect(CONTENT_LEFT + 822, FOOTER_TOP + 48, 330, 42)) {
-            for (let i = 0; i < MAX_SLOTS; i++) {
-                const label = ElementValue(inputId(i, "label")).trim();
-                const emote = ElementValue(inputId(i, "emote")).trim();
-                settingsButtons[i].enabled = !!(label && emote);
-            }
+        if (mouseInRect(CONTENT_LEFT + 460, footerY, 200, 44)) {
+            settingsButtons = Array.from({ length: ABSOLUTE_MAX }, (_, i) => {
+                var _a;
+                return (Object.assign({}, ((_a = DEFAULT_BUTTONS[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b", enabled: false })));
+            });
+            settingsSlotCount = DEFAULT_SLOTS;
+            syncInputsFromButtons();
+            saveData([...settingsButtons], settingsSlotCount);
         }
     }
+    function canAdd() {
+        return settingsSlotCount < ABSOLUTE_MAX;
+    }
     function settingsExit$1() {
-        for (let i = 0; i < MAX_SLOTS; i++) {
+        for (let i = 0; i < ABSOLUTE_MAX; i++) {
             ElementRemove(inputId(i, "label"));
             ElementRemove(inputId(i, "color"));
             ElementRemove(inputId(i, "emote"));
@@ -363,16 +397,16 @@
     ]);
     const OUTFITS_PER_PAGE = 4;
     const NAV_Y = 216;
-    const LIST_Y = 268;
-    const ROW_H = 104;
+    const LIST_Y = 270;
+    const ROW_H = 86;
     const LIST_LEFT = CONTENT_LEFT;
-    const LIST_WIDTH = 700;
-    const LIST_BUTTON_W = 84;
-    const EDITOR_GAP = 20;
+    const LIST_WIDTH = 538;
+    const LIST_BTN_W = 68;
+    const EDITOR_GAP = 18;
     const EDITOR_LEFT = LIST_LEFT + LIST_WIDTH + EDITOR_GAP;
     const EDITOR_WIDTH = CONTENT_RIGHT - EDITOR_LEFT;
     const EDITOR_TOP = NAV_Y;
-    const EDITOR_HEIGHT = 652;
+    const EDITOR_HEIGHT = 660;
     let settingsPage = 0;
     let addIncludeRestraints = false;
     let editingOutfitId = null;
@@ -679,11 +713,11 @@
             { label: "OUTFITS", value: `${outfits.length}`, tone: "accent" },
             { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
         ]);
-        drawChromeButton(LIST_LEFT, NAV_Y, 96, 30, "Prev", "muted", page === 0);
-        DrawText("Wardrobe", LIST_LEFT + 154, NAV_Y + 18, UI.textMuted);
-        DrawTextFit(`${page + 1} of ${totalPages}`, LIST_LEFT + 286, NAV_Y + 18, 120, UI.textSoft);
-        drawChromeButton(LIST_LEFT + LIST_WIDTH - 96, NAV_Y, 96, 30, "Next", "muted", page >= totalPages - 1);
-        DrawTextFit("Select a row to edit it. Use the row buttons to wear, refresh, or delete without leaving the screen.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 42, LIST_WIDTH - 40, UI.textSoft);
+        drawChromeButton(LIST_LEFT, NAV_Y, 88, 30, "◀ Prev", "muted", page === 0);
+        DrawText("Wardrobe", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 15, UI.textMuted);
+        DrawTextFit(`${page + 1} / ${totalPages}`, LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 35, 100, UI.textSoft);
+        drawChromeButton(LIST_LEFT + LIST_WIDTH - 88, NAV_Y, 88, 30, "Next ▶", "muted", page >= totalPages - 1);
+        DrawTextFit("Click a row to edit it. Use the row buttons to wear, update, or delete.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 52, LIST_WIDTH - 20, UI.textSoft);
         for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
             const outfit = visible[i];
             const y = LIST_Y + i * ROW_H;
@@ -693,19 +727,29 @@
                 DrawEmptyRect(LIST_LEFT - 1, y - 1, LIST_WIDTH + 2, ROW_H - 6, UI.accent, 2);
             }
             if (!outfit) {
-                DrawText("Empty slot", LIST_LEFT + LIST_WIDTH / 2, y + 30, UI.textMuted);
-                DrawTextFit("Create a new outfit from the editor on the right to fill this space.", LIST_LEFT + LIST_WIDTH / 2, y + 58, 420, UI.textSoft);
+                DrawText("Empty slot", LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2 - 8, UI.textMuted);
+                DrawTextFit("Create an outfit using the editor on the right.", LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2 + 14, LIST_WIDTH - 40, UI.textSoft);
                 continue;
             }
+            // Button x positions (right-aligned within the row)
+            const btnDel = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 6;
+            const btnUpdate = btnDel - LIST_BTN_W - 6;
+            const btnWear = btnUpdate - LIST_BTN_W - 6;
+            const textRight = btnWear - 12; // text can go up to here
+            const textW = textRight - LIST_LEFT - 28; // available text width
             const hasSave = outfit.items.length > 0;
-            const statusText = `${hasSave ? `${outfit.items.length} items saved` : "No save data"} • ${outfit.includeRestraints ? "includes restraints" : "clothes only"}`;
-            drawPill(LIST_LEFT + 16, y + 16, 104, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
-            DrawTextFit(outfit.displayName, LIST_LEFT + 228, y + 24, 212, UI.text);
-            DrawTextFit(statusText, LIST_LEFT + 296, y + 52, 360, hasSave ? UI.textMuted : UI.textSoft);
-            DrawTextFit(`/me ${outfit.announceText}`, LIST_LEFT + 296, y + 76, 420, UI.textSoft);
-            drawChromeButton(LIST_LEFT + LIST_WIDTH - 286, y + 24, LIST_BUTTON_W, 26, "Wear", "accent");
-            drawChromeButton(LIST_LEFT + LIST_WIDTH - 192, y + 24, LIST_BUTTON_W, 26, "Update", "success", false, "Save current appearance");
-            drawChromeButton(LIST_LEFT + LIST_WIDTH - 98, y + 24, LIST_BUTTON_W, 26, "Delete", "danger");
+            // Top row: pill + name + buttons
+            drawPill(LIST_LEFT + 10, y + 12, 96, 22, `/${outfit.command}`, UI.accentSoft, UI.accent);
+            DrawTextFit(outfit.displayName, LIST_LEFT + 120 + textW / 2 - 20, y + 23, textW - 110, UI.text);
+            drawChromeButton(btnWear, y + 10, LIST_BTN_W, 28, "Wear", "accent");
+            drawChromeButton(btnUpdate, y + 10, LIST_BTN_W, 28, "Update", "success", false, "Save current appearance");
+            drawChromeButton(btnDel, y + 10, LIST_BTN_W, 28, "Delete", "danger");
+            // Bottom row: item count chip + restraint label + announce text
+            const chipLabel = hasSave ? `${outfit.items.length} items` : "⚠ empty";
+            const chipColor = hasSave ? UI.success : UI.gold;
+            DrawTextFit(chipLabel, LIST_LEFT + 14 + 46, y + 52, 90, chipColor);
+            DrawTextFit(outfit.includeRestraints ? "· incl. restraints" : "· clothes only", LIST_LEFT + 116 + 72, y + 52, 140, outfit.includeRestraints ? UI.danger : UI.textMuted);
+            DrawTextFit(`/me ${outfit.announceText}`, LIST_LEFT + 270 + (textRight - LIST_LEFT - 270) / 2, y + 52, textRight - LIST_LEFT - 270, UI.textSoft);
         }
         drawCard(EDITOR_LEFT, EDITOR_TOP, EDITOR_WIDTH, EDITOR_HEIGHT, "muted");
         DrawText(editingOutfit ? "Outfit Editor" : "New Outfit Builder", EDITOR_LEFT + 104, EDITOR_TOP + 24, UI.text);
@@ -728,12 +772,16 @@
         DrawTextFit("These buttons either save the command settings or capture the look your character is currently wearing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 408, EDITOR_WIDTH - 90, UI.textSoft);
         drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 434, EDITOR_WIDTH - 56, 36, editingOutfit ? "Save Outfit Settings" : "Create New Outfit From Current Look", "success");
         drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 476, EDITOR_WIDTH - 56, 30, editingOutfit ? "Save Current Look Into This Outfit" : "Capture Current Look Preview", editingOutfit ? "accent" : "muted", !editingOutfit);
-        drawCard(EDITOR_LEFT + 18, EDITOR_TOP + 532, EDITOR_WIDTH - 36, 100, "default");
-        DrawText("Notes", EDITOR_LEFT + 60, EDITOR_TOP + 556, UI.textMuted);
-        DrawTextFit("Use the row buttons on the left to wear or delete saved outfits instantly. Clicking a row opens it here for editing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 580, EDITOR_WIDTH - 52, UI.textSoft);
-        DrawTextFit("The saved announce text becomes a /me emote when you trigger the slash command.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 608, EDITOR_WIDTH - 52, UI.textMuted);
+        // Notes — large readable lines, no cramped card
+        const notesY = EDITOR_TOP + 528;
+        DrawRect(EDITOR_LEFT + 18, notesY, EDITOR_WIDTH - 36, 1, UI.panelEdge);
+        DrawTextFit("How to use", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 18, EDITOR_WIDTH - 36, UI.textMuted);
+        DrawTextFit("→  Click a row on the left to open it here for editing.", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 40, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("→  Wear applies the outfit to your character right now.", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 62, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("→  Update replaces the saved look with what you're wearing.", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 84, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("→  Announce text is sent as a /me emote when you load the outfit.", EDITOR_LEFT + EDITOR_WIDTH / 2, notesY + 106, EDITOR_WIDTH - 36, UI.textSoft);
         if (editingOutfit) {
-            drawChromeButton(EDITOR_LEFT + 28, EDITOR_TOP + 642, EDITOR_WIDTH - 56, 30, "Cancel Edit", "muted");
+            drawChromeButton(EDITOR_LEFT + 28, notesY + 124, EDITOR_WIDTH - 56, 32, "Cancel Edit", "muted");
         }
     }
     function outfitSettingsClick() {
@@ -741,11 +789,11 @@
         const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
         const page = Math.min(settingsPage, totalPages - 1);
         const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
-        if (mouseInRect(LIST_LEFT, NAV_Y, 96, 30)) {
+        if (mouseInRect(LIST_LEFT, NAV_Y, 88, 30)) {
             settingsPage = Math.max(0, page - 1);
             return;
         }
-        if (mouseInRect(LIST_LEFT + LIST_WIDTH - 96, NAV_Y, 96, 30)) {
+        if (mouseInRect(LIST_LEFT + LIST_WIDTH - 88, NAV_Y, 88, 30)) {
             settingsPage = Math.min(totalPages - 1, page + 1);
             return;
         }
@@ -754,18 +802,21 @@
             if (!outfit)
                 continue;
             const y = LIST_Y + i * ROW_H;
-            if (mouseInRect(LIST_LEFT + LIST_WIDTH - 286, y + 22, LIST_BUTTON_W, 24)) {
+            const btnDel = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 6;
+            const btnUpdate = btnDel - LIST_BTN_W - 6;
+            const btnWear = btnUpdate - LIST_BTN_W - 6;
+            if (mouseInRect(btnWear, y + 10, LIST_BTN_W, 28)) {
                 applyOutfit(outfit);
                 return;
             }
-            if (mouseInRect(LIST_LEFT + LIST_WIDTH - 192, y + 22, LIST_BUTTON_W, 24)) {
+            if (mouseInRect(btnUpdate, y + 10, LIST_BTN_W, 28)) {
                 const idx = outfits.indexOf(outfit);
                 outfits[idx].items = captureAppearance(outfit.includeRestraints);
                 saveOutfits(outfits);
                 localNotice(`Updated "/${outfit.command}"`);
                 return;
             }
-            if (mouseInRect(LIST_LEFT + LIST_WIDTH - 98, y + 22, LIST_BUTTON_W, 24)) {
+            if (mouseInRect(btnDel, y + 10, LIST_BTN_W, 28)) {
                 saveOutfits(outfits.filter(entry => entry.id !== outfit.id));
                 if (editingOutfitId === outfit.id) {
                     resetEditor();
@@ -978,22 +1029,12 @@
         return true;
     }
     function getSharedPresence(character) {
-        var _a, _b, _c;
+        var _a;
         if (!character)
             return null;
-        const shared = (_a = character.OnlineSharedSettings) === null || _a === void 0 ? void 0 : _a[MOD_NAME];
-        if (shared && typeof shared === "object") {
-            const presence = shared.presence;
-            if ((presence === null || presence === void 0 ? void 0 : presence.marker) === "EBC")
-                return presence;
-        }
-        const online = (_b = character.OnlineSettings) === null || _b === void 0 ? void 0 : _b[MOD_NAME];
-        if (online && typeof online === "object") {
-            const presence = online.presence;
-            if ((presence === null || presence === void 0 ? void 0 : presence.marker) === "EBC")
-                return presence;
-        }
-        const addon = (_c = getAddonSettings(character, false)) === null || _c === void 0 ? void 0 : _c.presence;
+        // ExtensionSettings are included in ChatRoomSync / CharacterUpdate packets,
+        // so they're visible to everyone in the room for every character.
+        const addon = (_a = getAddonSettings(character, false)) === null || _a === void 0 ? void 0 : _a.presence;
         return (addon === null || addon === void 0 ? void 0 : addon.marker) === "EBC" ? addon : null;
     }
     function getAddonSettings(character, create = false) {
@@ -1013,27 +1054,17 @@
         return created;
     }
     function syncPresenceMarker() {
-        var _a;
         const settings = getAddonSettings(Player, true);
         if (!settings)
             return;
         const current = settings.presence;
-        const localUpToDate = (current === null || current === void 0 ? void 0 : current.version) === MOD_VERSION && current.marker === "EBC";
-        const onlineSettings = ((_a = Player.OnlineSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSettings = {}));
-        const sharedCurrent = onlineSettings[MOD_NAME];
-        const sharedPresence = sharedCurrent && typeof sharedCurrent === "object"
-            ? sharedCurrent.presence
-            : null;
-        const sharedUpToDate = (sharedPresence === null || sharedPresence === void 0 ? void 0 : sharedPresence.version) === MOD_VERSION && sharedPresence.marker === "EBC";
-        if (localUpToDate && sharedUpToDate)
+        if ((current === null || current === void 0 ? void 0 : current.version) === MOD_VERSION && current.marker === "EBC")
             return;
-        settings.presence = {
-            version: MOD_VERSION,
-            marker: "EBC",
-        };
-        onlineSettings[MOD_NAME] = Object.assign(Object.assign({}, (sharedCurrent && typeof sharedCurrent === "object" ? sharedCurrent : {})), { presence: settings.presence });
+        settings.presence = { version: MOD_VERSION, marker: "EBC" };
+        // ServerPlayerExtensionSettingsSync pushes ExtensionSettings to the server,
+        // which are then included in CharacterUpdate / ChatRoomSync packets visible
+        // to all players in the room.
         ServerPlayerExtensionSettingsSync(MOD_NAME);
-        ServerSend("AccountUpdate", { OnlineSettings: onlineSettings });
     }
     function hasEmeryBC(character) {
         return !!getSharedPresence(character);

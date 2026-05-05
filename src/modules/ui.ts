@@ -1,6 +1,6 @@
-export const PANEL_W = 1260;
+export const PANEL_W = 998;
 export const PANEL_H = 940;
-export const PANEL_PADDING = 28;
+export const PANEL_PADDING = 22;
 export const CONTENT_LEFT = PANEL_PADDING;
 export const CONTENT_RIGHT = PANEL_W - PANEL_PADDING;
 export const CONTENT_WIDTH = CONTENT_RIGHT - CONTENT_LEFT;

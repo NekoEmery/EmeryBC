@@ -168,19 +168,8 @@ interface EmeryAddonSettings {
 
 function getSharedPresence(character: Character | null | undefined): EmeryPresence | null {
     if (!character) return null;
-
-    const shared = character.OnlineSharedSettings?.[MOD_NAME];
-    if (shared && typeof shared === "object") {
-        const presence = (shared as EmeryAddonSettings).presence;
-        if (presence?.marker === "EBC") return presence;
-    }
-
-    const online = character.OnlineSettings?.[MOD_NAME];
-    if (online && typeof online === "object") {
-        const presence = (online as EmeryAddonSettings).presence;
-        if (presence?.marker === "EBC") return presence;
-    }
-
+    // ExtensionSettings are included in ChatRoomSync / CharacterUpdate packets,
+    // so they're visible to everyone in the room for every character.
     const addon = getAddonSettings(character, false)?.presence;
     return addon?.marker === "EBC" ? addon : null;
 }
@@ -206,26 +195,13 @@ function syncPresenceMarker(): void {
     if (!settings) return;
 
     const current = settings.presence;
-    const localUpToDate = current?.version === MOD_VERSION && current.marker === "EBC";
-    const onlineSettings = (Player.OnlineSettings ??= {});
-    const sharedCurrent = onlineSettings[MOD_NAME];
-    const sharedPresence = sharedCurrent && typeof sharedCurrent === "object"
-        ? (sharedCurrent as EmeryAddonSettings).presence
-        : null;
-    const sharedUpToDate = sharedPresence?.version === MOD_VERSION && sharedPresence.marker === "EBC";
+    if (current?.version === MOD_VERSION && current.marker === "EBC") return;
 
-    if (localUpToDate && sharedUpToDate) return;
-
-    settings.presence = {
-        version: MOD_VERSION,
-        marker: "EBC",
-    };
-    onlineSettings[MOD_NAME] = {
-        ...(sharedCurrent && typeof sharedCurrent === "object" ? sharedCurrent as EmeryAddonSettings : {}),
-        presence: settings.presence,
-    };
+    settings.presence = { version: MOD_VERSION, marker: "EBC" };
+    // ServerPlayerExtensionSettingsSync pushes ExtensionSettings to the server,
+    // which are then included in CharacterUpdate / ChatRoomSync packets visible
+    // to all players in the room.
     ServerPlayerExtensionSettingsSync(MOD_NAME);
-    ServerSend("AccountUpdate", { OnlineSettings: onlineSettings });
 }
 
 function hasEmeryBC(character: Character | null | undefined): boolean {

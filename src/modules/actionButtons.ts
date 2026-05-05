@@ -1,12 +1,10 @@
-// Action buttons drawn below BCAR's upperleft buttons (EAR/TAIL/WINGS end at y=270)
+// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import {
     CONTENT_LEFT,
+    CONTENT_RIGHT,
     CONTENT_WIDTH,
     UI,
-    drawCard,
     drawChromeButton,
-    drawInsetLabel,
-    drawPill,
     drawSettingsScaffold,
     mouseInRect,
     styleColorInput,
@@ -29,48 +27,61 @@ const DEFAULT_BUTTONS: ActionButton[] = [
     { label: "",      emote: "",                         color: "#c2185b", enabled: false },
 ];
 
+const ABSOLUTE_MAX  = 12;
+const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
+
+// In-game sidebar
 const BTN_X       = 0;
 const BTN_START_Y = 270;
 const BTN_SIZE    = 45;
-const MAX_SLOTS   = 6;
-const GRID_COLS   = 2;
-const GRID_GAP_X  = 20;
-const GRID_GAP_Y  = 18;
-const GRID_TOP    = 214;
-const CARD_W      = Math.floor((CONTENT_WIDTH - GRID_GAP_X) / GRID_COLS);
-const CARD_H      = 188;
-const FOOTER_TOP  = GRID_TOP + Math.ceil(MAX_SLOTS / GRID_COLS) * CARD_H + (Math.ceil(MAX_SLOTS / GRID_COLS) - 1) * GRID_GAP_Y + 18;
 
-function getButtons(): ActionButton[] {
-    const stored = (Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined)?.actionButtons;
-    if (Array.isArray(stored)) return stored as ActionButton[];
-    return DEFAULT_BUTTONS;
+// Settings list layout — one row per slot
+const ROW_H    = 56;
+const LIST_Y   = 226;
+const HEADER_Y = 213;
+
+// Column x positions (left edges)
+const COL_TOG = CONTENT_LEFT;                    // toggle button
+const COL_LAB = CONTENT_LEFT + 62;              // label input
+const COL_COL = CONTENT_LEFT + 200;             // color picker
+const COL_ME  = CONTENT_LEFT + 254;             // "/me" prefix text
+const COL_EMO = CONTENT_LEFT + 292;             // emote input
+const COL_DEL = CONTENT_RIGHT - 76;             // delete button
+const EMO_W   = COL_DEL - COL_EMO - 10;        // emote input width
+
+// ─── Storage ─────────────────────────────────────────────────────────────────
+
+function getStore(): Record<string, unknown> {
+    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
+    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
 }
 
-function saveButtons(buttons: ActionButton[]): void {
-    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-    (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).actionButtons = buttons;
+function getButtons(): ActionButton[] {
+    const stored = getStore().actionButtons;
+    return Array.isArray(stored) ? (stored as ActionButton[]) : DEFAULT_BUTTONS;
+}
+
+function getSlotCount(): number {
+    const store = getStore();
+    const n = store.actionSlotCount;
+    if (typeof n === "number") return Math.min(ABSOLUTE_MAX, Math.max(1, n));
+    const buttons = getButtons();
+    return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
+}
+
+function saveData(buttons: ActionButton[], slotCount: number): void {
+    const store = getStore();
+    store.actionButtons   = buttons;
+    store.actionSlotCount = slotCount;
     ServerPlayerExtensionSettingsSync("EmeryBC");
 }
 
-function normalizeHexColor(value: string | undefined, fallback = "#c2185b"): string {
-    const color = (value || "").trim();
-    if (/^#[0-9a-f]{6}$/i.test(color)) return color.toLowerCase();
-    const shortMatch = /^#([0-9a-f]{3})$/i.exec(color);
-    if (shortMatch) {
-        const [r, g, b] = shortMatch[1].split("");
-        return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-    }
+function normalizeHex(value: string | undefined, fallback = "#c2185b"): string {
+    const c = (value ?? "").trim();
+    if (/^#[0-9a-f]{6}$/i.test(c)) return c.toLowerCase();
+    const m = /^#([0-9a-f]{3})$/i.exec(c);
+    if (m) { const [r,g,b] = m[1].split(""); return `#${r}${r}${g}${g}${b}${b}`; }
     return fallback;
-}
-
-function getSlotPosition(slot: number): { left: number; top: number } {
-    const col = slot % GRID_COLS;
-    const row = Math.floor(slot / GRID_COLS);
-    return {
-        left: CONTENT_LEFT + col * (CARD_W + GRID_GAP_X),
-        top: GRID_TOP + row * (CARD_H + GRID_GAP_Y),
-    };
 }
 
 // ─── In-game ─────────────────────────────────────────────────────────────────
@@ -78,7 +89,7 @@ function getSlotPosition(slot: number): { left: number; top: number } {
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
     const buttons = getButtons();
-    for (let i = 0; i < MAX_SLOTS; i++) {
+    for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
         if (!btn?.enabled || !btn.label) continue;
         DrawButton(BTN_X, BTN_START_Y + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
@@ -89,7 +100,7 @@ export function drawActionButtons(): void {
 export function handleActionButtonClick(): boolean {
     if (CurrentScreen !== "ChatRoom") return false;
     const buttons = getButtons();
-    for (let i = 0; i < MAX_SLOTS; i++) {
+    for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
         if (!btn?.enabled || !btn.label) continue;
         const y = BTN_START_Y + i * BTN_SIZE;
@@ -104,21 +115,20 @@ export function handleActionButtonClick(): boolean {
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
-// settingsButtons is only initialised in settingsLoad (called once on screen open)
-// so toggle/edit state persists across frames while the screen is open
 let settingsButtons: ActionButton[] = [];
+let settingsSlotCount = DEFAULT_SLOTS;
 
 function inputId(slot: number, field: "label" | "emote" | "color"): string {
     return `EmeryBtn_${field}_${slot}`;
 }
 
 function ensureInputs(): void {
-    for (let i = 0; i < MAX_SLOTS; i++) {
-        const btn = settingsButtons[i] ?? DEFAULT_BUTTONS[i];
+    for (let i = 0; i < ABSOLUTE_MAX; i++) {
+        const btn = settingsButtons[i] ?? { label: "", emote: "", color: "#c2185b", enabled: false };
         if (!document.getElementById(inputId(i, "label")))
             ElementCreateInput(inputId(i, "label"), "text", btn.label, "6");
         if (!document.getElementById(inputId(i, "color")))
-            ElementCreateInput(inputId(i, "color"), "color", normalizeHexColor(btn.color));
+            ElementCreateInput(inputId(i, "color"), "color", normalizeHex(btn.color));
         if (!document.getElementById(inputId(i, "emote")))
             ElementCreateInput(inputId(i, "emote"), "text", btn.emote, "120");
         styleInput(inputId(i, "label"), "short");
@@ -128,114 +138,154 @@ function ensureInputs(): void {
 }
 
 export function settingsLoad(): void {
-    const stored = getButtons();
-    settingsButtons = Array.from({ length: MAX_SLOTS }, (_, i) => ({ ...(stored[i] ?? DEFAULT_BUTTONS[i]) }));
+    const buttons = getButtons();
+    settingsSlotCount = getSlotCount();
+    settingsButtons = Array.from({ length: ABSOLUTE_MAX }, (_, i) => ({
+        ...(buttons[i] ?? { label: "", emote: "", color: "#c2185b", enabled: false }),
+    }));
 }
 
-function placeInput(id: string, left: number, y: number, width: number, height: number): void {
-    ElementPosition(id, left + width / 2, y + height / 2, width, height);
+function syncInputsFromButtons(): void {
+    for (let i = 0; i < ABSOLUTE_MAX; i++) {
+        (document.getElementById(inputId(i, "label")) as HTMLInputElement | null)?.
+            setAttribute("value", settingsButtons[i].label);
+        const lbl = document.getElementById(inputId(i, "label")) as HTMLInputElement | null;
+        const clr = document.getElementById(inputId(i, "color")) as HTMLInputElement | null;
+        const emt = document.getElementById(inputId(i, "emote")) as HTMLInputElement | null;
+        if (lbl) lbl.value = settingsButtons[i].label;
+        if (clr) clr.value = normalizeHex(settingsButtons[i].color);
+        if (emt) emt.value = settingsButtons[i].emote;
+    }
+}
+
+function collectFromInputs(): void {
+    for (let i = 0; i < settingsSlotCount; i++) {
+        settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
+        settingsButtons[i].color = normalizeHex(ElementValue(inputId(i, "color")));
+        settingsButtons[i].emote = ElementValue(inputId(i, "emote")).trim();
+    }
 }
 
 export function settingsRun(): void {
     ensureInputs();
-    const activeCount = settingsButtons.filter(btn => btn.enabled && btn.label.trim()).length;
+    const activeCount = settingsButtons.slice(0, settingsSlotCount).filter(b => b.enabled && b.label.trim()).length;
 
-    drawSettingsScaffold("Action Buttons", "Quick emote shortcuts for the chatroom sidebar.", [
-        { label: "ACTIVE", value: `${activeCount}/${MAX_SLOTS}`, tone: "accent" },
-        { label: "LAYOUT", value: "2-Column", tone: "gold" },
+    drawSettingsScaffold("Action Buttons", "Quick emote shortcuts shown in the chatroom sidebar.", [
+        { label: "ACTIVE", value: `${activeCount}/${settingsSlotCount}`, tone: "accent" },
+        { label: "SLOTS",  value: `${settingsSlotCount}/${ABSOLUTE_MAX}`,  tone: "gold"   },
     ]);
 
-    for (let i = 0; i < MAX_SLOTS; i++) {
-        const btn = settingsButtons[i] ?? DEFAULT_BUTTONS[i];
-        const { left, top } = getSlotPosition(i);
-        const previewColor = normalizeHexColor((document.getElementById(inputId(i, "color")) as HTMLInputElement | null)?.value, btn.color || "#c2185b");
-        const previewLabel = ((document.getElementById(inputId(i, "label")) as HTMLInputElement | null)?.value || btn.label || "EMPTY").slice(0, 6);
-        const previewEmote = (document.getElementById(inputId(i, "emote")) as HTMLInputElement | null)?.value || btn.emote || "Describe the emote text here";
+    // ── Column headers ──────────────────────────────────────────────────────
+    DrawRect(CONTENT_LEFT, HEADER_Y - 4, CONTENT_WIDTH, 1, UI.panelEdge);
+    DrawTextFit("On",    COL_TOG + 27, HEADER_Y,  54,    UI.textSoft);
+    DrawTextFit("Label", COL_LAB + 57, HEADER_Y,  100,   UI.textSoft);
+    DrawTextFit("Color", COL_COL + 22, HEADER_Y,  72,    UI.textSoft);
+    DrawTextFit("/me Emote Text  (sent as * Name text * in chat)",
+        COL_EMO + EMO_W / 2, HEADER_Y, EMO_W, UI.textSoft);
+    DrawRect(CONTENT_LEFT, HEADER_Y + 6, CONTENT_WIDTH, 1, UI.panelEdge);
 
-        drawCard(left, top, CARD_W, CARD_H, i % 2 === 0 ? "default" : "alt");
+    // ── Rows ────────────────────────────────────────────────────────────────
+    for (let i = 0; i < settingsSlotCount; i++) {
+        const btn = settingsButtons[i];
+        const y   = LIST_Y + i * ROW_H;
 
-        drawPill(left + 18, top + 16, 66, 18, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
-        drawChromeButton(left + CARD_W - 126, top + 12, 108, 28, btn.enabled ? "Enabled" : "Disabled", btn.enabled ? "accent" : "muted");
+        DrawRect(CONTENT_LEFT, y, CONTENT_WIDTH, ROW_H - 2,
+            i % 2 === 0 ? UI.card : UI.cardAlt);
+        DrawEmptyRect(CONTENT_LEFT, y, CONTENT_WIDTH, ROW_H - 2, UI.panelEdge, 1);
 
-        DrawRect(left + 18, top + 46, 128, 58, UI.cardMuted);
-        DrawEmptyRect(left + 18, top + 46, 128, 58, UI.panelEdge, 1);
-        DrawButton(left + 28, top + 58, 108, 34, previewLabel || "EMPTY", previewColor, "", previewEmote);
-        DrawTextFit("Quickbar preview", left + 82, top + 114, 120, UI.textSoft);
+        // Toggle
+        DrawButton(COL_TOG + 5, y + 9, 44, ROW_H - 18,
+            btn.enabled ? "✓" : "",
+            btn.enabled ? UI.accentDeep : UI.buttonMuted,
+            "", btn.enabled ? "Click to disable" : "Click to enable");
 
-        DrawTextFit("Label", left + 232, top + 34, 120, UI.textSoft);
-        placeInput(inputId(i, "label"), left + 166, top + 48, 132, 34);
+        // Label input — centered in cell
+        ElementPosition(inputId(i, "label"),
+            COL_LAB + 57, y + ROW_H / 2, 110, 36);
 
-        DrawTextFit("Color", left + 380, top + 34, 100, UI.textSoft);
-        placeInput(inputId(i, "color"), left + 322, top + 48, 78, 34);
-        DrawTextFit(previewColor.toUpperCase(), left + 480, top + 66, 148, UI.textMuted);
-        DrawTextFit("tap swatch to pick", left + 480, top + 90, 148, UI.textSoft);
+        // Color picker
+        ElementPosition(inputId(i, "color"),
+            COL_COL + 22, y + ROW_H / 2, 42, 36);
 
-        DrawTextFit("Emote Text", left + CARD_W / 2, top + 118, 180, UI.textSoft);
-        placeInput(inputId(i, "emote"), left + 18, top + 128, CARD_W - 36, 36);
-        DrawTextFit(`/me ${previewEmote}`, left + CARD_W / 2, top + 171, CARD_W - 44, UI.textSoft);
+        // "/me" prefix label — clearly to the left of the emote input
+        DrawTextFit("/me", COL_ME + 18, y + ROW_H / 2, 36, UI.accent);
+
+        // Emote input
+        ElementPosition(inputId(i, "emote"),
+            COL_EMO + EMO_W / 2, y + ROW_H / 2, EMO_W, 36);
+
+        // Delete button
+        DrawButton(COL_DEL + 3, y + 10, 66, ROW_H - 20,
+            "✕ Del", UI.dangerDeep, "", "Remove this slot");
     }
 
-    drawCard(CONTENT_LEFT, FOOTER_TOP, CONTENT_WIDTH, 118, "muted");
-    DrawText("Layout Actions", CONTENT_LEFT + 112, FOOTER_TOP + 24, UI.text);
-    DrawTextFit("Use these controls to save the current builder, auto-toggle filled slots, or reset everything cleanly.", CONTENT_LEFT + 436, FOOTER_TOP + 24, 660, UI.textSoft);
-    drawChromeButton(CONTENT_LEFT + 18, FOOTER_TOP + 50, 268, 42, "Save Layout", "success");
-    drawChromeButton(CONTENT_LEFT + 304, FOOTER_TOP + 50, 268, 42, "Enable Filled Slots", "accent");
-    drawChromeButton(CONTENT_LEFT + 590, FOOTER_TOP + 50, 268, 42, "Reset Defaults", "gold");
-    drawChromeButton(CONTENT_LEFT + 876, FOOTER_TOP + 50, 328, 42, "Disable Empty Slots", "muted");
+    // ── Footer ───────────────────────────────────────────────────────────────
+    const footerY = LIST_Y + settingsSlotCount * ROW_H + 14;
+    DrawRect(CONTENT_LEFT, footerY - 6, CONTENT_WIDTH, 1, UI.panelEdge);
 
-    DrawTextFit("Action text becomes a /me emote in chat, and the picker updates the quickbar color immediately.", CONTENT_LEFT + CONTENT_WIDTH / 2, FOOTER_TOP + 106, CONTENT_WIDTH - 44, UI.textMuted);
+    const canAdd = settingsSlotCount < ABSOLUTE_MAX;
+    drawChromeButton(CONTENT_LEFT,       footerY, 228, 44,
+        `＋ Add Slot  (${settingsSlotCount}/${ABSOLUTE_MAX})`,
+        canAdd ? "success" : "muted", !canAdd);
+    drawChromeButton(CONTENT_LEFT + 244, footerY, 200, 44, "Save Layout",     "accent");
+    drawChromeButton(CONTENT_LEFT + 460, footerY, 200, 44, "Reset Defaults",  "gold");
+
+    DrawTextFit(
+        "Buttons appear in the chatroom sidebar. Click them to send the /me emote to the room.",
+        CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
 }
 
 export function settingsClick(): void {
-    for (let i = 0; i < MAX_SLOTS; i++) {
-        const { left, top } = getSlotPosition(i);
-        if (mouseInRect(left + CARD_W - 126, top + 12, 108, 28)) {
+    // ── Toggle + Delete per row ──────────────────────────────────────────────
+    for (let i = 0; i < settingsSlotCount; i++) {
+        const y = LIST_Y + i * ROW_H;
+
+        if (mouseInRect(COL_TOG + 5, y + 9, 44, ROW_H - 18)) {
             settingsButtons[i].enabled = !settingsButtons[i].enabled;
+            return;
+        }
+
+        if (mouseInRect(COL_DEL + 3, y + 10, 66, ROW_H - 20)) {
+            collectFromInputs();
+            settingsButtons.splice(i, 1);
+            settingsButtons.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+            settingsSlotCount = Math.max(1, settingsSlotCount - 1);
+            syncInputsFromButtons();
             return;
         }
     }
 
-    if (mouseInRect(CONTENT_LEFT + 18, FOOTER_TOP + 48, 250, 42)) {
-        for (let i = 0; i < MAX_SLOTS; i++) {
-            settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
-            settingsButtons[i].color = normalizeHexColor(ElementValue(inputId(i, "color")));
-            settingsButtons[i].emote = ElementValue(inputId(i, "emote")).trim();
-        }
-        saveButtons(settingsButtons);
+    // ── Footer buttons ───────────────────────────────────────────────────────
+    const footerY = LIST_Y + settingsSlotCount * ROW_H + 14;
+
+    if (canAdd() && mouseInRect(CONTENT_LEFT, footerY, 228, 44)) {
+        collectFromInputs();
+        settingsSlotCount = Math.min(ABSOLUTE_MAX, settingsSlotCount + 1);
         return;
     }
 
-    if (mouseInRect(CONTENT_LEFT + 286, FOOTER_TOP + 48, 250, 42)) {
-        for (let i = 0; i < MAX_SLOTS; i++) {
-            const label = ElementValue(inputId(i, "label")).trim();
-            const emote = ElementValue(inputId(i, "emote")).trim();
-            settingsButtons[i].enabled = !!(label || emote);
-        }
+    if (mouseInRect(CONTENT_LEFT + 244, footerY, 200, 44)) {
+        collectFromInputs();
+        saveData([...settingsButtons], settingsSlotCount);
         return;
     }
 
-    if (mouseInRect(CONTENT_LEFT + 554, FOOTER_TOP + 48, 250, 42)) {
-        settingsButtons = DEFAULT_BUTTONS.map(b => ({ ...b }));
-        for (let i = 0; i < MAX_SLOTS; i++) {
-            (document.getElementById(inputId(i, "label")) as HTMLInputElement).value = settingsButtons[i].label;
-            (document.getElementById(inputId(i, "color")) as HTMLInputElement).value = normalizeHexColor(settingsButtons[i].color);
-            (document.getElementById(inputId(i, "emote")) as HTMLInputElement).value = settingsButtons[i].emote;
-        }
-        saveButtons(settingsButtons);
-        return;
-    }
-
-    if (mouseInRect(CONTENT_LEFT + 822, FOOTER_TOP + 48, 330, 42)) {
-        for (let i = 0; i < MAX_SLOTS; i++) {
-            const label = ElementValue(inputId(i, "label")).trim();
-            const emote = ElementValue(inputId(i, "emote")).trim();
-            settingsButtons[i].enabled = !!(label && emote);
-        }
+    if (mouseInRect(CONTENT_LEFT + 460, footerY, 200, 44)) {
+        settingsButtons = Array.from({ length: ABSOLUTE_MAX }, (_, i) => ({
+            ...(DEFAULT_BUTTONS[i] ?? { label: "", emote: "", color: "#c2185b", enabled: false }),
+        }));
+        settingsSlotCount = DEFAULT_SLOTS;
+        syncInputsFromButtons();
+        saveData([...settingsButtons], settingsSlotCount);
     }
 }
 
+function canAdd(): boolean {
+    return settingsSlotCount < ABSOLUTE_MAX;
+}
+
 export function settingsExit(): void {
-    for (let i = 0; i < MAX_SLOTS; i++) {
+    for (let i = 0; i < ABSOLUTE_MAX; i++) {
         ElementRemove(inputId(i, "label"));
         ElementRemove(inputId(i, "color"));
         ElementRemove(inputId(i, "emote"));
