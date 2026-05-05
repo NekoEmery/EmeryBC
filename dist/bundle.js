@@ -907,7 +907,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.24";
+    const MOD_VERSION = "0.1.25";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -924,6 +924,12 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.25",
+            changes: [
+                "Fixed /ebc release — now calls ChatRoomCharacterUpdate so the restraint removal is visible to all room members.",
+            ],
+        },
         {
             version: "0.1.24",
             changes: [
@@ -1139,7 +1145,8 @@
         for (const group of restraintGroups) {
             InventoryRemove(Player, group, false);
         }
-        CharacterRefresh(Player, true);
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
         ServerPlayerAppearanceSync();
         appendLocalLogLine(`[EmeryBC] Released ${restraintGroups.length} restraint(s).`, UI.gold);
     }
