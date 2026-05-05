@@ -251,10 +251,10 @@ function drawPresenceMarker(args: unknown[]): void {
     if (!character || left == null || top == null || !hasEmeryBC(character)) return;
 
     const presence = getSharedPresence(character);
-    const width = Math.max(30, 38 * zoom);
-    const height = Math.max(14, 18 * zoom);
+    const width = Math.max(20, 22 * zoom);
+    const height = Math.max(9, 11 * zoom);
     const x = left + 228 * zoom;
-    const y = top - 34 * zoom;
+    const y = top - 14 * zoom;
     const badgeLeft = x - width / 2;
     const badgeTop = y - height / 2;
 

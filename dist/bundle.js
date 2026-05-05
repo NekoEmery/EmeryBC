@@ -239,7 +239,7 @@
             const y = BTN_START_Y + i * BTN_SIZE;
             if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
                 MouseY >= y && MouseY <= y + BTN_SIZE) {
-                ServerSend("ChatRoomChat", { Content: `(${Player.Name} ${btn.emote.trim()})`, Type: "Chat" });
+                ServerSend("ChatRoomChat", { Content: btn.emote.trim(), Type: "Emote" });
                 return true;
             }
         }
@@ -1118,10 +1118,10 @@
         if (!character || left == null || top == null || !hasEmeryBC(character))
             return;
         getSharedPresence(character);
-        const width = Math.max(30, 38 * zoom);
-        const height = Math.max(14, 18 * zoom);
+        const width = Math.max(20, 22 * zoom);
+        const height = Math.max(9, 11 * zoom);
         const x = left + 228 * zoom;
-        const y = top - 34 * zoom;
+        const y = top - 14 * zoom;
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
         DrawRect(badgeLeft + 1, badgeTop + 1, width, height, "rgba(0, 0, 0, 0.28)");

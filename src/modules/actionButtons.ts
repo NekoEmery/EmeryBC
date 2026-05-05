@@ -106,7 +106,7 @@ export function handleActionButtonClick(): boolean {
         const y = BTN_START_Y + i * BTN_SIZE;
         if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
             MouseY >= y    && MouseY <= y + BTN_SIZE) {
-            ServerSend("ChatRoomChat", { Content: `(${Player.Name} ${btn.emote.trim()})`, Type: "Chat" });
+            ServerSend("ChatRoomChat", { Content: btn.emote.trim(), Type: "Emote" });
             return true;
         }
     }
