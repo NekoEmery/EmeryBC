@@ -1,4 +1,15 @@
 // Action buttons drawn below BCAR's upperleft buttons (EAR/TAIL/WINGS end at y=270)
+import {
+    PANEL_W,
+    UI,
+    drawCard,
+    drawChromeButton,
+    drawInsetLabel,
+    drawPill,
+    drawSettingsScaffold,
+    mouseInRect,
+    styleInput,
+} from "./ui";
 
 export interface ActionButton {
     label:   string;
@@ -20,9 +31,6 @@ const BTN_X       = 0;
 const BTN_START_Y = 270;
 const BTN_SIZE    = 45;
 const MAX_SLOTS   = 6;
-
-// Left-panel width — BC shows character preview on the right half
-const PANEL_W = 650;
 
 function getButtons(): ActionButton[] {
     const stored = (Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined)?.actionButtons;
@@ -84,70 +92,68 @@ function ensureInputs(): void {
             ElementCreateInput(inputId(i, "color"), "text", btn.color || "#c2185b", "7");
         if (!document.getElementById(inputId(i, "emote")))
             ElementCreateInput(inputId(i, "emote"), "text", btn.emote, "120");
+        styleInput(inputId(i, "label"), "short");
+        styleInput(inputId(i, "color"), "short");
+        styleInput(inputId(i, "emote"), "long");
     }
 }
 
 export function settingsLoad(): void {
-    settingsButtons = getButtons().map(b => ({ ...b }));
+    const stored = getButtons();
+    settingsButtons = Array.from({ length: MAX_SLOTS }, (_, i) => ({ ...(stored[i] ?? DEFAULT_BUTTONS[i]) }));
 }
 
 const SLOT_H      = 105;
-const SLOTS_Y     = 145;
+const SLOTS_Y     = 208;
 
 export function settingsRun(): void {
-    // Dark panel on left only
-    DrawRect(0, 60, PANEL_W, 940, "#130920");
-
-    DrawText("Action Buttons", PANEL_W / 2, 95, "White");
-
-    // Column headers
-    DrawRect(0, 108, PANEL_W, 1, "#3a2a5a");
-    DrawText("On",     55,  128, "#9966cc");
-    DrawText("Label",  140, 128, "#9966cc");
-    DrawText("Color",  270, 128, "#9966cc");
-    DrawText("/me action text", 460, 128, "#9966cc");
-    DrawRect(0, 138, PANEL_W, 1, "#3a2a5a");
-
     ensureInputs();
+    const activeCount = settingsButtons.filter(btn => btn.enabled && btn.label.trim()).length;
+
+    drawSettingsScaffold("Action Buttons", "Quick emote shortcuts for the chatroom sidebar.", [
+        { label: "ACTIVE", value: `${activeCount}/${MAX_SLOTS}`, tone: "accent" },
+        { label: "LAYOUT", value: "Quickbar", tone: "gold" },
+    ]);
 
     for (let i = 0; i < MAX_SLOTS; i++) {
         const btn = settingsButtons[i] ?? DEFAULT_BUTTONS[i];
         const y   = SLOTS_Y + i * SLOT_H;
+        const previewColor = (document.getElementById(inputId(i, "color")) as HTMLInputElement | null)?.value || btn.color || "#c2185b";
+        const previewLabel = ((document.getElementById(inputId(i, "label")) as HTMLInputElement | null)?.value || btn.label || "EMPTY").slice(0, 6);
 
-        // Row background — alternate shade
-        DrawRect(0, y, PANEL_W, SLOT_H - 4, i % 2 === 0 ? "#1a0d30" : "#160a28");
+        drawCard(24, y, PANEL_W - 48, SLOT_H - 10, i % 2 === 0 ? "default" : "alt");
 
-        // Toggle
-        DrawButton(20, y + 30, 42, 42,
-            btn.enabled ? "✓" : "",
-            btn.enabled ? "#7b1fa2" : "#33204a");
+        DrawRect(38, y + 14, 74, 64, UI.cardMuted);
+        DrawEmptyRect(38, y + 14, 74, 64, UI.panelEdge, 1);
+        drawPill(48, y + 22, 54, 18, `Slot ${i + 1}`, UI.accentSoft, UI.accent);
+        DrawRect(48, y + 46, 54, 24, previewColor);
+        DrawEmptyRect(48, y + 46, 54, 24, UI.swatchBorder, 1);
+        DrawTextFit(previewLabel || "EMPTY", 75, y + 59, 48, "#fff7fa");
 
-        // Label input
-        ElementPosition(inputId(i, "label"), 140, y + 51, 105, 38);
+        drawInsetLabel("Label", 168, y + 26);
+        drawInsetLabel("Color", 294, y + 26);
+        drawInsetLabel("Action", 474, y + 26);
 
-        // Color input + live swatch
-        ElementPosition(inputId(i, "color"), 272, y + 51, 108, 38);
-        const liveColor = (document.getElementById(inputId(i, "color")) as HTMLInputElement | null)?.value ?? btn.color;
-        DrawRect(390, y + 30, 36, 42, liveColor);
-        DrawEmptyRect(390, y + 30, 36, 42, "#ffffff", 1);
+        ElementPosition(inputId(i, "label"), 168, y + 56, 100, 38);
+        ElementPosition(inputId(i, "color"), 294, y + 56, 110, 38);
+        ElementPosition(inputId(i, "emote"), 474, y + 56, 222, 38);
 
-        // Emote input
-        ElementPosition(inputId(i, "emote"), 500, y + 51, 290, 38);
+        drawChromeButton(532, y + 20, 78, 30, btn.enabled ? "On" : "Off", btn.enabled ? "accent" : "muted");
     }
 
     const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
-    DrawButton(30,  btnY, 200, 52, "Save",          "#1a4a1a");
-    DrawButton(250, btnY, 240, 52, "Reset defaults", "#4a2a0a");
+    drawChromeButton(34, btnY, 220, 50, "Save Layout", "success");
+    drawChromeButton(272, btnY, 220, 50, "Reset Defaults", "gold");
 
-    DrawRect(0, btnY + 66, PANEL_W, 1, "#3a2a5a");
-    DrawText("Action text is sent as /me — e.g. \"waves\" → * Name waves *",
-        PANEL_W / 2, btnY + 82, "#554466");
+    drawCard(24, btnY + 70, PANEL_W - 48, 62, "muted");
+    DrawText("Action text becomes a /me emote in chat.", PANEL_W / 2, btnY + 92, UI.textMuted);
+    DrawText("Example: \"waves\" sends * Name waves *", PANEL_W / 2, btnY + 116, UI.textSoft);
 }
 
 export function settingsClick(): void {
     for (let i = 0; i < MAX_SLOTS; i++) {
         const y = SLOTS_Y + i * SLOT_H;
-        if (MouseX >= 20 && MouseX <= 62 && MouseY >= y + 30 && MouseY <= y + 72) {
+        if (mouseInRect(532, y + 20, 78, 30)) {
             settingsButtons[i].enabled = !settingsButtons[i].enabled;
             return;
         }
@@ -156,7 +162,7 @@ export function settingsClick(): void {
     const btnY = SLOTS_Y + MAX_SLOTS * SLOT_H + 10;
 
     // Save
-    if (MouseX >= 30 && MouseX <= 230 && MouseY >= btnY && MouseY <= btnY + 52) {
+    if (MouseX >= 34 && MouseX <= 254 && MouseY >= btnY && MouseY <= btnY + 50) {
         for (let i = 0; i < MAX_SLOTS; i++) {
             settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
             settingsButtons[i].color = ElementValue(inputId(i, "color")).trim() || "#c2185b";
@@ -167,7 +173,7 @@ export function settingsClick(): void {
     }
 
     // Reset
-    if (MouseX >= 250 && MouseX <= 490 && MouseY >= btnY && MouseY <= btnY + 52) {
+    if (MouseX >= 272 && MouseX <= 492 && MouseY >= btnY && MouseY <= btnY + 50) {
         settingsButtons = DEFAULT_BUTTONS.map(b => ({ ...b }));
         for (let i = 0; i < MAX_SLOTS; i++) {
             (document.getElementById(inputId(i, "label")) as HTMLInputElement).value = settingsButtons[i].label;
