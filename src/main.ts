@@ -16,7 +16,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.7";
+const MOD_VERSION = "0.1.8";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -39,6 +39,14 @@ const TAB_BTN_W = 132;
 const TAB_BTN_GAP = 14;
 const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.8",
+        changes: [
+            "Fixed EBC badge visibility — now uses OnlineSharedSettings so all room members can see it.",
+            "Shrunk outfit notice messages in chat to 11px so they are less intrusive.",
+            "Bumped version number that was missed in previous release.",
+        ],
+    },
     {
         version: "0.1.7",
         changes: [
@@ -168,8 +176,16 @@ interface EmeryAddonSettings {
 
 function getSharedPresence(character: Character | null | undefined): EmeryPresence | null {
     if (!character) return null;
-    // ExtensionSettings are included in ChatRoomSync / CharacterUpdate packets,
-    // so they're visible to everyone in the room for every character.
+
+    // OnlineSharedSettings are broadcast to all room members via ChatRoomSync
+    // and CharacterUpdate — this is the reliable cross-client path.
+    const shared = character.OnlineSharedSettings?.[MOD_NAME];
+    if (shared && typeof shared === "object") {
+        const presence = (shared as EmeryAddonSettings).presence;
+        if (presence?.marker === "EBC") return presence;
+    }
+
+    // Fallback: ExtensionSettings (visible if they were synced before room join)
     const addon = getAddonSettings(character, false)?.presence;
     return addon?.marker === "EBC" ? addon : null;
 }
@@ -191,17 +207,24 @@ function getAddonSettings(character: Character | null | undefined, create = fals
 }
 
 function syncPresenceMarker(): void {
+    const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC" };
+
+    // Write to ExtensionSettings for local persistence
     const settings = getAddonSettings(Player, true);
-    if (!settings) return;
-
-    const current = settings.presence;
-    if (current?.version === MOD_VERSION && current.marker === "EBC") return;
-
-    settings.presence = { version: MOD_VERSION, marker: "EBC" };
-    // ServerPlayerExtensionSettingsSync pushes ExtensionSettings to the server,
-    // which are then included in CharacterUpdate / ChatRoomSync packets visible
-    // to all players in the room.
+    if (settings) settings.presence = presence;
     ServerPlayerExtensionSettingsSync(MOD_NAME);
+
+    // Write to OnlineSharedSettings — this IS broadcast to all room members
+    // via ChatRoomSync and CharacterUpdate packets, making the badge visible
+    // to every other EmeryBC user in the room.
+    const shared = (Player.OnlineSharedSettings ??= {});
+    const current = shared[MOD_NAME];
+    const alreadySynced = current && typeof current === "object" &&
+        (current as EmeryAddonSettings).presence?.version === MOD_VERSION;
+    if (!alreadySynced) {
+        shared[MOD_NAME] = { presence };
+        ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
+    }
 }
 
 function hasEmeryBC(character: Character | null | undefined): boolean {
