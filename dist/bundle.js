@@ -509,6 +509,11 @@
             catch ( /* silent */_a) { /* silent */ }
             return result;
         });
+        // Also show immediately if already in a room when the addon loads
+        try {
+            showLoadNotice();
+        }
+        catch ( /* silent */_a) { /* silent */ }
         modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
             try {
                 if (handleActionButtonClick())

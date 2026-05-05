@@ -130,6 +130,9 @@ function init(): void {
         return result;
     });
 
+    // Also show immediately if already in a room when the addon loads
+    try { showLoadNotice(); } catch { /* silent */ }
+
     modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
         try { if (handleActionButtonClick()) return; } catch { /* silent */ }
         return next(args);
