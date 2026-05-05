@@ -166,9 +166,12 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // In-game sidebar
-    const BTN_X = 0;
-    const BTN_START_Y = 270;
+    const BTN_X = 1;
     const BTN_SIZE = 45;
+    const TOGGLE_SIZE = 28;
+    const TOGGLE_Y = 270;
+    const BTN_START_Y = TOGGLE_Y + TOGGLE_SIZE + 4;
+    let panelOpen = false;
     // Settings list layout — one row per slot
     const ROW_H$1 = 56;
     const LIST_Y$1 = 226;
@@ -220,6 +223,10 @@
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
+        // Small toggle chip — always visible
+        DrawButton(BTN_X, TOGGLE_Y, TOGGLE_SIZE, TOGGLE_SIZE, panelOpen ? "✕" : "≡", panelOpen ? UI.accentDeep : UI.buttonMuted, "", panelOpen ? "Hide action buttons" : "Show action buttons");
+        if (!panelOpen)
+            return;
         const buttons = getButtons();
         for (let i = 0; i < buttons.length; i++) {
             const btn = buttons[i];
@@ -230,6 +237,14 @@
     }
     function handleActionButtonClick() {
         if (CurrentScreen !== "ChatRoom")
+            return false;
+        // Toggle chip
+        if (MouseX >= BTN_X && MouseX <= BTN_X + TOGGLE_SIZE &&
+            MouseY >= TOGGLE_Y && MouseY <= TOGGLE_Y + TOGGLE_SIZE) {
+            panelOpen = !panelOpen;
+            return true;
+        }
+        if (!panelOpen)
             return false;
         const buttons = getButtons();
         for (let i = 0; i < buttons.length; i++) {
@@ -907,7 +922,7 @@
     }
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.26";
+    const MOD_VERSION = "0.1.27";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -924,6 +939,13 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.27",
+            changes: [
+                "Action buttons now collapse behind a small toggle chip (≡) to avoid overlapping map build UI.",
+                "Click the chip to expand/collapse the button panel at any time.",
+            ],
+        },
         {
             version: "0.1.26",
             changes: [

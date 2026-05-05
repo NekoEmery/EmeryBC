@@ -31,9 +31,13 @@ const ABSOLUTE_MAX  = 12;
 const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
 
 // In-game sidebar
-const BTN_X       = 0;
-const BTN_START_Y = 270;
-const BTN_SIZE    = 45;
+const BTN_X         = 1;
+const BTN_SIZE      = 45;
+const TOGGLE_SIZE   = 28;
+const TOGGLE_Y      = 270;
+const BTN_START_Y   = TOGGLE_Y + TOGGLE_SIZE + 4;
+
+let panelOpen = false;
 
 // Settings list layout — one row per slot
 const ROW_H    = 56;
@@ -88,6 +92,15 @@ function normalizeHex(value: string | undefined, fallback = "#c2185b"): string {
 
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
+
+    // Small toggle chip — always visible
+    DrawButton(BTN_X, TOGGLE_Y, TOGGLE_SIZE, TOGGLE_SIZE,
+        panelOpen ? "✕" : "≡",
+        panelOpen ? UI.accentDeep : UI.buttonMuted,
+        "", panelOpen ? "Hide action buttons" : "Show action buttons");
+
+    if (!panelOpen) return;
+
     const buttons = getButtons();
     for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
@@ -99,6 +112,16 @@ export function drawActionButtons(): void {
 
 export function handleActionButtonClick(): boolean {
     if (CurrentScreen !== "ChatRoom") return false;
+
+    // Toggle chip
+    if (MouseX >= BTN_X && MouseX <= BTN_X + TOGGLE_SIZE &&
+        MouseY >= TOGGLE_Y && MouseY <= TOGGLE_Y + TOGGLE_SIZE) {
+        panelOpen = !panelOpen;
+        return true;
+    }
+
+    if (!panelOpen) return false;
+
     const buttons = getButtons();
     for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
