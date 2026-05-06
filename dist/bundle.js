@@ -171,8 +171,8 @@
             localNotice$2("Your arms are restrained — can't cheer right now!");
             return false;
         }
-        // Yoked (arms up) <-> neutral, 4 fast cycles at 400ms each = ~3s cheer bounce
-        runSequence("Yoked|_|Yoked|_|Yoked|_|Yoked|_", 400);
+        // Yoked (arms out) -> Suspension (arms above head) -> repeat -> neutral
+        runSequence("Yoked|Suspension|Yoked|Suspension|Yoked|Suspension|_", 400);
         return true;
     }
     const LABEL_ANIMATIONS = new Map([
@@ -1921,7 +1921,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.44";
+    const MOD_VERSION = "0.1.45";
     let noticeShown = false;
     const CHANGELOG = [
         {
