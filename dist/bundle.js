@@ -15,7 +15,7 @@
         { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true, style: "action" },
         { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true, style: "action" },
         { label: "BOW", emote: "bows politely.", color: "#c2185b", enabled: true, style: "action" },
-        { label: "CHEER", emote: "OverTheHead|_|OverTheHead|_", color: "#c2185b", enabled: true, style: "seq" },
+        { label: "CHEER", emote: "OverTheHead|_|OverTheHead|_|OverTheHead|_", color: "#c2185b", enabled: true, style: "seq" },
         { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
     ];
     const ABSOLUTE_MAX = 12;
@@ -110,8 +110,8 @@
                 }
                 const step = steps[idx++];
                 if (step === "_") {
-                    // Clear all active poses
-                    Player.ActivePose = [];
+                    // Restore to pre-sequence poses so BC snaps back to neutral properly
+                    Player.ActivePose = [...originalPoses];
                     syncPoseToRoom();
                 }
                 else if (step.startsWith("!")) {
@@ -1332,9 +1332,11 @@
             if (rect.width === 0 || rect.height === 0)
                 return false;
             const topOffset = rect.height * 0.15;
-            this.rootEl.style.top = `${rect.top + topOffset}px`;
+            const top = rect.top + topOffset;
+            this.rootEl.style.top = `${top}px`;
             this.rootEl.style.right = `${document.documentElement.clientWidth - rect.right}px`;
-            this.rootEl.style.height = `${rect.height - topOffset}px`;
+            // Extend to the bottom of the viewport so the panel isn't cut short
+            this.rootEl.style.height = `${document.documentElement.clientHeight - top}px`;
             this.positioned = true;
             return true;
         }
@@ -1603,11 +1605,15 @@
             slotList.id = "ebc-slot-list";
             body.appendChild(slotList);
             const renderSlots = () => {
-                var _a, _b;
+                var _a;
+                // Always ensure btns has a real object for every slot — prevents "undefined" crashes
+                while (btns.length < slotCount) {
+                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                }
                 while (slotList.firstChild)
                     slotList.removeChild(slotList.firstChild);
                 for (let i = 0; i < slotCount; i++) {
-                    const btn = (_a = btns[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" };
+                    const btn = btns[i];
                     const row = document.createElement("div");
                     row.className = "ebc-slot-row";
                     // Top line: toggle | label input | color picker | del
@@ -1640,7 +1646,7 @@
                     // Bottom line: style toggle (hidden for seq) | emote/seq input
                     const botLine = document.createElement("div");
                     botLine.className = "ebc-slot-bottom";
-                    const currentStyle = (_b = btn.style) !== null && _b !== void 0 ? _b : "action";
+                    const currentStyle = (_a = btn.style) !== null && _a !== void 0 ? _a : "action";
                     const isSeq = currentStyle === "seq";
                     const styleBtn = document.createElement("button");
                     styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");

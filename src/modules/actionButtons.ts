@@ -15,12 +15,12 @@ export interface ActionButton {
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
-    { label: "NOD",   emote: "nods.",                           color: "#c2185b", enabled: true,  style: "action" },
-    { label: "SHAKE", emote: "shakes their head.",               color: "#c2185b", enabled: true,  style: "action" },
-    { label: "WAVE",  emote: "waves.",                           color: "#c2185b", enabled: true,  style: "action" },
-    { label: "BOW",   emote: "bows politely.",                   color: "#c2185b", enabled: true,  style: "action" },
-    { label: "CHEER", emote: "OverTheHead|_|OverTheHead|_",     color: "#c2185b", enabled: true,  style: "seq"    },
-    { label: "",      emote: "",                                 color: "#c2185b", enabled: false, style: "action" },
+    { label: "NOD",   emote: "nods.",                                   color: "#c2185b", enabled: true,  style: "action" },
+    { label: "SHAKE", emote: "shakes their head.",                       color: "#c2185b", enabled: true,  style: "action" },
+    { label: "WAVE",  emote: "waves.",                                   color: "#c2185b", enabled: true,  style: "action" },
+    { label: "BOW",   emote: "bows politely.",                           color: "#c2185b", enabled: true,  style: "action" },
+    { label: "CHEER", emote: "OverTheHead|_|OverTheHead|_|OverTheHead|_", color: "#c2185b", enabled: true,  style: "seq"    },
+    { label: "",      emote: "",                                         color: "#c2185b", enabled: false, style: "action" },
 ];
 
 export const ABSOLUTE_MAX  = 12;
@@ -116,8 +116,8 @@ export function runSequence(sequence: string): void {
             const step = steps[idx++];
 
             if (step === "_") {
-                // Clear all active poses
-                Player.ActivePose = [];
+                // Restore to pre-sequence poses so BC snaps back to neutral properly
+                Player.ActivePose = [...originalPoses];
                 syncPoseToRoom();
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");

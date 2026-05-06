@@ -774,9 +774,11 @@ export class EBCDrawer {
         if (rect.width === 0 || rect.height === 0) return false;
 
         const topOffset = rect.height * 0.15;
-        this.rootEl.style.top    = `${rect.top + topOffset}px`;
+        const top = rect.top + topOffset;
+        this.rootEl.style.top    = `${top}px`;
         this.rootEl.style.right  = `${document.documentElement.clientWidth - rect.right}px`;
-        this.rootEl.style.height = `${rect.height - topOffset}px`;
+        // Extend to the bottom of the viewport so the panel isn't cut short
+        this.rootEl.style.height = `${document.documentElement.clientHeight - top}px`;
         this.positioned = true;
         return true;
     }
@@ -1078,10 +1080,14 @@ export class EBCDrawer {
         body.appendChild(slotList);
 
         const renderSlots = (): void => {
+            // Always ensure btns has a real object for every slot — prevents "undefined" crashes
+            while (btns.length < slotCount) {
+                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+            }
             while (slotList.firstChild) slotList.removeChild(slotList.firstChild);
 
             for (let i = 0; i < slotCount; i++) {
-                const btn = btns[i] ?? { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" as const };
+                const btn = btns[i];
 
                 const row = document.createElement("div");
                 row.className = "ebc-slot-row";
