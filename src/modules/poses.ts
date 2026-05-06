@@ -7,9 +7,10 @@ import { getDisplayName } from "./actionButtons";
 export interface PoseCombo {
     id: string;
     name: string;
-    poses: string[];
-    command?: string;      // optional chat command (without /) to trigger this combo
-    announceText?: string; // optional action emote shown to the room when applied
+    poses: string[];         // ordered — applied step by step in this exact order
+    stepDelayMs?: number;    // ms between each step (default: 420)
+    command?: string;        // optional chat command (without /) to trigger this combo
+    announceText?: string;   // optional action emote shown to the room when applied
 }
 
 // Well-known BC pose names grouped by type.
@@ -53,32 +54,11 @@ export function applyPoses(poses: string[]): void {
     } catch { /* ignore */ }
 }
 
-// Known-pose order lookup — body poses sort before arm poses, unknowns go last.
-const POSE_ORDER: Record<string, number> = (() => {
-    const map: Record<string, number> = {};
-    let i = 0;
-    for (const group of KNOWN_POSES) {
-        for (const p of group.poses) {
-            if (p.key) map[p.key] = i++;
-        }
-    }
-    return map;
-})();
-
-// Apply poses one-by-one in order with a delay between each step so it
-// looks like the character is naturally moving into position.
-// Always sorts body poses before arm poses so the animation flows naturally.
-// e.g. [BackCuffs, Kneel] → applies [Kneel] first, then [Kneel, BackCuffs].
+// Apply poses one-by-one in the given order with a delay between each step.
+// Respects the exact order provided — the user controls sequencing via the editor.
+// e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
 export function applyPosesSequential(poses: string[], stepDelayMs = 420): void {
-    const steps = poses
-        .filter(Boolean)
-        .slice()
-        .sort((a, b) => {
-            const oa = POSE_ORDER[a] ?? 999;
-            const ob = POSE_ORDER[b] ?? 999;
-            return oa - ob;
-        });
-
+    const steps = poses.filter(Boolean);
     if (steps.length <= 1) {
         applyPoses(steps);
         return;
@@ -119,11 +99,13 @@ export function createCombo(
     poses: string[],
     command = "",
     announceText = "",
+    stepDelayMs = 420,
 ): PoseCombo {
     const combo: PoseCombo = {
         id: uid(),
         name: name.trim() || "Combo",
         poses: poses.filter(Boolean),
+        stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
         command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
         announceText: announceText.trim() || undefined,
     };
@@ -137,12 +119,14 @@ export function updateCombo(
     poses: string[],
     command = "",
     announceText = "",
+    stepDelayMs = 420,
 ): void {
     const list = load();
     const combo = list.find(c => c.id === id);
     if (!combo) return;
     combo.name = name.trim() || combo.name;
     combo.poses = poses.filter(Boolean);
+    combo.stepDelayMs = Math.max(50, Math.min(3000, stepDelayMs));
     combo.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
     combo.announceText = announceText.trim() || undefined;
     saveCombos(list);
@@ -161,9 +145,10 @@ export function handlePoseComboCommand(inputValue: string): boolean {
     const combo = load().find(c => c.command && c.command.toLowerCase() === command);
     if (!combo) return false;
 
-    applyPosesSequential(combo.poses);
+    const delay = combo.stepDelayMs ?? 420;
+    applyPosesSequential(combo.poses, delay);
 
-    const totalMs = combo.poses.length > 1 ? (combo.poses.length - 1) * 420 + 80 : 80;
+    const totalMs = combo.poses.length > 1 ? (combo.poses.length - 1) * delay + 80 : 80;
     if (combo.announceText?.trim()) {
         window.setTimeout(() => {
             try {

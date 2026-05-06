@@ -892,7 +892,7 @@ const CSS = `
 .ebc-timer {
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
-    color: #553142;
+    color: #e8d07a;
     text-align: center;
     padding: 2px 0 0;
     letter-spacing: 0.04em;
@@ -942,7 +942,7 @@ const CSS = `
 .ebc-restraint-duration {
     margin-left: auto;
     font-size: 10px;
-    color: #8a4460;
+    color: #e8d07a;
     white-space: nowrap;
     flex-shrink: 0;
 }
@@ -1071,24 +1071,111 @@ const CSS = `
 
 .ebc-combo-editor.open { display: flex; }
 
-.ebc-pose-check-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3px 8px;
+/* -- Ordered pose step list -- */
+.ebc-step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 4px 0;
 }
 
-.ebc-pose-check-label {
+.ebc-step-row {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-family: "Trebuchet MS", serif;
-    font-size: 10px;
-    color: #967281;
-    cursor: pointer;
-    user-select: none;
+    background: #24111d;
+    border: 1px solid #3a1828;
+    border-radius: 5px;
+    padding: 3px 6px;
 }
 
-.ebc-pose-check-label input[type="checkbox"] { accent-color: #cf6f98; flex-shrink: 0; }
+.ebc-step-num {
+    font-size: 10px;
+    font-weight: 700;
+    color: #cf6f98;
+    min-width: 14px;
+    flex-shrink: 0;
+}
+
+.ebc-step-label {
+    flex: 1;
+    font-size: 11px;
+    color: #e8d1dc;
+    font-family: "Trebuchet MS", serif;
+}
+
+.ebc-step-delay {
+    font-size: 9px;
+    color: #e8d07a;
+    text-align: center;
+    padding: 1px 0;
+    letter-spacing: 0.03em;
+}
+
+.ebc-step-move {
+    background: none;
+    border: 1px solid #3a1828;
+    border-radius: 3px;
+    color: #8a4460;
+    font-size: 9px;
+    padding: 1px 4px;
+    cursor: pointer;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.ebc-step-move:hover { background: #2e1525; color: #cf6f98; }
+
+.ebc-step-del {
+    background: none;
+    border: none;
+    color: #664055;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.ebc-step-del:hover { color: #cf6f98; }
+
+/* -- Quick-add pose buttons (inside editor) -- */
+.ebc-pose-add-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin: 3px 0;
+}
+
+.ebc-pose-add-btn {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid #3a1828;
+    background: #1b0d17;
+    color: #967281;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+}
+.ebc-pose-add-btn:hover { background: #2e1525; color: #cf6f98; border-color: #cf6f98; }
+
+.ebc-delay-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0;
+}
+
+.ebc-delay-row input[type="range"] {
+    flex: 1;
+    accent-color: #cf6f98;
+}
+
+.ebc-delay-val {
+    font-size: 11px;
+    color: #e8d07a;
+    font-family: "Trebuchet MS", serif;
+    min-width: 44px;
+    text-align: right;
+}
 `;
 
 // -- Class ---------------------------------------------------------------------
@@ -2743,59 +2830,181 @@ export class EBCDrawer {
         // Helper: true when a pose key is currently active
         const isPoseActive = (key: string): boolean => currentPoses.includes(key);
 
-        // Helper: build a pose checkbox grid into a parent element
-        // Returns the selectedPoses Set so the caller can read it at save-time
-        const buildPoseCheckGrid = (
+        // Helper: build an ordered pose step editor.
+        // Returns { getPoses, getDelay } so the caller reads values at save-time.
+        const buildPoseOrderEditor = (
             parent: HTMLElement,
-            initial: string[],
-        ): Set<string> => {
-            const selected = new Set<string>(initial);
-            const allKeys = ([] as { key: string; label: string }[])
-                .concat(...KNOWN_POSES.map(g => g.poses.filter(p => p.key)));
+            initialPoses: string[],
+            initialDelay = 420,
+        ): { getPoses: () => string[]; getDelay: () => number } => {
+            const poses = initialPoses.filter(Boolean).slice();
 
-            const grid = document.createElement("div");
-            grid.className = "ebc-pose-check-grid";
+            // -- Step list --------------------------------------------------------
+            const listEl = document.createElement("div");
+            listEl.className = "ebc-step-list";
+            parent.appendChild(listEl);
 
-            for (const { key, label } of allKeys) {
-                const lbl = document.createElement("label");
-                lbl.className = "ebc-pose-check-label";
-                const cb = document.createElement("input");
-                cb.type = "checkbox";
-                cb.checked = selected.has(key);
-                cb.addEventListener("change", () => {
-                    if (cb.checked) selected.add(key); else selected.delete(key);
+            const poseLabel = (key: string): string => {
+                for (const g of KNOWN_POSES) {
+                    const found = g.poses.find(x => x.key === key);
+                    if (found) return found.label;
+                }
+                return key; // custom key
+            };
+
+            const renderList = (): void => {
+                while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+                if (poses.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.className = "ebc-import-hint";
+                    empty.style.textAlign = "center";
+                    empty.textContent = "No steps yet — add poses below";
+                    listEl.appendChild(empty);
+                    return;
+                }
+                for (let idx = 0; idx < poses.length; idx++) {
+                    const key = poses[idx];
+
+                    const row = document.createElement("div");
+                    row.className = "ebc-step-row";
+
+                    const num = document.createElement("span");
+                    num.className = "ebc-step-num";
+                    num.textContent = `${idx + 1}.`;
+
+                    const lbl = document.createElement("span");
+                    lbl.className = "ebc-step-label";
+                    lbl.textContent = poseLabel(key);
+                    if (key !== poseLabel(key)) lbl.title = key; // show raw key for custom poses
+
+                    const upBtn = document.createElement("button");
+                    upBtn.className = "ebc-step-move";
+                    upBtn.textContent = "↑";
+                    upBtn.title = "Move earlier";
+                    upBtn.disabled = idx === 0;
+                    upBtn.addEventListener("click", () => {
+                        if (idx > 0) { [poses[idx - 1], poses[idx]] = [poses[idx], poses[idx - 1]]; renderList(); }
+                    });
+
+                    const downBtn = document.createElement("button");
+                    downBtn.className = "ebc-step-move";
+                    downBtn.textContent = "↓";
+                    downBtn.title = "Move later";
+                    downBtn.disabled = idx === poses.length - 1;
+                    downBtn.addEventListener("click", () => {
+                        if (idx < poses.length - 1) { [poses[idx], poses[idx + 1]] = [poses[idx + 1], poses[idx]]; renderList(); }
+                    });
+
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "ebc-step-del";
+                    delBtn.textContent = "×";
+                    delBtn.title = "Remove step";
+                    delBtn.addEventListener("click", () => { poses.splice(idx, 1); renderList(); });
+
+                    row.appendChild(num);
+                    row.appendChild(lbl);
+                    row.appendChild(upBtn);
+                    row.appendChild(downBtn);
+                    row.appendChild(delBtn);
+                    listEl.appendChild(row);
+
+                    // Delay indicator between steps
+                    if (idx < poses.length - 1) {
+                        const delayEl = document.createElement("div");
+                        delayEl.className = "ebc-step-delay";
+                        delayEl.id = `ebc-step-delay-${idx}`;
+                        delayEl.textContent = `↓ ${delayInp.value} ms`;
+                        listEl.appendChild(delayEl);
+                    }
+                }
+            };
+
+            // -- Delay slider (defined before renderList so the label ref works) --
+            const delayRowEl = document.createElement("div");
+            delayRowEl.className = "ebc-delay-row";
+            const delayLblEl = document.createElement("span");
+            delayLblEl.className = "ebc-form-label";
+            delayLblEl.textContent = "Step delay";
+            const delayInp = Object.assign(document.createElement("input"), {
+                type: "range", min: "50", max: "2000", step: "50",
+                value: String(Math.max(50, Math.min(2000, initialDelay))),
+            }) as HTMLInputElement;
+            const delayValEl = document.createElement("span");
+            delayValEl.className = "ebc-delay-val";
+            delayValEl.textContent = `${delayInp.value} ms`;
+            delayInp.addEventListener("input", () => {
+                delayValEl.textContent = `${delayInp.value} ms`;
+                // Update all the ↓ X ms labels between steps
+                listEl.querySelectorAll(".ebc-step-delay").forEach((el, i) => {
+                    (el as HTMLElement).textContent = `↓ ${delayInp.value} ms`;
                 });
-                lbl.appendChild(cb);
-                lbl.appendChild(document.createTextNode(label));
-                grid.appendChild(lbl);
-            }
-            parent.appendChild(grid);
+            });
+            delayRowEl.appendChild(delayLblEl);
+            delayRowEl.appendChild(delayInp);
+            delayRowEl.appendChild(delayValEl);
 
-            // Custom pose row
+            // Render list now (after delayInp is created so delay labels work)
+            renderList();
+
+            // -- Quick-add from known poses ---------------------------------------
+            const addHint = document.createElement("div");
+            addHint.className = "ebc-import-hint";
+            addHint.style.marginTop = "4px";
+            addHint.textContent = "Add a step:";
+            parent.appendChild(addHint);
+
+            for (const group of KNOWN_POSES) {
+                const groupLbl = document.createElement("div");
+                groupLbl.style.cssText = "font-size:9px;color:#8a4460;margin:3px 0 2px;font-family:'Trebuchet MS',serif;";
+                groupLbl.textContent = group.group.toUpperCase();
+                parent.appendChild(groupLbl);
+
+                const btnRow = document.createElement("div");
+                btnRow.className = "ebc-pose-add-grid";
+                for (const p of group.poses) {
+                    if (!p.key) continue;
+                    const btn = document.createElement("button");
+                    btn.className = "ebc-pose-add-btn";
+                    btn.textContent = `+ ${p.label}`;
+                    btn.title = `Add "${p.label}" as next step`;
+                    btn.addEventListener("click", () => { poses.push(p.key); renderList(); });
+                    btnRow.appendChild(btn);
+                }
+                parent.appendChild(btnRow);
+            }
+
+            // Custom pose add
             const customHint = document.createElement("div");
             customHint.className = "ebc-import-hint";
-            customHint.textContent = "Custom pose (advanced):";
+            customHint.style.marginTop = "3px";
+            customHint.textContent = "Custom pose key:";
             parent.appendChild(customHint);
 
             const customRow = document.createElement("div");
             customRow.style.cssText = "display:flex;gap:5px;";
             const customInp = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", placeholder: "PoseName",
+                className: "ebc-form-input", type: "text", placeholder: "e.g. Hogtied",
                 maxLength: 40,
-            });
-            (customInp as HTMLInputElement).style.flex = "1";
+            }) as HTMLInputElement;
+            customInp.style.flex = "1";
             const addCustomBtn = document.createElement("button");
             addCustomBtn.className = "ebc-update-btn";
             addCustomBtn.textContent = "+ Add";
             addCustomBtn.addEventListener("click", () => {
-                const val = (customInp as HTMLInputElement).value.trim();
-                if (val) { selected.add(val); (customInp as HTMLInputElement).value = ""; }
+                const val = customInp.value.trim();
+                if (val) { poses.push(val); customInp.value = ""; renderList(); }
             });
             customRow.appendChild(customInp);
             customRow.appendChild(addCustomBtn);
             parent.appendChild(customRow);
 
-            return selected;
+            // Add delay row after the custom row
+            parent.appendChild(delayRowEl);
+
+            return {
+                getPoses: () => poses.filter(Boolean),
+                getDelay: () => Number(delayInp.value),
+            };
         };
 
         // Helper: build command + announce rows into a parent element
@@ -3015,10 +3224,11 @@ export class EBCDrawer {
             applyBtn.style.padding = "3px 8px";
             applyBtn.addEventListener("click", () => {
                 const steps = combo.poses.filter(Boolean);
+                const delay = combo.stepDelayMs ?? 420;
                 applyBtn.disabled = true;
                 applyBtn.textContent = "…";
-                applyPosesSequential(steps);
-                const totalMs = steps.length > 1 ? (steps.length - 1) * 420 + 200 : 200;
+                applyPosesSequential(steps, delay);
+                const totalMs = steps.length > 1 ? (steps.length - 1) * delay + 200 : 200;
                 window.setTimeout(() => {
                     applyBtn.disabled = false;
                     applyBtn.textContent = "▶";
@@ -3076,12 +3286,12 @@ export class EBCDrawer {
             eNameRow.appendChild(eNameInp);
             editor.appendChild(eNameRow);
 
-            // Pose checkboxes
+            // Ordered pose step editor
             const poseSectionLbl = document.createElement("div");
             poseSectionLbl.className = "ebc-import-hint";
-            poseSectionLbl.textContent = "Poses (applied body first, then arms):";
+            poseSectionLbl.textContent = "Sequence:";
             editor.appendChild(poseSectionLbl);
-            const selectedPoses = buildPoseCheckGrid(editor, combo.poses);
+            const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, combo.stepDelayMs ?? 420);
 
             // Command + Announce
             const { getCommand, getAnnounce } = buildComboOptions(
@@ -3094,7 +3304,7 @@ export class EBCDrawer {
             savComboBtn.className = "ebc-create-btn";
             savComboBtn.textContent = "Save Changes";
             savComboBtn.addEventListener("click", () => {
-                updateCombo(combo.id, (eNameInp as HTMLInputElement).value, [...selectedPoses], getCommand(), getAnnounce());
+                updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
                 this.renderPoses();
             });
             editor.appendChild(savComboBtn);
@@ -3139,13 +3349,13 @@ export class EBCDrawer {
         ncNameRow.appendChild(ncNameInp);
         newComboForm.appendChild(ncNameRow);
 
-        // Pose checkboxes
+        // Ordered pose step editor
         const ncPoseLbl = document.createElement("div");
         ncPoseLbl.className = "ebc-import-hint";
         ncPoseLbl.style.marginTop = "3px";
-        ncPoseLbl.textContent = "Poses (applied body first, then arms):";
+        ncPoseLbl.textContent = "Sequence:";
         newComboForm.appendChild(ncPoseLbl);
-        const ncSelected = buildPoseCheckGrid(newComboForm, []);
+        const { getPoses: ncGetPoses, getDelay: ncGetDelay } = buildPoseOrderEditor(newComboForm, []);
 
         // Command + Announce
         const { getCommand: ncGetCommand, getAnnounce: ncGetAnnounce } = buildComboOptions(newComboForm);
@@ -3156,7 +3366,7 @@ export class EBCDrawer {
         ncSaveBtn.addEventListener("click", () => {
             const name = (ncNameInp as HTMLInputElement).value.trim();
             if (!name) { (ncNameInp as HTMLInputElement).style.borderColor = "#cf6f98"; return; }
-            createCombo(name, [...ncSelected], ncGetCommand(), ncGetAnnounce());
+            createCombo(name, ncGetPoses(), ncGetCommand(), ncGetAnnounce(), ncGetDelay());
             this.renderPoses();
         });
         newComboForm.appendChild(ncSaveBtn);
