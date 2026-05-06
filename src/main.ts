@@ -2,14 +2,20 @@
 import { EBCDrawer } from "./modules/drawer";
 import { handleOutfitCommand } from "./modules/outfitManager";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { handleRoomEnter } from "./modules/autoAnnounce";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.52";
+const MOD_VERSION = "0.1.53";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.53",
+        changes: [
+            "Removed Room Auto-Announce feature.",
+            "Added Special Thanks tab (heart tab) crediting Lara, Lucy, and Sin.",
+        ],
+    },
     {
         version: "0.1.43",
         changes: [
@@ -553,7 +559,6 @@ function init(): void {
         try { syncPresenceMarker();       } catch { /* ignore */ }
         try { showRoomLoadNotice();       } catch { /* ignore */ }
         try { drawer?.updateVisibility(); } catch { /* ignore */ }
-        try { handleRoomEnter(args[0]);    } catch { /* ignore */ }
         return result;
     });
 
