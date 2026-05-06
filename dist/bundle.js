@@ -778,18 +778,21 @@
         },
     ];
     function applyPoses(poses) {
+        var _a;
         try {
-            Player.ActivePose = poses.filter(Boolean);
+            const filtered = poses.filter(Boolean);
+            // BC uses null internally for "no active pose" — sending [] is ignored server-side
+            Player.ActivePose = filtered.length > 0 ? filtered : null;
             CharacterRefresh(Player, false, false);
             if (Player.OnlineID != null) {
                 ServerSend("ChatRoomCharacterUpdate", {
                     ID: Player.OnlineID,
-                    ActivePose: Player.ActivePose,
+                    ActivePose: (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : null,
                     Appearance: ServerAppearanceBundle(Player.Appearance),
                 });
             }
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Respects the exact order provided — the user controls sequencing via the editor.
@@ -2188,15 +2191,12 @@
 
 .ebc-combo-editor.open { display: flex; }
 
-/* Sticky save bar — floats at the bottom of the scroll area while editing */
+/* Save bar at top + bottom of editor */
 .ebc-editor-save-bar {
-    position: sticky;
-    bottom: 0;
-    background: #1b0d17;
-    border-top: 1px solid #2e1525;
-    padding: 5px 0 0;
-    margin-top: 2px;
-    z-index: 10;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 2px 0;
 }
 
 /* -- Ordered pose step list -- */
@@ -4198,6 +4198,14 @@
                 eNameRow.appendChild(eNameLbl);
                 eNameRow.appendChild(eNameInp);
                 editor.appendChild(eNameRow);
+                // Quick-save at top so it's always reachable without scrolling
+                const topSaveBar = document.createElement("div");
+                topSaveBar.className = "ebc-editor-save-bar";
+                const topSaveBtn = document.createElement("button");
+                topSaveBtn.className = "ebc-update-btn";
+                topSaveBtn.textContent = "✓ Save Changes";
+                topSaveBtn.style.cssText = "flex:1;font-size:11px;";
+                editor.appendChild(topSaveBar); // appended before we have getPoses/getDelay — wired below
                 // Ordered pose step editor
                 const poseSectionLbl = document.createElement("div");
                 poseSectionLbl.className = "ebc-import-hint";
@@ -4206,9 +4214,16 @@
                 const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_b = combo.stepDelayMs) !== null && _b !== void 0 ? _b : 420);
                 // Command + Announce
                 const { getCommand, getAnnounce } = buildComboOptions(editor, (_c = combo.command) !== null && _c !== void 0 ? _c : "", (_d = combo.announceText) !== null && _d !== void 0 ? _d : "");
-                // Sticky save bar — stays visible at the bottom of the scroll area
+                // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
+                topSaveBtn.addEventListener("click", () => {
+                    updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
+                    this.renderPoses();
+                });
+                topSaveBar.appendChild(topSaveBtn);
+                // Full save button at the bottom too
                 const saveBar = document.createElement("div");
                 saveBar.className = "ebc-editor-save-bar";
+                saveBar.style.marginTop = "2px";
                 const savComboBtn = document.createElement("button");
                 savComboBtn.className = "ebc-create-btn";
                 savComboBtn.textContent = "Save Changes";
@@ -4255,6 +4270,14 @@
             ncNameRow.appendChild(ncNameLbl);
             ncNameRow.appendChild(ncNameInp);
             newComboForm.appendChild(ncNameRow);
+            // Quick-save at top — always visible without scrolling
+            const ncTopSaveBar = document.createElement("div");
+            ncTopSaveBar.className = "ebc-editor-save-bar";
+            const ncTopSaveBtn = document.createElement("button");
+            ncTopSaveBtn.className = "ebc-update-btn";
+            ncTopSaveBtn.textContent = "✓ Save Combo";
+            ncTopSaveBtn.style.cssText = "flex:1;font-size:11px;";
+            newComboForm.appendChild(ncTopSaveBar); // wired below after getters exist
             // Ordered pose step editor
             const ncPoseLbl = document.createElement("div");
             ncPoseLbl.className = "ebc-import-hint";
@@ -4264,13 +4287,8 @@
             const { getPoses: ncGetPoses, getDelay: ncGetDelay } = buildPoseOrderEditor(newComboForm, []);
             // Command + Announce
             const { getCommand: ncGetCommand, getAnnounce: ncGetAnnounce } = buildComboOptions(newComboForm);
-            // Sticky save bar for new combo form
-            const ncSaveBar = document.createElement("div");
-            ncSaveBar.className = "ebc-editor-save-bar";
-            const ncSaveBtn = document.createElement("button");
-            ncSaveBtn.className = "ebc-create-btn";
-            ncSaveBtn.textContent = "Save Combo";
-            ncSaveBtn.addEventListener("click", () => {
+            // Wire the top save button
+            const doSave = () => {
                 const name = ncNameInp.value.trim();
                 if (!name) {
                     ncNameInp.style.borderColor = "#cf6f98";
@@ -4278,7 +4296,17 @@
                 }
                 createCombo(name, ncGetPoses(), ncGetCommand(), ncGetAnnounce(), ncGetDelay());
                 this.renderPoses();
-            });
+            };
+            ncTopSaveBtn.addEventListener("click", doSave);
+            ncTopSaveBar.appendChild(ncTopSaveBtn);
+            // Full save button at the bottom too
+            const ncSaveBar = document.createElement("div");
+            ncSaveBar.className = "ebc-editor-save-bar";
+            ncSaveBar.style.marginTop = "2px";
+            const ncSaveBtn = document.createElement("button");
+            ncSaveBtn.className = "ebc-create-btn";
+            ncSaveBtn.textContent = "Save Combo";
+            ncSaveBtn.addEventListener("click", doSave);
             ncSaveBar.appendChild(ncSaveBtn);
             newComboForm.appendChild(ncSaveBar);
             newComboToggle.addEventListener("click", () => {
@@ -4492,7 +4520,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.81";
+    const MOD_VERSION = "0.1.82";
     let noticeShown = false;
     const CHANGELOG = [
         {

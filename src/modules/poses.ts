@@ -42,12 +42,14 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
 
 export function applyPoses(poses: string[]): void {
     try {
-        (Player as unknown as Record<string, unknown>).ActivePose = poses.filter(Boolean);
+        const filtered = poses.filter(Boolean);
+        // BC uses null internally for "no active pose" — sending [] is ignored server-side
+        (Player as unknown as Record<string, unknown>).ActivePose = filtered.length > 0 ? filtered : null;
         CharacterRefresh(Player, false, false);
         if (Player.OnlineID != null) {
             ServerSend("ChatRoomCharacterUpdate", {
                 ID: Player.OnlineID,
-                ActivePose: Player.ActivePose,
+                ActivePose: (Player.ActivePose as string[] | null) ?? null,
                 Appearance: ServerAppearanceBundle(Player.Appearance),
             });
         }

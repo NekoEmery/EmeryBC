@@ -1071,15 +1071,12 @@ const CSS = `
 
 .ebc-combo-editor.open { display: flex; }
 
-/* Sticky save bar — floats at the bottom of the scroll area while editing */
+/* Save bar at top + bottom of editor */
 .ebc-editor-save-bar {
-    position: sticky;
-    bottom: 0;
-    background: #1b0d17;
-    border-top: 1px solid #2e1525;
-    padding: 5px 0 0;
-    margin-top: 2px;
-    z-index: 10;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 2px 0;
 }
 
 /* -- Ordered pose step list -- */
@@ -3297,6 +3294,15 @@ export class EBCDrawer {
             eNameRow.appendChild(eNameInp);
             editor.appendChild(eNameRow);
 
+            // Quick-save at top so it's always reachable without scrolling
+            const topSaveBar = document.createElement("div");
+            topSaveBar.className = "ebc-editor-save-bar";
+            const topSaveBtn = document.createElement("button");
+            topSaveBtn.className = "ebc-update-btn";
+            topSaveBtn.textContent = "✓ Save Changes";
+            topSaveBtn.style.cssText = "flex:1;font-size:11px;";
+            editor.appendChild(topSaveBar); // appended before we have getPoses/getDelay — wired below
+
             // Ordered pose step editor
             const poseSectionLbl = document.createElement("div");
             poseSectionLbl.className = "ebc-import-hint";
@@ -3311,9 +3317,17 @@ export class EBCDrawer {
                 combo.announceText ?? "",
             );
 
-            // Sticky save bar — stays visible at the bottom of the scroll area
+            // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
+            topSaveBtn.addEventListener("click", () => {
+                updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
+                this.renderPoses();
+            });
+            topSaveBar.appendChild(topSaveBtn);
+
+            // Full save button at the bottom too
             const saveBar = document.createElement("div");
             saveBar.className = "ebc-editor-save-bar";
+            saveBar.style.marginTop = "2px";
             const savComboBtn = document.createElement("button");
             savComboBtn.className = "ebc-create-btn";
             savComboBtn.textContent = "Save Changes";
@@ -3366,6 +3380,15 @@ export class EBCDrawer {
         ncNameRow.appendChild(ncNameInp);
         newComboForm.appendChild(ncNameRow);
 
+        // Quick-save at top — always visible without scrolling
+        const ncTopSaveBar = document.createElement("div");
+        ncTopSaveBar.className = "ebc-editor-save-bar";
+        const ncTopSaveBtn = document.createElement("button");
+        ncTopSaveBtn.className = "ebc-update-btn";
+        ncTopSaveBtn.textContent = "✓ Save Combo";
+        ncTopSaveBtn.style.cssText = "flex:1;font-size:11px;";
+        newComboForm.appendChild(ncTopSaveBar); // wired below after getters exist
+
         // Ordered pose step editor
         const ncPoseLbl = document.createElement("div");
         ncPoseLbl.className = "ebc-import-hint";
@@ -3377,18 +3400,24 @@ export class EBCDrawer {
         // Command + Announce
         const { getCommand: ncGetCommand, getAnnounce: ncGetAnnounce } = buildComboOptions(newComboForm);
 
-        // Sticky save bar for new combo form
-        const ncSaveBar = document.createElement("div");
-        ncSaveBar.className = "ebc-editor-save-bar";
-        const ncSaveBtn = document.createElement("button");
-        ncSaveBtn.className = "ebc-create-btn";
-        ncSaveBtn.textContent = "Save Combo";
-        ncSaveBtn.addEventListener("click", () => {
+        // Wire the top save button
+        const doSave = (): void => {
             const name = (ncNameInp as HTMLInputElement).value.trim();
             if (!name) { (ncNameInp as HTMLInputElement).style.borderColor = "#cf6f98"; return; }
             createCombo(name, ncGetPoses(), ncGetCommand(), ncGetAnnounce(), ncGetDelay());
             this.renderPoses();
-        });
+        };
+        ncTopSaveBtn.addEventListener("click", doSave);
+        ncTopSaveBar.appendChild(ncTopSaveBtn);
+
+        // Full save button at the bottom too
+        const ncSaveBar = document.createElement("div");
+        ncSaveBar.className = "ebc-editor-save-bar";
+        ncSaveBar.style.marginTop = "2px";
+        const ncSaveBtn = document.createElement("button");
+        ncSaveBtn.className = "ebc-create-btn";
+        ncSaveBtn.textContent = "Save Combo";
+        ncSaveBtn.addEventListener("click", doSave);
         ncSaveBar.appendChild(ncSaveBtn);
         newComboForm.appendChild(ncSaveBar);
 
