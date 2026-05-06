@@ -778,26 +778,30 @@
         },
     ];
     function applyPoses(poses) {
-        var _a;
         const filtered = poses.filter(Boolean);
         // BC uses null internally for "no active pose" — sending [] is ignored server-side.
-        // Split try-catch so ServerSend always fires even if CharacterRefresh throws (e.g. when
-        // clearing poses sets ActivePose to null and BC's refresh path errors internally).
+        // Capture desired BEFORE CharacterRefresh because BC may reset Player.ActivePose to []
+        // internally during refresh (null → [] coercion), causing us to send [] which the server
+        // ignores. We always send what we intended, not what BC left the field as.
+        // Split try-catch so ServerSend fires even if CharacterRefresh throws.
+        const desired = filtered.length > 0 ? filtered : null;
         try {
-            Player.ActivePose = filtered.length > 0 ? filtered : null;
+            Player.ActivePose = desired;
             CharacterRefresh(Player, false, false);
+            // Re-apply in case CharacterRefresh reverted the assignment
+            Player.ActivePose = desired;
         }
-        catch ( /* ignore refresh errors */_b) { /* ignore refresh errors */ }
+        catch ( /* ignore refresh errors */_a) { /* ignore refresh errors */ }
         try {
             if (Player.OnlineID != null) {
                 ServerSend("ChatRoomCharacterUpdate", {
                     ID: Player.OnlineID,
-                    ActivePose: (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : null,
+                    ActivePose: desired,
                     Appearance: ServerAppearanceBundle(Player.Appearance),
                 });
             }
         }
-        catch ( /* ignore send errors */_c) { /* ignore send errors */ }
+        catch ( /* ignore send errors */_b) { /* ignore send errors */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Respects the exact order provided — the user controls sequencing via the editor.
@@ -4531,7 +4535,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.83";
+    const MOD_VERSION = "0.1.84";
     let noticeShown = false;
     const CHANGELOG = [
         {
