@@ -1,4 +1,5 @@
 ﻿import { UI } from "./ui";
+import { getDisplayName } from "./actionButtons";
 
 export interface SerializedItem {
     Group: string;
@@ -251,11 +252,14 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
     window.setTimeout(() => {
         try {
             if (outfit.announceText.trim()) {
+                // Poison trick: Content won't be found in Interface.csv, so BC prepends
+                // "MISSING TEXT IN "Interface.csv": ". We strip that prefix with the poison
+                // tag (replaced by a zero-width non-joiner), leaving (​Name text).
                 ServerSend("ChatRoomChat", {
                     Type: "Action",
-                    Content: "EBCAnnounce",
+                    Content: getDisplayName() + " " + outfit.announceText.trim(),
                     Dictionary: [
-                        { Tag: "EBCAnnounce", Text: "{SourceCharacter} " + outfit.announceText.trim() },
+                        { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                         { SourceCharacter: Player.MemberNumber },
                     ],
                 });

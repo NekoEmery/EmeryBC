@@ -6,15 +6,16 @@ export interface ActionButton {
     emote:   string;
     color:   string;
     enabled: boolean;
+    style:   "action" | "emote";   // "action" = (Name text)   "emote" = * Name text *
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
-    { label: "NOD",   emote: "nods.",              color: "#c2185b", enabled: true  },
-    { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true  },
-    { label: "WAVE",  emote: "waves.",             color: "#c2185b", enabled: true  },
-    { label: "BOW",   emote: "bows politely.",     color: "#c2185b", enabled: true  },
-    { label: "",      emote: "",                   color: "#c2185b", enabled: false },
-    { label: "",      emote: "",                   color: "#c2185b", enabled: false },
+    { label: "NOD",   emote: "nods.",              color: "#c2185b", enabled: true,  style: "action" },
+    { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true,  style: "action" },
+    { label: "WAVE",  emote: "waves.",             color: "#c2185b", enabled: true,  style: "action" },
+    { label: "BOW",   emote: "bows politely.",     color: "#c2185b", enabled: true,  style: "action" },
+    { label: "",      emote: "",                   color: "#c2185b", enabled: false, style: "action" },
+    { label: "",      emote: "",                   color: "#c2185b", enabled: false, style: "action" },
 ];
 
 export const ABSOLUTE_MAX  = 12;
@@ -55,14 +56,37 @@ export function normalizeHex(value: string | undefined, fallback = "#c2185b"): s
     return fallback;
 }
 
-// --- Helper: send as BC Action - displays as (Name text) ---------------------
+// --- Display name helper -----------------------------------------------------
 
-export function sendAction(emote: string): void {
+export function getDisplayName(): string {
+    // CharacterNickname is a BC global not always in the type declarations
+    const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
+    if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
+    return (Player as unknown as Record<string, unknown>).Nickname as string || Player.Name || "Player";
+}
+
+// --- Send chat message --------------------------------------------------------
+// "action" -> (Name text)   "emote" -> * Name text *
+
+export function sendAction(emote: string, style: "action" | "emote" = "action"): void {
+    const text = emote.trim();
+    if (!text) return;
+
+    if (style === "emote") {
+        // BC natively formats Emote as:  * Name text *
+        ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
+        return;
+    }
+
+    // Action style: (Name text)
+    // BC can't find the key in Interface.csv so it prepends "MISSING TEXT IN "Interface.csv": ".
+    // We include the player's name directly in Content, then use the poison tag to strip the prefix,
+    // leaving only the zero-width char + text so it renders as  (​Name text).
     ServerSend("ChatRoomChat", {
         Type: "Action",
-        Content: "EBCEmote",
+        Content: getDisplayName() + " " + text,
         Dictionary: [
-            { Tag: "EBCEmote", Text: "{SourceCharacter} " + emote.trim() },
+            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
             { SourceCharacter: Player.MemberNumber },
         ],
     });
@@ -71,12 +95,12 @@ export function sendAction(emote: string): void {
 // --- In-game sidebar ---------------------------------------------------------
 
 const BTN_X       = 0;
-const BTN_START_Y = 270;
+const BTN_START_Y = 320;
 const BTN_SIZE    = 45;
 
-// Collapse toggle - same 45x45 square as the action buttons, sits just above them
+// Collapse toggle - sits above the action buttons with a bit of breathing room from BC's own buttons
 const CHIP_X = 0;
-const CHIP_Y = 222;
+const CHIP_Y = 270;
 const CHIP_W = 45;
 const CHIP_H = 45;
 
@@ -121,7 +145,7 @@ export function handleActionButtonClick(): boolean {
         const y = BTN_START_Y + i * BTN_SIZE;
         if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
             MouseY >= y    && MouseY <= y + BTN_SIZE) {
-            sendAction(btn.emote);
+            sendAction(btn.emote, btn.style ?? "action");
             return true;
         }
     }

@@ -11,12 +11,12 @@
 
     // Action buttons drawn in the chatroom sidebar below BCAR's buttons.
     const DEFAULT_BUTTONS = [
-        { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true },
-        { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true },
-        { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true },
-        { label: "BOW", emote: "bows politely.", color: "#c2185b", enabled: true },
-        { label: "", emote: "", color: "#c2185b", enabled: false },
-        { label: "", emote: "", color: "#c2185b", enabled: false },
+        { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
+        { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true, style: "action" },
+        { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true, style: "action" },
+        { label: "BOW", emote: "bows politely.", color: "#c2185b", enabled: true, style: "action" },
+        { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
+        { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
     ];
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
@@ -55,24 +55,45 @@
         }
         return fallback;
     }
-    // --- Helper: send as BC Action - displays as (Name text) ---------------------
-    function sendAction(emote) {
+    // --- Display name helper -----------------------------------------------------
+    function getDisplayName() {
+        // CharacterNickname is a BC global not always in the type declarations
+        const nickFn = window.CharacterNickname;
+        if (typeof nickFn === "function")
+            return nickFn(Player);
+        return Player.Nickname || Player.Name || "Player";
+    }
+    // --- Send chat message --------------------------------------------------------
+    // "action" -> (Name text)   "emote" -> * Name text *
+    function sendAction(emote, style = "action") {
+        const text = emote.trim();
+        if (!text)
+            return;
+        if (style === "emote") {
+            // BC natively formats Emote as:  * Name text *
+            ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
+            return;
+        }
+        // Action style: (Name text)
+        // BC can't find the key in Interface.csv so it prepends "MISSING TEXT IN "Interface.csv": ".
+        // We include the player's name directly in Content, then use the poison tag to strip the prefix,
+        // leaving only the zero-width char + text so it renders as  (​Name text).
         ServerSend("ChatRoomChat", {
             Type: "Action",
-            Content: "EBCEmote",
+            Content: getDisplayName() + " " + text,
             Dictionary: [
-                { Tag: "EBCEmote", Text: "{SourceCharacter} " + emote.trim() },
+                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                 { SourceCharacter: Player.MemberNumber },
             ],
         });
     }
     // --- In-game sidebar ---------------------------------------------------------
     const BTN_X = 0;
-    const BTN_START_Y = 270;
+    const BTN_START_Y = 320;
     const BTN_SIZE = 45;
-    // Collapse toggle - same 45x45 square as the action buttons, sits just above them
+    // Collapse toggle - sits above the action buttons with a bit of breathing room from BC's own buttons
     const CHIP_X = 0;
-    const CHIP_Y = 222;
+    const CHIP_Y = 270;
     const CHIP_W = 45;
     const CHIP_H = 45;
     let sidebarCollapsed = false;
@@ -92,6 +113,7 @@
         }
     }
     function handleActionButtonClick() {
+        var _a;
         if (CurrentScreen !== "ChatRoom")
             return false;
         // Collapse toggle
@@ -110,7 +132,7 @@
             const y = BTN_START_Y + i * BTN_SIZE;
             if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
                 MouseY >= y && MouseY <= y + BTN_SIZE) {
-                sendAction(btn.emote);
+                sendAction(btn.emote, (_a = btn.style) !== null && _a !== void 0 ? _a : "action");
                 return true;
             }
         }
@@ -331,11 +353,14 @@
         window.setTimeout(() => {
             try {
                 if (outfit.announceText.trim()) {
+                    // Poison trick: Content won't be found in Interface.csv, so BC prepends
+                    // "MISSING TEXT IN "Interface.csv": ". We strip that prefix with the poison
+                    // tag (replaced by a zero-width non-joiner), leaving (​Name text).
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
-                        Content: "EBCAnnounce",
+                        Content: getDisplayName() + " " + outfit.announceText.trim(),
                         Dictionary: [
-                            { Tag: "EBCAnnounce", Text: "{SourceCharacter} " + outfit.announceText.trim() },
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                             { SourceCharacter: Player.MemberNumber },
                         ],
                     });
@@ -956,13 +981,25 @@
 
 .ebc-slot-del:hover { background: #3a1017; color: #cf6f98; border-color: #7a4a5e; }
 
-.ebc-slot-me-label {
+.ebc-slot-style {
+    flex-shrink: 0;
+    width: 32px;
+    height: 22px;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #553142;
+    cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
-    color: #4c2537;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
     white-space: nowrap;
-    flex-shrink: 0;
 }
+
+.ebc-slot-style.emote { background: #1b1117; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-slot-style:hover  { border-color: #7a4a5e; color: #967281; }
 
 /* -- Buttons tab footer -- */
 .ebc-btn-footer {
@@ -1168,8 +1205,8 @@
             document.head.appendChild(s);
         }
         // -- Positioning -----------------------------------------------------------
-        // Aligned to the right edge of TextAreaChatLog, 10% down from the top.
-        // This places our tab just below CRABS's tab.
+        // Aligned to the right edge of TextAreaChatLog, 15% down from the top.
+        // This places our tab just below CRABS's tab without overlapping.
         syncToChat() {
             const chatLog = document.getElementById("TextAreaChatLog");
             if (!chatLog || !this.rootEl)
@@ -1177,7 +1214,7 @@
             const rect = chatLog.getBoundingClientRect();
             if (rect.width === 0 || rect.height === 0)
                 return false;
-            const topOffset = rect.height * 0.10;
+            const topOffset = rect.height * 0.15;
             this.rootEl.style.top = `${rect.top + topOffset}px`;
             this.rootEl.style.right = `${document.documentElement.clientWidth - rect.right}px`;
             this.rootEl.style.height = `${rect.height - topOffset}px`;
@@ -1410,7 +1447,7 @@
             let slotCount = getSlotCount();
             // Ensure array has slotCount entries
             while (btns.length < slotCount) {
-                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
             }
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
@@ -1420,11 +1457,11 @@
             slotList.id = "ebc-slot-list";
             body.appendChild(slotList);
             const renderSlots = () => {
-                var _a;
+                var _a, _b;
                 while (slotList.firstChild)
                     slotList.removeChild(slotList.firstChild);
                 for (let i = 0; i < slotCount; i++) {
-                    const btn = (_a = btns[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b", enabled: false };
+                    const btn = (_a = btns[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" };
                     const row = document.createElement("div");
                     row.className = "ebc-slot-row";
                     // Top line: toggle | label input | color picker | del
@@ -1454,20 +1491,26 @@
                     topLine.appendChild(labelInp);
                     topLine.appendChild(colorInp);
                     topLine.appendChild(delBtn);
-                    // Bottom line: /me prefix | emote input
+                    // Bottom line: style toggle | emote input
                     const botLine = document.createElement("div");
                     botLine.className = "ebc-slot-bottom";
-                    const meLbl = document.createElement("span");
-                    meLbl.className = "ebc-slot-me-label";
-                    meLbl.textContent = "/me";
+                    const isEmote = ((_b = btn.style) !== null && _b !== void 0 ? _b : "action") === "emote";
+                    const styleBtn = document.createElement("button");
+                    styleBtn.className = "ebc-slot-style" + (isEmote ? " emote" : "");
+                    styleBtn.textContent = isEmote ? "* *" : "( )";
+                    styleBtn.title = isEmote
+                        ? "Style: * emote * — click to switch to ( action )"
+                        : "Style: ( action ) — click to switch to * emote *";
                     const emoteInp = document.createElement("input");
                     emoteInp.className = "ebc-slot-emote";
                     emoteInp.type = "text";
                     emoteInp.maxLength = 120;
                     emoteInp.placeholder = "e.g. nods.";
                     emoteInp.value = btn.emote;
-                    emoteInp.title = "Emote text sent as (Name text)";
-                    botLine.appendChild(meLbl);
+                    emoteInp.title = isEmote
+                        ? "Text sent as * Name text *"
+                        : "Text sent as ( Name text )";
+                    botLine.appendChild(styleBtn);
                     botLine.appendChild(emoteInp);
                     row.appendChild(topLine);
                     row.appendChild(botLine);
@@ -1488,9 +1531,23 @@
                     emoteInp.addEventListener("input", () => {
                         btns[idx].emote = emoteInp.value;
                     });
+                    styleBtn.addEventListener("click", () => {
+                        var _a;
+                        const next = ((_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action") === "action" ? "emote" : "action";
+                        btns[idx].style = next;
+                        const nowEmote = next === "emote";
+                        styleBtn.className = "ebc-slot-style" + (nowEmote ? " emote" : "");
+                        styleBtn.textContent = nowEmote ? "* *" : "( )";
+                        styleBtn.title = nowEmote
+                            ? "Style: * emote * — click to switch to ( action )"
+                            : "Style: ( action ) — click to switch to * emote *";
+                        emoteInp.title = nowEmote
+                            ? "Text sent as * Name text *"
+                            : "Text sent as ( Name text )";
+                    });
                     delBtn.addEventListener("click", () => {
                         btns.splice(idx, 1);
-                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
                         slotCount = Math.max(1, slotCount - 1);
                         renderSlots();
                         updateFooterState();
@@ -1588,9 +1645,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.36";
+    const MOD_VERSION = "0.1.37";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.37",
+            changes: [
+                "Fixed action emotes showing MISSING TEXT prefix — now uses poison trick with player name directly in Content.",
+                "Fixed outfit announce text with same poison trick fix.",
+                "Added per-button style choice: ( ) action or * * emote, toggled in the Buttons drawer tab.",
+            ],
+        },
         {
             version: "0.1.36",
             changes: [

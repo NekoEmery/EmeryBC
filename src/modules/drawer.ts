@@ -475,13 +475,25 @@ const CSS = `
 
 .ebc-slot-del:hover { background: #3a1017; color: #cf6f98; border-color: #7a4a5e; }
 
-.ebc-slot-me-label {
+.ebc-slot-style {
+    flex-shrink: 0;
+    width: 32px;
+    height: 22px;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #553142;
+    cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
-    color: #4c2537;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
     white-space: nowrap;
-    flex-shrink: 0;
 }
+
+.ebc-slot-style.emote { background: #1b1117; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-slot-style:hover  { border-color: #7a4a5e; color: #967281; }
 
 /* -- Buttons tab footer -- */
 .ebc-btn-footer {
@@ -722,8 +734,8 @@ export class EBCDrawer {
     }
 
     // -- Positioning -----------------------------------------------------------
-    // Aligned to the right edge of TextAreaChatLog, 10% down from the top.
-    // This places our tab just below CRABS's tab.
+    // Aligned to the right edge of TextAreaChatLog, 15% down from the top.
+    // This places our tab just below CRABS's tab without overlapping.
 
     private syncToChat(): boolean {
         const chatLog = document.getElementById("TextAreaChatLog");
@@ -731,7 +743,7 @@ export class EBCDrawer {
         const rect = chatLog.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return false;
 
-        const topOffset = rect.height * 0.10;
+        const topOffset = rect.height * 0.15;
         this.rootEl.style.top    = `${rect.top + topOffset}px`;
         this.rootEl.style.right  = `${document.documentElement.clientWidth - rect.right}px`;
         this.rootEl.style.height = `${rect.height - topOffset}px`;
@@ -989,7 +1001,7 @@ export class EBCDrawer {
 
         // Ensure array has slotCount entries
         while (btns.length < slotCount) {
-            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
         }
 
         const lbl = document.createElement("div");
@@ -1005,7 +1017,7 @@ export class EBCDrawer {
             while (slotList.firstChild) slotList.removeChild(slotList.firstChild);
 
             for (let i = 0; i < slotCount; i++) {
-                const btn = btns[i] ?? { label: "", emote: "", color: "#c2185b", enabled: false };
+                const btn = btns[i] ?? { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" as const };
 
                 const row = document.createElement("div");
                 row.className = "ebc-slot-row";
@@ -1043,13 +1055,18 @@ export class EBCDrawer {
                 topLine.appendChild(colorInp);
                 topLine.appendChild(delBtn);
 
-                // Bottom line: /me prefix | emote input
+                // Bottom line: style toggle | emote input
                 const botLine = document.createElement("div");
                 botLine.className = "ebc-slot-bottom";
 
-                const meLbl = document.createElement("span");
-                meLbl.className = "ebc-slot-me-label";
-                meLbl.textContent = "/me";
+                const isEmote = (btn.style ?? "action") === "emote";
+
+                const styleBtn = document.createElement("button");
+                styleBtn.className = "ebc-slot-style" + (isEmote ? " emote" : "");
+                styleBtn.textContent = isEmote ? "* *" : "( )";
+                styleBtn.title = isEmote
+                    ? "Style: * emote * — click to switch to ( action )"
+                    : "Style: ( action ) — click to switch to * emote *";
 
                 const emoteInp = document.createElement("input");
                 emoteInp.className = "ebc-slot-emote";
@@ -1057,9 +1074,11 @@ export class EBCDrawer {
                 emoteInp.maxLength = 120;
                 emoteInp.placeholder = "e.g. nods.";
                 emoteInp.value = btn.emote;
-                emoteInp.title = "Emote text sent as (Name text)";
+                emoteInp.title = isEmote
+                    ? "Text sent as * Name text *"
+                    : "Text sent as ( Name text )";
 
-                botLine.appendChild(meLbl);
+                botLine.appendChild(styleBtn);
                 botLine.appendChild(emoteInp);
 
                 row.appendChild(topLine);
@@ -1087,9 +1106,23 @@ export class EBCDrawer {
                     btns[idx].emote = emoteInp.value;
                 });
 
+                styleBtn.addEventListener("click", () => {
+                    const next = (btns[idx].style ?? "action") === "action" ? "emote" : "action";
+                    btns[idx].style = next;
+                    const nowEmote = next === "emote";
+                    styleBtn.className = "ebc-slot-style" + (nowEmote ? " emote" : "");
+                    styleBtn.textContent = nowEmote ? "* *" : "( )";
+                    styleBtn.title = nowEmote
+                        ? "Style: * emote * — click to switch to ( action )"
+                        : "Style: ( action ) — click to switch to * emote *";
+                    emoteInp.title = nowEmote
+                        ? "Text sent as * Name text *"
+                        : "Text sent as ( Name text )";
+                });
+
                 delBtn.addEventListener("click", () => {
                     btns.splice(idx, 1);
-                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
                     slotCount = Math.max(1, slotCount - 1);
                     renderSlots();
                     updateFooterState();

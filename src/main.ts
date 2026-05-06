@@ -5,10 +5,18 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.36";
+const MOD_VERSION = "0.1.37";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.37",
+        changes: [
+            "Fixed action emotes showing MISSING TEXT prefix — now uses poison trick with player name directly in Content.",
+            "Fixed outfit announce text with same poison trick fix.",
+            "Added per-button style choice: ( ) action or * * emote, toggled in the Buttons drawer tab.",
+        ],
+    },
     {
         version: "0.1.36",
         changes: [
