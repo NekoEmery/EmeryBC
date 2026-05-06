@@ -139,8 +139,9 @@
     // animation plays automatically alongside the normal message. Completely hidden
     // from the user — the emote field is just normal text.
     function runCheerAnimation() {
-        // Yoked pose = arms raised/yoked up. Cycle 3 times then restore.
-        runSequence("Yoked|_|Yoked|_|Yoked|_");
+        // Alternate between Yoked (arms partway up) and OverTheHead (arms all the way up)
+        // for a dynamic cheering motion, then restore original pose.
+        runSequence("Yoked|OverTheHead|Yoked|OverTheHead|Yoked|OverTheHead|_");
     }
     const LABEL_ANIMATIONS = new Map([
         ["CHEER", runCheerAnimation],
