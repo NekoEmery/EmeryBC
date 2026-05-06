@@ -24,7 +24,7 @@ import {
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
-import { getRoomTime, getRestraintTime } from "./timer";
+import { getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
     getButtons,
@@ -939,6 +939,14 @@ const CSS = `
 
 .ebc-restraint-lock.unlocked { color: #553142; }
 
+.ebc-restraint-duration {
+    margin-left: auto;
+    font-size: 10px;
+    color: #8a4460;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 /* -- Color palettes -- */
 .ebc-palette-row {
     display: flex;
@@ -1568,6 +1576,7 @@ export class EBCDrawer {
                 for (const item of restraints) {
                     const prop = item.Property as Record<string, unknown> | undefined;
                     const lockedBy = prop?.LockedBy as number | undefined;
+                    const group = item.Asset.Group.Name;
 
                     const row = document.createElement("div");
                     row.className = "ebc-restraint-row";
@@ -1579,7 +1588,7 @@ export class EBCDrawer {
 
                     const groupEl = document.createElement("span");
                     groupEl.className = "ebc-restraint-group";
-                    groupEl.textContent = item.Asset.Group.Name.replace("Item", "");
+                    groupEl.textContent = group.replace("Item", "");
 
                     const lockEl = document.createElement("span");
                     if (lockedBy !== undefined) {
@@ -1599,9 +1608,17 @@ export class EBCDrawer {
                         lockEl.textContent = "Unlocked";
                     }
 
+                    // Duration badge — how long this item has been worn
+                    const dur = getRestraintItemDuration(group);
+                    const durEl = document.createElement("span");
+                    durEl.className = "ebc-restraint-duration";
+                    durEl.textContent = dur ? `⏱ ${dur}` : "";
+                    durEl.title = "Time worn (persists offline)";
+
                     row.appendChild(nameEl);
                     row.appendChild(groupEl);
                     row.appendChild(lockEl);
+                    row.appendChild(durEl);
                     container.appendChild(row);
                 }
             } catch { /* Player not ready */ }
@@ -2721,13 +2738,179 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // Helper: highlight the preset button matching current active poses
         const currentPoses = getCurrentPoses();
-        const matchesCurrent = (poses: string[]): boolean =>
-            poses.length === currentPoses.length &&
-            poses.every(p => currentPoses.includes(p));
 
-        // -- Preset grid -------------------------------------------------------
+        // Helper: true when a pose key is currently active
+        const isPoseActive = (key: string): boolean => currentPoses.includes(key);
+
+        // Helper: build a pose checkbox grid into a parent element
+        // Returns the selectedPoses Set so the caller can read it at save-time
+        const buildPoseCheckGrid = (
+            parent: HTMLElement,
+            initial: string[],
+        ): Set<string> => {
+            const selected = new Set<string>(initial);
+            const allKeys = ([] as { key: string; label: string }[])
+                .concat(...KNOWN_POSES.map(g => g.poses.filter(p => p.key)));
+
+            const grid = document.createElement("div");
+            grid.className = "ebc-pose-check-grid";
+
+            for (const { key, label } of allKeys) {
+                const lbl = document.createElement("label");
+                lbl.className = "ebc-pose-check-label";
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.checked = selected.has(key);
+                cb.addEventListener("change", () => {
+                    if (cb.checked) selected.add(key); else selected.delete(key);
+                });
+                lbl.appendChild(cb);
+                lbl.appendChild(document.createTextNode(label));
+                grid.appendChild(lbl);
+            }
+            parent.appendChild(grid);
+
+            // Custom pose row
+            const customHint = document.createElement("div");
+            customHint.className = "ebc-import-hint";
+            customHint.textContent = "Custom pose (advanced):";
+            parent.appendChild(customHint);
+
+            const customRow = document.createElement("div");
+            customRow.style.cssText = "display:flex;gap:5px;";
+            const customInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "PoseName",
+                maxLength: 40,
+            });
+            (customInp as HTMLInputElement).style.flex = "1";
+            const addCustomBtn = document.createElement("button");
+            addCustomBtn.className = "ebc-update-btn";
+            addCustomBtn.textContent = "+ Add";
+            addCustomBtn.addEventListener("click", () => {
+                const val = (customInp as HTMLInputElement).value.trim();
+                if (val) { selected.add(val); (customInp as HTMLInputElement).value = ""; }
+            });
+            customRow.appendChild(customInp);
+            customRow.appendChild(addCustomBtn);
+            parent.appendChild(customRow);
+
+            return selected;
+        };
+
+        // Helper: build command + announce rows into a parent element
+        // Returns getters for the current values
+        const buildComboOptions = (
+            parent: HTMLElement,
+            initCommand = "",
+            initAnnounce = "",
+        ): { getCommand: () => string; getAnnounce: () => string } => {
+            // Command row (optional)
+            const cmdRow = document.createElement("div");
+            cmdRow.className = "ebc-form-row";
+            const cmdLbl = document.createElement("span");
+            cmdLbl.className = "ebc-form-label";
+            cmdLbl.textContent = "Command";
+            const cmdPrefix = document.createElement("span");
+            cmdPrefix.style.cssText = "color:#cf6f98;font-weight:600;margin-right:2px;";
+            cmdPrefix.textContent = "/";
+            const cmdInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text",
+                value: initCommand, placeholder: "optional",
+                maxLength: 30, title: "Chat command to apply this combo (optional)",
+            });
+            (cmdInp as HTMLInputElement).style.flex = "1";
+            const cmdWrap = document.createElement("div");
+            cmdWrap.style.cssText = "display:flex;align-items:center;flex:1;";
+            cmdWrap.appendChild(cmdPrefix);
+            cmdWrap.appendChild(cmdInp);
+            cmdRow.appendChild(cmdLbl);
+            cmdRow.appendChild(cmdWrap);
+            parent.appendChild(cmdRow);
+
+            // Announce text (optional)
+            const annRow = document.createElement("div");
+            annRow.className = "ebc-form-row";
+            const annLbl = document.createElement("span");
+            annLbl.className = "ebc-form-label";
+            annLbl.textContent = "Announce";
+            const annInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text",
+                value: initAnnounce, placeholder: "Room action (optional)",
+                maxLength: 100, title: "Action emote shown to room when combo is applied (leave blank to skip)",
+            });
+            (annInp as HTMLInputElement).style.flex = "1";
+            annRow.appendChild(annLbl);
+            annRow.appendChild(annInp);
+            parent.appendChild(annRow);
+
+            return {
+                getCommand: () => (cmdInp as HTMLInputElement).value,
+                getAnnounce: () => (annInp as HTMLInputElement).value,
+            };
+        };
+
+        // ── Active pose status bar ─────────────────────────────────────────────
+        const statusBar = document.createElement("div");
+        statusBar.style.cssText = [
+            "background:#190b13",
+            "border-radius:6px",
+            "padding:5px 8px",
+            "margin-bottom:8px",
+            "display:flex",
+            "align-items:center",
+            "gap:6px",
+            "flex-wrap:wrap",
+        ].join(";");
+
+        const statusLbl = document.createElement("span");
+        statusLbl.style.cssText = "color:#cbaab7;font-size:10px;font-weight:600;";
+        statusLbl.textContent = "NOW:";
+        statusBar.appendChild(statusLbl);
+
+        if (currentPoses.length === 0) {
+            const pill = document.createElement("span");
+            pill.style.cssText = "background:#cf6f98;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;";
+            pill.textContent = "Standing";
+            statusBar.appendChild(pill);
+        } else {
+            for (const p of currentPoses) {
+                const pill = document.createElement("span");
+                pill.style.cssText = "background:#cf6f98;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;";
+                // Find the human label for this key
+                let label = p;
+                for (const g of KNOWN_POSES) {
+                    const found = g.poses.find(x => x.key === p);
+                    if (found) { label = found.label; break; }
+                }
+                pill.textContent = label;
+                statusBar.appendChild(pill);
+            }
+        }
+
+        // Clear all button
+        if (currentPoses.length > 0) {
+            const clearBtn = document.createElement("button");
+            clearBtn.style.cssText = "margin-left:auto;font-size:10px;padding:2px 7px;";
+            clearBtn.className = "ebc-outfit-del";
+            clearBtn.textContent = "Stand";
+            clearBtn.title = "Clear all poses";
+            clearBtn.addEventListener("click", () => {
+                applyPoses([]);
+                window.setTimeout(() => this.renderPoses(), 150);
+            });
+            statusBar.appendChild(clearBtn);
+        }
+        body.appendChild(statusBar);
+
+        // ── Hint ──────────────────────────────────────────────────────────────
+        const hint = document.createElement("div");
+        hint.className = "ebc-import-hint";
+        hint.style.marginBottom = "6px";
+        hint.textContent = "Pick one Body pose and one Arm pose — they stack!";
+        body.appendChild(hint);
+
+        // ── Preset grids ──────────────────────────────────────────────────────
         for (const group of KNOWN_POSES) {
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
@@ -2741,30 +2924,55 @@ export class EBCDrawer {
             for (const preset of group.poses) {
                 const btn = document.createElement("button");
                 const presetPoses = preset.key ? [preset.key] : [];
-                btn.className = "ebc-pose-btn" + (matchesCurrent(presetPoses) && preset.key !== "" ? " active" : "");
-                if (preset.key === "" && currentPoses.length === 0) btn.classList.add("active");
+                const isActive = preset.key === ""
+                    ? currentPoses.length === 0
+                    : isPoseActive(preset.key);
+                btn.className = "ebc-pose-btn" + (isActive ? " active" : "");
                 btn.textContent = preset.label;
-                btn.title = preset.key ? `Pose: ${preset.key}` : "Clear all poses (stand)";
+                btn.title = preset.key
+                    ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
+                    : "Clear all poses";
                 btn.addEventListener("click", () => {
-                    applyPoses(presetPoses);
-                    // Re-render to update active state
+                    if (preset.key === "") {
+                        // "Stand" clears everything
+                        applyPoses([]);
+                    } else if (group.group === "Body") {
+                        // Replace body pose but keep existing arm poses
+                        const armPoses = currentPoses.filter(p =>
+                            KNOWN_POSES.find(g => g.group === "Arms")?.poses.some(x => x.key === p),
+                        );
+                        applyPoses([preset.key, ...armPoses]);
+                    } else {
+                        // Replace arm pose but keep existing body poses
+                        const bodyPoses = currentPoses.filter(p =>
+                            KNOWN_POSES.find(g => g.group === "Body")?.poses.some(x => x.key === p),
+                        );
+                        applyPoses([...bodyPoses, preset.key]);
+                    }
                     window.setTimeout(() => this.renderPoses(), 150);
                 });
                 grid.appendChild(btn);
             }
         }
 
-        // -- My Combos ---------------------------------------------------------
-        const div = document.createElement("div");
-        div.className = "ebc-divider";
-        body.appendChild(div);
+        // ── Saved Combos ──────────────────────────────────────────────────────
+        const divEl = document.createElement("div");
+        divEl.className = "ebc-divider";
+        body.appendChild(divEl);
 
         const combosLbl = document.createElement("div");
         combosLbl.className = "ebc-section-label";
-        combosLbl.textContent = "MY COMBOS";
+        combosLbl.textContent = "SAVED COMBOS";
         body.appendChild(combosLbl);
 
         const combos = getPoseCombos();
+        if (combos.length === 0) {
+            const none = document.createElement("div");
+            none.className = "ebc-empty";
+            none.style.padding = "4px 0 6px";
+            none.textContent = "No combos yet — create one below.";
+            body.appendChild(none);
+        }
 
         for (const combo of combos) {
             const wrapper = document.createElement("div");
@@ -2778,22 +2986,38 @@ export class EBCDrawer {
             const nameEl = document.createElement("span");
             nameEl.className = "ebc-combo-name";
             nameEl.textContent = combo.name;
+            if (combo.command) {
+                nameEl.title = `/${combo.command}`;
+            }
 
+            // Show poses as "Body → Arms" with arrow separator
             const posesEl = document.createElement("span");
             posesEl.className = "ebc-combo-poses";
-            posesEl.textContent = combo.poses.join(" + ") || "(none)";
+            const poseLabels = combo.poses.map(k => {
+                for (const g of KNOWN_POSES) {
+                    const found = g.poses.find(x => x.key === k);
+                    if (found) return found.label;
+                }
+                return k;
+            });
+            posesEl.textContent = poseLabels.join(" → ") || "(none)";
+            if (combo.command) {
+                const cmdBadge = document.createElement("span");
+                cmdBadge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
+                cmdBadge.textContent = `/${combo.command}`;
+                posesEl.appendChild(cmdBadge);
+            }
 
             const applyBtn = document.createElement("button");
             applyBtn.className = "ebc-wear-btn";
             applyBtn.textContent = "▶";
-            applyBtn.title = "Apply this combo";
+            applyBtn.title = "Apply this combo (animates step by step)";
             applyBtn.style.padding = "3px 8px";
             applyBtn.addEventListener("click", () => {
                 const steps = combo.poses.filter(Boolean);
                 applyBtn.disabled = true;
-                applyBtn.textContent = "▶ …";
+                applyBtn.textContent = "…";
                 applyPosesSequential(steps);
-                // Re-render active state after the full sequence completes
                 const totalMs = steps.length > 1 ? (steps.length - 1) * 420 + 200 : 200;
                 window.setTimeout(() => {
                     applyBtn.disabled = false;
@@ -2834,75 +3058,43 @@ export class EBCDrawer {
             row.appendChild(editBtn);
             row.appendChild(delBtn);
 
-            // Inline edit panel
+            // ── Inline editor ─────────────────────────────────────────────────
             const editor = document.createElement("div");
             editor.className = "ebc-combo-editor";
 
-            const eNameInp = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", value: combo.name, maxLength: 30,
-            });
-
+            // Name
             const eNameRow = document.createElement("div");
             eNameRow.className = "ebc-form-row";
             const eNameLbl = document.createElement("span");
             eNameLbl.className = "ebc-form-label";
             eNameLbl.textContent = "Name";
+            const eNameInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", value: combo.name, maxLength: 30,
+            });
+            (eNameInp as HTMLInputElement).style.flex = "1";
             eNameRow.appendChild(eNameLbl);
             eNameRow.appendChild(eNameInp);
             editor.appendChild(eNameRow);
 
-            const poseLbl2 = document.createElement("div");
-            poseLbl2.className = "ebc-import-hint";
-            poseLbl2.textContent = "Select poses to combine:";
-            editor.appendChild(poseLbl2);
+            // Pose checkboxes
+            const poseSectionLbl = document.createElement("div");
+            poseSectionLbl.className = "ebc-import-hint";
+            poseSectionLbl.textContent = "Poses (applied body first, then arms):";
+            editor.appendChild(poseSectionLbl);
+            const selectedPoses = buildPoseCheckGrid(editor, combo.poses);
 
-            const checkGrid = document.createElement("div");
-            checkGrid.className = "ebc-pose-check-grid";
-            editor.appendChild(checkGrid);
-
-            const allPresetKeys = ([] as { key: string; label: string }[]).concat(...KNOWN_POSES.map(g => g.poses.filter(p => p.key)));
-            const selectedPoses = new Set(combo.poses);
-
-            for (const { key, label } of allPresetKeys) {
-                const lbl = document.createElement("label");
-                lbl.className = "ebc-pose-check-label";
-                const cb = document.createElement("input");
-                cb.type = "checkbox";
-                cb.checked = selectedPoses.has(key);
-                cb.addEventListener("change", () => {
-                    if (cb.checked) selectedPoses.add(key); else selectedPoses.delete(key);
-                });
-                lbl.appendChild(cb);
-                lbl.appendChild(document.createTextNode(label));
-                checkGrid.appendChild(lbl);
-            }
-
-            const customHint = document.createElement("div");
-            customHint.className = "ebc-import-hint";
-            customHint.textContent = "Custom pose name (e.g. Hogtied):";
-            editor.appendChild(customHint);
-
-            const customRow = document.createElement("div");
-            customRow.style.cssText = "display:flex;gap:5px;";
-            const customInp = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", placeholder: "PoseName", maxLength: 40, style: "flex:1",
-            });
-            const addCustomBtn = document.createElement("button");
-            addCustomBtn.className = "ebc-update-btn";
-            addCustomBtn.textContent = "+ Add";
-            addCustomBtn.addEventListener("click", () => {
-                const val = customInp.value.trim();
-                if (val) { selectedPoses.add(val); customInp.value = ""; }
-            });
-            customRow.appendChild(customInp);
-            customRow.appendChild(addCustomBtn);
-            editor.appendChild(customRow);
+            // Command + Announce
+            const { getCommand, getAnnounce } = buildComboOptions(
+                editor,
+                combo.command ?? "",
+                combo.announceText ?? "",
+            );
 
             const savComboBtn = document.createElement("button");
             savComboBtn.className = "ebc-create-btn";
-            savComboBtn.textContent = "Save Combo";
+            savComboBtn.textContent = "Save Changes";
             savComboBtn.addEventListener("click", () => {
-                updateCombo(combo.id, eNameInp.value, [...selectedPoses]);
+                updateCombo(combo.id, (eNameInp as HTMLInputElement).value, [...selectedPoses], getCommand(), getAnnounce());
                 this.renderPoses();
             });
             editor.appendChild(savComboBtn);
@@ -2919,7 +3111,7 @@ export class EBCDrawer {
             body.appendChild(wrapper);
         }
 
-        // -- New combo form ----------------------------------------------------
+        // ── New combo form ────────────────────────────────────────────────────
         const div2 = document.createElement("div");
         div2.className = "ebc-divider";
         body.appendChild(div2);
@@ -2933,6 +3125,7 @@ export class EBCDrawer {
         newComboForm.className = "ebc-new-form";
         body.appendChild(newComboForm);
 
+        // Name
         const ncNameRow = document.createElement("div");
         ncNameRow.className = "ebc-form-row";
         const ncNameLbl = document.createElement("span");
@@ -2941,63 +3134,29 @@ export class EBCDrawer {
         const ncNameInp = Object.assign(document.createElement("input"), {
             className: "ebc-form-input", type: "text", placeholder: "e.g. Kneel Arms Back", maxLength: 30,
         });
+        (ncNameInp as HTMLInputElement).style.flex = "1";
         ncNameRow.appendChild(ncNameLbl);
         ncNameRow.appendChild(ncNameInp);
         newComboForm.appendChild(ncNameRow);
 
+        // Pose checkboxes
         const ncPoseLbl = document.createElement("div");
         ncPoseLbl.className = "ebc-import-hint";
         ncPoseLbl.style.marginTop = "3px";
-        ncPoseLbl.textContent = "Select poses:";
+        ncPoseLbl.textContent = "Poses (applied body first, then arms):";
         newComboForm.appendChild(ncPoseLbl);
+        const ncSelected = buildPoseCheckGrid(newComboForm, []);
 
-        const ncGrid = document.createElement("div");
-        ncGrid.className = "ebc-pose-check-grid";
-        newComboForm.appendChild(ncGrid);
-
-        const ncSelected = new Set<string>();
-        const allKeys = ([] as { key: string; label: string }[]).concat(...KNOWN_POSES.map(g => g.poses.filter(p => p.key)));
-        for (const { key, label } of allKeys) {
-            const lbl = document.createElement("label");
-            lbl.className = "ebc-pose-check-label";
-            const cb = document.createElement("input");
-            cb.type = "checkbox";
-            cb.addEventListener("change", () => {
-                if (cb.checked) ncSelected.add(key); else ncSelected.delete(key);
-            });
-            lbl.appendChild(cb);
-            lbl.appendChild(document.createTextNode(label));
-            ncGrid.appendChild(lbl);
-        }
-
-        const ncCustomHint = document.createElement("div");
-        ncCustomHint.className = "ebc-import-hint";
-        ncCustomHint.textContent = "Custom pose name:";
-        newComboForm.appendChild(ncCustomHint);
-
-        const ncCustomRow = document.createElement("div");
-        ncCustomRow.style.cssText = "display:flex;gap:5px;";
-        const ncCustomInp = Object.assign(document.createElement("input"), {
-            className: "ebc-form-input", type: "text", placeholder: "PoseName", maxLength: 40, style: "flex:1",
-        });
-        const ncAddBtn = document.createElement("button");
-        ncAddBtn.className = "ebc-update-btn";
-        ncAddBtn.textContent = "+ Add";
-        ncAddBtn.addEventListener("click", () => {
-            const val = ncCustomInp.value.trim();
-            if (val) { ncSelected.add(val); ncCustomInp.value = ""; }
-        });
-        ncCustomRow.appendChild(ncCustomInp);
-        ncCustomRow.appendChild(ncAddBtn);
-        newComboForm.appendChild(ncCustomRow);
+        // Command + Announce
+        const { getCommand: ncGetCommand, getAnnounce: ncGetAnnounce } = buildComboOptions(newComboForm);
 
         const ncSaveBtn = document.createElement("button");
         ncSaveBtn.className = "ebc-create-btn";
         ncSaveBtn.textContent = "Save Combo";
         ncSaveBtn.addEventListener("click", () => {
-            const name = ncNameInp.value.trim();
-            if (!name) { ncNameInp.style.borderColor = "#cf6f98"; return; }
-            createCombo(name, [...ncSelected]);
+            const name = (ncNameInp as HTMLInputElement).value.trim();
+            if (!name) { (ncNameInp as HTMLInputElement).style.borderColor = "#cf6f98"; return; }
+            createCombo(name, [...ncSelected], ncGetCommand(), ncGetAnnounce());
             this.renderPoses();
         });
         newComboForm.appendChild(ncSaveBtn);
@@ -3006,7 +3165,7 @@ export class EBCDrawer {
             const open = newComboForm.style.display !== "none";
             newComboForm.style.display = open ? "none" : "flex";
             newComboToggle.textContent = open ? "+ New Pose Combo" : "- Cancel";
-            if (!open) ncNameInp.focus();
+            if (!open) (ncNameInp as HTMLInputElement).focus();
         });
     }
 

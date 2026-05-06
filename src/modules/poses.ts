@@ -2,10 +2,14 @@
 // Poses require matching equipped items to visually render — BC handles
 // validation server-side and silently ignores inapplicable poses.
 
+import { getDisplayName } from "./actionButtons";
+
 export interface PoseCombo {
     id: string;
     name: string;
     poses: string[];
+    command?: string;      // optional chat command (without /) to trigger this combo
+    announceText?: string; // optional action emote shown to the room when applied
 }
 
 // Well-known BC pose names grouped by type.
@@ -110,18 +114,70 @@ function saveCombos(list: PoseCombo[]): void {
 
 export function getPoseCombos(): PoseCombo[] { return load(); }
 
-export function createCombo(name: string, poses: string[]): PoseCombo {
-    const combo: PoseCombo = { id: uid(), name: name.trim() || "Combo", poses: poses.filter(Boolean) };
+export function createCombo(
+    name: string,
+    poses: string[],
+    command = "",
+    announceText = "",
+): PoseCombo {
+    const combo: PoseCombo = {
+        id: uid(),
+        name: name.trim() || "Combo",
+        poses: poses.filter(Boolean),
+        command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
+        announceText: announceText.trim() || undefined,
+    };
     saveCombos([...load(), combo]);
     return combo;
 }
 
-export function updateCombo(id: string, name: string, poses: string[]): void {
+export function updateCombo(
+    id: string,
+    name: string,
+    poses: string[],
+    command = "",
+    announceText = "",
+): void {
     const list = load();
     const combo = list.find(c => c.id === id);
-    if (combo) { combo.name = name.trim() || combo.name; combo.poses = poses.filter(Boolean); saveCombos(list); }
+    if (!combo) return;
+    combo.name = name.trim() || combo.name;
+    combo.poses = poses.filter(Boolean);
+    combo.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
+    combo.announceText = announceText.trim() || undefined;
+    saveCombos(list);
 }
 
 export function deleteCombo(id: string): void {
     saveCombos(load().filter(c => c.id !== id));
+}
+
+// Handle a chat command and apply the matching pose combo if found.
+export function handlePoseComboCommand(inputValue: string): boolean {
+    const trimmed = inputValue.trim();
+    if (!trimmed.startsWith("/")) return false;
+
+    const command = trimmed.slice(1).toLowerCase();
+    const combo = load().find(c => c.command && c.command.toLowerCase() === command);
+    if (!combo) return false;
+
+    applyPosesSequential(combo.poses);
+
+    const totalMs = combo.poses.length > 1 ? (combo.poses.length - 1) * 420 + 80 : 80;
+    if (combo.announceText?.trim()) {
+        window.setTimeout(() => {
+            try {
+                ServerSend("ChatRoomChat", {
+                    Type: "Action",
+                    Content: getDisplayName() + " " + combo.announceText!.trim(),
+                    Dictionary: [
+                        { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                        { SourceCharacter: Player.MemberNumber },
+                    ],
+                });
+            } catch { /* ignore */ }
+        }, totalMs);
+    }
+
+    return true;
 }

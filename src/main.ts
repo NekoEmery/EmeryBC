@@ -1,13 +1,14 @@
 ﻿import { drawActionButtons, handleActionButtonClick } from "./modules/actionButtons";
 import { EBCDrawer } from "./modules/drawer";
 import { handleOutfitCommand } from "./modules/outfitManager";
+import { handlePoseComboCommand } from "./modules/poses";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled } from "./modules/settings";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.76";
+const MOD_VERSION = "0.1.79";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -654,7 +655,7 @@ function init(): void {
         try {
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = document.getElementById("InputChat") as HTMLInputElement | null;
-                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value))) {
+                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value))) {
                     input.value = "";
                     return;
                 }
@@ -668,7 +669,7 @@ function init(): void {
     modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
         try {
             const input = document.getElementById("InputChat") as HTMLInputElement | null;
-            if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value))) {
+            if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value))) {
                 input.value = "";
                 return;
             }
