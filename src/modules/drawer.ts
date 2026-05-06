@@ -836,6 +836,8 @@ export class EBCDrawer {
     private version = "";
     private refreshBadgeRow: (() => void) | null = null;
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
+    private lastCrabsBottom = -1;
+    private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
 
     constructor(version = "") {
         EBCDrawer._instance = this;
@@ -1053,8 +1055,11 @@ export class EBCDrawer {
     }
 
     // -- Positioning -----------------------------------------------------------
-    // Aligned to the right edge of TextAreaChatLog, 15% down from the top.
-    // This places our tab just below CRABS's tab without overlapping.
+    // Aligned to the right edge of TextAreaChatLog.
+    // Our tab is positioned dynamically just below CRABS's tab (#drawer-tab).
+    // Because both addons respond to the same layout events the read order is
+    // non-deterministic, so we poll CRABS's position every 200 ms instead of
+    // relying on a one-shot read during syncToChat().
 
     private syncToChat(): boolean {
         const chatLog = document.getElementById("TextAreaChatLog");
@@ -1077,23 +1082,49 @@ export class EBCDrawer {
             this.rootEl.style.height = `${rect.height * 1.5}px`;
             this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
             this.positioned = true;
+            // Chat log moved — force a fresh CRABS position read next tick
+            this.lastCrabsBottom = -1;
         }
 
-        // Dynamically position our tab just below CRABS's tab (if present),
-        // regardless of where CRABS anchors its own root.
-        const tabEl = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
-        if (tabEl) {
-            const crabsTab = document.getElementById("drawer-tab");
-            if (crabsTab) {
-                const crabsRect = crabsTab.getBoundingClientRect();
-                // Convert CRABS's tab bottom from viewport coords to our root coords
-                const tabTop = Math.max(4, crabsRect.bottom + 4 - rect.top);
-                tabEl.style.top = `${tabTop}px`;
-            }
-            // If CRABS not present the CSS default (top:58px) stays in effect
-        }
+        // Do an immediate CRABS position read (poller may not have fired yet).
+        this.updateCrabsPosition();
 
         return true;
+    }
+
+    // Reads CRABS's #drawer-tab position and updates our tab's top accordingly.
+    // Safe to call at any frequency — writes the DOM only when the value changes.
+    private updateCrabsPosition(): void {
+        if (!this.rootEl || !this.positioned) return;
+        const tabEl = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
+        if (!tabEl) return;
+
+        const crabsTab = document.getElementById("drawer-tab");
+        if (!crabsTab) return; // CRABS absent — CSS default (top:58px) stays
+
+        const crabsRect = crabsTab.getBoundingClientRect();
+        if (crabsRect.bottom === this.lastCrabsBottom) return; // nothing changed
+
+        const chatLog = document.getElementById("TextAreaChatLog");
+        if (!chatLog) return;
+        const chatRect = chatLog.getBoundingClientRect();
+        const tabTop = Math.max(4, crabsRect.bottom + 4 - chatRect.top);
+        tabEl.style.top = `${tabTop}px`;
+        this.lastCrabsBottom = crabsRect.bottom;
+    }
+
+    // Poll CRABS's tab position while in a chat room so we stay in sync even
+    // if CRABS repositions itself after our ResizeObserver already fired.
+    private startCrabsPoller(): void {
+        if (this.crabsPoller !== null) return;
+        this.crabsPoller = window.setInterval(() => this.updateCrabsPosition(), 200);
+    }
+
+    private stopCrabsPoller(): void {
+        if (this.crabsPoller === null) return;
+        window.clearInterval(this.crabsPoller);
+        this.crabsPoller = null;
+        this.lastCrabsBottom = -1;
     }
 
     // -- Visibility ------------------------------------------------------------
@@ -1110,6 +1141,7 @@ export class EBCDrawer {
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.resizeObserver?.disconnect();
             this.resizeObserver = null;
+            this.stopCrabsPoller();
             return;
         }
 
@@ -1132,6 +1164,9 @@ export class EBCDrawer {
                 this.resizeObserver.observe(chatLog);
             }
         }
+
+        // Keep EBC tab locked below CRABS regardless of who repositions first.
+        this.startCrabsPoller();
     }
 
     // -- Tab switching ---------------------------------------------------------
@@ -1908,6 +1943,7 @@ export class EBCDrawer {
 
     public destroy(): void {
         this.resizeObserver?.disconnect();
+        this.stopCrabsPoller();
         this.rootEl?.remove();
         this.rootEl  = null;
         this.panelEl = null;

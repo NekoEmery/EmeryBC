@@ -1564,6 +1564,8 @@
             this.version = "";
             this.refreshBadgeRow = null;
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
+            this.lastCrabsBottom = -1;
+            this.crabsPoller = null;
             EBCDrawer._instance = this;
             this.version = version;
             if (document.body) {
@@ -1748,8 +1750,11 @@
             document.head.appendChild(s);
         }
         // -- Positioning -----------------------------------------------------------
-        // Aligned to the right edge of TextAreaChatLog, 15% down from the top.
-        // This places our tab just below CRABS's tab without overlapping.
+        // Aligned to the right edge of TextAreaChatLog.
+        // Our tab is positioned dynamically just below CRABS's tab (#drawer-tab).
+        // Because both addons respond to the same layout events the read order is
+        // non-deterministic, so we poll CRABS's position every 200 ms instead of
+        // relying on a one-shot read during syncToChat().
         syncToChat() {
             const chatLog = document.getElementById("TextAreaChatLog");
             if (!chatLog || !this.rootEl)
@@ -1769,21 +1774,48 @@
                 this.rootEl.style.height = `${rect.height * 1.5}px`;
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
+                // Chat log moved — force a fresh CRABS position read next tick
+                this.lastCrabsBottom = -1;
             }
-            // Dynamically position our tab just below CRABS's tab (if present),
-            // regardless of where CRABS anchors its own root.
-            const tabEl = this.rootEl.querySelector("#ebc-tab");
-            if (tabEl) {
-                const crabsTab = document.getElementById("drawer-tab");
-                if (crabsTab) {
-                    const crabsRect = crabsTab.getBoundingClientRect();
-                    // Convert CRABS's tab bottom from viewport coords to our root coords
-                    const tabTop = Math.max(4, crabsRect.bottom + 4 - rect.top);
-                    tabEl.style.top = `${tabTop}px`;
-                }
-                // If CRABS not present the CSS default (top:58px) stays in effect
-            }
+            // Do an immediate CRABS position read (poller may not have fired yet).
+            this.updateCrabsPosition();
             return true;
+        }
+        // Reads CRABS's #drawer-tab position and updates our tab's top accordingly.
+        // Safe to call at any frequency — writes the DOM only when the value changes.
+        updateCrabsPosition() {
+            if (!this.rootEl || !this.positioned)
+                return;
+            const tabEl = this.rootEl.querySelector("#ebc-tab");
+            if (!tabEl)
+                return;
+            const crabsTab = document.getElementById("drawer-tab");
+            if (!crabsTab)
+                return; // CRABS absent — CSS default (top:58px) stays
+            const crabsRect = crabsTab.getBoundingClientRect();
+            if (crabsRect.bottom === this.lastCrabsBottom)
+                return; // nothing changed
+            const chatLog = document.getElementById("TextAreaChatLog");
+            if (!chatLog)
+                return;
+            const chatRect = chatLog.getBoundingClientRect();
+            const tabTop = Math.max(4, crabsRect.bottom + 4 - chatRect.top);
+            tabEl.style.top = `${tabTop}px`;
+            this.lastCrabsBottom = crabsRect.bottom;
+        }
+        // Poll CRABS's tab position while in a chat room so we stay in sync even
+        // if CRABS repositions itself after our ResizeObserver already fired.
+        startCrabsPoller() {
+            if (this.crabsPoller !== null)
+                return;
+            this.crabsPoller = window.setInterval(() => this.updateCrabsPosition(), 200);
+        }
+        stopCrabsPoller() {
+            if (this.crabsPoller === null)
+                return;
+            window.clearInterval(this.crabsPoller);
+            this.crabsPoller = null;
+            this.lastCrabsBottom = -1;
         }
         // -- Visibility ------------------------------------------------------------
         updateVisibility() {
@@ -1799,6 +1831,7 @@
                 this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
                 (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
                 this.resizeObserver = null;
+                this.stopCrabsPoller();
                 return;
             }
             // Try to position; if the chat log isn't laid out yet, retry next frame
@@ -1820,6 +1853,8 @@
                     this.resizeObserver.observe(chatLog);
                 }
             }
+            // Keep EBC tab locked below CRABS regardless of who repositions first.
+            this.startCrabsPoller();
         }
         // -- Tab switching ---------------------------------------------------------
         switchTab(tab) {
@@ -2516,6 +2551,7 @@
         destroy() {
             var _a, _b;
             (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
+            this.stopCrabsPoller();
             (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.remove();
             this.rootEl = null;
             this.panelEl = null;
@@ -2528,9 +2564,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.70";
+    const MOD_VERSION = "0.1.71";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.71",
+            changes: [
+                "Fixed EBC tab position sometimes overlapping CRABS: now polls CRABS's tab position every 200 ms instead of reading it once at layout time, eliminating the race condition.",
+            ],
+        },
         {
             version: "0.1.70",
             changes: [
