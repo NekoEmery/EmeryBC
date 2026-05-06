@@ -1634,7 +1634,7 @@
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
             thanksTabBtn.id = "ebc-tab-thanks";
-            thanksTabBtn.textContent = "♥";
+            thanksTabBtn.textContent = "CREDITS";
             thanksTabBtn.title = "Special Thanks";
             tabBar.appendChild(outfitTabBtn);
             tabBar.appendChild(buttonsTabBtn);
@@ -2537,7 +2537,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.58";
+    const MOD_VERSION = "0.1.59";
     let noticeShown = false;
     const CHANGELOG = [
         {

@@ -923,7 +923,7 @@ export class EBCDrawer {
         const thanksTabBtn = document.createElement("button");
         thanksTabBtn.className = "ebc-tab-btn";
         thanksTabBtn.id = "ebc-tab-thanks";
-        thanksTabBtn.textContent = "♥";
+        thanksTabBtn.textContent = "CREDITS";
         thanksTabBtn.title = "Special Thanks";
 
         tabBar.appendChild(outfitTabBtn);
