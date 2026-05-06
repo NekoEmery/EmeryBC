@@ -23,7 +23,7 @@ import {
     type SerializedItem,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
-import { KNOWN_POSES, applyPoses, applyPosesSequential, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
+import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
 import { getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
@@ -3235,7 +3235,8 @@ export class EBCDrawer {
                 const delay = combo.stepDelayMs ?? 420;
                 applyBtn.disabled = true;
                 applyBtn.textContent = "…";
-                applyPosesSequential(steps, delay);
+                // applyCombo handles both the sequential animation AND the announce text
+                applyCombo(combo);
                 const totalMs = steps.length > 1 ? (steps.length - 1) * delay + 200 : 200;
                 window.setTimeout(() => {
                     applyBtn.disabled = false;

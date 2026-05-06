@@ -779,11 +779,16 @@
     ];
     function applyPoses(poses) {
         var _a;
+        const filtered = poses.filter(Boolean);
+        // BC uses null internally for "no active pose" — sending [] is ignored server-side.
+        // Split try-catch so ServerSend always fires even if CharacterRefresh throws (e.g. when
+        // clearing poses sets ActivePose to null and BC's refresh path errors internally).
         try {
-            const filtered = poses.filter(Boolean);
-            // BC uses null internally for "no active pose" — sending [] is ignored server-side
             Player.ActivePose = filtered.length > 0 ? filtered : null;
             CharacterRefresh(Player, false, false);
+        }
+        catch ( /* ignore refresh errors */_b) { /* ignore refresh errors */ }
+        try {
             if (Player.OnlineID != null) {
                 ServerSend("ChatRoomCharacterUpdate", {
                     ID: Player.OnlineID,
@@ -792,7 +797,7 @@
                 });
             }
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore send errors */_c) { /* ignore send errors */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Respects the exact order provided — the user controls sequencing via the editor.
@@ -860,16 +865,10 @@
     function deleteCombo(id) {
         saveCombos(load().filter(c => c.id !== id));
     }
-    // Handle a chat command and apply the matching pose combo if found.
-    function handlePoseComboCommand(inputValue) {
+    // Apply a combo (animation + announce text). Used by both the chat command handler
+    // and the ▶ apply button in the drawer so announce always fires either way.
+    function applyCombo(combo) {
         var _a, _b;
-        const trimmed = inputValue.trim();
-        if (!trimmed.startsWith("/"))
-            return false;
-        const command = trimmed.slice(1).toLowerCase();
-        const combo = load().find(c => c.command && c.command.toLowerCase() === command);
-        if (!combo)
-            return false;
         const delay = (_a = combo.stepDelayMs) !== null && _a !== void 0 ? _a : 420;
         applyPosesSequential(combo.poses, delay);
         const totalMs = combo.poses.length > 1 ? (combo.poses.length - 1) * delay + 80 : 80;
@@ -888,6 +887,17 @@
                 catch ( /* ignore */_a) { /* ignore */ }
             }, totalMs);
         }
+    }
+    // Handle a chat command and apply the matching pose combo if found.
+    function handlePoseComboCommand(inputValue) {
+        const trimmed = inputValue.trim();
+        if (!trimmed.startsWith("/"))
+            return false;
+        const command = trimmed.slice(1).toLowerCase();
+        const combo = load().find(c => c.command && c.command.toLowerCase() === command);
+        if (!combo)
+            return false;
+        applyCombo(combo);
         return true;
     }
 
@@ -4141,7 +4151,8 @@
                     const delay = (_a = combo.stepDelayMs) !== null && _a !== void 0 ? _a : 420;
                     applyBtn.disabled = true;
                     applyBtn.textContent = "…";
-                    applyPosesSequential(steps, delay);
+                    // applyCombo handles both the sequential animation AND the announce text
+                    applyCombo(combo);
                     const totalMs = steps.length > 1 ? (steps.length - 1) * delay + 200 : 200;
                     window.setTimeout(() => {
                         applyBtn.disabled = false;
@@ -4520,7 +4531,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.82";
+    const MOD_VERSION = "0.1.83";
     let noticeShown = false;
     const CHANGELOG = [
         {

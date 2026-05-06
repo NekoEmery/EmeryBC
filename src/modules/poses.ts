@@ -41,11 +41,15 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
 ];
 
 export function applyPoses(poses: string[]): void {
+    const filtered = poses.filter(Boolean);
+    // BC uses null internally for "no active pose" — sending [] is ignored server-side.
+    // Split try-catch so ServerSend always fires even if CharacterRefresh throws (e.g. when
+    // clearing poses sets ActivePose to null and BC's refresh path errors internally).
     try {
-        const filtered = poses.filter(Boolean);
-        // BC uses null internally for "no active pose" — sending [] is ignored server-side
         (Player as unknown as Record<string, unknown>).ActivePose = filtered.length > 0 ? filtered : null;
         CharacterRefresh(Player, false, false);
+    } catch { /* ignore refresh errors */ }
+    try {
         if (Player.OnlineID != null) {
             ServerSend("ChatRoomCharacterUpdate", {
                 ID: Player.OnlineID,
@@ -53,7 +57,7 @@ export function applyPoses(poses: string[]): void {
                 Appearance: ServerAppearanceBundle(Player.Appearance),
             });
         }
-    } catch { /* ignore */ }
+    } catch { /* ignore send errors */ }
 }
 
 // Apply poses one-by-one in the given order with a delay between each step.
@@ -138,15 +142,9 @@ export function deleteCombo(id: string): void {
     saveCombos(load().filter(c => c.id !== id));
 }
 
-// Handle a chat command and apply the matching pose combo if found.
-export function handlePoseComboCommand(inputValue: string): boolean {
-    const trimmed = inputValue.trim();
-    if (!trimmed.startsWith("/")) return false;
-
-    const command = trimmed.slice(1).toLowerCase();
-    const combo = load().find(c => c.command && c.command.toLowerCase() === command);
-    if (!combo) return false;
-
+// Apply a combo (animation + announce text). Used by both the chat command handler
+// and the ▶ apply button in the drawer so announce always fires either way.
+export function applyCombo(combo: PoseCombo): void {
     const delay = combo.stepDelayMs ?? 420;
     applyPosesSequential(combo.poses, delay);
 
@@ -165,6 +163,17 @@ export function handlePoseComboCommand(inputValue: string): boolean {
             } catch { /* ignore */ }
         }, totalMs);
     }
+}
 
+// Handle a chat command and apply the matching pose combo if found.
+export function handlePoseComboCommand(inputValue: string): boolean {
+    const trimmed = inputValue.trim();
+    if (!trimmed.startsWith("/")) return false;
+
+    const command = trimmed.slice(1).toLowerCase();
+    const combo = load().find(c => c.command && c.command.toLowerCase() === command);
+    if (!combo) return false;
+
+    applyCombo(combo);
     return true;
 }
