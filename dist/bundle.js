@@ -725,20 +725,39 @@
 
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
     function getStore() {
-        if (!Player.ExtensionSettings.EmeryBC)
-            Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC;
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
     }
     // -- Badge visibility ----------------------------------------------------------
     // Controls whether the EBC overhead badge is broadcast to other users.
     // Defaults to true (badge shown). Setting to false clears presence from
     // OnlineSharedSettings so no one else renders the tag above your head.
     function getBadgeEnabled() {
-        return getStore().badgeEnabled !== false;
+        var _a;
+        try {
+            return ((_a = getStore()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
+        }
+        catch (_b) {
+            return true; // safe default
+        }
     }
     function setBadgeEnabled(value) {
-        getStore().badgeEnabled = value;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        try {
+            const store = getStore();
+            if (!store)
+                return;
+            store.badgeEnabled = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
 
     /**
@@ -1542,6 +1561,7 @@
             this.resizeObserver = null;
             this.positioned = false;
             this.version = "";
+            this.refreshBadgeRow = null;
             EBCDrawer._instance = this;
             this.version = version;
             if (document.body) {
@@ -1658,7 +1678,11 @@
                     ? "EBC tag visible to others — click to hide"
                     : "EBC tag hidden from others — click to show";
             };
-            updateBadgeToggle();
+            this.refreshBadgeRow = updateBadgeToggle;
+            try {
+                updateBadgeToggle();
+            }
+            catch ( /* Player may not be ready yet — synced on first open */_a) { /* Player may not be ready yet — synced on first open */ }
             badgeToggle.addEventListener("click", () => {
                 var _a, _b;
                 setBadgeEnabled(!getBadgeEnabled());
@@ -2470,12 +2494,17 @@
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
+            var _a;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
             this.panelEl.className = "ebc-open";
             if (!this.positioned)
                 this.syncToChat();
+            try {
+                (_a = this.refreshBadgeRow) === null || _a === void 0 ? void 0 : _a.call(this);
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
             this.renderCurrentTab();
         }
         close() {
@@ -2500,9 +2529,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.54";
+    const MOD_VERSION = "0.1.55";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.55",
+            changes: [
+                "Fixed drawer not appearing: badge toggle called Player.ExtensionSettings during setup() before Player was ready, crashing the whole panel construction.",
+            ],
+        },
         {
             version: "0.1.54",
             changes: [

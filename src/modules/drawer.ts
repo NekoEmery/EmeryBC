@@ -833,6 +833,7 @@ export class EBCDrawer {
     private resizeObserver: ResizeObserver | null = null;
     private positioned = false;
     private version = "";
+    private refreshBadgeRow: (() => void) | null = null;
 
     constructor(version = "") {
         EBCDrawer._instance = this;
@@ -974,7 +975,8 @@ export class EBCDrawer {
                 ? "EBC tag visible to others — click to hide"
                 : "EBC tag hidden from others — click to show";
         };
-        updateBadgeToggle();
+        this.refreshBadgeRow = updateBadgeToggle;
+        try { updateBadgeToggle(); } catch { /* Player may not be ready yet — synced on first open */ }
 
         badgeToggle.addEventListener("click", () => {
             setBadgeEnabled(!getBadgeEnabled());
@@ -1884,6 +1886,7 @@ export class EBCDrawer {
         this.isOpen = true;
         this.panelEl.className = "ebc-open";
         if (!this.positioned) this.syncToChat();
+        try { this.refreshBadgeRow?.(); } catch { /* ignore */ }
         this.renderCurrentTab();
     }
 
