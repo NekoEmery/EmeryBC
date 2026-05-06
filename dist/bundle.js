@@ -1,158 +1,12 @@
 (function () {
     'use strict';
 
-    const PANEL_W = 998;
-    const PANEL_H = 940;
-    const PANEL_PADDING = 22;
-    const CONTENT_LEFT = PANEL_PADDING;
-    const CONTENT_RIGHT = PANEL_W - PANEL_PADDING;
-    const CONTENT_WIDTH = CONTENT_RIGHT - CONTENT_LEFT;
     const UI = {
-        backdrop: "#12070d",
-        panel: "#1b0d17",
-        panelInner: "#24111d",
         panelEdge: "#4c2537",
-        panelGlow: "#311320",
-        card: "#2a1421",
-        cardAlt: "#331827",
         cardMuted: "#190b13",
-        text: "#f7e6ee",
         textMuted: "#cbaab7",
-        textSoft: "#967281",
         accent: "#cf6f98",
-        accentDeep: "#91405f",
-        accentSoft: "#5b2439",
-        gold: "#c9ab72",
-        success: "#79a885",
-        danger: "#cb798c",
-        dangerDeep: "#552332",
-        buttonMuted: "#432232",
-        buttonDisabled: "#2b1520"};
-    const STAT_TONES = {
-        accent: { fill: "#351622", border: UI.accentDeep, text: UI.accent },
-        gold: { fill: "#322313", border: "#7f6132", text: UI.gold },
-        success: { fill: "#1f2c24", border: "#406650", text: UI.success },
-        danger: { fill: "#33151f", border: "#7d394a", text: UI.danger },
-        muted: { fill: "#24111d", border: "#553142", text: UI.textMuted },
-    };
-    const BUTTON_TONES = {
-        accent: { fill: UI.accentDeep, border: UI.accent, frame: "#250d18" },
-        gold: { fill: "#6d532c", border: UI.gold, frame: "#24170a" },
-        success: { fill: "#32523f", border: UI.success, frame: "#132119" },
-        danger: { fill: "#6f3142", border: UI.danger, frame: "#231018" },
-        muted: { fill: UI.buttonMuted, border: UI.textSoft, frame: "#1f0d16" },
-    };
-    function drawSettingsScaffold(title, subtitle, stats) {
-        var _a;
-        DrawRect(0, 60, PANEL_W, PANEL_H, UI.backdrop);
-        DrawRect(10, 70, PANEL_W - 20, PANEL_H - 20, UI.panel);
-        DrawRect(18, 78, PANEL_W - 36, PANEL_H - 36, UI.panelInner);
-        DrawEmptyRect(10, 70, PANEL_W - 20, PANEL_H - 20, UI.panelEdge, 2);
-        DrawRect(18, 78, PANEL_W - 36, 126, UI.panelGlow);
-        DrawRect(18, 78, 10, PANEL_H - 36, UI.accentDeep);
-        DrawRect(18, 202, PANEL_W - 36, 2, UI.panelEdge);
-        drawPill(42, 92, 96, 24, "EMERYBC", UI.accentSoft, UI.accent);
-        DrawTextFit(title, 306, 124, 420, UI.text);
-        DrawTextFit(subtitle, 392, 156, 660, UI.textMuted);
-        DrawTextFit("Quick tools, cleaner layout, faster setup.", PANEL_W - 208, 156, 304, UI.textSoft);
-        const statWidth = 110;
-        const statGap = 12;
-        const totalWidth = stats.length * statWidth + Math.max(0, stats.length - 1) * statGap;
-        let left = PANEL_W - 36 - totalWidth;
-        for (const stat of stats) {
-            drawStatCard(left, 90, statWidth, 52, stat.label, stat.value, (_a = stat.tone) !== null && _a !== void 0 ? _a : "muted");
-            left += statWidth + statGap;
-        }
-    }
-    function drawStatCard(left, top, width, height, label, value, tone) {
-        const style = STAT_TONES[tone];
-        DrawRect(left, top, width, height, "#12070d");
-        DrawRect(left + 2, top + 2, width - 4, height - 4, style.fill);
-        DrawEmptyRect(left + 2, top + 2, width - 4, height - 4, style.border, 1);
-        DrawTextFit(label, left + width / 2, top + 14, width - 12, UI.textSoft);
-        DrawTextFit(value, left + width / 2, top + 33, width - 12, style.text);
-    }
-    function drawCard(left, top, width, height, tone = "default") {
-        const fill = tone === "alt" ? UI.cardAlt : tone === "muted" ? UI.cardMuted : UI.card;
-        DrawRect(left + 4, top + 4, width, height, "rgba(0, 0, 0, 0.28)");
-        DrawRect(left, top, width, height, fill);
-        DrawEmptyRect(left, top, width, height, UI.panelEdge, 1);
-    }
-    function drawChromeButton(left, top, width, height, label, tone, disabled = false, hoverText = "") {
-        const style = BUTTON_TONES[tone];
-        DrawRect(left, top, width, height, style.frame);
-        DrawButton(left + 2, top + 2, width - 4, height - 4, label, disabled ? UI.buttonDisabled : style.fill, "", hoverText, disabled);
-        DrawEmptyRect(left + 2, top + 2, width - 4, height - 4, disabled ? UI.buttonMuted : style.border, 1);
-    }
-    function drawPill(left, top, width, height, label, fill, textColor) {
-        DrawRect(left, top, width, height, fill);
-        DrawEmptyRect(left, top, width, height, textColor, 1);
-        DrawTextFit(label, left + width / 2, top + height / 2 + 1, width - 12, textColor);
-    }
-    let colorInputStylesInjected = false;
-    function ensureColorInputStyles() {
-        if (colorInputStylesInjected)
-            return;
-        const style = document.createElement("style");
-        style.textContent = `
-        .emerybc-color-input {
-            appearance: none;
-            -webkit-appearance: none;
-            border: 1px solid #7a465a;
-            border-radius: 12px;
-            background: #1f0d16;
-            padding: 3px;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.06);
-            cursor: pointer;
-        }
-        .emerybc-color-input::-webkit-color-swatch-wrapper {
-            padding: 0;
-            border-radius: 9px;
-        }
-        .emerybc-color-input::-webkit-color-swatch {
-            border: none;
-            border-radius: 9px;
-        }
-        .emerybc-color-input::-moz-color-swatch {
-            border: none;
-            border-radius: 9px;
-        }
-    `;
-        document.head.appendChild(style);
-        colorInputStylesInjected = true;
-    }
-    function styleInput(id, widthHint = "medium") {
-        const input = document.getElementById(id);
-        if (!input)
-            return;
-        const fontSize = widthHint === "long" ? "14px" : "15px";
-        input.style.background = "linear-gradient(180deg, #fff5f9 0%, #f3dde6 100%)";
-        input.style.border = "1px solid #7a465a";
-        input.style.borderRadius = "12px";
-        input.style.boxShadow = "inset 0 1px 2px rgba(60, 18, 35, 0.16), 0 0 0 1px rgba(255,255,255,0.08)";
-        input.style.color = "#401524";
-        input.style.fontFamily = "\"Trebuchet MS\", \"Palatino Linotype\", serif";
-        input.style.fontSize = fontSize;
-        input.style.padding = "0 12px";
-        input.style.outline = "none";
-        input.style.letterSpacing = "0.02em";
-        input.autocomplete = "off";
-    }
-    function styleColorInput(id) {
-        const input = document.getElementById(id);
-        if (!input)
-            return;
-        ensureColorInputStyles();
-        input.classList.add("emerybc-color-input");
-        input.style.padding = "2px";
-        input.style.background = UI.cardMuted;
-        input.style.border = "1px solid #7a465a";
-        input.style.borderRadius = "12px";
-        input.style.boxShadow = "inset 0 1px 2px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.06)";
-    }
-    function mouseInRect(x, y, w, h) {
-        return MouseX >= x && MouseX <= x + w && MouseY >= y && MouseY <= y + h;
-    }
+        gold: "#c9ab72"};
 
     // Action buttons drawn in the chatroom sidebar below BCAR's buttons.
     const DEFAULT_BUTTONS = [
@@ -165,18 +19,6 @@
     ];
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
-    // Settings list layout - one row per slot
-    const ROW_H$1 = 56;
-    const LIST_Y$1 = 226;
-    const HEADER_Y = 213;
-    // Column x positions (left edges)
-    const COL_TOG = CONTENT_LEFT; // toggle button
-    const COL_LAB = CONTENT_LEFT + 62; // label input
-    const COL_COL = CONTENT_LEFT + 200; // color picker
-    const COL_ME = CONTENT_LEFT + 254; // "/me" prefix text
-    const COL_EMO = CONTENT_LEFT + 292; // emote input
-    const COL_DEL = CONTENT_RIGHT - 76; // delete button
-    const EMO_W = COL_DEL - COL_EMO - 10; // emote input width
     // --- Storage -----------------------------------------------------------------
     function getStore() {
         if (!Player.ExtensionSettings.EmeryBC)
@@ -195,7 +37,7 @@
         const buttons = getButtons();
         return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
     }
-    function saveData(buttons, slotCount) {
+    function saveButtons(buttons, slotCount) {
         const store = getStore();
         store.actionButtons = buttons;
         store.actionSlotCount = slotCount;
@@ -213,8 +55,6 @@
         return fallback;
     }
     // --- Helper: send as BC Action - displays as (Name text) ---------------------
-    // Uses a custom Dictionary tag so BC resolves "{SourceCharacter} <emote>" and
-    // substitutes the character name, producing "(Emery nods.)" in the chat log.
     function sendAction(emote) {
         ServerSend("ChatRoomChat", {
             Type: "Action",
@@ -229,7 +69,7 @@
     const BTN_X = 0;
     const BTN_START_Y = 270;
     const BTN_SIZE = 45;
-    // Hamburger toggle chip sits just above the action buttons
+    // Collapse toggle chip - small (-) / (+) button above the action buttons
     const CHIP_X = 0;
     const CHIP_Y = 255;
     const CHIP_W = 45;
@@ -238,8 +78,8 @@
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
-        // Always draw the collapse toggle chip
-        DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H, sidebarCollapsed ? "+" : "---", sidebarCollapsed ? UI.buttonMuted : UI.cardMuted, "", sidebarCollapsed ? "Show quick buttons" : "Hide quick buttons");
+        // Collapse toggle chip
+        DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H, sidebarCollapsed ? "+" : "-", sidebarCollapsed ? "#3a1928" : UI.cardMuted, "", sidebarCollapsed ? "Show quick buttons" : "Hide quick buttons");
         if (sidebarCollapsed)
             return;
         const buttons = getButtons();
@@ -275,148 +115,6 @@
         }
         return false;
     }
-    // --- Settings -----------------------------------------------------------------
-    let settingsButtons = [];
-    let settingsSlotCount = DEFAULT_SLOTS;
-    function inputId(slot, field) {
-        return `EmeryBtn_${field}_${slot}`;
-    }
-    function ensureInputs$1() {
-        var _a;
-        for (let i = 0; i < ABSOLUTE_MAX; i++) {
-            const btn = (_a = settingsButtons[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b"};
-            if (!document.getElementById(inputId(i, "label")))
-                ElementCreateInput(inputId(i, "label"), "text", btn.label, "6");
-            if (!document.getElementById(inputId(i, "color")))
-                ElementCreateInput(inputId(i, "color"), "color", normalizeHex(btn.color));
-            if (!document.getElementById(inputId(i, "emote")))
-                ElementCreateInput(inputId(i, "emote"), "text", btn.emote, "120");
-            styleInput(inputId(i, "label"), "short");
-            styleColorInput(inputId(i, "color"));
-            styleInput(inputId(i, "emote"), "long");
-        }
-    }
-    function settingsLoad() {
-        const buttons = getButtons();
-        settingsSlotCount = getSlotCount();
-        settingsButtons = Array.from({ length: ABSOLUTE_MAX }, (_, i) => {
-            var _a;
-            return (Object.assign({}, ((_a = buttons[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b", enabled: false })));
-        });
-    }
-    function syncInputsFromButtons() {
-        var _a;
-        for (let i = 0; i < ABSOLUTE_MAX; i++) {
-            (_a = document.getElementById(inputId(i, "label"))) === null || _a === void 0 ? void 0 : _a.setAttribute("value", settingsButtons[i].label);
-            const lbl = document.getElementById(inputId(i, "label"));
-            const clr = document.getElementById(inputId(i, "color"));
-            const emt = document.getElementById(inputId(i, "emote"));
-            if (lbl)
-                lbl.value = settingsButtons[i].label;
-            if (clr)
-                clr.value = normalizeHex(settingsButtons[i].color);
-            if (emt)
-                emt.value = settingsButtons[i].emote;
-        }
-    }
-    function collectFromInputs() {
-        for (let i = 0; i < settingsSlotCount; i++) {
-            settingsButtons[i].label = ElementValue(inputId(i, "label")).trim().slice(0, 6);
-            settingsButtons[i].color = normalizeHex(ElementValue(inputId(i, "color")));
-            settingsButtons[i].emote = ElementValue(inputId(i, "emote")).trim();
-        }
-    }
-    function settingsRun$1() {
-        ensureInputs$1();
-        const activeCount = settingsButtons.slice(0, settingsSlotCount).filter(b => b.enabled && b.label.trim()).length;
-        drawSettingsScaffold("Action Buttons", "Quick emote shortcuts shown in the chatroom sidebar.", [
-            { label: "ACTIVE", value: `${activeCount}/${settingsSlotCount}`, tone: "accent" },
-            { label: "SLOTS", value: `${settingsSlotCount}/${ABSOLUTE_MAX}`, tone: "gold" },
-        ]);
-        // -- Column headers ------------------------------------------------------
-        DrawRect(CONTENT_LEFT, HEADER_Y - 4, CONTENT_WIDTH, 1, UI.panelEdge);
-        DrawTextFit("On", COL_TOG + 27, HEADER_Y, 54, UI.textSoft);
-        DrawTextFit("Label", COL_LAB + 57, HEADER_Y, 100, UI.textSoft);
-        DrawTextFit("Color", COL_COL + 22, HEADER_Y, 72, UI.textSoft);
-        DrawTextFit("/me Emote Text  (sent as * Name text * in chat)", COL_EMO + EMO_W / 2, HEADER_Y, EMO_W, UI.textSoft);
-        DrawRect(CONTENT_LEFT, HEADER_Y + 6, CONTENT_WIDTH, 1, UI.panelEdge);
-        // -- Rows ----------------------------------------------------------------
-        for (let i = 0; i < settingsSlotCount; i++) {
-            const btn = settingsButtons[i];
-            const y = LIST_Y$1 + i * ROW_H$1;
-            DrawRect(CONTENT_LEFT, y, CONTENT_WIDTH, ROW_H$1 - 2, i % 2 === 0 ? UI.card : UI.cardAlt);
-            DrawEmptyRect(CONTENT_LEFT, y, CONTENT_WIDTH, ROW_H$1 - 2, UI.panelEdge, 1);
-            // Toggle
-            DrawButton(COL_TOG + 5, y + 9, 44, ROW_H$1 - 18, btn.enabled ? "-" : "", btn.enabled ? UI.accentDeep : UI.buttonMuted, "", btn.enabled ? "Click to disable" : "Click to enable");
-            // Label input - centered in cell
-            ElementPosition(inputId(i, "label"), COL_LAB + 57, y + ROW_H$1 / 2, 110, 36);
-            // Color picker
-            ElementPosition(inputId(i, "color"), COL_COL + 22, y + ROW_H$1 / 2, 42, 36);
-            // "/me" prefix label - clearly to the left of the emote input
-            DrawTextFit("/me", COL_ME + 18, y + ROW_H$1 / 2, 36, UI.accent);
-            // Emote input
-            ElementPosition(inputId(i, "emote"), COL_EMO + EMO_W / 2, y + ROW_H$1 / 2, EMO_W, 36);
-            // Delete button
-            DrawButton(COL_DEL + 3, y + 10, 66, ROW_H$1 - 20, "- Del", UI.dangerDeep, "", "Remove this slot");
-        }
-        // -- Footer ---------------------------------------------------------------
-        const footerY = LIST_Y$1 + settingsSlotCount * ROW_H$1 + 14;
-        DrawRect(CONTENT_LEFT, footerY - 6, CONTENT_WIDTH, 1, UI.panelEdge);
-        const canAdd = settingsSlotCount < ABSOLUTE_MAX;
-        drawChromeButton(CONTENT_LEFT, footerY, 228, 44, `- Add Slot  (${settingsSlotCount}/${ABSOLUTE_MAX})`, canAdd ? "success" : "muted", !canAdd);
-        drawChromeButton(CONTENT_LEFT + 244, footerY, 200, 44, "Save Layout", "accent");
-        drawChromeButton(CONTENT_LEFT + 460, footerY, 200, 44, "Reset Defaults", "gold");
-        DrawTextFit("Sends as (Name text) in chat - e.g. \"nods.\" becomes (Emery nods.)", CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
-    }
-    function settingsClick$1() {
-        // -- Toggle + Delete per row ----------------------------------------------
-        for (let i = 0; i < settingsSlotCount; i++) {
-            const y = LIST_Y$1 + i * ROW_H$1;
-            if (mouseInRect(COL_TOG + 5, y + 9, 44, ROW_H$1 - 18)) {
-                settingsButtons[i].enabled = !settingsButtons[i].enabled;
-                return;
-            }
-            if (mouseInRect(COL_DEL + 3, y + 10, 66, ROW_H$1 - 20)) {
-                collectFromInputs();
-                settingsButtons.splice(i, 1);
-                settingsButtons.push({ label: "", emote: "", color: "#c2185b", enabled: false });
-                settingsSlotCount = Math.max(1, settingsSlotCount - 1);
-                syncInputsFromButtons();
-                return;
-            }
-        }
-        // -- Footer buttons -------------------------------------------------------
-        const footerY = LIST_Y$1 + settingsSlotCount * ROW_H$1 + 14;
-        if (canAdd() && mouseInRect(CONTENT_LEFT, footerY, 228, 44)) {
-            collectFromInputs();
-            settingsSlotCount = Math.min(ABSOLUTE_MAX, settingsSlotCount + 1);
-            return;
-        }
-        if (mouseInRect(CONTENT_LEFT + 244, footerY, 200, 44)) {
-            collectFromInputs();
-            saveData([...settingsButtons], settingsSlotCount);
-            return;
-        }
-        if (mouseInRect(CONTENT_LEFT + 460, footerY, 200, 44)) {
-            settingsButtons = Array.from({ length: ABSOLUTE_MAX }, (_, i) => {
-                var _a;
-                return (Object.assign({}, ((_a = DEFAULT_BUTTONS[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b", enabled: false })));
-            });
-            settingsSlotCount = DEFAULT_SLOTS;
-            syncInputsFromButtons();
-            saveData([...settingsButtons], settingsSlotCount);
-        }
-    }
-    function canAdd() {
-        return settingsSlotCount < ABSOLUTE_MAX;
-    }
-    function settingsExit$1() {
-        for (let i = 0; i < ABSOLUTE_MAX; i++) {
-            ElementRemove(inputId(i, "label"));
-            ElementRemove(inputId(i, "color"));
-            ElementRemove(inputId(i, "emote"));
-        }
-    }
 
     const RESTRAINT_GROUPS = new Set([
         "ItemArms", "ItemHands", "ItemLegs", "ItemFeet", "ItemBoots",
@@ -425,28 +123,10 @@
         "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
         "ItemTorso", "ItemTorso2", "ItemEars", "ItemNose", "ItemMisc",
     ]);
-    const OUTFITS_PER_PAGE = 4;
-    const NAV_Y = 216;
-    const LIST_Y = 270;
-    const ROW_H = 86;
-    const LIST_LEFT = CONTENT_LEFT;
-    const LIST_WIDTH = 538;
-    const LIST_BTN_W = 68;
-    const EDITOR_GAP = 18;
-    const EDITOR_LEFT = LIST_LEFT + LIST_WIDTH + EDITOR_GAP;
-    const EDITOR_WIDTH = CONTENT_RIGHT - EDITOR_LEFT;
-    const EDITOR_TOP = NAV_Y;
-    const EDITOR_HEIGHT = 660;
-    let settingsPage = 0;
-    let addIncludeRestraints = false;
-    let editingOutfitId = null;
     const MAX_SERIALIZE_DEPTH = 12;
     let outfitApplyPending = false;
     let refreshScheduled = false;
     let cachedOutfits = null;
-    function placeInput(id, left, y, width, height) {
-        ElementPosition(id, left + width / 2, y + height / 2, width, height);
-    }
     function getAddon() {
         if (!Player.ExtensionSettings.EmeryBC) {
             Player.ExtensionSettings.EmeryBC = {};
@@ -708,7 +388,7 @@
         if (!outfit)
             return false;
         if (!outfit.items.length) {
-            localNotice(`Outfit "/${outfit.command}" has no saved appearance yet. Save it from Extensions.`, "#ffb7c7");
+            localNotice(`Outfit "/${outfit.command}" has no saved appearance yet. Use the EBC drawer to save it.`, "#ffb7c7");
             return true;
         }
         applyOutfit(outfit);
@@ -732,256 +412,13 @@
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
     }
-    function ensureInputs() {
-        if (!document.getElementById("EmeryOF_Cmd")) {
-            ElementCreateInput("EmeryOF_Cmd", "text", "", "20");
-        }
-        if (!document.getElementById("EmeryOF_Name")) {
-            ElementCreateInput("EmeryOF_Name", "text", "", "40");
-        }
-        if (!document.getElementById("EmeryOF_Announce")) {
-            ElementCreateInput("EmeryOF_Announce", "text", "changes into her outfit", "120");
-        }
-        styleInput("EmeryOF_Cmd", "short");
-        styleInput("EmeryOF_Name", "medium");
-        styleInput("EmeryOF_Announce", "long");
-    }
-    function setEditorValues(command, name, announce, includeRestraints) {
-        const cmdInput = document.getElementById("EmeryOF_Cmd");
-        const nameInput = document.getElementById("EmeryOF_Name");
-        const announceInput = document.getElementById("EmeryOF_Announce");
-        if (cmdInput)
-            cmdInput.value = command;
-        if (nameInput)
-            nameInput.value = name;
-        if (announceInput)
-            announceInput.value = announce;
-        addIncludeRestraints = includeRestraints;
-    }
-    function resetEditor() {
-        editingOutfitId = null;
-        setEditorValues("", "", "changes into her outfit", false);
-    }
-    function beginEditing(outfit) {
-        editingOutfitId = outfit.id;
-        setEditorValues(outfit.command, outfit.displayName, outfit.announceText, outfit.includeRestraints);
-    }
-    function outfitSettingsLoad() {
-        loadOutfitsFromSettings();
-        settingsPage = 0;
-        editingOutfitId = null;
-        addIncludeRestraints = false;
-    }
-    function outfitSettingsRun() {
-        var _a;
-        ensureInputs();
-        const outfits = getOutfits();
-        const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
-        const page = Math.min(settingsPage, totalPages - 1);
-        const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
-        const editingOutfit = editingOutfitId ? (_a = outfits.find(o => o.id === editingOutfitId)) !== null && _a !== void 0 ? _a : null : null;
-        drawSettingsScaffold("Outfit Commands", "Capture a look once, then switch with a slash command.", [
-            { label: "OUTFITS", value: `${outfits.length}`, tone: "accent" },
-            { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
-        ]);
-        // -- List nav ------------------------------------------------------------
-        drawChromeButton(LIST_LEFT, NAV_Y, 88, 30, "- Prev", "muted", page === 0);
-        DrawTextFit(`Page ${page + 1} of ${totalPages}`, LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 15, LIST_WIDTH - 200, UI.textMuted);
-        drawChromeButton(LIST_LEFT + LIST_WIDTH - 88, NAV_Y, 88, 30, "Next -", "muted", page >= totalPages - 1);
-        DrawTextFit("Click any row to open it in the editor. Use the row buttons to act on it.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 40, LIST_WIDTH - 10, UI.textSoft);
-        // -- Outfit rows ---------------------------------------------------------
-        // Button columns (right-aligned, shared across all rows)
-        const btnDel = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 8;
-        const btnUpdate = btnDel - LIST_BTN_W - 6;
-        const btnWear = btnUpdate - LIST_BTN_W - 6;
-        const pillRight = LIST_LEFT + 10 + 90; // pill ends here
-        const nameRight = btnWear - 10; // name text can go up to here
-        const nameCenter = (pillRight + 8 + nameRight) / 2;
-        const nameWidth = nameRight - pillRight - 8;
-        for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
-            const outfit = visible[i];
-            const y = LIST_Y + i * ROW_H;
-            const isEditing = editingOutfitId === (outfit === null || outfit === void 0 ? void 0 : outfit.id);
-            drawCard(LIST_LEFT, y, LIST_WIDTH, ROW_H - 6, i % 2 === 0 ? "default" : "alt");
-            if (isEditing)
-                DrawEmptyRect(LIST_LEFT - 1, y - 1, LIST_WIDTH + 2, ROW_H - 4, UI.accent, 2);
-            if (!outfit) {
-                DrawTextFit("Empty - fill in using the editor on the right", LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2, LIST_WIDTH - 40, UI.textMuted);
-                continue;
-            }
-            const hasSave = outfit.items.length > 0;
-            // Top line: pill | name | [Wear] [Update] [Delete]
-            drawPill(LIST_LEFT + 10, y + 9, 90, 24, `/${outfit.command}`, UI.accentSoft, UI.accent);
-            DrawTextFit(outfit.displayName, nameCenter, y + 21, nameWidth, UI.text);
-            drawChromeButton(btnWear, y + 8, LIST_BTN_W, 26, "Wear", "accent");
-            drawChromeButton(btnUpdate, y + 8, LIST_BTN_W, 26, "Update", "success", false, "Save current look");
-            drawChromeButton(btnDel, y + 8, LIST_BTN_W, 26, "Delete", "danger");
-            // Divider between top/bottom
-            DrawRect(LIST_LEFT + 8, y + 42, LIST_WIDTH - 16, 1, UI.panelEdge);
-            // Bottom line: items | restraint mode | announce text (spans full row width)
-            const announceCenterX = LIST_LEFT + 272 + (LIST_LEFT + LIST_WIDTH - 10 - (LIST_LEFT + 272)) / 2;
-            const announceWidth = LIST_LEFT + LIST_WIDTH - 10 - (LIST_LEFT + 272);
-            DrawTextFit(hasSave ? `${outfit.items.length} items` : "- empty", LIST_LEFT + 46, y + 64, 80, hasSave ? UI.success : UI.gold);
-            DrawTextFit(outfit.includeRestraints ? "incl. restraints" : "clothes only", LIST_LEFT + 148, y + 64, 100, outfit.includeRestraints ? UI.danger : UI.textMuted);
-            DrawTextFit(`/me ${outfit.announceText}`, announceCenterX, y + 64, announceWidth, UI.textSoft);
-        }
-        // -- Editor panel --------------------------------------------------------
-        drawCard(EDITOR_LEFT, EDITOR_TOP, EDITOR_WIDTH, EDITOR_HEIGHT, "muted");
-        // Header
-        DrawTextFit(editingOutfit ? "Editing Outfit" : "New Outfit", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 22, EDITOR_WIDTH - 20, UI.text);
-        drawPill(EDITOR_LEFT + 18, EDITOR_TOP + 38, EDITOR_WIDTH - 36, 22, editingOutfit ? `/${editingOutfit.command}` : "no outfit selected", UI.cardMuted, editingOutfit ? UI.accent : UI.textMuted);
-        // -- Slash command --
-        DrawTextFit("Slash Command", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 80, EDITOR_WIDTH - 36, UI.textSoft);
-        // "/" label sits to the left of the input, at same vertical center as input center
-        // input top = EDITOR_TOP+94, height=34 - center y = EDITOR_TOP+111
-        DrawTextFit("/", EDITOR_LEFT + 28, EDITOR_TOP + 111, 20, UI.accent);
-        placeInput("EmeryOF_Cmd", EDITOR_LEFT + 48, EDITOR_TOP + 94, EDITOR_WIDTH - 66, 34);
-        // -- Display name --
-        DrawTextFit("Display Name", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 148, EDITOR_WIDTH - 36, UI.textSoft);
-        placeInput("EmeryOF_Name", EDITOR_LEFT + 18, EDITOR_TOP + 162, EDITOR_WIDTH - 36, 34);
-        // -- Restraint mode --
-        DrawTextFit("Restraint Mode", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 212, EDITOR_WIDTH - 36, UI.textSoft);
-        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 226, EDITOR_WIDTH - 36, 32, addIncludeRestraints ? "Includes restraints" : "Clothes only (restraints preserved)", addIncludeRestraints ? "danger" : "success");
-        // -- Announce text --
-        DrawTextFit("Announce Text  (/me ...)", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 274, EDITOR_WIDTH - 36, UI.textSoft);
-        // input top = EDITOR_TOP+288, height=34 - center y = EDITOR_TOP+305  (label is 14px above input)
-        placeInput("EmeryOF_Announce", EDITOR_LEFT + 18, EDITOR_TOP + 288, EDITOR_WIDTH - 36, 34);
-        // -- Save / Create --
-        DrawRect(EDITOR_LEFT + 18, EDITOR_TOP + 336, EDITOR_WIDTH - 36, 1, UI.panelEdge);
-        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 348, EDITOR_WIDTH - 36, 38, editingOutfit ? "Save Outfit Settings" : "Create Outfit From Current Look", "success");
-        drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 394, EDITOR_WIDTH - 36, 32, editingOutfit ? "Refresh Saved Look" : "Capture Look Preview", editingOutfit ? "accent" : "muted", !editingOutfit);
-        // -- Notes --
-        DrawRect(EDITOR_LEFT + 18, EDITOR_TOP + 440, EDITOR_WIDTH - 36, 1, UI.panelEdge);
-        DrawTextFit("How to use", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 458, EDITOR_WIDTH - 36, UI.textMuted);
-        DrawTextFit("- Click a row to open it for editing here.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 478, EDITOR_WIDTH - 36, UI.textSoft);
-        DrawTextFit("- Wear applies the outfit to your character instantly.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 498, EDITOR_WIDTH - 36, UI.textSoft);
-        DrawTextFit("- Update replaces the saved look with what you're wearing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 518, EDITOR_WIDTH - 36, UI.textSoft);
-        DrawTextFit("- Announce text is sent as a /me emote when the outfit loads.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 538, EDITOR_WIDTH - 36, UI.textSoft);
-        if (editingOutfit) {
-            drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 562, EDITOR_WIDTH - 36, 30, "Cancel Edit", "muted");
-        }
-    }
-    function outfitSettingsClick() {
-        const outfits = getOutfits();
-        const totalPages = Math.max(1, Math.ceil(outfits.length / OUTFITS_PER_PAGE));
-        const page = Math.min(settingsPage, totalPages - 1);
-        const visible = outfits.slice(page * OUTFITS_PER_PAGE, (page + 1) * OUTFITS_PER_PAGE);
-        if (mouseInRect(LIST_LEFT, NAV_Y, 88, 30)) {
-            settingsPage = Math.max(0, page - 1);
-            return;
-        }
-        if (mouseInRect(LIST_LEFT + LIST_WIDTH - 88, NAV_Y, 88, 30)) {
-            settingsPage = Math.min(totalPages - 1, page + 1);
-            return;
-        }
-        const btnDel = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 8;
-        const btnUpdate = btnDel - LIST_BTN_W - 6;
-        const btnWear = btnUpdate - LIST_BTN_W - 6;
-        for (let i = 0; i < OUTFITS_PER_PAGE; i++) {
-            const outfit = visible[i];
-            if (!outfit)
-                continue;
-            const y = LIST_Y + i * ROW_H;
-            if (mouseInRect(btnWear, y + 8, LIST_BTN_W, 26)) {
-                applyOutfit(outfit);
-                return;
-            }
-            if (mouseInRect(btnUpdate, y + 8, LIST_BTN_W, 26)) {
-                const idx = outfits.indexOf(outfit);
-                outfits[idx].items = captureAppearance(outfit.includeRestraints);
-                saveOutfits(outfits);
-                localNotice(`Updated "/${outfit.command}"`);
-                return;
-            }
-            if (mouseInRect(btnDel, y + 8, LIST_BTN_W, 26)) {
-                saveOutfits(outfits.filter(entry => entry.id !== outfit.id));
-                if (editingOutfitId === outfit.id) {
-                    resetEditor();
-                }
-                settingsPage = Math.min(settingsPage, Math.max(0, Math.ceil((outfits.length - 1) / OUTFITS_PER_PAGE) - 1));
-                return;
-            }
-            if (mouseInRect(LIST_LEFT, y, LIST_WIDTH, ROW_H - 8)) {
-                beginEditing(outfit);
-                return;
-            }
-        }
-        if (mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 226, EDITOR_WIDTH - 36, 32)) {
-            addIncludeRestraints = !addIncludeRestraints;
-            return;
-        }
-        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 562, EDITOR_WIDTH - 36, 30)) {
-            resetEditor();
-            return;
-        }
-        if (mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 348, EDITOR_WIDTH - 36, 38)) {
-            const cmd = ElementValue("EmeryOF_Cmd").trim().replace(/\s+/g, "").toLowerCase();
-            const name = ElementValue("EmeryOF_Name").trim();
-            const announce = ElementValue("EmeryOF_Announce").trim();
-            if (!cmd) {
-                localNotice("Command cannot be empty.", "#ffb7c7");
-                return;
-            }
-            if (!name) {
-                localNotice("Name cannot be empty.", "#ffb7c7");
-                return;
-            }
-            if (outfits.some(outfit => outfit.command.toLowerCase() === cmd && outfit.id !== editingOutfitId)) {
-                localNotice(`"/${cmd}" already exists.`, "#ffb7c7");
-                return;
-            }
-            if (editingOutfitId) {
-                const idx = outfits.findIndex(outfit => outfit.id === editingOutfitId);
-                if (idx < 0) {
-                    resetEditor();
-                    localNotice("That outfit no longer exists.", "#ffb7c7");
-                    return;
-                }
-                outfits[idx] = Object.assign(Object.assign({}, outfits[idx]), { command: cmd, displayName: name, announceText: announce || "changes outfit", includeRestraints: addIncludeRestraints });
-                saveOutfits(outfits);
-                localNotice(`Updated /${cmd} settings.`);
-                resetEditor();
-                return;
-            }
-            const newOutfit = {
-                id: uid(),
-                command: cmd,
-                displayName: name,
-                announceText: announce || "changes outfit",
-                includeRestraints: addIncludeRestraints,
-                items: captureAppearance(addIncludeRestraints),
-            };
-            saveOutfits([...outfits, newOutfit]);
-            resetEditor();
-            settingsPage = Math.floor(outfits.length / OUTFITS_PER_PAGE);
-            localNotice(`Created "/${cmd}" - ${newOutfit.items.length} items saved.`);
-            return;
-        }
-        if (editingOutfitId && mouseInRect(EDITOR_LEFT + 18, EDITOR_TOP + 394, EDITOR_WIDTH - 36, 32)) {
-            const idx = outfits.findIndex(outfit => outfit.id === editingOutfitId);
-            if (idx < 0) {
-                resetEditor();
-                localNotice("That outfit no longer exists.", "#ffb7c7");
-                return;
-            }
-            outfits[idx].items = captureAppearance(outfits[idx].includeRestraints);
-            saveOutfits(outfits);
-            localNotice(`Updated "/${outfits[idx].command}"`);
-        }
-    }
-    function outfitSettingsExit() {
-        editingOutfitId = null;
-        ElementRemove("EmeryOF_Cmd");
-        ElementRemove("EmeryOF_Name");
-        ElementRemove("EmeryOF_Announce");
-    }
 
     /**
      * EmeryBC Drawer
      *
-     * A CRABS-inspired sliding side panel aligned to the right edge of the
-     * chat log. Shows saved outfits with one-click Wear and Update buttons,
-     * plus an inline New Outfit form.
+     * CRABS-inspired sliding panel aligned to the right edge of the chat log,
+     * positioned 10% down from the top (just below CRABS's own tab).
+     * Tabs: Outfits | Buttons
      *
      * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
      * Thank you Sin for the open design!
@@ -1004,12 +441,13 @@
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
     will-change: transform;
     pointer-events: none;
+    width: 260px;
 }
 
 #emerybc-drawer.ebc-closed { transform: translateX(calc(100% + 40px)); }
 #emerybc-drawer.ebc-open   { transform: translateX(0); }
 
-/* Tab button - sits just below CRABS's tab at the top of the chat area */
+/* Tab button - sits at top: 10px, same as CRABS */
 #ebc-tab {
     pointer-events: auto;
     width: 36px;
@@ -1027,7 +465,7 @@
     box-shadow: -3px 0 10px rgba(0,0,0,0.55);
     position: absolute;
     left: -36px;
-    top: 50px;
+    top: 10px;
     z-index: 99;
     transition: background 0.18s;
     flex-shrink: 0;
@@ -1043,7 +481,7 @@
     border-left: 2px solid #4c2537;
     display: flex;
     flex-direction: column;
-    width: 100%;
+    width: 260px;
     height: 100%;
     overflow: hidden;
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
@@ -1054,32 +492,33 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-bottom: 1px solid #4c2537;
     background: rgba(36, 17, 29, 0.9);
     flex-shrink: 0;
-    gap: 8px;
+    gap: 6px;
 }
 
 .ebc-title {
     font-family: "Trebuchet MS", serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: bold;
     color: #cf6f98;
     letter-spacing: 0.07em;
     white-space: nowrap;
+    flex: 1;
 }
 
-.ebc-header-btns { display: flex; gap: 5px; align-items: center; }
+.ebc-header-btns { display: flex; gap: 4px; align-items: center; }
 
 .ebc-icon-btn {
     background: transparent;
     border: 1px solid #4c2537;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #967281;
     cursor: pointer;
-    padding: 3px 7px;
-    font-size: 12px;
+    padding: 2px 6px;
+    font-size: 11px;
     line-height: 1.3;
     font-family: "Trebuchet MS", serif;
     transition: background 0.14s, color 0.14s, border-color 0.14s;
@@ -1087,11 +526,36 @@
 
 .ebc-icon-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 
+/* -- Tabs -- */
+.ebc-tabs {
+    display: flex;
+    border-bottom: 1px solid #4c2537;
+    flex-shrink: 0;
+}
+
+.ebc-tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    padding: 6px 0;
+    transition: color 0.14s, border-color 0.14s;
+}
+
+.ebc-tab-btn:hover { color: #967281; }
+.ebc-tab-btn.ebc-tab-active { color: #cf6f98; border-bottom-color: #cf6f98; }
+
 /* -- Body -- */
 .ebc-body {
     flex: 1;
     overflow-y: auto;
-    padding: 8px;
+    padding: 7px;
     scrollbar-width: thin;
     scrollbar-color: #4c2537 transparent;
 }
@@ -1108,17 +572,17 @@
     letter-spacing: 0.1em;
     color: #553142;
     text-transform: uppercase;
-    padding: 4px 4px 6px;
+    padding: 4px 4px 5px;
 }
 
 /* -- Outfit rows -- */
 .ebc-outfit-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 8px;
-    border-radius: 8px;
-    margin-bottom: 5px;
+    gap: 5px;
+    padding: 6px 7px;
+    border-radius: 7px;
+    margin-bottom: 4px;
     background: rgba(42, 20, 33, 0.6);
     border: 1px solid #3a1928;
     transition: border-color 0.14s;
@@ -1148,20 +612,19 @@
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     color: #cf6f98;
-    letter-spacing: 0.04em;
 }
 
 .ebc-wear-btn {
     flex-shrink: 0;
     background: #2a1421;
     border: 1px solid #91405f;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #cf6f98;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: bold;
-    padding: 4px 10px;
+    padding: 3px 8px;
     transition: background 0.14s, color 0.12s;
     white-space: nowrap;
 }
@@ -1174,12 +637,12 @@
     flex-shrink: 0;
     background: transparent;
     border: 1px solid #4c2537;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #7a4a5e;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
-    padding: 4px 8px;
+    padding: 3px 6px;
     transition: background 0.14s, color 0.12s, border-color 0.12s;
     white-space: nowrap;
 }
@@ -1192,19 +655,16 @@
 .ebc-empty {
     color: #553142;
     font-family: "Trebuchet MS", serif;
-    font-size: 12px;
+    font-size: 11px;
     text-align: center;
-    padding: 20px 8px;
+    padding: 16px 6px;
     line-height: 1.7;
 }
 
-/* -- New outfit area -- */
-.ebc-divider {
-    height: 1px;
-    background: #2a1421;
-    margin: 6px 0;
-}
+/* -- Divider -- */
+.ebc-divider { height: 1px; background: #2a1421; margin: 6px 0; }
 
+/* -- New outfit toggle -- */
 .ebc-new-outfit-btn {
     width: 100%;
     background: transparent;
@@ -1213,37 +673,34 @@
     color: #7a4a5e;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
-    font-size: 11px;
-    padding: 6px 0;
+    font-size: 10px;
+    padding: 5px 0;
     transition: background 0.14s, color 0.12s, border-color 0.12s;
     text-align: center;
 }
 
 .ebc-new-outfit-btn:hover { background: #2a1421; color: #cf6f98; border-color: #7a4a5e; border-style: solid; }
 
+/* -- New outfit form -- */
 .ebc-new-form {
-    margin-top: 6px;
+    margin-top: 5px;
     display: none;
     flex-direction: column;
     gap: 5px;
     background: rgba(42, 20, 33, 0.6);
     border: 1px solid #3a1928;
-    border-radius: 8px;
-    padding: 8px;
+    border-radius: 7px;
+    padding: 7px;
 }
 
-.ebc-form-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
+.ebc-form-row { display: flex; align-items: center; gap: 5px; }
 
 .ebc-form-label {
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     color: #967281;
     white-space: nowrap;
-    width: 60px;
+    width: 58px;
     flex-shrink: 0;
 }
 
@@ -1255,7 +712,7 @@
     color: #f7e6ee;
     font-family: "Trebuchet MS", serif;
     font-size: 11px;
-    padding: 3px 6px;
+    padding: 3px 5px;
     min-width: 0;
     outline: none;
     transition: border-color 0.14s;
@@ -1266,7 +723,7 @@
 .ebc-form-check-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
 }
 
@@ -1284,11 +741,11 @@
     width: 100%;
     background: #2a1421;
     border: 1px solid #91405f;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #cf6f98;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: bold;
     padding: 5px 0;
     margin-top: 2px;
@@ -1298,25 +755,157 @@
 .ebc-create-btn:hover    { background: #91405f; color: #f7e6ee; }
 .ebc-create-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* -- Button slot rows -- */
+.ebc-slot-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 6px;
+    border-radius: 7px;
+    margin-bottom: 4px;
+    background: rgba(42, 20, 33, 0.6);
+    border: 1px solid #3a1928;
+}
+
+.ebc-slot-top {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ebc-slot-bottom {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ebc-slot-toggle {
+    flex-shrink: 0;
+    width: 26px;
+    height: 22px;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-slot-toggle.on { background: #6b3048; color: #f7e6ee; border-color: #cf6f98; }
+.ebc-slot-toggle:hover { border-color: #7a4a5e; }
+
+.ebc-slot-label {
+    flex-shrink: 0;
+    width: 52px;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #f7e6ee;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    padding: 2px 4px;
+    outline: none;
+    transition: border-color 0.14s;
+    text-transform: uppercase;
+}
+
+.ebc-slot-label:focus { border-color: #cf6f98; }
+
+.ebc-slot-color {
+    flex-shrink: 0;
+    width: 28px;
+    height: 22px;
+    border-radius: 4px;
+    border: 1px solid #4c2537;
+    background: transparent;
+    cursor: pointer;
+    padding: 1px;
+}
+
+.ebc-slot-emote {
+    flex: 1;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #cf6f98;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 2px 4px;
+    outline: none;
+    min-width: 0;
+    transition: border-color 0.14s;
+}
+
+.ebc-slot-emote:focus { border-color: #cf6f98; }
+
+.ebc-slot-del {
+    flex-shrink: 0;
+    width: 24px;
+    height: 22px;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-slot-del:hover { background: #3a1017; color: #cf6f98; border-color: #7a4a5e; }
+
+.ebc-slot-me-label {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #4c2537;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* -- Buttons tab footer -- */
+.ebc-btn-footer {
+    display: flex;
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.ebc-btn-footer-btn {
+    flex: 1;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #7a4a5e;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 5px 0;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-btn-footer-btn:hover { background: #2a1421; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-btn-footer-btn.save  { border-color: #91405f; color: #cf6f98; }
+.ebc-btn-footer-btn.save:hover { background: #91405f; color: #f7e6ee; }
+.ebc-btn-footer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
-    padding: 5px 12px;
+    padding: 4px 10px;
     border-top: 1px solid #2a1421;
     font-family: "Trebuchet MS", serif;
-    font-size: 10px;
-    color: #3a1a28;
+    font-size: 9px;
+    color: #2a1421;
     text-align: center;
 }
-
-.ebc-footer a { color: #553142; text-decoration: none; transition: color 0.14s; }
-.ebc-footer a:hover { color: #cf6f98; }
 `;
-    // -- Class ---------------------------------------------------------------------
     class EBCDrawer {
         constructor() {
             this.el = null;
             this.isOpen = false;
+            this.currentTab = "outfits";
             this.resizeObserver = null;
             this.positioned = false;
             EBCDrawer._instance = this;
@@ -1335,13 +924,12 @@
             const el = document.createElement("div");
             el.id = "emerybc-drawer";
             el.className = "ebc-closed";
-            // Start truly off-screen until syncToChat gives us real coordinates
             el.style.display = "none";
-            el.style.right = "-9999px";
-            // Tab button
+            el.style.right = "-9999px"; // off-screen until syncToChat gives real coords
+            // Tab button (the little icon in the chat log margin)
             const tab = document.createElement("div");
             tab.id = "ebc-tab";
-            tab.title = "EmeryBC outfits";
+            tab.title = "EmeryBC";
             tab.innerHTML = TAB_ICON;
             el.appendChild(tab);
             // Panel
@@ -1352,23 +940,34 @@
             header.className = "ebc-header";
             const title = document.createElement("span");
             title.className = "ebc-title";
-            title.textContent = "EmeryBC - Outfits";
+            title.textContent = "EmeryBC";
             const headerBtns = document.createElement("div");
             headerBtns.className = "ebc-header-btns";
             const refreshBtn = document.createElement("button");
             refreshBtn.className = "ebc-icon-btn";
-            refreshBtn.id = "ebc-refresh-btn";
-            refreshBtn.title = "Refresh outfit list";
+            refreshBtn.title = "Refresh";
             refreshBtn.textContent = "R";
             const closeBtn = document.createElement("button");
             closeBtn.className = "ebc-icon-btn";
-            closeBtn.id = "ebc-close-btn";
             closeBtn.title = "Close";
             closeBtn.textContent = "X";
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(closeBtn);
             header.appendChild(title);
             header.appendChild(headerBtns);
+            // Tab bar
+            const tabBar = document.createElement("div");
+            tabBar.className = "ebc-tabs";
+            const outfitTabBtn = document.createElement("button");
+            outfitTabBtn.className = "ebc-tab-btn ebc-tab-active";
+            outfitTabBtn.id = "ebc-tab-outfits";
+            outfitTabBtn.textContent = "OUTFITS";
+            const buttonsTabBtn = document.createElement("button");
+            buttonsTabBtn.className = "ebc-tab-btn";
+            buttonsTabBtn.id = "ebc-tab-buttons";
+            buttonsTabBtn.textContent = "BUTTONS";
+            tabBar.appendChild(outfitTabBtn);
+            tabBar.appendChild(buttonsTabBtn);
             // Body
             const body = document.createElement("div");
             body.className = "ebc-body";
@@ -1376,16 +975,20 @@
             // Footer
             const footer = document.createElement("div");
             footer.className = "ebc-footer";
-            footer.textContent = "UI inspired by CRABS by Sin - thank you! <3";
+            footer.textContent = "UI inspired by CRABS by Sin";
             panel.appendChild(header);
+            panel.appendChild(tabBar);
             panel.appendChild(body);
             panel.appendChild(footer);
             el.appendChild(panel);
             document.body.appendChild(el);
             this.el = el;
+            // Events
             tab.addEventListener("click", () => this.toggle());
             closeBtn.addEventListener("click", () => this.close());
-            refreshBtn.addEventListener("click", () => this.renderOutfits());
+            refreshBtn.addEventListener("click", () => this.renderCurrentTab());
+            outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
+            buttonsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
             document.addEventListener("keydown", (e) => {
                 if (e.key === "Escape" && this.isOpen)
                     this.close();
@@ -1400,8 +1003,8 @@
             document.head.appendChild(s);
         }
         // -- Positioning -----------------------------------------------------------
-        // Aligns to the full height of TextAreaChatLog. The tab button is offset
-        // 50px from the top via CSS so it sits just below CRABS's tab.
+        // Aligned to the right edge of TextAreaChatLog, 10% down from the top.
+        // This places our tab just below CRABS's tab.
         syncToChat() {
             const chatLog = document.getElementById("TextAreaChatLog");
             if (!chatLog || !this.el)
@@ -1409,10 +1012,10 @@
             const rect = chatLog.getBoundingClientRect();
             if (rect.width === 0 || rect.height === 0)
                 return false;
-            this.el.style.top = `${rect.top}px`;
+            const topOffset = rect.height * 0.10;
+            this.el.style.top = `${rect.top + topOffset}px`;
             this.el.style.right = `${document.documentElement.clientWidth - rect.right}px`;
-            this.el.style.width = `${rect.width}px`;
-            this.el.style.height = `${rect.height}px`;
+            this.el.style.height = `${rect.height - topOffset}px`;
             this.positioned = true;
             return true;
         }
@@ -1431,14 +1034,12 @@
                 this.resizeObserver = null;
                 return;
             }
-            // In room: try to position. If the chat log isn't laid out yet retry
-            // via requestAnimationFrame so the element never floats in the centre.
+            // Try to position; if the chat log isn't laid out yet, retry next frame
             const synced = this.syncToChat();
             if (synced) {
                 this.el.style.display = "flex";
             }
             else {
-                // Keep hidden and retry next frame
                 requestAnimationFrame(() => {
                     if (this.syncToChat() && this.el) {
                         this.el.style.display = "flex";
@@ -1453,21 +1054,40 @@
                 }
             }
         }
-        // -- Render outfits --------------------------------------------------------
+        // -- Tab switching ---------------------------------------------------------
+        switchTab(tab) {
+            var _a, _b;
+            this.currentTab = tab;
+            const outfitBtn = (_a = this.el) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab-outfits");
+            const buttonBtn = (_b = this.el) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-tab-buttons");
+            if (outfitBtn)
+                outfitBtn.className = "ebc-tab-btn" + (tab === "outfits" ? " ebc-tab-active" : "");
+            if (buttonBtn)
+                buttonBtn.className = "ebc-tab-btn" + (tab === "buttons" ? " ebc-tab-active" : "");
+            this.renderCurrentTab();
+        }
+        renderCurrentTab() {
+            if (this.currentTab === "outfits") {
+                this.renderOutfits();
+            }
+            else {
+                this.renderButtons();
+            }
+        }
+        // -- Outfits tab -----------------------------------------------------------
         renderOutfits() {
             var _a;
             const body = (_a = this.el) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
-            // Clear existing content
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const outfits = getOutfits();
             if (outfits.length > 0) {
-                const sectionLabel = document.createElement("div");
-                sectionLabel.className = "ebc-section-label";
-                sectionLabel.textContent = "Saved Outfits";
-                body.appendChild(sectionLabel);
+                const lbl = document.createElement("div");
+                lbl.className = "ebc-section-label";
+                lbl.textContent = "Saved Outfits";
+                body.appendChild(lbl);
                 for (const o of outfits) {
                     body.appendChild(this.buildOutfitRow(o, body));
                 }
@@ -1475,16 +1095,15 @@
             else {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
-                const line1 = document.createTextNode("No outfits saved yet.");
+                empty.textContent = "No outfits saved yet.";
                 const br = document.createElement("br");
-                const line2 = document.createElement("b");
-                line2.textContent = "Preferences - Extensions - EmeryBC - Outfits";
-                empty.appendChild(line1);
+                const hint = document.createElement("span");
+                hint.style.color = "#4c2537";
+                hint.textContent = "Use the form below to create one.";
                 empty.appendChild(br);
-                empty.appendChild(line2);
+                empty.appendChild(hint);
                 body.appendChild(empty);
             }
-            // New outfit section
             this.buildNewOutfitSection(body);
         }
         buildOutfitRow(o, body) {
@@ -1507,14 +1126,11 @@
             const wearBtn = document.createElement("button");
             wearBtn.className = "ebc-wear-btn";
             wearBtn.textContent = "Wear";
-            wearBtn.title = "Apply this outfit";
             row.appendChild(info);
             row.appendChild(updateBtn);
             row.appendChild(wearBtn);
-            const setAllDisabled = (disabled) => {
-                body.querySelectorAll(".ebc-wear-btn, .ebc-update-btn").forEach(b => {
-                    b.disabled = disabled;
-                });
+            const setAllDisabled = (v) => {
+                body.querySelectorAll(".ebc-wear-btn, .ebc-update-btn").forEach(b => { b.disabled = v; });
             };
             wearBtn.addEventListener("click", () => {
                 const fresh = getOutfits().find(x => x.id === o.id);
@@ -1540,9 +1156,9 @@
             return row;
         }
         buildNewOutfitSection(body) {
-            const divider = document.createElement("div");
-            divider.className = "ebc-divider";
-            body.appendChild(divider);
+            const div = document.createElement("div");
+            div.className = "ebc-divider";
+            body.appendChild(div);
             const newBtn = document.createElement("button");
             newBtn.className = "ebc-new-outfit-btn";
             newBtn.textContent = "+ New Outfit from Current Look";
@@ -1550,90 +1166,58 @@
             const form = document.createElement("div");
             form.className = "ebc-new-form";
             body.appendChild(form);
-            // Command row
-            const cmdRow = document.createElement("div");
-            cmdRow.className = "ebc-form-row";
-            const cmdLabel = document.createElement("span");
-            cmdLabel.className = "ebc-form-label";
-            cmdLabel.textContent = "Command";
-            const cmdInput = document.createElement("input");
-            cmdInput.className = "ebc-form-input";
-            cmdInput.type = "text";
-            cmdInput.placeholder = "e.g. dom";
-            cmdInput.maxLength = 20;
-            cmdRow.appendChild(cmdLabel);
-            cmdRow.appendChild(cmdInput);
-            form.appendChild(cmdRow);
-            // Name row
-            const nameRow = document.createElement("div");
-            nameRow.className = "ebc-form-row";
-            const nameLabel = document.createElement("span");
-            nameLabel.className = "ebc-form-label";
-            nameLabel.textContent = "Name";
-            const nameInput = document.createElement("input");
-            nameInput.className = "ebc-form-input";
-            nameInput.type = "text";
-            nameInput.placeholder = "e.g. Dom Clothes";
-            nameInput.maxLength = 40;
-            nameRow.appendChild(nameLabel);
-            nameRow.appendChild(nameInput);
-            form.appendChild(nameRow);
-            // Announce row
-            const announceRow = document.createElement("div");
-            announceRow.className = "ebc-form-row";
-            const announceLabel = document.createElement("span");
-            announceLabel.className = "ebc-form-label";
-            announceLabel.textContent = "Announce";
-            const announceInput = document.createElement("input");
-            announceInput.className = "ebc-form-input";
-            announceInput.type = "text";
-            announceInput.placeholder = "e.g. changes into dom mode";
-            announceInput.maxLength = 120;
-            announceRow.appendChild(announceLabel);
-            announceRow.appendChild(announceInput);
-            form.appendChild(announceRow);
-            // Restraints checkbox
+            const makeRow = (labelText, input) => {
+                const row = document.createElement("div");
+                row.className = "ebc-form-row";
+                const lbl = document.createElement("span");
+                lbl.className = "ebc-form-label";
+                lbl.textContent = labelText;
+                row.appendChild(lbl);
+                row.appendChild(input);
+                return row;
+            };
+            const cmdInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "e.g. dom", maxLength: 20,
+            });
+            const nameInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "e.g. Dom Clothes", maxLength: 40,
+            });
+            const announceInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "e.g. changes into dom mode", maxLength: 120,
+            });
+            form.appendChild(makeRow("Command", cmdInput));
+            form.appendChild(makeRow("Name", nameInput));
+            form.appendChild(makeRow("Announce", announceInput));
             const checkRow = document.createElement("label");
             checkRow.className = "ebc-form-check-row";
             const checkbox = document.createElement("input");
             checkbox.type = "checkbox";
-            const checkLabel = document.createElement("span");
-            checkLabel.className = "ebc-form-check-label";
-            checkLabel.textContent = "Include restraints";
+            const checkLbl = document.createElement("span");
+            checkLbl.className = "ebc-form-check-label";
+            checkLbl.textContent = "Include restraints";
             checkRow.appendChild(checkbox);
-            checkRow.appendChild(checkLabel);
+            checkRow.appendChild(checkLbl);
             form.appendChild(checkRow);
-            // Create button
             const createBtn = document.createElement("button");
             createBtn.className = "ebc-create-btn";
             createBtn.textContent = "Save as New Outfit";
             form.appendChild(createBtn);
-            // Toggle form open/close
             newBtn.addEventListener("click", () => {
-                const isOpen = form.style.display !== "none";
-                form.style.display = isOpen ? "none" : "flex";
-                newBtn.textContent = isOpen ? "+ New Outfit from Current Look" : "- Cancel";
-                if (!isOpen) {
+                const open = form.style.display !== "none";
+                form.style.display = open ? "none" : "flex";
+                newBtn.textContent = open ? "+ New Outfit from Current Look" : "- Cancel";
+                if (!open)
                     cmdInput.focus();
-                }
             });
             createBtn.addEventListener("click", () => {
-                const cmd = cmdInput.value.trim();
-                const name = nameInput.value.trim();
-                const announce = announceInput.value.trim();
-                const restraints = checkbox.checked;
-                if (!cmd || !name) {
-                    cmdInput.style.borderColor = cmd ? "" : "#cf6f98";
-                    nameInput.style.borderColor = name ? "" : "#cf6f98";
+                cmdInput.style.borderColor = cmdInput.value.trim() ? "" : "#cf6f98";
+                nameInput.style.borderColor = nameInput.value.trim() ? "" : "#cf6f98";
+                if (!cmdInput.value.trim() || !nameInput.value.trim())
                     return;
-                }
-                cmdInput.style.borderColor = "";
-                nameInput.style.borderColor = "";
                 createBtn.disabled = true;
                 createBtn.textContent = "Saving...";
-                const result = createOutfitFromCurrent(cmd, name, announce, restraints);
+                const result = createOutfitFromCurrent(cmdInput.value, nameInput.value, announceInput.value, checkbox.checked);
                 if (result) {
-                    // Reset and close form, refresh list
                     cmdInput.value = "";
                     nameInput.value = "";
                     announceInput.value = "";
@@ -1648,6 +1232,164 @@
                 }
             });
         }
+        // -- Buttons tab -----------------------------------------------------------
+        renderButtons() {
+            var _a;
+            const body = (_a = this.el) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            // Working copies so we don't mutate storage until Save is clicked
+            let btns = getButtons().map(b => (Object.assign({}, b)));
+            let slotCount = getSlotCount();
+            // Ensure array has slotCount entries
+            while (btns.length < slotCount) {
+                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+            }
+            const lbl = document.createElement("div");
+            lbl.className = "ebc-section-label";
+            lbl.textContent = "Quick Action Buttons";
+            body.appendChild(lbl);
+            const slotList = document.createElement("div");
+            slotList.id = "ebc-slot-list";
+            body.appendChild(slotList);
+            const renderSlots = () => {
+                var _a;
+                while (slotList.firstChild)
+                    slotList.removeChild(slotList.firstChild);
+                for (let i = 0; i < slotCount; i++) {
+                    const btn = (_a = btns[i]) !== null && _a !== void 0 ? _a : { label: "", emote: "", color: "#c2185b", enabled: false };
+                    const row = document.createElement("div");
+                    row.className = "ebc-slot-row";
+                    // Top line: toggle | label input | color picker | del
+                    const topLine = document.createElement("div");
+                    topLine.className = "ebc-slot-top";
+                    const toggle = document.createElement("button");
+                    toggle.className = "ebc-slot-toggle" + (btn.enabled ? " on" : "");
+                    toggle.textContent = btn.enabled ? "ON" : "OFF";
+                    toggle.title = btn.enabled ? "Click to disable" : "Click to enable";
+                    const labelInp = document.createElement("input");
+                    labelInp.className = "ebc-slot-label";
+                    labelInp.type = "text";
+                    labelInp.maxLength = 6;
+                    labelInp.placeholder = "Label";
+                    labelInp.value = btn.label;
+                    labelInp.title = "Button label (max 6 chars)";
+                    const colorInp = document.createElement("input");
+                    colorInp.className = "ebc-slot-color";
+                    colorInp.type = "color";
+                    colorInp.value = normalizeHex(btn.color);
+                    colorInp.title = "Button color";
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "ebc-slot-del";
+                    delBtn.textContent = "x";
+                    delBtn.title = "Remove this slot";
+                    topLine.appendChild(toggle);
+                    topLine.appendChild(labelInp);
+                    topLine.appendChild(colorInp);
+                    topLine.appendChild(delBtn);
+                    // Bottom line: /me prefix | emote input
+                    const botLine = document.createElement("div");
+                    botLine.className = "ebc-slot-bottom";
+                    const meLbl = document.createElement("span");
+                    meLbl.className = "ebc-slot-me-label";
+                    meLbl.textContent = "/me";
+                    const emoteInp = document.createElement("input");
+                    emoteInp.className = "ebc-slot-emote";
+                    emoteInp.type = "text";
+                    emoteInp.maxLength = 120;
+                    emoteInp.placeholder = "e.g. nods.";
+                    emoteInp.value = btn.emote;
+                    emoteInp.title = "Emote text sent as (Name text)";
+                    botLine.appendChild(meLbl);
+                    botLine.appendChild(emoteInp);
+                    row.appendChild(topLine);
+                    row.appendChild(botLine);
+                    slotList.appendChild(row);
+                    // -- Events (capture i) --
+                    const idx = i;
+                    toggle.addEventListener("click", () => {
+                        btns[idx].enabled = !btns[idx].enabled;
+                        toggle.className = "ebc-slot-toggle" + (btns[idx].enabled ? " on" : "");
+                        toggle.textContent = btns[idx].enabled ? "ON" : "OFF";
+                    });
+                    labelInp.addEventListener("input", () => {
+                        btns[idx].label = labelInp.value.trim().slice(0, 6);
+                    });
+                    colorInp.addEventListener("input", () => {
+                        btns[idx].color = normalizeHex(colorInp.value);
+                    });
+                    emoteInp.addEventListener("input", () => {
+                        btns[idx].emote = emoteInp.value;
+                    });
+                    delBtn.addEventListener("click", () => {
+                        btns.splice(idx, 1);
+                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+                        slotCount = Math.max(1, slotCount - 1);
+                        renderSlots();
+                        updateFooterState();
+                    });
+                }
+            };
+            renderSlots();
+            // Footer buttons
+            const footer = document.createElement("div");
+            footer.className = "ebc-btn-footer";
+            const addBtn = document.createElement("button");
+            addBtn.className = "ebc-btn-footer-btn";
+            addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
+            const saveBtn = document.createElement("button");
+            saveBtn.className = "ebc-btn-footer-btn save";
+            saveBtn.textContent = "Save";
+            const resetBtn = document.createElement("button");
+            resetBtn.className = "ebc-btn-footer-btn";
+            resetBtn.textContent = "Reset";
+            resetBtn.title = "Reset to defaults";
+            footer.appendChild(addBtn);
+            footer.appendChild(saveBtn);
+            footer.appendChild(resetBtn);
+            body.appendChild(footer);
+            const updateFooterState = () => {
+                addBtn.disabled = slotCount >= ABSOLUTE_MAX;
+                addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
+            };
+            updateFooterState();
+            addBtn.addEventListener("click", () => {
+                if (slotCount >= ABSOLUTE_MAX)
+                    return;
+                slotCount++;
+                renderSlots();
+                updateFooterState();
+                // Scroll to bottom so new slot is visible
+                body.scrollTop = body.scrollHeight;
+            });
+            saveBtn.addEventListener("click", () => {
+                // Flush any partially typed values from inputs before saving
+                const rows = slotList.querySelectorAll(".ebc-slot-row");
+                rows.forEach((row, i) => {
+                    const lInp = row.querySelector(".ebc-slot-label");
+                    const cInp = row.querySelector(".ebc-slot-color");
+                    const eInp = row.querySelector(".ebc-slot-emote");
+                    if (lInp)
+                        btns[i].label = lInp.value.trim().slice(0, 6);
+                    if (cInp)
+                        btns[i].color = normalizeHex(cInp.value);
+                    if (eInp)
+                        btns[i].emote = eInp.value;
+                });
+                saveButtons([...btns], slotCount);
+                saveBtn.textContent = "Saved!";
+                window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
+            });
+            resetBtn.addEventListener("click", () => {
+                btns = DEFAULT_BUTTONS.map(b => (Object.assign({}, b)));
+                slotCount = DEFAULT_BUTTONS.length;
+                saveButtons([...btns], slotCount);
+                renderSlots();
+                updateFooterState();
+            });
+        }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
@@ -1655,11 +1397,9 @@
                 return;
             this.isOpen = true;
             this.el.className = "ebc-open";
-            // Always re-sync position when opening (handles first-open after room join)
-            if (!this.positioned) {
+            if (!this.positioned)
                 this.syncToChat();
-            }
-            this.renderOutfits();
+            this.renderCurrentTab();
         }
         close() {
             if (!this.el)
@@ -1682,23 +1422,20 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.32";
-    const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
-        <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
-        <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
-        <circle cx="34" cy="43" r="4" fill="#f7e6ee"/>
-        <circle cx="56" cy="43" r="4" fill="#f7e6ee"/>
-        <path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>
-    </svg>`);
+    const MOD_VERSION = "0.1.33";
     let noticeShown = false;
-    let activeTab = "actions";
-    let settingsRegistered = false;
-    const TAB_BTN_Y = 86;
-    const TAB_BTN_H = 30;
-    const TAB_BTN_W = 132;
-    const TAB_BTN_GAP = 14;
-    const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.33",
+            changes: [
+                "Removed Extensions/Preferences settings screen - all management now lives in the EBC drawer.",
+                "Drawer now has two tabs: Outfits and Buttons.",
+                "Buttons tab: inline DOM editor for all action button slots (toggle, label, color, emote, delete, add, save).",
+                "Drawer positioned to match CRABS x-alignment, 10% down from chat log top.",
+                "Hamburger collapse chip restored to original simple - / + style.",
+                "Added /ebc unlock command - removes all non-owner/lover locks from your items.",
+            ],
+        },
         {
             version: "0.1.32",
             changes: [
@@ -1998,6 +1735,46 @@
         ServerPlayerAppearanceSync();
         appendLocalLogLine(`[EmeryBC] Released ${toRemove.length} restraint(s).`, UI.gold);
     }
+    function unlockItems() {
+        var _a;
+        let unlocked = 0;
+        let skipped = 0;
+        for (const item of Player.Appearance) {
+            const lock = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy;
+            if (!lock)
+                continue;
+            if (isProtectedLock(item)) {
+                skipped++;
+                continue;
+            }
+            // Strip all lock-related data from the item
+            if (item.Property) {
+                delete item.Property["LockedBy"];
+                delete item.Property["LockMemberNumber"];
+                delete item.Property["CombinationNumber"];
+                delete item.Property["Password"];
+                delete item.Property["MemberNumberListKeys"];
+                delete item.Property["RemoveItem"];
+                delete item.Property["ShowTimer"];
+                delete item.Property["EnableRandomInput"];
+            }
+            unlocked++;
+        }
+        if (unlocked === 0) {
+            const msg = skipped > 0
+                ? `[EmeryBC] All locks are owner/lover protected - none removed.`
+                : `[EmeryBC] No locks found to remove.`;
+            appendLocalLogLine(msg, UI.textMuted);
+            return;
+        }
+        if (skipped > 0) {
+            appendLocalLogLine(`[EmeryBC] Skipped ${skipped} owner/lover lock(s).`, UI.textMuted);
+        }
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+        appendLocalLogLine(`[EmeryBC] Removed ${unlocked} lock(s).`, UI.gold);
+    }
     function handleMetaCommand(inputValue) {
         var _a;
         const trimmed = inputValue.trim();
@@ -2019,7 +1796,11 @@
             releaseRestraints();
             return true;
         }
-        appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release", UI.gold);
+        if (subcommand === "unlock") {
+            unlockItems();
+            return true;
+        }
+        appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock", UI.gold);
         return true;
     }
     function getSharedPresence(character) {
@@ -2103,80 +1884,6 @@
             return;
         noticeShown = true;
         appendLocalLogLine(`- EmeryBC v${MOD_VERSION} loaded successfully.`);
-    }
-    function drawTabs() {
-        drawChromeButton(TAB_BTN_LEFT, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
-        drawChromeButton(TAB_BTN_LEFT + TAB_BTN_W + TAB_BTN_GAP, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
-    }
-    function settingsRun() {
-        if (activeTab === "actions") {
-            settingsRun$1();
-        }
-        else {
-            outfitSettingsRun();
-        }
-        drawTabs();
-    }
-    function settingsClick() {
-        if (MouseY >= TAB_BTN_Y && MouseY <= TAB_BTN_Y + TAB_BTN_H) {
-            if (MouseX >= TAB_BTN_LEFT && MouseX <= TAB_BTN_LEFT + TAB_BTN_W && activeTab !== "actions") {
-                outfitSettingsExit();
-                activeTab = "actions";
-                settingsLoad();
-                return;
-            }
-            const outfitsLeft = TAB_BTN_LEFT + TAB_BTN_W + TAB_BTN_GAP;
-            if (MouseX >= outfitsLeft && MouseX <= outfitsLeft + TAB_BTN_W && activeTab !== "outfits") {
-                settingsExit$1();
-                activeTab = "outfits";
-                outfitSettingsLoad();
-                return;
-            }
-        }
-        if (activeTab === "actions") {
-            settingsClick$1();
-        }
-        else {
-            outfitSettingsClick();
-        }
-    }
-    function settingsExit() {
-        if (activeTab === "actions") {
-            settingsExit$1();
-        }
-        else {
-            outfitSettingsExit();
-        }
-        activeTab = "actions";
-    }
-    function registerSettings() {
-        if (settingsRegistered)
-            return;
-        const globalScope = window;
-        const register = globalScope["PreferenceRegisterExtensionSetting"];
-        if (!register) {
-            setTimeout(registerSettings, 1000);
-            return;
-        }
-        try {
-            register({
-                Identifier: MOD_NAME,
-                ButtonText: "EmeryBC",
-                Image: EXTENSION_ICON,
-                load: () => {
-                    activeTab = "actions";
-                    settingsLoad();
-                    outfitSettingsLoad();
-                },
-                run: settingsRun,
-                click: settingsClick,
-                exit: settingsExit,
-            });
-            settingsRegistered = true;
-        }
-        catch (error) {
-            console.error("[EmeryBC] Extension registration failed:", error);
-        }
     }
     function tryHookFunction(modAPI, funcName, priority, hook) {
         try {
@@ -2275,7 +1982,6 @@
             }
             return next(args);
         });
-        registerSettings();
         try {
             syncPresenceMarker();
         }

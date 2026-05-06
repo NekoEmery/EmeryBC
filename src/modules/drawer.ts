@@ -1,9 +1,9 @@
 /**
  * EmeryBC Drawer
  *
- * A CRABS-inspired sliding side panel aligned to the right edge of the
- * chat log. Shows saved outfits with one-click Wear and Update buttons,
- * plus an inline New Outfit form.
+ * CRABS-inspired sliding panel aligned to the right edge of the chat log,
+ * positioned 10% down from the top (just below CRABS's own tab).
+ * Tabs: Outfits | Buttons
  *
  * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
  * Thank you Sin for the open design!
@@ -13,8 +13,18 @@ import {
     applyOutfit,
     saveCurrentAppearanceToOutfit,
     createOutfitFromCurrent,
+    deleteOutfit,
     type ConfiguredOutfit,
 } from "./outfitManager";
+import {
+    getButtons,
+    getSlotCount,
+    saveButtons,
+    normalizeHex,
+    DEFAULT_BUTTONS,
+    ABSOLUTE_MAX,
+    type ActionButton,
+} from "./actionButtons";
 
 // -- Icon ----------------------------------------------------------------------
 
@@ -37,12 +47,13 @@ const CSS = `
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
     will-change: transform;
     pointer-events: none;
+    width: 260px;
 }
 
 #emerybc-drawer.ebc-closed { transform: translateX(calc(100% + 40px)); }
 #emerybc-drawer.ebc-open   { transform: translateX(0); }
 
-/* Tab button - sits just below CRABS's tab at the top of the chat area */
+/* Tab button - sits at top: 10px, same as CRABS */
 #ebc-tab {
     pointer-events: auto;
     width: 36px;
@@ -60,7 +71,7 @@ const CSS = `
     box-shadow: -3px 0 10px rgba(0,0,0,0.55);
     position: absolute;
     left: -36px;
-    top: 50px;
+    top: 10px;
     z-index: 99;
     transition: background 0.18s;
     flex-shrink: 0;
@@ -76,7 +87,7 @@ const CSS = `
     border-left: 2px solid #4c2537;
     display: flex;
     flex-direction: column;
-    width: 100%;
+    width: 260px;
     height: 100%;
     overflow: hidden;
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
@@ -87,32 +98,33 @@ const CSS = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-bottom: 1px solid #4c2537;
     background: rgba(36, 17, 29, 0.9);
     flex-shrink: 0;
-    gap: 8px;
+    gap: 6px;
 }
 
 .ebc-title {
     font-family: "Trebuchet MS", serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: bold;
     color: #cf6f98;
     letter-spacing: 0.07em;
     white-space: nowrap;
+    flex: 1;
 }
 
-.ebc-header-btns { display: flex; gap: 5px; align-items: center; }
+.ebc-header-btns { display: flex; gap: 4px; align-items: center; }
 
 .ebc-icon-btn {
     background: transparent;
     border: 1px solid #4c2537;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #967281;
     cursor: pointer;
-    padding: 3px 7px;
-    font-size: 12px;
+    padding: 2px 6px;
+    font-size: 11px;
     line-height: 1.3;
     font-family: "Trebuchet MS", serif;
     transition: background 0.14s, color 0.14s, border-color 0.14s;
@@ -120,11 +132,36 @@ const CSS = `
 
 .ebc-icon-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 
+/* -- Tabs -- */
+.ebc-tabs {
+    display: flex;
+    border-bottom: 1px solid #4c2537;
+    flex-shrink: 0;
+}
+
+.ebc-tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    padding: 6px 0;
+    transition: color 0.14s, border-color 0.14s;
+}
+
+.ebc-tab-btn:hover { color: #967281; }
+.ebc-tab-btn.ebc-tab-active { color: #cf6f98; border-bottom-color: #cf6f98; }
+
 /* -- Body -- */
 .ebc-body {
     flex: 1;
     overflow-y: auto;
-    padding: 8px;
+    padding: 7px;
     scrollbar-width: thin;
     scrollbar-color: #4c2537 transparent;
 }
@@ -141,17 +178,17 @@ const CSS = `
     letter-spacing: 0.1em;
     color: #553142;
     text-transform: uppercase;
-    padding: 4px 4px 6px;
+    padding: 4px 4px 5px;
 }
 
 /* -- Outfit rows -- */
 .ebc-outfit-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 8px;
-    border-radius: 8px;
-    margin-bottom: 5px;
+    gap: 5px;
+    padding: 6px 7px;
+    border-radius: 7px;
+    margin-bottom: 4px;
     background: rgba(42, 20, 33, 0.6);
     border: 1px solid #3a1928;
     transition: border-color 0.14s;
@@ -181,20 +218,19 @@ const CSS = `
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     color: #cf6f98;
-    letter-spacing: 0.04em;
 }
 
 .ebc-wear-btn {
     flex-shrink: 0;
     background: #2a1421;
     border: 1px solid #91405f;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #cf6f98;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: bold;
-    padding: 4px 10px;
+    padding: 3px 8px;
     transition: background 0.14s, color 0.12s;
     white-space: nowrap;
 }
@@ -207,12 +243,12 @@ const CSS = `
     flex-shrink: 0;
     background: transparent;
     border: 1px solid #4c2537;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #7a4a5e;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
-    padding: 4px 8px;
+    padding: 3px 6px;
     transition: background 0.14s, color 0.12s, border-color 0.12s;
     white-space: nowrap;
 }
@@ -225,19 +261,16 @@ const CSS = `
 .ebc-empty {
     color: #553142;
     font-family: "Trebuchet MS", serif;
-    font-size: 12px;
+    font-size: 11px;
     text-align: center;
-    padding: 20px 8px;
+    padding: 16px 6px;
     line-height: 1.7;
 }
 
-/* -- New outfit area -- */
-.ebc-divider {
-    height: 1px;
-    background: #2a1421;
-    margin: 6px 0;
-}
+/* -- Divider -- */
+.ebc-divider { height: 1px; background: #2a1421; margin: 6px 0; }
 
+/* -- New outfit toggle -- */
 .ebc-new-outfit-btn {
     width: 100%;
     background: transparent;
@@ -246,37 +279,34 @@ const CSS = `
     color: #7a4a5e;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
-    font-size: 11px;
-    padding: 6px 0;
+    font-size: 10px;
+    padding: 5px 0;
     transition: background 0.14s, color 0.12s, border-color 0.12s;
     text-align: center;
 }
 
 .ebc-new-outfit-btn:hover { background: #2a1421; color: #cf6f98; border-color: #7a4a5e; border-style: solid; }
 
+/* -- New outfit form -- */
 .ebc-new-form {
-    margin-top: 6px;
+    margin-top: 5px;
     display: none;
     flex-direction: column;
     gap: 5px;
     background: rgba(42, 20, 33, 0.6);
     border: 1px solid #3a1928;
-    border-radius: 8px;
-    padding: 8px;
+    border-radius: 7px;
+    padding: 7px;
 }
 
-.ebc-form-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
+.ebc-form-row { display: flex; align-items: center; gap: 5px; }
 
 .ebc-form-label {
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     color: #967281;
     white-space: nowrap;
-    width: 60px;
+    width: 58px;
     flex-shrink: 0;
 }
 
@@ -288,7 +318,7 @@ const CSS = `
     color: #f7e6ee;
     font-family: "Trebuchet MS", serif;
     font-size: 11px;
-    padding: 3px 6px;
+    padding: 3px 5px;
     min-width: 0;
     outline: none;
     transition: border-color 0.14s;
@@ -299,7 +329,7 @@ const CSS = `
 .ebc-form-check-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
 }
 
@@ -317,11 +347,11 @@ const CSS = `
     width: 100%;
     background: #2a1421;
     border: 1px solid #91405f;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #cf6f98;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: bold;
     padding: 5px 0;
     margin-top: 2px;
@@ -331,28 +361,163 @@ const CSS = `
 .ebc-create-btn:hover    { background: #91405f; color: #f7e6ee; }
 .ebc-create-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* -- Button slot rows -- */
+.ebc-slot-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 6px;
+    border-radius: 7px;
+    margin-bottom: 4px;
+    background: rgba(42, 20, 33, 0.6);
+    border: 1px solid #3a1928;
+}
+
+.ebc-slot-top {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ebc-slot-bottom {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ebc-slot-toggle {
+    flex-shrink: 0;
+    width: 26px;
+    height: 22px;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-slot-toggle.on { background: #6b3048; color: #f7e6ee; border-color: #cf6f98; }
+.ebc-slot-toggle:hover { border-color: #7a4a5e; }
+
+.ebc-slot-label {
+    flex-shrink: 0;
+    width: 52px;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #f7e6ee;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    padding: 2px 4px;
+    outline: none;
+    transition: border-color 0.14s;
+    text-transform: uppercase;
+}
+
+.ebc-slot-label:focus { border-color: #cf6f98; }
+
+.ebc-slot-color {
+    flex-shrink: 0;
+    width: 28px;
+    height: 22px;
+    border-radius: 4px;
+    border: 1px solid #4c2537;
+    background: transparent;
+    cursor: pointer;
+    padding: 1px;
+}
+
+.ebc-slot-emote {
+    flex: 1;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #cf6f98;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 2px 4px;
+    outline: none;
+    min-width: 0;
+    transition: border-color 0.14s;
+}
+
+.ebc-slot-emote:focus { border-color: #cf6f98; }
+
+.ebc-slot-del {
+    flex-shrink: 0;
+    width: 24px;
+    height: 22px;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-slot-del:hover { background: #3a1017; color: #cf6f98; border-color: #7a4a5e; }
+
+.ebc-slot-me-label {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #4c2537;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* -- Buttons tab footer -- */
+.ebc-btn-footer {
+    display: flex;
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.ebc-btn-footer-btn {
+    flex: 1;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #7a4a5e;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 5px 0;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-btn-footer-btn:hover { background: #2a1421; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-btn-footer-btn.save  { border-color: #91405f; color: #cf6f98; }
+.ebc-btn-footer-btn.save:hover { background: #91405f; color: #f7e6ee; }
+.ebc-btn-footer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
-    padding: 5px 12px;
+    padding: 4px 10px;
     border-top: 1px solid #2a1421;
     font-family: "Trebuchet MS", serif;
-    font-size: 10px;
-    color: #3a1a28;
+    font-size: 9px;
+    color: #2a1421;
     text-align: center;
 }
-
-.ebc-footer a { color: #553142; text-decoration: none; transition: color 0.14s; }
-.ebc-footer a:hover { color: #cf6f98; }
 `;
 
 // -- Class ---------------------------------------------------------------------
+
+type DrawerTab = "outfits" | "buttons";
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
 
     private el: HTMLElement | null = null;
     private isOpen = false;
+    private currentTab: DrawerTab = "outfits";
     private resizeObserver: ResizeObserver | null = null;
     private positioned = false;
 
@@ -374,14 +539,13 @@ export class EBCDrawer {
         const el = document.createElement("div");
         el.id = "emerybc-drawer";
         el.className = "ebc-closed";
-        // Start truly off-screen until syncToChat gives us real coordinates
         el.style.display = "none";
-        el.style.right = "-9999px";
+        el.style.right = "-9999px"; // off-screen until syncToChat gives real coords
 
-        // Tab button
+        // Tab button (the little icon in the chat log margin)
         const tab = document.createElement("div");
         tab.id = "ebc-tab";
-        tab.title = "EmeryBC outfits";
+        tab.title = "EmeryBC";
         tab.innerHTML = TAB_ICON;
         el.appendChild(tab);
 
@@ -395,20 +559,18 @@ export class EBCDrawer {
 
         const title = document.createElement("span");
         title.className = "ebc-title";
-        title.textContent = "EmeryBC - Outfits";
+        title.textContent = "EmeryBC";
 
         const headerBtns = document.createElement("div");
         headerBtns.className = "ebc-header-btns";
 
         const refreshBtn = document.createElement("button");
         refreshBtn.className = "ebc-icon-btn";
-        refreshBtn.id = "ebc-refresh-btn";
-        refreshBtn.title = "Refresh outfit list";
+        refreshBtn.title = "Refresh";
         refreshBtn.textContent = "R";
 
         const closeBtn = document.createElement("button");
         closeBtn.className = "ebc-icon-btn";
-        closeBtn.id = "ebc-close-btn";
         closeBtn.title = "Close";
         closeBtn.textContent = "X";
 
@@ -416,6 +578,23 @@ export class EBCDrawer {
         headerBtns.appendChild(closeBtn);
         header.appendChild(title);
         header.appendChild(headerBtns);
+
+        // Tab bar
+        const tabBar = document.createElement("div");
+        tabBar.className = "ebc-tabs";
+
+        const outfitTabBtn = document.createElement("button");
+        outfitTabBtn.className = "ebc-tab-btn ebc-tab-active";
+        outfitTabBtn.id = "ebc-tab-outfits";
+        outfitTabBtn.textContent = "OUTFITS";
+
+        const buttonsTabBtn = document.createElement("button");
+        buttonsTabBtn.className = "ebc-tab-btn";
+        buttonsTabBtn.id = "ebc-tab-buttons";
+        buttonsTabBtn.textContent = "BUTTONS";
+
+        tabBar.appendChild(outfitTabBtn);
+        tabBar.appendChild(buttonsTabBtn);
 
         // Body
         const body = document.createElement("div");
@@ -425,9 +604,10 @@ export class EBCDrawer {
         // Footer
         const footer = document.createElement("div");
         footer.className = "ebc-footer";
-        footer.textContent = "UI inspired by CRABS by Sin - thank you! <3";
+        footer.textContent = "UI inspired by CRABS by Sin";
 
         panel.appendChild(header);
+        panel.appendChild(tabBar);
         panel.appendChild(body);
         panel.appendChild(footer);
         el.appendChild(panel);
@@ -435,9 +615,13 @@ export class EBCDrawer {
         document.body.appendChild(el);
         this.el = el;
 
+        // Events
         tab.addEventListener("click", () => this.toggle());
         closeBtn.addEventListener("click", () => this.close());
-        refreshBtn.addEventListener("click", () => this.renderOutfits());
+        refreshBtn.addEventListener("click", () => this.renderCurrentTab());
+
+        outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
+        buttonsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.isOpen) this.close();
@@ -453,8 +637,8 @@ export class EBCDrawer {
     }
 
     // -- Positioning -----------------------------------------------------------
-    // Aligns to the full height of TextAreaChatLog. The tab button is offset
-    // 50px from the top via CSS so it sits just below CRABS's tab.
+    // Aligned to the right edge of TextAreaChatLog, 10% down from the top.
+    // This places our tab just below CRABS's tab.
 
     private syncToChat(): boolean {
         const chatLog = document.getElementById("TextAreaChatLog");
@@ -462,10 +646,10 @@ export class EBCDrawer {
         const rect = chatLog.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return false;
 
-        this.el.style.top    = `${rect.top}px`;
+        const topOffset = rect.height * 0.10;
+        this.el.style.top    = `${rect.top + topOffset}px`;
         this.el.style.right  = `${document.documentElement.clientWidth - rect.right}px`;
-        this.el.style.width  = `${rect.width}px`;
-        this.el.style.height = `${rect.height}px`;
+        this.el.style.height = `${rect.height - topOffset}px`;
         this.positioned = true;
         return true;
     }
@@ -486,13 +670,11 @@ export class EBCDrawer {
             return;
         }
 
-        // In room: try to position. If the chat log isn't laid out yet retry
-        // via requestAnimationFrame so the element never floats in the centre.
+        // Try to position; if the chat log isn't laid out yet, retry next frame
         const synced = this.syncToChat();
         if (synced) {
             this.el.style.display = "flex";
         } else {
-            // Keep hidden and retry next frame
             requestAnimationFrame(() => {
                 if (this.syncToChat() && this.el) {
                     this.el.style.display = "flex";
@@ -509,22 +691,41 @@ export class EBCDrawer {
         }
     }
 
-    // -- Render outfits --------------------------------------------------------
+    // -- Tab switching ---------------------------------------------------------
+
+    private switchTab(tab: DrawerTab): void {
+        this.currentTab = tab;
+
+        const outfitBtn = this.el?.querySelector("#ebc-tab-outfits");
+        const buttonBtn = this.el?.querySelector("#ebc-tab-buttons");
+        if (outfitBtn) outfitBtn.className = "ebc-tab-btn" + (tab === "outfits" ? " ebc-tab-active" : "");
+        if (buttonBtn) buttonBtn.className = "ebc-tab-btn" + (tab === "buttons" ? " ebc-tab-active" : "");
+
+        this.renderCurrentTab();
+    }
+
+    private renderCurrentTab(): void {
+        if (this.currentTab === "outfits") {
+            this.renderOutfits();
+        } else {
+            this.renderButtons();
+        }
+    }
+
+    // -- Outfits tab -----------------------------------------------------------
 
     private renderOutfits(): void {
         const body = this.el?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
-
-        // Clear existing content
         while (body.firstChild) body.removeChild(body.firstChild);
 
         const outfits = getOutfits();
 
         if (outfits.length > 0) {
-            const sectionLabel = document.createElement("div");
-            sectionLabel.className = "ebc-section-label";
-            sectionLabel.textContent = "Saved Outfits";
-            body.appendChild(sectionLabel);
+            const lbl = document.createElement("div");
+            lbl.className = "ebc-section-label";
+            lbl.textContent = "Saved Outfits";
+            body.appendChild(lbl);
 
             for (const o of outfits) {
                 body.appendChild(this.buildOutfitRow(o, body));
@@ -532,17 +733,16 @@ export class EBCDrawer {
         } else {
             const empty = document.createElement("div");
             empty.className = "ebc-empty";
-            const line1 = document.createTextNode("No outfits saved yet.");
+            empty.textContent = "No outfits saved yet.";
             const br = document.createElement("br");
-            const line2 = document.createElement("b");
-            line2.textContent = "Preferences - Extensions - EmeryBC - Outfits";
-            empty.appendChild(line1);
+            const hint = document.createElement("span");
+            hint.style.color = "#4c2537";
+            hint.textContent = "Use the form below to create one.";
             empty.appendChild(br);
-            empty.appendChild(line2);
+            empty.appendChild(hint);
             body.appendChild(empty);
         }
 
-        // New outfit section
         this.buildNewOutfitSection(body);
     }
 
@@ -572,16 +772,13 @@ export class EBCDrawer {
         const wearBtn = document.createElement("button");
         wearBtn.className = "ebc-wear-btn";
         wearBtn.textContent = "Wear";
-        wearBtn.title = "Apply this outfit";
 
         row.appendChild(info);
         row.appendChild(updateBtn);
         row.appendChild(wearBtn);
 
-        const setAllDisabled = (disabled: boolean): void => {
-            body.querySelectorAll<HTMLButtonElement>(".ebc-wear-btn, .ebc-update-btn").forEach(b => {
-                b.disabled = disabled;
-            });
+        const setAllDisabled = (v: boolean): void => {
+            body.querySelectorAll<HTMLButtonElement>(".ebc-wear-btn, .ebc-update-btn").forEach(b => { b.disabled = v; });
         };
 
         wearBtn.addEventListener("click", () => {
@@ -607,9 +804,9 @@ export class EBCDrawer {
     }
 
     private buildNewOutfitSection(body: HTMLElement): void {
-        const divider = document.createElement("div");
-        divider.className = "ebc-divider";
-        body.appendChild(divider);
+        const div = document.createElement("div");
+        div.className = "ebc-divider";
+        body.appendChild(div);
 
         const newBtn = document.createElement("button");
         newBtn.className = "ebc-new-outfit-btn";
@@ -620,99 +817,66 @@ export class EBCDrawer {
         form.className = "ebc-new-form";
         body.appendChild(form);
 
-        // Command row
-        const cmdRow = document.createElement("div");
-        cmdRow.className = "ebc-form-row";
-        const cmdLabel = document.createElement("span");
-        cmdLabel.className = "ebc-form-label";
-        cmdLabel.textContent = "Command";
-        const cmdInput = document.createElement("input");
-        cmdInput.className = "ebc-form-input";
-        cmdInput.type = "text";
-        cmdInput.placeholder = "e.g. dom";
-        cmdInput.maxLength = 20;
-        cmdRow.appendChild(cmdLabel);
-        cmdRow.appendChild(cmdInput);
-        form.appendChild(cmdRow);
+        const makeRow = (labelText: string, input: HTMLInputElement): HTMLElement => {
+            const row = document.createElement("div");
+            row.className = "ebc-form-row";
+            const lbl = document.createElement("span");
+            lbl.className = "ebc-form-label";
+            lbl.textContent = labelText;
+            row.appendChild(lbl);
+            row.appendChild(input);
+            return row;
+        };
 
-        // Name row
-        const nameRow = document.createElement("div");
-        nameRow.className = "ebc-form-row";
-        const nameLabel = document.createElement("span");
-        nameLabel.className = "ebc-form-label";
-        nameLabel.textContent = "Name";
-        const nameInput = document.createElement("input");
-        nameInput.className = "ebc-form-input";
-        nameInput.type = "text";
-        nameInput.placeholder = "e.g. Dom Clothes";
-        nameInput.maxLength = 40;
-        nameRow.appendChild(nameLabel);
-        nameRow.appendChild(nameInput);
-        form.appendChild(nameRow);
+        const cmdInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "e.g. dom", maxLength: 20,
+        });
+        const nameInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "e.g. Dom Clothes", maxLength: 40,
+        });
+        const announceInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "e.g. changes into dom mode", maxLength: 120,
+        });
 
-        // Announce row
-        const announceRow = document.createElement("div");
-        announceRow.className = "ebc-form-row";
-        const announceLabel = document.createElement("span");
-        announceLabel.className = "ebc-form-label";
-        announceLabel.textContent = "Announce";
-        const announceInput = document.createElement("input");
-        announceInput.className = "ebc-form-input";
-        announceInput.type = "text";
-        announceInput.placeholder = "e.g. changes into dom mode";
-        announceInput.maxLength = 120;
-        announceRow.appendChild(announceLabel);
-        announceRow.appendChild(announceInput);
-        form.appendChild(announceRow);
+        form.appendChild(makeRow("Command", cmdInput));
+        form.appendChild(makeRow("Name", nameInput));
+        form.appendChild(makeRow("Announce", announceInput));
 
-        // Restraints checkbox
         const checkRow = document.createElement("label");
         checkRow.className = "ebc-form-check-row";
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        const checkLabel = document.createElement("span");
-        checkLabel.className = "ebc-form-check-label";
-        checkLabel.textContent = "Include restraints";
+        const checkLbl = document.createElement("span");
+        checkLbl.className = "ebc-form-check-label";
+        checkLbl.textContent = "Include restraints";
         checkRow.appendChild(checkbox);
-        checkRow.appendChild(checkLabel);
+        checkRow.appendChild(checkLbl);
         form.appendChild(checkRow);
 
-        // Create button
         const createBtn = document.createElement("button");
         createBtn.className = "ebc-create-btn";
         createBtn.textContent = "Save as New Outfit";
         form.appendChild(createBtn);
 
-        // Toggle form open/close
         newBtn.addEventListener("click", () => {
-            const isOpen = form.style.display !== "none";
-            form.style.display = isOpen ? "none" : "flex";
-            newBtn.textContent = isOpen ? "+ New Outfit from Current Look" : "- Cancel";
-            if (!isOpen) {
-                cmdInput.focus();
-            }
+            const open = form.style.display !== "none";
+            form.style.display = open ? "none" : "flex";
+            newBtn.textContent = open ? "+ New Outfit from Current Look" : "- Cancel";
+            if (!open) cmdInput.focus();
         });
 
         createBtn.addEventListener("click", () => {
-            const cmd = cmdInput.value.trim();
-            const name = nameInput.value.trim();
-            const announce = announceInput.value.trim();
-            const restraints = checkbox.checked;
+            cmdInput.style.borderColor = cmdInput.value.trim() ? "" : "#cf6f98";
+            nameInput.style.borderColor = nameInput.value.trim() ? "" : "#cf6f98";
+            if (!cmdInput.value.trim() || !nameInput.value.trim()) return;
 
-            if (!cmd || !name) {
-                cmdInput.style.borderColor = cmd ? "" : "#cf6f98";
-                nameInput.style.borderColor = name ? "" : "#cf6f98";
-                return;
-            }
-
-            cmdInput.style.borderColor = "";
-            nameInput.style.borderColor = "";
             createBtn.disabled = true;
             createBtn.textContent = "Saving...";
 
-            const result = createOutfitFromCurrent(cmd, name, announce, restraints);
+            const result = createOutfitFromCurrent(
+                cmdInput.value, nameInput.value, announceInput.value, checkbox.checked,
+            );
             if (result) {
-                // Reset and close form, refresh list
                 cmdInput.value = "";
                 nameInput.value = "";
                 announceInput.value = "";
@@ -727,6 +891,192 @@ export class EBCDrawer {
         });
     }
 
+    // -- Buttons tab -----------------------------------------------------------
+
+    private renderButtons(): void {
+        const body = this.el?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        // Working copies so we don't mutate storage until Save is clicked
+        let btns: ActionButton[] = getButtons().map(b => ({ ...b }));
+        let slotCount = getSlotCount();
+
+        // Ensure array has slotCount entries
+        while (btns.length < slotCount) {
+            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+        }
+
+        const lbl = document.createElement("div");
+        lbl.className = "ebc-section-label";
+        lbl.textContent = "Quick Action Buttons";
+        body.appendChild(lbl);
+
+        const slotList = document.createElement("div");
+        slotList.id = "ebc-slot-list";
+        body.appendChild(slotList);
+
+        const renderSlots = (): void => {
+            while (slotList.firstChild) slotList.removeChild(slotList.firstChild);
+
+            for (let i = 0; i < slotCount; i++) {
+                const btn = btns[i] ?? { label: "", emote: "", color: "#c2185b", enabled: false };
+
+                const row = document.createElement("div");
+                row.className = "ebc-slot-row";
+
+                // Top line: toggle | label input | color picker | del
+                const topLine = document.createElement("div");
+                topLine.className = "ebc-slot-top";
+
+                const toggle = document.createElement("button");
+                toggle.className = "ebc-slot-toggle" + (btn.enabled ? " on" : "");
+                toggle.textContent = btn.enabled ? "ON" : "OFF";
+                toggle.title = btn.enabled ? "Click to disable" : "Click to enable";
+
+                const labelInp = document.createElement("input");
+                labelInp.className = "ebc-slot-label";
+                labelInp.type = "text";
+                labelInp.maxLength = 6;
+                labelInp.placeholder = "Label";
+                labelInp.value = btn.label;
+                labelInp.title = "Button label (max 6 chars)";
+
+                const colorInp = document.createElement("input");
+                colorInp.className = "ebc-slot-color";
+                colorInp.type = "color";
+                colorInp.value = normalizeHex(btn.color);
+                colorInp.title = "Button color";
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-slot-del";
+                delBtn.textContent = "x";
+                delBtn.title = "Remove this slot";
+
+                topLine.appendChild(toggle);
+                topLine.appendChild(labelInp);
+                topLine.appendChild(colorInp);
+                topLine.appendChild(delBtn);
+
+                // Bottom line: /me prefix | emote input
+                const botLine = document.createElement("div");
+                botLine.className = "ebc-slot-bottom";
+
+                const meLbl = document.createElement("span");
+                meLbl.className = "ebc-slot-me-label";
+                meLbl.textContent = "/me";
+
+                const emoteInp = document.createElement("input");
+                emoteInp.className = "ebc-slot-emote";
+                emoteInp.type = "text";
+                emoteInp.maxLength = 120;
+                emoteInp.placeholder = "e.g. nods.";
+                emoteInp.value = btn.emote;
+                emoteInp.title = "Emote text sent as (Name text)";
+
+                botLine.appendChild(meLbl);
+                botLine.appendChild(emoteInp);
+
+                row.appendChild(topLine);
+                row.appendChild(botLine);
+                slotList.appendChild(row);
+
+                // -- Events (capture i) --
+                const idx = i;
+
+                toggle.addEventListener("click", () => {
+                    btns[idx].enabled = !btns[idx].enabled;
+                    toggle.className = "ebc-slot-toggle" + (btns[idx].enabled ? " on" : "");
+                    toggle.textContent = btns[idx].enabled ? "ON" : "OFF";
+                });
+
+                labelInp.addEventListener("input", () => {
+                    btns[idx].label = labelInp.value.trim().slice(0, 6);
+                });
+
+                colorInp.addEventListener("input", () => {
+                    btns[idx].color = normalizeHex(colorInp.value);
+                });
+
+                emoteInp.addEventListener("input", () => {
+                    btns[idx].emote = emoteInp.value;
+                });
+
+                delBtn.addEventListener("click", () => {
+                    btns.splice(idx, 1);
+                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false });
+                    slotCount = Math.max(1, slotCount - 1);
+                    renderSlots();
+                    updateFooterState();
+                });
+            }
+        };
+
+        renderSlots();
+
+        // Footer buttons
+        const footer = document.createElement("div");
+        footer.className = "ebc-btn-footer";
+
+        const addBtn = document.createElement("button");
+        addBtn.className = "ebc-btn-footer-btn";
+        addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "ebc-btn-footer-btn save";
+        saveBtn.textContent = "Save";
+
+        const resetBtn = document.createElement("button");
+        resetBtn.className = "ebc-btn-footer-btn";
+        resetBtn.textContent = "Reset";
+        resetBtn.title = "Reset to defaults";
+
+        footer.appendChild(addBtn);
+        footer.appendChild(saveBtn);
+        footer.appendChild(resetBtn);
+        body.appendChild(footer);
+
+        const updateFooterState = (): void => {
+            addBtn.disabled = slotCount >= ABSOLUTE_MAX;
+            addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
+        };
+
+        updateFooterState();
+
+        addBtn.addEventListener("click", () => {
+            if (slotCount >= ABSOLUTE_MAX) return;
+            slotCount++;
+            renderSlots();
+            updateFooterState();
+            // Scroll to bottom so new slot is visible
+            body.scrollTop = body.scrollHeight;
+        });
+
+        saveBtn.addEventListener("click", () => {
+            // Flush any partially typed values from inputs before saving
+            const rows = slotList.querySelectorAll<HTMLElement>(".ebc-slot-row");
+            rows.forEach((row, i) => {
+                const lInp = row.querySelector<HTMLInputElement>(".ebc-slot-label");
+                const cInp = row.querySelector<HTMLInputElement>(".ebc-slot-color");
+                const eInp = row.querySelector<HTMLInputElement>(".ebc-slot-emote");
+                if (lInp) btns[i].label = lInp.value.trim().slice(0, 6);
+                if (cInp) btns[i].color = normalizeHex(cInp.value);
+                if (eInp) btns[i].emote = eInp.value;
+            });
+            saveButtons([...btns], slotCount);
+            saveBtn.textContent = "Saved!";
+            window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
+        });
+
+        resetBtn.addEventListener("click", () => {
+            btns = DEFAULT_BUTTONS.map(b => ({ ...b }));
+            slotCount = DEFAULT_BUTTONS.length;
+            saveButtons([...btns], slotCount);
+            renderSlots();
+            updateFooterState();
+        });
+    }
+
     // -- Open / Close / Toggle -------------------------------------------------
 
     public toggle(): void { this.isOpen ? this.close() : this.open(); }
@@ -735,11 +1085,8 @@ export class EBCDrawer {
         if (!this.el) return;
         this.isOpen = true;
         this.el.className = "ebc-open";
-        // Always re-sync position when opening (handles first-open after room join)
-        if (!this.positioned) {
-            this.syncToChat();
-        }
-        this.renderOutfits();
+        if (!this.positioned) this.syncToChat();
+        this.renderCurrentTab();
     }
 
     public close(): void {

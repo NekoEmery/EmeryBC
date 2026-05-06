@@ -1,45 +1,24 @@
-﻿import {
-    drawActionButtons,
-    handleActionButtonClick,
-    settingsLoad as actionSettingsLoad,
-    settingsRun as actionSettingsRun,
-    settingsClick as actionSettingsClick,
-    settingsExit as actionSettingsExit,
-} from "./modules/actionButtons";
+﻿import { drawActionButtons, handleActionButtonClick } from "./modules/actionButtons";
 import { EBCDrawer } from "./modules/drawer";
-import {
-    handleOutfitCommand,
-    outfitSettingsLoad,
-    outfitSettingsRun,
-    outfitSettingsClick,
-    outfitSettingsExit,
-} from "./modules/outfitManager";
-import { UI, drawChromeButton } from "./modules/ui";
+import { handleOutfitCommand } from "./modules/outfitManager";
+import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.32";
-const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
-        <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
-        <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
-        <circle cx="34" cy="43" r="4" fill="#f7e6ee"/>
-        <circle cx="56" cy="43" r="4" fill="#f7e6ee"/>
-        <path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>
-    </svg>`
-);
-
-type Tab = "actions" | "outfits";
+const MOD_VERSION = "0.1.33";
 
 let noticeShown = false;
-let activeTab: Tab = "actions";
-let settingsRegistered = false;
-
-const TAB_BTN_Y = 86;
-const TAB_BTN_H = 30;
-const TAB_BTN_W = 132;
-const TAB_BTN_GAP = 14;
-const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.33",
+        changes: [
+            "Removed Extensions/Preferences settings screen - all management now lives in the EBC drawer.",
+            "Drawer now has two tabs: Outfits and Buttons.",
+            "Buttons tab: inline DOM editor for all action button slots (toggle, label, color, emote, delete, add, save).",
+            "Drawer positioned to match CRABS x-alignment, 10% down from chat log top.",
+            "Hamburger collapse chip restored to original simple - / + style.",
+            "Added /ebc unlock command - removes all non-owner/lover locks from your items.",
+        ],
+    },
     {
         version: "0.1.32",
         changes: [
@@ -349,6 +328,47 @@ function releaseRestraints(): void {
     appendLocalLogLine(`[EmeryBC] Released ${toRemove.length} restraint(s).`, UI.gold);
 }
 
+function unlockItems(): void {
+    let unlocked = 0;
+    let skipped = 0;
+
+    for (const item of Player.Appearance) {
+        const lock = item.Property?.LockedBy as string | undefined;
+        if (!lock) continue;
+        if (isProtectedLock(item)) { skipped++; continue; }
+
+        // Strip all lock-related data from the item
+        if (item.Property) {
+            delete item.Property["LockedBy"];
+            delete item.Property["LockMemberNumber"];
+            delete item.Property["CombinationNumber"];
+            delete item.Property["Password"];
+            delete item.Property["MemberNumberListKeys"];
+            delete item.Property["RemoveItem"];
+            delete item.Property["ShowTimer"];
+            delete item.Property["EnableRandomInput"];
+        }
+        unlocked++;
+    }
+
+    if (unlocked === 0) {
+        const msg = skipped > 0
+            ? `[EmeryBC] All locks are owner/lover protected - none removed.`
+            : `[EmeryBC] No locks found to remove.`;
+        appendLocalLogLine(msg, UI.textMuted);
+        return;
+    }
+
+    if (skipped > 0) {
+        appendLocalLogLine(`[EmeryBC] Skipped ${skipped} owner/lover lock(s).`, UI.textMuted);
+    }
+
+    CharacterRefresh(Player, false);
+    ChatRoomCharacterUpdate(Player);
+    ServerPlayerAppearanceSync();
+    appendLocalLogLine(`[EmeryBC] Removed ${unlocked} lock(s).`, UI.gold);
+}
+
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;
@@ -372,7 +392,12 @@ function handleMetaCommand(inputValue: string): boolean {
         return true;
     }
 
-    appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release", UI.gold);
+    if (subcommand === "unlock") {
+        unlockItems();
+        return true;
+    }
+
+    appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock", UI.gold);
     return true;
 }
 
@@ -472,83 +497,6 @@ function showRoomLoadNotice(): void {
     appendLocalLogLine(`- EmeryBC v${MOD_VERSION} loaded successfully.`);
 }
 
-function drawTabs(): void {
-    drawChromeButton(TAB_BTN_LEFT, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
-    drawChromeButton(TAB_BTN_LEFT + TAB_BTN_W + TAB_BTN_GAP, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Outfits", activeTab === "outfits" ? "accent" : "muted");
-}
-
-function settingsRun(): void {
-    if (activeTab === "actions") {
-        actionSettingsRun();
-    } else {
-        outfitSettingsRun();
-    }
-    drawTabs();
-}
-
-function settingsClick(): void {
-    if (MouseY >= TAB_BTN_Y && MouseY <= TAB_BTN_Y + TAB_BTN_H) {
-        if (MouseX >= TAB_BTN_LEFT && MouseX <= TAB_BTN_LEFT + TAB_BTN_W && activeTab !== "actions") {
-            outfitSettingsExit();
-            activeTab = "actions";
-            actionSettingsLoad();
-            return;
-        }
-        const outfitsLeft = TAB_BTN_LEFT + TAB_BTN_W + TAB_BTN_GAP;
-        if (MouseX >= outfitsLeft && MouseX <= outfitsLeft + TAB_BTN_W && activeTab !== "outfits") {
-            actionSettingsExit();
-            activeTab = "outfits";
-            outfitSettingsLoad();
-            return;
-        }
-    }
-
-    if (activeTab === "actions") {
-        actionSettingsClick();
-    } else {
-        outfitSettingsClick();
-    }
-}
-
-function settingsExit(): void {
-    if (activeTab === "actions") {
-        actionSettingsExit();
-    } else {
-        outfitSettingsExit();
-    }
-    activeTab = "actions";
-}
-
-function registerSettings(): void {
-    if (settingsRegistered) return;
-
-    const globalScope = window as unknown as Record<string, unknown>;
-    const register = globalScope["PreferenceRegisterExtensionSetting"] as ((setting: unknown) => void) | undefined;
-    if (!register) {
-        setTimeout(registerSettings, 1000);
-        return;
-    }
-
-    try {
-        register({
-            Identifier: MOD_NAME,
-            ButtonText: "EmeryBC",
-            Image: EXTENSION_ICON,
-            load: () => {
-                activeTab = "actions";
-                actionSettingsLoad();
-                outfitSettingsLoad();
-            },
-            run: settingsRun,
-            click: settingsClick,
-            exit: settingsExit,
-        });
-        settingsRegistered = true;
-    } catch (error) {
-        console.error("[EmeryBC] Extension registration failed:", error);
-    }
-}
-
 function tryHookFunction(
     modAPI: ModSDKModAPI,
     funcName: string,
@@ -645,8 +593,6 @@ function init(): void {
         }
         return next(args);
     });
-
-    registerSettings();
 
     try {
         syncPresenceMarker();
