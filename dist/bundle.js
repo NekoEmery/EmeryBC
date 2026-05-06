@@ -15,7 +15,7 @@
         { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true, style: "action" },
         { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true, style: "action" },
         { label: "BOW", emote: "bows politely.", color: "#c2185b", enabled: true, style: "action" },
-        { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
+        { label: "CHEER", emote: "_|HandsUp|_|HandsUp|_", color: "#c2185b", enabled: true, style: "seq" },
         { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
     ];
     const ABSOLUTE_MAX = 12;
