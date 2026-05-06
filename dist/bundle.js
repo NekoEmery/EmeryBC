@@ -1422,9 +1422,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.33";
+    const MOD_VERSION = "0.1.34";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.34",
+            changes: [
+                "/ebc release and /ebc unlock now also skip family padlocks (OwnerPadlock, LoverPadlock, FamilyPadlock, etc.).",
+            ],
+        },
         {
             version: "0.1.33",
             changes: [
@@ -1706,11 +1712,11 @@
         }
     }
     function isProtectedLock(item) {
-        var _a;
-        const lock = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy;
+        var _a, _b;
+        const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
         if (!lock)
             return false;
-        return lock.toLowerCase().includes("owner") || lock.toLowerCase().includes("lover");
+        return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
     }
     function releaseRestraints() {
         const toRemove = Player.Appearance.filter(item => item.Asset.Group.IsRestraint && !isProtectedLock(item));

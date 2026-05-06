@@ -4,10 +4,16 @@ import { handleOutfitCommand } from "./modules/outfitManager";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.33";
+const MOD_VERSION = "0.1.34";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.34",
+        changes: [
+            "/ebc release and /ebc unlock now also skip family padlocks (OwnerPadlock, LoverPadlock, FamilyPadlock, etc.).",
+        ],
+    },
     {
         version: "0.1.33",
         changes: [
@@ -293,9 +299,9 @@ function showChangelog(): void {
 }
 
 function isProtectedLock(item: Item): boolean {
-    const lock = item.Property?.LockedBy as string | undefined;
+    const lock = (item.Property?.LockedBy as string | undefined ?? "").toLowerCase();
     if (!lock) return false;
-    return lock.toLowerCase().includes("owner") || lock.toLowerCase().includes("lover");
+    return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
 }
 
 function releaseRestraints(): void {
