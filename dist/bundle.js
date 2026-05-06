@@ -1937,10 +1937,10 @@
 .ebc-footer {
     flex-shrink: 0;
     padding: 4px 10px;
-    border-top: 1px solid #2a1421;
+    border-top: 1px solid #3a1928;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
-    color: #7a5a6a;
+    color: #9a7888;
     text-align: center;
 }
 
@@ -2465,10 +2465,10 @@
             const body = document.createElement("div");
             body.className = "ebc-body";
             body.id = "ebc-body";
-            // Footer: static credit line + live timer
+            // Footer: version + credit line + live timer
             const footer = document.createElement("div");
             footer.className = "ebc-footer";
-            footer.textContent = "UI inspired by CRABS by Sin";
+            footer.textContent = `EmeryBC v${this.version} · UI inspired by CRABS by Sin`;
             const timerEl = document.createElement("div");
             timerEl.className = "ebc-timer";
             footer.appendChild(timerEl);
@@ -4531,7 +4531,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.87";
+    const MOD_VERSION = "0.1.88";
     let noticeShown = false;
     const CHANGELOG = [
         {
