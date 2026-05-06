@@ -771,7 +771,7 @@
      * Thank you Sin for the open design!
      */
     // -- Icon ----------------------------------------------------------------------
-    const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 90 90">'
+    const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 90 90">'
         + '<rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>'
         + '<path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>'
         + '<circle cx="34" cy="43" r="4" fill="#f7e6ee"/>'
@@ -810,7 +810,7 @@
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
     position: absolute;
     left: -44px;
-    top: 10px;
+    top: 64px;
     z-index: 99;
     transition: background 0.18s;
 }
@@ -1563,6 +1563,7 @@
             this.positioned = false;
             this.version = "";
             this.refreshBadgeRow = null;
+            this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             EBCDrawer._instance = this;
             this.version = version;
             if (document.body) {
@@ -1779,13 +1780,19 @@
             const rect = chatLog.getBoundingClientRect();
             if (rect.width === 0 || rect.height === 0)
                 return false;
-            const topOffset = rect.height * 0.15;
-            const top = rect.top + topOffset;
-            this.rootEl.style.top = `${top}px`;
-            this.rootEl.style.right = `${document.documentElement.clientWidth - rect.right}px`;
-            // Extend to the bottom of the viewport so the panel isn't cut short
-            this.rootEl.style.height = `${document.documentElement.clientHeight - top}px`;
-            this.positioned = true;
+            const rightOffset = document.documentElement.clientWidth - rect.right;
+            // Only write to the DOM when the chat log actually moved or resized —
+            // eliminates layout thrashing on every animation frame (pattern from CRABS).
+            if (this.lastRect.top !== rect.top ||
+                this.lastRect.width !== rect.width ||
+                this.lastRect.height !== rect.height ||
+                this.lastRect.right !== rightOffset) {
+                this.rootEl.style.top = `${rect.top}px`;
+                this.rootEl.style.right = `${rightOffset}px`;
+                this.rootEl.style.height = `${rect.height}px`;
+                this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
+                this.positioned = true;
+            }
             return true;
         }
         // -- Visibility ------------------------------------------------------------
@@ -1799,6 +1806,7 @@
                 this.isOpen = false;
                 this.panelEl.className = "ebc-closed";
                 this.positioned = false;
+                this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
                 (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
                 this.resizeObserver = null;
                 return;
@@ -2449,6 +2457,12 @@
             body.appendChild(intro);
             const people = [
                 {
+                    emoji: "🎀",
+                    name: "Sin",
+                    reason: "Creator of CRABS — the UI inspiration behind this whole drawer. Open design, open heart.",
+                    heart: "💗",
+                },
+                {
                     emoji: "🌸",
                     name: "Lara",
                     reason: "Endless support, inspiration, and being the best person to exist.",
@@ -2459,12 +2473,6 @@
                     name: "Lucy",
                     reason: "Always there, always wonderful. Thank you for everything.",
                     heart: "💜",
-                },
-                {
-                    emoji: "🎀",
-                    name: "Sin",
-                    reason: "Creator of CRABS — the UI inspiration behind this whole drawer. Open design, open heart.",
-                    heart: "💗",
                 },
             ];
             for (const p of people) {
@@ -2530,7 +2538,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.56";
+    const MOD_VERSION = "0.1.57";
     let noticeShown = false;
     const CHANGELOG = [
         {
