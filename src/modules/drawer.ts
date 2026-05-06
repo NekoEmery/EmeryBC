@@ -22,7 +22,7 @@ import {
     type ConfiguredOutfit,
     type SerializedItem,
 } from "./outfitManager";
-import { getAllPalettes, captureCurrentPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
+import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
 import { getRoomTime, getRestraintTime } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
@@ -1636,103 +1636,161 @@ export class EBCDrawer {
 
         let collapsed = true; // collapsed by default — outfits are the primary view
 
+        // Shared helper: build one palette row
+        const buildPaletteRow = (p: import("./palettes").ColorPalette, rerender: () => void): HTMLElement => {
+            const row = document.createElement("div");
+            row.className = "ebc-palette-row";
+
+            const swatch = document.createElement("div");
+            swatch.className = "ebc-palette-swatch";
+            const colors = ([] as string[]).concat(...Object.values(p.colorMap).map(c => Array.isArray(c) ? c : [c as string])).filter(Boolean).slice(0, 8);
+            for (const c of colors) {
+                const dot = document.createElement("div");
+                dot.className = "ebc-palette-dot";
+                dot.style.background = c;
+                swatch.appendChild(dot);
+            }
+
+            const nameInp = document.createElement("input");
+            nameInp.className = "ebc-palette-name";
+            nameInp.value = p.name;
+            nameInp.maxLength = 30;
+            nameInp.title = "Click to rename";
+            nameInp.addEventListener("change", () => renamePalette(p.id, nameInp.value));
+
+            const applyBtn = document.createElement("button");
+            applyBtn.className = "ebc-wear-btn";
+            applyBtn.textContent = "Apply";
+            applyBtn.title = p.type === "restraint"
+                ? "Apply these restraint colours to your current look"
+                : "Apply this colour palette to your current look";
+            applyBtn.addEventListener("click", () => {
+                applyPalette(p.id);
+                applyBtn.textContent = "Done!";
+                window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1200);
+            });
+
+            let delPending = false;
+            let delTimer: ReturnType<typeof window.setTimeout> | null = null;
+            const delBtn = document.createElement("button");
+            delBtn.className = "ebc-outfit-del";
+            delBtn.textContent = "×";
+            delBtn.title = "Delete palette";
+            delBtn.addEventListener("click", () => {
+                if (!delPending) {
+                    delPending = true;
+                    delBtn.classList.add("confirm");
+                    delBtn.textContent = "Sure?";
+                    delTimer = window.setTimeout(() => {
+                        delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×";
+                    }, 2500);
+                } else {
+                    if (delTimer) window.clearTimeout(delTimer);
+                    deletePalette(p.id);
+                    rerender();
+                }
+            });
+
+            row.appendChild(swatch);
+            row.appendChild(nameInp);
+            row.appendChild(applyBtn);
+            row.appendChild(delBtn);
+            return row;
+        };
+
+        // Shared helper: build a "Save current" save row
+        const buildSaveRow = (
+            placeholder: string,
+            btnLabel: string,
+            btnTitle: string,
+            onSave: (name: string) => void,
+            rerender: () => void,
+        ): HTMLElement => {
+            const wrap = document.createElement("div");
+            wrap.style.cssText = "display:flex;gap:5px;align-items:center;margin-top:4px;";
+
+            const inp = document.createElement("input");
+            inp.className = "ebc-form-input";
+            inp.style.flex = "1";
+            inp.placeholder = placeholder;
+            inp.maxLength = 30;
+
+            const btn = document.createElement("button");
+            btn.className = "ebc-wear-btn";
+            btn.textContent = btnLabel;
+            btn.title = btnTitle;
+            btn.addEventListener("click", () => {
+                onSave(inp.value.trim());
+                inp.value = "";
+                rerender();
+            });
+
+            wrap.appendChild(inp);
+            wrap.appendChild(btn);
+            return wrap;
+        };
+
         const render = (): void => {
             while (container.firstChild) container.removeChild(container.firstChild);
             if (collapsed) return;
 
-            const palettes = getAllPalettes();
-            if (palettes.length > 0) {
-                for (const p of palettes) {
-                    const row = document.createElement("div");
-                    row.className = "ebc-palette-row";
+            // ── Outfit palettes ──────────────────────────────────────────────
+            const outfitLbl = document.createElement("div");
+            outfitLbl.className = "ebc-import-hint";
+            outfitLbl.style.cssText = "font-weight:600;margin-bottom:3px;";
+            outfitLbl.textContent = "OUTFIT";
+            container.appendChild(outfitLbl);
 
-                    // Colour swatches — show up to 8 colours from the palette
-                    const swatch = document.createElement("div");
-                    swatch.className = "ebc-palette-swatch";
-                    const colors = ([] as string[]).concat(...Object.values(p.colorMap).map(c => Array.isArray(c) ? c : [c as string])).filter(Boolean).slice(0, 8);
-                    for (const c of colors) {
-                        const dot = document.createElement("div");
-                        dot.className = "ebc-palette-dot";
-                        dot.style.background = c;
-                        swatch.appendChild(dot);
-                    }
-
-                    const nameInp = document.createElement("input");
-                    nameInp.className = "ebc-palette-name";
-                    nameInp.value = p.name;
-                    nameInp.maxLength = 30;
-                    nameInp.title = "Click to rename";
-                    nameInp.addEventListener("change", () => {
-                        renamePalette(p.id, nameInp.value);
-                    });
-
-                    const applyBtn = document.createElement("button");
-                    applyBtn.className = "ebc-wear-btn";
-                    applyBtn.textContent = "Apply";
-                    applyBtn.title = "Apply this colour palette to your current look";
-                    applyBtn.addEventListener("click", () => {
-                        applyPalette(p.id);
-                        applyBtn.textContent = "Done!";
-                        window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1200);
-                    });
-
-                    let delPending = false;
-                    let delTimer: ReturnType<typeof window.setTimeout> | null = null;
-                    const delBtn = document.createElement("button");
-                    delBtn.className = "ebc-outfit-del";
-                    delBtn.textContent = "×";
-                    delBtn.title = "Delete palette";
-                    delBtn.addEventListener("click", () => {
-                        if (!delPending) {
-                            delPending = true;
-                            delBtn.classList.add("confirm");
-                            delBtn.textContent = "Sure?";
-                            delTimer = window.setTimeout(() => {
-                                delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×";
-                            }, 2500);
-                        } else {
-                            if (delTimer) window.clearTimeout(delTimer);
-                            deletePalette(p.id);
-                            render();
-                        }
-                    });
-
-                    row.appendChild(swatch);
-                    row.appendChild(nameInp);
-                    row.appendChild(applyBtn);
-                    row.appendChild(delBtn);
-                    container.appendChild(row);
-                }
+            const outfitPalettes = getPalettesByType("outfit");
+            for (const p of outfitPalettes) {
+                container.appendChild(buildPaletteRow(p, render));
             }
+            if (outfitPalettes.length === 0) {
+                const none = document.createElement("div");
+                none.className = "ebc-empty";
+                none.style.padding = "2px 4px 4px";
+                none.textContent = "No outfit palettes saved";
+                container.appendChild(none);
+            }
+            container.appendChild(buildSaveRow(
+                "Palette name…",
+                "Save Outfit",
+                "Snapshot all current appearance colours",
+                name => captureCurrentPalette(name || "Palette"),
+                render,
+            ));
 
-            // Save current colours form
-            const div = document.createElement("div");
-            div.className = "ebc-divider";
-            container.appendChild(div);
+            // ── Divider ──────────────────────────────────────────────────────
+            const divEl = document.createElement("div");
+            divEl.className = "ebc-divider";
+            divEl.style.margin = "8px 0 4px";
+            container.appendChild(divEl);
 
-            const saveRow = document.createElement("div");
-            saveRow.style.cssText = "display:flex;gap:5px;align-items:center;";
+            // ── Restraint palettes ───────────────────────────────────────────
+            const restraintLbl = document.createElement("div");
+            restraintLbl.className = "ebc-import-hint";
+            restraintLbl.style.cssText = "font-weight:600;margin-bottom:3px;";
+            restraintLbl.textContent = "RESTRAINTS ⛓";
+            container.appendChild(restraintLbl);
 
-            const nameInp = document.createElement("input");
-            nameInp.className = "ebc-form-input";
-            nameInp.style.flex = "1";
-            nameInp.placeholder = "Palette name…";
-            nameInp.maxLength = 30;
-
-            const saveBtn = document.createElement("button");
-            saveBtn.className = "ebc-wear-btn";
-            saveBtn.textContent = "Save Current";
-            saveBtn.title = "Snapshot your current appearance colours as a named palette";
-            saveBtn.addEventListener("click", () => {
-                const name = nameInp.value.trim() || "Palette";
-                captureCurrentPalette(name);
-                nameInp.value = "";
-                render();
-            });
-
-            saveRow.appendChild(nameInp);
-            saveRow.appendChild(saveBtn);
-            container.appendChild(saveRow);
+            const restraintPalettes = getPalettesByType("restraint");
+            for (const p of restraintPalettes) {
+                container.appendChild(buildPaletteRow(p, render));
+            }
+            if (restraintPalettes.length === 0) {
+                const none = document.createElement("div");
+                none.className = "ebc-empty";
+                none.style.padding = "2px 4px 4px";
+                none.textContent = "No restraint palettes saved";
+                container.appendChild(none);
+            }
+            container.appendChild(buildSaveRow(
+                "Restraint palette name…",
+                "Save Restraints",
+                "Snapshot colours of all currently worn restraints",
+                name => captureRestraintPalette(name || "Restraint Palette"),
+                render,
+            ));
         };
 
         const updateLabel = (): void => {
