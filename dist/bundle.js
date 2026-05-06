@@ -810,7 +810,7 @@
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
     position: absolute;
     left: -44px;
-    top: 88px;
+    top: 58px;
     transition: background 0.18s;
 }
 
@@ -1766,7 +1766,7 @@
                 this.lastRect.right !== rightOffset) {
                 this.rootEl.style.top = `${rect.top}px`;
                 this.rootEl.style.right = `${rightOffset}px`;
-                this.rootEl.style.height = `${rect.height * 1.25}px`;
+                this.rootEl.style.height = `${rect.height * 1.5}px`;
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
             }
@@ -2515,7 +2515,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.66";
+    const MOD_VERSION = "0.1.67";
     let noticeShown = false;
     const CHANGELOG = [
         {
