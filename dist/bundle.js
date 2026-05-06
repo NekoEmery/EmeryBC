@@ -324,7 +324,7 @@
         getAddon$1().outfits = sanitized;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function uid$2() {
+    function uid$3() {
         return Math.random().toString(36).slice(2, 9);
     }
     function sanitizeSerializable(value, seen = new WeakSet(), depth = 0) {
@@ -566,7 +566,7 @@
             return null;
         }
         const outfit = {
-            id: uid$2(),
+            id: uid$3(),
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
@@ -678,7 +678,7 @@
         let suffix = 2;
         while (existing.some(o => o.command === finalCmd))
             finalCmd = baseCmd + suffix++;
-        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$2(), command: finalCmd }));
+        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$3(), command: finalCmd }));
         saveOutfits([...existing, outfit]);
         localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
@@ -740,7 +740,7 @@
             finalCmd = baseCmd + sfx++;
         const includesRestraints = mode !== "outfit";
         const outfit = sanitizeOutfit({
-            id: uid$2(),
+            id: uid$3(),
             command: finalCmd,
             displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
@@ -772,7 +772,7 @@
         getStore$4().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function uid$1() {
+    function uid$2() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getAllPalettes() {
@@ -789,7 +789,7 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$1(), name: name.trim() || "Palette", type: "outfit", colorMap };
+        const palette = { id: uid$2(), name: name.trim() || "Palette", type: "outfit", colorMap };
         save([...load$1(), palette]);
         return palette;
     }
@@ -801,7 +801,7 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$1(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
+        const palette = { id: uid$2(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
         save([...load$1(), palette]);
         return palette;
     }
@@ -912,7 +912,7 @@
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
-    function uid() { return Math.random().toString(36).slice(2, 9); }
+    function uid$1() { return Math.random().toString(36).slice(2, 9); }
     function load() {
         const list = getStore$3().poseCombos;
         return Array.isArray(list) ? list : [];
@@ -924,7 +924,7 @@
     function getPoseCombos() { return load(); }
     function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
         const combo = {
-            id: uid(),
+            id: uid$1(),
             name: name.trim() || "Combo",
             poses: poses.filter(Boolean),
             stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
@@ -1253,16 +1253,16 @@
     }
 
     // Creator-only DOM tools — visible exclusively to member #130267.
-    // Lets the creator configure a set of restraints (imported from a BC outfit code)
-    // and apply them to a saved list of people.  Only targets currently in the room
-    // are restrained; everyone else is silently skipped.
+    // Supports multiple named restraint sets, each with its own items,
+    // chat command, and announce text template.
     const DOM_CREATOR_ID = 130267;
-    // Lucy and Lara are always pre-loaded on first use.
     const DEFAULT_TARGETS = [
         { id: 230466, name: "Lucy" },
         { id: 124264, name: "Lara" },
     ];
-    // ── Storage ─────────────────────────────────────────────────────────────────
+    const DEFAULT_ANNOUNCE = "snaps her fingers as {name} appears on {targets}~";
+    // ── Internal ─────────────────────────────────────────────────────────────────
+    function uid() { return Math.random().toString(36).slice(2, 9); }
     function getStore() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
@@ -1271,13 +1271,15 @@
     function loadConfig() {
         try {
             const v = getStore().domConfig;
-            if (v && Array.isArray(v.targets) && Array.isArray(v.items)) {
-                return { targets: v.targets, items: v.items };
+            if (v && Array.isArray(v.targets)) {
+                return {
+                    targets: v.targets,
+                    sets: Array.isArray(v.sets) ? v.sets : [],
+                };
             }
         }
         catch ( /* ignore */_a) { /* ignore */ }
-        // First use — seed with defaults
-        return { targets: [...DEFAULT_TARGETS], items: [] };
+        return { targets: [...DEFAULT_TARGETS], sets: [] };
     }
     function saveConfig(cfg) {
         try {
@@ -1295,9 +1297,8 @@
             return false;
         }
     }
-    function getDomConfig() {
-        return loadConfig();
-    }
+    function getDomConfig() { return loadConfig(); }
+    // -- Targets --
     function addDomTarget(id, name) {
         const cfg = loadConfig();
         if (cfg.targets.some(t => t.id === id))
@@ -1310,34 +1311,57 @@
         cfg.targets = cfg.targets.filter(t => t.id !== id);
         saveConfig(cfg);
     }
-    function setDomItems(items) {
-        const cfg = loadConfig();
-        cfg.items = items;
-        saveConfig(cfg);
-    }
-    function clearDomItems() {
-        setDomItems([]);
-    }
-    // Room characters not already in the target list (excluding self).
+    // Room members not already in the target list (excluding self).
     function getRoomAddable() {
         var _a;
         try {
-            const cfg = loadConfig();
-            const existing = new Set(cfg.targets.map(t => t.id));
+            const existing = new Set(loadConfig().targets.map(t => t.id));
             const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
             return room
                 .filter(c => c.MemberNumber !== Player.MemberNumber && !existing.has(c.MemberNumber))
                 .map(c => ({
                 id: c.MemberNumber,
-                name: c.Nickname || c.Name || `#${c.MemberNumber}`,
+                name: c.Nickname
+                    || c.Name || `#${c.MemberNumber}`,
             }));
         }
         catch (_b) {
             return [];
         }
     }
-    // Parse a BC LZString outfit code and store the restraint items found in it.
-    function importDomItemsFromCode(code) {
+    // -- Restraint sets --
+    function createDomSet(name, command, announceTemplate) {
+        const cfg = loadConfig();
+        const set = {
+            id: uid(),
+            name: name.trim() || "New Set",
+            command: command.toLowerCase().trim().replace(/\s+/g, ""),
+            announceTemplate: announceTemplate.trim() || DEFAULT_ANNOUNCE,
+            items: [],
+        };
+        cfg.sets.push(set);
+        saveConfig(cfg);
+        return set;
+    }
+    function updateDomSet(id, name, command, announceTemplate, items) {
+        const cfg = loadConfig();
+        const set = cfg.sets.find(s => s.id === id);
+        if (!set)
+            return;
+        set.name = name.trim() || set.name;
+        set.command = command.toLowerCase().trim().replace(/\s+/g, "");
+        set.announceTemplate = announceTemplate.trim() || DEFAULT_ANNOUNCE;
+        set.items = items;
+        saveConfig(cfg);
+    }
+    function deleteDomSet(id) {
+        const cfg = loadConfig();
+        cfg.sets = cfg.sets.filter(s => s.id !== id);
+        saveConfig(cfg);
+    }
+    // Parse a BC outfit code and return all restraint items found — does NOT save anything.
+    // The caller shows a picker and decides which items to keep.
+    function parseBCCodeItems(code) {
         const LZ = window.LZString;
         if (!(LZ === null || LZ === void 0 ? void 0 : LZ.decompressFromBase64))
             throw new Error("LZString not available on this page.");
@@ -1369,16 +1393,15 @@
         });
         if (items.length === 0)
             throw new Error("No restraint items found in this code.");
-        setDomItems(items);
-        return items.length;
+        return items;
     }
-    // Apply the configured restraints to every target currently in the room.
-    // Uses BC's own InventoryWear function so all permission checks go through
-    // the game's normal system — lover/whitelist relationships are respected.
-    // Returns which targets were restrained and which were skipped (not in room).
-    function applyDomRestraints() {
+    // Apply a restraint set to every in-room target, then send the announce emote.
+    function applyDomSet(setId) {
         var _a, _b, _c, _d;
         const cfg = loadConfig();
+        const set = cfg.sets.find(s => s.id === setId);
+        if (!set)
+            return { applied: [], skipped: [] };
         const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
         const InventoryWearFn = window.InventoryWear;
         const applied = [];
@@ -1386,19 +1409,16 @@
         for (const target of cfg.targets) {
             const char = room.find(c => c.MemberNumber === target.id);
             if (!char) {
-                skipped.push(target);
+                skipped.push(target.name);
                 continue;
             }
             let anyApplied = false;
-            for (const item of cfg.items) {
+            for (const item of set.items) {
                 try {
                     if (InventoryWearFn) {
-                        // Preferred: go through BC's own item application which handles
-                        // permission validation for lover / whitelist relationships.
                         InventoryWearFn(char, item.Name, item.Group, item.Color, (_b = item.Difficulty) !== null && _b !== void 0 ? _b : 0, Player.AssetFamily, item.Craft);
                     }
                     else {
-                        // Fallback: direct array manipulation (no permission bridging)
                         const asset = AssetGet(Player.AssetFamily, item.Group, item.Name);
                         if (!asset)
                             continue;
@@ -1414,24 +1434,62 @@
                     }
                     anyApplied = true;
                 }
-                catch ( /* skip individual item failures silently */_e) { /* skip individual item failures silently */ }
+                catch ( /* ignore individual item failures */_e) { /* ignore individual item failures */ }
             }
             if (anyApplied) {
                 try {
-                    // Sync the updated character appearance to the server.
-                    // BC validates the relationship (lover / whitelist) server-side.
                     CharacterRefresh(char, true, false);
-                    applied.push(target);
+                    // Belt-and-suspenders: call ChatRoomCharacterUpdate directly so
+                    // the updated appearance is guaranteed to broadcast to the room.
+                    // CharacterRefresh(push=true) calls this internally, but some BC
+                    // builds skip it when called outside the ChatRoom screen context.
+                    const updateFn = window.ChatRoomCharacterUpdate;
+                    if (updateFn)
+                        updateFn(char);
+                    applied.push(target.name);
                 }
                 catch (_f) {
-                    skipped.push(target);
+                    skipped.push(target.name);
                 }
             }
             else {
-                skipped.push(target);
+                skipped.push(target.name);
             }
         }
+        // Send room announce after items have synced
+        if (applied.length > 0 && set.announceTemplate.trim()) {
+            window.setTimeout(() => {
+                try {
+                    const text = set.announceTemplate
+                        .replace(/\{name\}/gi, set.name)
+                        .replace(/\{targets\}/gi, applied.join(", "));
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: getDisplayName() + " " + text,
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }, 200);
+        }
         return { applied, skipped };
+    }
+    // Handle a chat command (e.g. /gag → apply the matching set).
+    function handleDomCommand(input) {
+        if (!isDomEnabled())
+            return false;
+        const trimmed = input.trim();
+        if (!trimmed.startsWith("/"))
+            return false;
+        const command = trimmed.slice(1).toLowerCase().trim();
+        const set = loadConfig().sets.find(s => s.command && s.command.toLowerCase() === command);
+        if (!set)
+            return false;
+        applyDomSet(set.id);
+        return true;
     }
 
     /**
@@ -2813,7 +2871,7 @@
             const domTabBtn = document.createElement("button");
             domTabBtn.className = "ebc-tab-btn";
             domTabBtn.id = "ebc-tab-dom";
-            domTabBtn.textContent = "🎀";
+            domTabBtn.textContent = "DOM";
             domTabBtn.title = "DOM Tools";
             domTabBtn.style.display = "none"; // revealed in open() for creator only
             tabBar.appendChild(outfitTabBtn);
@@ -5203,49 +5261,45 @@
                 body.appendChild(msg);
                 return;
             }
-            const cfg = getDomConfig();
-            // ── Apply button ────────────────────────────────────────────────────
-            const applyBtn = document.createElement("button");
-            applyBtn.style.cssText = [
-                "width:100%", "padding:10px 0", "margin-bottom:10px",
-                "background:#6b3048", "border:1px solid #cf6f98", "border-radius:7px",
-                "color:#f7e6ee", "font-family:'Trebuchet MS',serif", "font-size:13px",
-                "font-weight:bold", "cursor:pointer", "letter-spacing:0.05em",
-                "transition:background 0.14s",
-            ].join(";");
-            applyBtn.textContent = "🎀 Restrain targets in room";
-            const applyStatus = document.createElement("div");
-            applyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;text-align:center;min-height:14px;margin-bottom:6px;";
-            applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#91405f"; });
-            applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#6b3048"; });
-            applyBtn.addEventListener("click", () => {
-                if (cfg.items.length === 0) {
-                    applyStatus.textContent = "⚠ No restraints configured yet.";
-                    return;
+            // Helper: labelled text input row
+            const makeField = (label, value, prefix = "", placeholder = "") => {
+                const row = document.createElement("div");
+                row.style.cssText = "margin-bottom:5px;";
+                const lbl = document.createElement("label");
+                lbl.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;";
+                lbl.textContent = label;
+                row.appendChild(lbl);
+                const wrap = document.createElement("div");
+                wrap.style.cssText = "display:flex;align-items:center;";
+                if (prefix) {
+                    const pre = document.createElement("span");
+                    pre.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;background:#1b0d17;border:1px solid #4c2537;border-right:none;border-radius:4px 0 0 4px;padding:3px 5px;flex-shrink:0;";
+                    pre.textContent = prefix;
+                    wrap.appendChild(pre);
                 }
-                applyBtn.disabled = true;
-                const { applied, skipped } = applyDomRestraints();
-                const parts = [];
-                if (applied.length)
-                    parts.push(`✓ Restrained: ${applied.map(t => t.name).join(", ")}`);
-                if (skipped.length)
-                    parts.push(`⟳ Not in room: ${skipped.map(t => t.name).join(", ")}`);
-                applyStatus.textContent = parts.join("  ·  ") || "Nothing to do.";
-                window.setTimeout(() => { applyBtn.disabled = false; }, 2000);
-            });
-            body.appendChild(applyBtn);
-            body.appendChild(applyStatus);
+                const input = document.createElement("input");
+                input.type = "text";
+                input.value = value;
+                if (placeholder)
+                    input.placeholder = placeholder;
+                input.style.cssText = `flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;${prefix ? "border-radius:0 4px 4px 0;" : "border-radius:4px;"}color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;outline:none;transition:border-color 0.14s;`;
+                input.addEventListener("focus", () => { input.style.borderColor = "#91405f"; });
+                input.addEventListener("blur", () => { input.style.borderColor = "#4c2537"; });
+                wrap.appendChild(input);
+                row.appendChild(wrap);
+                return { row, input };
+            };
             // ── Targets ──────────────────────────────────────────────────────────
             const targLbl = document.createElement("div");
             targLbl.className = "ebc-section-label";
             targLbl.textContent = "Targets";
             body.appendChild(targLbl);
             const targList = document.createElement("div");
+            body.appendChild(targList);
             const rebuildTargets = () => {
                 while (targList.firstChild)
                     targList.removeChild(targList.firstChild);
-                const latest = getDomConfig();
-                for (const t of latest.targets) {
+                for (const t of getDomConfig().targets) {
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;margin-bottom:3px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;";
                     const nameEl = document.createElement("span");
@@ -5259,29 +5313,24 @@
                     delBtn.textContent = "×";
                     delBtn.addEventListener("mouseenter", () => { delBtn.style.background = "#3a1017"; delBtn.style.color = "#ff6b6b"; });
                     delBtn.addEventListener("mouseleave", () => { delBtn.style.background = ""; delBtn.style.color = "#553142"; });
-                    delBtn.addEventListener("click", () => {
-                        removeDomTarget(t.id);
-                        rebuildTargets();
-                        rebuildAddable();
-                    });
+                    delBtn.addEventListener("click", () => { removeDomTarget(t.id); rebuildTargets(); rebuildAddable(); });
                     row.appendChild(nameEl);
                     row.appendChild(numEl);
                     row.appendChild(delBtn);
                     targList.appendChild(row);
                 }
             };
-            body.appendChild(targList);
             rebuildTargets();
-            // "Add from room" dropdown
             const addableWrap = document.createElement("div");
-            addableWrap.style.cssText = "margin-top:4px;";
+            addableWrap.style.cssText = "margin-top:4px;margin-bottom:2px;";
+            body.appendChild(addableWrap);
             const rebuildAddable = () => {
                 while (addableWrap.firstChild)
                     addableWrap.removeChild(addableWrap.firstChild);
                 const addable = getRoomAddable();
                 if (addable.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:3px 2px;";
                     hint.textContent = "No new people in room to add.";
                     addableWrap.appendChild(hint);
                     return;
@@ -5294,126 +5343,333 @@
                 chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
                 for (const p of addable) {
                     const chip = document.createElement("button");
-                    chip.style.cssText = [
-                        "font-family:'Trebuchet MS',serif", "font-size:10px",
-                        "padding:3px 8px", "border-radius:4px",
-                        "border:1px solid #4c2537", "background:#1b0d17",
-                        "color:#967281", "cursor:pointer",
-                        "transition:background 0.14s,color 0.12s,border-color 0.12s",
-                    ].join(";");
-                    chip.textContent = `+ ${p.name} #${p.id}`;
+                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:#1b0d17;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s,border-color 0.12s;";
+                    chip.textContent = "+ " + p.name + " #" + p.id;
                     chip.addEventListener("mouseenter", () => { chip.style.background = "#2a1421"; chip.style.color = "#cf6f98"; chip.style.borderColor = "#7a4a5e"; });
                     chip.addEventListener("mouseleave", () => { chip.style.background = "#1b0d17"; chip.style.color = "#967281"; chip.style.borderColor = "#4c2537"; });
-                    chip.addEventListener("click", () => {
-                        addDomTarget(p.id, p.name);
-                        rebuildTargets();
-                        rebuildAddable();
-                    });
+                    chip.addEventListener("click", () => { addDomTarget(p.id, p.name); rebuildTargets(); rebuildAddable(); });
                     chipRow.appendChild(chip);
                 }
                 addableWrap.appendChild(chipRow);
             };
-            body.appendChild(addableWrap);
             rebuildAddable();
-            // ── Restraints config ─────────────────────────────────────────────────
-            const divider = document.createElement("div");
-            divider.className = "ebc-divider";
-            divider.style.marginTop = "10px";
-            body.appendChild(divider);
-            const restLbl = document.createElement("div");
-            restLbl.className = "ebc-section-label";
-            restLbl.textContent = "Restraints to apply";
-            body.appendChild(restLbl);
-            // Current items list
-            const itemListEl = document.createElement("div");
-            itemListEl.style.cssText = "margin-bottom:6px;";
-            const rebuildItemList = () => {
-                while (itemListEl.firstChild)
-                    itemListEl.removeChild(itemListEl.firstChild);
-                const items = getDomConfig().items;
-                if (items.length === 0) {
+            // ── Restraint Sets ───────────────────────────────────────────────────
+            const div1 = document.createElement("div");
+            div1.className = "ebc-divider";
+            div1.style.margin = "10px 0 7px";
+            body.appendChild(div1);
+            const setsHeader = document.createElement("div");
+            setsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
+            const setsLbl = document.createElement("div");
+            setsLbl.className = "ebc-section-label";
+            setsLbl.style.margin = "0";
+            setsLbl.textContent = "Restraint Sets";
+            const newSetBtn = document.createElement("button");
+            newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            newSetBtn.textContent = "+ New Set";
+            newSetBtn.addEventListener("mouseenter", () => { newSetBtn.style.background = "#3a1828"; });
+            newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
+            setsHeader.appendChild(setsLbl);
+            setsHeader.appendChild(newSetBtn);
+            body.appendChild(setsHeader);
+            const setsContainer = document.createElement("div");
+            body.appendChild(setsContainer);
+            let activeEditorId = null;
+            const rebuildSets = () => {
+                while (setsContainer.firstChild)
+                    setsContainer.removeChild(setsContainer.firstChild);
+                const cfg = getDomConfig();
+                if (cfg.sets.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
-                    hint.textContent = "No restraints imported yet.";
-                    itemListEl.appendChild(hint);
-                    return;
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;margin-bottom:4px;";
+                    hint.textContent = "No sets yet — create one with + New Set.";
+                    setsContainer.appendChild(hint);
                 }
-                for (const item of items) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
-                    const nameEl = document.createElement("span");
-                    nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    nameEl.textContent = item.Name;
-                    const grpEl = document.createElement("span");
-                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;";
-                    grpEl.textContent = item.Group.replace("Item", "");
-                    row.appendChild(nameEl);
-                    row.appendChild(grpEl);
-                    itemListEl.appendChild(row);
+                for (const set of cfg.sets) {
+                    // ── Row ──────────────────────────────────────────────────────
+                    const setRow = document.createElement("div");
+                    setRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:5px 7px;border-radius:6px;margin-bottom:2px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;";
+                    const setInfo = document.createElement("div");
+                    setInfo.style.cssText = "flex:1;min-width:0;";
+                    const setNameEl = document.createElement("div");
+                    setNameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    setNameEl.textContent = set.name;
+                    const setCmdEl = document.createElement("div");
+                    setCmdEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+                    setCmdEl.textContent = set.command ? ("/" + set.command) : (set.items.length + " item(s)");
+                    setInfo.appendChild(setNameEl);
+                    setInfo.appendChild(setCmdEl);
+                    const applyBtn = document.createElement("button");
+                    applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #91405f;background:#6b3048;color:#f7e6ee;cursor:pointer;transition:background 0.14s;white-space:nowrap;flex-shrink:0;";
+                    applyBtn.textContent = "▶ Apply";
+                    applyBtn.title = "Apply to targets in room";
+                    applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#91405f"; });
+                    applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#6b3048"; });
+                    const editBtn = document.createElement("button");
+                    editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#967281;cursor:pointer;transition:background 0.14s,color 0.12s;flex-shrink:0;";
+                    editBtn.textContent = "✎";
+                    editBtn.title = "Edit set";
+                    editBtn.addEventListener("mouseenter", () => { editBtn.style.background = "#2a1421"; editBtn.style.color = "#cf6f98"; });
+                    editBtn.addEventListener("mouseleave", () => { editBtn.style.background = ""; editBtn.style.color = "#967281"; });
+                    setRow.appendChild(setInfo);
+                    setRow.appendChild(applyBtn);
+                    setRow.appendChild(editBtn);
+                    setsContainer.appendChild(setRow);
+                    // Apply status (shown briefly below the row)
+                    const applyStatus = document.createElement("div");
+                    applyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;padding:1px 7px 3px;display:none;";
+                    setsContainer.appendChild(applyStatus);
+                    applyBtn.addEventListener("click", () => {
+                        applyBtn.disabled = true;
+                        const { applied, skipped } = applyDomSet(set.id);
+                        const parts = [];
+                        if (applied.length)
+                            parts.push("✓ " + applied.join(", "));
+                        if (skipped.length)
+                            parts.push("⟳ not in room: " + skipped.join(", "));
+                        applyStatus.textContent = parts.join("  ·  ") || "Nothing done.";
+                        applyStatus.style.display = "block";
+                        window.setTimeout(() => { applyBtn.disabled = false; applyStatus.style.display = "none"; }, 3000);
+                    });
+                    // ── Inline editor ─────────────────────────────────────────────
+                    const editor = document.createElement("div");
+                    editor.className = "ebc-dom-editor";
+                    editor.style.cssText = "display:none;background:rgba(27,13,23,0.95);border:1px solid #4c2537;border-radius:7px;padding:8px;margin-bottom:6px;";
+                    // Fields
+                    const { row: nameRow, input: nameInput } = makeField("Name", set.name);
+                    editor.appendChild(nameRow);
+                    const { row: cmdRow, input: cmdInput } = makeField("Chat command", set.command, "/");
+                    editor.appendChild(cmdRow);
+                    const { row: annRow, input: annInput } = makeField("Announce", set.announceTemplate, "", "{name} appears on {targets}~");
+                    editor.appendChild(annRow);
+                    const tokenHint = document.createElement("div");
+                    tokenHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#553142;padding:0 0 6px;";
+                    tokenHint.textContent = "{name} = set name  ·  {targets} = names of restrained";
+                    editor.appendChild(tokenHint);
+                    const saveBtn = document.createElement("button");
+                    saveBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;margin-bottom:8px;";
+                    saveBtn.textContent = "Save";
+                    saveBtn.addEventListener("mouseenter", () => { saveBtn.style.background = "#3a1828"; });
+                    saveBtn.addEventListener("mouseleave", () => { saveBtn.style.background = "#2a1421"; });
+                    saveBtn.addEventListener("click", () => {
+                        var _a, _b;
+                        const currentItems = (_b = (_a = getDomConfig().sets.find(s => s.id === set.id)) === null || _a === void 0 ? void 0 : _a.items) !== null && _b !== void 0 ? _b : [];
+                        updateDomSet(set.id, nameInput.value, cmdInput.value, annInput.value, currentItems);
+                        activeEditorId = set.id;
+                        rebuildSets();
+                    });
+                    editor.appendChild(saveBtn);
+                    // Items sub-section
+                    const itemsLbl = document.createElement("div");
+                    itemsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;font-weight:bold;margin-bottom:4px;letter-spacing:0.04em;text-transform:uppercase;";
+                    editor.appendChild(itemsLbl);
+                    const itemListEl = document.createElement("div");
+                    itemListEl.style.cssText = "margin-bottom:6px;max-height:100px;overflow-y:auto;";
+                    editor.appendChild(itemListEl);
+                    const rebuildEditorItems = () => {
+                        var _a;
+                        while (itemListEl.firstChild)
+                            itemListEl.removeChild(itemListEl.firstChild);
+                        const currentSet = getDomConfig().sets.find(s => s.id === set.id);
+                        const items = (_a = currentSet === null || currentSet === void 0 ? void 0 : currentSet.items) !== null && _a !== void 0 ? _a : [];
+                        itemsLbl.textContent = "Items (" + items.length + ")";
+                        if (items.length === 0) {
+                            const hint2 = document.createElement("div");
+                            hint2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:3px 2px;";
+                            hint2.textContent = "No items yet — import from a BC code below.";
+                            itemListEl.appendChild(hint2);
+                            return;
+                        }
+                        for (let idx = 0; idx < items.length; idx++) {
+                            const item = items[idx];
+                            const irow = document.createElement("div");
+                            irow.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 5px;border-radius:4px;margin-bottom:2px;background:rgba(42,20,33,0.4);";
+                            const iname = document.createElement("span");
+                            iname.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                            iname.textContent = item.Name;
+                            const igrp = document.createElement("span");
+                            igrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;";
+                            igrp.textContent = item.Group.replace("Item", "");
+                            const iDel = document.createElement("button");
+                            iDel.style.cssText = "background:transparent;border:none;color:#553142;cursor:pointer;font-size:12px;padding:0 3px;line-height:1;";
+                            iDel.textContent = "×";
+                            iDel.addEventListener("click", () => {
+                                const cfg2 = getDomConfig();
+                                const s2 = cfg2.sets.find(s => s.id === set.id);
+                                if (!s2)
+                                    return;
+                                s2.items.splice(idx, 1);
+                                updateDomSet(set.id, s2.name, s2.command, s2.announceTemplate, s2.items);
+                                rebuildEditorItems();
+                            });
+                            irow.appendChild(iname);
+                            irow.appendChild(igrp);
+                            irow.appendChild(iDel);
+                            itemListEl.appendChild(irow);
+                        }
+                    };
+                    rebuildEditorItems();
+                    // Import sub-panel
+                    const importToggle = document.createElement("button");
+                    importToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
+                    importToggle.textContent = "↓ Import from BC Code";
+                    editor.appendChild(importToggle);
+                    const importPanel = document.createElement("div");
+                    importPanel.style.cssText = "display:none;flex-direction:column;gap:5px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;margin-bottom:5px;";
+                    const importTA = document.createElement("textarea");
+                    importTA.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 5px;resize:vertical;min-height:46px;outline:none;";
+                    importTA.placeholder = "Paste BC outfit code…";
+                    const importMsg = document.createElement("div");
+                    importMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;min-height:14px;";
+                    const checklistEl = document.createElement("div");
+                    checklistEl.style.cssText = "display:none;max-height:120px;overflow-y:auto;border:1px solid #3a1928;border-radius:5px;background:rgba(27,13,23,0.6);padding:4px;";
+                    let parsedItems = [];
+                    const parseBtn = document.createElement("button");
+                    parseBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #7a4a5e;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
+                    parseBtn.textContent = "Parse Code";
+                    parseBtn.addEventListener("click", () => {
+                        var _a;
+                        importMsg.textContent = "";
+                        importMsg.style.color = "#ff6b6b";
+                        checklistEl.style.display = "none";
+                        parsedItems = [];
+                        const code = importTA.value.trim();
+                        if (!code) {
+                            importMsg.textContent = "Paste a code first.";
+                            return;
+                        }
+                        try {
+                            parsedItems = parseBCCodeItems(code);
+                        }
+                        catch (e) {
+                            importMsg.textContent = String((_a = e.message) !== null && _a !== void 0 ? _a : e);
+                            return;
+                        }
+                        while (checklistEl.firstChild)
+                            checklistEl.removeChild(checklistEl.firstChild);
+                        for (const pItem of parsedItems) {
+                            const lbl2 = document.createElement("label");
+                            lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:3px;cursor:pointer;";
+                            lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(42,20,33,0.5)"; });
+                            lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
+                            const cb = document.createElement("input");
+                            cb.type = "checkbox";
+                            cb.checked = true;
+                            cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                            const cbName = document.createElement("span");
+                            cbName.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                            cbName.textContent = pItem.Name;
+                            const cbGrp = document.createElement("span");
+                            cbGrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                            cbGrp.textContent = pItem.Group.replace("Item", "");
+                            lbl2.appendChild(cb);
+                            lbl2.appendChild(cbName);
+                            lbl2.appendChild(cbGrp);
+                            checklistEl.appendChild(lbl2);
+                        }
+                        checklistEl.style.display = "block";
+                        importMsg.style.color = "#79a885";
+                        importMsg.textContent = "Found " + parsedItems.length + " item(s). Check what to add:";
+                    });
+                    const useSelectedBtn = document.createElement("button");
+                    useSelectedBtn.style.cssText = "width:100%;background:#1b3021;border:1px solid #3a7a50;border-radius:5px;color:#79a885;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
+                    useSelectedBtn.textContent = "Use Selected";
+                    useSelectedBtn.addEventListener("click", () => {
+                        const checks = checklistEl.querySelectorAll("input[type=checkbox]");
+                        const selected = parsedItems.filter((_, i) => { var _a; return (_a = checks[i]) === null || _a === void 0 ? void 0 : _a.checked; });
+                        if (selected.length === 0) {
+                            importMsg.style.color = "#ff6b6b";
+                            importMsg.textContent = "Select at least one item.";
+                            return;
+                        }
+                        const cfg3 = getDomConfig();
+                        const s3 = cfg3.sets.find(s => s.id === set.id);
+                        if (!s3)
+                            return;
+                        for (const newItem of selected) {
+                            const existIdx = s3.items.findIndex(x => x.Group === newItem.Group);
+                            if (existIdx >= 0)
+                                s3.items[existIdx] = newItem;
+                            else
+                                s3.items.push(newItem);
+                        }
+                        updateDomSet(set.id, s3.name, s3.command, s3.announceTemplate, s3.items);
+                        importTA.value = "";
+                        checklistEl.style.display = "none";
+                        parsedItems = [];
+                        importMsg.style.color = "#79a885";
+                        importMsg.textContent = "✓ " + selected.length + " item(s) added.";
+                        rebuildEditorItems();
+                        window.setTimeout(() => { importMsg.textContent = ""; }, 2500);
+                    });
+                    importPanel.appendChild(importTA);
+                    importPanel.appendChild(importMsg);
+                    importPanel.appendChild(parseBtn);
+                    importPanel.appendChild(checklistEl);
+                    importPanel.appendChild(useSelectedBtn);
+                    importToggle.addEventListener("click", () => {
+                        const isOpenNow = importPanel.style.display === "none";
+                        importPanel.style.display = isOpenNow ? "flex" : "none";
+                        importToggle.style.borderStyle = isOpenNow ? "solid" : "dashed";
+                        importToggle.style.color = isOpenNow ? "#cf6f98" : "#7a4a5e";
+                        if (isOpenNow)
+                            importTA.focus();
+                    });
+                    editor.appendChild(importPanel);
+                    // Delete set
+                    const delSetBtn = document.createElement("button");
+                    delSetBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#553142;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-top:5px;";
+                    delSetBtn.textContent = "Delete Set";
+                    let delConfirm = false;
+                    delSetBtn.addEventListener("click", () => {
+                        if (!delConfirm) {
+                            delConfirm = true;
+                            delSetBtn.textContent = "Confirm Delete?";
+                            delSetBtn.style.color = "#ff6b6b";
+                            delSetBtn.style.borderColor = "#8a2020";
+                            window.setTimeout(() => {
+                                if (!delConfirm)
+                                    return;
+                                delConfirm = false;
+                                delSetBtn.textContent = "Delete Set";
+                                delSetBtn.style.color = "#553142";
+                                delSetBtn.style.borderColor = "#4c2537";
+                            }, 3000);
+                        }
+                        else {
+                            deleteDomSet(set.id);
+                            activeEditorId = null;
+                            rebuildSets();
+                        }
+                    });
+                    editor.appendChild(delSetBtn);
+                    setsContainer.appendChild(editor);
+                    // Toggle editor on edit button click
+                    editBtn.addEventListener("click", () => {
+                        const isNowOpen = editor.style.display !== "none";
+                        // Close all other editors
+                        setsContainer.querySelectorAll(".ebc-dom-editor").forEach(e => { e.style.display = "none"; });
+                        if (!isNowOpen) {
+                            editor.style.display = "block";
+                            activeEditorId = set.id;
+                        }
+                        else {
+                            activeEditorId = null;
+                        }
+                    });
+                    // Restore open editor after rebuild
+                    if (activeEditorId === set.id) {
+                        editor.style.display = "block";
+                    }
                 }
             };
-            body.appendChild(itemListEl);
-            rebuildItemList();
-            // Import + clear buttons
-            const importToggleBtn = document.createElement("button");
-            importToggleBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:6px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:5px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
-            importToggleBtn.textContent = "↓ Import from BC Code";
-            const importPanel = document.createElement("div");
-            importPanel.style.cssText = "display:none;flex-direction:column;gap:5px;background:rgba(42,20,33,0.6);border:1px solid #3a1928;border-radius:7px;padding:7px;margin-bottom:6px;";
-            const importHint = document.createElement("div");
-            importHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;";
-            importHint.textContent = "Paste a BC outfit code — restraint items will be extracted.";
-            const importTextarea = document.createElement("textarea");
-            importTextarea.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 5px;resize:vertical;min-height:52px;outline:none;transition:border-color 0.14s;";
-            importTextarea.placeholder = "Paste BC outfit code here…";
-            const importErr = document.createElement("div");
-            importErr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#ff6b6b;min-height:14px;";
-            const importDoBtn = document.createElement("button");
-            importDoBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 0;transition:background 0.14s,color 0.12s;";
-            importDoBtn.textContent = "Import";
-            importDoBtn.addEventListener("click", () => {
-                var _a;
-                importErr.textContent = "";
-                const code = importTextarea.value.trim();
-                if (!code) {
-                    importErr.textContent = "Paste a code first.";
-                    return;
-                }
-                try {
-                    const count = importDomItemsFromCode(code);
-                    importErr.style.color = "#79a885";
-                    importErr.textContent = `✓ ${count} item(s) imported.`;
-                    importTextarea.value = "";
-                    rebuildItemList();
-                    window.setTimeout(() => { importErr.textContent = ""; importErr.style.color = "#ff6b6b"; }, 2500);
-                }
-                catch (e) {
-                    importErr.style.color = "#ff6b6b";
-                    importErr.textContent = String((_a = e.message) !== null && _a !== void 0 ? _a : e);
-                }
+            rebuildSets();
+            newSetBtn.addEventListener("click", () => {
+                const s = createDomSet("New Set", "", "");
+                activeEditorId = s.id;
+                rebuildSets();
+                body.scrollTop = body.scrollHeight;
             });
-            importPanel.appendChild(importHint);
-            importPanel.appendChild(importTextarea);
-            importPanel.appendChild(importErr);
-            importPanel.appendChild(importDoBtn);
-            importToggleBtn.addEventListener("click", () => {
-                const open = importPanel.style.display === "none";
-                importPanel.style.display = open ? "flex" : "none";
-                importToggleBtn.style.borderStyle = open ? "solid" : "dashed";
-                importToggleBtn.style.color = open ? "#cf6f98" : "#7a4a5e";
-                if (open)
-                    importTextarea.focus();
-            });
-            body.appendChild(importToggleBtn);
-            body.appendChild(importPanel);
-            const clearBtn = document.createElement("button");
-            clearBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#553142;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;";
-            clearBtn.textContent = "Clear all restraints";
-            clearBtn.addEventListener("click", () => {
-                clearDomItems();
-                rebuildItemList();
-            });
-            body.appendChild(clearBtn);
         }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
@@ -5483,9 +5739,21 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.99";
+    const MOD_VERSION = "0.2.0";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.2.0",
+            changes: [
+                "DOM Tools tab renamed from bowtie emoji to DOM for clarity.",
+                "Multiple named restraint sets: each set has its own name, chat command, and announce template.",
+                "Per-set item picker: paste a BC outfit code, tick which restraints to include, then Use Selected.",
+                "Per-set announce template with {name} (set name) and {targets} (restrained players) tokens.",
+                "Inline set editor: expand any set with the pencil button to edit name, command, announce, items, or delete it.",
+                "Chat command handler wired into main hooks so /command applies the matching restraint set.",
+                "Improved server sync: ChatRoomCharacterUpdate called explicitly after item application.",
+            ],
+        },
         {
             version: "0.1.76",
             changes: [
@@ -6124,7 +6392,7 @@
             try {
                 if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                     const input = document.getElementById("InputChat");
-                    if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value))) {
+                    if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleDomCommand(input.value))) {
                         input.value = "";
                         return;
                     }
@@ -6138,7 +6406,7 @@
         modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
             try {
                 const input = document.getElementById("InputChat");
-                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value))) {
+                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleDomCommand(input.value))) {
                     input.value = "";
                     return;
                 }
