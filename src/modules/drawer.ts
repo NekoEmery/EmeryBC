@@ -1,25 +1,25 @@
-/**
+﻿/**
  * EmeryBC Drawer
  *
  * A CRABS-inspired sliding side panel positioned in the lower portion of the
  * chat log. Shows saved outfits with one-click wear buttons.
  *
  * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
- * Thank you Sin for the open design! ♥
+ * Thank you Sin for the open design!
  */
 import { getOutfits, applyOutfit, type ConfiguredOutfit } from "./outfitManager";
 
-// ── Icon ──────────────────────────────────────────────────────────────────────
+// -- Icon ----------------------------------------------------------------------
 
-const TAB_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 90 90">
-    <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
-    <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
-    <circle cx="34" cy="43" r="4" fill="#f7e6ee"/>
-    <circle cx="56" cy="43" r="4" fill="#f7e6ee"/>
-    <path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>
-</svg>`;
+const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 90 90">'
+    + '<rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>'
+    + '<path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>'
+    + '<circle cx="34" cy="43" r="4" fill="#f7e6ee"/>'
+    + '<circle cx="56" cy="43" r="4" fill="#f7e6ee"/>'
+    + '<path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>'
+    + '</svg>';
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// -- Styles --------------------------------------------------------------------
 
 const CSS = `
 #emerybc-drawer {
@@ -74,7 +74,7 @@ const CSS = `
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
-/* ── Header ── */
+/* -- Header -- */
 .ebc-header {
     display: flex;
     align-items: center;
@@ -112,7 +112,7 @@ const CSS = `
 
 .ebc-icon-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 
-/* ── Body ── */
+/* -- Body -- */
 .ebc-body {
     flex: 1;
     overflow-y: auto;
@@ -125,7 +125,7 @@ const CSS = `
 .ebc-body::-webkit-scrollbar-track { background: transparent; }
 .ebc-body::-webkit-scrollbar-thumb { background: #4c2537; border-radius: 2px; }
 
-/* ── Section label ── */
+/* -- Section label -- */
 .ebc-section-label {
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
@@ -136,7 +136,7 @@ const CSS = `
     padding: 4px 4px 6px;
 }
 
-/* ── Outfit rows ── */
+/* -- Outfit rows -- */
 .ebc-outfit-row {
     display: flex;
     align-items: center;
@@ -199,7 +199,7 @@ const CSS = `
     cursor: not-allowed;
 }
 
-/* ── Empty ── */
+/* -- Empty -- */
 .ebc-empty {
     color: #553142;
     font-family: "Trebuchet MS", serif;
@@ -209,7 +209,7 @@ const CSS = `
     line-height: 1.7;
 }
 
-/* ── Footer ── */
+/* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
     padding: 5px 12px;
@@ -224,13 +224,13 @@ const CSS = `
 .ebc-footer a:hover { color: #cf6f98; }
 `;
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+// -- Helper --------------------------------------------------------------------
 
 function esc(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// ── Class ─────────────────────────────────────────────────────────────────────
+// -- Class ---------------------------------------------------------------------
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -248,39 +248,78 @@ export class EBCDrawer {
         }
     }
 
-    // ── Setup ─────────────────────────────────────────────────────────────────
+    // -- Setup -----------------------------------------------------------------
 
     private setup(): void {
         if (this.el) return;
         this.injectStyles();
 
+        // Build DOM imperatively - no innerHTML, no template literals, no non-ASCII chars
         const el = document.createElement("div");
         el.id = "emerybc-drawer";
         el.className = "ebc-closed";
         el.style.display = "none";
-        el.innerHTML = `
-            <div id="ebc-tab" title="EmeryBC outfits">${TAB_ICON}</div>
-            <div class="ebc-panel">
-                <div class="ebc-header">
-                    <span class="ebc-title">✦ Outfits</span>
-                    <div class="ebc-header-btns">
-                        <button class="ebc-icon-btn" id="ebc-refresh-btn" title="Refresh outfit list">↺</button>
-                        <button class="ebc-icon-btn" id="ebc-close-btn" title="Close">✕</button>
-                    </div>
-                </div>
-                <div class="ebc-body" id="ebc-body"></div>
-                <div class="ebc-footer">
-                    UI inspired by <a href="https://github.com/sin-1337/CRABS" target="_blank">CRABS</a> by Sin ♥
-                </div>
-            </div>
-        `;
+
+        // Tab button (icon)
+        const tab = document.createElement("div");
+        tab.id = "ebc-tab";
+        tab.title = "EmeryBC outfits";
+        tab.innerHTML = TAB_ICON; // TAB_ICON is plain ASCII SVG
+        el.appendChild(tab);
+
+        // Panel
+        const panel = document.createElement("div");
+        panel.className = "ebc-panel";
+
+        // Header
+        const header = document.createElement("div");
+        header.className = "ebc-header";
+
+        const title = document.createElement("span");
+        title.className = "ebc-title";
+        title.textContent = "EmeryBC - Outfits";
+
+        const headerBtns = document.createElement("div");
+        headerBtns.className = "ebc-header-btns";
+
+        const refreshBtn = document.createElement("button");
+        refreshBtn.className = "ebc-icon-btn";
+        refreshBtn.id = "ebc-refresh-btn";
+        refreshBtn.title = "Refresh outfit list";
+        refreshBtn.textContent = "R";
+
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "ebc-icon-btn";
+        closeBtn.id = "ebc-close-btn";
+        closeBtn.title = "Close";
+        closeBtn.textContent = "X";
+
+        headerBtns.appendChild(refreshBtn);
+        headerBtns.appendChild(closeBtn);
+        header.appendChild(title);
+        header.appendChild(headerBtns);
+
+        // Body
+        const body = document.createElement("div");
+        body.className = "ebc-body";
+        body.id = "ebc-body";
+
+        // Footer
+        const footer = document.createElement("div");
+        footer.className = "ebc-footer";
+        footer.textContent = "UI inspired by CRABS by Sin. Thank you! <3";
+
+        panel.appendChild(header);
+        panel.appendChild(body);
+        panel.appendChild(footer);
+        el.appendChild(panel);
 
         document.body.appendChild(el);
         this.el = el;
 
-        el.querySelector("#ebc-tab")?.addEventListener("click", () => this.toggle());
-        el.querySelector("#ebc-close-btn")?.addEventListener("click", () => this.close());
-        el.querySelector("#ebc-refresh-btn")?.addEventListener("click", () => this.renderOutfits());
+        tab.addEventListener("click", () => this.toggle());
+        closeBtn.addEventListener("click", () => this.close());
+        refreshBtn.addEventListener("click", () => this.renderOutfits());
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.isOpen) this.close();
@@ -303,7 +342,7 @@ export class EBCDrawer {
         document.head.appendChild(s);
     }
 
-    // ── Positioning — lower portion of the chat log ───────────────────────────
+    // -- Positioning - lower portion of the chat log ---------------------------
 
     private syncToChat(): void {
         const chatLog = document.getElementById("TextAreaChatLog");
@@ -319,7 +358,7 @@ export class EBCDrawer {
         this.el.style.height = `${Math.round(rect.height * 0.52)}px`;
     }
 
-    // ── Visibility ────────────────────────────────────────────────────────────
+    // -- Visibility ------------------------------------------------------------
 
     public updateVisibility(): void {
         if (!this.el) return;
@@ -344,7 +383,7 @@ export class EBCDrawer {
         }
     }
 
-    // ── Render outfits ────────────────────────────────────────────────────────
+    // -- Render outfits --------------------------------------------------------
 
     private renderOutfits(): void {
         const body = this.el?.querySelector("#ebc-body");
@@ -353,7 +392,7 @@ export class EBCDrawer {
         const outfits = getOutfits();
 
         if (outfits.length === 0) {
-            body.innerHTML = `<div class="ebc-empty">No outfits saved yet.<br>Go to <b>Preferences → Extensions → EmeryBC → Outfits</b> to set some up.</div>`;
+            body.innerHTML = `<div class="ebc-empty">No outfits saved yet.<br>Go to <b>Preferences - Extensions - EmeryBC - Outfits</b> to set some up.</div>`;
             return;
         }
 
@@ -391,7 +430,7 @@ export class EBCDrawer {
         });
     }
 
-    // ── Open / Close / Toggle ─────────────────────────────────────────────────
+    // -- Open / Close / Toggle -------------------------------------------------
 
     public toggle(): void { this.isOpen ? this.close() : this.open(); }
 
@@ -409,7 +448,7 @@ export class EBCDrawer {
         this.el.className = "ebc-closed";
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    // -- Lifecycle -------------------------------------------------------------
 
     public destroy(): void {
         this.resizeObserver?.disconnect();

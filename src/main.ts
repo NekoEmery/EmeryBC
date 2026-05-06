@@ -1,4 +1,4 @@
-import {
+﻿import {
     drawActionButtons,
     handleActionButtonClick,
     settingsLoad as actionSettingsLoad,
@@ -17,7 +17,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.30";
+const MOD_VERSION = "0.1.31";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -41,6 +41,14 @@ const TAB_BTN_GAP = 14;
 const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "0.1.31",
+        changes: [
+            "Removed all non-ASCII characters from source files and bundle to fix Tampermonkey internal error on load.",
+            "Action type dictionary poison now uses String.fromCharCode(0x200C) instead of embedded Unicode.",
+            "Drawer HTML built imperatively to avoid any template literal encoding issues.",
+        ],
+    },
+    {
         version: "0.1.30",
         changes: [
             "Fixed potential crash: drawer initialisation is now wrapped in try/catch so a DOM error can no longer prevent the rest of the addon from loading.",
@@ -61,7 +69,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         version: "0.1.28",
         changes: [
             "Replaced canvas sidebar action buttons with a CRABS-inspired DOM drawer.",
-            "A small EmeryBC icon tab sits beside the chat log — click it to expand your action buttons.",
+            "A small EmeryBC icon tab sits beside the chat log - click it to expand your action buttons.",
             "Drawer auto-hides when leaving the chat room and never overlaps the map UI.",
             "Added credit to Sin / CRABS in the README and drawer footer.",
         ],
@@ -69,7 +77,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "0.1.27",
         changes: [
-            "Action buttons now collapse behind a small toggle chip (≡) to avoid overlapping map build UI.",
+            "Action buttons now collapse behind a small toggle chip (-) to avoid overlapping map build UI.",
             "Click the chip to expand/collapse the button panel at any time.",
         ],
     },
@@ -82,13 +90,13 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "0.1.25",
         changes: [
-            "Fixed /ebc release — now calls ChatRoomCharacterUpdate so the restraint removal is visible to all room members.",
+            "Fixed /ebc release - now calls ChatRoomCharacterUpdate so the restraint removal is visible to all room members.",
         ],
     },
     {
         version: "0.1.24",
         changes: [
-            "Added /ebc release (alias: /ebc free) — removes all restraints from yourself instantly.",
+            "Added /ebc release (alias: /ebc free) - removes all restraints from yourself instantly.",
         ],
     },
     {
@@ -106,7 +114,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "0.1.21",
         changes: [
-            "Stripped version line from EBC badge — now just a small subtle EBC chip.",
+            "Stripped version line from EBC badge - now just a small subtle EBC chip.",
         ],
     },
     {
@@ -143,7 +151,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "0.1.15",
         changes: [
-            "Removed login screen popup — no more dialog on startup.",
+            "Removed login screen popup - no more dialog on startup.",
             "Added a quiet chat message on room join confirming EmeryBC loaded successfully.",
             "Fixed badge version text visibility by widening the overhead badge further.",
         ],
@@ -183,7 +191,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "0.1.9",
         changes: [
-            "Fixed outfit page row and editor overlaps — labels, inputs and buttons no longer stack on each other.",
+            "Fixed outfit page row and editor overlaps - labels, inputs and buttons no longer stack on each other.",
             "Action buttons now use Type:Action so they show as (Name text.) instead of * Name text *.",
             "Default action emotes updated to match the new format.",
             "EBC overhead badge made smaller and drops the version line.",
@@ -193,7 +201,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "0.1.8",
         changes: [
-            "Fixed EBC badge visibility — now uses OnlineSharedSettings so all room members can see it.",
+            "Fixed EBC badge visibility - now uses OnlineSharedSettings so all room members can see it.",
             "Shrunk outfit notice messages in chat to 11px so they are less intrusive.",
             "Bumped version number that was missed in previous release.",
         ],
@@ -309,7 +317,7 @@ function releaseRestraints(): void {
 
     if (toRemove.length === 0) {
         if (skipped.length > 0) {
-            appendLocalLogLine(`[EmeryBC] All restraints are owner/lover locked — none removed.`, UI.textMuted);
+            appendLocalLogLine(`[EmeryBC] All restraints are owner/lover locked - none removed.`, UI.textMuted);
         } else {
             appendLocalLogLine("[EmeryBC] No restraints found to remove.", UI.textMuted);
         }
@@ -370,7 +378,7 @@ function getSharedPresence(character: Character | null | undefined): EmeryPresen
     if (!character) return null;
 
     // OnlineSharedSettings are broadcast to all room members via ChatRoomSync
-    // and CharacterUpdate — this is the reliable cross-client path.
+    // and CharacterUpdate - this is the reliable cross-client path.
     const shared = character.OnlineSharedSettings?.[MOD_NAME];
     if (shared && typeof shared === "object") {
         const presence = (shared as EmeryAddonSettings).presence;
@@ -406,7 +414,7 @@ function syncPresenceMarker(): void {
     if (settings) settings.presence = presence;
     ServerPlayerExtensionSettingsSync(MOD_NAME);
 
-    // Write to OnlineSharedSettings — this IS broadcast to all room members
+    // Write to OnlineSharedSettings - this IS broadcast to all room members
     // via ChatRoomSync and CharacterUpdate packets, making the badge visible
     // to every other EmeryBC user in the room.
     const shared = (Player.OnlineSharedSettings ??= {});
@@ -449,7 +457,7 @@ function drawPresenceMarker(args: unknown[]): void {
 function showRoomLoadNotice(): void {
     if (noticeShown) return;
     noticeShown = true;
-    appendLocalLogLine(`✓ EmeryBC v${MOD_VERSION} loaded successfully.`);
+    appendLocalLogLine(`- EmeryBC v${MOD_VERSION} loaded successfully.`);
 }
 
 function drawTabs(): void {
@@ -559,7 +567,7 @@ function init(): void {
         return next(args);
     });
 
-    // DOM drawer — outfit switcher panel beside the chat log
+    // DOM drawer - outfit switcher panel beside the chat log
     let drawer: EBCDrawer | null = null;
     try {
         drawer = new EBCDrawer();

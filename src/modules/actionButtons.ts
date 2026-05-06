@@ -1,4 +1,4 @@
-// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
+﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import {
     CONTENT_LEFT,
     CONTENT_RIGHT,
@@ -30,7 +30,7 @@ const DEFAULT_BUTTONS: ActionButton[] = [
 const ABSOLUTE_MAX  = 12;
 const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
 
-// Settings list layout — one row per slot
+// Settings list layout - one row per slot
 const ROW_H    = 56;
 const LIST_Y   = 226;
 const HEADER_Y = 213;
@@ -44,7 +44,7 @@ const COL_EMO = CONTENT_LEFT + 292;             // emote input
 const COL_DEL = CONTENT_RIGHT - 76;             // delete button
 const EMO_W   = COL_DEL - COL_EMO - 10;        // emote input width
 
-// ─── Storage ─────────────────────────────────────────────────────────────────
+// --- Storage -----------------------------------------------------------------
 
 function getStore(): Record<string, unknown> {
     if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
@@ -79,10 +79,10 @@ function normalizeHex(value: string | undefined, fallback = "#c2185b"): string {
     return fallback;
 }
 
-// ─── Helper: send as BC Action → displays as (Name text) ─────────────────────
+// --- Helper: send as BC Action - displays as (Name text) ---------------------
 
 /** Dictionary entry that tricks BC into rendering literal Content as an Action. */
-const ACTION_DICT_POISON = { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" };
+const ACTION_DICT_POISON = { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) };
 
 export function sendAction(emote: string): void {
     ServerSend("ChatRoomChat", {
@@ -95,7 +95,7 @@ export function sendAction(emote: string): void {
     });
 }
 
-// ─── In-game sidebar ─────────────────────────────────────────────────────────
+// --- In-game sidebar ---------------------------------------------------------
 
 const BTN_X       = 0;
 const BTN_START_Y = 270;
@@ -128,11 +128,11 @@ export function handleActionButtonClick(): boolean {
     return false;
 }
 
-// ─── Public data access (used by the drawer) ─────────────────────────────────
+// --- Public data access (used by the drawer) ---------------------------------
 
 export { getButtons };
 
-// ─── Settings ─────────────────────────────────────────────────────────────────
+// --- Settings -----------------------------------------------------------------
 
 let settingsButtons: ActionButton[] = [];
 let settingsSlotCount = DEFAULT_SLOTS;
@@ -194,7 +194,7 @@ export function settingsRun(): void {
         { label: "SLOTS",  value: `${settingsSlotCount}/${ABSOLUTE_MAX}`,  tone: "gold"   },
     ]);
 
-    // ── Column headers ──────────────────────────────────────────────────────
+    // -- Column headers ------------------------------------------------------
     DrawRect(CONTENT_LEFT, HEADER_Y - 4, CONTENT_WIDTH, 1, UI.panelEdge);
     DrawTextFit("On",    COL_TOG + 27, HEADER_Y,  54,    UI.textSoft);
     DrawTextFit("Label", COL_LAB + 57, HEADER_Y,  100,   UI.textSoft);
@@ -203,7 +203,7 @@ export function settingsRun(): void {
         COL_EMO + EMO_W / 2, HEADER_Y, EMO_W, UI.textSoft);
     DrawRect(CONTENT_LEFT, HEADER_Y + 6, CONTENT_WIDTH, 1, UI.panelEdge);
 
-    // ── Rows ────────────────────────────────────────────────────────────────
+    // -- Rows ----------------------------------------------------------------
     for (let i = 0; i < settingsSlotCount; i++) {
         const btn = settingsButtons[i];
         const y   = LIST_Y + i * ROW_H;
@@ -214,11 +214,11 @@ export function settingsRun(): void {
 
         // Toggle
         DrawButton(COL_TOG + 5, y + 9, 44, ROW_H - 18,
-            btn.enabled ? "✓" : "",
+            btn.enabled ? "-" : "",
             btn.enabled ? UI.accentDeep : UI.buttonMuted,
             "", btn.enabled ? "Click to disable" : "Click to enable");
 
-        // Label input — centered in cell
+        // Label input - centered in cell
         ElementPosition(inputId(i, "label"),
             COL_LAB + 57, y + ROW_H / 2, 110, 36);
 
@@ -226,7 +226,7 @@ export function settingsRun(): void {
         ElementPosition(inputId(i, "color"),
             COL_COL + 22, y + ROW_H / 2, 42, 36);
 
-        // "/me" prefix label — clearly to the left of the emote input
+        // "/me" prefix label - clearly to the left of the emote input
         DrawTextFit("/me", COL_ME + 18, y + ROW_H / 2, 36, UI.accent);
 
         // Emote input
@@ -235,27 +235,27 @@ export function settingsRun(): void {
 
         // Delete button
         DrawButton(COL_DEL + 3, y + 10, 66, ROW_H - 20,
-            "✕ Del", UI.dangerDeep, "", "Remove this slot");
+            "- Del", UI.dangerDeep, "", "Remove this slot");
     }
 
-    // ── Footer ───────────────────────────────────────────────────────────────
+    // -- Footer ---------------------------------------------------------------
     const footerY = LIST_Y + settingsSlotCount * ROW_H + 14;
     DrawRect(CONTENT_LEFT, footerY - 6, CONTENT_WIDTH, 1, UI.panelEdge);
 
     const canAdd = settingsSlotCount < ABSOLUTE_MAX;
     drawChromeButton(CONTENT_LEFT,       footerY, 228, 44,
-        `＋ Add Slot  (${settingsSlotCount}/${ABSOLUTE_MAX})`,
+        `- Add Slot  (${settingsSlotCount}/${ABSOLUTE_MAX})`,
         canAdd ? "success" : "muted", !canAdd);
     drawChromeButton(CONTENT_LEFT + 244, footerY, 200, 44, "Save Layout",     "accent");
     drawChromeButton(CONTENT_LEFT + 460, footerY, 200, 44, "Reset Defaults",  "gold");
 
     DrawTextFit(
-        "Sends as (Name text) in chat — e.g. \"nods.\" becomes (Emery nods.)",
+        "Sends as (Name text) in chat - e.g. \"nods.\" becomes (Emery nods.)",
         CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
 }
 
 export function settingsClick(): void {
-    // ── Toggle + Delete per row ──────────────────────────────────────────────
+    // -- Toggle + Delete per row ----------------------------------------------
     for (let i = 0; i < settingsSlotCount; i++) {
         const y = LIST_Y + i * ROW_H;
 
@@ -274,7 +274,7 @@ export function settingsClick(): void {
         }
     }
 
-    // ── Footer buttons ───────────────────────────────────────────────────────
+    // -- Footer buttons -------------------------------------------------------
     const footerY = LIST_Y + settingsSlotCount * ROW_H + 14;
 
     if (canAdd() && mouseInRect(CONTENT_LEFT, footerY, 228, 44)) {

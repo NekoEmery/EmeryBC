@@ -165,7 +165,7 @@
     ];
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
-    // Settings list layout — one row per slot
+    // Settings list layout - one row per slot
     const ROW_H$1 = 56;
     const LIST_Y$1 = 226;
     const HEADER_Y = 213;
@@ -177,7 +177,7 @@
     const COL_EMO = CONTENT_LEFT + 292; // emote input
     const COL_DEL = CONTENT_RIGHT - 76; // delete button
     const EMO_W = COL_DEL - COL_EMO - 10; // emote input width
-    // ─── Storage ─────────────────────────────────────────────────────────────────
+    // --- Storage -----------------------------------------------------------------
     function getStore() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
@@ -212,9 +212,9 @@
         }
         return fallback;
     }
-    // ─── Helper: send as BC Action → displays as (Name text) ─────────────────────
+    // --- Helper: send as BC Action - displays as (Name text) ---------------------
     /** Dictionary entry that tricks BC into rendering literal Content as an Action. */
-    const ACTION_DICT_POISON = { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" };
+    const ACTION_DICT_POISON = { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) };
     function sendAction(emote) {
         ServerSend("ChatRoomChat", {
             Type: "Action",
@@ -225,7 +225,7 @@
             ],
         });
     }
-    // ─── In-game sidebar ─────────────────────────────────────────────────────────
+    // --- In-game sidebar ---------------------------------------------------------
     const BTN_X = 0;
     const BTN_START_Y = 270;
     const BTN_SIZE = 45;
@@ -257,7 +257,7 @@
         }
         return false;
     }
-    // ─── Settings ─────────────────────────────────────────────────────────────────
+    // --- Settings -----------------------------------------------------------------
     let settingsButtons = [];
     let settingsSlotCount = DEFAULT_SLOTS;
     function inputId(slot, field) {
@@ -315,43 +315,43 @@
             { label: "ACTIVE", value: `${activeCount}/${settingsSlotCount}`, tone: "accent" },
             { label: "SLOTS", value: `${settingsSlotCount}/${ABSOLUTE_MAX}`, tone: "gold" },
         ]);
-        // ── Column headers ──────────────────────────────────────────────────────
+        // -- Column headers ------------------------------------------------------
         DrawRect(CONTENT_LEFT, HEADER_Y - 4, CONTENT_WIDTH, 1, UI.panelEdge);
         DrawTextFit("On", COL_TOG + 27, HEADER_Y, 54, UI.textSoft);
         DrawTextFit("Label", COL_LAB + 57, HEADER_Y, 100, UI.textSoft);
         DrawTextFit("Color", COL_COL + 22, HEADER_Y, 72, UI.textSoft);
         DrawTextFit("/me Emote Text  (sent as * Name text * in chat)", COL_EMO + EMO_W / 2, HEADER_Y, EMO_W, UI.textSoft);
         DrawRect(CONTENT_LEFT, HEADER_Y + 6, CONTENT_WIDTH, 1, UI.panelEdge);
-        // ── Rows ────────────────────────────────────────────────────────────────
+        // -- Rows ----------------------------------------------------------------
         for (let i = 0; i < settingsSlotCount; i++) {
             const btn = settingsButtons[i];
             const y = LIST_Y$1 + i * ROW_H$1;
             DrawRect(CONTENT_LEFT, y, CONTENT_WIDTH, ROW_H$1 - 2, i % 2 === 0 ? UI.card : UI.cardAlt);
             DrawEmptyRect(CONTENT_LEFT, y, CONTENT_WIDTH, ROW_H$1 - 2, UI.panelEdge, 1);
             // Toggle
-            DrawButton(COL_TOG + 5, y + 9, 44, ROW_H$1 - 18, btn.enabled ? "✓" : "", btn.enabled ? UI.accentDeep : UI.buttonMuted, "", btn.enabled ? "Click to disable" : "Click to enable");
-            // Label input — centered in cell
+            DrawButton(COL_TOG + 5, y + 9, 44, ROW_H$1 - 18, btn.enabled ? "-" : "", btn.enabled ? UI.accentDeep : UI.buttonMuted, "", btn.enabled ? "Click to disable" : "Click to enable");
+            // Label input - centered in cell
             ElementPosition(inputId(i, "label"), COL_LAB + 57, y + ROW_H$1 / 2, 110, 36);
             // Color picker
             ElementPosition(inputId(i, "color"), COL_COL + 22, y + ROW_H$1 / 2, 42, 36);
-            // "/me" prefix label — clearly to the left of the emote input
+            // "/me" prefix label - clearly to the left of the emote input
             DrawTextFit("/me", COL_ME + 18, y + ROW_H$1 / 2, 36, UI.accent);
             // Emote input
             ElementPosition(inputId(i, "emote"), COL_EMO + EMO_W / 2, y + ROW_H$1 / 2, EMO_W, 36);
             // Delete button
-            DrawButton(COL_DEL + 3, y + 10, 66, ROW_H$1 - 20, "✕ Del", UI.dangerDeep, "", "Remove this slot");
+            DrawButton(COL_DEL + 3, y + 10, 66, ROW_H$1 - 20, "- Del", UI.dangerDeep, "", "Remove this slot");
         }
-        // ── Footer ───────────────────────────────────────────────────────────────
+        // -- Footer ---------------------------------------------------------------
         const footerY = LIST_Y$1 + settingsSlotCount * ROW_H$1 + 14;
         DrawRect(CONTENT_LEFT, footerY - 6, CONTENT_WIDTH, 1, UI.panelEdge);
         const canAdd = settingsSlotCount < ABSOLUTE_MAX;
-        drawChromeButton(CONTENT_LEFT, footerY, 228, 44, `＋ Add Slot  (${settingsSlotCount}/${ABSOLUTE_MAX})`, canAdd ? "success" : "muted", !canAdd);
+        drawChromeButton(CONTENT_LEFT, footerY, 228, 44, `- Add Slot  (${settingsSlotCount}/${ABSOLUTE_MAX})`, canAdd ? "success" : "muted", !canAdd);
         drawChromeButton(CONTENT_LEFT + 244, footerY, 200, 44, "Save Layout", "accent");
         drawChromeButton(CONTENT_LEFT + 460, footerY, 200, 44, "Reset Defaults", "gold");
-        DrawTextFit("Sends as (Name text) in chat — e.g. \"nods.\" becomes (Emery nods.)", CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
+        DrawTextFit("Sends as (Name text) in chat - e.g. \"nods.\" becomes (Emery nods.)", CONTENT_LEFT + CONTENT_WIDTH / 2, footerY + 62, CONTENT_WIDTH - 40, UI.textMuted);
     }
     function settingsClick$1() {
-        // ── Toggle + Delete per row ──────────────────────────────────────────────
+        // -- Toggle + Delete per row ----------------------------------------------
         for (let i = 0; i < settingsSlotCount; i++) {
             const y = LIST_Y$1 + i * ROW_H$1;
             if (mouseInRect(COL_TOG + 5, y + 9, 44, ROW_H$1 - 18)) {
@@ -367,7 +367,7 @@
                 return;
             }
         }
-        // ── Footer buttons ───────────────────────────────────────────────────────
+        // -- Footer buttons -------------------------------------------------------
         const footerY = LIST_Y$1 + settingsSlotCount * ROW_H$1 + 14;
         if (canAdd() && mouseInRect(CONTENT_LEFT, footerY, 228, 44)) {
             collectFromInputs();
@@ -636,7 +636,7 @@
                         Type: "Action",
                         Content: outfit.announceText.trim(),
                         Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                             { SourceCharacter: Player.MemberNumber },
                         ],
                     });
@@ -733,12 +733,12 @@
             { label: "OUTFITS", value: `${outfits.length}`, tone: "accent" },
             { label: "PAGE", value: `${page + 1}/${totalPages}`, tone: "gold" },
         ]);
-        // ── List nav ────────────────────────────────────────────────────────────
-        drawChromeButton(LIST_LEFT, NAV_Y, 88, 30, "◀ Prev", "muted", page === 0);
+        // -- List nav ------------------------------------------------------------
+        drawChromeButton(LIST_LEFT, NAV_Y, 88, 30, "- Prev", "muted", page === 0);
         DrawTextFit(`Page ${page + 1} of ${totalPages}`, LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 15, LIST_WIDTH - 200, UI.textMuted);
-        drawChromeButton(LIST_LEFT + LIST_WIDTH - 88, NAV_Y, 88, 30, "Next ▶", "muted", page >= totalPages - 1);
+        drawChromeButton(LIST_LEFT + LIST_WIDTH - 88, NAV_Y, 88, 30, "Next -", "muted", page >= totalPages - 1);
         DrawTextFit("Click any row to open it in the editor. Use the row buttons to act on it.", LIST_LEFT + LIST_WIDTH / 2, NAV_Y + 40, LIST_WIDTH - 10, UI.textSoft);
-        // ── Outfit rows ─────────────────────────────────────────────────────────
+        // -- Outfit rows ---------------------------------------------------------
         // Button columns (right-aligned, shared across all rows)
         const btnDel = LIST_LEFT + LIST_WIDTH - LIST_BTN_W - 8;
         const btnUpdate = btnDel - LIST_BTN_W - 6;
@@ -755,7 +755,7 @@
             if (isEditing)
                 DrawEmptyRect(LIST_LEFT - 1, y - 1, LIST_WIDTH + 2, ROW_H - 4, UI.accent, 2);
             if (!outfit) {
-                DrawTextFit("Empty — fill in using the editor on the right", LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2, LIST_WIDTH - 40, UI.textMuted);
+                DrawTextFit("Empty - fill in using the editor on the right", LIST_LEFT + LIST_WIDTH / 2, y + ROW_H / 2, LIST_WIDTH - 40, UI.textMuted);
                 continue;
             }
             const hasSave = outfit.items.length > 0;
@@ -770,42 +770,42 @@
             // Bottom line: items | restraint mode | announce text (spans full row width)
             const announceCenterX = LIST_LEFT + 272 + (LIST_LEFT + LIST_WIDTH - 10 - (LIST_LEFT + 272)) / 2;
             const announceWidth = LIST_LEFT + LIST_WIDTH - 10 - (LIST_LEFT + 272);
-            DrawTextFit(hasSave ? `${outfit.items.length} items` : "⚠ empty", LIST_LEFT + 46, y + 64, 80, hasSave ? UI.success : UI.gold);
+            DrawTextFit(hasSave ? `${outfit.items.length} items` : "- empty", LIST_LEFT + 46, y + 64, 80, hasSave ? UI.success : UI.gold);
             DrawTextFit(outfit.includeRestraints ? "incl. restraints" : "clothes only", LIST_LEFT + 148, y + 64, 100, outfit.includeRestraints ? UI.danger : UI.textMuted);
             DrawTextFit(`/me ${outfit.announceText}`, announceCenterX, y + 64, announceWidth, UI.textSoft);
         }
-        // ── Editor panel ────────────────────────────────────────────────────────
+        // -- Editor panel --------------------------------------------------------
         drawCard(EDITOR_LEFT, EDITOR_TOP, EDITOR_WIDTH, EDITOR_HEIGHT, "muted");
         // Header
         DrawTextFit(editingOutfit ? "Editing Outfit" : "New Outfit", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 22, EDITOR_WIDTH - 20, UI.text);
         drawPill(EDITOR_LEFT + 18, EDITOR_TOP + 38, EDITOR_WIDTH - 36, 22, editingOutfit ? `/${editingOutfit.command}` : "no outfit selected", UI.cardMuted, editingOutfit ? UI.accent : UI.textMuted);
-        // ── Slash command ──
+        // -- Slash command --
         DrawTextFit("Slash Command", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 80, EDITOR_WIDTH - 36, UI.textSoft);
         // "/" label sits to the left of the input, at same vertical center as input center
-        // input top = EDITOR_TOP+94, height=34 → center y = EDITOR_TOP+111
+        // input top = EDITOR_TOP+94, height=34 - center y = EDITOR_TOP+111
         DrawTextFit("/", EDITOR_LEFT + 28, EDITOR_TOP + 111, 20, UI.accent);
         placeInput("EmeryOF_Cmd", EDITOR_LEFT + 48, EDITOR_TOP + 94, EDITOR_WIDTH - 66, 34);
-        // ── Display name ──
+        // -- Display name --
         DrawTextFit("Display Name", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 148, EDITOR_WIDTH - 36, UI.textSoft);
         placeInput("EmeryOF_Name", EDITOR_LEFT + 18, EDITOR_TOP + 162, EDITOR_WIDTH - 36, 34);
-        // ── Restraint mode ──
+        // -- Restraint mode --
         DrawTextFit("Restraint Mode", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 212, EDITOR_WIDTH - 36, UI.textSoft);
         drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 226, EDITOR_WIDTH - 36, 32, addIncludeRestraints ? "Includes restraints" : "Clothes only (restraints preserved)", addIncludeRestraints ? "danger" : "success");
-        // ── Announce text ──
+        // -- Announce text --
         DrawTextFit("Announce Text  (/me ...)", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 274, EDITOR_WIDTH - 36, UI.textSoft);
-        // input top = EDITOR_TOP+288, height=34 → center y = EDITOR_TOP+305  (label is 14px above input)
+        // input top = EDITOR_TOP+288, height=34 - center y = EDITOR_TOP+305  (label is 14px above input)
         placeInput("EmeryOF_Announce", EDITOR_LEFT + 18, EDITOR_TOP + 288, EDITOR_WIDTH - 36, 34);
-        // ── Save / Create ──
+        // -- Save / Create --
         DrawRect(EDITOR_LEFT + 18, EDITOR_TOP + 336, EDITOR_WIDTH - 36, 1, UI.panelEdge);
         drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 348, EDITOR_WIDTH - 36, 38, editingOutfit ? "Save Outfit Settings" : "Create Outfit From Current Look", "success");
         drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 394, EDITOR_WIDTH - 36, 32, editingOutfit ? "Refresh Saved Look" : "Capture Look Preview", editingOutfit ? "accent" : "muted", !editingOutfit);
-        // ── Notes ──
+        // -- Notes --
         DrawRect(EDITOR_LEFT + 18, EDITOR_TOP + 440, EDITOR_WIDTH - 36, 1, UI.panelEdge);
         DrawTextFit("How to use", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 458, EDITOR_WIDTH - 36, UI.textMuted);
-        DrawTextFit("→ Click a row to open it for editing here.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 478, EDITOR_WIDTH - 36, UI.textSoft);
-        DrawTextFit("→ Wear applies the outfit to your character instantly.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 498, EDITOR_WIDTH - 36, UI.textSoft);
-        DrawTextFit("→ Update replaces the saved look with what you're wearing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 518, EDITOR_WIDTH - 36, UI.textSoft);
-        DrawTextFit("→ Announce text is sent as a /me emote when the outfit loads.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 538, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("- Click a row to open it for editing here.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 478, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("- Wear applies the outfit to your character instantly.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 498, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("- Update replaces the saved look with what you're wearing.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 518, EDITOR_WIDTH - 36, UI.textSoft);
+        DrawTextFit("- Announce text is sent as a /me emote when the outfit loads.", EDITOR_LEFT + EDITOR_WIDTH / 2, EDITOR_TOP + 538, EDITOR_WIDTH - 36, UI.textSoft);
         if (editingOutfit) {
             drawChromeButton(EDITOR_LEFT + 18, EDITOR_TOP + 562, EDITOR_WIDTH - 36, 30, "Cancel Edit", "muted");
         }
@@ -932,17 +932,17 @@
      * chat log. Shows saved outfits with one-click wear buttons.
      *
      * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
-     * Thank you Sin for the open design! ♥
+     * Thank you Sin for the open design!
      */
-    // ── Icon ──────────────────────────────────────────────────────────────────────
-    const TAB_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 90 90">
-    <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
-    <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
-    <circle cx="34" cy="43" r="4" fill="#f7e6ee"/>
-    <circle cx="56" cy="43" r="4" fill="#f7e6ee"/>
-    <path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>
-</svg>`;
-    // ── Styles ────────────────────────────────────────────────────────────────────
+    // -- Icon ----------------------------------------------------------------------
+    const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 90 90">'
+        + '<rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>'
+        + '<path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>'
+        + '<circle cx="34" cy="43" r="4" fill="#f7e6ee"/>'
+        + '<circle cx="56" cy="43" r="4" fill="#f7e6ee"/>'
+        + '<path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>'
+        + '</svg>';
+    // -- Styles --------------------------------------------------------------------
     const CSS = `
 #emerybc-drawer {
     position: fixed;
@@ -996,7 +996,7 @@
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
-/* ── Header ── */
+/* -- Header -- */
 .ebc-header {
     display: flex;
     align-items: center;
@@ -1034,7 +1034,7 @@
 
 .ebc-icon-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 
-/* ── Body ── */
+/* -- Body -- */
 .ebc-body {
     flex: 1;
     overflow-y: auto;
@@ -1047,7 +1047,7 @@
 .ebc-body::-webkit-scrollbar-track { background: transparent; }
 .ebc-body::-webkit-scrollbar-thumb { background: #4c2537; border-radius: 2px; }
 
-/* ── Section label ── */
+/* -- Section label -- */
 .ebc-section-label {
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
@@ -1058,7 +1058,7 @@
     padding: 4px 4px 6px;
 }
 
-/* ── Outfit rows ── */
+/* -- Outfit rows -- */
 .ebc-outfit-row {
     display: flex;
     align-items: center;
@@ -1121,7 +1121,7 @@
     cursor: not-allowed;
 }
 
-/* ── Empty ── */
+/* -- Empty -- */
 .ebc-empty {
     color: #553142;
     font-family: "Trebuchet MS", serif;
@@ -1131,7 +1131,7 @@
     line-height: 1.7;
 }
 
-/* ── Footer ── */
+/* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
     padding: 5px 12px;
@@ -1145,11 +1145,11 @@
 .ebc-footer a { color: #553142; text-decoration: none; transition: color 0.14s; }
 .ebc-footer a:hover { color: #cf6f98; }
 `;
-    // ── Helper ────────────────────────────────────────────────────────────────────
+    // -- Helper --------------------------------------------------------------------
     function esc(s) {
         return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
-    // ── Class ─────────────────────────────────────────────────────────────────────
+    // -- Class ---------------------------------------------------------------------
     class EBCDrawer {
         constructor() {
             this.el = null;
@@ -1163,37 +1163,64 @@
                 document.addEventListener("DOMContentLoaded", () => this.setup());
             }
         }
-        // ── Setup ─────────────────────────────────────────────────────────────────
+        // -- Setup -----------------------------------------------------------------
         setup() {
-            var _a, _b, _c;
             if (this.el)
                 return;
             this.injectStyles();
+            // Build DOM imperatively - no innerHTML, no template literals, no non-ASCII chars
             const el = document.createElement("div");
             el.id = "emerybc-drawer";
             el.className = "ebc-closed";
             el.style.display = "none";
-            el.innerHTML = `
-            <div id="ebc-tab" title="EmeryBC outfits">${TAB_ICON}</div>
-            <div class="ebc-panel">
-                <div class="ebc-header">
-                    <span class="ebc-title">✦ Outfits</span>
-                    <div class="ebc-header-btns">
-                        <button class="ebc-icon-btn" id="ebc-refresh-btn" title="Refresh outfit list">↺</button>
-                        <button class="ebc-icon-btn" id="ebc-close-btn" title="Close">✕</button>
-                    </div>
-                </div>
-                <div class="ebc-body" id="ebc-body"></div>
-                <div class="ebc-footer">
-                    UI inspired by <a href="https://github.com/sin-1337/CRABS" target="_blank">CRABS</a> by Sin ♥
-                </div>
-            </div>
-        `;
+            // Tab button (icon)
+            const tab = document.createElement("div");
+            tab.id = "ebc-tab";
+            tab.title = "EmeryBC outfits";
+            tab.innerHTML = TAB_ICON; // TAB_ICON is plain ASCII SVG
+            el.appendChild(tab);
+            // Panel
+            const panel = document.createElement("div");
+            panel.className = "ebc-panel";
+            // Header
+            const header = document.createElement("div");
+            header.className = "ebc-header";
+            const title = document.createElement("span");
+            title.className = "ebc-title";
+            title.textContent = "EmeryBC - Outfits";
+            const headerBtns = document.createElement("div");
+            headerBtns.className = "ebc-header-btns";
+            const refreshBtn = document.createElement("button");
+            refreshBtn.className = "ebc-icon-btn";
+            refreshBtn.id = "ebc-refresh-btn";
+            refreshBtn.title = "Refresh outfit list";
+            refreshBtn.textContent = "R";
+            const closeBtn = document.createElement("button");
+            closeBtn.className = "ebc-icon-btn";
+            closeBtn.id = "ebc-close-btn";
+            closeBtn.title = "Close";
+            closeBtn.textContent = "X";
+            headerBtns.appendChild(refreshBtn);
+            headerBtns.appendChild(closeBtn);
+            header.appendChild(title);
+            header.appendChild(headerBtns);
+            // Body
+            const body = document.createElement("div");
+            body.className = "ebc-body";
+            body.id = "ebc-body";
+            // Footer
+            const footer = document.createElement("div");
+            footer.className = "ebc-footer";
+            footer.textContent = "UI inspired by CRABS by Sin. Thank you! <3";
+            panel.appendChild(header);
+            panel.appendChild(body);
+            panel.appendChild(footer);
+            el.appendChild(panel);
             document.body.appendChild(el);
             this.el = el;
-            (_a = el.querySelector("#ebc-tab")) === null || _a === void 0 ? void 0 : _a.addEventListener("click", () => this.toggle());
-            (_b = el.querySelector("#ebc-close-btn")) === null || _b === void 0 ? void 0 : _b.addEventListener("click", () => this.close());
-            (_c = el.querySelector("#ebc-refresh-btn")) === null || _c === void 0 ? void 0 : _c.addEventListener("click", () => this.renderOutfits());
+            tab.addEventListener("click", () => this.toggle());
+            closeBtn.addEventListener("click", () => this.close());
+            refreshBtn.addEventListener("click", () => this.renderOutfits());
             document.addEventListener("keydown", (e) => {
                 if (e.key === "Escape" && this.isOpen)
                     this.close();
@@ -1213,7 +1240,7 @@
             s.textContent = CSS;
             document.head.appendChild(s);
         }
-        // ── Positioning — lower portion of the chat log ───────────────────────────
+        // -- Positioning - lower portion of the chat log ---------------------------
         syncToChat() {
             const chatLog = document.getElementById("TextAreaChatLog");
             if (!chatLog || !this.el)
@@ -1228,7 +1255,7 @@
             this.el.style.width = `${rect.width}px`;
             this.el.style.height = `${Math.round(rect.height * 0.52)}px`;
         }
-        // ── Visibility ────────────────────────────────────────────────────────────
+        // -- Visibility ------------------------------------------------------------
         updateVisibility() {
             var _a;
             if (!this.el)
@@ -1254,7 +1281,7 @@
                 this.resizeObserver = null;
             }
         }
-        // ── Render outfits ────────────────────────────────────────────────────────
+        // -- Render outfits --------------------------------------------------------
         renderOutfits() {
             var _a;
             const body = (_a = this.el) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
@@ -1262,7 +1289,7 @@
                 return;
             const outfits = getOutfits();
             if (outfits.length === 0) {
-                body.innerHTML = `<div class="ebc-empty">No outfits saved yet.<br>Go to <b>Preferences → Extensions → EmeryBC → Outfits</b> to set some up.</div>`;
+                body.innerHTML = `<div class="ebc-empty">No outfits saved yet.<br>Go to <b>Preferences - Extensions - EmeryBC - Outfits</b> to set some up.</div>`;
                 return;
             }
             body.innerHTML = `<div class="ebc-section-label">Saved Outfits</div>` +
@@ -1295,7 +1322,7 @@
                 });
             });
         }
-        // ── Open / Close / Toggle ─────────────────────────────────────────────────
+        // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
             if (!this.el)
@@ -1311,7 +1338,7 @@
             this.isOpen = false;
             this.el.className = "ebc-closed";
         }
-        // ── Lifecycle ─────────────────────────────────────────────────────────────
+        // -- Lifecycle -------------------------------------------------------------
         destroy() {
             var _a, _b;
             (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
@@ -1326,7 +1353,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.30";
+    const MOD_VERSION = "0.1.31";
     const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
         <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
@@ -1343,6 +1370,14 @@
     const TAB_BTN_GAP = 14;
     const TAB_BTN_LEFT = 156;
     const CHANGELOG = [
+        {
+            version: "0.1.31",
+            changes: [
+                "Removed all non-ASCII characters from source files and bundle to fix Tampermonkey internal error on load.",
+                "Action type dictionary poison now uses String.fromCharCode(0x200C) instead of embedded Unicode.",
+                "Drawer HTML built imperatively to avoid any template literal encoding issues.",
+            ],
+        },
         {
             version: "0.1.30",
             changes: [
@@ -1364,7 +1399,7 @@
             version: "0.1.28",
             changes: [
                 "Replaced canvas sidebar action buttons with a CRABS-inspired DOM drawer.",
-                "A small EmeryBC icon tab sits beside the chat log — click it to expand your action buttons.",
+                "A small EmeryBC icon tab sits beside the chat log - click it to expand your action buttons.",
                 "Drawer auto-hides when leaving the chat room and never overlaps the map UI.",
                 "Added credit to Sin / CRABS in the README and drawer footer.",
             ],
@@ -1372,7 +1407,7 @@
         {
             version: "0.1.27",
             changes: [
-                "Action buttons now collapse behind a small toggle chip (≡) to avoid overlapping map build UI.",
+                "Action buttons now collapse behind a small toggle chip (-) to avoid overlapping map build UI.",
                 "Click the chip to expand/collapse the button panel at any time.",
             ],
         },
@@ -1385,13 +1420,13 @@
         {
             version: "0.1.25",
             changes: [
-                "Fixed /ebc release — now calls ChatRoomCharacterUpdate so the restraint removal is visible to all room members.",
+                "Fixed /ebc release - now calls ChatRoomCharacterUpdate so the restraint removal is visible to all room members.",
             ],
         },
         {
             version: "0.1.24",
             changes: [
-                "Added /ebc release (alias: /ebc free) — removes all restraints from yourself instantly.",
+                "Added /ebc release (alias: /ebc free) - removes all restraints from yourself instantly.",
             ],
         },
         {
@@ -1409,7 +1444,7 @@
         {
             version: "0.1.21",
             changes: [
-                "Stripped version line from EBC badge — now just a small subtle EBC chip.",
+                "Stripped version line from EBC badge - now just a small subtle EBC chip.",
             ],
         },
         {
@@ -1446,7 +1481,7 @@
         {
             version: "0.1.15",
             changes: [
-                "Removed login screen popup — no more dialog on startup.",
+                "Removed login screen popup - no more dialog on startup.",
                 "Added a quiet chat message on room join confirming EmeryBC loaded successfully.",
                 "Fixed badge version text visibility by widening the overhead badge further.",
             ],
@@ -1486,7 +1521,7 @@
         {
             version: "0.1.9",
             changes: [
-                "Fixed outfit page row and editor overlaps — labels, inputs and buttons no longer stack on each other.",
+                "Fixed outfit page row and editor overlaps - labels, inputs and buttons no longer stack on each other.",
                 "Action buttons now use Type:Action so they show as (Name text.) instead of * Name text *.",
                 "Default action emotes updated to match the new format.",
                 "EBC overhead badge made smaller and drops the version line.",
@@ -1496,7 +1531,7 @@
         {
             version: "0.1.8",
             changes: [
-                "Fixed EBC badge visibility — now uses OnlineSharedSettings so all room members can see it.",
+                "Fixed EBC badge visibility - now uses OnlineSharedSettings so all room members can see it.",
                 "Shrunk outfit notice messages in chat to 11px so they are less intrusive.",
                 "Bumped version number that was missed in previous release.",
             ],
@@ -1604,7 +1639,7 @@
         const skipped = Player.Appearance.filter(item => item.Asset.Group.IsRestraint && isProtectedLock(item));
         if (toRemove.length === 0) {
             if (skipped.length > 0) {
-                appendLocalLogLine(`[EmeryBC] All restraints are owner/lover locked — none removed.`, UI.textMuted);
+                appendLocalLogLine(`[EmeryBC] All restraints are owner/lover locked - none removed.`, UI.textMuted);
             }
             else {
                 appendLocalLogLine("[EmeryBC] No restraints found to remove.", UI.textMuted);
@@ -1651,7 +1686,7 @@
         if (!character)
             return null;
         // OnlineSharedSettings are broadcast to all room members via ChatRoomSync
-        // and CharacterUpdate — this is the reliable cross-client path.
+        // and CharacterUpdate - this is the reliable cross-client path.
         const shared = (_a = character.OnlineSharedSettings) === null || _a === void 0 ? void 0 : _a[MOD_NAME];
         if (shared && typeof shared === "object") {
             const presence = shared.presence;
@@ -1686,7 +1721,7 @@
         if (settings)
             settings.presence = presence;
         ServerPlayerExtensionSettingsSync(MOD_NAME);
-        // Write to OnlineSharedSettings — this IS broadcast to all room members
+        // Write to OnlineSharedSettings - this IS broadcast to all room members
         // via ChatRoomSync and CharacterUpdate packets, making the badge visible
         // to every other EmeryBC user in the room.
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
@@ -1726,7 +1761,7 @@
         if (noticeShown)
             return;
         noticeShown = true;
-        appendLocalLogLine(`✓ EmeryBC v${MOD_VERSION} loaded successfully.`);
+        appendLocalLogLine(`- EmeryBC v${MOD_VERSION} loaded successfully.`);
     }
     function drawTabs() {
         drawChromeButton(TAB_BTN_LEFT, TAB_BTN_Y, TAB_BTN_W, TAB_BTN_H, "Actions", activeTab === "actions" ? "accent" : "muted");
@@ -1828,7 +1863,7 @@
             catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
-        // DOM drawer — outfit switcher panel beside the chat log
+        // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
             drawer = new EBCDrawer();
