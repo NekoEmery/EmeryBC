@@ -5,10 +5,17 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.42";
+const MOD_VERSION = "0.1.43";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.43",
+        changes: [
+            "Fixed cheer animation returning to neutral: BC requires null (not []) for neutral pose — empty array was being silently ignored so character stayed Yoked.",
+            "Removed BOW from default buttons; added GIGGLE (* giggles. *) default button.",
+        ],
+    },
     {
         version: "0.1.42",
         changes: [

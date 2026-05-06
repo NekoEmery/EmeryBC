@@ -14,9 +14,9 @@
         { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
         { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true, style: "action" },
         { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true, style: "action" },
-        { label: "BOW", emote: "bows politely.", color: "#c2185b", enabled: true, style: "action" },
         { label: "CHEER", emote: "cheers!", color: "#c2185b", enabled: true, style: "action" },
         { label: "POUT", emote: "pouts.", color: "#c2185b", enabled: true, style: "emote" },
+        { label: "GIGGLE", emote: "giggles.", color: "#c2185b", enabled: true, style: "emote" },
         { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
     ];
     const ABSOLUTE_MAX = 12;
@@ -73,17 +73,20 @@
     // Steps run 500 ms apart. Original poses are restored when done.
     let seqRunning = false;
     function syncPoseToRoom() {
-        var _a;
         try {
             CharacterRefresh(Player, false, false);
         }
         catch (_) { }
-        // Broadcast the new ActivePose to the room the same way outfitManager does
+        // Broadcast the new ActivePose to the room the same way outfitManager does.
+        // BC requires null (not []) to return to neutral — an empty array is ignored.
         try {
             if (Player.OnlineID != null) {
+                const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
+                    ? Player.ActivePose
+                    : null;
                 ServerSend("ChatRoomCharacterUpdate", {
                     ID: Player.OnlineID,
-                    ActivePose: (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : null,
+                    ActivePose: activePose,
                     Appearance: ServerAppearanceBundle(Player.Appearance),
                 });
             }
@@ -91,14 +94,16 @@
         catch (_) { }
     }
     function runSequence(sequence, stepMs = 600) {
-        var _a;
         if (seqRunning)
             return;
         const steps = sequence.split("|").map(s => s.trim()).filter(Boolean);
         if (!steps.length)
             return;
         seqRunning = true;
-        const originalPoses = [...((_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [])];
+        // null means "no pose / neutral" in BC — store as null so we restore correctly.
+        const originalPoses = (Player.ActivePose && Player.ActivePose.length > 0)
+            ? [...Player.ActivePose]
+            : null;
         let idx = 0;
         const next = () => {
             try {
@@ -110,8 +115,8 @@
                 }
                 const step = steps[idx++];
                 if (step === "_") {
-                    // Restore original so BC snaps cleanly back to neutral
-                    Player.ActivePose = [...originalPoses];
+                    // Restore to neutral (null) or original poses — BC needs null not [] for neutral.
+                    Player.ActivePose = originalPoses;
                     syncPoseToRoom();
                 }
                 else if (step.startsWith("!")) {
@@ -1909,9 +1914,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.42";
+    const MOD_VERSION = "0.1.43";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.43",
+            changes: [
+                "Fixed cheer animation returning to neutral: BC requires null (not []) for neutral pose — empty array was being silently ignored so character stayed Yoked.",
+                "Removed BOW from default buttons; added GIGGLE (* giggles. *) default button.",
+            ],
+        },
         {
             version: "0.1.42",
             changes: [

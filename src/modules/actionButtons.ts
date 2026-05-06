@@ -15,13 +15,13 @@ export interface ActionButton {
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
-    { label: "NOD",   emote: "nods.",              color: "#c2185b", enabled: true,  style: "action" },
-    { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true,  style: "action" },
-    { label: "WAVE",  emote: "waves.",             color: "#c2185b", enabled: true,  style: "action" },
-    { label: "BOW",   emote: "bows politely.",     color: "#c2185b", enabled: true,  style: "action" },
-    { label: "CHEER", emote: "cheers!",            color: "#c2185b", enabled: true,  style: "action" },
-    { label: "POUT",  emote: "pouts.",             color: "#c2185b", enabled: true,  style: "emote"  },
-    { label: "",      emote: "",                   color: "#c2185b", enabled: false, style: "action" },
+    { label: "NOD",    emote: "nods.",              color: "#c2185b", enabled: true,  style: "action" },
+    { label: "SHAKE",  emote: "shakes their head.", color: "#c2185b", enabled: true,  style: "action" },
+    { label: "WAVE",   emote: "waves.",             color: "#c2185b", enabled: true,  style: "action" },
+    { label: "CHEER",  emote: "cheers!",            color: "#c2185b", enabled: true,  style: "action" },
+    { label: "POUT",   emote: "pouts.",             color: "#c2185b", enabled: true,  style: "emote"  },
+    { label: "GIGGLE", emote: "giggles.",           color: "#c2185b", enabled: true,  style: "emote"  },
+    { label: "",       emote: "",                   color: "#c2185b", enabled: false, style: "action" },
 ];
 
 export const ABSOLUTE_MAX  = 12;
@@ -83,12 +83,16 @@ let seqRunning = false;
 
 function syncPoseToRoom(): void {
     try { CharacterRefresh(Player, false, false); } catch (_) {}
-    // Broadcast the new ActivePose to the room the same way outfitManager does
+    // Broadcast the new ActivePose to the room the same way outfitManager does.
+    // BC requires null (not []) to return to neutral — an empty array is ignored.
     try {
         if (Player.OnlineID != null) {
+            const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
+                ? Player.ActivePose
+                : null;
             ServerSend("ChatRoomCharacterUpdate", {
                 ID: Player.OnlineID,
-                ActivePose: Player.ActivePose ?? null,
+                ActivePose: activePose,
                 Appearance: ServerAppearanceBundle(Player.Appearance),
             });
         }
@@ -101,7 +105,10 @@ export function runSequence(sequence: string, stepMs = 600): void {
     if (!steps.length) return;
 
     seqRunning = true;
-    const originalPoses: string[] = [...(Player.ActivePose ?? [])];
+    // null means "no pose / neutral" in BC — store as null so we restore correctly.
+    const originalPoses: string[] | null = (Player.ActivePose && Player.ActivePose.length > 0)
+        ? [...Player.ActivePose]
+        : null;
     let idx = 0;
 
     const next = (): void => {
@@ -116,8 +123,8 @@ export function runSequence(sequence: string, stepMs = 600): void {
             const step = steps[idx++];
 
             if (step === "_") {
-                // Restore original so BC snaps cleanly back to neutral
-                Player.ActivePose = [...originalPoses];
+                // Restore to neutral (null) or original poses — BC needs null not [] for neutral.
+                Player.ActivePose = originalPoses;
                 syncPoseToRoom();
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");
