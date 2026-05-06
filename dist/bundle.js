@@ -2668,11 +2668,11 @@
             const online = getOnlineTime();
             const room = getRoomTime();
             const bound = getRestraintTime();
-            let text = `🌐 ${online}`;
+            let text = `🌐 Online: ${online}`;
             if (room)
-                text += `  🕒 ${room}`;
+                text += `  🕒 Room: ${room}`;
             if (bound)
-                text += `  ⛓ ${bound}`;
+                text += `  ⛓ Bound: ${bound}`;
             this.timerEl.textContent = text;
         }
         startTimerPoller() {
@@ -4531,7 +4531,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.86";
+    const MOD_VERSION = "0.1.87";
     let noticeShown = false;
     const CHANGELOG = [
         {

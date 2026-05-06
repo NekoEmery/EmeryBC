@@ -1591,9 +1591,9 @@ export class EBCDrawer {
         const online = getOnlineTime();
         const room   = getRoomTime();
         const bound  = getRestraintTime();
-        let text = `🌐 ${online}`;
-        if (room)  text += `  🕒 ${room}`;
-        if (bound) text += `  ⛓ ${bound}`;
+        let text = `🌐 Online: ${online}`;
+        if (room)  text += `  🕒 Room: ${room}`;
+        if (bound) text += `  ⛓ Bound: ${bound}`;
         this.timerEl.textContent = text;
     }
 
