@@ -1275,7 +1275,8 @@
     transition: background 0.14s, color 0.12s, border-color 0.12s;
 }
 
-.ebc-slot-del:hover { background: #3a1017; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-slot-del:hover   { background: #3a1017; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-slot-del.confirm { background: #3a1017; color: #ff6b6b; border-color: #7a2020; font-size: 9px; }
 
 .ebc-slot-style {
     flex-shrink: 0;
@@ -1331,6 +1332,7 @@
 .ebc-btn-footer-btn.save  { border-color: #91405f; color: #cf6f98; }
 .ebc-btn-footer-btn.save:hover { background: #91405f; color: #f7e6ee; }
 .ebc-btn-footer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ebc-btn-footer-btn.confirm  { background: #3a1017; color: #ff6b6b; border-color: #7a2020; }
 
 /* -- Notes tab -- */
 .ebc-notes-person {
@@ -2391,12 +2393,30 @@
                             ? "Text sent as * Name text *"
                             : "Text sent as ( Name text )";
                     });
+                    let slotDelPending = false;
+                    let slotDelTimer = null;
                     delBtn.addEventListener("click", () => {
-                        btns.splice(idx, 1);
-                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
-                        slotCount = Math.max(1, slotCount - 1);
-                        renderSlots();
-                        updateFooterState();
+                        if (!slotDelPending) {
+                            slotDelPending = true;
+                            delBtn.classList.add("confirm");
+                            delBtn.textContent = "?";
+                            delBtn.title = "Click again to remove this slot";
+                            slotDelTimer = window.setTimeout(() => {
+                                slotDelPending = false;
+                                delBtn.classList.remove("confirm");
+                                delBtn.textContent = "x";
+                                delBtn.title = "Remove this slot";
+                            }, 2500);
+                        }
+                        else {
+                            if (slotDelTimer !== null)
+                                window.clearTimeout(slotDelTimer);
+                            btns.splice(idx, 1);
+                            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                            slotCount = Math.max(1, slotCount - 1);
+                            renderSlots();
+                            updateFooterState();
+                        }
                     });
                 }
             };
@@ -2450,12 +2470,34 @@
                 saveBtn.textContent = "Saved!";
                 window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
             });
+            let resetPending = false;
+            let resetTimer = null;
             resetBtn.addEventListener("click", () => {
-                btns = DEFAULT_BUTTONS.map(b => (Object.assign({}, b)));
-                slotCount = DEFAULT_BUTTONS.length;
-                saveButtons([...btns], slotCount);
-                renderSlots();
-                updateFooterState();
+                if (!resetPending) {
+                    resetPending = true;
+                    resetBtn.classList.add("confirm");
+                    resetBtn.textContent = "Sure?";
+                    resetBtn.title = "Click again to restore defaults";
+                    resetTimer = window.setTimeout(() => {
+                        resetPending = false;
+                        resetBtn.classList.remove("confirm");
+                        resetBtn.textContent = "Reset";
+                        resetBtn.title = "Reset to defaults";
+                    }, 2500);
+                }
+                else {
+                    if (resetTimer !== null)
+                        window.clearTimeout(resetTimer);
+                    resetPending = false;
+                    resetBtn.classList.remove("confirm");
+                    resetBtn.textContent = "Reset";
+                    resetBtn.title = "Reset to defaults";
+                    btns = DEFAULT_BUTTONS.map(b => (Object.assign({}, b)));
+                    slotCount = DEFAULT_BUTTONS.length;
+                    saveButtons([...btns], slotCount);
+                    renderSlots();
+                    updateFooterState();
+                }
             });
         }
         // -- Appearance diff -------------------------------------------------------
@@ -2706,9 +2748,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.73";
+    const MOD_VERSION = "0.1.74";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.74",
+            changes: [
+                "Reset button and slot delete button in the Buttons tab now require a two-click confirm before acting.",
+            ],
+        },
         {
             version: "0.1.73",
             changes: [

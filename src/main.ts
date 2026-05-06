@@ -6,10 +6,16 @@ import { getBadgeEnabled } from "./modules/settings";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.73";
+const MOD_VERSION = "0.1.74";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.74",
+        changes: [
+            "Reset button and slot delete button in the Buttons tab now require a two-click confirm before acting.",
+        ],
+    },
     {
         version: "0.1.73",
         changes: [
