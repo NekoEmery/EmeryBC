@@ -4468,7 +4468,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.79";
+    const MOD_VERSION = "0.1.80";
     let noticeShown = false;
     const CHANGELOG = [
         {
