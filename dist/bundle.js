@@ -2385,9 +2385,7 @@
     position: fixed !important;
     right: auto !important;
     top: auto !important;
-    height: auto !important;
-    max-height: 82vh;
-    min-height: 200px;
+    height: min(80vh, 650px) !important;
     border-radius: 10px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     transition: opacity 0.18s !important;
@@ -2422,6 +2420,13 @@
 }
 .ebc-reset-loc-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 `;
+    // -- VIP members (highlighted in Notes tab when present in the room) -----------
+    const VIP_MEMBERS = {
+        130267: { label: "creator", color: "#e8d07a" }, // Emery
+        143776: { label: "Sin", color: "#cf6f98" },
+        124264: { label: "Lara", color: "#f7b8d4" },
+        230466: { label: "Lucy", color: "#b8a0f7" },
+    };
     class EBCDrawer {
         constructor(version = "") {
             this.rootEl = null; // zero-width anchor (positioned)
@@ -2437,7 +2442,7 @@
             this.crabsPoller = null;
             this.timerEl = null;
             this.timerPoller = null;
-            // User-dragged tab position (Y offset from chat log top, px). null = follow CRABS.
+            // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
             this.userTabOffset = null;
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
@@ -2661,31 +2666,36 @@
             document.body.appendChild(root);
             this.rootEl = root;
             this.panelEl = slideContainer;
-            // Events — tab supports both click (toggle) and drag (reposition).
-            // We distinguish the two by tracking how far the mouse moved.
+            // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
+            // We distinguish the two by tracking how far the mouse moved (5px dead-zone).
             tab.addEventListener("mousedown", (e) => {
-                var _a;
                 if (e.button !== 0)
                     return; // left-click only
                 e.preventDefault();
+                const startX = e.clientX;
                 const startY = e.clientY;
-                const chatLog = document.getElementById("TextAreaChatLog");
-                const chatRect = chatLog === null || chatLog === void 0 ? void 0 : chatLog.getBoundingClientRect();
-                const startOffset = (_a = this.userTabOffset) !== null && _a !== void 0 ? _a : (chatRect ? (tab.getBoundingClientRect().top - chatRect.top) : 58);
+                // Starting screen-space position of the tab
+                const tabRect = tab.getBoundingClientRect();
+                const startTabX = tabRect.left;
+                const startTabY = tabRect.top;
                 let dragged = false;
                 const onMove = (ev) => {
-                    var _a;
-                    const delta = ev.clientY - startY;
-                    if (!dragged && Math.abs(delta) < 5)
+                    const dx = ev.clientX - startX;
+                    const dy = ev.clientY - startY;
+                    if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5)
                         return; // dead-zone
                     dragged = true;
                     tab.style.cursor = "grabbing";
-                    const chatR = (_a = document.getElementById("TextAreaChatLog")) === null || _a === void 0 ? void 0 : _a.getBoundingClientRect();
-                    const maxOffset = chatR ? chatR.height - 44 : 500;
-                    const newTop = Math.max(4, Math.min(maxOffset, startOffset + delta));
-                    tab.style.top = `${newTop}px`;
+                    // Switch to fixed positioning the moment the user starts dragging
+                    if (tab.style.position !== "fixed") {
+                        tab.style.position = "fixed";
+                    }
+                    const newX = Math.max(0, Math.min(window.innerWidth - 44, startTabX + dx));
+                    const newY = Math.max(0, Math.min(window.innerHeight - 44, startTabY + dy));
+                    tab.style.left = `${newX}px`;
+                    tab.style.top = `${newY}px`;
                 };
-                const onUp = (ev) => {
+                const onUp = () => {
                     document.removeEventListener("mousemove", onMove);
                     document.removeEventListener("mouseup", onUp);
                     tab.style.cursor = "";
@@ -2694,11 +2704,14 @@
                         this.toggle();
                         return;
                     }
-                    // Save new position
-                    const newOffset = parseInt(tab.style.top, 10);
-                    this.userTabOffset = newOffset;
+                    // Save new position as screen-space fixed coords
+                    const pos = {
+                        x: parseInt(tab.style.left, 10),
+                        y: parseInt(tab.style.top, 10),
+                    };
+                    this.userTabOffset = pos;
                     this.lastCrabsBottom = -1; // stop CRABS from overwriting on next poll
-                    this.saveTabOffset(newOffset);
+                    this.saveTabOffset(pos);
                 };
                 document.addEventListener("mousemove", onMove);
                 document.addEventListener("mouseup", onUp);
@@ -2708,13 +2721,26 @@
                 e.preventDefault();
                 this.userTabOffset = null;
                 this.lastCrabsBottom = -1;
-                this.saveTabOffset(-1); // sentinel: -1 means "reset to auto"
+                // Clear inline fixed-position overrides so CSS absolute layout takes over
+                tab.style.position = "";
+                tab.style.left = "";
+                tab.style.top = "";
+                this.saveTabOffset(null); // null = reset to auto
                 this.updateCrabsPosition();
             });
             resetLocBtn.addEventListener("click", () => {
+                // Reset panel to anchored mode
                 this.panelPosition = null;
                 this.savePanelPosition(null);
                 this.exitFreeMode();
+                // Also reset the hamburger tab to auto-position (follow CRABS)
+                this.userTabOffset = null;
+                this.lastCrabsBottom = -1;
+                tab.style.position = "";
+                tab.style.left = "";
+                tab.style.top = "";
+                this.saveTabOffset(null);
+                this.updateCrabsPosition();
             });
             closeBtn.addEventListener("click", () => this.close());
             refreshBtn.addEventListener("click", () => {
@@ -2802,11 +2828,11 @@
             return true;
         }
         // -- Tab position persistence -----------------------------------------------
-        saveTabOffset(offset) {
+        saveTabOffset(pos) {
             try {
                 if (!Player.ExtensionSettings.EmeryBC)
                     Player.ExtensionSettings.EmeryBC = {};
-                Player.ExtensionSettings.EmeryBC.tabYOffset = offset;
+                Player.ExtensionSettings.EmeryBC.tabPos = pos !== null && pos !== void 0 ? pos : null;
                 ServerPlayerExtensionSettingsSync("EmeryBC");
             }
             catch ( /* ignore */_a) { /* ignore */ }
@@ -2814,21 +2840,23 @@
         loadTabOffset() {
             try {
                 const store = Player.ExtensionSettings.EmeryBC;
-                const v = store === null || store === void 0 ? void 0 : store.tabYOffset;
-                // -1 is the sentinel for "reset to auto"
-                if (typeof v === "number" && v >= 0)
-                    return v;
+                // New tabPos format: {x, y}
+                const v = store === null || store === void 0 ? void 0 : store.tabPos;
+                if (v && typeof v.x === "number" && typeof v.y === "number")
+                    return { x: v.x, y: v.y };
                 return null;
             }
             catch (_a) {
                 return null;
             }
         }
-        // Apply a saved/dragged Y offset to the tab element immediately.
-        applyTabOffset(tabEl, offset) {
-            const chatLog = document.getElementById("TextAreaChatLog");
-            const maxOffset = chatLog ? chatLog.getBoundingClientRect().height - 44 : 500;
-            tabEl.style.top = `${Math.max(4, Math.min(maxOffset, offset))}px`;
+        // Apply a saved/dragged fixed-screen position to the tab element immediately.
+        applyTabOffset(tabEl, pos) {
+            const x = Math.max(0, Math.min(window.innerWidth - 44, pos.x));
+            const y = Math.max(0, Math.min(window.innerHeight - 44, pos.y));
+            tabEl.style.position = "fixed";
+            tabEl.style.left = `${x}px`;
+            tabEl.style.top = `${y}px`;
         }
         // -- Panel free-float mode -------------------------------------------------
         savePanelPosition(pos) {
@@ -4767,8 +4795,13 @@
         }
         buildNoteRow(memberNumber, displayName, currentNote) {
             const hasNote = !!currentNote.trim();
+            const vip = VIP_MEMBERS[memberNumber];
             const container = document.createElement("div");
             container.className = "ebc-notes-person";
+            if (vip) {
+                container.style.borderColor = vip.color;
+                container.style.boxShadow = `0 0 6px ${vip.color}40`;
+            }
             const header = document.createElement("div");
             header.className = "ebc-notes-person-header";
             const dot = document.createElement("div");
@@ -4776,11 +4809,22 @@
             const name = document.createElement("span");
             name.className = "ebc-notes-person-name";
             name.textContent = displayName;
+            if (vip) {
+                name.style.color = vip.color;
+            }
             const num = document.createElement("span");
             num.className = "ebc-notes-member-num";
             num.textContent = "#" + memberNumber;
             header.appendChild(dot);
             header.appendChild(name);
+            if (vip) {
+                // VIP star badge with tooltip showing their role
+                const badge = document.createElement("span");
+                badge.textContent = "★";
+                badge.title = vip.label;
+                badge.style.cssText = `font-size:10px;color:${vip.color};flex-shrink:0;margin-right:2px;`;
+                header.appendChild(badge);
+            }
             header.appendChild(num);
             container.appendChild(header);
             const editor = document.createElement("div");
@@ -4947,7 +4991,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.92";
+    const MOD_VERSION = "0.1.93";
     let noticeShown = false;
     const CHANGELOG = [
         {
