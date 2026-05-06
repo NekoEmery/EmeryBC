@@ -17,6 +17,7 @@ import {
     editOutfit,
     exportOutfitById,
     importOutfitFromJSON,
+    importOutfitFromBCCode,
     setOutfitPreserveRestraints,
     RESTRAINT_GROUPS,
     type ConfiguredOutfit,
@@ -2568,7 +2569,7 @@ export class EBCDrawer {
 
         const impToggleBtn = document.createElement("button");
         impToggleBtn.className = "ebc-new-outfit-btn";
-        impToggleBtn.textContent = "↓ Import Outfit from JSON";
+        impToggleBtn.textContent = "↓ Import Outfit";
         body.appendChild(impToggleBtn);
 
         const impPanel = document.createElement("div");
@@ -2577,14 +2578,50 @@ export class EBCDrawer {
 
         const impHint = document.createElement("div");
         impHint.className = "ebc-import-hint";
-        impHint.textContent = "Paste exported outfit JSON here:";
+        impHint.textContent = "Paste EBC outfit JSON or a BC outfit code:";
         impPanel.appendChild(impHint);
 
         const impTextarea = document.createElement("textarea");
         impTextarea.className = "ebc-notes-textarea";
-        impTextarea.placeholder = '{"ebc":1,"type":"outfit","outfit":{...}}';
+        impTextarea.placeholder = 'EBC JSON: {"ebc":1,...}  –OR–  BC code: NobwRAcgh...';
         impTextarea.rows = 3;
         impPanel.appendChild(impTextarea);
+
+        // Extra fields shown only when a BC code is detected (auto-shown on paste)
+        const bcFields = document.createElement("div");
+        bcFields.style.cssText = "display:none;flex-direction:column;gap:4px;margin-top:4px;";
+        const bcNameInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "Outfit name (e.g. Rope Set)",
+        });
+        const bcCmdInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "Command (e.g. ropeset)",
+            maxLength: 20,
+        });
+        const mkRow = (label: string, el: HTMLElement): HTMLElement => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;";
+            const lbl = Object.assign(document.createElement("span"), {
+                className: "ebc-form-label",
+                textContent: label,
+            });
+            lbl.style.minWidth = "58px";
+            row.appendChild(lbl);
+            row.appendChild(el);
+            return row;
+        };
+        bcFields.appendChild(mkRow("Name", bcNameInput));
+        bcFields.appendChild(mkRow("Command", bcCmdInput));
+        impPanel.appendChild(bcFields);
+
+        // Detect BC vs EBC format on paste/input
+        let isBCCode = false;
+        const detectFormat = (): void => {
+            const v = impTextarea.value.trim();
+            isBCCode = v.length > 0 && !v.startsWith("{");
+            bcFields.style.display = isBCCode ? "flex" : "none";
+        };
+        impTextarea.addEventListener("input", detectFormat);
+        impTextarea.addEventListener("paste", () => window.setTimeout(detectFormat, 0));
 
         const impError = document.createElement("div");
         impError.className = "ebc-import-error";
@@ -2603,24 +2640,36 @@ export class EBCDrawer {
         impActionRow.appendChild(impCancelBtn);
         impPanel.appendChild(impActionRow);
 
+        const closeImpPanel = (): void => {
+            impPanel.classList.remove("open");
+            impToggleBtn.textContent = "↓ Import Outfit";
+            impTextarea.value = ""; impError.textContent = "";
+            bcNameInput.value = ""; bcCmdInput.value = "";
+            bcFields.style.display = "none"; isBCCode = false;
+        };
+
         impToggleBtn.addEventListener("click", () => {
             const open = impPanel.classList.contains("open");
             impPanel.classList.toggle("open", !open);
-            impToggleBtn.textContent = open ? "↓ Import Outfit from JSON" : "- Cancel Import";
+            impToggleBtn.textContent = open ? "↓ Import Outfit" : "- Cancel Import";
             if (!open) { impTextarea.value = ""; impError.textContent = ""; impTextarea.focus(); }
         });
 
-        impCancelBtn.addEventListener("click", () => {
-            impPanel.classList.remove("open");
-            impToggleBtn.textContent = "↓ Import Outfit from JSON";
-            impTextarea.value = "";
-            impError.textContent = "";
-        });
+        impCancelBtn.addEventListener("click", closeImpPanel);
 
         impLoadBtn.addEventListener("click", () => {
             impError.textContent = "";
             try {
-                importOutfitFromJSON(impTextarea.value.trim());
+                if (isBCCode) {
+                    importOutfitFromBCCode(
+                        impTextarea.value.trim(),
+                        bcNameInput.value.trim() || "Imported Restraints",
+                        bcCmdInput.value.trim() || "imported",
+                    );
+                } else {
+                    importOutfitFromJSON(impTextarea.value.trim());
+                }
+                closeImpPanel();
                 this.renderOutfits();
             } catch (err) {
                 impError.textContent = err instanceof Error ? err.message : "Invalid format.";

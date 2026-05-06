@@ -426,3 +426,57 @@ export function importOutfitFromJSON(json: string): ConfiguredOutfit {
     localNotice(`Imported "${outfit.displayName}" (/${outfit.command}).`);
     return outfit;
 }
+
+// Import an outfit from BC's native LZString-compressed appearance bundle.
+// Extracts only restraint-group items so it can be saved as a restraint set.
+export function importOutfitFromBCCode(
+    code: string,
+    displayName: string,
+    command: string,
+): ConfiguredOutfit {
+    const LZ = (window as unknown as Record<string, unknown>).LZString as
+        { decompressFromBase64?: (s: string) => string | null } | undefined;
+    if (!LZ?.decompressFromBase64) throw new Error("LZString not found — make sure you are on the BC page.");
+
+    const json = LZ.decompressFromBase64(code.trim());
+    if (!json) throw new Error("Could not decompress — is this a valid BC outfit code?");
+
+    let raw: unknown;
+    try { raw = JSON.parse(json); } catch { throw new Error("Decoded data is not valid JSON."); }
+    if (!Array.isArray(raw)) throw new Error("Unexpected format — expected an appearance array.");
+
+    // BC bundle items: { Group, Name, Color, Difficulty, Property, Craft, ... }
+    const restraintItems: SerializedItem[] = (raw as Record<string, unknown>[])
+        .filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group as string))
+        .map(i => sanitizeItem({
+            Group:      String(i.Group ?? ""),
+            Name:       String(i.Name ?? ""),
+            Color:      i.Color as SerializedItem["Color"],
+            Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
+            Property:   typeof i.Property === "object" && i.Property !== null
+                ? i.Property as Record<string, unknown>
+                : undefined,
+            Craft:      i.Craft as CraftingItem | undefined,
+        }));
+
+    if (restraintItems.length === 0) throw new Error("No restraint items found in this BC outfit code.");
+
+    const existing = getOutfits();
+    const baseCmd  = command.toLowerCase().trim().replace(/\s+/g, "") || "restraints";
+    let finalCmd   = baseCmd;
+    let sfx        = 2;
+    while (existing.some(o => o.command === finalCmd)) finalCmd = baseCmd + sfx++;
+
+    const outfit = sanitizeOutfit({
+        id:               uid(),
+        command:          finalCmd,
+        displayName:      displayName.trim() || "Imported Restraints",
+        announceText:     "",
+        includeRestraints: true,
+        preserveRestraints: false,
+        items:            restraintItems,
+    });
+    saveOutfits([...existing, outfit]);
+    localNotice(`Imported "${outfit.displayName}" (/${outfit.command}) — ${restraintItems.length} restraint item(s).`);
+    return outfit;
+}

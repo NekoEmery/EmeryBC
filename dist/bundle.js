@@ -658,6 +658,61 @@
         localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
     }
+    // Import an outfit from BC's native LZString-compressed appearance bundle.
+    // Extracts only restraint-group items so it can be saved as a restraint set.
+    function importOutfitFromBCCode(code, displayName, command) {
+        const LZ = window.LZString;
+        if (!(LZ === null || LZ === void 0 ? void 0 : LZ.decompressFromBase64))
+            throw new Error("LZString not found — make sure you are on the BC page.");
+        const json = LZ.decompressFromBase64(code.trim());
+        if (!json)
+            throw new Error("Could not decompress — is this a valid BC outfit code?");
+        let raw;
+        try {
+            raw = JSON.parse(json);
+        }
+        catch (_a) {
+            throw new Error("Decoded data is not valid JSON.");
+        }
+        if (!Array.isArray(raw))
+            throw new Error("Unexpected format — expected an appearance array.");
+        // BC bundle items: { Group, Name, Color, Difficulty, Property, Craft, ... }
+        const restraintItems = raw
+            .filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group))
+            .map(i => {
+            var _a, _b;
+            return sanitizeItem({
+                Group: String((_a = i.Group) !== null && _a !== void 0 ? _a : ""),
+                Name: String((_b = i.Name) !== null && _b !== void 0 ? _b : ""),
+                Color: i.Color,
+                Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
+                Property: typeof i.Property === "object" && i.Property !== null
+                    ? i.Property
+                    : undefined,
+                Craft: i.Craft,
+            });
+        });
+        if (restraintItems.length === 0)
+            throw new Error("No restraint items found in this BC outfit code.");
+        const existing = getOutfits();
+        const baseCmd = command.toLowerCase().trim().replace(/\s+/g, "") || "restraints";
+        let finalCmd = baseCmd;
+        let sfx = 2;
+        while (existing.some(o => o.command === finalCmd))
+            finalCmd = baseCmd + sfx++;
+        const outfit = sanitizeOutfit({
+            id: uid$2(),
+            command: finalCmd,
+            displayName: displayName.trim() || "Imported Restraints",
+            announceText: "",
+            includeRestraints: true,
+            preserveRestraints: false,
+            items: restraintItems,
+        });
+        saveOutfits([...existing, outfit]);
+        localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}) — ${restraintItems.length} restraint item(s).`);
+        return outfit;
+    }
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
@@ -3544,20 +3599,54 @@
             body.appendChild(impDiv);
             const impToggleBtn = document.createElement("button");
             impToggleBtn.className = "ebc-new-outfit-btn";
-            impToggleBtn.textContent = "↓ Import Outfit from JSON";
+            impToggleBtn.textContent = "↓ Import Outfit";
             body.appendChild(impToggleBtn);
             const impPanel = document.createElement("div");
             impPanel.className = "ebc-import-panel";
             body.appendChild(impPanel);
             const impHint = document.createElement("div");
             impHint.className = "ebc-import-hint";
-            impHint.textContent = "Paste exported outfit JSON here:";
+            impHint.textContent = "Paste EBC outfit JSON or a BC outfit code:";
             impPanel.appendChild(impHint);
             const impTextarea = document.createElement("textarea");
             impTextarea.className = "ebc-notes-textarea";
-            impTextarea.placeholder = '{"ebc":1,"type":"outfit","outfit":{...}}';
+            impTextarea.placeholder = 'EBC JSON: {"ebc":1,...}  –OR–  BC code: NobwRAcgh...';
             impTextarea.rows = 3;
             impPanel.appendChild(impTextarea);
+            // Extra fields shown only when a BC code is detected (auto-shown on paste)
+            const bcFields = document.createElement("div");
+            bcFields.style.cssText = "display:none;flex-direction:column;gap:4px;margin-top:4px;";
+            const bcNameInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "Outfit name (e.g. Rope Set)",
+            });
+            const bcCmdInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "Command (e.g. ropeset)",
+                maxLength: 20,
+            });
+            const mkRow = (label, el) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;";
+                const lbl = Object.assign(document.createElement("span"), {
+                    className: "ebc-form-label",
+                    textContent: label,
+                });
+                lbl.style.minWidth = "58px";
+                row.appendChild(lbl);
+                row.appendChild(el);
+                return row;
+            };
+            bcFields.appendChild(mkRow("Name", bcNameInput));
+            bcFields.appendChild(mkRow("Command", bcCmdInput));
+            impPanel.appendChild(bcFields);
+            // Detect BC vs EBC format on paste/input
+            let isBCCode = false;
+            const detectFormat = () => {
+                const v = impTextarea.value.trim();
+                isBCCode = v.length > 0 && !v.startsWith("{");
+                bcFields.style.display = isBCCode ? "flex" : "none";
+            };
+            impTextarea.addEventListener("input", detectFormat);
+            impTextarea.addEventListener("paste", () => window.setTimeout(detectFormat, 0));
             const impError = document.createElement("div");
             impError.className = "ebc-import-error";
             impPanel.appendChild(impError);
@@ -3573,26 +3662,37 @@
             impActionRow.appendChild(impLoadBtn);
             impActionRow.appendChild(impCancelBtn);
             impPanel.appendChild(impActionRow);
+            const closeImpPanel = () => {
+                impPanel.classList.remove("open");
+                impToggleBtn.textContent = "↓ Import Outfit";
+                impTextarea.value = "";
+                impError.textContent = "";
+                bcNameInput.value = "";
+                bcCmdInput.value = "";
+                bcFields.style.display = "none";
+                isBCCode = false;
+            };
             impToggleBtn.addEventListener("click", () => {
                 const open = impPanel.classList.contains("open");
                 impPanel.classList.toggle("open", !open);
-                impToggleBtn.textContent = open ? "↓ Import Outfit from JSON" : "- Cancel Import";
+                impToggleBtn.textContent = open ? "↓ Import Outfit" : "- Cancel Import";
                 if (!open) {
                     impTextarea.value = "";
                     impError.textContent = "";
                     impTextarea.focus();
                 }
             });
-            impCancelBtn.addEventListener("click", () => {
-                impPanel.classList.remove("open");
-                impToggleBtn.textContent = "↓ Import Outfit from JSON";
-                impTextarea.value = "";
-                impError.textContent = "";
-            });
+            impCancelBtn.addEventListener("click", closeImpPanel);
             impLoadBtn.addEventListener("click", () => {
                 impError.textContent = "";
                 try {
-                    importOutfitFromJSON(impTextarea.value.trim());
+                    if (isBCCode) {
+                        importOutfitFromBCCode(impTextarea.value.trim(), bcNameInput.value.trim() || "Imported Restraints", bcCmdInput.value.trim() || "imported");
+                    }
+                    else {
+                        importOutfitFromJSON(impTextarea.value.trim());
+                    }
+                    closeImpPanel();
                     this.renderOutfits();
                 }
                 catch (err) {
@@ -4818,7 +4918,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.90";
+    const MOD_VERSION = "0.1.91";
     let noticeShown = false;
     const CHANGELOG = [
         {
