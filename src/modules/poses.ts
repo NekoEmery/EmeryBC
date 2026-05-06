@@ -49,6 +49,42 @@ export function applyPoses(poses: string[]): void {
     } catch { /* ignore */ }
 }
 
+// Known-pose order lookup — body poses sort before arm poses, unknowns go last.
+const POSE_ORDER: Record<string, number> = (() => {
+    const map: Record<string, number> = {};
+    let i = 0;
+    for (const group of KNOWN_POSES) {
+        for (const p of group.poses) {
+            if (p.key) map[p.key] = i++;
+        }
+    }
+    return map;
+})();
+
+// Apply poses one-by-one in order with a delay between each step so it
+// looks like the character is naturally moving into position.
+// Always sorts body poses before arm poses so the animation flows naturally.
+// e.g. [BackCuffs, Kneel] → applies [Kneel] first, then [Kneel, BackCuffs].
+export function applyPosesSequential(poses: string[], stepDelayMs = 420): void {
+    const steps = poses
+        .filter(Boolean)
+        .slice()
+        .sort((a, b) => {
+            const oa = POSE_ORDER[a] ?? 999;
+            const ob = POSE_ORDER[b] ?? 999;
+            return oa - ob;
+        });
+
+    if (steps.length <= 1) {
+        applyPoses(steps);
+        return;
+    }
+    for (let i = 0; i < steps.length; i++) {
+        const subset = steps.slice(0, i + 1);
+        window.setTimeout(() => applyPoses(subset), i * stepDelayMs);
+    }
+}
+
 export function getCurrentPoses(): string[] {
     try { return [...((Player.ActivePose as string[]) ?? [])]; } catch { return []; }
 }

@@ -23,7 +23,7 @@ import {
     type SerializedItem,
 } from "./outfitManager";
 import { getAllPalettes, captureCurrentPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
-import { KNOWN_POSES, applyPoses, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
+import { KNOWN_POSES, applyPoses, applyPosesSequential, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
 import { getRoomTime, getRestraintTime } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
@@ -2731,8 +2731,17 @@ export class EBCDrawer {
             applyBtn.title = "Apply this combo";
             applyBtn.style.padding = "3px 8px";
             applyBtn.addEventListener("click", () => {
-                applyPoses(combo.poses);
-                window.setTimeout(() => this.renderPoses(), 150);
+                const steps = combo.poses.filter(Boolean);
+                applyBtn.disabled = true;
+                applyBtn.textContent = "▶ …";
+                applyPosesSequential(steps);
+                // Re-render active state after the full sequence completes
+                const totalMs = steps.length > 1 ? (steps.length - 1) * 420 + 200 : 200;
+                window.setTimeout(() => {
+                    applyBtn.disabled = false;
+                    applyBtn.textContent = "▶";
+                    this.renderPoses();
+                }, totalMs);
             });
 
             const editBtn = document.createElement("button");

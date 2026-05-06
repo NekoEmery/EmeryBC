@@ -773,6 +773,41 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // Known-pose order lookup — body poses sort before arm poses, unknowns go last.
+    const POSE_ORDER = (() => {
+        const map = {};
+        let i = 0;
+        for (const group of KNOWN_POSES) {
+            for (const p of group.poses) {
+                if (p.key)
+                    map[p.key] = i++;
+            }
+        }
+        return map;
+    })();
+    // Apply poses one-by-one in order with a delay between each step so it
+    // looks like the character is naturally moving into position.
+    // Always sorts body poses before arm poses so the animation flows naturally.
+    // e.g. [BackCuffs, Kneel] → applies [Kneel] first, then [Kneel, BackCuffs].
+    function applyPosesSequential(poses, stepDelayMs = 420) {
+        const steps = poses
+            .filter(Boolean)
+            .slice()
+            .sort((a, b) => {
+            var _a, _b;
+            const oa = (_a = POSE_ORDER[a]) !== null && _a !== void 0 ? _a : 999;
+            const ob = (_b = POSE_ORDER[b]) !== null && _b !== void 0 ? _b : 999;
+            return oa - ob;
+        });
+        if (steps.length <= 1) {
+            applyPoses(steps);
+            return;
+        }
+        for (let i = 0; i < steps.length; i++) {
+            const subset = steps.slice(0, i + 1);
+            window.setTimeout(() => applyPoses(subset), i * stepDelayMs);
+        }
+    }
     function getCurrentPoses() {
         var _a;
         try {
@@ -3539,8 +3574,17 @@
                 applyBtn.title = "Apply this combo";
                 applyBtn.style.padding = "3px 8px";
                 applyBtn.addEventListener("click", () => {
-                    applyPoses(combo.poses);
-                    window.setTimeout(() => this.renderPoses(), 150);
+                    const steps = combo.poses.filter(Boolean);
+                    applyBtn.disabled = true;
+                    applyBtn.textContent = "▶ …";
+                    applyPosesSequential(steps);
+                    // Re-render active state after the full sequence completes
+                    const totalMs = steps.length > 1 ? (steps.length - 1) * 420 + 200 : 200;
+                    window.setTimeout(() => {
+                        applyBtn.disabled = false;
+                        applyBtn.textContent = "▶";
+                        this.renderPoses();
+                    }, totalMs);
                 });
                 const editBtn = document.createElement("button");
                 editBtn.className = "ebc-edit-btn";
