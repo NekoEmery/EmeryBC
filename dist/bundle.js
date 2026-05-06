@@ -1766,7 +1766,7 @@
                 this.lastRect.right !== rightOffset) {
                 this.rootEl.style.top = `${rect.top}px`;
                 this.rootEl.style.right = `${rightOffset}px`;
-                this.rootEl.style.height = `${rect.height}px`;
+                this.rootEl.style.height = `${rect.height * 1.25}px`;
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
             }
@@ -2515,7 +2515,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.64";
+    const MOD_VERSION = "0.1.65";
     let noticeShown = false;
     const CHANGELOG = [
         {
