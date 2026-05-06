@@ -819,10 +819,10 @@
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
     position: absolute;
-    right: 0;
-    top: 0;
+    right: 44px;               /* leave the 44px tab strip uncovered */
+    top: 64px;                 /* align with the tab's top edge */
     width: 300px;
-    height: 100%;
+    height: calc(100% - 64px); /* fill from tab top to chat log bottom */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
     will-change: transform;
     pointer-events: none;
@@ -2537,7 +2537,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.59";
+    const MOD_VERSION = "0.1.60";
     let noticeShown = false;
     const CHANGELOG = [
         {
