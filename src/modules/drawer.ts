@@ -513,8 +513,26 @@ const CSS = `
 }
 
 .ebc-slot-style.emote { background: #1b1117; color: #cf6f98; border-color: #7a4a5e; }
-.ebc-slot-style.seq   { background: #111b0d; color: #7aba55; border-color: #4a7a2e; }
 .ebc-slot-style:hover  { border-color: #7a4a5e; color: #967281; }
+
+.ebc-slot-seq {
+    flex-shrink: 0;
+    width: 30px;
+    height: 22px;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.04em;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-slot-seq.on  { background: #111b0d; color: #7aba55; border-color: #4a7a2e; }
+.ebc-slot-seq:hover { border-color: #4a7a2e; color: #7aba55; }
 
 /* -- Buttons tab footer -- */
 .ebc-btn-footer {
@@ -1105,60 +1123,56 @@ export class EBCDrawer {
                 delBtn.textContent = "x";
                 delBtn.title = "Remove this slot";
 
+                // SEQ toggle lives in the top row so the ( )/( *) toggle stays two-way
+                const currentStyle: ActionStyle = (btn.style as ActionStyle) ?? "action";
+                const isSeq = currentStyle === "seq";
+
+                const seqBtn = document.createElement("button");
+                seqBtn.className = "ebc-slot-seq" + (isSeq ? " on" : "");
+                seqBtn.textContent = "SEQ";
+                seqBtn.title = isSeq
+                    ? "Animation/sequence mode ON — click to turn off"
+                    : "Turn on animation/sequence mode";
+
                 topLine.appendChild(toggle);
                 topLine.appendChild(labelInp);
                 topLine.appendChild(colorInp);
+                topLine.appendChild(seqBtn);
                 topLine.appendChild(delBtn);
 
-                // Bottom line: style toggle | emote/sequence input
+                // Bottom line: ( )/( *) style toggle | emote input
                 const botLine = document.createElement("div");
                 botLine.className = "ebc-slot-bottom";
 
-                const styleOrder: ActionStyle[] = ["action", "emote", "seq"];
-                const currentStyle: ActionStyle = (btn.style as ActionStyle) ?? "action";
-
-                const styleLabels: Record<ActionStyle, string> = {
-                    action: "( )",
-                    emote:  "* *",
-                    seq:    "▶▶",  // >> for sequence/animation
-                };
-                const styleTitles: Record<ActionStyle, string> = {
-                    action: "Style: ( action ) — click to cycle",
-                    emote:  "Style: * emote * — click to cycle",
-                    seq:    "Style: sequence/animation — click to cycle",
-                };
-                const emotePlaceholders: Record<ActionStyle, string> = {
-                    action: "e.g. nods.",
-                    emote:  "e.g. nods.",
-                    seq:    "e.g. _|HandsUp|_|HandsUp|_",
-                };
-                const emoteTitles: Record<ActionStyle, string> = {
-                    action: "Text sent as ( Name text )",
-                    emote:  "Text sent as * Name text *",
-                    seq:    "Pipe-separated steps: PoseName | _ (clear) | !action text | *emote text",
-                };
+                // The non-seq base style (remembered when toggling seq off)
+                const baseStyle: "action" | "emote" = isSeq ? "action" : (currentStyle as "action" | "emote");
 
                 const styleBtn = document.createElement("button");
-                styleBtn.className = "ebc-slot-style" + (currentStyle !== "action" ? " " + currentStyle : "");
-                styleBtn.textContent = styleLabels[currentStyle];
-                styleBtn.title = styleTitles[currentStyle];
+                styleBtn.className = "ebc-slot-style" + (baseStyle === "emote" ? " emote" : "");
+                styleBtn.textContent = baseStyle === "emote" ? "* *" : "( )";
+                styleBtn.title = baseStyle === "emote"
+                    ? "Style: * emote * — click to switch"
+                    : "Style: ( action ) — click to switch";
+                styleBtn.style.display = isSeq ? "none" : "";
 
                 const emoteInp = document.createElement("input");
                 emoteInp.className = "ebc-slot-emote";
                 emoteInp.type = "text";
                 emoteInp.maxLength = 240;
-                emoteInp.placeholder = emotePlaceholders[currentStyle];
+                emoteInp.placeholder = isSeq ? "e.g. _|HandsUp|_|HandsUp|_" : "e.g. nods.";
                 emoteInp.value = btn.emote;
-                emoteInp.title = emoteTitles[currentStyle];
+                emoteInp.title = isSeq
+                    ? "Pipe-separated steps: PoseName | _ (clear) | !action text | *emote text"
+                    : baseStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
 
                 botLine.appendChild(styleBtn);
                 botLine.appendChild(emoteInp);
 
-                // Hint row shown only when seq mode is active
+                // Hint shown only in seq mode
                 const seqHint = document.createElement("div");
                 seqHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a7a2e;padding:1px 2px 0;line-height:1.4;";
-                seqHint.textContent = "Steps split by | — PoseName, _ (reset), !action text, *emote text";
-                seqHint.style.display = currentStyle === "seq" ? "block" : "none";
+                seqHint.textContent = "Steps by | : PoseName  _=reset  !action  *emote";
+                seqHint.style.display = isSeq ? "block" : "none";
 
                 row.appendChild(topLine);
                 row.appendChild(botLine);
@@ -1187,15 +1201,42 @@ export class EBCDrawer {
                 });
 
                 styleBtn.addEventListener("click", () => {
-                    const cur: ActionStyle = (btns[idx].style as ActionStyle) ?? "action";
-                    const next = styleOrder[(styleOrder.indexOf(cur) + 1) % styleOrder.length];
+                    const cur = btns[idx].style === "emote" ? "emote" : "action";
+                    const next: "action" | "emote" = cur === "action" ? "emote" : "action";
                     btns[idx].style = next;
-                    styleBtn.className = "ebc-slot-style" + (next !== "action" ? " " + next : "");
-                    styleBtn.textContent = styleLabels[next];
-                    styleBtn.title = styleTitles[next];
-                    emoteInp.placeholder = emotePlaceholders[next];
-                    emoteInp.title = emoteTitles[next];
-                    seqHint.style.display = next === "seq" ? "block" : "none";
+                    styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
+                    styleBtn.textContent = next === "emote" ? "* *" : "( )";
+                    styleBtn.title = next === "emote"
+                        ? "Style: * emote * — click to switch"
+                        : "Style: ( action ) — click to switch";
+                    emoteInp.title = next === "emote"
+                        ? "Text sent as * Name text *"
+                        : "Text sent as ( Name text )";
+                });
+
+                seqBtn.addEventListener("click", () => {
+                    const nowSeq = btns[idx].style === "seq";
+                    if (nowSeq) {
+                        // turn off seq, restore base style
+                        btns[idx].style = styleBtn.classList.contains("emote") ? "emote" : "action";
+                        seqBtn.className = "ebc-slot-seq";
+                        seqBtn.title = "Turn on animation/sequence mode";
+                        styleBtn.style.display = "";
+                        emoteInp.placeholder = "e.g. nods.";
+                        emoteInp.title = btns[idx].style === "emote"
+                            ? "Text sent as * Name text *"
+                            : "Text sent as ( Name text )";
+                        seqHint.style.display = "none";
+                    } else {
+                        // turn on seq
+                        btns[idx].style = "seq";
+                        seqBtn.className = "ebc-slot-seq on";
+                        seqBtn.title = "Animation/sequence mode ON — click to turn off";
+                        styleBtn.style.display = "none";
+                        emoteInp.placeholder = "e.g. _|HandsUp|_|HandsUp|_";
+                        emoteInp.title = "Pipe-separated steps: PoseName | _ (clear) | !action text | *emote text";
+                        seqHint.style.display = "block";
+                    }
                 });
 
                 delBtn.addEventListener("click", () => {
