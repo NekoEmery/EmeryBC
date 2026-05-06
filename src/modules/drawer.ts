@@ -289,23 +289,37 @@ const CSS = `
 .ebc-update-btn:active   { transform: scale(0.96); }
 .ebc-update-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.ebc-preserve-btn {
-    flex-shrink: 0;
-    background: transparent;
-    border: 1px solid #4c2537;
-    border-radius: 5px;
-    color: #553142;
-    cursor: pointer;
-    font-family: "Trebuchet MS", serif;
-    font-size: 13px;
-    padding: 2px 5px;
-    line-height: 1;
-    transition: background 0.14s, color 0.12s, border-color 0.12s;
-    white-space: nowrap;
+/* -- Outfit flag chips (preserve bonds / preserve clothes) -- */
+.ebc-outfit-flags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 3px;
 }
 
-.ebc-preserve-btn.on  { border-color: #7a4a5e; color: #cf6f98; }
-.ebc-preserve-btn:hover { background: #3a1928; border-color: #7a4a5e; color: #cf6f98; }
+.ebc-flag-chip {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid #3a1928;
+    background: #1b0d17;
+    color: #553142;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.03em;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+    user-select: none;
+}
+
+.ebc-flag-chip.on {
+    border-color: #7a4a5e;
+    color: #cf6f98;
+    background: #2a1421;
+}
+
+.ebc-flag-chip:hover { border-color: #7a4a5e; color: #cf6f98; background: #2a1421; }
 
 .ebc-outfit-del {
     flex-shrink: 0;
@@ -2250,25 +2264,27 @@ export class EBCDrawer {
         cmdEl.className = "ebc-outfit-cmd";
         cmdEl.textContent = "/" + o.command;
 
-        info.appendChild(nameEl);
-        info.appendChild(cmdEl);
-
         const isPreserving = o.preserveRestraints !== false;
         const isPreservingClothing = !!o.preserveClothing;
 
+        // Labeled toggle chips — live inside the info column so they're readable without hover
+        const flagsRow = document.createElement("div");
+        flagsRow.className = "ebc-outfit-flags";
+
         const preserveBtn = document.createElement("button");
-        preserveBtn.className = "ebc-preserve-btn" + (isPreserving ? " on" : "");
-        preserveBtn.textContent = isPreserving ? "🔒" : "🔓";
-        preserveBtn.title = isPreserving
-            ? "Keeps existing restraints when worn — click to change"
-            : "Removes existing restraints when worn — click to change";
+        preserveBtn.className = "ebc-flag-chip" + (isPreserving ? " on" : "");
+        preserveBtn.textContent = isPreserving ? "⛓ Keep bonds" : "⛓ Swap bonds";
 
         const preserveClothingBtn = document.createElement("button");
-        preserveClothingBtn.className = "ebc-preserve-btn" + (isPreservingClothing ? " on" : "");
-        preserveClothingBtn.textContent = "👗";
-        preserveClothingBtn.title = isPreservingClothing
-            ? "Keeps existing clothing when worn — click to change"
-            : "Replaces clothing when worn — click to change";
+        preserveClothingBtn.className = "ebc-flag-chip" + (isPreservingClothing ? " on" : "");
+        preserveClothingBtn.textContent = isPreservingClothing ? "👗 Keep clothes" : "👗 Swap clothes";
+
+        flagsRow.appendChild(preserveBtn);
+        flagsRow.appendChild(preserveClothingBtn);
+
+        info.appendChild(nameEl);
+        info.appendChild(cmdEl);
+        info.appendChild(flagsRow);
 
         const updateBtn = document.createElement("button");
         updateBtn.className = "ebc-update-btn";
@@ -2296,8 +2312,6 @@ export class EBCDrawer {
         delBtn.title = "Delete this outfit";
 
         row.appendChild(info);
-        row.appendChild(preserveBtn);
-        row.appendChild(preserveClothingBtn);
         row.appendChild(diffBtn);
         row.appendChild(editBtn);
         row.appendChild(updateBtn);
@@ -2405,24 +2419,17 @@ export class EBCDrawer {
         };
 
         preserveBtn.addEventListener("click", () => {
-            const nowPreserving = preserveBtn.classList.contains("on");
-            const next = !nowPreserving;
-            preserveBtn.className = "ebc-preserve-btn" + (next ? " on" : "");
-            preserveBtn.textContent = next ? "🔒" : "🔓";
-            preserveBtn.title = next
-                ? "Keeps existing restraints when worn — click to change"
-                : "Removes existing restraints when worn — click to change";
+            const next = !preserveBtn.classList.contains("on");
+            preserveBtn.className = "ebc-flag-chip" + (next ? " on" : "");
+            preserveBtn.textContent = next ? "⛓ Keep bonds" : "⛓ Swap bonds";
             setOutfitPreserveRestraints(o.id, next);
             ePreserveCheck.checked = next;
         });
 
         preserveClothingBtn.addEventListener("click", () => {
-            const nowPreserving = preserveClothingBtn.classList.contains("on");
-            const next = !nowPreserving;
-            preserveClothingBtn.className = "ebc-preserve-btn" + (next ? " on" : "");
-            preserveClothingBtn.title = next
-                ? "Keeps existing clothing when worn — click to change"
-                : "Replaces clothing when worn — click to change";
+            const next = !preserveClothingBtn.classList.contains("on");
+            preserveClothingBtn.className = "ebc-flag-chip" + (next ? " on" : "");
+            preserveClothingBtn.textContent = next ? "👗 Keep clothes" : "👗 Swap clothes";
             setOutfitPreserveClothing(o.id, next);
             ePreserveClothingCheck.checked = next;
         });
