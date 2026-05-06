@@ -2455,13 +2455,13 @@
                 {
                     emoji: "🌸",
                     name: "Lara",
-                    reason: "Endless support, inspiration, and being the best person to exist.",
+                    reason: "Keeping my bratty side in check, endless support and inspiration, and simply being the best friend anyone could ask for around here~",
                     heart: "💖",
                 },
                 {
                     emoji: "🌙",
                     name: "Lucy",
-                    reason: "Always there, always wonderful. Thank you for everything.",
+                    reason: "Stayed up nearly 19 hours with me while this came to life, sharing ideas and keeping the energy going the whole way through.",
                     heart: "💜",
                 },
             ];
@@ -2528,7 +2528,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.68";
+    const MOD_VERSION = "0.1.69";
     let noticeShown = false;
     const CHANGELOG = [
         {
