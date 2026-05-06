@@ -1334,6 +1334,34 @@
 .ebc-btn-footer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .ebc-btn-footer-btn.confirm  { background: #3a1017; color: #ff6b6b; border-color: #7a2020; }
 
+/* -- Import panel (buttons tab) -- */
+.ebc-import-panel {
+    display: none;
+    margin-top: 4px;
+    flex-direction: column;
+    gap: 5px;
+    background: rgba(42, 20, 33, 0.6);
+    border: 1px solid #3a1928;
+    border-radius: 7px;
+    padding: 7px;
+}
+
+.ebc-import-panel.open { display: flex; }
+
+.ebc-import-hint {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #967281;
+}
+
+.ebc-import-error {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #ff6b6b;
+    min-height: 14px;
+    word-break: break-word;
+}
+
 /* -- Notes tab -- */
 .ebc-notes-person {
     border-radius: 7px;
@@ -2438,6 +2466,49 @@
             footer.appendChild(saveBtn);
             footer.appendChild(resetBtn);
             body.appendChild(footer);
+            // Export / Import row
+            const ioRow = document.createElement("div");
+            ioRow.className = "ebc-btn-footer";
+            ioRow.style.marginTop = "3px";
+            const exportBtn = document.createElement("button");
+            exportBtn.className = "ebc-btn-footer-btn";
+            exportBtn.textContent = "↑ Export";
+            exportBtn.title = "Copy button config to clipboard to share with others";
+            const importToggleBtn = document.createElement("button");
+            importToggleBtn.className = "ebc-btn-footer-btn";
+            importToggleBtn.textContent = "↓ Import";
+            importToggleBtn.title = "Load a shared button config";
+            ioRow.appendChild(exportBtn);
+            ioRow.appendChild(importToggleBtn);
+            body.appendChild(ioRow);
+            // Import panel (collapsible)
+            const importPanel = document.createElement("div");
+            importPanel.className = "ebc-import-panel";
+            body.appendChild(importPanel);
+            const importHint = document.createElement("div");
+            importHint.className = "ebc-import-hint";
+            importHint.textContent = "Paste exported config here:";
+            importPanel.appendChild(importHint);
+            const importTextarea = document.createElement("textarea");
+            importTextarea.className = "ebc-notes-textarea";
+            importTextarea.placeholder = '{"ebc":1,"slotCount":3,"buttons":[...]}';
+            importTextarea.rows = 3;
+            importPanel.appendChild(importTextarea);
+            const importError = document.createElement("div");
+            importError.className = "ebc-import-error";
+            importPanel.appendChild(importError);
+            const importActionRow = document.createElement("div");
+            importActionRow.style.cssText = "display:flex;gap:5px;";
+            const loadBtn = document.createElement("button");
+            loadBtn.className = "ebc-create-btn";
+            loadBtn.style.marginTop = "0";
+            loadBtn.textContent = "Load";
+            const cancelImportBtn = document.createElement("button");
+            cancelImportBtn.className = "ebc-btn-footer-btn";
+            cancelImportBtn.textContent = "Cancel";
+            importActionRow.appendChild(loadBtn);
+            importActionRow.appendChild(cancelImportBtn);
+            importPanel.appendChild(importActionRow);
             const updateFooterState = () => {
                 addBtn.disabled = slotCount >= ABSOLUTE_MAX;
                 addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
@@ -2492,11 +2563,110 @@
                     resetBtn.classList.remove("confirm");
                     resetBtn.textContent = "Reset";
                     resetBtn.title = "Reset to defaults";
+                    importPanel.classList.remove("open");
+                    importToggleBtn.classList.remove("open");
                     btns = DEFAULT_BUTTONS.map(b => (Object.assign({}, b)));
                     slotCount = DEFAULT_BUTTONS.length;
                     saveButtons([...btns], slotCount);
                     renderSlots();
                     updateFooterState();
+                }
+            });
+            // -- Export ---------------------------------------------------------------
+            exportBtn.addEventListener("click", () => {
+                var _a;
+                const payload = JSON.stringify({
+                    ebc: 1,
+                    slotCount,
+                    buttons: btns.slice(0, slotCount).map(b => {
+                        var _a;
+                        return ({
+                            label: b.label,
+                            emote: b.emote,
+                            color: b.color,
+                            enabled: b.enabled,
+                            style: (_a = b.style) !== null && _a !== void 0 ? _a : "action",
+                        });
+                    }),
+                });
+                const showInPanel = () => {
+                    importTextarea.value = payload;
+                    importError.textContent = "";
+                    importPanel.classList.add("open");
+                    importToggleBtn.classList.add("open");
+                    importTextarea.select();
+                };
+                if ((_a = navigator.clipboard) === null || _a === void 0 ? void 0 : _a.writeText) {
+                    navigator.clipboard.writeText(payload).then(() => {
+                        exportBtn.textContent = "Copied!";
+                        window.setTimeout(() => { exportBtn.textContent = "↑ Export"; }, 1500);
+                    }).catch(showInPanel);
+                }
+                else {
+                    showInPanel();
+                }
+            });
+            // -- Import ---------------------------------------------------------------
+            importToggleBtn.addEventListener("click", () => {
+                const willOpen = !importPanel.classList.contains("open");
+                importPanel.classList.toggle("open", willOpen);
+                importToggleBtn.classList.toggle("open", willOpen);
+                if (willOpen) {
+                    importTextarea.value = "";
+                    importError.textContent = "";
+                    importTextarea.focus();
+                }
+            });
+            cancelImportBtn.addEventListener("click", () => {
+                importPanel.classList.remove("open");
+                importToggleBtn.classList.remove("open");
+                importTextarea.value = "";
+                importError.textContent = "";
+            });
+            loadBtn.addEventListener("click", () => {
+                importError.textContent = "";
+                try {
+                    const raw = importTextarea.value.trim();
+                    if (!raw) {
+                        importError.textContent = "Nothing to import.";
+                        return;
+                    }
+                    const data = JSON.parse(raw);
+                    if (data.ebc !== 1)
+                        throw new Error("Not a valid EBC button export (missing version tag).");
+                    if (!Array.isArray(data.buttons))
+                        throw new Error("Missing buttons array.");
+                    const imported = data.buttons.map((item) => {
+                        const b = item;
+                        const style = (["action", "emote", "seq"].includes(b.style)
+                            ? b.style : "action");
+                        return {
+                            label: typeof b.label === "string" ? b.label.slice(0, 6) : "",
+                            emote: typeof b.emote === "string" ? b.emote.slice(0, 240) : "",
+                            color: typeof b.color === "string" ? normalizeHex(b.color) : "#c2185b",
+                            enabled: !!b.enabled,
+                            style,
+                        };
+                    });
+                    const newCount = typeof data.slotCount === "number"
+                        ? Math.min(Math.max(1, Math.round(data.slotCount)), ABSOLUTE_MAX)
+                        : Math.min(imported.length, ABSOLUTE_MAX);
+                    btns = imported;
+                    slotCount = newCount;
+                    while (btns.length < slotCount) {
+                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                    }
+                    saveButtons([...btns], slotCount);
+                    importPanel.classList.remove("open");
+                    importToggleBtn.classList.remove("open");
+                    importTextarea.value = "";
+                    renderSlots();
+                    updateFooterState();
+                    loadBtn.textContent = "Loaded!";
+                    window.setTimeout(() => { loadBtn.textContent = "Load"; }, 1200);
+                }
+                catch (err) {
+                    importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
                 }
             });
         }
@@ -2748,9 +2918,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.74";
+    const MOD_VERSION = "0.1.75";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.75",
+            changes: [
+                "Added Export / Import to the Buttons tab — export copies a JSON string to clipboard; import accepts a pasted string and loads it instantly.",
+            ],
+        },
         {
             version: "0.1.74",
             changes: [

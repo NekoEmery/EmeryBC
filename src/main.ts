@@ -6,10 +6,16 @@ import { getBadgeEnabled } from "./modules/settings";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.74";
+const MOD_VERSION = "0.1.75";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.75",
+        changes: [
+            "Added Export / Import to the Buttons tab — export copies a JSON string to clipboard; import accepts a pasted string and loads it instantly.",
+        ],
+    },
     {
         version: "0.1.74",
         changes: [
