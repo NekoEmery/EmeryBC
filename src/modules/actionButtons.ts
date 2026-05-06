@@ -81,10 +81,29 @@ export function getDisplayName(): string {
 
 let seqRunning = false;
 
+// Sends the current ActivePose to the room without triggering a full re-render on each step.
+// appearanceBundle should be pre-built once before the sequence starts and reused — sending
+// a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
+// time, which looks like flickering/glitching.
+function sendPoseUpdate(appearanceBundle: ReturnType<typeof ServerAppearanceBundle>): void {
+    const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
+        ? Player.ActivePose
+        : null;
+    try {
+        if (Player.OnlineID != null) {
+            ServerSend("ChatRoomCharacterUpdate", {
+                ID: Player.OnlineID,
+                ActivePose: activePose,
+                Appearance: appearanceBundle,
+            });
+        }
+    } catch (_) {}
+}
+
 function syncPoseToRoom(): void {
+    // Used for one-shot pose syncs (outside of sequences).
     // Capture desired pose BEFORE CharacterRefresh — BC may re-apply item-forced poses
-    // during refresh, overriding whatever we just set (e.g. resetting null back to Yoked).
-    // We send with the value we actually want, then refresh for local visuals.
+    // during refresh and override what we just set.
     const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
         ? Player.ActivePose
         : null;
@@ -110,11 +129,14 @@ export function runSequence(sequence: string, stepMs = 600): void {
     const originalPoses: string[] | null = (Player.ActivePose && Player.ActivePose.length > 0)
         ? [...Player.ActivePose]
         : null;
+    // Build appearance bundle ONCE — reusing it avoids re-render flicker on other clients.
+    const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
     let idx = 0;
 
     const next = (): void => {
         try {
             if (idx >= steps.length) {
+                // Sequence done — restore original pose, do a full sync + local refresh.
                 Player.ActivePose = originalPoses;
                 syncPoseToRoom();
                 seqRunning = false;
@@ -124,16 +146,15 @@ export function runSequence(sequence: string, stepMs = 600): void {
             const step = steps[idx++];
 
             if (step === "_") {
-                // Restore to neutral (null) or original poses — BC needs null not [] for neutral.
                 Player.ActivePose = originalPoses;
-                syncPoseToRoom();
+                sendPoseUpdate(appearanceBundle);
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");
             } else if (step.startsWith("*")) {
                 sendAction(step.slice(1), "emote");
             } else {
                 Player.ActivePose = [step];
-                syncPoseToRoom();
+                sendPoseUpdate(appearanceBundle);
             }
         } catch (_) {
             seqRunning = false;
@@ -182,7 +203,7 @@ function runCheerAnimation(): boolean {
         return false;
     }
     // Yoked (arms out) -> OverTheHead (arms fully above head) -> repeat -> neutral
-    runSequence("Yoked|OverTheHead|Yoked|OverTheHead|Yoked|OverTheHead|_", 400);
+    runSequence("Yoked|OverTheHead|Yoked|OverTheHead|Yoked|OverTheHead|_", 600);
     return true;
 }
 
