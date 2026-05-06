@@ -246,6 +246,8 @@
             displayName: outfit.displayName,
             announceText: outfit.announceText,
             includeRestraints: !!outfit.includeRestraints,
+            // Default true (preserve) for existing outfits that don't have this field yet
+            preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
             items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
         };
     }
@@ -330,10 +332,13 @@
         }
         outfitApplyPending = true;
         const nextAppearance = [];
-        if (!outfit.includeRestraints) {
+        // If preserveRestraints is on, copy the player's current restraints across —
+        // but skip any group that the outfit itself already has an item for (no conflicts).
+        if (outfit.preserveRestraints) {
+            const outfitGroups = new Set(outfit.items.map(i => i.Group));
             for (const currentItem of Player.Appearance) {
                 const group = currentItem.Asset.Group.Name;
-                if (!RESTRAINT_GROUPS.has(group))
+                if (!RESTRAINT_GROUPS.has(group) || outfitGroups.has(group))
                     continue;
                 const cloned = cloneAppearanceItem(currentItem);
                 if (cloned)
@@ -384,7 +389,7 @@
         return true;
     }
     // Called from the drawer to create a brand new outfit from current appearance
-    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints) {
+    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints) {
         const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
         if (!cmd || !displayName.trim())
             return null;
@@ -399,11 +404,21 @@
             displayName: displayName.trim(),
             announceText: announceText.trim(),
             includeRestraints,
+            preserveRestraints,
             items: captureAppearance(includeRestraints),
         };
         saveOutfits([...getOutfits(), outfit]);
         localNotice$1(`Created outfit "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
+    }
+    // Toggle preserveRestraints on a saved outfit
+    function setOutfitPreserveRestraints(id, value) {
+        const outfits = getOutfits();
+        const outfit = outfits.find(o => o.id === id);
+        if (!outfit)
+            return;
+        outfit.preserveRestraints = value;
+        saveOutfits(outfits);
     }
     function handleOutfitCommand(inputValue) {
         const trimmed = inputValue.trim();
@@ -774,6 +789,24 @@
 .ebc-update-btn:hover    { background: #3a1928; color: #cf6f98; border-color: #7a4a5e; }
 .ebc-update-btn:active   { transform: scale(0.96); }
 .ebc-update-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ebc-preserve-btn {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 13px;
+    padding: 2px 5px;
+    line-height: 1;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+}
+
+.ebc-preserve-btn.on  { border-color: #7a4a5e; color: #cf6f98; }
+.ebc-preserve-btn:hover { background: #3a1928; border-color: #7a4a5e; color: #cf6f98; }
 
 /* -- Empty -- */
 .ebc-empty {
@@ -1321,6 +1354,13 @@
             cmdEl.textContent = "/" + o.command;
             info.appendChild(nameEl);
             info.appendChild(cmdEl);
+            const isPreserving = o.preserveRestraints !== false;
+            const preserveBtn = document.createElement("button");
+            preserveBtn.className = "ebc-preserve-btn" + (isPreserving ? " on" : "");
+            preserveBtn.textContent = isPreserving ? "🔒" : "🔓";
+            preserveBtn.title = isPreserving
+                ? "Keeps existing restraints when worn — click to change"
+                : "Removes existing restraints when worn — click to change";
             const updateBtn = document.createElement("button");
             updateBtn.className = "ebc-update-btn";
             updateBtn.textContent = "Update";
@@ -1329,11 +1369,22 @@
             wearBtn.className = "ebc-wear-btn";
             wearBtn.textContent = "Wear";
             row.appendChild(info);
+            row.appendChild(preserveBtn);
             row.appendChild(updateBtn);
             row.appendChild(wearBtn);
             const setAllDisabled = (v) => {
                 body.querySelectorAll(".ebc-wear-btn, .ebc-update-btn").forEach(b => { b.disabled = v; });
             };
+            preserveBtn.addEventListener("click", () => {
+                const nowPreserving = preserveBtn.classList.contains("on");
+                const next = !nowPreserving;
+                preserveBtn.className = "ebc-preserve-btn" + (next ? " on" : "");
+                preserveBtn.textContent = next ? "🔒" : "🔓";
+                preserveBtn.title = next
+                    ? "Keeps existing restraints when worn — click to change"
+                    : "Removes existing restraints when worn — click to change";
+                setOutfitPreserveRestraints(o.id, next);
+            });
             wearBtn.addEventListener("click", () => {
                 const fresh = getOutfits().find(x => x.id === o.id);
                 if (!fresh)
@@ -1396,10 +1447,21 @@
             checkbox.type = "checkbox";
             const checkLbl = document.createElement("span");
             checkLbl.className = "ebc-form-check-label";
-            checkLbl.textContent = "Include restraints";
+            checkLbl.textContent = "Include restraints in outfit";
             checkRow.appendChild(checkbox);
             checkRow.appendChild(checkLbl);
             form.appendChild(checkRow);
+            const preserveRow = document.createElement("label");
+            preserveRow.className = "ebc-form-check-row";
+            const preserveCheckbox = document.createElement("input");
+            preserveCheckbox.type = "checkbox";
+            preserveCheckbox.checked = true; // default: preserve existing restraints
+            const preserveLbl = document.createElement("span");
+            preserveLbl.className = "ebc-form-check-label";
+            preserveLbl.textContent = "Keep existing restraints when worn";
+            preserveRow.appendChild(preserveCheckbox);
+            preserveRow.appendChild(preserveLbl);
+            form.appendChild(preserveRow);
             const createBtn = document.createElement("button");
             createBtn.className = "ebc-create-btn";
             createBtn.textContent = "Save as New Outfit";
@@ -1418,7 +1480,7 @@
                     return;
                 createBtn.disabled = true;
                 createBtn.textContent = "Saving...";
-                const result = createOutfitFromCurrent(cmdInput.value, nameInput.value, announceInput.value, checkbox.checked);
+                const result = createOutfitFromCurrent(cmdInput.value, nameInput.value, announceInput.value, checkbox.checked, preserveCheckbox.checked);
                 if (result) {
                     cmdInput.value = "";
                     nameInput.value = "";
@@ -1645,9 +1707,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.37";
+    const MOD_VERSION = "0.1.38";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.38",
+            changes: [
+                "Per-outfit restraint preservation toggle: lock icon in outfit row controls whether existing restraints are kept or cleared when the outfit is worn.",
+                "New outfits default to preserving restraints (safe default). Toggle persists per outfit.",
+                "Smart conflict resolution: if the outfit itself has an item for a restraint slot, it takes priority over preserved restraints.",
+            ],
+        },
         {
             version: "0.1.37",
             changes: [

@@ -5,10 +5,18 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.37";
+const MOD_VERSION = "0.1.38";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.38",
+        changes: [
+            "Per-outfit restraint preservation toggle: lock icon in outfit row controls whether existing restraints are kept or cleared when the outfit is worn.",
+            "New outfits default to preserving restraints (safe default). Toggle persists per outfit.",
+            "Smart conflict resolution: if the outfit itself has an item for a restraint slot, it takes priority over preserved restraints.",
+        ],
+    },
     {
         version: "0.1.37",
         changes: [

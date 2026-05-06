@@ -14,6 +14,7 @@ import {
     saveCurrentAppearanceToOutfit,
     createOutfitFromCurrent,
     deleteOutfit,
+    setOutfitPreserveRestraints,
     type ConfiguredOutfit,
 } from "./outfitManager";
 import {
@@ -268,6 +269,24 @@ const CSS = `
 .ebc-update-btn:hover    { background: #3a1928; color: #cf6f98; border-color: #7a4a5e; }
 .ebc-update-btn:active   { transform: scale(0.96); }
 .ebc-update-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ebc-preserve-btn {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 13px;
+    padding: 2px 5px;
+    line-height: 1;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+}
+
+.ebc-preserve-btn.on  { border-color: #7a4a5e; color: #cf6f98; }
+.ebc-preserve-btn:hover { background: #3a1928; border-color: #7a4a5e; color: #cf6f98; }
 
 /* -- Empty -- */
 .ebc-empty {
@@ -861,6 +880,15 @@ export class EBCDrawer {
         info.appendChild(nameEl);
         info.appendChild(cmdEl);
 
+        const isPreserving = o.preserveRestraints !== false;
+
+        const preserveBtn = document.createElement("button");
+        preserveBtn.className = "ebc-preserve-btn" + (isPreserving ? " on" : "");
+        preserveBtn.textContent = isPreserving ? "🔒" : "🔓";
+        preserveBtn.title = isPreserving
+            ? "Keeps existing restraints when worn — click to change"
+            : "Removes existing restraints when worn — click to change";
+
         const updateBtn = document.createElement("button");
         updateBtn.className = "ebc-update-btn";
         updateBtn.textContent = "Update";
@@ -871,12 +899,24 @@ export class EBCDrawer {
         wearBtn.textContent = "Wear";
 
         row.appendChild(info);
+        row.appendChild(preserveBtn);
         row.appendChild(updateBtn);
         row.appendChild(wearBtn);
 
         const setAllDisabled = (v: boolean): void => {
             body.querySelectorAll<HTMLButtonElement>(".ebc-wear-btn, .ebc-update-btn").forEach(b => { b.disabled = v; });
         };
+
+        preserveBtn.addEventListener("click", () => {
+            const nowPreserving = preserveBtn.classList.contains("on");
+            const next = !nowPreserving;
+            preserveBtn.className = "ebc-preserve-btn" + (next ? " on" : "");
+            preserveBtn.textContent = next ? "🔒" : "🔓";
+            preserveBtn.title = next
+                ? "Keeps existing restraints when worn — click to change"
+                : "Removes existing restraints when worn — click to change";
+            setOutfitPreserveRestraints(o.id, next);
+        });
 
         wearBtn.addEventListener("click", () => {
             const fresh = getOutfits().find(x => x.id === o.id);
@@ -945,10 +985,22 @@ export class EBCDrawer {
         checkbox.type = "checkbox";
         const checkLbl = document.createElement("span");
         checkLbl.className = "ebc-form-check-label";
-        checkLbl.textContent = "Include restraints";
+        checkLbl.textContent = "Include restraints in outfit";
         checkRow.appendChild(checkbox);
         checkRow.appendChild(checkLbl);
         form.appendChild(checkRow);
+
+        const preserveRow = document.createElement("label");
+        preserveRow.className = "ebc-form-check-row";
+        const preserveCheckbox = document.createElement("input");
+        preserveCheckbox.type = "checkbox";
+        preserveCheckbox.checked = true; // default: preserve existing restraints
+        const preserveLbl = document.createElement("span");
+        preserveLbl.className = "ebc-form-check-label";
+        preserveLbl.textContent = "Keep existing restraints when worn";
+        preserveRow.appendChild(preserveCheckbox);
+        preserveRow.appendChild(preserveLbl);
+        form.appendChild(preserveRow);
 
         const createBtn = document.createElement("button");
         createBtn.className = "ebc-create-btn";
@@ -971,7 +1023,8 @@ export class EBCDrawer {
             createBtn.textContent = "Saving...";
 
             const result = createOutfitFromCurrent(
-                cmdInput.value, nameInput.value, announceInput.value, checkbox.checked,
+                cmdInput.value, nameInput.value, announceInput.value,
+                checkbox.checked, preserveCheckbox.checked,
             );
             if (result) {
                 cmdInput.value = "";
