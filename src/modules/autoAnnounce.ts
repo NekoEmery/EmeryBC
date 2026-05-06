@@ -20,7 +20,7 @@ const DEFAULTS: AutoAnnounceSettings = {
     friendNumbers: [],
 };
 
-// Track last room so we don't fire on every ChatRoomSync (which fires more than just on entry)
+// Track last room so we only fire once per genuine room entry
 let lastRoomName = "";
 
 function getStore(): Record<string, unknown> {
@@ -48,13 +48,28 @@ export function saveAnnounceSettings(s: AutoAnnounceSettings): void {
     ServerPlayerExtensionSettingsSync("EmeryBC");
 }
 
-export function handleRoomEnter(): void {
-    // Detect actual room changes by comparing room name
-    const roomData = (window as unknown as Record<string, unknown>).ChatRoomData;
-    const roomName = (roomData && typeof roomData === "object")
-        ? String((roomData as Record<string, unknown>).Name ?? "")
-        : "";
-    if (!roomName || roomName === lastRoomName) return;
+// syncData is args[0] from the ChatRoomSync hook — the raw server packet which
+// already contains the room name before BC processes it into any global.
+export function handleRoomEnter(syncData?: unknown): void {
+    // Primary: read Name from the sync packet passed directly from the hook
+    const data = syncData as Record<string, unknown> | undefined;
+    let roomName = typeof data?.Name === "string" ? data.Name : "";
+
+    // Fallback: read from the ChatRoomData global (set by BC after next() runs)
+    if (!roomName) {
+        try {
+            const g = (window as unknown as Record<string, unknown>).ChatRoomData;
+            if (g && typeof g === "object") {
+                roomName = String((g as Record<string, unknown>).Name ?? "");
+            }
+        } catch { /* ignore */ }
+    }
+
+    // No room name resolved — bail (might not be a room-entry sync)
+    if (!roomName) return;
+
+    // Same room as last time — don't re-announce (handles reconnects, room refreshes, etc.)
+    if (roomName === lastRoomName) return;
     lastRoomName = roomName;
 
     const s = getAnnounceSettings();
@@ -62,15 +77,17 @@ export function handleRoomEnter(): void {
 
     if (s.mode === "friends") {
         if (s.friendNumbers.length === 0) return;
-        const roomChars = (window as unknown as Record<string, unknown>).ChatRoomCharacter;
-        if (!Array.isArray(roomChars)) return;
-        const friendPresent = s.friendNumbers.some(num =>
-            (roomChars as Character[]).some(c => c.MemberNumber === num && c.MemberNumber !== Player.MemberNumber)
-        );
-        if (!friendPresent) return;
+        try {
+            const roomChars = (window as unknown as Record<string, unknown>).ChatRoomCharacter;
+            if (!Array.isArray(roomChars)) return;
+            const friendPresent = s.friendNumbers.some(num =>
+                (roomChars as Character[]).some(c => c.MemberNumber === num && c.MemberNumber !== Player.MemberNumber)
+            );
+            if (!friendPresent) return;
+        } catch { return; }
     }
 
-    // Slight delay so the room finishes loading before we send
+    // Delay so the room fully loads before sending
     window.setTimeout(() => {
         try {
             if (s.style === "emote") {

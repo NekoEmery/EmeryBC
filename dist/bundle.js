@@ -644,7 +644,7 @@
         mode: "always",
         friendNumbers: [],
     };
-    // Track last room so we don't fire on every ChatRoomSync (which fires more than just on entry)
+    // Track last room so we only fire once per genuine room entry
     let lastRoomName = "";
     function getStore() {
         if (!Player.ExtensionSettings.EmeryBC)
@@ -670,14 +670,28 @@
         getStore().autoAnnounce = s;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function handleRoomEnter() {
+    // syncData is args[0] from the ChatRoomSync hook — the raw server packet which
+    // already contains the room name before BC processes it into any global.
+    function handleRoomEnter(syncData) {
         var _a;
-        // Detect actual room changes by comparing room name
-        const roomData = window.ChatRoomData;
-        const roomName = (roomData && typeof roomData === "object")
-            ? String((_a = roomData.Name) !== null && _a !== void 0 ? _a : "")
-            : "";
-        if (!roomName || roomName === lastRoomName)
+        // Primary: read Name from the sync packet passed directly from the hook
+        const data = syncData;
+        let roomName = typeof (data === null || data === void 0 ? void 0 : data.Name) === "string" ? data.Name : "";
+        // Fallback: read from the ChatRoomData global (set by BC after next() runs)
+        if (!roomName) {
+            try {
+                const g = window.ChatRoomData;
+                if (g && typeof g === "object") {
+                    roomName = String((_a = g.Name) !== null && _a !== void 0 ? _a : "");
+                }
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        // No room name resolved — bail (might not be a room-entry sync)
+        if (!roomName)
+            return;
+        // Same room as last time — don't re-announce (handles reconnects, room refreshes, etc.)
+        if (roomName === lastRoomName)
             return;
         lastRoomName = roomName;
         const s = getAnnounceSettings();
@@ -686,14 +700,19 @@
         if (s.mode === "friends") {
             if (s.friendNumbers.length === 0)
                 return;
-            const roomChars = window.ChatRoomCharacter;
-            if (!Array.isArray(roomChars))
+            try {
+                const roomChars = window.ChatRoomCharacter;
+                if (!Array.isArray(roomChars))
+                    return;
+                const friendPresent = s.friendNumbers.some(num => roomChars.some(c => c.MemberNumber === num && c.MemberNumber !== Player.MemberNumber));
+                if (!friendPresent)
+                    return;
+            }
+            catch (_c) {
                 return;
-            const friendPresent = s.friendNumbers.some(num => roomChars.some(c => c.MemberNumber === num && c.MemberNumber !== Player.MemberNumber));
-            if (!friendPresent)
-                return;
+            }
         }
-        // Slight delay so the room finishes loading before we send
+        // Delay so the room fully loads before sending
         window.setTimeout(() => {
             try {
                 if (s.style === "emote") {
@@ -2606,7 +2625,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.51";
+    const MOD_VERSION = "0.1.52";
     let noticeShown = false;
     const CHANGELOG = [
         {
@@ -3139,7 +3158,7 @@
             }
             catch ( /* ignore */_c) { /* ignore */ }
             try {
-                handleRoomEnter();
+                handleRoomEnter(args[0]);
             }
             catch ( /* ignore */_d) { /* ignore */ }
             return result;

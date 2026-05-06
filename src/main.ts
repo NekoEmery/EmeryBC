@@ -6,7 +6,7 @@ import { handleRoomEnter } from "./modules/autoAnnounce";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.51";
+const MOD_VERSION = "0.1.52";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -553,7 +553,7 @@ function init(): void {
         try { syncPresenceMarker();       } catch { /* ignore */ }
         try { showRoomLoadNotice();       } catch { /* ignore */ }
         try { drawer?.updateVisibility(); } catch { /* ignore */ }
-        try { handleRoomEnter();          } catch { /* ignore */ }
+        try { handleRoomEnter(args[0]);    } catch { /* ignore */ }
         return result;
     });
 
