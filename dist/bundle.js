@@ -136,7 +136,33 @@
     // If a button's label matches one of these (case-insensitive), the matching
     // animation plays automatically alongside the normal message. Completely hidden
     // from the user — the emote field is just normal text.
+    function isArmRestrained() {
+        const armGroups = new Set(["ItemArms", "ItemHands"]);
+        return Player.Appearance.some(item => armGroups.has(item.Asset.Group.Name));
+    }
+    function localNotice$2(msg) {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log)
+            return;
+        const div = document.createElement("div");
+        div.style.cssText = [
+            `color:${UI.accent}`,
+            `background:${UI.cardMuted}`,
+            `border-left:3px solid ${UI.accent}`,
+            "font-style:italic",
+            "font-size:12px",
+            "padding:2px 8px",
+            "margin:1px 0",
+        ].join(";");
+        div.textContent = "[EmeryBC] " + msg;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
     function runCheerAnimation() {
+        if (isArmRestrained()) {
+            localNotice$2("Your arms are restrained — can't cheer right now!");
+            return;
+        }
         // Yoked (arms up) <-> neutral, 4 fast cycles at 400ms each = ~3s cheer bounce
         runSequence("Yoked|_|Yoked|_|Yoked|_|Yoked|_", 400);
     }
@@ -1825,15 +1851,22 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.39";
+    const MOD_VERSION = "0.1.40";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.40",
+            changes: [
+                "Cheer animation now checks if arms are restrained (ItemArms/ItemHands) — blocked with a chat log notice if tied up.",
+                "CHEER/CHEERS label-based animation is purely internal; no UI change needed.",
+            ],
+        },
         {
             version: "0.1.39",
             changes: [
                 "Hamburger collapse button is now shorter (28px) so it reads as a control rather than a content button.",
-                "New sequence button style (▶▶): pipe-separated steps animate the character — set BC poses, clear poses, or send action/emote messages.",
-                "Sequence steps: PoseName sets a BC pose, _ resets to neutral, !text sends (Name text), *text sends * Name text *.",
+                "CHEER default button: triggers automatic cheer pose animation (Yoked cycling) when label matches CHEER or CHEERS.",
+                "Animation is label-driven and fully internal — no extra UI or style options exposed.",
             ],
         },
         {

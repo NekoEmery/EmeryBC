@@ -142,7 +142,34 @@ export function runSequence(sequence: string, stepMs = 600): void {
 // animation plays automatically alongside the normal message. Completely hidden
 // from the user — the emote field is just normal text.
 
+function isArmRestrained(): boolean {
+    const armGroups = new Set(["ItemArms", "ItemHands"]);
+    return Player.Appearance.some(item => armGroups.has(item.Asset.Group.Name));
+}
+
+function localNotice(msg: string): void {
+    const log = document.getElementById("TextAreaChatLog");
+    if (!log) return;
+    const div = document.createElement("div");
+    div.style.cssText = [
+        `color:${UI.accent}`,
+        `background:${UI.cardMuted}`,
+        `border-left:3px solid ${UI.accent}`,
+        "font-style:italic",
+        "font-size:12px",
+        "padding:2px 8px",
+        "margin:1px 0",
+    ].join(";");
+    div.textContent = "[EmeryBC] " + msg;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+}
+
 function runCheerAnimation(): void {
+    if (isArmRestrained()) {
+        localNotice("Your arms are restrained — can't cheer right now!");
+        return;
+    }
     // Yoked (arms up) <-> neutral, 4 fast cycles at 400ms each = ~3s cheer bounce
     runSequence("Yoked|_|Yoked|_|Yoked|_|Yoked|_", 400);
 }

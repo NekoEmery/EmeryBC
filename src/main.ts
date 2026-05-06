@@ -5,16 +5,23 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.39";
+const MOD_VERSION = "0.1.40";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "0.1.40",
+        changes: [
+            "Cheer animation now checks if arms are restrained (ItemArms/ItemHands) — blocked with a chat log notice if tied up.",
+            "CHEER/CHEERS label-based animation is purely internal; no UI change needed.",
+        ],
+    },
+    {
         version: "0.1.39",
         changes: [
             "Hamburger collapse button is now shorter (28px) so it reads as a control rather than a content button.",
-            "New sequence button style (▶▶): pipe-separated steps animate the character — set BC poses, clear poses, or send action/emote messages.",
-            "Sequence steps: PoseName sets a BC pose, _ resets to neutral, !text sends (Name text), *text sends * Name text *.",
+            "CHEER default button: triggers automatic cheer pose animation (Yoked cycling) when label matches CHEER or CHEERS.",
+            "Animation is label-driven and fully internal — no extra UI or style options exposed.",
         ],
     },
     {
