@@ -73,23 +73,24 @@
     // Steps run 500 ms apart. Original poses are restored when done.
     let seqRunning = false;
     function syncPoseToRoom() {
-        try {
-            CharacterRefresh(Player, false, false);
-        }
-        catch (_) { }
-        // Broadcast the new ActivePose to the room the same way outfitManager does.
-        // BC requires null (not []) to return to neutral — an empty array is ignored.
+        // Capture desired pose BEFORE CharacterRefresh — BC may re-apply item-forced poses
+        // during refresh, overriding whatever we just set (e.g. resetting null back to Yoked).
+        // We send with the value we actually want, then refresh for local visuals.
+        const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
+            ? Player.ActivePose
+            : null;
         try {
             if (Player.OnlineID != null) {
-                const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
-                    ? Player.ActivePose
-                    : null;
                 ServerSend("ChatRoomCharacterUpdate", {
                     ID: Player.OnlineID,
                     ActivePose: activePose,
                     Appearance: ServerAppearanceBundle(Player.Appearance),
                 });
             }
+        }
+        catch (_) { }
+        try {
+            CharacterRefresh(Player, false, false);
         }
         catch (_) { }
     }
@@ -1921,7 +1922,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.46";
+    const MOD_VERSION = "0.1.47";
     let noticeShown = false;
     const CHANGELOG = [
         {

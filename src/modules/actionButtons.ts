@@ -82,14 +82,14 @@ export function getDisplayName(): string {
 let seqRunning = false;
 
 function syncPoseToRoom(): void {
-    try { CharacterRefresh(Player, false, false); } catch (_) {}
-    // Broadcast the new ActivePose to the room the same way outfitManager does.
-    // BC requires null (not []) to return to neutral — an empty array is ignored.
+    // Capture desired pose BEFORE CharacterRefresh — BC may re-apply item-forced poses
+    // during refresh, overriding whatever we just set (e.g. resetting null back to Yoked).
+    // We send with the value we actually want, then refresh for local visuals.
+    const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
+        ? Player.ActivePose
+        : null;
     try {
         if (Player.OnlineID != null) {
-            const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
-                ? Player.ActivePose
-                : null;
             ServerSend("ChatRoomCharacterUpdate", {
                 ID: Player.OnlineID,
                 ActivePose: activePose,
@@ -97,6 +97,7 @@ function syncPoseToRoom(): void {
             });
         }
     } catch (_) {}
+    try { CharacterRefresh(Player, false, false); } catch (_) {}
 }
 
 export function runSequence(sequence: string, stepMs = 600): void {
