@@ -17,6 +17,7 @@ export interface ConfiguredOutfit {
     announceText: string;
     includeRestraints: boolean;
     preserveRestraints: boolean; // keep existing restraints when applying (default: true)
+    preserveClothing: boolean;   // keep existing clothing (non-restraint) when applying (default: false)
     items: SerializedItem[];
 }
 
@@ -143,6 +144,8 @@ function sanitizeOutfit(outfit: ConfiguredOutfit): ConfiguredOutfit {
         includeRestraints: !!outfit.includeRestraints,
         // Default true (preserve) for existing outfits that don't have this field yet
         preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
+        // Default false — opt-in; restraints-only imports set this to true automatically
+        preserveClothing: typeof outfit.preserveClothing === "boolean" ? outfit.preserveClothing : false,
         items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
     };
 }
@@ -231,11 +234,22 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
     outfitApplyPending = true;
 
     const nextAppearance: Item[] = [];
+    const outfitGroups = new Set(outfit.items.map(i => i.Group));
+
+    // If preserveClothing is on, carry over all current non-restraint items —
+    // but skip any group the outfit itself provides (no conflicts).
+    if (outfit.preserveClothing) {
+        for (const currentItem of Player.Appearance) {
+            const group = currentItem.Asset.Group.Name;
+            if (RESTRAINT_GROUPS.has(group) || outfitGroups.has(group)) continue;
+            const cloned = cloneAppearanceItem(currentItem);
+            if (cloned) nextAppearance.push(cloned);
+        }
+    }
 
     // If preserveRestraints is on, copy the player's current restraints across —
     // but skip any group that the outfit itself already has an item for (no conflicts).
     if (outfit.preserveRestraints) {
-        const outfitGroups = new Set(outfit.items.map(i => i.Group));
         for (const currentItem of Player.Appearance) {
             const group = currentItem.Asset.Group.Name;
             if (!RESTRAINT_GROUPS.has(group) || outfitGroups.has(group)) continue;
@@ -296,6 +310,7 @@ export function createOutfitFromCurrent(
     announceText: string,
     includeRestraints: boolean,
     preserveRestraints: boolean,
+    preserveClothing = false,
 ): ConfiguredOutfit | null {
     const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
     if (!cmd || !displayName.trim()) return null;
@@ -311,6 +326,7 @@ export function createOutfitFromCurrent(
         announceText: announceText.trim(),
         includeRestraints,
         preserveRestraints,
+        preserveClothing,
         items: captureAppearance(includeRestraints),
     };
     saveOutfits([...getOutfits(), outfit]);
@@ -324,6 +340,15 @@ export function setOutfitPreserveRestraints(id: string, value: boolean): void {
     const outfit = outfits.find(o => o.id === id);
     if (!outfit) return;
     outfit.preserveRestraints = value;
+    saveOutfits(outfits);
+}
+
+// Toggle preserveClothing on a saved outfit
+export function setOutfitPreserveClothing(id: string, value: boolean): void {
+    const outfits = getOutfits();
+    const outfit = outfits.find(o => o.id === id);
+    if (!outfit) return;
+    outfit.preserveClothing = value;
     saveOutfits(outfits);
 }
 
@@ -375,6 +400,7 @@ export function editOutfit(
     announceText: string,
     includeRestraints: boolean,
     preserveRestraints: boolean,
+    preserveClothing = false,
 ): boolean {
     const outfits = getOutfits();
     const outfit = outfits.find(o => o.id === id);
@@ -389,11 +415,12 @@ export function editOutfit(
         return false;
     }
 
-    outfit.command        = cmd;
-    outfit.displayName    = displayName.trim();
-    outfit.announceText   = announceText.trim();
+    outfit.command            = cmd;
+    outfit.displayName        = displayName.trim();
+    outfit.announceText       = announceText.trim();
     outfit.includeRestraints  = includeRestraints;
     outfit.preserveRestraints = preserveRestraints;
+    outfit.preserveClothing   = preserveClothing;
 
     saveOutfits(outfits);
     localNotice(`Updated "${outfit.displayName}" (/${outfit.command}).`);
@@ -486,7 +513,8 @@ export function importOutfitFromBCCode(
         displayName:       displayName.trim() || "Imported Outfit",
         announceText:      "",
         includeRestraints: includesRestraints,
-        preserveRestraints: mode === "outfit", // if outfit-only, keep existing restraints
+        preserveRestraints: mode === "outfit",      // outfit-only: keep existing restraints
+        preserveClothing:   mode === "restraints",  // restraints-only: keep existing clothing
         items,
     });
     saveOutfits([...existing, outfit]);

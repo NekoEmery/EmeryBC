@@ -401,6 +401,8 @@
             includeRestraints: !!outfit.includeRestraints,
             // Default true (preserve) for existing outfits that don't have this field yet
             preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
+            // Default false — opt-in; restraints-only imports set this to true automatically
+            preserveClothing: typeof outfit.preserveClothing === "boolean" ? outfit.preserveClothing : false,
             items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
         };
     }
@@ -485,10 +487,22 @@
         }
         outfitApplyPending = true;
         const nextAppearance = [];
+        const outfitGroups = new Set(outfit.items.map(i => i.Group));
+        // If preserveClothing is on, carry over all current non-restraint items —
+        // but skip any group the outfit itself provides (no conflicts).
+        if (outfit.preserveClothing) {
+            for (const currentItem of Player.Appearance) {
+                const group = currentItem.Asset.Group.Name;
+                if (RESTRAINT_GROUPS.has(group) || outfitGroups.has(group))
+                    continue;
+                const cloned = cloneAppearanceItem(currentItem);
+                if (cloned)
+                    nextAppearance.push(cloned);
+            }
+        }
         // If preserveRestraints is on, copy the player's current restraints across —
         // but skip any group that the outfit itself already has an item for (no conflicts).
         if (outfit.preserveRestraints) {
-            const outfitGroups = new Set(outfit.items.map(i => i.Group));
             for (const currentItem of Player.Appearance) {
                 const group = currentItem.Asset.Group.Name;
                 if (!RESTRAINT_GROUPS.has(group) || outfitGroups.has(group))
@@ -542,7 +556,7 @@
         return true;
     }
     // Called from the drawer to create a brand new outfit from current appearance
-    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints) {
+    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false) {
         const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
         if (!cmd || !displayName.trim())
             return null;
@@ -558,6 +572,7 @@
             announceText: announceText.trim(),
             includeRestraints,
             preserveRestraints,
+            preserveClothing,
             items: captureAppearance(includeRestraints),
         };
         saveOutfits([...getOutfits(), outfit]);
@@ -571,6 +586,15 @@
         if (!outfit)
             return;
         outfit.preserveRestraints = value;
+        saveOutfits(outfits);
+    }
+    // Toggle preserveClothing on a saved outfit
+    function setOutfitPreserveClothing(id, value) {
+        const outfits = getOutfits();
+        const outfit = outfits.find(o => o.id === id);
+        if (!outfit)
+            return;
+        outfit.preserveClothing = value;
         saveOutfits(outfits);
     }
     function handleOutfitCommand(inputValue) {
@@ -610,7 +634,7 @@
         const outfits = getOutfits().filter(o => o.id !== id);
         saveOutfits(outfits);
     }
-    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints) {
+    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false) {
         const outfits = getOutfits();
         const outfit = outfits.find(o => o.id === id);
         if (!outfit)
@@ -628,6 +652,7 @@
         outfit.announceText = announceText.trim();
         outfit.includeRestraints = includeRestraints;
         outfit.preserveRestraints = preserveRestraints;
+        outfit.preserveClothing = preserveClothing;
         saveOutfits(outfits);
         localNotice$1(`Updated "${outfit.displayName}" (/${outfit.command}).`);
         return true;
@@ -720,7 +745,8 @@
             displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
             includeRestraints: includesRestraints,
-            preserveRestraints: mode === "outfit", // if outfit-only, keep existing restraints
+            preserveRestraints: mode === "outfit", // outfit-only: keep existing restraints
+            preserveClothing: mode === "restraints", // restraints-only: keep existing clothing
             items,
         });
         saveOutfits([...existing, outfit]);
@@ -3324,12 +3350,19 @@
             info.appendChild(nameEl);
             info.appendChild(cmdEl);
             const isPreserving = o.preserveRestraints !== false;
+            const isPreservingClothing = !!o.preserveClothing;
             const preserveBtn = document.createElement("button");
             preserveBtn.className = "ebc-preserve-btn" + (isPreserving ? " on" : "");
             preserveBtn.textContent = isPreserving ? "🔒" : "🔓";
             preserveBtn.title = isPreserving
                 ? "Keeps existing restraints when worn — click to change"
                 : "Removes existing restraints when worn — click to change";
+            const preserveClothingBtn = document.createElement("button");
+            preserveClothingBtn.className = "ebc-preserve-btn" + (isPreservingClothing ? " on" : "");
+            preserveClothingBtn.textContent = "👗";
+            preserveClothingBtn.title = isPreservingClothing
+                ? "Keeps existing clothing when worn — click to change"
+                : "Replaces clothing when worn — click to change";
             const updateBtn = document.createElement("button");
             updateBtn.className = "ebc-update-btn";
             updateBtn.textContent = "Update";
@@ -3352,6 +3385,7 @@
             delBtn.title = "Delete this outfit";
             row.appendChild(info);
             row.appendChild(preserveBtn);
+            row.appendChild(preserveClothingBtn);
             row.appendChild(diffBtn);
             row.appendChild(editBtn);
             row.appendChild(updateBtn);
@@ -3413,6 +3447,17 @@
             ePreserveRow.appendChild(ePreserveCheck);
             ePreserveRow.appendChild(ePreserveLbl);
             editPanel.appendChild(ePreserveRow);
+            const ePreserveClothingRow = document.createElement("label");
+            ePreserveClothingRow.className = "ebc-form-check-row";
+            const ePreserveClothingCheck = document.createElement("input");
+            ePreserveClothingCheck.type = "checkbox";
+            ePreserveClothingCheck.checked = isPreservingClothing;
+            const ePreserveClothingLbl = document.createElement("span");
+            ePreserveClothingLbl.className = "ebc-form-check-label";
+            ePreserveClothingLbl.textContent = "Keep existing clothing when worn";
+            ePreserveClothingRow.appendChild(ePreserveClothingCheck);
+            ePreserveClothingRow.appendChild(ePreserveClothingLbl);
+            editPanel.appendChild(ePreserveClothingRow);
             const eSaveBtn = document.createElement("button");
             eSaveBtn.className = "ebc-create-btn";
             eSaveBtn.textContent = "Save Changes";
@@ -3442,8 +3487,17 @@
                     ? "Keeps existing restraints when worn — click to change"
                     : "Removes existing restraints when worn — click to change";
                 setOutfitPreserveRestraints(o.id, next);
-                // Keep edit panel in sync if open
                 ePreserveCheck.checked = next;
+            });
+            preserveClothingBtn.addEventListener("click", () => {
+                const nowPreserving = preserveClothingBtn.classList.contains("on");
+                const next = !nowPreserving;
+                preserveClothingBtn.className = "ebc-preserve-btn" + (next ? " on" : "");
+                preserveClothingBtn.title = next
+                    ? "Keeps existing clothing when worn — click to change"
+                    : "Replaces clothing when worn — click to change";
+                setOutfitPreserveClothing(o.id, next);
+                ePreserveClothingCheck.checked = next;
             });
             wearBtn.addEventListener("click", () => {
                 const fresh = getOutfits().find(x => x.id === o.id);
@@ -3481,7 +3535,7 @@
                 eNameInput.style.borderColor = eNameInput.value.trim() ? "" : "#cf6f98";
                 if (!eCmdInput.value.trim() || !eNameInput.value.trim())
                     return;
-                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked);
+                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked);
                 if (ok)
                     this.renderOutfits();
             });
@@ -4991,7 +5045,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.93";
+    const MOD_VERSION = "0.1.94";
     let noticeShown = false;
     const CHANGELOG = [
         {

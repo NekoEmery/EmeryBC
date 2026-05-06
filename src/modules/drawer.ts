@@ -20,6 +20,7 @@ import {
     importOutfitFromBCCode,
     type BCImportMode,
     setOutfitPreserveRestraints,
+    setOutfitPreserveClothing,
     RESTRAINT_GROUPS,
     type ConfiguredOutfit,
     type SerializedItem,
@@ -2245,6 +2246,7 @@ export class EBCDrawer {
         info.appendChild(cmdEl);
 
         const isPreserving = o.preserveRestraints !== false;
+        const isPreservingClothing = !!o.preserveClothing;
 
         const preserveBtn = document.createElement("button");
         preserveBtn.className = "ebc-preserve-btn" + (isPreserving ? " on" : "");
@@ -2252,6 +2254,13 @@ export class EBCDrawer {
         preserveBtn.title = isPreserving
             ? "Keeps existing restraints when worn — click to change"
             : "Removes existing restraints when worn — click to change";
+
+        const preserveClothingBtn = document.createElement("button");
+        preserveClothingBtn.className = "ebc-preserve-btn" + (isPreservingClothing ? " on" : "");
+        preserveClothingBtn.textContent = "👗";
+        preserveClothingBtn.title = isPreservingClothing
+            ? "Keeps existing clothing when worn — click to change"
+            : "Replaces clothing when worn — click to change";
 
         const updateBtn = document.createElement("button");
         updateBtn.className = "ebc-update-btn";
@@ -2280,6 +2289,7 @@ export class EBCDrawer {
 
         row.appendChild(info);
         row.appendChild(preserveBtn);
+        row.appendChild(preserveClothingBtn);
         row.appendChild(diffBtn);
         row.appendChild(editBtn);
         row.appendChild(updateBtn);
@@ -2349,6 +2359,18 @@ export class EBCDrawer {
         ePreserveRow.appendChild(ePreserveLbl);
         editPanel.appendChild(ePreserveRow);
 
+        const ePreserveClothingRow = document.createElement("label");
+        ePreserveClothingRow.className = "ebc-form-check-row";
+        const ePreserveClothingCheck = document.createElement("input");
+        ePreserveClothingCheck.type = "checkbox";
+        ePreserveClothingCheck.checked = isPreservingClothing;
+        const ePreserveClothingLbl = document.createElement("span");
+        ePreserveClothingLbl.className = "ebc-form-check-label";
+        ePreserveClothingLbl.textContent = "Keep existing clothing when worn";
+        ePreserveClothingRow.appendChild(ePreserveClothingCheck);
+        ePreserveClothingRow.appendChild(ePreserveClothingLbl);
+        editPanel.appendChild(ePreserveClothingRow);
+
         const eSaveBtn = document.createElement("button");
         eSaveBtn.className = "ebc-create-btn";
         eSaveBtn.textContent = "Save Changes";
@@ -2383,8 +2405,18 @@ export class EBCDrawer {
                 ? "Keeps existing restraints when worn — click to change"
                 : "Removes existing restraints when worn — click to change";
             setOutfitPreserveRestraints(o.id, next);
-            // Keep edit panel in sync if open
             ePreserveCheck.checked = next;
+        });
+
+        preserveClothingBtn.addEventListener("click", () => {
+            const nowPreserving = preserveClothingBtn.classList.contains("on");
+            const next = !nowPreserving;
+            preserveClothingBtn.className = "ebc-preserve-btn" + (next ? " on" : "");
+            preserveClothingBtn.title = next
+                ? "Keeps existing clothing when worn — click to change"
+                : "Replaces clothing when worn — click to change";
+            setOutfitPreserveClothing(o.id, next);
+            ePreserveClothingCheck.checked = next;
         });
 
         wearBtn.addEventListener("click", () => {
@@ -2429,6 +2461,7 @@ export class EBCDrawer {
                 eAnnounceInput.value,
                 eInclCheck.checked,
                 ePreserveCheck.checked,
+                ePreserveClothingCheck.checked,
             );
             if (ok) this.renderOutfits();
         });
