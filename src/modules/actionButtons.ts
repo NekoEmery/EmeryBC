@@ -30,15 +30,6 @@ const DEFAULT_BUTTONS: ActionButton[] = [
 const ABSOLUTE_MAX  = 12;
 const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
 
-// In-game sidebar
-const BTN_X         = 1;
-const BTN_SIZE      = 45;
-const TOGGLE_SIZE   = 28;
-const TOGGLE_Y      = 270;
-const BTN_START_Y   = TOGGLE_Y + TOGGLE_SIZE + 4;
-
-let panelOpen = false;
-
 // Settings list layout — one row per slot
 const ROW_H    = 56;
 const LIST_Y   = 226;
@@ -88,53 +79,9 @@ function normalizeHex(value: string | undefined, fallback = "#c2185b"): string {
     return fallback;
 }
 
-// ─── In-game ─────────────────────────────────────────────────────────────────
+// ─── Public data access (used by the drawer) ─────────────────────────────────
 
-export function drawActionButtons(): void {
-    if (CurrentScreen !== "ChatRoom") return;
-
-    // Small toggle chip — always visible
-    DrawButton(BTN_X, TOGGLE_Y, TOGGLE_SIZE, TOGGLE_SIZE,
-        panelOpen ? "✕" : "≡",
-        panelOpen ? UI.accentDeep : UI.buttonMuted,
-        "", panelOpen ? "Hide action buttons" : "Show action buttons");
-
-    if (!panelOpen) return;
-
-    const buttons = getButtons();
-    for (let i = 0; i < buttons.length; i++) {
-        const btn = buttons[i];
-        if (!btn?.enabled || !btn.label) continue;
-        DrawButton(BTN_X, BTN_START_Y + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
-            btn.label, btn.color || "#c2185b", "", btn.emote);
-    }
-}
-
-export function handleActionButtonClick(): boolean {
-    if (CurrentScreen !== "ChatRoom") return false;
-
-    // Toggle chip
-    if (MouseX >= BTN_X && MouseX <= BTN_X + TOGGLE_SIZE &&
-        MouseY >= TOGGLE_Y && MouseY <= TOGGLE_Y + TOGGLE_SIZE) {
-        panelOpen = !panelOpen;
-        return true;
-    }
-
-    if (!panelOpen) return false;
-
-    const buttons = getButtons();
-    for (let i = 0; i < buttons.length; i++) {
-        const btn = buttons[i];
-        if (!btn?.enabled || !btn.label) continue;
-        const y = BTN_START_Y + i * BTN_SIZE;
-        if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
-            MouseY >= y    && MouseY <= y + BTN_SIZE) {
-            ServerSend("ChatRoomChat", { Content: btn.emote.trim(), Type: "Emote" });
-            return true;
-        }
-    }
-    return false;
-}
+export { getButtons };
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 

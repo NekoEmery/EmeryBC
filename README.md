@@ -47,3 +47,10 @@ Dress up the way you want → go back to the Outfits tab → click **Save Curren
 Install via Tampermonkey / Violentmonkey:
 
 [loader.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)
+
+---
+
+## Credits
+
+The sliding drawer UI pattern in this addon is inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin**.
+Thank you Sin for building such a clean open-source addon and allowing the concept to be reused! ♥

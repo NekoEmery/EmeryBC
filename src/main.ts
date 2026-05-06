@@ -1,11 +1,11 @@
 import {
-    drawActionButtons,
-    handleActionButtonClick,
+    getButtons,
     settingsLoad as actionSettingsLoad,
     settingsRun as actionSettingsRun,
     settingsClick as actionSettingsClick,
     settingsExit as actionSettingsExit,
 } from "./modules/actionButtons";
+import { EBCDrawer } from "./modules/drawer";
 import {
     handleOutfitCommand,
     outfitSettingsLoad,
@@ -16,7 +16,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.27";
+const MOD_VERSION = "0.1.28";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -39,6 +39,15 @@ const TAB_BTN_W = 132;
 const TAB_BTN_GAP = 14;
 const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.28",
+        changes: [
+            "Replaced canvas sidebar action buttons with a CRABS-inspired DOM drawer.",
+            "A small EmeryBC icon tab sits beside the chat log — click it to expand your action buttons.",
+            "Drawer auto-hides when leaving the chat room and never overlaps the map UI.",
+            "Added credit to Sin / CRABS in the README and drawer footer.",
+        ],
+    },
     {
         version: "0.1.27",
         changes: [
@@ -521,14 +530,8 @@ function init(): void {
         { allowReplace: true }
     );
 
-    modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
-        next(args);
-        try {
-            drawActionButtons();
-        } catch {
-            // Ignore draw failures so the room UI still renders.
-        }
-    });
+    // Create the DOM drawer — action buttons now live here instead of the canvas sidebar
+    const drawer = new EBCDrawer(getButtons);
 
     tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
         const result = next(args);
@@ -544,24 +547,21 @@ function init(): void {
         const result = next(args);
         try {
             syncPresenceMarker();
-        } catch {
-            // Ignore sync failures.
-        }
+        } catch { /* ignore */ }
         try {
             showRoomLoadNotice();
-        } catch {
-            // Ignore notice failures.
-        }
+        } catch { /* ignore */ }
+        try {
+            drawer.updateVisibility();
+        } catch { /* ignore */ }
         return result;
     });
 
-    modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
-        try {
-            if (handleActionButtonClick()) return;
-        } catch {
-            // Ignore click failures.
-        }
-        return next(args);
+    // Keep drawer visibility in sync whenever the BC screen changes
+    tryHookFunction(modAPI, "CommonSetScreen", 3, (args, next) => {
+        const result = next(args);
+        try { drawer.updateVisibility(); } catch { /* ignore */ }
+        return result;
     });
 
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
