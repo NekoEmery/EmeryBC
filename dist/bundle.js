@@ -819,16 +819,17 @@
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
     position: absolute;
-    right: 44px;               /* leave the 44px tab strip uncovered */
-    top: 64px;                 /* align with the tab's top edge */
+    right: 44px;   /* leave the 44px tab strip uncovered — tab is to our right */
+    top: 0;
     width: 300px;
-    height: calc(100% - 64px); /* fill from tab top to chat log bottom */
+    height: 100%;  /* full chat log height — no vertical conflict with tab */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
     will-change: transform;
     pointer-events: none;
 }
 
-#emerybc-panel.ebc-closed { transform: translateX(calc(100% + 40px)); }
+/* +60px extra so the panel clears the 44px tab offset when closed */
+#emerybc-panel.ebc-closed { transform: translateX(calc(100% + 60px)); }
 #emerybc-panel.ebc-open   { transform: translateX(0); pointer-events: auto; }
 
 .ebc-panel {
@@ -2514,7 +2515,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.61";
+    const MOD_VERSION = "0.1.62";
     let noticeShown = false;
     const CHANGELOG = [
         {
