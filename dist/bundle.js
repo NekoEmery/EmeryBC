@@ -2410,7 +2410,7 @@
 #emerybc-panel.ebc-free-mode {
     position: fixed !important;
     right: auto !important;
-    top: auto !important;
+    top: auto;           /* no !important — inline style.top must win during drag */
     height: min(80vh, 650px) !important;
     border-radius: 10px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.7);
@@ -2470,6 +2470,7 @@
             this.timerPoller = null;
             // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
             this.userTabOffset = null;
+            this.tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
             this.resetLocationBtn = null;
@@ -2698,6 +2699,10 @@
                 if (e.button !== 0)
                     return; // left-click only
                 e.preventDefault();
+                // Block CRABS poller from overwriting style.top while dragging.
+                // The poller uses absolute (chat-log-relative) coords; once the tab
+                // switches to position:fixed those coords are in the wrong system.
+                this.tabDragging = true;
                 const startX = e.clientX;
                 const startY = e.clientY;
                 // Starting screen-space position of the tab
@@ -2725,6 +2730,7 @@
                     document.removeEventListener("mousemove", onMove);
                     document.removeEventListener("mouseup", onUp);
                     tab.style.cursor = "";
+                    this.tabDragging = false; // re-enable CRABS poller
                     if (!dragged) {
                         // No significant movement — treat as a plain click
                         this.toggle();
@@ -2736,7 +2742,7 @@
                         y: parseInt(tab.style.top, 10),
                     };
                     this.userTabOffset = pos;
-                    this.lastCrabsBottom = -1; // stop CRABS from overwriting on next poll
+                    this.lastCrabsBottom = -1; // force CRABS re-read next poll
                     this.saveTabOffset(pos);
                 };
                 document.addEventListener("mousemove", onMove);
@@ -2936,6 +2942,8 @@
                 return;
             if (this.userTabOffset !== null)
                 return; // user has pinned a position — don't override
+            if (this.tabDragging)
+                return; // don't interfere with an active drag
             const tabEl = this.rootEl.querySelector("#ebc-tab");
             if (!tabEl)
                 return;
@@ -5045,7 +5053,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.94";
+    const MOD_VERSION = "0.1.95";
     let noticeShown = false;
     const CHANGELOG = [
         {
