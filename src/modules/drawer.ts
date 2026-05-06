@@ -78,7 +78,7 @@ const CSS = `
     display: flex;
     justify-content: center;
     align-items: center;
-    cursor: pointer;
+    cursor: grab;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
     position: absolute;
     left: -44px;
@@ -87,6 +87,7 @@ const CSS = `
 }
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
+#ebc-tab:active { cursor: grabbing; }
 
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
@@ -1206,6 +1207,8 @@ export class EBCDrawer {
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
     private timerEl: HTMLElement | null = null;
     private timerPoller: ReturnType<typeof window.setInterval> | null = null;
+    // User-dragged tab position (Y offset from chat log top, px). null = follow CRABS.
+    private userTabOffset: number | null = null;
 
     constructor(version = "") {
         EBCDrawer._instance = this;
@@ -1397,8 +1400,63 @@ export class EBCDrawer {
         this.rootEl  = root;
         this.panelEl = slideContainer;
 
-        // Events
-        tab.addEventListener("click", () => this.toggle());
+        // Events — tab supports both click (toggle) and drag (reposition).
+        // We distinguish the two by tracking how far the mouse moved.
+        tab.addEventListener("mousedown", (e: MouseEvent) => {
+            if (e.button !== 0) return; // left-click only
+            e.preventDefault();
+
+            const startY     = e.clientY;
+            const chatLog    = document.getElementById("TextAreaChatLog");
+            const chatRect   = chatLog?.getBoundingClientRect();
+            const startOffset = this.userTabOffset
+                ?? (chatRect ? (tab.getBoundingClientRect().top - chatRect.top) : 58);
+
+            let dragged = false;
+
+            const onMove = (ev: MouseEvent): void => {
+                const delta = ev.clientY - startY;
+                if (!dragged && Math.abs(delta) < 5) return; // dead-zone
+                dragged = true;
+                tab.style.cursor = "grabbing";
+
+                const chatR = document.getElementById("TextAreaChatLog")?.getBoundingClientRect();
+                const maxOffset = chatR ? chatR.height - 44 : 500;
+                const newTop = Math.max(4, Math.min(maxOffset, startOffset + delta));
+                tab.style.top = `${newTop}px`;
+            };
+
+            const onUp = (ev: MouseEvent): void => {
+                document.removeEventListener("mousemove", onMove);
+                document.removeEventListener("mouseup", onUp);
+                tab.style.cursor = "";
+
+                if (!dragged) {
+                    // No significant movement — treat as a plain click
+                    this.toggle();
+                    return;
+                }
+
+                // Save new position
+                const newOffset = parseInt(tab.style.top, 10);
+                this.userTabOffset = newOffset;
+                this.lastCrabsBottom = -1; // stop CRABS from overwriting on next poll
+                this.saveTabOffset(newOffset);
+            };
+
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup", onUp);
+        });
+
+        // Right-click on tab resets to auto-position (follow CRABS / default)
+        tab.addEventListener("contextmenu", (e: MouseEvent) => {
+            e.preventDefault();
+            this.userTabOffset = null;
+            this.lastCrabsBottom = -1;
+            this.saveTabOffset(-1); // sentinel: -1 means "reset to auto"
+            this.updateCrabsPosition();
+        });
+
         closeBtn.addEventListener("click", () => this.close());
         refreshBtn.addEventListener("click", () => {
             refreshBtn.classList.add("spinning");
@@ -1470,6 +1528,22 @@ export class EBCDrawer {
             this.positioned = true;
             // Chat log moved — force a fresh CRABS position read next tick
             this.lastCrabsBottom = -1;
+
+            // Re-apply user's saved tab position (if any) after layout changes
+            if (this.userTabOffset !== null) {
+                const tabEl = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
+                if (tabEl) this.applyTabOffset(tabEl, this.userTabOffset);
+            }
+        }
+
+        // Load saved tab offset once on first successful position sync
+        if (this.userTabOffset === null) {
+            const saved = this.loadTabOffset();
+            if (saved !== null) {
+                this.userTabOffset = saved;
+                const tabEl = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
+                if (tabEl) this.applyTabOffset(tabEl, saved);
+            }
         }
 
         // Do an immediate CRABS position read (poller may not have fired yet).
@@ -1478,10 +1552,39 @@ export class EBCDrawer {
         return true;
     }
 
+    // -- Tab position persistence -----------------------------------------------
+
+    private saveTabOffset(offset: number): void {
+        try {
+            if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
+            (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).tabYOffset = offset;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        } catch { /* ignore */ }
+    }
+
+    private loadTabOffset(): number | null {
+        try {
+            const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined;
+            const v = store?.tabYOffset;
+            // -1 is the sentinel for "reset to auto"
+            if (typeof v === "number" && v >= 0) return v;
+            return null;
+        } catch { return null; }
+    }
+
+    // Apply a saved/dragged Y offset to the tab element immediately.
+    private applyTabOffset(tabEl: HTMLElement, offset: number): void {
+        const chatLog = document.getElementById("TextAreaChatLog");
+        const maxOffset = chatLog ? chatLog.getBoundingClientRect().height - 44 : 500;
+        tabEl.style.top = `${Math.max(4, Math.min(maxOffset, offset))}px`;
+    }
+
     // Reads CRABS's #drawer-tab position and updates our tab's top accordingly.
+    // Skipped entirely when the user has pinned a custom position via drag.
     // Safe to call at any frequency — writes the DOM only when the value changes.
     private updateCrabsPosition(): void {
         if (!this.rootEl || !this.positioned) return;
+        if (this.userTabOffset !== null) return; // user has pinned a position — don't override
         const tabEl = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
         if (!tabEl) return;
 
@@ -3572,18 +3675,21 @@ export class EBCDrawer {
             {
                 emoji: "🎀",
                 name: "Sin",
+                memberId: 143776,
                 reason: "Creator of CRABS — the UI inspiration behind this whole drawer. Open design, open heart.",
                 heart: "💗",
             },
             {
                 emoji: "🌸",
                 name: "Lara",
+                memberId: 124264,
                 reason: "Keeping my bratty side in check, endless support and inspiration, and simply being the best friend anyone could ask for around here~",
                 heart: "💖",
             },
             {
                 emoji: "🌙",
                 name: "Lucy",
+                memberId: 230466,
                 reason: "Stayed up nearly 19 hours with me while this came to life, sharing ideas and keeping the energy going the whole way through.",
                 heart: "💜",
             },
@@ -3600,15 +3706,26 @@ export class EBCDrawer {
             const info = document.createElement("div");
             info.className = "ebc-thanks-info";
 
+            const nameRow = document.createElement("div");
+            nameRow.style.cssText = "display:flex;align-items:baseline;gap:5px;";
+
             const namEl = document.createElement("span");
             namEl.className = "ebc-thanks-name";
             namEl.textContent = p.name;
+
+            const idEl = document.createElement("span");
+            idEl.style.cssText = "font-size:9px;color:#7a5a6a;font-family:'Trebuchet MS',serif;flex-shrink:0;";
+            idEl.textContent = `#${p.memberId}`;
+            idEl.title = "BC Member Number — confirms this is the right person";
+
+            nameRow.appendChild(namEl);
+            nameRow.appendChild(idEl);
 
             const reason = document.createElement("span");
             reason.className = "ebc-thanks-reason";
             reason.textContent = p.reason;
 
-            info.appendChild(namEl);
+            info.appendChild(nameRow);
             info.appendChild(reason);
 
             const heart = document.createElement("span");
