@@ -94,7 +94,7 @@ function syncPoseToRoom(): void {
     } catch (_) {}
 }
 
-export function runSequence(sequence: string): void {
+export function runSequence(sequence: string, stepMs = 600): void {
     if (seqRunning) return;
     const steps = sequence.split("|").map(s => s.trim()).filter(Boolean);
     if (!steps.length) return;
@@ -106,7 +106,6 @@ export function runSequence(sequence: string): void {
     const next = (): void => {
         try {
             if (idx >= steps.length) {
-                // Restore original poses and finish
                 Player.ActivePose = originalPoses;
                 syncPoseToRoom();
                 seqRunning = false;
@@ -116,7 +115,7 @@ export function runSequence(sequence: string): void {
             const step = steps[idx++];
 
             if (step === "_") {
-                // Restore to pre-sequence poses so BC snaps back to neutral properly
+                // Restore original so BC snaps cleanly back to neutral
                 Player.ActivePose = [...originalPoses];
                 syncPoseToRoom();
             } else if (step.startsWith("!")) {
@@ -124,7 +123,6 @@ export function runSequence(sequence: string): void {
             } else if (step.startsWith("*")) {
                 sendAction(step.slice(1), "emote");
             } else {
-                // BC pose name — set it as the sole active pose
                 Player.ActivePose = [step];
                 syncPoseToRoom();
             }
@@ -133,7 +131,7 @@ export function runSequence(sequence: string): void {
             return;
         }
 
-        window.setTimeout(next, 600);
+        window.setTimeout(next, stepMs);
     };
 
     next();
@@ -145,9 +143,8 @@ export function runSequence(sequence: string): void {
 // from the user — the emote field is just normal text.
 
 function runCheerAnimation(): void {
-    // Alternate between Yoked (arms partway up) and OverTheHead (arms all the way up)
-    // for a dynamic cheering motion, then restore original pose.
-    runSequence("Yoked|OverTheHead|Yoked|OverTheHead|Yoked|OverTheHead|_");
+    // Yoked (arms up) <-> neutral, 4 fast cycles at 400ms each = ~3s cheer bounce
+    runSequence("Yoked|_|Yoked|_|Yoked|_|Yoked|_", 400);
 }
 
 const LABEL_ANIMATIONS: Map<string, () => void> = new Map([

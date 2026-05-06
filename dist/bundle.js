@@ -89,7 +89,7 @@
         }
         catch (_) { }
     }
-    function runSequence(sequence) {
+    function runSequence(sequence, stepMs = 600) {
         var _a;
         if (seqRunning)
             return;
@@ -102,7 +102,6 @@
         const next = () => {
             try {
                 if (idx >= steps.length) {
-                    // Restore original poses and finish
                     Player.ActivePose = originalPoses;
                     syncPoseToRoom();
                     seqRunning = false;
@@ -110,7 +109,7 @@
                 }
                 const step = steps[idx++];
                 if (step === "_") {
-                    // Restore to pre-sequence poses so BC snaps back to neutral properly
+                    // Restore original so BC snaps cleanly back to neutral
                     Player.ActivePose = [...originalPoses];
                     syncPoseToRoom();
                 }
@@ -121,7 +120,6 @@
                     sendAction(step.slice(1), "emote");
                 }
                 else {
-                    // BC pose name — set it as the sole active pose
                     Player.ActivePose = [step];
                     syncPoseToRoom();
                 }
@@ -130,7 +128,7 @@
                 seqRunning = false;
                 return;
             }
-            window.setTimeout(next, 600);
+            window.setTimeout(next, stepMs);
         };
         next();
     }
@@ -139,9 +137,8 @@
     // animation plays automatically alongside the normal message. Completely hidden
     // from the user — the emote field is just normal text.
     function runCheerAnimation() {
-        // Alternate between Yoked (arms partway up) and OverTheHead (arms all the way up)
-        // for a dynamic cheering motion, then restore original pose.
-        runSequence("Yoked|OverTheHead|Yoked|OverTheHead|Yoked|OverTheHead|_");
+        // Yoked (arms up) <-> neutral, 4 fast cycles at 400ms each = ~3s cheer bounce
+        runSequence("Yoked|_|Yoked|_|Yoked|_|Yoked|_", 400);
     }
     const LABEL_ANIMATIONS = new Map([
         ["CHEER", runCheerAnimation],
