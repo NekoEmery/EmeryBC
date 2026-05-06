@@ -6,7 +6,7 @@ import { getBadgeEnabled } from "./modules/settings";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.63";
+const MOD_VERSION = "0.1.64";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -499,7 +499,11 @@ function drawPresenceMarker(args: unknown[]): void {
     const left = typeof args[1] === "number" ? args[1] : null;
     const top = typeof args[2] === "number" ? args[2] : null;
     const zoom = typeof args[3] === "number" ? args[3] : 1;
-    if (!character || left == null || top == null || !hasEmeryBC(character)) return;
+    if (!character || left == null || top == null) return;
+    // For our own character we always have EBC — skip the shared-settings lookup
+    // which can fail if OnlineSharedSettings hasn't synced yet on first render.
+    const isSelf = character.MemberNumber === Player.MemberNumber;
+    if (!isSelf && !hasEmeryBC(character)) return;
 
     const presence = getSharedPresence(character);
     const width = Math.max(30, 34 * zoom);
