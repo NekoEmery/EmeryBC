@@ -6,7 +6,8 @@
         cardMuted: "#190b13",
         textMuted: "#cbaab7",
         accent: "#cf6f98",
-        gold: "#c9ab72"};
+        gold: "#c9ab72",
+        buttonMuted: "#432232"};
 
     // Action buttons drawn in the chatroom sidebar below BCAR's buttons.
     const DEFAULT_BUTTONS = [
@@ -69,17 +70,17 @@
     const BTN_X = 0;
     const BTN_START_Y = 270;
     const BTN_SIZE = 45;
-    // Collapse toggle chip - small (-) / (+) button above the action buttons
+    // Collapse toggle - same 45x45 square as the action buttons, sits just above them
     const CHIP_X = 0;
-    const CHIP_Y = 255;
+    const CHIP_Y = 222;
     const CHIP_W = 45;
-    const CHIP_H = 13;
+    const CHIP_H = 45;
     let sidebarCollapsed = false;
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
-        // Collapse toggle chip
-        DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H, sidebarCollapsed ? "+" : "-", sidebarCollapsed ? "#3a1928" : UI.cardMuted, "", sidebarCollapsed ? "Show quick buttons" : "Hide quick buttons");
+        // Collapse toggle button - same size as action buttons so it blends in
+        DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H, sidebarCollapsed ? "+" : "=", sidebarCollapsed ? UI.buttonMuted : UI.cardMuted, "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
         if (sidebarCollapsed)
             return;
         const buttons = getButtons();
@@ -93,7 +94,7 @@
     function handleActionButtonClick() {
         if (CurrentScreen !== "ChatRoom")
             return false;
-        // Collapse chip
+        // Collapse toggle
         if (MouseX >= CHIP_X && MouseX <= CHIP_X + CHIP_W &&
             MouseY >= CHIP_Y && MouseY <= CHIP_Y + CHIP_H) {
             sidebarCollapsed = !sidebarCollapsed;
@@ -302,7 +303,7 @@
     }
     function applyOutfit(outfit) {
         if (outfitApplyPending) {
-            localNotice("An outfit swap is already in progress.", "#ffb7c7");
+            localNotice$1("An outfit swap is already in progress.", "#ffb7c7");
             return;
         }
         outfitApplyPending = true;
@@ -344,7 +345,7 @@
                 outfitApplyPending = false;
             }
         }, 80);
-        localNotice(`Loaded "${outfit.displayName}" (/${outfit.command})`);
+        localNotice$1(`Loaded "${outfit.displayName}" (/${outfit.command})`);
     }
     // Called from the drawer to snapshot current appearance into an existing outfit slot
     function saveCurrentAppearanceToOutfit(id) {
@@ -354,7 +355,7 @@
             return false;
         outfit.items = captureAppearance(outfit.includeRestraints);
         saveOutfits(outfits);
-        localNotice(`Saved current look to "${outfit.displayName}".`);
+        localNotice$1(`Saved current look to "${outfit.displayName}".`);
         return true;
     }
     // Called from the drawer to create a brand new outfit from current appearance
@@ -364,7 +365,7 @@
             return null;
         // Block duplicate commands
         if (getOutfits().some(o => o.command === cmd)) {
-            localNotice(`Command "/${cmd}" is already used by another outfit.`, "#ffb7c7");
+            localNotice$1(`Command "/${cmd}" is already used by another outfit.`, "#ffb7c7");
             return null;
         }
         const outfit = {
@@ -376,7 +377,7 @@
             items: captureAppearance(includeRestraints),
         };
         saveOutfits([...getOutfits(), outfit]);
-        localNotice(`Created outfit "${outfit.displayName}" (/${outfit.command}).`);
+        localNotice$1(`Created outfit "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
     }
     function handleOutfitCommand(inputValue) {
@@ -388,13 +389,13 @@
         if (!outfit)
             return false;
         if (!outfit.items.length) {
-            localNotice(`Outfit "/${outfit.command}" has no saved appearance yet. Use the EBC drawer to save it.`, "#ffb7c7");
+            localNotice$1(`Outfit "/${outfit.command}" has no saved appearance yet. Use the EBC drawer to save it.`, "#ffb7c7");
             return true;
         }
         applyOutfit(outfit);
         return true;
     }
-    function localNotice(msg, color = UI.accent) {
+    function localNotice$1(msg, color = UI.accent) {
         const log = document.getElementById("TextAreaChatLog");
         if (!log)
             return;
@@ -411,6 +412,93 @@
         div.textContent = `[EmeryBC] ${msg}`;
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
+    }
+
+    // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
+    // Locks that must never be touched regardless of the operation.
+    function isProtectedLock(item) {
+        var _a, _b;
+        const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
+        if (!lock)
+            return false;
+        return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
+    }
+    function localNotice(msg, color = UI.accent) {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log)
+            return;
+        const div = document.createElement("div");
+        div.style.cssText = [
+            `color:${color}`,
+            `background:${UI.cardMuted}`,
+            `border-left:3px solid ${UI.accent}`,
+            "font-style:italic",
+            "font-size:12px",
+            "padding:2px 8px",
+            "margin:1px 0",
+        ].join(";");
+        div.textContent = "[EmeryBC] " + msg;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
+    // /ebc release - removes restraint items, skips protected locks
+    function releaseRestraints() {
+        const toRemove = Player.Appearance.filter(item => item.Asset.Group.IsRestraint && !isProtectedLock(item));
+        const skipped = Player.Appearance.filter(item => item.Asset.Group.IsRestraint && isProtectedLock(item));
+        if (toRemove.length === 0) {
+            localNotice(skipped.length > 0
+                ? "All restraints are owner/lover/family locked - none removed."
+                : "No restraints found to remove.", UI.textMuted);
+            return;
+        }
+        for (const item of toRemove) {
+            InventoryRemove(Player, item.Asset.Group.Name, false);
+        }
+        if (skipped.length > 0) {
+            localNotice(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
+        }
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+        localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
+    }
+    // /ebc unlock - strips lock data from items, skips protected locks
+    function unlockItems() {
+        var _a;
+        let unlocked = 0;
+        let skipped = 0;
+        for (const item of Player.Appearance) {
+            if (!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy))
+                continue;
+            if (isProtectedLock(item)) {
+                skipped++;
+                continue;
+            }
+            if (item.Property) {
+                delete item.Property["LockedBy"];
+                delete item.Property["LockMemberNumber"];
+                delete item.Property["CombinationNumber"];
+                delete item.Property["Password"];
+                delete item.Property["MemberNumberListKeys"];
+                delete item.Property["RemoveItem"];
+                delete item.Property["ShowTimer"];
+                delete item.Property["EnableRandomInput"];
+            }
+            unlocked++;
+        }
+        if (unlocked === 0) {
+            localNotice(skipped > 0
+                ? "All locks are owner/lover/family protected - none removed."
+                : "No locks found to remove.", UI.textMuted);
+            return;
+        }
+        if (skipped > 0) {
+            localNotice(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
+        }
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+        localNotice(`Removed ${unlocked} lock(s).`, UI.gold);
     }
 
     /**
@@ -441,7 +529,7 @@
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
     will-change: transform;
     pointer-events: none;
-    width: 260px;
+    width: 300px;
 }
 
 #emerybc-drawer.ebc-closed { transform: translateX(calc(100% + 40px)); }
@@ -481,9 +569,10 @@
     border-left: 2px solid #4c2537;
     display: flex;
     flex-direction: column;
-    width: 260px;
+    width: 300px;
     height: 100%;
     overflow: hidden;
+
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
@@ -890,6 +979,38 @@
 .ebc-btn-footer-btn.save:hover { background: #91405f; color: #f7e6ee; }
 .ebc-btn-footer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* -- Quick actions -- */
+.ebc-quick-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 5px;
+    padding: 6px 7px;
+    border-top: 1px solid #2a1421;
+    border-bottom: 1px solid #2a1421;
+    background: rgba(20, 8, 16, 0.7);
+}
+
+.ebc-action-btn {
+    flex: 1;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 6px;
+    color: #7a4a5e;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 5px 4px;
+    text-align: center;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+    line-height: 1.35;
+}
+
+.ebc-action-btn:hover    { background: #3a1928; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-action-btn:active   { transform: scale(0.97); }
+.ebc-action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.ebc-action-btn.danger:hover { background: #3a1017; color: #ff6b6b; border-color: #7a2020; }
+
 /* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
@@ -902,13 +1023,15 @@
 }
 `;
     class EBCDrawer {
-        constructor() {
+        constructor(version = "") {
             this.el = null;
             this.isOpen = false;
             this.currentTab = "outfits";
             this.resizeObserver = null;
             this.positioned = false;
+            this.version = "";
             EBCDrawer._instance = this;
+            this.version = version;
             if (document.body) {
                 this.setup();
             }
@@ -940,7 +1063,7 @@
             header.className = "ebc-header";
             const title = document.createElement("span");
             title.className = "ebc-title";
-            title.textContent = "EmeryBC";
+            title.textContent = "EmeryBC" + (this.version ? " v" + this.version : "");
             const headerBtns = document.createElement("div");
             headerBtns.className = "ebc-header-btns";
             const refreshBtn = document.createElement("button");
@@ -968,6 +1091,19 @@
             buttonsTabBtn.textContent = "BUTTONS";
             tabBar.appendChild(outfitTabBtn);
             tabBar.appendChild(buttonsTabBtn);
+            // Quick actions bar (always visible below tabs)
+            const quickActions = document.createElement("div");
+            quickActions.className = "ebc-quick-actions";
+            const releaseBtn = document.createElement("button");
+            releaseBtn.className = "ebc-action-btn danger";
+            releaseBtn.title = "Remove all restraints (skips owner/lover/family locks)";
+            releaseBtn.textContent = "Release Restraints";
+            const unlockBtn = document.createElement("button");
+            unlockBtn.className = "ebc-action-btn danger";
+            unlockBtn.title = "Remove all locks (skips owner/lover/family locks)";
+            unlockBtn.textContent = "Remove Locks";
+            quickActions.appendChild(releaseBtn);
+            quickActions.appendChild(unlockBtn);
             // Body
             const body = document.createElement("div");
             body.className = "ebc-body";
@@ -978,6 +1114,7 @@
             footer.textContent = "UI inspired by CRABS by Sin";
             panel.appendChild(header);
             panel.appendChild(tabBar);
+            panel.appendChild(quickActions);
             panel.appendChild(body);
             panel.appendChild(footer);
             el.appendChild(panel);
@@ -987,6 +1124,16 @@
             tab.addEventListener("click", () => this.toggle());
             closeBtn.addEventListener("click", () => this.close());
             refreshBtn.addEventListener("click", () => this.renderCurrentTab());
+            releaseBtn.addEventListener("click", () => {
+                releaseBtn.disabled = true;
+                releaseRestraints();
+                window.setTimeout(() => { releaseBtn.disabled = false; }, 1500);
+            });
+            unlockBtn.addEventListener("click", () => {
+                unlockBtn.disabled = true;
+                unlockItems();
+                window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
+            });
             outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
             buttonsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
             document.addEventListener("keydown", (e) => {
@@ -1422,9 +1569,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.34";
+    const MOD_VERSION = "0.1.35";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.35",
+            changes: [
+                "Drawer widened to 300px for more comfortable reading.",
+                "Version number shown in drawer header beside EmeryBC.",
+                "Quick Actions bar added below tabs: Release Restraints and Remove Locks buttons always visible.",
+                "Restraint/lock logic moved to shared module so commands and drawer use identical code.",
+            ],
+        },
         {
             version: "0.1.34",
             changes: [
@@ -1711,76 +1867,6 @@
             }
         }
     }
-    function isProtectedLock(item) {
-        var _a, _b;
-        const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
-        if (!lock)
-            return false;
-        return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
-    }
-    function releaseRestraints() {
-        const toRemove = Player.Appearance.filter(item => item.Asset.Group.IsRestraint && !isProtectedLock(item));
-        const skipped = Player.Appearance.filter(item => item.Asset.Group.IsRestraint && isProtectedLock(item));
-        if (toRemove.length === 0) {
-            if (skipped.length > 0) {
-                appendLocalLogLine(`[EmeryBC] All restraints are owner/lover locked - none removed.`, UI.textMuted);
-            }
-            else {
-                appendLocalLogLine("[EmeryBC] No restraints found to remove.", UI.textMuted);
-            }
-            return;
-        }
-        for (const item of toRemove) {
-            InventoryRemove(Player, item.Asset.Group.Name, false);
-        }
-        if (skipped.length > 0) {
-            appendLocalLogLine(`[EmeryBC] Skipped ${skipped.length} owner/lover locked item(s).`, UI.textMuted);
-        }
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
-        appendLocalLogLine(`[EmeryBC] Released ${toRemove.length} restraint(s).`, UI.gold);
-    }
-    function unlockItems() {
-        var _a;
-        let unlocked = 0;
-        let skipped = 0;
-        for (const item of Player.Appearance) {
-            const lock = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy;
-            if (!lock)
-                continue;
-            if (isProtectedLock(item)) {
-                skipped++;
-                continue;
-            }
-            // Strip all lock-related data from the item
-            if (item.Property) {
-                delete item.Property["LockedBy"];
-                delete item.Property["LockMemberNumber"];
-                delete item.Property["CombinationNumber"];
-                delete item.Property["Password"];
-                delete item.Property["MemberNumberListKeys"];
-                delete item.Property["RemoveItem"];
-                delete item.Property["ShowTimer"];
-                delete item.Property["EnableRandomInput"];
-            }
-            unlocked++;
-        }
-        if (unlocked === 0) {
-            const msg = skipped > 0
-                ? `[EmeryBC] All locks are owner/lover protected - none removed.`
-                : `[EmeryBC] No locks found to remove.`;
-            appendLocalLogLine(msg, UI.textMuted);
-            return;
-        }
-        if (skipped > 0) {
-            appendLocalLogLine(`[EmeryBC] Skipped ${skipped} owner/lover lock(s).`, UI.textMuted);
-        }
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
-        appendLocalLogLine(`[EmeryBC] Removed ${unlocked} lock(s).`, UI.gold);
-    }
     function handleMetaCommand(inputValue) {
         var _a;
         const trimmed = inputValue.trim();
@@ -1920,7 +2006,7 @@
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
-            drawer = new EBCDrawer();
+            drawer = new EBCDrawer(MOD_VERSION);
         }
         catch (err) {
             console.warn("[EmeryBC] Drawer failed to initialise:", err);

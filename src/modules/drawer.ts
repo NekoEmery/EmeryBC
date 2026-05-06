@@ -25,6 +25,7 @@ import {
     ABSOLUTE_MAX,
     type ActionButton,
 } from "./actionButtons";
+import { releaseRestraints, unlockItems } from "./restraints";
 
 // -- Icon ----------------------------------------------------------------------
 
@@ -47,7 +48,7 @@ const CSS = `
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
     will-change: transform;
     pointer-events: none;
-    width: 260px;
+    width: 300px;
 }
 
 #emerybc-drawer.ebc-closed { transform: translateX(calc(100% + 40px)); }
@@ -87,9 +88,10 @@ const CSS = `
     border-left: 2px solid #4c2537;
     display: flex;
     flex-direction: column;
-    width: 260px;
+    width: 300px;
     height: 100%;
     overflow: hidden;
+
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
@@ -496,6 +498,38 @@ const CSS = `
 .ebc-btn-footer-btn.save:hover { background: #91405f; color: #f7e6ee; }
 .ebc-btn-footer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* -- Quick actions -- */
+.ebc-quick-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 5px;
+    padding: 6px 7px;
+    border-top: 1px solid #2a1421;
+    border-bottom: 1px solid #2a1421;
+    background: rgba(20, 8, 16, 0.7);
+}
+
+.ebc-action-btn {
+    flex: 1;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 6px;
+    color: #7a4a5e;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 5px 4px;
+    text-align: center;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+    line-height: 1.35;
+}
+
+.ebc-action-btn:hover    { background: #3a1928; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-action-btn:active   { transform: scale(0.97); }
+.ebc-action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.ebc-action-btn.danger:hover { background: #3a1017; color: #ff6b6b; border-color: #7a2020; }
+
 /* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
@@ -520,9 +554,11 @@ export class EBCDrawer {
     private currentTab: DrawerTab = "outfits";
     private resizeObserver: ResizeObserver | null = null;
     private positioned = false;
+    private version = "";
 
-    constructor() {
+    constructor(version = "") {
         EBCDrawer._instance = this;
+        this.version = version;
         if (document.body) {
             this.setup();
         } else {
@@ -559,7 +595,7 @@ export class EBCDrawer {
 
         const title = document.createElement("span");
         title.className = "ebc-title";
-        title.textContent = "EmeryBC";
+        title.textContent = "EmeryBC" + (this.version ? " v" + this.version : "");
 
         const headerBtns = document.createElement("div");
         headerBtns.className = "ebc-header-btns";
@@ -596,6 +632,23 @@ export class EBCDrawer {
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(buttonsTabBtn);
 
+        // Quick actions bar (always visible below tabs)
+        const quickActions = document.createElement("div");
+        quickActions.className = "ebc-quick-actions";
+
+        const releaseBtn = document.createElement("button");
+        releaseBtn.className = "ebc-action-btn danger";
+        releaseBtn.title = "Remove all restraints (skips owner/lover/family locks)";
+        releaseBtn.textContent = "Release Restraints";
+
+        const unlockBtn = document.createElement("button");
+        unlockBtn.className = "ebc-action-btn danger";
+        unlockBtn.title = "Remove all locks (skips owner/lover/family locks)";
+        unlockBtn.textContent = "Remove Locks";
+
+        quickActions.appendChild(releaseBtn);
+        quickActions.appendChild(unlockBtn);
+
         // Body
         const body = document.createElement("div");
         body.className = "ebc-body";
@@ -608,6 +661,7 @@ export class EBCDrawer {
 
         panel.appendChild(header);
         panel.appendChild(tabBar);
+        panel.appendChild(quickActions);
         panel.appendChild(body);
         panel.appendChild(footer);
         el.appendChild(panel);
@@ -619,6 +673,18 @@ export class EBCDrawer {
         tab.addEventListener("click", () => this.toggle());
         closeBtn.addEventListener("click", () => this.close());
         refreshBtn.addEventListener("click", () => this.renderCurrentTab());
+
+        releaseBtn.addEventListener("click", () => {
+            releaseBtn.disabled = true;
+            releaseRestraints();
+            window.setTimeout(() => { releaseBtn.disabled = false; }, 1500);
+        });
+
+        unlockBtn.addEventListener("click", () => {
+            unlockBtn.disabled = true;
+            unlockItems();
+            window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
+        });
 
         outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
         buttonsTabBtn.addEventListener("click", () => this.switchTab("buttons"));

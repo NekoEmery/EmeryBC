@@ -1,13 +1,23 @@
 ﻿import { drawActionButtons, handleActionButtonClick } from "./modules/actionButtons";
 import { EBCDrawer } from "./modules/drawer";
 import { handleOutfitCommand } from "./modules/outfitManager";
+import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.34";
+const MOD_VERSION = "0.1.35";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.35",
+        changes: [
+            "Drawer widened to 300px for more comfortable reading.",
+            "Version number shown in drawer header beside EmeryBC.",
+            "Quick Actions bar added below tabs: Release Restraints and Remove Locks buttons always visible.",
+            "Restraint/lock logic moved to shared module so commands and drawer use identical code.",
+        ],
+    },
     {
         version: "0.1.34",
         changes: [
@@ -298,83 +308,6 @@ function showChangelog(): void {
     }
 }
 
-function isProtectedLock(item: Item): boolean {
-    const lock = (item.Property?.LockedBy as string | undefined ?? "").toLowerCase();
-    if (!lock) return false;
-    return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
-}
-
-function releaseRestraints(): void {
-    const toRemove = Player.Appearance.filter(
-        item => item.Asset.Group.IsRestraint && !isProtectedLock(item)
-    );
-    const skipped = Player.Appearance.filter(
-        item => item.Asset.Group.IsRestraint && isProtectedLock(item)
-    );
-
-    if (toRemove.length === 0) {
-        if (skipped.length > 0) {
-            appendLocalLogLine(`[EmeryBC] All restraints are owner/lover locked - none removed.`, UI.textMuted);
-        } else {
-            appendLocalLogLine("[EmeryBC] No restraints found to remove.", UI.textMuted);
-        }
-        return;
-    }
-
-    for (const item of toRemove) {
-        InventoryRemove(Player, item.Asset.Group.Name, false);
-    }
-    if (skipped.length > 0) {
-        appendLocalLogLine(`[EmeryBC] Skipped ${skipped.length} owner/lover locked item(s).`, UI.textMuted);
-    }
-
-    CharacterRefresh(Player, false);
-    ChatRoomCharacterUpdate(Player);
-    ServerPlayerAppearanceSync();
-    appendLocalLogLine(`[EmeryBC] Released ${toRemove.length} restraint(s).`, UI.gold);
-}
-
-function unlockItems(): void {
-    let unlocked = 0;
-    let skipped = 0;
-
-    for (const item of Player.Appearance) {
-        const lock = item.Property?.LockedBy as string | undefined;
-        if (!lock) continue;
-        if (isProtectedLock(item)) { skipped++; continue; }
-
-        // Strip all lock-related data from the item
-        if (item.Property) {
-            delete item.Property["LockedBy"];
-            delete item.Property["LockMemberNumber"];
-            delete item.Property["CombinationNumber"];
-            delete item.Property["Password"];
-            delete item.Property["MemberNumberListKeys"];
-            delete item.Property["RemoveItem"];
-            delete item.Property["ShowTimer"];
-            delete item.Property["EnableRandomInput"];
-        }
-        unlocked++;
-    }
-
-    if (unlocked === 0) {
-        const msg = skipped > 0
-            ? `[EmeryBC] All locks are owner/lover protected - none removed.`
-            : `[EmeryBC] No locks found to remove.`;
-        appendLocalLogLine(msg, UI.textMuted);
-        return;
-    }
-
-    if (skipped > 0) {
-        appendLocalLogLine(`[EmeryBC] Skipped ${skipped} owner/lover lock(s).`, UI.textMuted);
-    }
-
-    CharacterRefresh(Player, false);
-    ChatRoomCharacterUpdate(Player);
-    ServerPlayerAppearanceSync();
-    appendLocalLogLine(`[EmeryBC] Removed ${unlocked} lock(s).`, UI.gold);
-}
-
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;
@@ -536,7 +469,7 @@ function init(): void {
     // DOM drawer - outfit switcher panel beside the chat log
     let drawer: EBCDrawer | null = null;
     try {
-        drawer = new EBCDrawer();
+        drawer = new EBCDrawer(MOD_VERSION);
     } catch (err) {
         console.warn("[EmeryBC] Drawer failed to initialise:", err);
     }

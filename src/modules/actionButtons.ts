@@ -74,22 +74,22 @@ const BTN_X       = 0;
 const BTN_START_Y = 270;
 const BTN_SIZE    = 45;
 
-// Collapse toggle chip - small (-) / (+) button above the action buttons
+// Collapse toggle - same 45x45 square as the action buttons, sits just above them
 const CHIP_X = 0;
-const CHIP_Y = 255;
+const CHIP_Y = 222;
 const CHIP_W = 45;
-const CHIP_H = 13;
+const CHIP_H = 45;
 
 let sidebarCollapsed = false;
 
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
 
-    // Collapse toggle chip
+    // Collapse toggle button - same size as action buttons so it blends in
     DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H,
-        sidebarCollapsed ? "+" : "-",
-        sidebarCollapsed ? "#3a1928" : UI.cardMuted,
-        "", sidebarCollapsed ? "Show quick buttons" : "Hide quick buttons");
+        sidebarCollapsed ? "+" : "=",
+        sidebarCollapsed ? UI.buttonMuted : UI.cardMuted,
+        "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
 
     if (sidebarCollapsed) return;
 
@@ -105,7 +105,7 @@ export function drawActionButtons(): void {
 export function handleActionButtonClick(): boolean {
     if (CurrentScreen !== "ChatRoom") return false;
 
-    // Collapse chip
+    // Collapse toggle
     if (MouseX >= CHIP_X && MouseX <= CHIP_X + CHIP_W &&
         MouseY >= CHIP_Y && MouseY <= CHIP_Y + CHIP_H) {
         sidebarCollapsed = !sidebarCollapsed;
