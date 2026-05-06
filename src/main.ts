@@ -6,7 +6,7 @@ import { getBadgeEnabled } from "./modules/settings";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.57";
+const MOD_VERSION = "0.1.58";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -505,6 +505,8 @@ function drawPresenceMarker(args: unknown[]): void {
     const top = typeof args[2] === "number" ? args[2] : null;
     const zoom = typeof args[3] === "number" ? args[3] : 1;
     if (!character || left == null || top == null || !hasEmeryBC(character)) return;
+    // Never draw the badge above your own character — you know you have EBC
+    if (character.MemberNumber === Player.MemberNumber) return;
 
     const presence = getSharedPresence(character);
     const width = Math.max(30, 34 * zoom);

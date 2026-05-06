@@ -77,7 +77,6 @@ const CSS = `
     position: absolute;
     left: -44px;
     top: 64px;
-    z-index: 99;
     transition: background 0.18s;
 }
 

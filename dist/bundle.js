@@ -811,7 +811,6 @@
     position: absolute;
     left: -44px;
     top: 64px;
-    z-index: 99;
     transition: background 0.18s;
 }
 
@@ -2538,7 +2537,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.57";
+    const MOD_VERSION = "0.1.58";
     let noticeShown = false;
     const CHANGELOG = [
         {
@@ -3014,6 +3013,9 @@
         const top = typeof args[2] === "number" ? args[2] : null;
         const zoom = typeof args[3] === "number" ? args[3] : 1;
         if (!character || left == null || top == null || !hasEmeryBC(character))
+            return;
+        // Never draw the badge above your own character — you know you have EBC
+        if (character.MemberNumber === Player.MemberNumber)
             return;
         getSharedPresence(character);
         const width = Math.max(30, 34 * zoom);
