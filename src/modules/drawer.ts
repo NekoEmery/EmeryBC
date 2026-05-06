@@ -76,7 +76,7 @@ const CSS = `
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
     position: absolute;
     left: -44px;
-    top: 64px;
+    top: 88px;
     transition: background 0.18s;
 }
 

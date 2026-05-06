@@ -810,7 +810,7 @@
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
     position: absolute;
     left: -44px;
-    top: 64px;
+    top: 88px;
     transition: background 0.18s;
 }
 
@@ -2515,7 +2515,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.65";
+    const MOD_VERSION = "0.1.66";
     let noticeShown = false;
     const CHANGELOG = [
         {
