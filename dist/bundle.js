@@ -15,7 +15,7 @@
         { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true, style: "action" },
         { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true, style: "action" },
         { label: "BOW", emote: "bows politely.", color: "#c2185b", enabled: true, style: "action" },
-        { label: "CHEER", emote: "OverTheHead|_|OverTheHead|_|OverTheHead|_", color: "#c2185b", enabled: true, style: "seq" },
+        { label: "CHEER", emote: "cheers!", color: "#c2185b", enabled: true, style: "action" },
         { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
     ];
     const ABSOLUTE_MAX = 12;
@@ -134,6 +134,23 @@
         };
         next();
     }
+    // --- Label-based animation triggers ------------------------------------------
+    // If a button's label matches one of these (case-insensitive), the matching
+    // animation plays automatically alongside the normal message. Completely hidden
+    // from the user — the emote field is just normal text.
+    function runCheerAnimation() {
+        // Yoked pose = arms raised/yoked up. Cycle 3 times then restore.
+        runSequence("Yoked|_|Yoked|_|Yoked|_");
+    }
+    const LABEL_ANIMATIONS = new Map([
+        ["CHEER", runCheerAnimation],
+        ["CHEERS", runCheerAnimation],
+    ]);
+    function triggerLabelAnimation(label) {
+        const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
+        if (fn)
+            fn();
+    }
     // --- Send chat message --------------------------------------------------------
     // "action" -> (Name text)   "emote" -> * Name text *   "seq" -> runSequence
     function sendAction(emote, style = "action") {
@@ -207,6 +224,7 @@
             if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
                 MouseY >= y && MouseY <= y + BTN_SIZE) {
                 sendAction(btn.emote, (_a = btn.style) !== null && _a !== void 0 ? _a : "action");
+                triggerLabelAnimation(btn.label);
                 return true;
             }
         }
