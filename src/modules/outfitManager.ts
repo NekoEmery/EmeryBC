@@ -399,3 +399,30 @@ export function editOutfit(
     localNotice(`Updated "${outfit.displayName}" (/${outfit.command}).`);
     return true;
 }
+
+// -- Export / Import -------------------------------------------------------
+
+export function exportOutfitById(id: string): string | null {
+    const outfit = getOutfits().find(o => o.id === id);
+    if (!outfit) return null;
+    return JSON.stringify({ ebc: 1, type: "outfit", outfit: sanitizeOutfit(outfit) });
+}
+
+export function importOutfitFromJSON(json: string): ConfiguredOutfit {
+    const data = JSON.parse(json) as Record<string, unknown>;
+    if (data.ebc !== 1 || data.type !== "outfit") throw new Error("Not a valid EBC outfit export.");
+    const raw = data.outfit as ConfiguredOutfit;
+    if (!raw?.command || !raw?.displayName) throw new Error("Missing required outfit fields.");
+
+    // Deduplicate command — append suffix until unique
+    const existing = getOutfits();
+    const baseCmd = raw.command.toLowerCase().trim().replace(/\s+/g, "");
+    let finalCmd = baseCmd;
+    let suffix = 2;
+    while (existing.some(o => o.command === finalCmd)) finalCmd = baseCmd + suffix++;
+
+    const outfit = sanitizeOutfit({ ...raw, id: uid(), command: finalCmd });
+    saveOutfits([...existing, outfit]);
+    localNotice(`Imported "${outfit.displayName}" (/${outfit.command}).`);
+    return outfit;
+}

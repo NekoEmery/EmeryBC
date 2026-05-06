@@ -3,13 +3,24 @@ import { EBCDrawer } from "./modules/drawer";
 import { handleOutfitCommand } from "./modules/outfitManager";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled } from "./modules/settings";
+import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.75";
+const MOD_VERSION = "0.1.76";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.76",
+        changes: [
+            "Active Restraints panel in Outfits tab: see every equipped restraint, lock type, and who locked it at a glance.",
+            "Outfit Export / Import: copy any outfit to clipboard from its edit panel; import via paste form at the bottom of Outfits.",
+            "Colour Palettes: snapshot your full appearance colour map as a named palette and reapply it any time.",
+            "Poses tab: one-click preset poses (Kneel, All Fours, Arms Up, etc.) and saveable custom pose combos with multiple poses combined.",
+            "Room & Restraint Timer: footer now shows how long you have been in the room and how long you have been restrained.",
+        ],
+    },
     {
         version: "0.1.75",
         changes: [
@@ -617,6 +628,7 @@ function init(): void {
         const result = next(args);
         try { syncPresenceMarker();       } catch { /* ignore */ }
         try { showRoomLoadNotice();       } catch { /* ignore */ }
+        try { timerOnRoomEnter();         } catch { /* ignore */ }
         try { drawer?.updateVisibility(); } catch { /* ignore */ }
         return result;
     });
@@ -624,8 +636,18 @@ function init(): void {
     // Keep drawer visibility in sync whenever the BC screen changes
     tryHookFunction(modAPI, "CommonSetScreen", 3, (args, next) => {
         const result = next(args);
+        try {
+            const screen = typeof CurrentScreen !== "undefined" ? CurrentScreen : "";
+            if (screen !== "ChatRoom") timerOnRoomLeave();
+        } catch { /* ignore */ }
         try { drawer?.updateVisibility(); } catch { /* ignore */ }
         return result;
+    });
+
+    // Keep restraint timer up to date on every draw tick (lightweight check)
+    tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
+        try { timerCheckRestraints(); } catch { /* ignore */ }
+        return next(args);
     });
 
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {

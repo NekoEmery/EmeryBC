@@ -15,11 +15,16 @@ import {
     createOutfitFromCurrent,
     deleteOutfit,
     editOutfit,
+    exportOutfitById,
+    importOutfitFromJSON,
     setOutfitPreserveRestraints,
     RESTRAINT_GROUPS,
     type ConfiguredOutfit,
     type SerializedItem,
 } from "./outfitManager";
+import { getAllPalettes, captureCurrentPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
+import { KNOWN_POSES, applyPoses, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
+import { getRoomTime, getRestraintTime } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
     getButtons,
@@ -882,11 +887,205 @@ const CSS = `
     padding: 6px 4px 10px;
     line-height: 1.6;
 }
+
+/* -- Timer strip -- */
+.ebc-timer {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #553142;
+    text-align: center;
+    padding: 2px 0 0;
+    letter-spacing: 0.04em;
+    min-height: 12px;
+}
+
+/* -- Restraint info -- */
+.ebc-restraint-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 7px;
+    border-radius: 6px;
+    margin-bottom: 3px;
+    background: rgba(42, 20, 33, 0.5);
+    border: 1px solid #3a1928;
+}
+
+.ebc-restraint-name {
+    flex: 1;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    color: #f7e6ee;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ebc-restraint-group {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #553142;
+    white-space: nowrap;
+}
+
+.ebc-restraint-lock {
+    flex-shrink: 0;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #cf6f98;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.ebc-restraint-lock.unlocked { color: #553142; }
+
+/* -- Color palettes -- */
+.ebc-palette-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    margin-bottom: 3px;
+    background: rgba(42, 20, 33, 0.5);
+    border: 1px solid #3a1928;
+}
+
+.ebc-palette-swatch {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.ebc-palette-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.3);
+}
+
+.ebc-palette-name {
+    flex: 1;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    color: #f7e6ee;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: text;
+    padding: 0;
+    min-width: 0;
+}
+
+.ebc-palette-name:focus {
+    border-bottom: 1px solid #cf6f98;
+}
+
+/* -- Poses tab -- */
+.ebc-pose-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.ebc-pose-btn {
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #967281;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 5px 3px;
+    text-align: center;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ebc-pose-btn:hover  { background: #3a1928; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-pose-btn:active { transform: scale(0.96); }
+.ebc-pose-btn.active { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
+
+.ebc-combo-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    margin-bottom: 3px;
+    background: rgba(42, 20, 33, 0.5);
+    border: 1px solid #3a1928;
+    transition: border-color 0.14s;
+}
+
+.ebc-combo-row:hover { border-color: #6b3048; }
+
+.ebc-combo-name {
+    flex: 1;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    font-weight: bold;
+    color: #f7e6ee;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ebc-combo-poses {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #553142;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90px;
+}
+
+/* -- Combo editor (inline, below combo row) -- */
+.ebc-combo-editor {
+    display: none;
+    padding: 6px 7px;
+    background: #1b0d17;
+    border: 1px solid #3a1928;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 3px;
+}
+
+.ebc-combo-editor.open { display: flex; }
+
+.ebc-pose-check-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px 8px;
+}
+
+.ebc-pose-check-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #967281;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ebc-pose-check-label input[type="checkbox"] { accent-color: #cf6f98; flex-shrink: 0; }
 `;
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "buttons" | "notes" | "thanks";
+type DrawerTab = "outfits" | "buttons" | "poses" | "notes" | "thanks";
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -902,6 +1101,8 @@ export class EBCDrawer {
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
+    private timerEl: HTMLElement | null = null;
+    private timerPoller: ReturnType<typeof window.setInterval> | null = null;
 
     constructor(version = "") {
         EBCDrawer._instance = this;
@@ -972,6 +1173,9 @@ export class EBCDrawer {
         const tabBar = document.createElement("div");
         tabBar.className = "ebc-tabs";
 
+        // 5-tab bar — slightly smaller font to keep labels readable
+        tabBar.style.fontSize = "10px";
+
         const outfitTabBtn = document.createElement("button");
         outfitTabBtn.className = "ebc-tab-btn ebc-tab-active";
         outfitTabBtn.id = "ebc-tab-outfits";
@@ -981,6 +1185,11 @@ export class EBCDrawer {
         buttonsTabBtn.className = "ebc-tab-btn";
         buttonsTabBtn.id = "ebc-tab-buttons";
         buttonsTabBtn.textContent = "BUTTONS";
+
+        const posesTabBtn = document.createElement("button");
+        posesTabBtn.className = "ebc-tab-btn";
+        posesTabBtn.id = "ebc-tab-poses";
+        posesTabBtn.textContent = "POSES";
 
         const notesTabBtn = document.createElement("button");
         notesTabBtn.className = "ebc-tab-btn";
@@ -995,6 +1204,7 @@ export class EBCDrawer {
 
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(buttonsTabBtn);
+        tabBar.appendChild(posesTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(thanksTabBtn);
 
@@ -1061,10 +1271,15 @@ export class EBCDrawer {
         body.className = "ebc-body";
         body.id = "ebc-body";
 
-        // Footer
+        // Footer: static credit line + live timer
         const footer = document.createElement("div");
         footer.className = "ebc-footer";
         footer.textContent = "UI inspired by CRABS by Sin";
+
+        const timerEl = document.createElement("div");
+        timerEl.className = "ebc-timer";
+        footer.appendChild(timerEl);
+        this.timerEl = timerEl;
 
         panel.appendChild(header);
         panel.appendChild(tabBar);
@@ -1102,6 +1317,7 @@ export class EBCDrawer {
 
         outfitTabBtn.addEventListener("click",   () => this.switchTab("outfits"));
         buttonsTabBtn.addEventListener("click",  () => this.switchTab("buttons"));
+        posesTabBtn.addEventListener("click",    () => this.switchTab("poses"));
         notesTabBtn.addEventListener("click",    () => this.switchTab("notes"));
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
 
@@ -1206,6 +1422,7 @@ export class EBCDrawer {
             this.resizeObserver?.disconnect();
             this.resizeObserver = null;
             this.stopCrabsPoller();
+            this.stopTimerPoller();
             return;
         }
 
@@ -1231,6 +1448,7 @@ export class EBCDrawer {
 
         // Keep EBC tab locked below CRABS regardless of who repositions first.
         this.startCrabsPoller();
+        this.startTimerPoller();
     }
 
     // -- Tab switching ---------------------------------------------------------
@@ -1241,6 +1459,7 @@ export class EBCDrawer {
         for (const [id, name] of [
             ["ebc-tab-outfits", "outfits"],
             ["ebc-tab-buttons", "buttons"],
+            ["ebc-tab-poses",   "poses"],
             ["ebc-tab-notes",   "notes"],
             ["ebc-tab-thanks",  "thanks"],
         ] as [string, DrawerTab][]) {
@@ -1254,8 +1473,31 @@ export class EBCDrawer {
     private renderCurrentTab(): void {
         if      (this.currentTab === "outfits")  this.renderOutfits();
         else if (this.currentTab === "buttons")  this.renderButtons();
+        else if (this.currentTab === "poses")    this.renderPoses();
         else if (this.currentTab === "notes")    this.renderNotes();
         else if (this.currentTab === "thanks")   this.renderThanks();
+    }
+
+    // -- Timer -----------------------------------------------------------------
+
+    private updateTimer(): void {
+        if (!this.timerEl) return;
+        const room  = getRoomTime();
+        const bound = getRestraintTime();
+        if (!room) { this.timerEl.textContent = ""; return; }
+        this.timerEl.textContent = bound ? `🕒 ${room}  ⛓ ${bound}` : `🕒 ${room}`;
+    }
+
+    private startTimerPoller(): void {
+        if (this.timerPoller !== null) return;
+        this.updateTimer();
+        this.timerPoller = window.setInterval(() => this.updateTimer(), 10_000);
+    }
+
+    private stopTimerPoller(): void {
+        if (this.timerPoller === null) return;
+        window.clearInterval(this.timerPoller);
+        this.timerPoller = null;
     }
 
     // -- Outfits tab -----------------------------------------------------------
@@ -1265,14 +1507,17 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        this.renderRestraintInfo(body);
+        this.renderPalettes(body);
+
         const outfits = getOutfits();
 
-        if (outfits.length > 0) {
-            const lbl = document.createElement("div");
-            lbl.className = "ebc-section-label";
-            lbl.textContent = "Saved Outfits";
-            body.appendChild(lbl);
+        const outfitLbl = document.createElement("div");
+        outfitLbl.className = "ebc-section-label";
+        outfitLbl.textContent = "Saved Outfits";
+        body.appendChild(outfitLbl);
 
+        if (outfits.length > 0) {
             for (const o of outfits) {
                 body.appendChild(this.buildOutfitRow(o, body));
             }
@@ -1290,6 +1535,221 @@ export class EBCDrawer {
         }
 
         this.buildNewOutfitSection(body);
+    }
+
+    // -- Restraint info --------------------------------------------------------
+
+    private renderRestraintInfo(body: HTMLElement): void {
+        const label = document.createElement("div");
+        label.className = "ebc-section-label";
+        label.style.cursor = "pointer";
+        label.style.userSelect = "none";
+
+        const container = document.createElement("div");
+        container.style.marginBottom = "6px";
+
+        let collapsed = false;
+
+        const render = (): void => {
+            while (container.firstChild) container.removeChild(container.firstChild);
+            if (collapsed) return;
+
+            try {
+                const restraints = Player.Appearance.filter(i => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+                if (restraints.length === 0) {
+                    const none = document.createElement("div");
+                    none.className = "ebc-empty";
+                    none.style.padding = "4px 4px 8px";
+                    none.textContent = "No active restraints";
+                    container.appendChild(none);
+                    return;
+                }
+
+                for (const item of restraints) {
+                    const prop = item.Property as Record<string, unknown> | undefined;
+                    const lockedBy = prop?.LockedBy as number | undefined;
+
+                    const row = document.createElement("div");
+                    row.className = "ebc-restraint-row";
+
+                    const nameEl = document.createElement("span");
+                    nameEl.className = "ebc-restraint-name";
+                    nameEl.textContent = item.Asset.Name;
+                    nameEl.title = item.Asset.Name;
+
+                    const groupEl = document.createElement("span");
+                    groupEl.className = "ebc-restraint-group";
+                    groupEl.textContent = item.Asset.Group.Name.replace("Item", "");
+
+                    const lockEl = document.createElement("span");
+                    if (lockedBy !== undefined) {
+                        lockEl.className = "ebc-restraint-lock";
+                        const lockType = prop?.CombinationNumber ? "Combo"
+                            : prop?.Password                     ? "Pwd"
+                            : prop?.MemberNumberListKeys         ? "Key"
+                            : "Lock";
+
+                        const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined;
+                        const locker = chars?.find(c => c.MemberNumber === lockedBy);
+                        const lockerNick = locker ? ((locker as unknown as Record<string, unknown>).Nickname as string | undefined) : undefined;
+                        const lockerName = locker ? (lockerNick || locker.Name) : `#${lockedBy}`;
+                        lockEl.textContent = `🔒 ${lockType} · ${lockerName}`;
+                    } else {
+                        lockEl.className = "ebc-restraint-lock unlocked";
+                        lockEl.textContent = "Unlocked";
+                    }
+
+                    row.appendChild(nameEl);
+                    row.appendChild(groupEl);
+                    row.appendChild(lockEl);
+                    container.appendChild(row);
+                }
+            } catch { /* Player not ready */ }
+        };
+
+        const updateLabel = (): void => {
+            label.textContent = collapsed ? "▶ ACTIVE RESTRAINTS" : "▼ ACTIVE RESTRAINTS";
+        };
+
+        label.addEventListener("click", () => {
+            collapsed = !collapsed;
+            updateLabel();
+            render();
+        });
+
+        updateLabel();
+        render();
+        body.appendChild(label);
+        body.appendChild(container);
+    }
+
+    // -- Color palettes --------------------------------------------------------
+
+    private renderPalettes(body: HTMLElement): void {
+        const label = document.createElement("div");
+        label.className = "ebc-section-label";
+        label.style.cursor = "pointer";
+        label.style.userSelect = "none";
+
+        const container = document.createElement("div");
+        container.style.marginBottom = "6px";
+
+        let collapsed = true; // collapsed by default — outfits are the primary view
+
+        const render = (): void => {
+            while (container.firstChild) container.removeChild(container.firstChild);
+            if (collapsed) return;
+
+            const palettes = getAllPalettes();
+            if (palettes.length > 0) {
+                for (const p of palettes) {
+                    const row = document.createElement("div");
+                    row.className = "ebc-palette-row";
+
+                    // Colour swatches — show up to 8 colours from the palette
+                    const swatch = document.createElement("div");
+                    swatch.className = "ebc-palette-swatch";
+                    const colors = ([] as string[]).concat(...Object.values(p.colorMap).map(c => Array.isArray(c) ? c : [c as string])).filter(Boolean).slice(0, 8);
+                    for (const c of colors) {
+                        const dot = document.createElement("div");
+                        dot.className = "ebc-palette-dot";
+                        dot.style.background = c;
+                        swatch.appendChild(dot);
+                    }
+
+                    const nameInp = document.createElement("input");
+                    nameInp.className = "ebc-palette-name";
+                    nameInp.value = p.name;
+                    nameInp.maxLength = 30;
+                    nameInp.title = "Click to rename";
+                    nameInp.addEventListener("change", () => {
+                        renamePalette(p.id, nameInp.value);
+                    });
+
+                    const applyBtn = document.createElement("button");
+                    applyBtn.className = "ebc-wear-btn";
+                    applyBtn.textContent = "Apply";
+                    applyBtn.title = "Apply this colour palette to your current look";
+                    applyBtn.addEventListener("click", () => {
+                        applyPalette(p.id);
+                        applyBtn.textContent = "Done!";
+                        window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1200);
+                    });
+
+                    let delPending = false;
+                    let delTimer: ReturnType<typeof window.setTimeout> | null = null;
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "ebc-outfit-del";
+                    delBtn.textContent = "×";
+                    delBtn.title = "Delete palette";
+                    delBtn.addEventListener("click", () => {
+                        if (!delPending) {
+                            delPending = true;
+                            delBtn.classList.add("confirm");
+                            delBtn.textContent = "Sure?";
+                            delTimer = window.setTimeout(() => {
+                                delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×";
+                            }, 2500);
+                        } else {
+                            if (delTimer) window.clearTimeout(delTimer);
+                            deletePalette(p.id);
+                            render();
+                        }
+                    });
+
+                    row.appendChild(swatch);
+                    row.appendChild(nameInp);
+                    row.appendChild(applyBtn);
+                    row.appendChild(delBtn);
+                    container.appendChild(row);
+                }
+            }
+
+            // Save current colours form
+            const div = document.createElement("div");
+            div.className = "ebc-divider";
+            container.appendChild(div);
+
+            const saveRow = document.createElement("div");
+            saveRow.style.cssText = "display:flex;gap:5px;align-items:center;";
+
+            const nameInp = document.createElement("input");
+            nameInp.className = "ebc-form-input";
+            nameInp.style.flex = "1";
+            nameInp.placeholder = "Palette name…";
+            nameInp.maxLength = 30;
+
+            const saveBtn = document.createElement("button");
+            saveBtn.className = "ebc-wear-btn";
+            saveBtn.textContent = "Save Current";
+            saveBtn.title = "Snapshot your current appearance colours as a named palette";
+            saveBtn.addEventListener("click", () => {
+                const name = nameInp.value.trim() || "Palette";
+                captureCurrentPalette(name);
+                nameInp.value = "";
+                render();
+            });
+
+            saveRow.appendChild(nameInp);
+            saveRow.appendChild(saveBtn);
+            container.appendChild(saveRow);
+        };
+
+        const updateLabel = (): void => {
+            const count = getAllPalettes().length;
+            label.textContent = (collapsed ? "▶" : "▼") + ` COLOUR PALETTES${count > 0 ? ` (${count})` : ""}`;
+        };
+
+        label.addEventListener("click", () => {
+            collapsed = !collapsed;
+            updateLabel();
+            render();
+        });
+
+        updateLabel();
+        render();
+        body.appendChild(label);
+        body.appendChild(container);
     }
 
     private buildOutfitRow(o: ConfiguredOutfit, body: HTMLElement): HTMLElement {
@@ -1426,6 +1886,14 @@ export class EBCDrawer {
         eSaveBtn.textContent = "Save Changes";
         editPanel.appendChild(eSaveBtn);
 
+        // Export button inside edit panel (keeps the main row uncluttered)
+        const eExportBtn = document.createElement("button");
+        eExportBtn.className = "ebc-btn-footer-btn";
+        eExportBtn.style.cssText = "margin-top:2px;font-size:10px;";
+        eExportBtn.textContent = "↑ Copy to Clipboard";
+        eExportBtn.title = "Export this outfit as JSON to share with others";
+        editPanel.appendChild(eExportBtn);
+
         // Diff panel
         const diffPanel = document.createElement("div");
         diffPanel.className = "ebc-diff-panel";
@@ -1495,6 +1963,33 @@ export class EBCDrawer {
                 ePreserveCheck.checked,
             );
             if (ok) this.renderOutfits();
+        });
+
+        eExportBtn.addEventListener("click", () => {
+            const json = exportOutfitById(o.id);
+            if (!json) return;
+            const showFallback = (): void => {
+                // Can't write clipboard — show in a temporary tooltip-style input
+                const tmp = document.createElement("input");
+                tmp.value = json;
+                tmp.style.cssText = "position:fixed;top:-9999px;";
+                document.body.appendChild(tmp);
+                tmp.select();
+                document.execCommand("copy");
+                document.body.removeChild(tmp);
+                eExportBtn.textContent = "Copied!";
+                window.setTimeout(() => { eExportBtn.textContent = "↑ Copy to Clipboard"; }, 1500);
+            };
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(json)
+                    .then(() => {
+                        eExportBtn.textContent = "Copied!";
+                        window.setTimeout(() => { eExportBtn.textContent = "↑ Copy to Clipboard"; }, 1500);
+                    })
+                    .catch(showFallback);
+            } else {
+                showFallback();
+            }
         });
 
         diffBtn.addEventListener("click", () => {
@@ -1629,6 +2124,72 @@ export class EBCDrawer {
             } else {
                 createBtn.disabled = false;
                 createBtn.textContent = "Save as New Outfit";
+            }
+        });
+
+        // -- Import outfit section --
+        const impDiv = document.createElement("div");
+        impDiv.className = "ebc-divider";
+        body.appendChild(impDiv);
+
+        const impToggleBtn = document.createElement("button");
+        impToggleBtn.className = "ebc-new-outfit-btn";
+        impToggleBtn.textContent = "↓ Import Outfit from JSON";
+        body.appendChild(impToggleBtn);
+
+        const impPanel = document.createElement("div");
+        impPanel.className = "ebc-import-panel";
+        body.appendChild(impPanel);
+
+        const impHint = document.createElement("div");
+        impHint.className = "ebc-import-hint";
+        impHint.textContent = "Paste exported outfit JSON here:";
+        impPanel.appendChild(impHint);
+
+        const impTextarea = document.createElement("textarea");
+        impTextarea.className = "ebc-notes-textarea";
+        impTextarea.placeholder = '{"ebc":1,"type":"outfit","outfit":{...}}';
+        impTextarea.rows = 3;
+        impPanel.appendChild(impTextarea);
+
+        const impError = document.createElement("div");
+        impError.className = "ebc-import-error";
+        impPanel.appendChild(impError);
+
+        const impActionRow = document.createElement("div");
+        impActionRow.style.cssText = "display:flex;gap:5px;";
+        const impLoadBtn = document.createElement("button");
+        impLoadBtn.className = "ebc-create-btn";
+        impLoadBtn.style.marginTop = "0";
+        impLoadBtn.textContent = "Import";
+        const impCancelBtn = document.createElement("button");
+        impCancelBtn.className = "ebc-btn-footer-btn";
+        impCancelBtn.textContent = "Cancel";
+        impActionRow.appendChild(impLoadBtn);
+        impActionRow.appendChild(impCancelBtn);
+        impPanel.appendChild(impActionRow);
+
+        impToggleBtn.addEventListener("click", () => {
+            const open = impPanel.classList.contains("open");
+            impPanel.classList.toggle("open", !open);
+            impToggleBtn.textContent = open ? "↓ Import Outfit from JSON" : "- Cancel Import";
+            if (!open) { impTextarea.value = ""; impError.textContent = ""; impTextarea.focus(); }
+        });
+
+        impCancelBtn.addEventListener("click", () => {
+            impPanel.classList.remove("open");
+            impToggleBtn.textContent = "↓ Import Outfit from JSON";
+            impTextarea.value = "";
+            impError.textContent = "";
+        });
+
+        impLoadBtn.addEventListener("click", () => {
+            impError.textContent = "";
+            try {
+                importOutfitFromJSON(impTextarea.value.trim());
+                this.renderOutfits();
+            } catch (err) {
+                impError.textContent = err instanceof Error ? err.message : "Invalid format.";
             }
         });
     }
@@ -2095,6 +2656,293 @@ export class EBCDrawer {
         for (const t of removing) addLine(`− ${t}`, "ebc-diff-remove");
     }
 
+    // -- Poses tab -------------------------------------------------------------
+
+    private renderPoses(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        // Helper: highlight the preset button matching current active poses
+        const currentPoses = getCurrentPoses();
+        const matchesCurrent = (poses: string[]): boolean =>
+            poses.length === currentPoses.length &&
+            poses.every(p => currentPoses.includes(p));
+
+        // -- Preset grid -------------------------------------------------------
+        for (const group of KNOWN_POSES) {
+            const lbl = document.createElement("div");
+            lbl.className = "ebc-section-label";
+            lbl.textContent = group.group.toUpperCase();
+            body.appendChild(lbl);
+
+            const grid = document.createElement("div");
+            grid.className = "ebc-pose-grid";
+            body.appendChild(grid);
+
+            for (const preset of group.poses) {
+                const btn = document.createElement("button");
+                const presetPoses = preset.key ? [preset.key] : [];
+                btn.className = "ebc-pose-btn" + (matchesCurrent(presetPoses) && preset.key !== "" ? " active" : "");
+                if (preset.key === "" && currentPoses.length === 0) btn.classList.add("active");
+                btn.textContent = preset.label;
+                btn.title = preset.key ? `Pose: ${preset.key}` : "Clear all poses (stand)";
+                btn.addEventListener("click", () => {
+                    applyPoses(presetPoses);
+                    // Re-render to update active state
+                    window.setTimeout(() => this.renderPoses(), 150);
+                });
+                grid.appendChild(btn);
+            }
+        }
+
+        // -- My Combos ---------------------------------------------------------
+        const div = document.createElement("div");
+        div.className = "ebc-divider";
+        body.appendChild(div);
+
+        const combosLbl = document.createElement("div");
+        combosLbl.className = "ebc-section-label";
+        combosLbl.textContent = "MY COMBOS";
+        body.appendChild(combosLbl);
+
+        const combos = getPoseCombos();
+
+        for (const combo of combos) {
+            const wrapper = document.createElement("div");
+            wrapper.style.marginBottom = "3px";
+
+            const row = document.createElement("div");
+            row.className = "ebc-combo-row";
+            row.style.borderRadius = "6px";
+            row.style.marginBottom = "0";
+
+            const nameEl = document.createElement("span");
+            nameEl.className = "ebc-combo-name";
+            nameEl.textContent = combo.name;
+
+            const posesEl = document.createElement("span");
+            posesEl.className = "ebc-combo-poses";
+            posesEl.textContent = combo.poses.join(" + ") || "(none)";
+
+            const applyBtn = document.createElement("button");
+            applyBtn.className = "ebc-wear-btn";
+            applyBtn.textContent = "▶";
+            applyBtn.title = "Apply this combo";
+            applyBtn.style.padding = "3px 8px";
+            applyBtn.addEventListener("click", () => {
+                applyPoses(combo.poses);
+                window.setTimeout(() => this.renderPoses(), 150);
+            });
+
+            const editBtn = document.createElement("button");
+            editBtn.className = "ebc-edit-btn";
+            editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+            editBtn.title = "Edit combo";
+
+            let delPending = false;
+            let delTimer: ReturnType<typeof window.setTimeout> | null = null;
+            const delBtn = document.createElement("button");
+            delBtn.className = "ebc-outfit-del";
+            delBtn.textContent = "×";
+            delBtn.title = "Delete combo";
+            delBtn.addEventListener("click", () => {
+                if (!delPending) {
+                    delPending = true;
+                    delBtn.classList.add("confirm");
+                    delBtn.textContent = "Sure?";
+                    delTimer = window.setTimeout(() => {
+                        delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×";
+                    }, 2500);
+                } else {
+                    if (delTimer) window.clearTimeout(delTimer);
+                    deleteCombo(combo.id);
+                    this.renderPoses();
+                }
+            });
+
+            row.appendChild(nameEl);
+            row.appendChild(posesEl);
+            row.appendChild(applyBtn);
+            row.appendChild(editBtn);
+            row.appendChild(delBtn);
+
+            // Inline edit panel
+            const editor = document.createElement("div");
+            editor.className = "ebc-combo-editor";
+
+            const eNameInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", value: combo.name, maxLength: 30,
+            });
+
+            const eNameRow = document.createElement("div");
+            eNameRow.className = "ebc-form-row";
+            const eNameLbl = document.createElement("span");
+            eNameLbl.className = "ebc-form-label";
+            eNameLbl.textContent = "Name";
+            eNameRow.appendChild(eNameLbl);
+            eNameRow.appendChild(eNameInp);
+            editor.appendChild(eNameRow);
+
+            const poseLbl2 = document.createElement("div");
+            poseLbl2.className = "ebc-import-hint";
+            poseLbl2.textContent = "Select poses to combine:";
+            editor.appendChild(poseLbl2);
+
+            const checkGrid = document.createElement("div");
+            checkGrid.className = "ebc-pose-check-grid";
+            editor.appendChild(checkGrid);
+
+            const allPresetKeys = ([] as { key: string; label: string }[]).concat(...KNOWN_POSES.map(g => g.poses.filter(p => p.key)));
+            const selectedPoses = new Set(combo.poses);
+
+            for (const { key, label } of allPresetKeys) {
+                const lbl = document.createElement("label");
+                lbl.className = "ebc-pose-check-label";
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.checked = selectedPoses.has(key);
+                cb.addEventListener("change", () => {
+                    if (cb.checked) selectedPoses.add(key); else selectedPoses.delete(key);
+                });
+                lbl.appendChild(cb);
+                lbl.appendChild(document.createTextNode(label));
+                checkGrid.appendChild(lbl);
+            }
+
+            const customHint = document.createElement("div");
+            customHint.className = "ebc-import-hint";
+            customHint.textContent = "Custom pose name (e.g. Hogtied):";
+            editor.appendChild(customHint);
+
+            const customRow = document.createElement("div");
+            customRow.style.cssText = "display:flex;gap:5px;";
+            const customInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "PoseName", maxLength: 40, style: "flex:1",
+            });
+            const addCustomBtn = document.createElement("button");
+            addCustomBtn.className = "ebc-update-btn";
+            addCustomBtn.textContent = "+ Add";
+            addCustomBtn.addEventListener("click", () => {
+                const val = customInp.value.trim();
+                if (val) { selectedPoses.add(val); customInp.value = ""; }
+            });
+            customRow.appendChild(customInp);
+            customRow.appendChild(addCustomBtn);
+            editor.appendChild(customRow);
+
+            const savComboBtn = document.createElement("button");
+            savComboBtn.className = "ebc-create-btn";
+            savComboBtn.textContent = "Save Combo";
+            savComboBtn.addEventListener("click", () => {
+                updateCombo(combo.id, eNameInp.value, [...selectedPoses]);
+                this.renderPoses();
+            });
+            editor.appendChild(savComboBtn);
+
+            editBtn.addEventListener("click", () => {
+                const open = editor.classList.contains("open");
+                editor.classList.toggle("open", !open);
+                editBtn.classList.toggle("open", !open);
+                row.style.borderRadius = open ? "6px" : "6px 6px 0 0";
+            });
+
+            wrapper.appendChild(row);
+            wrapper.appendChild(editor);
+            body.appendChild(wrapper);
+        }
+
+        // -- New combo form ----------------------------------------------------
+        const div2 = document.createElement("div");
+        div2.className = "ebc-divider";
+        body.appendChild(div2);
+
+        const newComboToggle = document.createElement("button");
+        newComboToggle.className = "ebc-new-outfit-btn";
+        newComboToggle.textContent = "+ New Pose Combo";
+        body.appendChild(newComboToggle);
+
+        const newComboForm = document.createElement("div");
+        newComboForm.className = "ebc-new-form";
+        body.appendChild(newComboForm);
+
+        const ncNameRow = document.createElement("div");
+        ncNameRow.className = "ebc-form-row";
+        const ncNameLbl = document.createElement("span");
+        ncNameLbl.className = "ebc-form-label";
+        ncNameLbl.textContent = "Name";
+        const ncNameInp = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "e.g. Kneel Arms Back", maxLength: 30,
+        });
+        ncNameRow.appendChild(ncNameLbl);
+        ncNameRow.appendChild(ncNameInp);
+        newComboForm.appendChild(ncNameRow);
+
+        const ncPoseLbl = document.createElement("div");
+        ncPoseLbl.className = "ebc-import-hint";
+        ncPoseLbl.style.marginTop = "3px";
+        ncPoseLbl.textContent = "Select poses:";
+        newComboForm.appendChild(ncPoseLbl);
+
+        const ncGrid = document.createElement("div");
+        ncGrid.className = "ebc-pose-check-grid";
+        newComboForm.appendChild(ncGrid);
+
+        const ncSelected = new Set<string>();
+        const allKeys = ([] as { key: string; label: string }[]).concat(...KNOWN_POSES.map(g => g.poses.filter(p => p.key)));
+        for (const { key, label } of allKeys) {
+            const lbl = document.createElement("label");
+            lbl.className = "ebc-pose-check-label";
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.addEventListener("change", () => {
+                if (cb.checked) ncSelected.add(key); else ncSelected.delete(key);
+            });
+            lbl.appendChild(cb);
+            lbl.appendChild(document.createTextNode(label));
+            ncGrid.appendChild(lbl);
+        }
+
+        const ncCustomHint = document.createElement("div");
+        ncCustomHint.className = "ebc-import-hint";
+        ncCustomHint.textContent = "Custom pose name:";
+        newComboForm.appendChild(ncCustomHint);
+
+        const ncCustomRow = document.createElement("div");
+        ncCustomRow.style.cssText = "display:flex;gap:5px;";
+        const ncCustomInp = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "PoseName", maxLength: 40, style: "flex:1",
+        });
+        const ncAddBtn = document.createElement("button");
+        ncAddBtn.className = "ebc-update-btn";
+        ncAddBtn.textContent = "+ Add";
+        ncAddBtn.addEventListener("click", () => {
+            const val = ncCustomInp.value.trim();
+            if (val) { ncSelected.add(val); ncCustomInp.value = ""; }
+        });
+        ncCustomRow.appendChild(ncCustomInp);
+        ncCustomRow.appendChild(ncAddBtn);
+        newComboForm.appendChild(ncCustomRow);
+
+        const ncSaveBtn = document.createElement("button");
+        ncSaveBtn.className = "ebc-create-btn";
+        ncSaveBtn.textContent = "Save Combo";
+        ncSaveBtn.addEventListener("click", () => {
+            const name = ncNameInp.value.trim();
+            if (!name) { ncNameInp.style.borderColor = "#cf6f98"; return; }
+            createCombo(name, [...ncSelected]);
+            this.renderPoses();
+        });
+        newComboForm.appendChild(ncSaveBtn);
+
+        newComboToggle.addEventListener("click", () => {
+            const open = newComboForm.style.display !== "none";
+            newComboForm.style.display = open ? "none" : "flex";
+            newComboToggle.textContent = open ? "+ New Pose Combo" : "- Cancel";
+            if (!open) ncNameInp.focus();
+        });
+    }
+
     // -- Notes tab -------------------------------------------------------------
 
     private renderNotes(): void {
@@ -2288,6 +3136,7 @@ export class EBCDrawer {
         this.panelEl.className = "ebc-open";
         if (!this.positioned) this.syncToChat();
         try { this.refreshBadgeRow?.(); } catch { /* ignore */ }
+        this.updateTimer();
         this.renderCurrentTab();
     }
 
@@ -2302,6 +3151,7 @@ export class EBCDrawer {
     public destroy(): void {
         this.resizeObserver?.disconnect();
         this.stopCrabsPoller();
+        this.stopTimerPoller();
         this.rootEl?.remove();
         this.rootEl  = null;
         this.panelEl = null;
