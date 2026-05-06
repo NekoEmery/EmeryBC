@@ -146,6 +146,9 @@ const CSS = `
 
 .ebc-icon-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 
+@keyframes ebc-spin { to { transform: rotate(360deg); } }
+.ebc-icon-btn.spinning svg { animation: ebc-spin 0.6s linear; }
+
 /* -- Tabs -- */
 .ebc-tabs {
     display: flex;
@@ -680,7 +683,7 @@ export class EBCDrawer {
         const refreshBtn = document.createElement("button");
         refreshBtn.className = "ebc-icon-btn";
         refreshBtn.title = "Refresh";
-        refreshBtn.textContent = "R";
+        refreshBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
 
         const closeBtn = document.createElement("button");
         closeBtn.className = "ebc-icon-btn";
@@ -751,7 +754,11 @@ export class EBCDrawer {
         // Events
         tab.addEventListener("click", () => this.toggle());
         closeBtn.addEventListener("click", () => this.close());
-        refreshBtn.addEventListener("click", () => this.renderCurrentTab());
+        refreshBtn.addEventListener("click", () => {
+            refreshBtn.classList.add("spinning");
+            refreshBtn.addEventListener("animationend", () => refreshBtn.classList.remove("spinning"), { once: true });
+            this.renderCurrentTab();
+        });
 
         releaseBtn.addEventListener("click", () => {
             releaseBtn.disabled = true;
