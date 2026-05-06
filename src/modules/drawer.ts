@@ -1460,9 +1460,12 @@ export class EBCDrawer {
             this.lastRect.height !== rect.height ||
             this.lastRect.right  !== rightOffset
         ) {
+            // Cap height so the panel never extends below the visible viewport.
+            const maxH = Math.max(100, window.innerHeight - rect.top - 8);
+            const panelH = Math.min(rect.height, maxH);
             this.rootEl.style.top    = `${rect.top}px`;
             this.rootEl.style.right  = `${rightOffset}px`;
-            this.rootEl.style.height = `${rect.height * 1.5}px`;
+            this.rootEl.style.height = `${panelH}px`;
             this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
             this.positioned = true;
             // Chat log moved — force a fresh CRABS position read next tick

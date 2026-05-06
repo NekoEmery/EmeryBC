@@ -42,23 +42,12 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
 
 export function applyPoses(poses: string[]): void {
     const filtered = poses.filter(Boolean);
-    // LOCAL: assign [] for "no pose" — CharacterRefresh can throw or misbehave on null.
-    // SERVER: send null for "no pose" — BC server ignores [] but acts on null to clear.
-    // Every step is in its own try-catch so one failure can't block the others.
+    // Use CharacterRefresh(Player, true, false) — Push=true — so BC handles BOTH the local
+    // visual update AND the server sync itself, exactly like BC's own wardrobe does.
+    // Our previous manual ServerSend attempts were fighting BC's internal state management.
     try {
         (Player as unknown as Record<string, unknown>).ActivePose = filtered;
-    } catch { /* ignore */ }
-    try {
-        CharacterRefresh(Player, false, false);
-    } catch { /* ignore */ }
-    try {
-        if (Player.OnlineID != null) {
-            ServerSend("ChatRoomCharacterUpdate", {
-                ID: Player.OnlineID,
-                ActivePose: filtered.length > 0 ? filtered : null,
-                Appearance: ServerAppearanceBundle(Player.Appearance),
-            });
-        }
+        CharacterRefresh(Player, true, false);
     } catch { /* ignore */ }
 }
 

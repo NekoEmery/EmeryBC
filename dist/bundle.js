@@ -779,27 +779,14 @@
     ];
     function applyPoses(poses) {
         const filtered = poses.filter(Boolean);
-        // LOCAL: assign [] for "no pose" — CharacterRefresh can throw or misbehave on null.
-        // SERVER: send null for "no pose" — BC server ignores [] but acts on null to clear.
-        // Every step is in its own try-catch so one failure can't block the others.
+        // Use CharacterRefresh(Player, true, false) — Push=true — so BC handles BOTH the local
+        // visual update AND the server sync itself, exactly like BC's own wardrobe does.
+        // Our previous manual ServerSend attempts were fighting BC's internal state management.
         try {
             Player.ActivePose = filtered;
+            CharacterRefresh(Player, true, false);
         }
         catch ( /* ignore */_a) { /* ignore */ }
-        try {
-            CharacterRefresh(Player, false, false);
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
-        try {
-            if (Player.OnlineID != null) {
-                ServerSend("ChatRoomCharacterUpdate", {
-                    ID: Player.OnlineID,
-                    ActivePose: filtered.length > 0 ? filtered : null,
-                    Appearance: ServerAppearanceBundle(Player.Appearance),
-                });
-            }
-        }
-        catch ( /* ignore */_c) { /* ignore */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Respects the exact order provided — the user controls sequencing via the editor.
@@ -2553,9 +2540,12 @@
                 this.lastRect.width !== rect.width ||
                 this.lastRect.height !== rect.height ||
                 this.lastRect.right !== rightOffset) {
+                // Cap height so the panel never extends below the visible viewport.
+                const maxH = Math.max(100, window.innerHeight - rect.top - 8);
+                const panelH = Math.min(rect.height, maxH);
                 this.rootEl.style.top = `${rect.top}px`;
                 this.rootEl.style.right = `${rightOffset}px`;
-                this.rootEl.style.height = `${rect.height * 1.5}px`;
+                this.rootEl.style.height = `${panelH}px`;
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
                 // Chat log moved — force a fresh CRABS position read next tick
@@ -4541,7 +4531,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.85";
+    const MOD_VERSION = "0.1.86";
     let noticeShown = false;
     const CHANGELOG = [
         {
