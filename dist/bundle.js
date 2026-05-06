@@ -138,8 +138,9 @@
     // animation plays automatically alongside the normal message. Completely hidden
     // from the user — the emote field is just normal text.
     function isArmRestrained() {
-        const armGroups = new Set(["ItemArms", "ItemHands"]);
-        return Player.Appearance.some(item => armGroups.has(item.Asset.Group.Name));
+        // Only ItemArms covers actual binding restraints (armbinders, straitjackets, etc.).
+        // ItemHands covers paws/mittens/gloves which don't lock arm movement, so we skip it.
+        return Player.Appearance.some(item => item.Asset.Group.Name === "ItemArms");
     }
     function localNotice$2(msg) {
         const log = document.getElementById("TextAreaChatLog");
@@ -159,22 +160,27 @@
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
     }
+    // Returns true if the animation ran (or will run), false if it was blocked.
     function runCheerAnimation() {
         if (isArmRestrained()) {
             localNotice$2("Your arms are restrained — can't cheer right now!");
-            return;
+            return false;
         }
         // Yoked (arms up) <-> neutral, 4 fast cycles at 400ms each = ~3s cheer bounce
         runSequence("Yoked|_|Yoked|_|Yoked|_|Yoked|_", 400);
+        return true;
     }
     const LABEL_ANIMATIONS = new Map([
         ["CHEER", runCheerAnimation],
         ["CHEERS", runCheerAnimation],
     ]);
+    // Returns false if an animation was attempted but blocked — caller should suppress the chat message.
+    // Returns true if the animation ran fine, or if there is no animation for this label.
     function triggerLabelAnimation(label) {
         const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
-        if (fn)
-            fn();
+        if (!fn)
+            return true; // no animation for this label, proceed normally
+        return fn();
     }
     // --- Send chat message --------------------------------------------------------
     // "action" -> (Name text)   "emote" -> * Name text *   "seq" -> runSequence
@@ -248,8 +254,10 @@
             const y = BTN_START_Y + i * BTN_SIZE;
             if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
                 MouseY >= y && MouseY <= y + BTN_SIZE) {
-                sendAction(btn.emote, (_a = btn.style) !== null && _a !== void 0 ? _a : "action");
-                triggerLabelAnimation(btn.label);
+                // Check animation first — if it's blocked, suppress the chat message too.
+                const animOk = triggerLabelAnimation(btn.label);
+                if (animOk)
+                    sendAction(btn.emote, (_a = btn.style) !== null && _a !== void 0 ? _a : "action");
                 return true;
             }
         }
@@ -1901,9 +1909,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.41";
+    const MOD_VERSION = "0.1.42";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.42",
+            changes: [
+                "Cheer animation check now runs BEFORE the chat message — if arms are restrained, the message is suppressed too.",
+                "Fixed false positive: ItemHands (paws, mittens, gloves) no longer counts as restrained; only ItemArms (armbinders, straitjackets) blocks cheering.",
+            ],
+        },
         {
             version: "0.1.41",
             changes: [

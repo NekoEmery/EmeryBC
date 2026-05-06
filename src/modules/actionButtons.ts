@@ -144,8 +144,9 @@ export function runSequence(sequence: string, stepMs = 600): void {
 // from the user — the emote field is just normal text.
 
 function isArmRestrained(): boolean {
-    const armGroups = new Set(["ItemArms", "ItemHands"]);
-    return Player.Appearance.some(item => armGroups.has(item.Asset.Group.Name));
+    // Only ItemArms covers actual binding restraints (armbinders, straitjackets, etc.).
+    // ItemHands covers paws/mittens/gloves which don't lock arm movement, so we skip it.
+    return Player.Appearance.some(item => item.Asset.Group.Name === "ItemArms");
 }
 
 function localNotice(msg: string): void {
@@ -166,23 +167,28 @@ function localNotice(msg: string): void {
     log.scrollTop = log.scrollHeight;
 }
 
-function runCheerAnimation(): void {
+// Returns true if the animation ran (or will run), false if it was blocked.
+function runCheerAnimation(): boolean {
     if (isArmRestrained()) {
         localNotice("Your arms are restrained — can't cheer right now!");
-        return;
+        return false;
     }
     // Yoked (arms up) <-> neutral, 4 fast cycles at 400ms each = ~3s cheer bounce
     runSequence("Yoked|_|Yoked|_|Yoked|_|Yoked|_", 400);
+    return true;
 }
 
-const LABEL_ANIMATIONS: Map<string, () => void> = new Map([
+const LABEL_ANIMATIONS: Map<string, () => boolean> = new Map([
     ["CHEER",  runCheerAnimation],
     ["CHEERS", runCheerAnimation],
 ]);
 
-function triggerLabelAnimation(label: string): void {
+// Returns false if an animation was attempted but blocked — caller should suppress the chat message.
+// Returns true if the animation ran fine, or if there is no animation for this label.
+function triggerLabelAnimation(label: string): boolean {
     const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
-    if (fn) fn();
+    if (!fn) return true;   // no animation for this label, proceed normally
+    return fn();
 }
 
 // --- Send chat message --------------------------------------------------------
@@ -266,8 +272,9 @@ export function handleActionButtonClick(): boolean {
         const y = BTN_START_Y + i * BTN_SIZE;
         if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
             MouseY >= y    && MouseY <= y + BTN_SIZE) {
-            sendAction(btn.emote, btn.style ?? "action");
-            triggerLabelAnimation(btn.label);
+            // Check animation first — if it's blocked, suppress the chat message too.
+            const animOk = triggerLabelAnimation(btn.label);
+            if (animOk) sendAction(btn.emote, btn.style ?? "action");
             return true;
         }
     }

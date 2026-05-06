@@ -5,10 +5,17 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.41";
+const MOD_VERSION = "0.1.42";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.42",
+        changes: [
+            "Cheer animation check now runs BEFORE the chat message — if arms are restrained, the message is suppressed too.",
+            "Fixed false positive: ItemHands (paws, mittens, gloves) no longer counts as restrained; only ItemArms (armbinders, straitjackets) blocks cheering.",
+        ],
+    },
     {
         version: "0.1.41",
         changes: [
