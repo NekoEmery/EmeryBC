@@ -244,6 +244,95 @@ export function applyDomSet(setId: string): { applied: string[]; skipped: string
     return { applied, skipped };
 }
 
+// ── Release / rescue helpers ─────────────────────────────────────────────────
+
+// Shared sync helper for non-player characters.
+function syncChar(char: Character): void {
+    try { CharacterRefresh(char, true, false); } catch { /* ignore */ }
+    try {
+        const fn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
+            ((c: Character) => void) | undefined;
+        if (fn) fn(char);
+    } catch { /* ignore */ }
+}
+
+// Returns the restraint items currently worn by each in-room target.
+export function getTargetRestraints(): Array<{ target: DomTarget; items: Array<{ group: string; name: string }> }> {
+    const cfg = loadConfig();
+    const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+    const out: Array<{ target: DomTarget; items: Array<{ group: string; name: string }> }> = [];
+    for (const target of cfg.targets) {
+        const char = room.find(c => c.MemberNumber === target.id);
+        if (!char) continue;
+        const items = char.Appearance
+            .filter((a: Item) => RESTRAINT_GROUPS.has(a.Asset.Group.Name))
+            .map((a: Item) => ({ group: a.Asset.Group.Name, name: a.Asset.Name }));
+        out.push({ target, items });
+    }
+    return out;
+}
+
+// Removes items (by group name) from a single in-room character.
+export function removeTargetItems(targetId: number, groups: string[]): { inRoom: boolean; count: number } {
+    const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+    const char = room.find(c => c.MemberNumber === targetId);
+    if (!char) return { inRoom: false, count: 0 };
+
+    const InventoryRemoveFn = (window as unknown as Record<string, unknown>).InventoryRemove as
+        ((c: Character, group: string, push: boolean) => void) | undefined;
+
+    let count = 0;
+    for (const group of groups) {
+        try {
+            if (InventoryRemoveFn) {
+                InventoryRemoveFn(char, group, false);
+            } else {
+                const idx = char.Appearance.findIndex((a: Item) => a.Asset.Group.Name === group);
+                if (idx >= 0) char.Appearance.splice(idx, 1);
+            }
+            count++;
+        } catch { /* ignore */ }
+    }
+    if (count > 0) syncChar(char);
+    return { inRoom: true, count };
+}
+
+// Removes ALL restraint items from every in-room target.
+export function removeAllTargetRestraints(): Array<{ name: string; count: number; inRoom: boolean }> {
+    const cfg = loadConfig();
+    const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+    return cfg.targets.map(target => {
+        const char = room.find(c => c.MemberNumber === target.id);
+        if (!char) return { name: target.name, count: 0, inRoom: false };
+        const groups = char.Appearance
+            .filter((a: Item) => RESTRAINT_GROUPS.has(a.Asset.Group.Name))
+            .map((a: Item) => a.Asset.Group.Name);
+        const { count } = removeTargetItems(target.id, groups);
+        return { name: target.name, count, inRoom: true };
+    });
+}
+
+// Unlocks ALL locked items on every in-room target.
+export function unlockAllTargetItems(): Array<{ name: string; count: number; inRoom: boolean }> {
+    const cfg = loadConfig();
+    const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+    return cfg.targets.map(target => {
+        const char = room.find(c => c.MemberNumber === target.id);
+        if (!char) return { name: target.name, count: 0, inRoom: false };
+        let count = 0;
+        for (const item of char.Appearance) {
+            const prop = item.Property as Record<string, unknown> | undefined;
+            if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+                prop.LockedBy = "";
+                if ("Password" in prop) delete prop.Password;
+                count++;
+            }
+        }
+        if (count > 0) syncChar(char);
+        return { name: target.name, count, inRoom: true };
+    });
+}
+
 // Handle a chat command (e.g. /gag → apply the matching set).
 export function handleDomCommand(input: string): boolean {
     if (!isDomEnabled()) return false;

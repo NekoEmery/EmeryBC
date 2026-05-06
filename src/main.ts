@@ -9,10 +9,17 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.2.0";
+const MOD_VERSION = "0.2.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.2.1",
+        changes: [
+            "DOM Tools: Release / Rescue section with quick 'All Restraints' and 'All Locks' buttons to strip or unlock targets.",
+            "DOM Tools: Per-item picker to choose exactly which restraints to remove from each in-room target.",
+        ],
+    },
     {
         version: "0.2.0",
         changes: [

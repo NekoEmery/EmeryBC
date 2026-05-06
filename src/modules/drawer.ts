@@ -52,6 +52,10 @@ import {
     deleteDomSet,
     parseBCCodeItems,
     applyDomSet,
+    getTargetRestraints,
+    removeTargetItems,
+    removeAllTargetRestraints,
+    unlockAllTargetItems,
 } from "./domTools";
 
 // -- Icon ----------------------------------------------------------------------
@@ -4187,6 +4191,165 @@ export class EBCDrawer {
             addableWrap.appendChild(chipRow);
         };
         rebuildAddable();
+
+        // ── Release / Rescue ─────────────────────────────────────────────────
+        const divRelease = document.createElement("div");
+        divRelease.className = "ebc-divider";
+        divRelease.style.margin = "10px 0 7px";
+        body.appendChild(divRelease);
+
+        const releaseLbl = document.createElement("div");
+        releaseLbl.className = "ebc-section-label";
+        releaseLbl.textContent = "Release / Rescue";
+        body.appendChild(releaseLbl);
+
+        // Quick-action row: two wide buttons
+        const quickRow = document.createElement("div");
+        quickRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px;";
+
+        const makeQuickBtn = (label: string, title: string): HTMLButtonElement => {
+            const b = document.createElement("button");
+            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            b.textContent = label;
+            b.title = title;
+            b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; });
+            b.addEventListener("mouseleave", () => { b.style.background = "#3a1020"; });
+            return b;
+        };
+
+        const removeAllBtn = makeQuickBtn("↑ All Restraints", "Remove all restraint items from every target in the room");
+        const unlockAllBtn = makeQuickBtn("🔓 All Locks", "Unlock all locked items on every target in the room");
+        quickRow.appendChild(removeAllBtn);
+        quickRow.appendChild(unlockAllBtn);
+        body.appendChild(quickRow);
+
+        const releaseStatus = document.createElement("div");
+        releaseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;margin-bottom:4px;";
+        body.appendChild(releaseStatus);
+
+        const showReleaseStatus = (results: Array<{ name: string; count: number; inRoom: boolean }>): void => {
+            const done = results.filter(r => r.inRoom && r.count > 0).map(r => r.name + " (" + r.count + ")");
+            const skip = results.filter(r => !r.inRoom).map(r => r.name);
+            const parts: string[] = [];
+            if (done.length) parts.push("✓ " + done.join(", "));
+            if (skip.length) parts.push("⟳ not in room: " + skip.join(", "));
+            releaseStatus.textContent = parts.join("  ·  ") || "Nothing to do.";
+            window.setTimeout(() => { releaseStatus.textContent = ""; }, 4000);
+        };
+
+        removeAllBtn.addEventListener("click", () => {
+            removeAllBtn.disabled = true;
+            showReleaseStatus(removeAllTargetRestraints());
+            window.setTimeout(() => { removeAllBtn.disabled = false; }, 2000);
+        });
+
+        unlockAllBtn.addEventListener("click", () => {
+            unlockAllBtn.disabled = true;
+            showReleaseStatus(unlockAllTargetItems());
+            window.setTimeout(() => { unlockAllBtn.disabled = false; }, 2000);
+        });
+
+        // ── "Pick items to remove" picker ─────────────────────────────────────
+        const pickToggle = document.createElement("button");
+        pickToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
+        pickToggle.textContent = "↓ Pick items to remove";
+        body.appendChild(pickToggle);
+
+        const pickPanel = document.createElement("div");
+        pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;margin-bottom:6px;";
+        body.appendChild(pickPanel);
+
+        // selection state: targetId → Set of group names
+        const pendingRemove = new Map<number, Set<string>>();
+
+        const rebuildPickPanel = (): void => {
+            while (pickPanel.firstChild) pickPanel.removeChild(pickPanel.firstChild);
+            pendingRemove.clear();
+
+            const sections = getTargetRestraints();
+            if (sections.length === 0) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:3px 2px;";
+                hint.textContent = "No targets are in the room right now.";
+                pickPanel.appendChild(hint);
+                return;
+            }
+
+            for (const { target, items } of sections) {
+                pendingRemove.set(target.id, new Set());
+
+                const targHdr = document.createElement("div");
+                targHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;font-weight:bold;margin-bottom:3px;";
+                targHdr.textContent = target.name;
+                pickPanel.appendChild(targHdr);
+
+                if (items.length === 0) {
+                    const none = document.createElement("div");
+                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:1px 4px 4px;";
+                    none.textContent = "No restraints worn.";
+                    pickPanel.appendChild(none);
+                    continue;
+                }
+
+                const itemsWrap = document.createElement("div");
+                itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;margin-bottom:2px;";
+
+                for (const item of items) {
+                    const lbl3 = document.createElement("label");
+                    lbl3.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:3px;cursor:pointer;";
+                    lbl3.addEventListener("mouseenter", () => { lbl3.style.background = "rgba(42,20,33,0.6)"; });
+                    lbl3.addEventListener("mouseleave", () => { lbl3.style.background = ""; });
+                    const cb2 = document.createElement("input");
+                    cb2.type = "checkbox";
+                    cb2.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                    cb2.addEventListener("change", () => {
+                        const sel = pendingRemove.get(target.id)!;
+                        if (cb2.checked) sel.add(item.group);
+                        else sel.delete(item.group);
+                    });
+                    const cbN = document.createElement("span");
+                    cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    cbN.textContent = item.name;
+                    const cbG = document.createElement("span");
+                    cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                    cbG.textContent = item.group.replace("Item", "");
+                    lbl3.appendChild(cb2); lbl3.appendChild(cbN); lbl3.appendChild(cbG);
+                    itemsWrap.appendChild(lbl3);
+                }
+                pickPanel.appendChild(itemsWrap);
+            }
+
+            // Remove selected button
+            const removeSelBtn = document.createElement("button");
+            removeSelBtn.style.cssText = "width:100%;background:#3a1020;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
+            removeSelBtn.textContent = "Remove Selected";
+            removeSelBtn.addEventListener("click", () => {
+                const results: Array<{ name: string; count: number; inRoom: boolean }> = [];
+                const cfg5 = getDomConfig();
+                for (const [targetId, groups] of pendingRemove) {
+                    if (groups.size === 0) continue;
+                    const target = cfg5.targets.find(t => t.id === targetId);
+                    const res = removeTargetItems(targetId, [...groups]);
+                    results.push({ name: target?.name ?? String(targetId), ...res });
+                }
+                if (results.length === 0) {
+                    releaseStatus.textContent = "Nothing selected.";
+                } else {
+                    showReleaseStatus(results);
+                }
+                // Refresh picker to reflect new state
+                rebuildPickPanel();
+            });
+            pickPanel.appendChild(removeSelBtn);
+        };
+
+        pickToggle.addEventListener("click", () => {
+            const isOpenNow = pickPanel.style.display === "none";
+            pickPanel.style.display = isOpenNow ? "flex" : "none";
+            pickToggle.style.borderStyle = isOpenNow ? "solid" : "dashed";
+            pickToggle.style.color = isOpenNow ? "#cf6f98" : "#7a4a5e";
+            if (isOpenNow) rebuildPickPanel();
+        });
 
         // ── Restraint Sets ───────────────────────────────────────────────────
         const div1 = document.createElement("div");

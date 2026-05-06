@@ -1477,6 +1477,104 @@
         }
         return { applied, skipped };
     }
+    // ── Release / rescue helpers ─────────────────────────────────────────────────
+    // Shared sync helper for non-player characters.
+    function syncChar(char) {
+        try {
+            CharacterRefresh(char, true, false);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        try {
+            const fn = window.ChatRoomCharacterUpdate;
+            if (fn)
+                fn(char);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // Returns the restraint items currently worn by each in-room target.
+    function getTargetRestraints() {
+        var _a;
+        const cfg = loadConfig();
+        const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+        const out = [];
+        for (const target of cfg.targets) {
+            const char = room.find(c => c.MemberNumber === target.id);
+            if (!char)
+                continue;
+            const items = char.Appearance
+                .filter((a) => RESTRAINT_GROUPS.has(a.Asset.Group.Name))
+                .map((a) => ({ group: a.Asset.Group.Name, name: a.Asset.Name }));
+            out.push({ target, items });
+        }
+        return out;
+    }
+    // Removes items (by group name) from a single in-room character.
+    function removeTargetItems(targetId, groups) {
+        var _a;
+        const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+        const char = room.find(c => c.MemberNumber === targetId);
+        if (!char)
+            return { inRoom: false, count: 0 };
+        const InventoryRemoveFn = window.InventoryRemove;
+        let count = 0;
+        for (const group of groups) {
+            try {
+                if (InventoryRemoveFn) {
+                    InventoryRemoveFn(char, group, false);
+                }
+                else {
+                    const idx = char.Appearance.findIndex((a) => a.Asset.Group.Name === group);
+                    if (idx >= 0)
+                        char.Appearance.splice(idx, 1);
+                }
+                count++;
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        if (count > 0)
+            syncChar(char);
+        return { inRoom: true, count };
+    }
+    // Removes ALL restraint items from every in-room target.
+    function removeAllTargetRestraints() {
+        var _a;
+        const cfg = loadConfig();
+        const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+        return cfg.targets.map(target => {
+            const char = room.find(c => c.MemberNumber === target.id);
+            if (!char)
+                return { name: target.name, count: 0, inRoom: false };
+            const groups = char.Appearance
+                .filter((a) => RESTRAINT_GROUPS.has(a.Asset.Group.Name))
+                .map((a) => a.Asset.Group.Name);
+            const { count } = removeTargetItems(target.id, groups);
+            return { name: target.name, count, inRoom: true };
+        });
+    }
+    // Unlocks ALL locked items on every in-room target.
+    function unlockAllTargetItems() {
+        var _a;
+        const cfg = loadConfig();
+        const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+        return cfg.targets.map(target => {
+            const char = room.find(c => c.MemberNumber === target.id);
+            if (!char)
+                return { name: target.name, count: 0, inRoom: false };
+            let count = 0;
+            for (const item of char.Appearance) {
+                const prop = item.Property;
+                if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+                    prop.LockedBy = "";
+                    if ("Password" in prop)
+                        delete prop.Password;
+                    count++;
+                }
+            }
+            if (count > 0)
+                syncChar(char);
+            return { name: target.name, count, inRoom: true };
+        });
+    }
     // Handle a chat command (e.g. /gag → apply the matching set).
     function handleDomCommand(input) {
         if (!isDomEnabled())
@@ -5353,6 +5451,155 @@
                 addableWrap.appendChild(chipRow);
             };
             rebuildAddable();
+            // ── Release / Rescue ─────────────────────────────────────────────────
+            const divRelease = document.createElement("div");
+            divRelease.className = "ebc-divider";
+            divRelease.style.margin = "10px 0 7px";
+            body.appendChild(divRelease);
+            const releaseLbl = document.createElement("div");
+            releaseLbl.className = "ebc-section-label";
+            releaseLbl.textContent = "Release / Rescue";
+            body.appendChild(releaseLbl);
+            // Quick-action row: two wide buttons
+            const quickRow = document.createElement("div");
+            quickRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px;";
+            const makeQuickBtn = (label, title) => {
+                const b = document.createElement("button");
+                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+                b.textContent = label;
+                b.title = title;
+                b.addEventListener("mouseenter", () => { b.style.background = "#5a1c30"; });
+                b.addEventListener("mouseleave", () => { b.style.background = "#3a1020"; });
+                return b;
+            };
+            const removeAllBtn = makeQuickBtn("↑ All Restraints", "Remove all restraint items from every target in the room");
+            const unlockAllBtn = makeQuickBtn("🔓 All Locks", "Unlock all locked items on every target in the room");
+            quickRow.appendChild(removeAllBtn);
+            quickRow.appendChild(unlockAllBtn);
+            body.appendChild(quickRow);
+            const releaseStatus = document.createElement("div");
+            releaseStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;margin-bottom:4px;";
+            body.appendChild(releaseStatus);
+            const showReleaseStatus = (results) => {
+                const done = results.filter(r => r.inRoom && r.count > 0).map(r => r.name + " (" + r.count + ")");
+                const skip = results.filter(r => !r.inRoom).map(r => r.name);
+                const parts = [];
+                if (done.length)
+                    parts.push("✓ " + done.join(", "));
+                if (skip.length)
+                    parts.push("⟳ not in room: " + skip.join(", "));
+                releaseStatus.textContent = parts.join("  ·  ") || "Nothing to do.";
+                window.setTimeout(() => { releaseStatus.textContent = ""; }, 4000);
+            };
+            removeAllBtn.addEventListener("click", () => {
+                removeAllBtn.disabled = true;
+                showReleaseStatus(removeAllTargetRestraints());
+                window.setTimeout(() => { removeAllBtn.disabled = false; }, 2000);
+            });
+            unlockAllBtn.addEventListener("click", () => {
+                unlockAllBtn.disabled = true;
+                showReleaseStatus(unlockAllTargetItems());
+                window.setTimeout(() => { unlockAllBtn.disabled = false; }, 2000);
+            });
+            // ── "Pick items to remove" picker ─────────────────────────────────────
+            const pickToggle = document.createElement("button");
+            pickToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
+            pickToggle.textContent = "↓ Pick items to remove";
+            body.appendChild(pickToggle);
+            const pickPanel = document.createElement("div");
+            pickPanel.style.cssText = "display:none;flex-direction:column;gap:6px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;margin-bottom:6px;";
+            body.appendChild(pickPanel);
+            // selection state: targetId → Set of group names
+            const pendingRemove = new Map();
+            const rebuildPickPanel = () => {
+                while (pickPanel.firstChild)
+                    pickPanel.removeChild(pickPanel.firstChild);
+                pendingRemove.clear();
+                const sections = getTargetRestraints();
+                if (sections.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:3px 2px;";
+                    hint.textContent = "No targets are in the room right now.";
+                    pickPanel.appendChild(hint);
+                    return;
+                }
+                for (const { target, items } of sections) {
+                    pendingRemove.set(target.id, new Set());
+                    const targHdr = document.createElement("div");
+                    targHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;font-weight:bold;margin-bottom:3px;";
+                    targHdr.textContent = target.name;
+                    pickPanel.appendChild(targHdr);
+                    if (items.length === 0) {
+                        const none = document.createElement("div");
+                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:1px 4px 4px;";
+                        none.textContent = "No restraints worn.";
+                        pickPanel.appendChild(none);
+                        continue;
+                    }
+                    const itemsWrap = document.createElement("div");
+                    itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:1px;margin-bottom:2px;";
+                    for (const item of items) {
+                        const lbl3 = document.createElement("label");
+                        lbl3.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:3px;cursor:pointer;";
+                        lbl3.addEventListener("mouseenter", () => { lbl3.style.background = "rgba(42,20,33,0.6)"; });
+                        lbl3.addEventListener("mouseleave", () => { lbl3.style.background = ""; });
+                        const cb2 = document.createElement("input");
+                        cb2.type = "checkbox";
+                        cb2.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                        cb2.addEventListener("change", () => {
+                            const sel = pendingRemove.get(target.id);
+                            if (cb2.checked)
+                                sel.add(item.group);
+                            else
+                                sel.delete(item.group);
+                        });
+                        const cbN = document.createElement("span");
+                        cbN.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        cbN.textContent = item.name;
+                        const cbG = document.createElement("span");
+                        cbG.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                        cbG.textContent = item.group.replace("Item", "");
+                        lbl3.appendChild(cb2);
+                        lbl3.appendChild(cbN);
+                        lbl3.appendChild(cbG);
+                        itemsWrap.appendChild(lbl3);
+                    }
+                    pickPanel.appendChild(itemsWrap);
+                }
+                // Remove selected button
+                const removeSelBtn = document.createElement("button");
+                removeSelBtn.style.cssText = "width:100%;background:#3a1020;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 0;transition:background 0.14s;margin-top:3px;";
+                removeSelBtn.textContent = "Remove Selected";
+                removeSelBtn.addEventListener("click", () => {
+                    var _a;
+                    const results = [];
+                    const cfg5 = getDomConfig();
+                    for (const [targetId, groups] of pendingRemove) {
+                        if (groups.size === 0)
+                            continue;
+                        const target = cfg5.targets.find(t => t.id === targetId);
+                        const res = removeTargetItems(targetId, [...groups]);
+                        results.push(Object.assign({ name: (_a = target === null || target === void 0 ? void 0 : target.name) !== null && _a !== void 0 ? _a : String(targetId) }, res));
+                    }
+                    if (results.length === 0) {
+                        releaseStatus.textContent = "Nothing selected.";
+                    }
+                    else {
+                        showReleaseStatus(results);
+                    }
+                    // Refresh picker to reflect new state
+                    rebuildPickPanel();
+                });
+                pickPanel.appendChild(removeSelBtn);
+            };
+            pickToggle.addEventListener("click", () => {
+                const isOpenNow = pickPanel.style.display === "none";
+                pickPanel.style.display = isOpenNow ? "flex" : "none";
+                pickToggle.style.borderStyle = isOpenNow ? "solid" : "dashed";
+                pickToggle.style.color = isOpenNow ? "#cf6f98" : "#7a4a5e";
+                if (isOpenNow)
+                    rebuildPickPanel();
+            });
             // ── Restraint Sets ───────────────────────────────────────────────────
             const div1 = document.createElement("div");
             div1.className = "ebc-divider";
@@ -5739,9 +5986,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.2.0";
+    const MOD_VERSION = "0.2.1";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.2.1",
+            changes: [
+                "DOM Tools: Release / Rescue section with quick 'All Restraints' and 'All Locks' buttons to strip or unlock targets.",
+                "DOM Tools: Per-item picker to choose exactly which restraints to remove from each in-room target.",
+            ],
+        },
         {
             version: "0.2.0",
             changes: [
