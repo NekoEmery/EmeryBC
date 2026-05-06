@@ -24,7 +24,7 @@ import {
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
-import { getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
+import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
     getButtons,
@@ -172,7 +172,7 @@ const CSS = `
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #553142;
+    color: #7a5a6a;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 11px;
@@ -182,7 +182,7 @@ const CSS = `
     transition: color 0.14s, border-color 0.14s;
 }
 
-.ebc-tab-btn:hover { color: #967281; }
+.ebc-tab-btn:hover { color: #b07888; }
 .ebc-tab-btn.ebc-tab-active { color: #cf6f98; border-bottom-color: #cf6f98; }
 
 /* -- Body -- */
@@ -204,7 +204,7 @@ const CSS = `
     font-size: 10px;
     font-weight: bold;
     letter-spacing: 0.1em;
-    color: #553142;
+    color: #8a6070;
     text-transform: uppercase;
     padding: 4px 4px 5px;
 }
@@ -814,8 +814,8 @@ const CSS = `
     padding: 4px 10px;
     border-top: 1px solid #2a1421;
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    color: #2a1421;
+    font-size: 10px;
+    color: #7a5a6a;
     text-align: center;
 }
 
@@ -882,7 +882,7 @@ const CSS = `
 .ebc-thanks-intro {
     font-family: "Trebuchet MS", serif;
     font-size: 11px;
-    color: #7a4a5e;
+    color: #9a7080;
     text-align: center;
     padding: 6px 4px 10px;
     line-height: 1.6;
@@ -891,12 +891,12 @@ const CSS = `
 /* -- Timer strip -- */
 .ebc-timer {
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
+    font-size: 10px;
     color: #e8d07a;
     text-align: center;
     padding: 2px 0 0;
     letter-spacing: 0.04em;
-    min-height: 12px;
+    min-height: 13px;
 }
 
 /* -- Restraint info -- */
@@ -923,8 +923,8 @@ const CSS = `
 
 .ebc-restraint-group {
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    color: #553142;
+    font-size: 10px;
+    color: #8a6070;
     white-space: nowrap;
 }
 
@@ -937,7 +937,7 @@ const CSS = `
     text-align: right;
 }
 
-.ebc-restraint-lock.unlocked { color: #553142; }
+.ebc-restraint-lock.unlocked { color: #7a5a6a; }
 
 .ebc-restraint-duration {
     margin-left: auto;
@@ -1048,8 +1048,8 @@ const CSS = `
 
 .ebc-combo-poses {
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    color: #553142;
+    font-size: 10px;
+    color: #8a6070;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1113,7 +1113,7 @@ const CSS = `
 }
 
 .ebc-step-delay {
-    font-size: 9px;
+    font-size: 10px;
     color: #e8d07a;
     text-align: center;
     padding: 1px 0;
@@ -1124,8 +1124,8 @@ const CSS = `
     background: none;
     border: 1px solid #3a1828;
     border-radius: 3px;
-    color: #8a4460;
-    font-size: 9px;
+    color: #9a6070;
+    font-size: 10px;
     padding: 1px 4px;
     cursor: pointer;
     line-height: 1;
@@ -1136,7 +1136,7 @@ const CSS = `
 .ebc-step-del {
     background: none;
     border: none;
-    color: #664055;
+    color: #9a6070;
     font-size: 13px;
     line-height: 1;
     padding: 0 2px;
@@ -1585,10 +1585,13 @@ export class EBCDrawer {
 
     private updateTimer(): void {
         if (!this.timerEl) return;
-        const room  = getRoomTime();
-        const bound = getRestraintTime();
-        if (!room) { this.timerEl.textContent = ""; return; }
-        this.timerEl.textContent = bound ? `🕒 ${room}  ⛓ ${bound}` : `🕒 ${room}`;
+        const online = getOnlineTime();
+        const room   = getRoomTime();
+        const bound  = getRestraintTime();
+        let text = `🌐 ${online}`;
+        if (room)  text += `  🕒 ${room}`;
+        if (bound) text += `  ⛓ ${bound}`;
+        this.timerEl.textContent = text;
     }
 
     private startTimerPoller(): void {

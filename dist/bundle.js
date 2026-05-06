@@ -779,29 +779,27 @@
     ];
     function applyPoses(poses) {
         const filtered = poses.filter(Boolean);
-        // BC uses null internally for "no active pose" — sending [] is ignored server-side.
-        // Capture desired BEFORE CharacterRefresh because BC may reset Player.ActivePose to []
-        // internally during refresh (null → [] coercion), causing us to send [] which the server
-        // ignores. We always send what we intended, not what BC left the field as.
-        // Split try-catch so ServerSend fires even if CharacterRefresh throws.
-        const desired = filtered.length > 0 ? filtered : null;
+        // LOCAL: assign [] for "no pose" — CharacterRefresh can throw or misbehave on null.
+        // SERVER: send null for "no pose" — BC server ignores [] but acts on null to clear.
+        // Every step is in its own try-catch so one failure can't block the others.
         try {
-            Player.ActivePose = desired;
-            CharacterRefresh(Player, false, false);
-            // Re-apply in case CharacterRefresh reverted the assignment
-            Player.ActivePose = desired;
+            Player.ActivePose = filtered;
         }
-        catch ( /* ignore refresh errors */_a) { /* ignore refresh errors */ }
+        catch ( /* ignore */_a) { /* ignore */ }
+        try {
+            CharacterRefresh(Player, false, false);
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
         try {
             if (Player.OnlineID != null) {
                 ServerSend("ChatRoomCharacterUpdate", {
                     ID: Player.OnlineID,
-                    ActivePose: desired,
+                    ActivePose: filtered.length > 0 ? filtered : null,
                     Appearance: ServerAppearanceBundle(Player.Appearance),
                 });
             }
         }
-        catch ( /* ignore send errors */_b) { /* ignore send errors */ }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Respects the exact order provided — the user controls sequencing via the editor.
@@ -909,6 +907,8 @@
     // room and how long active restraints have been present.
     // Per-item timestamps are persisted in ExtensionSettings so they survive
     // offline sessions and page reloads.
+    // Session start: fixed at module load time — "how long have I been online"
+    const SESSION_START = Date.now();
     let roomEnterTime = null;
     let restraintStartTime = null; // overall "am I restrained" timer
     let savePending = false;
@@ -1004,6 +1004,10 @@
         if (m > 0)
             return `${m}m ${sec}s`;
         return `${sec}s`;
+    }
+    // How long the addon has been loaded (session / "time online").
+    function getOnlineTime() {
+        return fmt(Date.now() - SESSION_START);
     }
     function getRoomTime() {
         return roomEnterTime !== null ? fmt(Date.now() - roomEnterTime) : null;
@@ -1306,7 +1310,7 @@
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #553142;
+    color: #7a5a6a;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 11px;
@@ -1316,7 +1320,7 @@
     transition: color 0.14s, border-color 0.14s;
 }
 
-.ebc-tab-btn:hover { color: #967281; }
+.ebc-tab-btn:hover { color: #b07888; }
 .ebc-tab-btn.ebc-tab-active { color: #cf6f98; border-bottom-color: #cf6f98; }
 
 /* -- Body -- */
@@ -1338,7 +1342,7 @@
     font-size: 10px;
     font-weight: bold;
     letter-spacing: 0.1em;
-    color: #553142;
+    color: #8a6070;
     text-transform: uppercase;
     padding: 4px 4px 5px;
 }
@@ -1948,8 +1952,8 @@
     padding: 4px 10px;
     border-top: 1px solid #2a1421;
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    color: #2a1421;
+    font-size: 10px;
+    color: #7a5a6a;
     text-align: center;
 }
 
@@ -2016,7 +2020,7 @@
 .ebc-thanks-intro {
     font-family: "Trebuchet MS", serif;
     font-size: 11px;
-    color: #7a4a5e;
+    color: #9a7080;
     text-align: center;
     padding: 6px 4px 10px;
     line-height: 1.6;
@@ -2025,12 +2029,12 @@
 /* -- Timer strip -- */
 .ebc-timer {
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
+    font-size: 10px;
     color: #e8d07a;
     text-align: center;
     padding: 2px 0 0;
     letter-spacing: 0.04em;
-    min-height: 12px;
+    min-height: 13px;
 }
 
 /* -- Restraint info -- */
@@ -2057,8 +2061,8 @@
 
 .ebc-restraint-group {
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    color: #553142;
+    font-size: 10px;
+    color: #8a6070;
     white-space: nowrap;
 }
 
@@ -2071,7 +2075,7 @@
     text-align: right;
 }
 
-.ebc-restraint-lock.unlocked { color: #553142; }
+.ebc-restraint-lock.unlocked { color: #7a5a6a; }
 
 .ebc-restraint-duration {
     margin-left: auto;
@@ -2182,8 +2186,8 @@
 
 .ebc-combo-poses {
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    color: #553142;
+    font-size: 10px;
+    color: #8a6070;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2247,7 +2251,7 @@
 }
 
 .ebc-step-delay {
-    font-size: 9px;
+    font-size: 10px;
     color: #e8d07a;
     text-align: center;
     padding: 1px 0;
@@ -2258,8 +2262,8 @@
     background: none;
     border: 1px solid #3a1828;
     border-radius: 3px;
-    color: #8a4460;
-    font-size: 9px;
+    color: #9a6070;
+    font-size: 10px;
     padding: 1px 4px;
     cursor: pointer;
     line-height: 1;
@@ -2270,7 +2274,7 @@
 .ebc-step-del {
     background: none;
     border: none;
-    color: #664055;
+    color: #9a6070;
     font-size: 13px;
     line-height: 1;
     padding: 0 2px;
@@ -2671,13 +2675,15 @@
         updateTimer() {
             if (!this.timerEl)
                 return;
+            const online = getOnlineTime();
             const room = getRoomTime();
             const bound = getRestraintTime();
-            if (!room) {
-                this.timerEl.textContent = "";
-                return;
-            }
-            this.timerEl.textContent = bound ? `🕒 ${room}  ⛓ ${bound}` : `🕒 ${room}`;
+            let text = `🌐 ${online}`;
+            if (room)
+                text += `  🕒 ${room}`;
+            if (bound)
+                text += `  ⛓ ${bound}`;
+            this.timerEl.textContent = text;
         }
         startTimerPoller() {
             if (this.timerPoller !== null)
@@ -4535,7 +4541,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.84";
+    const MOD_VERSION = "0.1.85";
     let noticeShown = false;
     const CHANGELOG = [
         {

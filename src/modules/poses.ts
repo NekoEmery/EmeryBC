@@ -42,27 +42,24 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
 
 export function applyPoses(poses: string[]): void {
     const filtered = poses.filter(Boolean);
-    // BC uses null internally for "no active pose" — sending [] is ignored server-side.
-    // Capture desired BEFORE CharacterRefresh because BC may reset Player.ActivePose to []
-    // internally during refresh (null → [] coercion), causing us to send [] which the server
-    // ignores. We always send what we intended, not what BC left the field as.
-    // Split try-catch so ServerSend fires even if CharacterRefresh throws.
-    const desired: string[] | null = filtered.length > 0 ? filtered : null;
+    // LOCAL: assign [] for "no pose" — CharacterRefresh can throw or misbehave on null.
+    // SERVER: send null for "no pose" — BC server ignores [] but acts on null to clear.
+    // Every step is in its own try-catch so one failure can't block the others.
     try {
-        (Player as unknown as Record<string, unknown>).ActivePose = desired;
+        (Player as unknown as Record<string, unknown>).ActivePose = filtered;
+    } catch { /* ignore */ }
+    try {
         CharacterRefresh(Player, false, false);
-        // Re-apply in case CharacterRefresh reverted the assignment
-        (Player as unknown as Record<string, unknown>).ActivePose = desired;
-    } catch { /* ignore refresh errors */ }
+    } catch { /* ignore */ }
     try {
         if (Player.OnlineID != null) {
             ServerSend("ChatRoomCharacterUpdate", {
                 ID: Player.OnlineID,
-                ActivePose: desired,
+                ActivePose: filtered.length > 0 ? filtered : null,
                 Appearance: ServerAppearanceBundle(Player.Appearance),
             });
         }
-    } catch { /* ignore send errors */ }
+    } catch { /* ignore */ }
 }
 
 // Apply poses one-by-one in the given order with a delay between each step.

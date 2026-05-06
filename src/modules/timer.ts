@@ -5,6 +5,9 @@
 
 import { RESTRAINT_GROUPS } from "./outfitManager";
 
+// Session start: fixed at module load time — "how long have I been online"
+const SESSION_START = Date.now();
+
 let roomEnterTime: number | null = null;
 let restraintStartTime: number | null = null; // overall "am I restrained" timer
 
@@ -97,6 +100,11 @@ function fmt(ms: number): string {
     if (h > 0) return `${h}h ${m}m`;
     if (m > 0) return `${m}m ${sec}s`;
     return `${sec}s`;
+}
+
+// How long the addon has been loaded (session / "time online").
+export function getOnlineTime(): string {
+    return fmt(Date.now() - SESSION_START);
 }
 
 export function getRoomTime(): string | null {
