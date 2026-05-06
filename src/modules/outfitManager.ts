@@ -427,12 +427,17 @@ export function importOutfitFromJSON(json: string): ConfiguredOutfit {
     return outfit;
 }
 
+export type BCImportMode = "restraints" | "outfit" | "both";
+
 // Import an outfit from BC's native LZString-compressed appearance bundle.
-// Extracts only restraint-group items so it can be saved as a restraint set.
+// mode: "restraints" = restraint slots only (⛓)
+//       "outfit"     = non-restraint clothing/body slots only
+//       "both"       = entire appearance
 export function importOutfitFromBCCode(
     code: string,
     displayName: string,
     command: string,
+    mode: BCImportMode = "restraints",
 ): ConfiguredOutfit {
     const LZ = (window as unknown as Record<string, unknown>).LZString as
         { decompressFromBase64?: (s: string) => string | null } | undefined;
@@ -445,38 +450,46 @@ export function importOutfitFromBCCode(
     try { raw = JSON.parse(json); } catch { throw new Error("Decoded data is not valid JSON."); }
     if (!Array.isArray(raw)) throw new Error("Unexpected format — expected an appearance array.");
 
-    // BC bundle items: { Group, Name, Color, Difficulty, Property, Craft, ... }
-    const restraintItems: SerializedItem[] = (raw as Record<string, unknown>[])
-        .filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group as string))
-        .map(i => sanitizeItem({
-            Group:      String(i.Group ?? ""),
-            Name:       String(i.Name ?? ""),
-            Color:      i.Color as SerializedItem["Color"],
-            Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
-            Property:   typeof i.Property === "object" && i.Property !== null
-                ? i.Property as Record<string, unknown>
-                : undefined,
-            Craft:      i.Craft as CraftingItem | undefined,
-        }));
+    const toItem = (i: Record<string, unknown>): SerializedItem => sanitizeItem({
+        Group:      String(i.Group ?? ""),
+        Name:       String(i.Name ?? ""),
+        Color:      i.Color as SerializedItem["Color"],
+        Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
+        Property:   typeof i.Property === "object" && i.Property !== null
+            ? i.Property as Record<string, unknown> : undefined,
+        Craft:      i.Craft as CraftingItem | undefined,
+    });
 
-    if (restraintItems.length === 0) throw new Error("No restraint items found in this BC outfit code.");
+    const all = raw as Record<string, unknown>[];
+    let items: SerializedItem[];
+    if (mode === "restraints") {
+        items = all.filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group as string)).map(toItem);
+        if (items.length === 0) throw new Error("No restraint items found in this BC outfit code.");
+    } else if (mode === "outfit") {
+        items = all.filter(i => typeof i.Group === "string" && !RESTRAINT_GROUPS.has(i.Group as string)).map(toItem);
+        if (items.length === 0) throw new Error("No outfit (non-restraint) items found in this BC outfit code.");
+    } else {
+        items = all.filter(i => typeof i.Group === "string").map(toItem);
+        if (items.length === 0) throw new Error("No items found in this BC outfit code.");
+    }
 
     const existing = getOutfits();
-    const baseCmd  = command.toLowerCase().trim().replace(/\s+/g, "") || "restraints";
+    const baseCmd  = command.toLowerCase().trim().replace(/\s+/g, "") || "imported";
     let finalCmd   = baseCmd;
     let sfx        = 2;
     while (existing.some(o => o.command === finalCmd)) finalCmd = baseCmd + sfx++;
 
+    const includesRestraints = mode !== "outfit";
     const outfit = sanitizeOutfit({
-        id:               uid(),
-        command:          finalCmd,
-        displayName:      displayName.trim() || "Imported Restraints",
-        announceText:     "",
-        includeRestraints: true,
-        preserveRestraints: false,
-        items:            restraintItems,
+        id:                uid(),
+        command:           finalCmd,
+        displayName:       displayName.trim() || "Imported Outfit",
+        announceText:      "",
+        includeRestraints: includesRestraints,
+        preserveRestraints: mode === "outfit", // if outfit-only, keep existing restraints
+        items,
     });
     saveOutfits([...existing, outfit]);
-    localNotice(`Imported "${outfit.displayName}" (/${outfit.command}) — ${restraintItems.length} restraint item(s).`);
+    localNotice(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
     return outfit;
 }

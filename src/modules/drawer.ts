@@ -18,6 +18,7 @@ import {
     exportOutfitById,
     importOutfitFromJSON,
     importOutfitFromBCCode,
+    type BCImportMode,
     setOutfitPreserveRestraints,
     RESTRAINT_GROUPS,
     type ConfiguredOutfit,
@@ -2609,8 +2610,22 @@ export class EBCDrawer {
             row.appendChild(el);
             return row;
         };
+        // Mode selector: restraints / outfit / both
+        const bcModeSelect = document.createElement("select");
+        bcModeSelect.className = "ebc-form-input";
+        [
+            { value: "restraints", label: "⛓ Restraints only" },
+            { value: "outfit",     label: "👗 Outfit only (no restraints)" },
+            { value: "both",       label: "✦ Everything (full appearance)" },
+        ].forEach(opt => {
+            const o = document.createElement("option");
+            o.value = opt.value; o.textContent = opt.label;
+            bcModeSelect.appendChild(o);
+        });
+
         bcFields.appendChild(mkRow("Name", bcNameInput));
         bcFields.appendChild(mkRow("Command", bcCmdInput));
+        bcFields.appendChild(mkRow("Import", bcModeSelect));
         impPanel.appendChild(bcFields);
 
         // Detect BC vs EBC format on paste/input
@@ -2645,6 +2660,7 @@ export class EBCDrawer {
             impToggleBtn.textContent = "↓ Import Outfit";
             impTextarea.value = ""; impError.textContent = "";
             bcNameInput.value = ""; bcCmdInput.value = "";
+            bcModeSelect.value = "restraints";
             bcFields.style.display = "none"; isBCCode = false;
         };
 
@@ -2663,8 +2679,9 @@ export class EBCDrawer {
                 if (isBCCode) {
                     importOutfitFromBCCode(
                         impTextarea.value.trim(),
-                        bcNameInput.value.trim() || "Imported Restraints",
+                        bcNameInput.value.trim() || "Imported Outfit",
                         bcCmdInput.value.trim() || "imported",
+                        bcModeSelect.value as BCImportMode,
                     );
                 } else {
                     importOutfitFromJSON(impTextarea.value.trim());

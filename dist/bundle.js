@@ -659,8 +659,10 @@
         return outfit;
     }
     // Import an outfit from BC's native LZString-compressed appearance bundle.
-    // Extracts only restraint-group items so it can be saved as a restraint set.
-    function importOutfitFromBCCode(code, displayName, command) {
+    // mode: "restraints" = restraint slots only (⛓)
+    //       "outfit"     = non-restraint clothing/body slots only
+    //       "both"       = entire appearance
+    function importOutfitFromBCCode(code, displayName, command, mode = "restraints") {
         const LZ = window.LZString;
         if (!(LZ === null || LZ === void 0 ? void 0 : LZ.decompressFromBase64))
             throw new Error("LZString not found — make sure you are on the BC page.");
@@ -676,10 +678,7 @@
         }
         if (!Array.isArray(raw))
             throw new Error("Unexpected format — expected an appearance array.");
-        // BC bundle items: { Group, Name, Color, Difficulty, Property, Craft, ... }
-        const restraintItems = raw
-            .filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group))
-            .map(i => {
+        const toItem = (i) => {
             var _a, _b;
             return sanitizeItem({
                 Group: String((_a = i.Group) !== null && _a !== void 0 ? _a : ""),
@@ -687,30 +686,45 @@
                 Color: i.Color,
                 Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
                 Property: typeof i.Property === "object" && i.Property !== null
-                    ? i.Property
-                    : undefined,
+                    ? i.Property : undefined,
                 Craft: i.Craft,
             });
-        });
-        if (restraintItems.length === 0)
-            throw new Error("No restraint items found in this BC outfit code.");
+        };
+        const all = raw;
+        let items;
+        if (mode === "restraints") {
+            items = all.filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group)).map(toItem);
+            if (items.length === 0)
+                throw new Error("No restraint items found in this BC outfit code.");
+        }
+        else if (mode === "outfit") {
+            items = all.filter(i => typeof i.Group === "string" && !RESTRAINT_GROUPS.has(i.Group)).map(toItem);
+            if (items.length === 0)
+                throw new Error("No outfit (non-restraint) items found in this BC outfit code.");
+        }
+        else {
+            items = all.filter(i => typeof i.Group === "string").map(toItem);
+            if (items.length === 0)
+                throw new Error("No items found in this BC outfit code.");
+        }
         const existing = getOutfits();
-        const baseCmd = command.toLowerCase().trim().replace(/\s+/g, "") || "restraints";
+        const baseCmd = command.toLowerCase().trim().replace(/\s+/g, "") || "imported";
         let finalCmd = baseCmd;
         let sfx = 2;
         while (existing.some(o => o.command === finalCmd))
             finalCmd = baseCmd + sfx++;
+        const includesRestraints = mode !== "outfit";
         const outfit = sanitizeOutfit({
             id: uid$2(),
             command: finalCmd,
-            displayName: displayName.trim() || "Imported Restraints",
+            displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
-            includeRestraints: true,
-            preserveRestraints: false,
-            items: restraintItems,
+            includeRestraints: includesRestraints,
+            preserveRestraints: mode === "outfit", // if outfit-only, keep existing restraints
+            items,
         });
         saveOutfits([...existing, outfit]);
-        localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}) — ${restraintItems.length} restraint item(s).`);
+        localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
         return outfit;
     }
 
@@ -3635,8 +3649,22 @@
                 row.appendChild(el);
                 return row;
             };
+            // Mode selector: restraints / outfit / both
+            const bcModeSelect = document.createElement("select");
+            bcModeSelect.className = "ebc-form-input";
+            [
+                { value: "restraints", label: "⛓ Restraints only" },
+                { value: "outfit", label: "👗 Outfit only (no restraints)" },
+                { value: "both", label: "✦ Everything (full appearance)" },
+            ].forEach(opt => {
+                const o = document.createElement("option");
+                o.value = opt.value;
+                o.textContent = opt.label;
+                bcModeSelect.appendChild(o);
+            });
             bcFields.appendChild(mkRow("Name", bcNameInput));
             bcFields.appendChild(mkRow("Command", bcCmdInput));
+            bcFields.appendChild(mkRow("Import", bcModeSelect));
             impPanel.appendChild(bcFields);
             // Detect BC vs EBC format on paste/input
             let isBCCode = false;
@@ -3669,6 +3697,7 @@
                 impError.textContent = "";
                 bcNameInput.value = "";
                 bcCmdInput.value = "";
+                bcModeSelect.value = "restraints";
                 bcFields.style.display = "none";
                 isBCCode = false;
             };
@@ -3687,7 +3716,7 @@
                 impError.textContent = "";
                 try {
                     if (isBCCode) {
-                        importOutfitFromBCCode(impTextarea.value.trim(), bcNameInput.value.trim() || "Imported Restraints", bcCmdInput.value.trim() || "imported");
+                        importOutfitFromBCCode(impTextarea.value.trim(), bcNameInput.value.trim() || "Imported Outfit", bcCmdInput.value.trim() || "imported", bcModeSelect.value);
                     }
                     else {
                         importOutfitFromJSON(impTextarea.value.trim());
@@ -4918,7 +4947,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.91";
+    const MOD_VERSION = "0.1.92";
     let noticeShown = false;
     const CHANGELOG = [
         {
