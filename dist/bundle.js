@@ -1373,11 +1373,14 @@
         return items.length;
     }
     // Apply the configured restraints to every target currently in the room.
+    // Uses BC's own InventoryWear function so all permission checks go through
+    // the game's normal system — lover/whitelist relationships are respected.
     // Returns which targets were restrained and which were skipped (not in room).
     function applyDomRestraints() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         const cfg = loadConfig();
         const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+        const InventoryWearFn = window.InventoryWear;
         const applied = [];
         const skipped = [];
         for (const target of cfg.targets) {
@@ -1389,32 +1392,38 @@
             let anyApplied = false;
             for (const item of cfg.items) {
                 try {
-                    const asset = AssetGet(Player.AssetFamily, item.Group, item.Name);
-                    if (!asset)
-                        continue;
-                    // Remove existing item in this slot (without individual server push)
-                    const idx = char.Appearance.findIndex((a) => a.Asset.Group.Name === item.Group);
-                    if (idx >= 0)
-                        char.Appearance.splice(idx, 1);
-                    // Build and append new item
-                    char.Appearance.push({
-                        Asset: asset,
-                        Color: ((_b = item.Color) !== null && _b !== void 0 ? _b : "Default"),
-                        Property: ((_c = item.Property) !== null && _c !== void 0 ? _c : {}),
-                        Craft: item.Craft,
-                    });
+                    if (InventoryWearFn) {
+                        // Preferred: go through BC's own item application which handles
+                        // permission validation for lover / whitelist relationships.
+                        InventoryWearFn(char, item.Name, item.Group, item.Color, (_b = item.Difficulty) !== null && _b !== void 0 ? _b : 0, Player.AssetFamily, item.Craft);
+                    }
+                    else {
+                        // Fallback: direct array manipulation (no permission bridging)
+                        const asset = AssetGet(Player.AssetFamily, item.Group, item.Name);
+                        if (!asset)
+                            continue;
+                        const idx = char.Appearance.findIndex((a) => a.Asset.Group.Name === item.Group);
+                        if (idx >= 0)
+                            char.Appearance.splice(idx, 1);
+                        char.Appearance.push({
+                            Asset: asset,
+                            Color: ((_c = item.Color) !== null && _c !== void 0 ? _c : "Default"),
+                            Property: ((_d = item.Property) !== null && _d !== void 0 ? _d : {}),
+                            Craft: item.Craft,
+                        });
+                    }
                     anyApplied = true;
                 }
-                catch ( /* skip individual item failures silently */_d) { /* skip individual item failures silently */ }
+                catch ( /* skip individual item failures silently */_e) { /* skip individual item failures silently */ }
             }
             if (anyApplied) {
                 try {
-                    // Push=true lets BC sync the updated appearance to the server.
-                    // Requires appropriate BC permissions (owner / family) over the target.
+                    // Sync the updated character appearance to the server.
+                    // BC validates the relationship (lover / whitelist) server-side.
                     CharacterRefresh(char, true, false);
                     applied.push(target);
                 }
-                catch (_e) {
+                catch (_f) {
                     skipped.push(target);
                 }
             }
@@ -5474,7 +5483,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.98";
+    const MOD_VERSION = "0.1.99";
     let noticeShown = false;
     const CHANGELOG = [
         {
