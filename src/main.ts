@@ -17,7 +17,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.31";
+const MOD_VERSION = "0.1.32";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -40,6 +40,18 @@ const TAB_BTN_W = 132;
 const TAB_BTN_GAP = 14;
 const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.32",
+        changes: [
+            "Fixed action emotes - name now appears correctly as (Name emotes.) using proper BC dictionary tag lookup.",
+            "Fixed outfit announce text with same name-substitution fix.",
+            "Re-added hamburger collapse toggle chip above sidebar action buttons.",
+            "Drawer tab now sits just below CRABS's tab (50px offset from chat log top).",
+            "Fixed drawer appearing in the middle of the screen on first room join.",
+            "Drawer: added Update button on each outfit row to snapshot current look.",
+            "Drawer: added New Outfit inline form with command, name, announce, and restraints toggle.",
+        ],
+    },
     {
         version: "0.1.31",
         changes: [

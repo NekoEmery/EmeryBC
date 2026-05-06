@@ -284,9 +284,9 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
             if (outfit.announceText.trim()) {
                 ServerSend("ChatRoomChat", {
                     Type: "Action",
-                    Content: outfit.announceText.trim(),
+                    Content: "EBCAnnounce",
                     Dictionary: [
-                        { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                        { Tag: "EBCAnnounce", Text: "{SourceCharacter} " + outfit.announceText.trim() },
                         { SourceCharacter: Player.MemberNumber },
                     ],
                 });
@@ -297,6 +297,44 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
     }, 80);
 
     localNotice(`Loaded "${outfit.displayName}" (/${outfit.command})`);
+}
+
+// Called from the drawer to snapshot current appearance into an existing outfit slot
+export function saveCurrentAppearanceToOutfit(id: string): boolean {
+    const outfits = getOutfits();
+    const outfit = outfits.find(o => o.id === id);
+    if (!outfit) return false;
+    outfit.items = captureAppearance(outfit.includeRestraints);
+    saveOutfits(outfits);
+    localNotice(`Saved current look to "${outfit.displayName}".`);
+    return true;
+}
+
+// Called from the drawer to create a brand new outfit from current appearance
+export function createOutfitFromCurrent(
+    command: string,
+    displayName: string,
+    announceText: string,
+    includeRestraints: boolean
+): ConfiguredOutfit | null {
+    const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+    if (!cmd || !displayName.trim()) return null;
+    // Block duplicate commands
+    if (getOutfits().some(o => o.command === cmd)) {
+        localNotice(`Command "/${cmd}" is already used by another outfit.`, "#ffb7c7");
+        return null;
+    }
+    const outfit: ConfiguredOutfit = {
+        id: uid(),
+        command: cmd,
+        displayName: displayName.trim(),
+        announceText: announceText.trim(),
+        includeRestraints,
+        items: captureAppearance(includeRestraints),
+    };
+    saveOutfits([...getOutfits(), outfit]);
+    localNotice(`Created outfit "${outfit.displayName}" (/${outfit.command}).`);
+    return outfit;
 }
 
 export function handleOutfitCommand(inputValue: string): boolean {

@@ -81,15 +81,14 @@ function normalizeHex(value: string | undefined, fallback = "#c2185b"): string {
 
 // --- Helper: send as BC Action - displays as (Name text) ---------------------
 
-/** Dictionary entry that tricks BC into rendering literal Content as an Action. */
-const ACTION_DICT_POISON = { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) };
-
+// Uses a custom Dictionary tag so BC resolves "{SourceCharacter} <emote>" and
+// substitutes the character name, producing "(Emery nods.)" in the chat log.
 export function sendAction(emote: string): void {
     ServerSend("ChatRoomChat", {
         Type: "Action",
-        Content: emote.trim(),
+        Content: "EBCEmote",
         Dictionary: [
-            ACTION_DICT_POISON,
+            { Tag: "EBCEmote", Text: "{SourceCharacter} " + emote.trim() },
             { SourceCharacter: Player.MemberNumber },
         ],
     });
@@ -101,8 +100,25 @@ const BTN_X       = 0;
 const BTN_START_Y = 270;
 const BTN_SIZE    = 45;
 
+// Hamburger toggle chip sits just above the action buttons
+const CHIP_X = 0;
+const CHIP_Y = 255;
+const CHIP_W = 45;
+const CHIP_H = 13;
+
+let sidebarCollapsed = false;
+
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
+
+    // Always draw the collapse toggle chip
+    DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H,
+        sidebarCollapsed ? "+" : "---",
+        sidebarCollapsed ? UI.buttonMuted : UI.cardMuted,
+        "", sidebarCollapsed ? "Show quick buttons" : "Hide quick buttons");
+
+    if (sidebarCollapsed) return;
+
     const buttons = getButtons();
     for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
@@ -114,6 +130,16 @@ export function drawActionButtons(): void {
 
 export function handleActionButtonClick(): boolean {
     if (CurrentScreen !== "ChatRoom") return false;
+
+    // Collapse chip
+    if (MouseX >= CHIP_X && MouseX <= CHIP_X + CHIP_W &&
+        MouseY >= CHIP_Y && MouseY <= CHIP_Y + CHIP_H) {
+        sidebarCollapsed = !sidebarCollapsed;
+        return true;
+    }
+
+    if (sidebarCollapsed) return false;
+
     const buttons = getButtons();
     for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
