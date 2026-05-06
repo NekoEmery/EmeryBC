@@ -5,10 +5,18 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.35";
+const MOD_VERSION = "0.1.36";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.36",
+        changes: [
+            "Fixed drawer tab disappearing when panel is closed: tab now lives outside the sliding element and never transforms.",
+            "Fixed drawer not appearing when addon loads while already in a chat room (initial visibility check on startup).",
+            "Restructured drawer DOM: zero-width anchor holds the always-visible tab, only the panel slides.",
+        ],
+    },
     {
         version: "0.1.35",
         changes: [
@@ -470,6 +478,9 @@ function init(): void {
     let drawer: EBCDrawer | null = null;
     try {
         drawer = new EBCDrawer(MOD_VERSION);
+        // Fire an initial visibility check in case the addon loads while the
+        // player is already in a chat room (ChatRoomSync won't fire again).
+        window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);
     } catch (err) {
         console.warn("[EmeryBC] Drawer failed to initialise:", err);
     }

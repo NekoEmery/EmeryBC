@@ -40,21 +40,19 @@ const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
 // -- Styles --------------------------------------------------------------------
 
 const CSS = `
-#emerybc-drawer {
+/*
+ * Root anchor: zero-width fixed point at the right edge of the chat log.
+ * The tab hangs to its left (always visible). The panel slides out to its right.
+ * This means the tab is NEVER caught by the panel's transform and never disappears.
+ */
+#emerybc-root {
     position: fixed;
     z-index: 99;
-    display: flex;
-    align-items: flex-start;
-    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-    will-change: transform;
+    width: 0;
     pointer-events: none;
-    width: 300px;
 }
 
-#emerybc-drawer.ebc-closed { transform: translateX(calc(100% + 40px)); }
-#emerybc-drawer.ebc-open   { transform: translateX(0); }
-
-/* Tab button - sits at top: 10px, same as CRABS */
+/* Tab - always visible, hangs left of the anchor */
 #ebc-tab {
     pointer-events: auto;
     width: 36px;
@@ -73,12 +71,25 @@ const CSS = `
     position: absolute;
     left: -36px;
     top: 10px;
-    z-index: 99;
     transition: background 0.18s;
-    flex-shrink: 0;
 }
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
+
+/* Sliding panel - only this element transforms, not the tab */
+#emerybc-panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 300px;
+    height: 100%;
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform;
+    pointer-events: none;
+}
+
+#emerybc-panel.ebc-closed { transform: translateX(calc(100% + 40px)); }
+#emerybc-panel.ebc-open   { transform: translateX(0); pointer-events: auto; }
 
 .ebc-panel {
     pointer-events: auto;
@@ -88,10 +99,9 @@ const CSS = `
     border-left: 2px solid #4c2537;
     display: flex;
     flex-direction: column;
-    width: 300px;
+    width: 100%;
     height: 100%;
     overflow: hidden;
-
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
@@ -549,7 +559,8 @@ type DrawerTab = "outfits" | "buttons";
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
 
-    private el: HTMLElement | null = null;
+    private rootEl: HTMLElement | null = null;   // zero-width anchor (positioned)
+    private panelEl: HTMLElement | null = null;  // sliding panel (transforms)
     private isOpen = false;
     private currentTab: DrawerTab = "outfits";
     private resizeObserver: ResizeObserver | null = null;
@@ -569,23 +580,29 @@ export class EBCDrawer {
     // -- Setup -----------------------------------------------------------------
 
     private setup(): void {
-        if (this.el) return;
+        if (this.rootEl) return;
         this.injectStyles();
 
-        const el = document.createElement("div");
-        el.id = "emerybc-drawer";
-        el.className = "ebc-closed";
-        el.style.display = "none";
-        el.style.right = "-9999px"; // off-screen until syncToChat gives real coords
+        // Root anchor - zero-width, positioned at chat log right edge.
+        // The tab lives here (always visible). The panel is a sibling that slides.
+        const root = document.createElement("div");
+        root.id = "emerybc-root";
+        root.style.display = "none";
+        root.style.right = "-9999px"; // off-screen until syncToChat runs
 
-        // Tab button (the little icon in the chat log margin)
+        // Tab button - child of root, OUTSIDE the sliding panel so it never moves
         const tab = document.createElement("div");
         tab.id = "ebc-tab";
         tab.title = "EmeryBC";
         tab.innerHTML = TAB_ICON;
-        el.appendChild(tab);
+        root.appendChild(tab);
 
-        // Panel
+        // Sliding panel container - this is the only thing that transforms
+        const slideContainer = document.createElement("div");
+        slideContainer.id = "emerybc-panel";
+        slideContainer.className = "ebc-closed";
+
+        // Inner panel (visual content)
         const panel = document.createElement("div");
         panel.className = "ebc-panel";
 
@@ -664,10 +681,12 @@ export class EBCDrawer {
         panel.appendChild(quickActions);
         panel.appendChild(body);
         panel.appendChild(footer);
-        el.appendChild(panel);
+        slideContainer.appendChild(panel);
+        root.appendChild(slideContainer);
 
-        document.body.appendChild(el);
-        this.el = el;
+        document.body.appendChild(root);
+        this.rootEl  = root;
+        this.panelEl = slideContainer;
 
         // Events
         tab.addEventListener("click", () => this.toggle());
@@ -708,14 +727,14 @@ export class EBCDrawer {
 
     private syncToChat(): boolean {
         const chatLog = document.getElementById("TextAreaChatLog");
-        if (!chatLog || !this.el) return false;
+        if (!chatLog || !this.rootEl) return false;
         const rect = chatLog.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return false;
 
         const topOffset = rect.height * 0.10;
-        this.el.style.top    = `${rect.top + topOffset}px`;
-        this.el.style.right  = `${document.documentElement.clientWidth - rect.right}px`;
-        this.el.style.height = `${rect.height - topOffset}px`;
+        this.rootEl.style.top    = `${rect.top + topOffset}px`;
+        this.rootEl.style.right  = `${document.documentElement.clientWidth - rect.right}px`;
+        this.rootEl.style.height = `${rect.height - topOffset}px`;
         this.positioned = true;
         return true;
     }
@@ -723,13 +742,13 @@ export class EBCDrawer {
     // -- Visibility ------------------------------------------------------------
 
     public updateVisibility(): void {
-        if (!this.el) return;
+        if (!this.rootEl || !this.panelEl) return;
         const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
 
         if (!inRoom) {
-            this.el.style.display = "none";
+            this.rootEl.style.display = "none";
             this.isOpen = false;
-            this.el.className = "ebc-closed";
+            this.panelEl.className = "ebc-closed";
             this.positioned = false;
             this.resizeObserver?.disconnect();
             this.resizeObserver = null;
@@ -739,11 +758,11 @@ export class EBCDrawer {
         // Try to position; if the chat log isn't laid out yet, retry next frame
         const synced = this.syncToChat();
         if (synced) {
-            this.el.style.display = "flex";
+            this.rootEl.style.display = "block";
         } else {
             requestAnimationFrame(() => {
-                if (this.syncToChat() && this.el) {
-                    this.el.style.display = "flex";
+                if (this.syncToChat() && this.rootEl) {
+                    this.rootEl.style.display = "block";
                 }
             });
         }
@@ -762,8 +781,8 @@ export class EBCDrawer {
     private switchTab(tab: DrawerTab): void {
         this.currentTab = tab;
 
-        const outfitBtn = this.el?.querySelector("#ebc-tab-outfits");
-        const buttonBtn = this.el?.querySelector("#ebc-tab-buttons");
+        const outfitBtn = this.rootEl?.querySelector("#ebc-tab-outfits");
+        const buttonBtn = this.rootEl?.querySelector("#ebc-tab-buttons");
         if (outfitBtn) outfitBtn.className = "ebc-tab-btn" + (tab === "outfits" ? " ebc-tab-active" : "");
         if (buttonBtn) buttonBtn.className = "ebc-tab-btn" + (tab === "buttons" ? " ebc-tab-active" : "");
 
@@ -781,7 +800,7 @@ export class EBCDrawer {
     // -- Outfits tab -----------------------------------------------------------
 
     private renderOutfits(): void {
-        const body = this.el?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -960,7 +979,7 @@ export class EBCDrawer {
     // -- Buttons tab -----------------------------------------------------------
 
     private renderButtons(): void {
-        const body = this.el?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -1148,25 +1167,26 @@ export class EBCDrawer {
     public toggle(): void { this.isOpen ? this.close() : this.open(); }
 
     public open(): void {
-        if (!this.el) return;
+        if (!this.panelEl) return;
         this.isOpen = true;
-        this.el.className = "ebc-open";
+        this.panelEl.className = "ebc-open";
         if (!this.positioned) this.syncToChat();
         this.renderCurrentTab();
     }
 
     public close(): void {
-        if (!this.el) return;
+        if (!this.panelEl) return;
         this.isOpen = false;
-        this.el.className = "ebc-closed";
+        this.panelEl.className = "ebc-closed";
     }
 
     // -- Lifecycle -------------------------------------------------------------
 
     public destroy(): void {
         this.resizeObserver?.disconnect();
-        this.el?.remove();
-        this.el = null;
+        this.rootEl?.remove();
+        this.rootEl  = null;
+        this.panelEl = null;
         EBCDrawer._instance = null;
     }
 
