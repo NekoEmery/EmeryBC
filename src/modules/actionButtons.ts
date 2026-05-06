@@ -181,8 +181,8 @@ function runCheerAnimation(): boolean {
         localNotice("Your arms are restrained — can't cheer right now!");
         return false;
     }
-    // Yoked (arms up/out) <-> neutral, cycles 4 times then drops back to default
-    runSequence("Yoked|_|Yoked|_|Yoked|_|Yoked|_", 400);
+    // Yoked (arms out) -> OverTheHead (arms fully above head) -> repeat -> neutral
+    runSequence("Yoked|OverTheHead|Yoked|OverTheHead|Yoked|OverTheHead|_", 400);
     return true;
 }
 
