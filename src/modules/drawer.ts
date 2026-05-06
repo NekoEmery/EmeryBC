@@ -1185,6 +1185,48 @@ const CSS = `
     min-width: 44px;
     text-align: right;
 }
+
+/* -- Free-float panel mode -- */
+#emerybc-panel.ebc-free-mode {
+    position: fixed !important;
+    right: auto !important;
+    top: auto !important;
+    height: auto !important;
+    max-height: 82vh;
+    min-height: 200px;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+    transition: opacity 0.18s !important;
+    transform: none !important;
+}
+#emerybc-panel.ebc-free-mode.ebc-closed {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: none !important;
+}
+#emerybc-panel.ebc-free-mode.ebc-open {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: none !important;
+}
+.ebc-free-mode .ebc-header {
+    cursor: grab;
+    border-radius: 8px 8px 0 0;
+}
+.ebc-free-mode .ebc-header:active { cursor: grabbing; }
+.ebc-reset-loc-btn {
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #967281;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-family: "Trebuchet MS", serif;
+    white-space: nowrap;
+    transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.ebc-reset-loc-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 `;
 
 // -- Class ---------------------------------------------------------------------
@@ -1209,6 +1251,9 @@ export class EBCDrawer {
     private timerPoller: ReturnType<typeof window.setInterval> | null = null;
     // User-dragged tab position (Y offset from chat log top, px). null = follow CRABS.
     private userTabOffset: number | null = null;
+    // Free-float panel position. null = anchored to chat log (default slide behaviour).
+    private panelPosition: { x: number; y: number } | null = null;
+    private resetLocationBtn: HTMLElement | null = null;
 
     constructor(version = "") {
         EBCDrawer._instance = this;
@@ -1265,15 +1310,80 @@ export class EBCDrawer {
         refreshBtn.title = "Refresh";
         refreshBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
 
+        const resetLocBtn = document.createElement("button");
+        resetLocBtn.className = "ebc-reset-loc-btn";
+        resetLocBtn.title = "Reset drawer to default position (anchored to chat log)";
+        resetLocBtn.textContent = "⌖ Reset pos";
+        resetLocBtn.style.display = "none"; // hidden until panel is in free-float mode
+        this.resetLocationBtn = resetLocBtn;
+
         const closeBtn = document.createElement("button");
         closeBtn.className = "ebc-icon-btn";
         closeBtn.title = "Close";
         closeBtn.textContent = "X";
 
         headerBtns.appendChild(refreshBtn);
+        headerBtns.appendChild(resetLocBtn);
         headerBtns.appendChild(closeBtn);
         header.appendChild(title);
         header.appendChild(headerBtns);
+
+        // Header drag — moves the panel when in free-float mode.
+        // In anchored mode it drags to detach the panel; after 5px movement the panel
+        // enters free-float mode and follows the cursor from that point.
+        header.addEventListener("mousedown", (e: MouseEvent) => {
+            if (e.button !== 0) return;
+            // Don't interfere with button clicks inside the header
+            if ((e.target as HTMLElement).closest("button")) return;
+
+            e.preventDefault();
+            const startX = e.clientX;
+            const startY = e.clientY;
+
+            // Starting position of the panel
+            const panelEl = slideContainer;
+            const startRect = panelEl.getBoundingClientRect();
+            let inFreeMode = this.panelPosition !== null;
+            let startPanelX = inFreeMode ? this.panelPosition!.x : startRect.left;
+            let startPanelY = inFreeMode ? this.panelPosition!.y : startRect.top;
+            let hasDragged = false;
+
+            const onMove = (ev: MouseEvent): void => {
+                const dx = ev.clientX - startX;
+                const dy = ev.clientY - startY;
+                if (!hasDragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+
+                if (!hasDragged) {
+                    hasDragged = true;
+                    // Enter free-float mode on first real movement
+                    if (!inFreeMode) {
+                        inFreeMode = true;
+                        startPanelX = startRect.left;
+                        startPanelY = startRect.top;
+                        this.enterFreeMode({ x: startPanelX, y: startPanelY });
+                    }
+                }
+
+                const newX = Math.max(0, Math.min(window.innerWidth - 50, startPanelX + dx));
+                const newY = Math.max(0, Math.min(window.innerHeight - 50, startPanelY + dy));
+                panelEl.style.left = `${newX}px`;
+                panelEl.style.top  = `${newY}px`;
+            };
+
+            const onUp = (): void => {
+                document.removeEventListener("mousemove", onMove);
+                document.removeEventListener("mouseup", onUp);
+                if (!hasDragged) return;
+                // Save final position
+                const x = parseInt(panelEl.style.left, 10);
+                const y = parseInt(panelEl.style.top,  10);
+                this.panelPosition = { x, y };
+                this.savePanelPosition({ x, y });
+            };
+
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup", onUp);
+        });
 
         // Tab bar
         const tabBar = document.createElement("div");
@@ -1457,6 +1567,12 @@ export class EBCDrawer {
             this.updateCrabsPosition();
         });
 
+        resetLocBtn.addEventListener("click", () => {
+            this.panelPosition = null;
+            this.savePanelPosition(null);
+            this.exitFreeMode();
+        });
+
         closeBtn.addEventListener("click", () => this.close());
         refreshBtn.addEventListener("click", () => {
             refreshBtn.classList.add("spinning");
@@ -1577,6 +1693,45 @@ export class EBCDrawer {
         const chatLog = document.getElementById("TextAreaChatLog");
         const maxOffset = chatLog ? chatLog.getBoundingClientRect().height - 44 : 500;
         tabEl.style.top = `${Math.max(4, Math.min(maxOffset, offset))}px`;
+    }
+
+    // -- Panel free-float mode -------------------------------------------------
+
+    private savePanelPosition(pos: { x: number; y: number } | null): void {
+        try {
+            if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
+            (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).panelPos = pos ?? null;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        } catch { /* ignore */ }
+    }
+
+    private loadPanelPosition(): { x: number; y: number } | null {
+        try {
+            const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined;
+            const v = store?.panelPos as { x?: unknown; y?: unknown } | null | undefined;
+            if (v && typeof v.x === "number" && typeof v.y === "number") return { x: v.x, y: v.y };
+            return null;
+        } catch { return null; }
+    }
+
+    private enterFreeMode(pos: { x: number; y: number }): void {
+        if (!this.panelEl) return;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const x = Math.max(0, Math.min(w - 100, pos.x));
+        const y = Math.max(0, Math.min(h - 100, pos.y));
+        this.panelEl.classList.add("ebc-free-mode");
+        this.panelEl.style.left = `${x}px`;
+        this.panelEl.style.top  = `${y}px`;
+        if (this.resetLocationBtn) this.resetLocationBtn.style.display = "";
+    }
+
+    private exitFreeMode(): void {
+        if (!this.panelEl) return;
+        this.panelEl.classList.remove("ebc-free-mode");
+        this.panelEl.style.left = "";
+        this.panelEl.style.top  = "";
+        if (this.resetLocationBtn) this.resetLocationBtn.style.display = "none";
     }
 
     // Reads CRABS's #drawer-tab position and updates our tab's top accordingly.
@@ -3746,7 +3901,24 @@ export class EBCDrawer {
     public open(): void {
         if (!this.panelEl) return;
         this.isOpen = true;
-        this.panelEl.className = "ebc-open";
+
+        // On first open, check for a saved free-float position
+        if (this.panelPosition === null) {
+            const saved = this.loadPanelPosition();
+            if (saved !== null) {
+                this.panelPosition = saved;
+                this.enterFreeMode(saved);
+            }
+        }
+
+        if (this.panelPosition !== null) {
+            // Free-float: just make visible at saved spot, no slide animation
+            this.panelEl.classList.add("ebc-free-mode", "ebc-open");
+            this.panelEl.classList.remove("ebc-closed");
+        } else {
+            // Anchored: normal slide-in
+            this.panelEl.className = "ebc-open";
+        }
         if (!this.positioned) this.syncToChat();
         try { this.refreshBadgeRow?.(); } catch { /* ignore */ }
         this.updateTimer();
@@ -3756,7 +3928,13 @@ export class EBCDrawer {
     public close(): void {
         if (!this.panelEl) return;
         this.isOpen = false;
-        this.panelEl.className = "ebc-closed";
+        if (this.panelPosition !== null) {
+            // Free-float: keep mode class, just swap open→closed for opacity fade
+            this.panelEl.classList.remove("ebc-open");
+            this.panelEl.classList.add("ebc-closed", "ebc-free-mode");
+        } else {
+            this.panelEl.className = "ebc-closed";
+        }
     }
 
     // -- Lifecycle -------------------------------------------------------------
