@@ -268,7 +268,7 @@ export function drawActionButtons(): void {
 
     DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H,
         sidebarCollapsed ? "+" : "=",
-        sidebarCollapsed ? UI.buttonMuted : UI.cardMuted,
+        sidebarCollapsed ? UI.accentDeep : UI.accentSoft,
         "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
 
     if (sidebarCollapsed) return;

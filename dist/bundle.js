@@ -6,8 +6,9 @@
         cardMuted: "#190b13",
         textMuted: "#cbaab7",
         accent: "#cf6f98",
-        gold: "#c9ab72",
-        buttonMuted: "#432232"};
+        accentDeep: "#91405f",
+        accentSoft: "#5b2439",
+        gold: "#c9ab72"};
 
     // Action buttons drawn in the chatroom sidebar below BCAR's buttons.
     const DEFAULT_BUTTONS = [
@@ -250,7 +251,7 @@
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
-        DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H, sidebarCollapsed ? "+" : "=", sidebarCollapsed ? UI.buttonMuted : UI.cardMuted, "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
+        DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H, sidebarCollapsed ? "+" : "=", sidebarCollapsed ? UI.accentDeep : UI.accentSoft, "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
         if (sidebarCollapsed)
             return;
         const buttons = getButtons();
@@ -1943,7 +1944,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.49";
+    const MOD_VERSION = "0.1.50";
     let noticeShown = false;
     const CHANGELOG = [
         {
