@@ -1108,7 +1108,7 @@ export class EBCDrawer {
         const chatLog = document.getElementById("TextAreaChatLog");
         if (!chatLog) return;
         const chatRect = chatLog.getBoundingClientRect();
-        const tabTop = Math.max(4, crabsRect.bottom + 4 - chatRect.top);
+        const tabTop = Math.max(4, crabsRect.bottom + 8 - chatRect.top);
         tabEl.style.top = `${tabTop}px`;
         this.lastCrabsBottom = crabsRect.bottom;
     }

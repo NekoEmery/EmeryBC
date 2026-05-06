@@ -6,10 +6,16 @@ import { getBadgeEnabled } from "./modules/settings";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.71";
+const MOD_VERSION = "0.1.72";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.72",
+        changes: [
+            "Increased gap between CRABS tab and EBC tab from 4 px to 8 px to clear the visual overlap.",
+        ],
+    },
     {
         version: "0.1.71",
         changes: [

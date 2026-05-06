@@ -1799,7 +1799,7 @@
             if (!chatLog)
                 return;
             const chatRect = chatLog.getBoundingClientRect();
-            const tabTop = Math.max(4, crabsRect.bottom + 4 - chatRect.top);
+            const tabTop = Math.max(4, crabsRect.bottom + 8 - chatRect.top);
             tabEl.style.top = `${tabTop}px`;
             this.lastCrabsBottom = crabsRect.bottom;
         }
@@ -2564,9 +2564,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.71";
+    const MOD_VERSION = "0.1.72";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.72",
+            changes: [
+                "Increased gap between CRABS tab and EBC tab from 4 px to 8 px to clear the visual overlap.",
+            ],
+        },
         {
             version: "0.1.71",
             changes: [
