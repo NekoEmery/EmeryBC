@@ -2,10 +2,11 @@
 import { EBCDrawer } from "./modules/drawer";
 import { handleOutfitCommand } from "./modules/outfitManager";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
+import { handleRoomEnter } from "./modules/autoAnnounce";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.50";
+const MOD_VERSION = "0.1.51";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -549,15 +550,10 @@ function init(): void {
 
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);
-        try {
-            syncPresenceMarker();
-        } catch { /* ignore */ }
-        try {
-            showRoomLoadNotice();
-        } catch { /* ignore */ }
-        try {
-            drawer?.updateVisibility();
-        } catch { /* ignore */ }
+        try { syncPresenceMarker();       } catch { /* ignore */ }
+        try { showRoomLoadNotice();       } catch { /* ignore */ }
+        try { drawer?.updateVisibility(); } catch { /* ignore */ }
+        try { handleRoomEnter();          } catch { /* ignore */ }
         return result;
     });
 

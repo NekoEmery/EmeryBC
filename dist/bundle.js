@@ -23,17 +23,17 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore() {
+    function getStore$2() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getButtons() {
-        const stored = getStore().actionButtons;
+        const stored = getStore$2().actionButtons;
         return Array.isArray(stored) ? stored : DEFAULT_BUTTONS;
     }
     function getSlotCount() {
-        const store = getStore();
+        const store = getStore$2();
         const n = store.actionSlotCount;
         if (typeof n === "number")
             return Math.min(ABSOLUTE_MAX, Math.max(1, n));
@@ -41,7 +41,7 @@
         return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore();
+        const store = getStore$2();
         store.actionButtons = buttons;
         store.actionSlotCount = slotCount;
         ServerPlayerExtensionSettingsSync("EmeryBC");
@@ -609,6 +609,109 @@
     function deleteOutfit(id) {
         const outfits = getOutfits().filter(o => o.id !== id);
         saveOutfits(outfits);
+    }
+
+    // Private character notes — stored locally in Player.ExtensionSettings, never shared.
+    function getStore$1() {
+        if (!Player.ExtensionSettings.EmeryBC)
+            Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function getNotes() {
+        const raw = getStore$1().characterNotes;
+        return (raw && typeof raw === "object" && !Array.isArray(raw))
+            ? raw
+            : {};
+    }
+    function saveNote(memberNumber, name, note) {
+        const notes = getNotes();
+        const key = String(memberNumber);
+        if (note.trim()) {
+            notes[key] = { name, note: note.trim(), updatedAt: Date.now() };
+        }
+        else {
+            delete notes[key];
+        }
+        getStore$1().characterNotes = notes;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+
+    // Room auto-announce — sends a message when entering a new chatroom.
+    const DEFAULTS = {
+        enabled: false,
+        message: "slips in quietly.",
+        style: "action",
+        mode: "always",
+        friendNumbers: [],
+    };
+    // Track last room so we don't fire on every ChatRoomSync (which fires more than just on entry)
+    let lastRoomName = "";
+    function getStore() {
+        if (!Player.ExtensionSettings.EmeryBC)
+            Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function getAnnounceSettings() {
+        const raw = getStore().autoAnnounce;
+        if (!raw || typeof raw !== "object" || Array.isArray(raw))
+            return Object.assign({}, DEFAULTS);
+        const s = raw;
+        return {
+            enabled: typeof s.enabled === "boolean" ? s.enabled : false,
+            message: typeof s.message === "string" ? s.message : DEFAULTS.message,
+            style: s.style === "emote" ? "emote" : "action",
+            mode: s.mode === "friends" ? "friends" : "always",
+            friendNumbers: Array.isArray(s.friendNumbers)
+                ? s.friendNumbers.filter(n => typeof n === "number")
+                : [],
+        };
+    }
+    function saveAnnounceSettings(s) {
+        getStore().autoAnnounce = s;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function handleRoomEnter() {
+        var _a;
+        // Detect actual room changes by comparing room name
+        const roomData = window.ChatRoomData;
+        const roomName = (roomData && typeof roomData === "object")
+            ? String((_a = roomData.Name) !== null && _a !== void 0 ? _a : "")
+            : "";
+        if (!roomName || roomName === lastRoomName)
+            return;
+        lastRoomName = roomName;
+        const s = getAnnounceSettings();
+        if (!s.enabled || !s.message.trim())
+            return;
+        if (s.mode === "friends") {
+            if (s.friendNumbers.length === 0)
+                return;
+            const roomChars = window.ChatRoomCharacter;
+            if (!Array.isArray(roomChars))
+                return;
+            const friendPresent = s.friendNumbers.some(num => roomChars.some(c => c.MemberNumber === num && c.MemberNumber !== Player.MemberNumber));
+            if (!friendPresent)
+                return;
+        }
+        // Slight delay so the room finishes loading before we send
+        window.setTimeout(() => {
+            try {
+                if (s.style === "emote") {
+                    ServerSend("ChatRoomChat", { Type: "Emote", Content: s.message.trim(), Dictionary: [] });
+                }
+                else {
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: getDisplayName() + " " + s.message.trim(),
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 1500);
     }
 
     // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
@@ -1247,6 +1350,207 @@
 .ebc-btn-footer-btn.save:hover { background: #91405f; color: #f7e6ee; }
 .ebc-btn-footer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* -- Notes tab -- */
+.ebc-notes-person {
+    border-radius: 7px;
+    margin-bottom: 4px;
+    background: rgba(42, 20, 33, 0.6);
+    border: 1px solid #3a1928;
+    overflow: hidden;
+    transition: border-color 0.14s;
+}
+
+.ebc-notes-person:hover { border-color: #6b3048; }
+
+.ebc-notes-person-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 7px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ebc-notes-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #3a1928;
+    transition: background 0.14s;
+}
+
+.ebc-notes-dot.has-note { background: #cf6f98; }
+
+.ebc-notes-person-name {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    font-weight: bold;
+    color: #f7e6ee;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ebc-notes-member-num {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #553142;
+    flex-shrink: 0;
+}
+
+.ebc-notes-editor {
+    display: none;
+    padding: 0 7px 7px;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ebc-notes-editor.open { display: flex; }
+
+.ebc-notes-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #f7e6ee;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    padding: 4px 5px;
+    resize: vertical;
+    min-height: 58px;
+    outline: none;
+    transition: border-color 0.14s;
+}
+
+.ebc-notes-textarea:focus { border-color: #cf6f98; }
+
+.ebc-notes-save-hint {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #553142;
+    text-align: right;
+}
+
+/* -- Settings tab -- */
+.ebc-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    background: rgba(42, 20, 33, 0.6);
+    border: 1px solid #3a1928;
+    margin-bottom: 4px;
+}
+
+.ebc-setting-label {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #967281;
+    flex: 1;
+    min-width: 0;
+}
+
+.ebc-setting-toggle {
+    flex-shrink: 0;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 2px 8px;
+    white-space: nowrap;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-setting-toggle.on  { background: #6b3048; color: #f7e6ee; border-color: #cf6f98; }
+.ebc-setting-toggle:hover { border-color: #7a4a5e; }
+
+.ebc-setting-input {
+    flex: 1;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #f7e6ee;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 2px 5px;
+    outline: none;
+    min-width: 0;
+    transition: border-color 0.14s;
+}
+
+.ebc-setting-input:focus { border-color: #cf6f98; }
+
+.ebc-setting-save-btn {
+    width: 100%;
+    background: #2a1421;
+    border: 1px solid #91405f;
+    border-radius: 5px;
+    color: #cf6f98;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 5px 0;
+    margin-top: 4px;
+    transition: background 0.14s, color 0.12s;
+}
+
+.ebc-setting-save-btn:hover { background: #91405f; color: #f7e6ee; }
+
+/* -- Appearance diff -- */
+.ebc-diff-btn {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 13px;
+    line-height: 1;
+    padding: 2px 5px;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-diff-btn:hover,
+.ebc-diff-btn.open { background: #3a1928; color: #cf6f98; border-color: #7a4a5e; }
+
+.ebc-diff-panel {
+    display: none;
+    padding: 5px 7px;
+    background: #1b0d17;
+    border: 1px solid #3a1928;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ebc-diff-panel.open { display: flex; }
+
+.ebc-diff-item {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 1px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ebc-diff-add    { color: #79a885; }
+.ebc-diff-remove { color: #cb798c; }
+.ebc-diff-change { color: #c9ab72; }
+.ebc-diff-none   { color: #553142; font-style: italic; }
+
 /* -- Quick actions -- */
 .ebc-quick-actions {
     flex-shrink: 0;
@@ -1363,8 +1667,18 @@
             buttonsTabBtn.className = "ebc-tab-btn";
             buttonsTabBtn.id = "ebc-tab-buttons";
             buttonsTabBtn.textContent = "BUTTONS";
+            const notesTabBtn = document.createElement("button");
+            notesTabBtn.className = "ebc-tab-btn";
+            notesTabBtn.id = "ebc-tab-notes";
+            notesTabBtn.textContent = "NOTES";
+            const settingsTabBtn = document.createElement("button");
+            settingsTabBtn.className = "ebc-tab-btn";
+            settingsTabBtn.id = "ebc-tab-settings";
+            settingsTabBtn.textContent = "SETTINGS";
             tabBar.appendChild(outfitTabBtn);
             tabBar.appendChild(buttonsTabBtn);
+            tabBar.appendChild(notesTabBtn);
+            tabBar.appendChild(settingsTabBtn);
             // Quick actions bar (always visible below tabs)
             const quickActions = document.createElement("div");
             quickActions.className = "ebc-quick-actions";
@@ -1416,6 +1730,8 @@
             });
             outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
             buttonsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
+            notesTabBtn.addEventListener("click", () => this.switchTab("notes"));
+            settingsTabBtn.addEventListener("click", () => this.switchTab("settings"));
             document.addEventListener("keydown", (e) => {
                 if (e.key === "Escape" && this.isOpen)
                     this.close();
@@ -1485,23 +1801,29 @@
         }
         // -- Tab switching ---------------------------------------------------------
         switchTab(tab) {
-            var _a, _b;
+            var _a;
             this.currentTab = tab;
-            const outfitBtn = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab-outfits");
-            const buttonBtn = (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-tab-buttons");
-            if (outfitBtn)
-                outfitBtn.className = "ebc-tab-btn" + (tab === "outfits" ? " ebc-tab-active" : "");
-            if (buttonBtn)
-                buttonBtn.className = "ebc-tab-btn" + (tab === "buttons" ? " ebc-tab-active" : "");
+            for (const [id, name] of [
+                ["ebc-tab-outfits", "outfits"],
+                ["ebc-tab-buttons", "buttons"],
+                ["ebc-tab-notes", "notes"],
+                ["ebc-tab-settings", "settings"],
+            ]) {
+                const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(`#${id}`);
+                if (el)
+                    el.className = "ebc-tab-btn" + (tab === name ? " ebc-tab-active" : "");
+            }
             this.renderCurrentTab();
         }
         renderCurrentTab() {
-            if (this.currentTab === "outfits") {
+            if (this.currentTab === "outfits")
                 this.renderOutfits();
-            }
-            else {
+            else if (this.currentTab === "buttons")
                 this.renderButtons();
-            }
+            else if (this.currentTab === "notes")
+                this.renderNotes();
+            else if (this.currentTab === "settings")
+                this.renderSettings();
         }
         // -- Outfits tab -----------------------------------------------------------
         renderOutfits() {
@@ -1536,8 +1858,13 @@
             this.buildNewOutfitSection(body);
         }
         buildOutfitRow(o, body) {
+            // Wrapper holds the visual row + collapsible diff panel
+            const wrapper = document.createElement("div");
+            wrapper.style.marginBottom = "4px";
             const row = document.createElement("div");
             row.className = "ebc-outfit-row";
+            row.style.marginBottom = "0";
+            row.style.borderRadius = "7px 7px 7px 7px";
             const info = document.createElement("div");
             info.className = "ebc-outfit-info";
             const nameEl = document.createElement("span");
@@ -1562,15 +1889,24 @@
             const wearBtn = document.createElement("button");
             wearBtn.className = "ebc-wear-btn";
             wearBtn.textContent = "Wear";
+            const diffBtn = document.createElement("button");
+            diffBtn.className = "ebc-diff-btn";
+            diffBtn.textContent = "~";
+            diffBtn.title = "Preview appearance changes";
             const delBtn = document.createElement("button");
             delBtn.className = "ebc-outfit-del";
             delBtn.textContent = "×";
             delBtn.title = "Delete this outfit";
             row.appendChild(info);
             row.appendChild(preserveBtn);
+            row.appendChild(diffBtn);
             row.appendChild(updateBtn);
             row.appendChild(wearBtn);
             row.appendChild(delBtn);
+            const diffPanel = document.createElement("div");
+            diffPanel.className = "ebc-diff-panel";
+            wrapper.appendChild(row);
+            wrapper.appendChild(diffPanel);
             const setAllDisabled = (v) => {
                 body.querySelectorAll(".ebc-wear-btn, .ebc-update-btn").forEach(b => { b.disabled = v; });
             };
@@ -1605,6 +1941,18 @@
                     setAllDisabled(false);
                 }, 1200);
             });
+            diffBtn.addEventListener("click", () => {
+                const isOpen = diffPanel.classList.contains("open");
+                diffPanel.classList.toggle("open", !isOpen);
+                diffBtn.classList.toggle("open", !isOpen);
+                if (!isOpen) {
+                    row.style.borderRadius = "7px 7px 0 0";
+                    this.renderDiff(diffPanel, o);
+                }
+                else {
+                    row.style.borderRadius = "7px";
+                }
+            });
             let delPending = false;
             let delTimer = null;
             delBtn.addEventListener("click", () => {
@@ -1627,7 +1975,7 @@
                     this.renderOutfits();
                 }
             });
-            return row;
+            return wrapper;
         }
         buildNewOutfitSection(body) {
             const div = document.createElement("div");
@@ -1911,6 +2259,320 @@
                 updateFooterState();
             });
         }
+        // -- Appearance diff -------------------------------------------------------
+        renderDiff(panel, outfit) {
+            while (panel.firstChild)
+                panel.removeChild(panel.firstChild);
+            const currentMap = new Map();
+            for (const item of Player.Appearance) {
+                currentMap.set(item.Asset.Group.Name, item);
+            }
+            const outfitMap = new Map();
+            for (const saved of outfit.items) {
+                outfitMap.set(saved.Group, saved);
+            }
+            const adding = [];
+            const removing = [];
+            const changing = [];
+            for (const [group, saved] of outfitMap) {
+                const current = currentMap.get(group);
+                if (!current) {
+                    adding.push(`${group}: ${saved.Name}`);
+                }
+                else if (current.Asset.Name !== saved.Name) {
+                    changing.push({ from: `${group}: ${current.Asset.Name}`, to: saved.Name });
+                }
+            }
+            for (const [group, item] of currentMap) {
+                if (!outfitMap.has(group)) {
+                    const isRestraint = RESTRAINT_GROUPS.has(group);
+                    if (!isRestraint || !outfit.preserveRestraints) {
+                        removing.push(`${group}: ${item.Asset.Name}`);
+                    }
+                }
+            }
+            const addLine = (text, cls) => {
+                const el = document.createElement("div");
+                el.className = `ebc-diff-item ${cls}`;
+                el.textContent = text;
+                panel.appendChild(el);
+            };
+            if (adding.length === 0 && removing.length === 0 && changing.length === 0) {
+                addLine("No changes from current look.", "ebc-diff-none");
+                return;
+            }
+            for (const c of changing)
+                addLine(`~ ${c.from} → ${c.to}`, "ebc-diff-change");
+            for (const t of adding)
+                addLine(`+ ${t}`, "ebc-diff-add");
+            for (const t of removing)
+                addLine(`− ${t}`, "ebc-diff-remove");
+        }
+        // -- Notes tab -------------------------------------------------------------
+        renderNotes() {
+            var _a, _b, _c;
+            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            const notes = getNotes();
+            const roomChars = (_b = window.ChatRoomCharacter) !== null && _b !== void 0 ? _b : [];
+            const roomOthers = roomChars.filter(c => c.MemberNumber !== Player.MemberNumber);
+            if (roomOthers.length > 0) {
+                const lbl = document.createElement("div");
+                lbl.className = "ebc-section-label";
+                lbl.textContent = "In This Room";
+                body.appendChild(lbl);
+                for (const char of roomOthers) {
+                    const displayName = this.charDisplayName(char);
+                    const existing = notes[String(char.MemberNumber)];
+                    body.appendChild(this.buildNoteRow(char.MemberNumber, displayName, (_c = existing === null || existing === void 0 ? void 0 : existing.note) !== null && _c !== void 0 ? _c : ""));
+                }
+            }
+            const roomNums = new Set(roomOthers.map(c => String(c.MemberNumber)));
+            const offlineEntries = Object.entries(notes).filter(([k]) => !roomNums.has(k));
+            if (offlineEntries.length > 0) {
+                const div = document.createElement("div");
+                div.className = "ebc-divider";
+                body.appendChild(div);
+                const lbl = document.createElement("div");
+                lbl.className = "ebc-section-label";
+                lbl.textContent = "Saved Notes";
+                body.appendChild(lbl);
+                for (const [key, data] of offlineEntries) {
+                    body.appendChild(this.buildNoteRow(parseInt(key), data.name, data.note));
+                }
+            }
+            if (roomOthers.length === 0 && offlineEntries.length === 0) {
+                const empty = document.createElement("div");
+                empty.className = "ebc-empty";
+                empty.innerHTML = "No notes saved yet.<br><span style='color:#4c2537'>Join a room to add notes about people.</span>";
+                body.appendChild(empty);
+            }
+        }
+        charDisplayName(char) {
+            const nickFn = window.CharacterNickname;
+            if (typeof nickFn === "function") {
+                try {
+                    return nickFn(char);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
+            return char.Nickname || char.Name || "Unknown";
+        }
+        buildNoteRow(memberNumber, displayName, currentNote) {
+            const hasNote = !!currentNote.trim();
+            const container = document.createElement("div");
+            container.className = "ebc-notes-person";
+            const header = document.createElement("div");
+            header.className = "ebc-notes-person-header";
+            const dot = document.createElement("div");
+            dot.className = "ebc-notes-dot" + (hasNote ? " has-note" : "");
+            const name = document.createElement("span");
+            name.className = "ebc-notes-person-name";
+            name.textContent = displayName;
+            const num = document.createElement("span");
+            num.className = "ebc-notes-member-num";
+            num.textContent = "#" + memberNumber;
+            header.appendChild(dot);
+            header.appendChild(name);
+            header.appendChild(num);
+            container.appendChild(header);
+            const editor = document.createElement("div");
+            editor.className = "ebc-notes-editor";
+            const textarea = document.createElement("textarea");
+            textarea.className = "ebc-notes-textarea";
+            textarea.placeholder = "Notes about this person...";
+            textarea.value = currentNote;
+            textarea.rows = 3;
+            const hint = document.createElement("div");
+            hint.className = "ebc-notes-save-hint";
+            hint.textContent = "saves automatically";
+            editor.appendChild(textarea);
+            editor.appendChild(hint);
+            container.appendChild(editor);
+            header.addEventListener("click", () => {
+                const open = editor.classList.toggle("open");
+                if (open)
+                    textarea.focus();
+            });
+            let saveTimer = null;
+            textarea.addEventListener("input", () => {
+                if (saveTimer)
+                    window.clearTimeout(saveTimer);
+                hint.textContent = "saving...";
+                saveTimer = window.setTimeout(() => {
+                    saveNote(memberNumber, displayName, textarea.value);
+                    dot.className = "ebc-notes-dot" + (textarea.value.trim() ? " has-note" : "");
+                    hint.textContent = textarea.value.trim() ? "saved" : "saves automatically";
+                    window.setTimeout(() => { hint.textContent = "saves automatically"; }, 1500);
+                }, 800);
+            });
+            return container;
+        }
+        // -- Settings tab ----------------------------------------------------------
+        renderSettings() {
+            var _a;
+            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            let s = getAnnounceSettings();
+            // Section label
+            const lbl = document.createElement("div");
+            lbl.className = "ebc-section-label";
+            lbl.textContent = "Room Auto-Announce";
+            body.appendChild(lbl);
+            // Enabled
+            const enableRow = this.makeSettingRow("Announce on room join");
+            const enableToggle = this.makeToggle(s.enabled);
+            enableRow.appendChild(enableToggle);
+            body.appendChild(enableRow);
+            // Message
+            const msgRow = this.makeSettingRow("Message");
+            const msgInput = document.createElement("input");
+            msgInput.className = "ebc-setting-input";
+            msgInput.type = "text";
+            msgInput.value = s.message;
+            msgInput.placeholder = "slips in quietly.";
+            msgInput.maxLength = 150;
+            msgRow.appendChild(msgInput);
+            body.appendChild(msgRow);
+            // Style
+            const styleRow = this.makeSettingRow("Style");
+            const styleToggle = this.makeToggle(s.style === "emote", s.style === "emote" ? "* *" : "( )");
+            styleToggle.title = "Toggle between ( action ) and * emote * style";
+            styleRow.appendChild(styleToggle);
+            body.appendChild(styleRow);
+            // Friends-only mode
+            const modeRow = this.makeSettingRow("Only when a friend is present");
+            const modeToggle = this.makeToggle(s.mode === "friends");
+            modeRow.appendChild(modeToggle);
+            body.appendChild(modeRow);
+            // Friend list section (conditionally visible)
+            const friendSection = document.createElement("div");
+            friendSection.style.display = s.mode === "friends" ? "" : "none";
+            const friendLbl = document.createElement("div");
+            friendLbl.className = "ebc-section-label";
+            friendLbl.style.marginTop = "6px";
+            friendLbl.textContent = "Friend member numbers";
+            friendSection.appendChild(friendLbl);
+            const addRow = document.createElement("div");
+            addRow.className = "ebc-setting-row";
+            const numInput = document.createElement("input");
+            numInput.className = "ebc-setting-input";
+            numInput.type = "number";
+            numInput.placeholder = "Member number...";
+            numInput.min = "1";
+            const addBtn = document.createElement("button");
+            addBtn.className = "ebc-setting-toggle";
+            addBtn.textContent = "+ Add";
+            addRow.appendChild(numInput);
+            addRow.appendChild(addBtn);
+            friendSection.appendChild(addRow);
+            const friendListEl = document.createElement("div");
+            friendSection.appendChild(friendListEl);
+            body.appendChild(friendSection);
+            const renderFriendList = () => {
+                while (friendListEl.firstChild)
+                    friendListEl.removeChild(friendListEl.firstChild);
+                if (s.friendNumbers.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.className = "ebc-notes-save-hint";
+                    empty.style.padding = "4px 2px";
+                    empty.textContent = "No friends added yet.";
+                    friendListEl.appendChild(empty);
+                    return;
+                }
+                const notes = getNotes();
+                for (const num of s.friendNumbers) {
+                    const row = document.createElement("div");
+                    row.className = "ebc-setting-row";
+                    const label = document.createElement("span");
+                    label.className = "ebc-setting-label";
+                    const noteData = notes[String(num)];
+                    label.textContent = noteData ? `${noteData.name} (#${num})` : `#${num}`;
+                    const removeBtn = document.createElement("button");
+                    removeBtn.className = "ebc-slot-del";
+                    removeBtn.textContent = "x";
+                    removeBtn.addEventListener("click", () => {
+                        s = Object.assign(Object.assign({}, s), { friendNumbers: s.friendNumbers.filter(n => n !== num) });
+                        renderFriendList();
+                    });
+                    row.appendChild(label);
+                    row.appendChild(removeBtn);
+                    friendListEl.appendChild(row);
+                }
+            };
+            renderFriendList();
+            // Save button
+            const div2 = document.createElement("div");
+            div2.className = "ebc-divider";
+            body.appendChild(div2);
+            const saveBtn = document.createElement("button");
+            saveBtn.className = "ebc-setting-save-btn";
+            saveBtn.textContent = "Save Settings";
+            body.appendChild(saveBtn);
+            // Events
+            enableToggle.addEventListener("click", () => {
+                s = Object.assign(Object.assign({}, s), { enabled: !s.enabled });
+                this.setToggle(enableToggle, s.enabled);
+            });
+            styleToggle.addEventListener("click", () => {
+                const next = s.style === "action" ? "emote" : "action";
+                s = Object.assign(Object.assign({}, s), { style: next });
+                this.setToggle(styleToggle, next === "emote", next === "emote" ? "* *" : "( )");
+            });
+            modeToggle.addEventListener("click", () => {
+                const next = s.mode === "always" ? "friends" : "always";
+                s = Object.assign(Object.assign({}, s), { mode: next });
+                this.setToggle(modeToggle, next === "friends");
+                friendSection.style.display = next === "friends" ? "" : "none";
+            });
+            msgInput.addEventListener("input", () => { s = Object.assign(Object.assign({}, s), { message: msgInput.value }); });
+            addBtn.addEventListener("click", () => {
+                const num = parseInt(numInput.value);
+                if (isNaN(num) || num < 1 || s.friendNumbers.includes(num))
+                    return;
+                s = Object.assign(Object.assign({}, s), { friendNumbers: [...s.friendNumbers, num] });
+                numInput.value = "";
+                renderFriendList();
+            });
+            numInput.addEventListener("keydown", (e) => { if (e.key === "Enter")
+                addBtn.click(); });
+            saveBtn.addEventListener("click", () => {
+                saveAnnounceSettings(s);
+                saveBtn.textContent = "Saved!";
+                window.setTimeout(() => { saveBtn.textContent = "Save Settings"; }, 1200);
+            });
+        }
+        makeSettingRow(labelText) {
+            const row = document.createElement("div");
+            row.className = "ebc-setting-row";
+            const lbl = document.createElement("span");
+            lbl.className = "ebc-setting-label";
+            lbl.textContent = labelText;
+            row.appendChild(lbl);
+            return row;
+        }
+        makeToggle(on, onLabel = "ON", offLabel = "OFF") {
+            const btn = document.createElement("button");
+            btn.className = "ebc-setting-toggle" + (on ? " on" : "");
+            btn.textContent = on ? onLabel : offLabel;
+            btn._onLabel = onLabel;
+            btn._offLabel = offLabel;
+            return btn;
+        }
+        setToggle(btn, on, onLabel, offLabel) {
+            var _a, _b;
+            const b = btn;
+            const ol = (_a = onLabel !== null && onLabel !== void 0 ? onLabel : b._onLabel) !== null && _a !== void 0 ? _a : "ON";
+            const fl = (_b = offLabel !== null && offLabel !== void 0 ? offLabel : b._offLabel) !== null && _b !== void 0 ? _b : "OFF";
+            btn.className = "ebc-setting-toggle" + (on ? " on" : "");
+            btn.textContent = on ? ol : fl;
+        }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
@@ -1944,7 +2606,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.50";
+    const MOD_VERSION = "0.1.51";
     let noticeShown = false;
     const CHANGELOG = [
         {
@@ -2476,6 +3138,10 @@
                 drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
             }
             catch ( /* ignore */_c) { /* ignore */ }
+            try {
+                handleRoomEnter();
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
             return result;
         });
         // Keep drawer visibility in sync whenever the BC screen changes

@@ -20,7 +20,7 @@ export interface ConfiguredOutfit {
     items: SerializedItem[];
 }
 
-const RESTRAINT_GROUPS = new Set([
+export const RESTRAINT_GROUPS = new Set([
     "ItemArms", "ItemHands", "ItemLegs", "ItemFeet", "ItemBoots",
     "ItemMouth", "ItemMouthAccessory", "ItemHead", "ItemHood",
     "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
