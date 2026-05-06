@@ -41,6 +41,16 @@ import {
 } from "./actionButtons";
 import { releaseRestraints, unlockItems } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled } from "./settings";
+import {
+    isDomEnabled,
+    getDomConfig,
+    addDomTarget,
+    removeDomTarget,
+    clearDomItems,
+    importDomItemsFromCode,
+    getRoomAddable,
+    applyDomRestraints,
+} from "./domTools";
 
 // -- Icon ----------------------------------------------------------------------
 
@@ -1255,7 +1265,7 @@ const VIP_MEMBERS: Record<number, { label: string; color: string }> = {
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "buttons" | "poses" | "notes" | "thanks";
+type DrawerTab = "outfits" | "buttons" | "poses" | "notes" | "thanks" | "dom";
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -1443,11 +1453,20 @@ export class EBCDrawer {
         thanksTabBtn.textContent = "CREDITS";
         thanksTabBtn.title = "Special Thanks";
 
+        // DOM tools tab — creator only, hidden until open() confirms the member number
+        const domTabBtn = document.createElement("button");
+        domTabBtn.className = "ebc-tab-btn";
+        domTabBtn.id = "ebc-tab-dom";
+        domTabBtn.textContent = "🎀";
+        domTabBtn.title = "DOM Tools";
+        domTabBtn.style.display = "none"; // revealed in open() for creator only
+
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(buttonsTabBtn);
         tabBar.appendChild(posesTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(thanksTabBtn);
+        tabBar.appendChild(domTabBtn);
 
         // Quick actions bar (always visible below tabs)
         const quickActions = document.createElement("div");
@@ -1651,6 +1670,7 @@ export class EBCDrawer {
         posesTabBtn.addEventListener("click",    () => this.switchTab("poses"));
         notesTabBtn.addEventListener("click",    () => this.switchTab("notes"));
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
+        domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.isOpen) this.close();
@@ -1883,6 +1903,7 @@ export class EBCDrawer {
             ["ebc-tab-poses",   "poses"],
             ["ebc-tab-notes",   "notes"],
             ["ebc-tab-thanks",  "thanks"],
+            ["ebc-tab-dom",     "dom"],
         ] as [string, DrawerTab][]) {
             const el = this.rootEl?.querySelector(`#${id}`);
             if (el) el.className = "ebc-tab-btn" + (tab === name ? " ebc-tab-active" : "");
@@ -1897,6 +1918,7 @@ export class EBCDrawer {
         else if (this.currentTab === "poses")    this.renderPoses();
         else if (this.currentTab === "notes")    this.renderNotes();
         else if (this.currentTab === "thanks")   this.renderThanks();
+        else if (this.currentTab === "dom")      this.renderDomTools();
     }
 
     // -- Timer -----------------------------------------------------------------
@@ -4056,6 +4078,257 @@ export class EBCDrawer {
         }
     }
 
+    // -- DOM Tools tab (creator-only) ------------------------------------------
+
+    private renderDomTools(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        if (!isDomEnabled()) {
+            const msg = document.createElement("div");
+            msg.className = "ebc-empty";
+            msg.textContent = "Not available.";
+            body.appendChild(msg);
+            return;
+        }
+
+        const cfg = getDomConfig();
+
+        // ── Apply button ────────────────────────────────────────────────────
+        const applyBtn = document.createElement("button");
+        applyBtn.style.cssText = [
+            "width:100%", "padding:10px 0", "margin-bottom:10px",
+            "background:#6b3048", "border:1px solid #cf6f98", "border-radius:7px",
+            "color:#f7e6ee", "font-family:'Trebuchet MS',serif", "font-size:13px",
+            "font-weight:bold", "cursor:pointer", "letter-spacing:0.05em",
+            "transition:background 0.14s",
+        ].join(";");
+        applyBtn.textContent = "🎀 Restrain targets in room";
+
+        const applyStatus = document.createElement("div");
+        applyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;text-align:center;min-height:14px;margin-bottom:6px;";
+
+        applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#91405f"; });
+        applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#6b3048"; });
+
+        applyBtn.addEventListener("click", () => {
+            if (cfg.items.length === 0) {
+                applyStatus.textContent = "⚠ No restraints configured yet.";
+                return;
+            }
+            applyBtn.disabled = true;
+            const { applied, skipped } = applyDomRestraints();
+            const parts: string[] = [];
+            if (applied.length) parts.push(`✓ Restrained: ${applied.map(t => t.name).join(", ")}`);
+            if (skipped.length) parts.push(`⟳ Not in room: ${skipped.map(t => t.name).join(", ")}`);
+            applyStatus.textContent = parts.join("  ·  ") || "Nothing to do.";
+            window.setTimeout(() => { applyBtn.disabled = false; }, 2000);
+        });
+
+        body.appendChild(applyBtn);
+        body.appendChild(applyStatus);
+
+        // ── Targets ──────────────────────────────────────────────────────────
+        const targLbl = document.createElement("div");
+        targLbl.className = "ebc-section-label";
+        targLbl.textContent = "Targets";
+        body.appendChild(targLbl);
+
+        const targList = document.createElement("div");
+
+        const rebuildTargets = (): void => {
+            while (targList.firstChild) targList.removeChild(targList.firstChild);
+            const latest = getDomConfig();
+            for (const t of latest.targets) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;margin-bottom:3px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;";
+
+                const nameEl = document.createElement("span");
+                nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+                nameEl.textContent = t.name;
+
+                const numEl = document.createElement("span");
+                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;";
+                numEl.textContent = "#" + t.id;
+
+                const delBtn = document.createElement("button");
+                delBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#553142;cursor:pointer;font-size:11px;padding:1px 6px;transition:background 0.14s,color 0.12s;";
+                delBtn.textContent = "×";
+                delBtn.addEventListener("mouseenter", () => { delBtn.style.background = "#3a1017"; delBtn.style.color = "#ff6b6b"; });
+                delBtn.addEventListener("mouseleave", () => { delBtn.style.background = ""; delBtn.style.color = "#553142"; });
+                delBtn.addEventListener("click", () => {
+                    removeDomTarget(t.id);
+                    rebuildTargets();
+                    rebuildAddable();
+                });
+
+                row.appendChild(nameEl);
+                row.appendChild(numEl);
+                row.appendChild(delBtn);
+                targList.appendChild(row);
+            }
+        };
+
+        body.appendChild(targList);
+        rebuildTargets();
+
+        // "Add from room" dropdown
+        const addableWrap = document.createElement("div");
+        addableWrap.style.cssText = "margin-top:4px;";
+
+        const rebuildAddable = (): void => {
+            while (addableWrap.firstChild) addableWrap.removeChild(addableWrap.firstChild);
+            const addable = getRoomAddable();
+            if (addable.length === 0) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
+                hint.textContent = "No new people in room to add.";
+                addableWrap.appendChild(hint);
+                return;
+            }
+            const addLbl = document.createElement("div");
+            addLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;margin-bottom:4px;";
+            addLbl.textContent = "Add from room:";
+            addableWrap.appendChild(addLbl);
+
+            const chipRow = document.createElement("div");
+            chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
+
+            for (const p of addable) {
+                const chip = document.createElement("button");
+                chip.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:10px",
+                    "padding:3px 8px", "border-radius:4px",
+                    "border:1px solid #4c2537", "background:#1b0d17",
+                    "color:#967281", "cursor:pointer",
+                    "transition:background 0.14s,color 0.12s,border-color 0.12s",
+                ].join(";");
+                chip.textContent = `+ ${p.name} #${p.id}`;
+                chip.addEventListener("mouseenter", () => { chip.style.background = "#2a1421"; chip.style.color = "#cf6f98"; chip.style.borderColor = "#7a4a5e"; });
+                chip.addEventListener("mouseleave", () => { chip.style.background = "#1b0d17"; chip.style.color = "#967281"; chip.style.borderColor = "#4c2537"; });
+                chip.addEventListener("click", () => {
+                    addDomTarget(p.id, p.name);
+                    rebuildTargets();
+                    rebuildAddable();
+                });
+                chipRow.appendChild(chip);
+            }
+            addableWrap.appendChild(chipRow);
+        };
+
+        body.appendChild(addableWrap);
+        rebuildAddable();
+
+        // ── Restraints config ─────────────────────────────────────────────────
+        const divider = document.createElement("div");
+        divider.className = "ebc-divider";
+        divider.style.marginTop = "10px";
+        body.appendChild(divider);
+
+        const restLbl = document.createElement("div");
+        restLbl.className = "ebc-section-label";
+        restLbl.textContent = "Restraints to apply";
+        body.appendChild(restLbl);
+
+        // Current items list
+        const itemListEl = document.createElement("div");
+        itemListEl.style.cssText = "margin-bottom:6px;";
+
+        const rebuildItemList = (): void => {
+            while (itemListEl.firstChild) itemListEl.removeChild(itemListEl.firstChild);
+            const items = getDomConfig().items;
+            if (items.length === 0) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
+                hint.textContent = "No restraints imported yet.";
+                itemListEl.appendChild(hint);
+                return;
+            }
+            for (const item of items) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
+                const nameEl = document.createElement("span");
+                nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                nameEl.textContent = item.Name;
+                const grpEl = document.createElement("span");
+                grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;";
+                grpEl.textContent = item.Group.replace("Item", "");
+                row.appendChild(nameEl);
+                row.appendChild(grpEl);
+                itemListEl.appendChild(row);
+            }
+        };
+
+        body.appendChild(itemListEl);
+        rebuildItemList();
+
+        // Import + clear buttons
+        const importToggleBtn = document.createElement("button");
+        importToggleBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:6px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:5px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
+        importToggleBtn.textContent = "↓ Import from BC Code";
+
+        const importPanel = document.createElement("div");
+        importPanel.style.cssText = "display:none;flex-direction:column;gap:5px;background:rgba(42,20,33,0.6);border:1px solid #3a1928;border-radius:7px;padding:7px;margin-bottom:6px;";
+
+        const importHint = document.createElement("div");
+        importHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;";
+        importHint.textContent = "Paste a BC outfit code — restraint items will be extracted.";
+
+        const importTextarea = document.createElement("textarea");
+        importTextarea.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 5px;resize:vertical;min-height:52px;outline:none;transition:border-color 0.14s;";
+        importTextarea.placeholder = "Paste BC outfit code here…";
+
+        const importErr = document.createElement("div");
+        importErr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#ff6b6b;min-height:14px;";
+
+        const importDoBtn = document.createElement("button");
+        importDoBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 0;transition:background 0.14s,color 0.12s;";
+        importDoBtn.textContent = "Import";
+
+        importDoBtn.addEventListener("click", () => {
+            importErr.textContent = "";
+            const code = importTextarea.value.trim();
+            if (!code) { importErr.textContent = "Paste a code first."; return; }
+            try {
+                const count = importDomItemsFromCode(code);
+                importErr.style.color = "#79a885";
+                importErr.textContent = `✓ ${count} item(s) imported.`;
+                importTextarea.value = "";
+                rebuildItemList();
+                window.setTimeout(() => { importErr.textContent = ""; importErr.style.color = "#ff6b6b"; }, 2500);
+            } catch (e) {
+                importErr.style.color = "#ff6b6b";
+                importErr.textContent = String((e as Error).message ?? e);
+            }
+        });
+
+        importPanel.appendChild(importHint);
+        importPanel.appendChild(importTextarea);
+        importPanel.appendChild(importErr);
+        importPanel.appendChild(importDoBtn);
+
+        importToggleBtn.addEventListener("click", () => {
+            const open = importPanel.style.display === "none";
+            importPanel.style.display = open ? "flex" : "none";
+            importToggleBtn.style.borderStyle = open ? "solid" : "dashed";
+            importToggleBtn.style.color = open ? "#cf6f98" : "#7a4a5e";
+            if (open) importTextarea.focus();
+        });
+
+        body.appendChild(importToggleBtn);
+        body.appendChild(importPanel);
+
+        const clearBtn = document.createElement("button");
+        clearBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#553142;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;";
+        clearBtn.textContent = "Clear all restraints";
+        clearBtn.addEventListener("click", () => {
+            clearDomItems();
+            rebuildItemList();
+        });
+        body.appendChild(clearBtn);
+    }
+
     // -- Open / Close / Toggle -------------------------------------------------
 
     public toggle(): void { this.isOpen ? this.close() : this.open(); }
@@ -4083,6 +4356,9 @@ export class EBCDrawer {
         }
         if (!this.positioned) this.syncToChat();
         try { this.refreshBadgeRow?.(); } catch { /* ignore */ }
+        // Show the DOM tab only for the creator
+        const domTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-dom");
+        if (domTabEl) domTabEl.style.display = isDomEnabled() ? "" : "none";
         this.updateTimer();
         this.renderCurrentTab();
     }

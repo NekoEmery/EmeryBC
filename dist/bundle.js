@@ -23,17 +23,17 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$4() {
+    function getStore$5() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getButtons() {
-        const stored = getStore$4().actionButtons;
+        const stored = getStore$5().actionButtons;
         return Array.isArray(stored) ? stored : DEFAULT_BUTTONS;
     }
     function getSlotCount() {
-        const store = getStore$4();
+        const store = getStore$5();
         const n = store.actionSlotCount;
         if (typeof n === "number")
             return Math.min(ABSOLUTE_MAX, Math.max(1, n));
@@ -41,7 +41,7 @@
         return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$4();
+        const store = getStore$5();
         store.actionButtons = buttons;
         store.actionSlotCount = slotCount;
         ServerPlayerExtensionSettingsSync("EmeryBC");
@@ -756,20 +756,20 @@
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function getStore$3() {
+    function getStore$4() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function load$1() {
-        const list = getStore$3().palettes;
+        const list = getStore$4().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getStore$3().palettes = list;
+        getStore$4().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function uid$1() {
@@ -907,18 +907,18 @@
         }
     }
     // -- Combo storage -------------------------------------------------------
-    function getStore$2() {
+    function getStore$3() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function uid() { return Math.random().toString(36).slice(2, 9); }
     function load() {
-        const list = getStore$2().poseCombos;
+        const list = getStore$3().poseCombos;
         return Array.isArray(list) ? list : [];
     }
     function saveCombos(list) {
-        getStore$2().poseCombos = list;
+        getStore$3().poseCombos = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getPoseCombos() { return load(); }
@@ -1104,13 +1104,13 @@
     }
 
     // Private character notes — stored locally in Player.ExtensionSettings, never shared.
-    function getStore$1() {
+    function getStore$2() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getNotes() {
-        const raw = getStore$1().characterNotes;
+        const raw = getStore$2().characterNotes;
         return (raw && typeof raw === "object" && !Array.isArray(raw))
             ? raw
             : {};
@@ -1124,7 +1124,7 @@
         else {
             delete notes[key];
         }
-        getStore$1().characterNotes = notes;
+        getStore$2().characterNotes = notes;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
 
@@ -1216,7 +1216,7 @@
     }
 
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
-    function getStore() {
+    function getStore$1() {
         try {
             if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
                 return null;
@@ -1235,7 +1235,7 @@
     function getBadgeEnabled() {
         var _a;
         try {
-            return ((_a = getStore()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
+            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
         }
         catch (_b) {
             return true; // safe default
@@ -1243,13 +1243,186 @@
     }
     function setBadgeEnabled(value) {
         try {
-            const store = getStore();
+            const store = getStore$1();
             if (!store)
                 return;
             store.badgeEnabled = value;
             ServerPlayerExtensionSettingsSync("EmeryBC");
         }
         catch ( /* ignore */_a) { /* ignore */ }
+    }
+
+    // Creator-only DOM tools — visible exclusively to member #130267.
+    // Lets the creator configure a set of restraints (imported from a BC outfit code)
+    // and apply them to a saved list of people.  Only targets currently in the room
+    // are restrained; everyone else is silently skipped.
+    const DOM_CREATOR_ID = 130267;
+    // Lucy and Lara are always pre-loaded on first use.
+    const DEFAULT_TARGETS = [
+        { id: 230466, name: "Lucy" },
+        { id: 124264, name: "Lara" },
+    ];
+    // ── Storage ─────────────────────────────────────────────────────────────────
+    function getStore() {
+        if (!Player.ExtensionSettings.EmeryBC)
+            Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function loadConfig() {
+        try {
+            const v = getStore().domConfig;
+            if (v && Array.isArray(v.targets) && Array.isArray(v.items)) {
+                return { targets: v.targets, items: v.items };
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        // First use — seed with defaults
+        return { targets: [...DEFAULT_TARGETS], items: [] };
+    }
+    function saveConfig(cfg) {
+        try {
+            getStore().domConfig = cfg;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // ── Public API ───────────────────────────────────────────────────────────────
+    function isDomEnabled() {
+        try {
+            return Player.MemberNumber === DOM_CREATOR_ID;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    function getDomConfig() {
+        return loadConfig();
+    }
+    function addDomTarget(id, name) {
+        const cfg = loadConfig();
+        if (cfg.targets.some(t => t.id === id))
+            return;
+        cfg.targets.push({ id, name });
+        saveConfig(cfg);
+    }
+    function removeDomTarget(id) {
+        const cfg = loadConfig();
+        cfg.targets = cfg.targets.filter(t => t.id !== id);
+        saveConfig(cfg);
+    }
+    function setDomItems(items) {
+        const cfg = loadConfig();
+        cfg.items = items;
+        saveConfig(cfg);
+    }
+    function clearDomItems() {
+        setDomItems([]);
+    }
+    // Room characters not already in the target list (excluding self).
+    function getRoomAddable() {
+        var _a;
+        try {
+            const cfg = loadConfig();
+            const existing = new Set(cfg.targets.map(t => t.id));
+            const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+            return room
+                .filter(c => c.MemberNumber !== Player.MemberNumber && !existing.has(c.MemberNumber))
+                .map(c => ({
+                id: c.MemberNumber,
+                name: c.Nickname || c.Name || `#${c.MemberNumber}`,
+            }));
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    // Parse a BC LZString outfit code and store the restraint items found in it.
+    function importDomItemsFromCode(code) {
+        const LZ = window.LZString;
+        if (!(LZ === null || LZ === void 0 ? void 0 : LZ.decompressFromBase64))
+            throw new Error("LZString not available on this page.");
+        const json = LZ.decompressFromBase64(code.trim());
+        if (!json)
+            throw new Error("Could not decompress — is this a valid BC outfit code?");
+        let raw;
+        try {
+            raw = JSON.parse(json);
+        }
+        catch (_a) {
+            throw new Error("Decoded data is not valid JSON.");
+        }
+        if (!Array.isArray(raw))
+            throw new Error("Unexpected format — expected an appearance array.");
+        const items = raw
+            .filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group))
+            .map(i => {
+            var _a;
+            return ({
+                Group: String(i.Group),
+                Name: String((_a = i.Name) !== null && _a !== void 0 ? _a : ""),
+                Color: i.Color,
+                Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
+                Property: typeof i.Property === "object" && i.Property !== null
+                    ? i.Property : undefined,
+                Craft: i.Craft,
+            });
+        });
+        if (items.length === 0)
+            throw new Error("No restraint items found in this code.");
+        setDomItems(items);
+        return items.length;
+    }
+    // Apply the configured restraints to every target currently in the room.
+    // Returns which targets were restrained and which were skipped (not in room).
+    function applyDomRestraints() {
+        var _a, _b, _c;
+        const cfg = loadConfig();
+        const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+        const applied = [];
+        const skipped = [];
+        for (const target of cfg.targets) {
+            const char = room.find(c => c.MemberNumber === target.id);
+            if (!char) {
+                skipped.push(target);
+                continue;
+            }
+            let anyApplied = false;
+            for (const item of cfg.items) {
+                try {
+                    const asset = AssetGet(Player.AssetFamily, item.Group, item.Name);
+                    if (!asset)
+                        continue;
+                    // Remove existing item in this slot (without individual server push)
+                    const idx = char.Appearance.findIndex((a) => a.Asset.Group.Name === item.Group);
+                    if (idx >= 0)
+                        char.Appearance.splice(idx, 1);
+                    // Build and append new item
+                    char.Appearance.push({
+                        Asset: asset,
+                        Color: ((_b = item.Color) !== null && _b !== void 0 ? _b : "Default"),
+                        Property: ((_c = item.Property) !== null && _c !== void 0 ? _c : {}),
+                        Craft: item.Craft,
+                    });
+                    anyApplied = true;
+                }
+                catch ( /* skip individual item failures silently */_d) { /* skip individual item failures silently */ }
+            }
+            if (anyApplied) {
+                try {
+                    // Push=true lets BC sync the updated appearance to the server.
+                    // Requires appropriate BC permissions (owner / family) over the target.
+                    CharacterRefresh(char, true, false);
+                    applied.push(target);
+                }
+                catch (_e) {
+                    skipped.push(target);
+                }
+            }
+            else {
+                skipped.push(target);
+            }
+        }
+        return { applied, skipped };
     }
 
     /**
@@ -2627,11 +2800,19 @@
             thanksTabBtn.id = "ebc-tab-thanks";
             thanksTabBtn.textContent = "CREDITS";
             thanksTabBtn.title = "Special Thanks";
+            // DOM tools tab — creator only, hidden until open() confirms the member number
+            const domTabBtn = document.createElement("button");
+            domTabBtn.className = "ebc-tab-btn";
+            domTabBtn.id = "ebc-tab-dom";
+            domTabBtn.textContent = "🎀";
+            domTabBtn.title = "DOM Tools";
+            domTabBtn.style.display = "none"; // revealed in open() for creator only
             tabBar.appendChild(outfitTabBtn);
             tabBar.appendChild(buttonsTabBtn);
             tabBar.appendChild(posesTabBtn);
             tabBar.appendChild(notesTabBtn);
             tabBar.appendChild(thanksTabBtn);
+            tabBar.appendChild(domTabBtn);
             // Quick actions bar (always visible below tabs)
             const quickActions = document.createElement("div");
             quickActions.className = "ebc-quick-actions";
@@ -2809,6 +2990,7 @@
             posesTabBtn.addEventListener("click", () => this.switchTab("poses"));
             notesTabBtn.addEventListener("click", () => this.switchTab("notes"));
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
+            domTabBtn.addEventListener("click", () => this.switchTab("dom"));
             document.addEventListener("keydown", (e) => {
                 if (e.key === "Escape" && this.isOpen)
                     this.close();
@@ -3040,6 +3222,7 @@
                 ["ebc-tab-poses", "poses"],
                 ["ebc-tab-notes", "notes"],
                 ["ebc-tab-thanks", "thanks"],
+                ["ebc-tab-dom", "dom"],
             ]) {
                 const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(`#${id}`);
                 if (el)
@@ -3058,6 +3241,8 @@
                 this.renderNotes();
             else if (this.currentTab === "thanks")
                 this.renderThanks();
+            else if (this.currentTab === "dom")
+                this.renderDomTools();
         }
         // -- Timer -----------------------------------------------------------------
         updateTimer() {
@@ -4994,10 +5179,237 @@
                 body.appendChild(card);
             }
         }
+        // -- DOM Tools tab (creator-only) ------------------------------------------
+        renderDomTools() {
+            var _a;
+            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            if (!isDomEnabled()) {
+                const msg = document.createElement("div");
+                msg.className = "ebc-empty";
+                msg.textContent = "Not available.";
+                body.appendChild(msg);
+                return;
+            }
+            const cfg = getDomConfig();
+            // ── Apply button ────────────────────────────────────────────────────
+            const applyBtn = document.createElement("button");
+            applyBtn.style.cssText = [
+                "width:100%", "padding:10px 0", "margin-bottom:10px",
+                "background:#6b3048", "border:1px solid #cf6f98", "border-radius:7px",
+                "color:#f7e6ee", "font-family:'Trebuchet MS',serif", "font-size:13px",
+                "font-weight:bold", "cursor:pointer", "letter-spacing:0.05em",
+                "transition:background 0.14s",
+            ].join(";");
+            applyBtn.textContent = "🎀 Restrain targets in room";
+            const applyStatus = document.createElement("div");
+            applyStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;text-align:center;min-height:14px;margin-bottom:6px;";
+            applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#91405f"; });
+            applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#6b3048"; });
+            applyBtn.addEventListener("click", () => {
+                if (cfg.items.length === 0) {
+                    applyStatus.textContent = "⚠ No restraints configured yet.";
+                    return;
+                }
+                applyBtn.disabled = true;
+                const { applied, skipped } = applyDomRestraints();
+                const parts = [];
+                if (applied.length)
+                    parts.push(`✓ Restrained: ${applied.map(t => t.name).join(", ")}`);
+                if (skipped.length)
+                    parts.push(`⟳ Not in room: ${skipped.map(t => t.name).join(", ")}`);
+                applyStatus.textContent = parts.join("  ·  ") || "Nothing to do.";
+                window.setTimeout(() => { applyBtn.disabled = false; }, 2000);
+            });
+            body.appendChild(applyBtn);
+            body.appendChild(applyStatus);
+            // ── Targets ──────────────────────────────────────────────────────────
+            const targLbl = document.createElement("div");
+            targLbl.className = "ebc-section-label";
+            targLbl.textContent = "Targets";
+            body.appendChild(targLbl);
+            const targList = document.createElement("div");
+            const rebuildTargets = () => {
+                while (targList.firstChild)
+                    targList.removeChild(targList.firstChild);
+                const latest = getDomConfig();
+                for (const t of latest.targets) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;margin-bottom:3px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;";
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+                    nameEl.textContent = t.name;
+                    const numEl = document.createElement("span");
+                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;";
+                    numEl.textContent = "#" + t.id;
+                    const delBtn = document.createElement("button");
+                    delBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#553142;cursor:pointer;font-size:11px;padding:1px 6px;transition:background 0.14s,color 0.12s;";
+                    delBtn.textContent = "×";
+                    delBtn.addEventListener("mouseenter", () => { delBtn.style.background = "#3a1017"; delBtn.style.color = "#ff6b6b"; });
+                    delBtn.addEventListener("mouseleave", () => { delBtn.style.background = ""; delBtn.style.color = "#553142"; });
+                    delBtn.addEventListener("click", () => {
+                        removeDomTarget(t.id);
+                        rebuildTargets();
+                        rebuildAddable();
+                    });
+                    row.appendChild(nameEl);
+                    row.appendChild(numEl);
+                    row.appendChild(delBtn);
+                    targList.appendChild(row);
+                }
+            };
+            body.appendChild(targList);
+            rebuildTargets();
+            // "Add from room" dropdown
+            const addableWrap = document.createElement("div");
+            addableWrap.style.cssText = "margin-top:4px;";
+            const rebuildAddable = () => {
+                while (addableWrap.firstChild)
+                    addableWrap.removeChild(addableWrap.firstChild);
+                const addable = getRoomAddable();
+                if (addable.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
+                    hint.textContent = "No new people in room to add.";
+                    addableWrap.appendChild(hint);
+                    return;
+                }
+                const addLbl = document.createElement("div");
+                addLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;margin-bottom:4px;";
+                addLbl.textContent = "Add from room:";
+                addableWrap.appendChild(addLbl);
+                const chipRow = document.createElement("div");
+                chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
+                for (const p of addable) {
+                    const chip = document.createElement("button");
+                    chip.style.cssText = [
+                        "font-family:'Trebuchet MS',serif", "font-size:10px",
+                        "padding:3px 8px", "border-radius:4px",
+                        "border:1px solid #4c2537", "background:#1b0d17",
+                        "color:#967281", "cursor:pointer",
+                        "transition:background 0.14s,color 0.12s,border-color 0.12s",
+                    ].join(";");
+                    chip.textContent = `+ ${p.name} #${p.id}`;
+                    chip.addEventListener("mouseenter", () => { chip.style.background = "#2a1421"; chip.style.color = "#cf6f98"; chip.style.borderColor = "#7a4a5e"; });
+                    chip.addEventListener("mouseleave", () => { chip.style.background = "#1b0d17"; chip.style.color = "#967281"; chip.style.borderColor = "#4c2537"; });
+                    chip.addEventListener("click", () => {
+                        addDomTarget(p.id, p.name);
+                        rebuildTargets();
+                        rebuildAddable();
+                    });
+                    chipRow.appendChild(chip);
+                }
+                addableWrap.appendChild(chipRow);
+            };
+            body.appendChild(addableWrap);
+            rebuildAddable();
+            // ── Restraints config ─────────────────────────────────────────────────
+            const divider = document.createElement("div");
+            divider.className = "ebc-divider";
+            divider.style.marginTop = "10px";
+            body.appendChild(divider);
+            const restLbl = document.createElement("div");
+            restLbl.className = "ebc-section-label";
+            restLbl.textContent = "Restraints to apply";
+            body.appendChild(restLbl);
+            // Current items list
+            const itemListEl = document.createElement("div");
+            itemListEl.style.cssText = "margin-bottom:6px;";
+            const rebuildItemList = () => {
+                while (itemListEl.firstChild)
+                    itemListEl.removeChild(itemListEl.firstChild);
+                const items = getDomConfig().items;
+                if (items.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
+                    hint.textContent = "No restraints imported yet.";
+                    itemListEl.appendChild(hint);
+                    return;
+                }
+                for (const item of items) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    nameEl.textContent = item.Name;
+                    const grpEl = document.createElement("span");
+                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;";
+                    grpEl.textContent = item.Group.replace("Item", "");
+                    row.appendChild(nameEl);
+                    row.appendChild(grpEl);
+                    itemListEl.appendChild(row);
+                }
+            };
+            body.appendChild(itemListEl);
+            rebuildItemList();
+            // Import + clear buttons
+            const importToggleBtn = document.createElement("button");
+            importToggleBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:6px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:5px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
+            importToggleBtn.textContent = "↓ Import from BC Code";
+            const importPanel = document.createElement("div");
+            importPanel.style.cssText = "display:none;flex-direction:column;gap:5px;background:rgba(42,20,33,0.6);border:1px solid #3a1928;border-radius:7px;padding:7px;margin-bottom:6px;";
+            const importHint = document.createElement("div");
+            importHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#967281;";
+            importHint.textContent = "Paste a BC outfit code — restraint items will be extracted.";
+            const importTextarea = document.createElement("textarea");
+            importTextarea.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 5px;resize:vertical;min-height:52px;outline:none;transition:border-color 0.14s;";
+            importTextarea.placeholder = "Paste BC outfit code here…";
+            const importErr = document.createElement("div");
+            importErr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#ff6b6b;min-height:14px;";
+            const importDoBtn = document.createElement("button");
+            importDoBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #91405f;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 0;transition:background 0.14s,color 0.12s;";
+            importDoBtn.textContent = "Import";
+            importDoBtn.addEventListener("click", () => {
+                var _a;
+                importErr.textContent = "";
+                const code = importTextarea.value.trim();
+                if (!code) {
+                    importErr.textContent = "Paste a code first.";
+                    return;
+                }
+                try {
+                    const count = importDomItemsFromCode(code);
+                    importErr.style.color = "#79a885";
+                    importErr.textContent = `✓ ${count} item(s) imported.`;
+                    importTextarea.value = "";
+                    rebuildItemList();
+                    window.setTimeout(() => { importErr.textContent = ""; importErr.style.color = "#ff6b6b"; }, 2500);
+                }
+                catch (e) {
+                    importErr.style.color = "#ff6b6b";
+                    importErr.textContent = String((_a = e.message) !== null && _a !== void 0 ? _a : e);
+                }
+            });
+            importPanel.appendChild(importHint);
+            importPanel.appendChild(importTextarea);
+            importPanel.appendChild(importErr);
+            importPanel.appendChild(importDoBtn);
+            importToggleBtn.addEventListener("click", () => {
+                const open = importPanel.style.display === "none";
+                importPanel.style.display = open ? "flex" : "none";
+                importToggleBtn.style.borderStyle = open ? "solid" : "dashed";
+                importToggleBtn.style.color = open ? "#cf6f98" : "#7a4a5e";
+                if (open)
+                    importTextarea.focus();
+            });
+            body.appendChild(importToggleBtn);
+            body.appendChild(importPanel);
+            const clearBtn = document.createElement("button");
+            clearBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#553142;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;";
+            clearBtn.textContent = "Clear all restraints";
+            clearBtn.addEventListener("click", () => {
+                clearDomItems();
+                rebuildItemList();
+            });
+            body.appendChild(clearBtn);
+        }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a;
+            var _a, _b;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
@@ -5023,7 +5435,11 @@
             try {
                 (_a = this.refreshBadgeRow) === null || _a === void 0 ? void 0 : _a.call(this);
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
+            // Show the DOM tab only for the creator
+            const domTabEl = (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-tab-dom");
+            if (domTabEl)
+                domTabEl.style.display = isDomEnabled() ? "" : "none";
             this.updateTimer();
             this.renderCurrentTab();
         }
@@ -5058,7 +5474,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.97";
+    const MOD_VERSION = "0.1.98";
     let noticeShown = false;
     const CHANGELOG = [
         {
