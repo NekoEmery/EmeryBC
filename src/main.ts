@@ -17,7 +17,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.29";
+const MOD_VERSION = "0.1.30";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -40,6 +40,13 @@ const TAB_BTN_W = 132;
 const TAB_BTN_GAP = 14;
 const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.30",
+        changes: [
+            "Fixed potential crash: drawer initialisation is now wrapped in try/catch so a DOM error can no longer prevent the rest of the addon from loading.",
+            "Drawer DOM queries use safe optional chaining instead of hard assertions.",
+        ],
+    },
     {
         version: "0.1.29",
         changes: [
@@ -553,7 +560,12 @@ function init(): void {
     });
 
     // DOM drawer — outfit switcher panel beside the chat log
-    const drawer = new EBCDrawer();
+    let drawer: EBCDrawer | null = null;
+    try {
+        drawer = new EBCDrawer();
+    } catch (err) {
+        console.warn("[EmeryBC] Drawer failed to initialise:", err);
+    }
 
     tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
         const result = next(args);
@@ -574,7 +586,7 @@ function init(): void {
             showRoomLoadNotice();
         } catch { /* ignore */ }
         try {
-            drawer.updateVisibility();
+            drawer?.updateVisibility();
         } catch { /* ignore */ }
         return result;
     });
@@ -582,7 +594,7 @@ function init(): void {
     // Keep drawer visibility in sync whenever the BC screen changes
     tryHookFunction(modAPI, "CommonSetScreen", 3, (args, next) => {
         const result = next(args);
-        try { drawer.updateVisibility(); } catch { /* ignore */ }
+        try { drawer?.updateVisibility(); } catch { /* ignore */ }
         return result;
     });
 

@@ -278,9 +278,9 @@ export class EBCDrawer {
         document.body.appendChild(el);
         this.el = el;
 
-        el.querySelector("#ebc-tab")!.addEventListener("click", () => this.toggle());
-        el.querySelector("#ebc-close-btn")!.addEventListener("click", () => this.close());
-        el.querySelector("#ebc-refresh-btn")!.addEventListener("click", () => this.renderOutfits());
+        el.querySelector("#ebc-tab")?.addEventListener("click", () => this.toggle());
+        el.querySelector("#ebc-close-btn")?.addEventListener("click", () => this.close());
+        el.querySelector("#ebc-refresh-btn")?.addEventListener("click", () => this.renderOutfits());
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.isOpen) this.close();
