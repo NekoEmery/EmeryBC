@@ -14,6 +14,7 @@ import {
     saveCurrentAppearanceToOutfit,
     createOutfitFromCurrent,
     deleteOutfit,
+    editOutfit,
     setOutfitPreserveRestraints,
     RESTRAINT_GROUPS,
     type ConfiguredOutfit,
@@ -662,6 +663,39 @@ const CSS = `
 }
 
 
+/* -- Edit button (pencil) -- */
+.ebc-edit-btn {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #553142;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 5px;
+    line-height: 1;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+
+.ebc-edit-btn:hover,
+.ebc-edit-btn.open { background: #3a1928; color: #cf6f98; border-color: #7a4a5e; }
+
+/* -- Inline edit panel -- */
+.ebc-edit-panel {
+    display: none;
+    padding: 6px 7px;
+    background: #1b0d17;
+    border: 1px solid #3a1928;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ebc-edit-panel.open { display: flex; }
+
 /* -- Appearance diff -- */
 .ebc-diff-btn {
     flex-shrink: 0;
@@ -1275,6 +1309,12 @@ export class EBCDrawer {
         diffBtn.textContent = "~";
         diffBtn.title = "Preview appearance changes";
 
+        const PENCIL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+        const editBtn = document.createElement("button");
+        editBtn.className = "ebc-edit-btn";
+        editBtn.innerHTML = PENCIL_SVG;
+        editBtn.title = "Edit outfit name, command and settings";
+
         const delBtn = document.createElement("button");
         delBtn.className = "ebc-outfit-del";
         delBtn.textContent = "×";
@@ -1283,13 +1323,85 @@ export class EBCDrawer {
         row.appendChild(info);
         row.appendChild(preserveBtn);
         row.appendChild(diffBtn);
+        row.appendChild(editBtn);
         row.appendChild(updateBtn);
         row.appendChild(wearBtn);
         row.appendChild(delBtn);
 
+        // Helper: determine which sub-panel (if any) is open
+        const closeAllPanels = (): void => {
+            editPanel.classList.remove("open");
+            diffPanel.classList.remove("open");
+            editBtn.classList.remove("open");
+            diffBtn.classList.remove("open");
+            row.style.borderRadius = "7px";
+        };
+
+        // Edit panel
+        const editPanel = document.createElement("div");
+        editPanel.className = "ebc-edit-panel";
+
+        // Build form fields inside editPanel
+        const makeEditRow = (labelText: string, input: HTMLInputElement): HTMLElement => {
+            const r = document.createElement("div");
+            r.className = "ebc-form-row";
+            const lbl = document.createElement("span");
+            lbl.className = "ebc-form-label";
+            lbl.textContent = labelText;
+            r.appendChild(lbl);
+            r.appendChild(input);
+            return r;
+        };
+
+        const eCmdInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", value: o.command, maxLength: 20,
+        });
+        const eNameInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", value: o.displayName, maxLength: 40,
+        });
+        const eAnnounceInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", value: o.announceText, maxLength: 120,
+        });
+
+        editPanel.appendChild(makeEditRow("Command", eCmdInput));
+        editPanel.appendChild(makeEditRow("Name", eNameInput));
+        editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
+
+        const eInclRow = document.createElement("label");
+        eInclRow.className = "ebc-form-check-row";
+        const eInclCheck = document.createElement("input");
+        eInclCheck.type = "checkbox";
+        eInclCheck.checked = !!o.includeRestraints;
+        const eInclLbl = document.createElement("span");
+        eInclLbl.className = "ebc-form-check-label";
+        eInclLbl.textContent = "Include restraints in outfit";
+        eInclRow.appendChild(eInclCheck);
+        eInclRow.appendChild(eInclLbl);
+        editPanel.appendChild(eInclRow);
+
+        const ePreserveRow = document.createElement("label");
+        ePreserveRow.className = "ebc-form-check-row";
+        const ePreserveCheck = document.createElement("input");
+        ePreserveCheck.type = "checkbox";
+        ePreserveCheck.checked = isPreserving;
+        const ePreserveLbl = document.createElement("span");
+        ePreserveLbl.className = "ebc-form-check-label";
+        ePreserveLbl.textContent = "Keep existing restraints when worn";
+        ePreserveRow.appendChild(ePreserveCheck);
+        ePreserveRow.appendChild(ePreserveLbl);
+        editPanel.appendChild(ePreserveRow);
+
+        const eSaveBtn = document.createElement("button");
+        eSaveBtn.className = "ebc-create-btn";
+        eSaveBtn.textContent = "Save Changes";
+        editPanel.appendChild(eSaveBtn);
+
+        // Diff panel
         const diffPanel = document.createElement("div");
         diffPanel.className = "ebc-diff-panel";
+
         wrapper.appendChild(row);
+        wrapper.appendChild(editPanel);
         wrapper.appendChild(diffPanel);
 
         const setAllDisabled = (v: boolean): void => {
@@ -1305,6 +1417,8 @@ export class EBCDrawer {
                 ? "Keeps existing restraints when worn — click to change"
                 : "Removes existing restraints when worn — click to change";
             setOutfitPreserveRestraints(o.id, next);
+            // Keep edit panel in sync if open
+            ePreserveCheck.checked = next;
         });
 
         wearBtn.addEventListener("click", () => {
@@ -1326,15 +1440,41 @@ export class EBCDrawer {
             }, 1200);
         });
 
+        editBtn.addEventListener("click", () => {
+            const willOpen = !editPanel.classList.contains("open");
+            closeAllPanels();
+            if (willOpen) {
+                editPanel.classList.add("open");
+                editBtn.classList.add("open");
+                row.style.borderRadius = "7px 7px 0 0";
+                eCmdInput.focus();
+            }
+        });
+
+        eSaveBtn.addEventListener("click", () => {
+            eCmdInput.style.borderColor  = eCmdInput.value.trim()  ? "" : "#cf6f98";
+            eNameInput.style.borderColor = eNameInput.value.trim() ? "" : "#cf6f98";
+            if (!eCmdInput.value.trim() || !eNameInput.value.trim()) return;
+
+            const ok = editOutfit(
+                o.id,
+                eCmdInput.value,
+                eNameInput.value,
+                eAnnounceInput.value,
+                eInclCheck.checked,
+                ePreserveCheck.checked,
+            );
+            if (ok) this.renderOutfits();
+        });
+
         diffBtn.addEventListener("click", () => {
-            const isOpen = diffPanel.classList.contains("open");
-            diffPanel.classList.toggle("open", !isOpen);
-            diffBtn.classList.toggle("open", !isOpen);
-            if (!isOpen) {
+            const willOpen = !diffPanel.classList.contains("open");
+            closeAllPanels();
+            if (willOpen) {
+                diffPanel.classList.add("open");
+                diffBtn.classList.add("open");
                 row.style.borderRadius = "7px 7px 0 0";
                 this.renderDiff(diffPanel, o);
-            } else {
-                row.style.borderRadius = "7px";
             }
         });
 

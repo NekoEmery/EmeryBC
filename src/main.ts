@@ -6,10 +6,16 @@ import { getBadgeEnabled } from "./modules/settings";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.72";
+const MOD_VERSION = "0.1.73";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.73",
+        changes: [
+            "Added pencil (edit) button to outfit rows — expand inline form to rename, change command, announce text, and restraint flags without deleting and recreating.",
+        ],
+    },
     {
         version: "0.1.72",
         changes: [

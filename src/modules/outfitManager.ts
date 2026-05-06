@@ -367,3 +367,35 @@ export function deleteOutfit(id: string): void {
     const outfits = getOutfits().filter(o => o.id !== id);
     saveOutfits(outfits);
 }
+
+export function editOutfit(
+    id: string,
+    command: string,
+    displayName: string,
+    announceText: string,
+    includeRestraints: boolean,
+    preserveRestraints: boolean,
+): boolean {
+    const outfits = getOutfits();
+    const outfit = outfits.find(o => o.id === id);
+    if (!outfit) return false;
+
+    const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+    if (!cmd || !displayName.trim()) return false;
+
+    // Block duplicate commands (excluding this outfit itself)
+    if (outfits.some(o => o.id !== id && o.command === cmd)) {
+        localNotice(`Command "/${cmd}" is already used by another outfit.`, "#ffb7c7");
+        return false;
+    }
+
+    outfit.command        = cmd;
+    outfit.displayName    = displayName.trim();
+    outfit.announceText   = announceText.trim();
+    outfit.includeRestraints  = includeRestraints;
+    outfit.preserveRestraints = preserveRestraints;
+
+    saveOutfits(outfits);
+    localNotice(`Updated "${outfit.displayName}" (/${outfit.command}).`);
+    return true;
+}
