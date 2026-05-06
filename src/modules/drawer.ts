@@ -1071,6 +1071,17 @@ const CSS = `
 
 .ebc-combo-editor.open { display: flex; }
 
+/* Sticky save bar — floats at the bottom of the scroll area while editing */
+.ebc-editor-save-bar {
+    position: sticky;
+    bottom: 0;
+    background: #1b0d17;
+    border-top: 1px solid #2e1525;
+    padding: 5px 0 0;
+    margin-top: 2px;
+    z-index: 10;
+}
+
 /* -- Ordered pose step list -- */
 .ebc-step-list {
     display: flex;
@@ -3300,6 +3311,9 @@ export class EBCDrawer {
                 combo.announceText ?? "",
             );
 
+            // Sticky save bar — stays visible at the bottom of the scroll area
+            const saveBar = document.createElement("div");
+            saveBar.className = "ebc-editor-save-bar";
             const savComboBtn = document.createElement("button");
             savComboBtn.className = "ebc-create-btn";
             savComboBtn.textContent = "Save Changes";
@@ -3307,13 +3321,16 @@ export class EBCDrawer {
                 updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
                 this.renderPoses();
             });
-            editor.appendChild(savComboBtn);
+            saveBar.appendChild(savComboBtn);
+            editor.appendChild(saveBar);
 
             editBtn.addEventListener("click", () => {
                 const open = editor.classList.contains("open");
                 editor.classList.toggle("open", !open);
                 editBtn.classList.toggle("open", !open);
                 row.style.borderRadius = open ? "6px" : "6px 6px 0 0";
+                // Scroll the editor top into view so user sees the start of the form
+                if (!open) window.setTimeout(() => row.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
             });
 
             wrapper.appendChild(row);
@@ -3360,6 +3377,9 @@ export class EBCDrawer {
         // Command + Announce
         const { getCommand: ncGetCommand, getAnnounce: ncGetAnnounce } = buildComboOptions(newComboForm);
 
+        // Sticky save bar for new combo form
+        const ncSaveBar = document.createElement("div");
+        ncSaveBar.className = "ebc-editor-save-bar";
         const ncSaveBtn = document.createElement("button");
         ncSaveBtn.className = "ebc-create-btn";
         ncSaveBtn.textContent = "Save Combo";
@@ -3369,13 +3389,17 @@ export class EBCDrawer {
             createCombo(name, ncGetPoses(), ncGetCommand(), ncGetAnnounce(), ncGetDelay());
             this.renderPoses();
         });
-        newComboForm.appendChild(ncSaveBtn);
+        ncSaveBar.appendChild(ncSaveBtn);
+        newComboForm.appendChild(ncSaveBar);
 
         newComboToggle.addEventListener("click", () => {
             const open = newComboForm.style.display !== "none";
             newComboForm.style.display = open ? "none" : "flex";
             newComboToggle.textContent = open ? "+ New Pose Combo" : "- Cancel";
-            if (!open) (ncNameInp as HTMLInputElement).focus();
+            if (!open) {
+                (ncNameInp as HTMLInputElement).focus();
+                window.setTimeout(() => newComboToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+            }
         });
     }
 
