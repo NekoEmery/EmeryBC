@@ -1770,6 +1770,19 @@
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
             }
+            // Dynamically position our tab just below CRABS's tab (if present),
+            // regardless of where CRABS anchors its own root.
+            const tabEl = this.rootEl.querySelector("#ebc-tab");
+            if (tabEl) {
+                const crabsTab = document.getElementById("drawer-tab");
+                if (crabsTab) {
+                    const crabsRect = crabsTab.getBoundingClientRect();
+                    // Convert CRABS's tab bottom from viewport coords to our root coords
+                    const tabTop = Math.max(4, crabsRect.bottom + 4 - rect.top);
+                    tabEl.style.top = `${tabTop}px`;
+                }
+                // If CRABS not present the CSS default (top:58px) stays in effect
+            }
             return true;
         }
         // -- Visibility ------------------------------------------------------------
@@ -2515,7 +2528,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.67";
+    const MOD_VERSION = "0.1.68";
     let noticeShown = false;
     const CHANGELOG = [
         {

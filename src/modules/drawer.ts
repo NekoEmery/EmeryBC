@@ -1079,6 +1079,20 @@ export class EBCDrawer {
             this.positioned = true;
         }
 
+        // Dynamically position our tab just below CRABS's tab (if present),
+        // regardless of where CRABS anchors its own root.
+        const tabEl = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
+        if (tabEl) {
+            const crabsTab = document.getElementById("drawer-tab");
+            if (crabsTab) {
+                const crabsRect = crabsTab.getBoundingClientRect();
+                // Convert CRABS's tab bottom from viewport coords to our root coords
+                const tabTop = Math.max(4, crabsRect.bottom + 4 - rect.top);
+                tabEl.style.top = `${tabTop}px`;
+            }
+            // If CRABS not present the CSS default (top:58px) stays in effect
+        }
+
         return true;
     }
 
