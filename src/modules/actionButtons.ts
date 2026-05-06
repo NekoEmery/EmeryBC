@@ -79,6 +79,55 @@ function normalizeHex(value: string | undefined, fallback = "#c2185b"): string {
     return fallback;
 }
 
+// ─── Helper: send as BC Action → displays as (Name text) ─────────────────────
+
+/** Dictionary entry that tricks BC into rendering literal Content as an Action. */
+const ACTION_DICT_POISON = { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" };
+
+export function sendAction(emote: string): void {
+    ServerSend("ChatRoomChat", {
+        Type: "Action",
+        Content: emote.trim(),
+        Dictionary: [
+            ACTION_DICT_POISON,
+            { SourceCharacter: Player.MemberNumber },
+        ],
+    });
+}
+
+// ─── In-game sidebar ─────────────────────────────────────────────────────────
+
+const BTN_X       = 0;
+const BTN_START_Y = 270;
+const BTN_SIZE    = 45;
+
+export function drawActionButtons(): void {
+    if (CurrentScreen !== "ChatRoom") return;
+    const buttons = getButtons();
+    for (let i = 0; i < buttons.length; i++) {
+        const btn = buttons[i];
+        if (!btn?.enabled || !btn.label) continue;
+        DrawButton(BTN_X, BTN_START_Y + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
+            btn.label, btn.color || "#c2185b", "", btn.emote);
+    }
+}
+
+export function handleActionButtonClick(): boolean {
+    if (CurrentScreen !== "ChatRoom") return false;
+    const buttons = getButtons();
+    for (let i = 0; i < buttons.length; i++) {
+        const btn = buttons[i];
+        if (!btn?.enabled || !btn.label) continue;
+        const y = BTN_START_Y + i * BTN_SIZE;
+        if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
+            MouseY >= y    && MouseY <= y + BTN_SIZE) {
+            sendAction(btn.emote);
+            return true;
+        }
+    }
+    return false;
+}
+
 // ─── Public data access (used by the drawer) ─────────────────────────────────
 
 export { getButtons };

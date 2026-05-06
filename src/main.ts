@@ -1,5 +1,6 @@
 import {
-    getButtons,
+    drawActionButtons,
+    handleActionButtonClick,
     settingsLoad as actionSettingsLoad,
     settingsRun as actionSettingsRun,
     settingsClick as actionSettingsClick,
@@ -16,7 +17,7 @@ import {
 import { UI, drawChromeButton } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.28";
+const MOD_VERSION = "0.1.29";
 const EXTENSION_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
         <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
@@ -39,6 +40,16 @@ const TAB_BTN_W = 132;
 const TAB_BTN_GAP = 14;
 const TAB_BTN_LEFT = 156;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.29",
+        changes: [
+            "Restored canvas sidebar action buttons alongside the drawer.",
+            "Action buttons now send as (Name action.) using the MBCHC Action type trick instead of * emote *.",
+            "Outfit announce text also uses Action type for consistent formatting.",
+            "Drawer repositioned to the lower 40% of the chat log and now shows outfit switcher.",
+            "Drawer outfit panel: one-click Wear buttons for all saved outfits.",
+        ],
+    },
     {
         version: "0.1.28",
         changes: [
@@ -530,8 +541,19 @@ function init(): void {
         { allowReplace: true }
     );
 
-    // Create the DOM drawer — action buttons now live here instead of the canvas sidebar
-    const drawer = new EBCDrawer(getButtons);
+    // Canvas sidebar action buttons
+    modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
+        next(args);
+        try { drawActionButtons(); } catch { /* ignore */ }
+    });
+
+    modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
+        try { if (handleActionButtonClick()) return; } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // DOM drawer — outfit switcher panel beside the chat log
+    const drawer = new EBCDrawer();
 
     tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
         const result = next(args);

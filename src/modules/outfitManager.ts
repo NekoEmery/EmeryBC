@@ -250,7 +250,7 @@ function captureAppearance(includeRestraints: boolean): SerializedItem[] {
         }));
 }
 
-function applyOutfit(outfit: ConfiguredOutfit): void {
+export function applyOutfit(outfit: ConfiguredOutfit): void {
     if (outfitApplyPending) {
         localNotice("An outfit swap is already in progress.", "#ffb7c7");
         return;
@@ -282,7 +282,14 @@ function applyOutfit(outfit: ConfiguredOutfit): void {
     window.setTimeout(() => {
         try {
             if (outfit.announceText.trim()) {
-                ServerSend("ChatRoomChat", { Content: outfit.announceText.trim(), Type: "Emote" });
+                ServerSend("ChatRoomChat", {
+                    Type: "Action",
+                    Content: outfit.announceText.trim(),
+                    Dictionary: [
+                        { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                        { SourceCharacter: Player.MemberNumber },
+                    ],
+                });
             }
         } finally {
             outfitApplyPending = false;

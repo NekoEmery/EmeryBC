@@ -1,17 +1,17 @@
 /**
  * EmeryBC Drawer
  *
- * A CRABS-inspired sliding side panel that sits beside the chat log.
- * The EmeryBC icon tab protrudes to the left — click it to expand/collapse.
+ * A CRABS-inspired sliding side panel positioned in the lower portion of the
+ * chat log. Shows saved outfits with one-click wear buttons.
  *
  * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
  * Thank you Sin for the open design! ♥
  */
-import type { ActionButton } from "./actionButtons";
+import { getOutfits, applyOutfit, type ConfiguredOutfit } from "./outfitManager";
 
-// ── Icon (same SVG as the Extensions button, scaled for the tab) ─────────────
+// ── Icon ──────────────────────────────────────────────────────────────────────
 
-const TAB_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 90 90">
+const TAB_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 90 90">
     <rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
     <path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>
     <circle cx="34" cy="43" r="4" fill="#f7e6ee"/>
@@ -21,7 +21,7 @@ const TAB_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const DRAWER_CSS = `
+const CSS = `
 #emerybc-drawer {
     position: fixed;
     z-index: 99;
@@ -32,13 +32,13 @@ const DRAWER_CSS = `
     pointer-events: none;
 }
 
-#emerybc-drawer.ebc-closed { transform: translateX(calc(100% + 20px)); }
+#emerybc-drawer.ebc-closed { transform: translateX(calc(100% + 24px)); }
 #emerybc-drawer.ebc-open   { transform: translateX(0); }
 
 #ebc-tab {
     pointer-events: auto;
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     background: rgba(42, 20, 33, 0.93);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -51,8 +51,8 @@ const DRAWER_CSS = `
     cursor: pointer;
     box-shadow: -3px 0 10px rgba(0,0,0,0.55);
     position: absolute;
-    left: -38px;
-    top: 12px;
+    left: -36px;
+    top: 10px;
     z-index: 99;
     transition: background 0.18s;
     flex-shrink: 0;
@@ -79,14 +79,14 @@ const DRAWER_CSS = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 9px 12px;
+    padding: 8px 12px;
     border-bottom: 1px solid #4c2537;
     background: rgba(36, 17, 29, 0.9);
     flex-shrink: 0;
     gap: 8px;
 }
 
-.ebc-header-title {
+.ebc-title {
     font-family: "Trebuchet MS", serif;
     font-size: 13px;
     font-weight: bold;
@@ -95,7 +95,7 @@ const DRAWER_CSS = `
     white-space: nowrap;
 }
 
-.ebc-header-actions { display: flex; gap: 5px; align-items: center; }
+.ebc-header-btns { display: flex; gap: 5px; align-items: center; }
 
 .ebc-icon-btn {
     background: transparent;
@@ -103,24 +103,20 @@ const DRAWER_CSS = `
     border-radius: 6px;
     color: #967281;
     cursor: pointer;
-    padding: 3px 8px;
+    padding: 3px 7px;
     font-size: 12px;
     line-height: 1.3;
     font-family: "Trebuchet MS", serif;
     transition: background 0.14s, color 0.14s, border-color 0.14s;
 }
 
-.ebc-icon-btn:hover {
-    background: #4c2537;
-    color: #f7e6ee;
-    border-color: #cf6f98;
-}
+.ebc-icon-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 
 /* ── Body ── */
 .ebc-body {
     flex: 1;
     overflow-y: auto;
-    padding: 10px 10px 6px;
+    padding: 8px;
     scrollbar-width: thin;
     scrollbar-color: #4c2537 transparent;
 }
@@ -129,85 +125,109 @@ const DRAWER_CSS = `
 .ebc-body::-webkit-scrollbar-track { background: transparent; }
 .ebc-body::-webkit-scrollbar-thumb { background: #4c2537; border-radius: 2px; }
 
-/* ── Button grid ── */
-.ebc-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
-    gap: 6px;
+/* ── Section label ── */
+.ebc-section-label {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    color: #553142;
+    text-transform: uppercase;
+    padding: 4px 4px 6px;
 }
 
-.ebc-btn {
-    background: var(--ebc-bg, #2a1421);
-    border: 1px solid var(--ebc-color, #cf6f98);
+/* ── Outfit rows ── */
+.ebc-outfit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
     border-radius: 8px;
+    margin-bottom: 5px;
+    background: rgba(42, 20, 33, 0.6);
+    border: 1px solid #3a1928;
+    transition: border-color 0.14s;
+}
+
+.ebc-outfit-row:hover { border-color: #6b3048; }
+
+.ebc-outfit-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ebc-outfit-name {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    font-weight: bold;
     color: #f7e6ee;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ebc-outfit-cmd {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #cf6f98;
+    letter-spacing: 0.04em;
+}
+
+.ebc-wear-btn {
+    flex-shrink: 0;
+    background: #2a1421;
+    border: 1px solid #91405f;
+    border-radius: 6px;
+    color: #cf6f98;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 11px;
     font-weight: bold;
-    letter-spacing: 0.04em;
-    padding: 9px 4px;
-    text-align: center;
-    transition: background 0.14s, color 0.12s, transform 0.1s;
-    word-break: break-word;
-    line-height: 1.2;
+    padding: 4px 10px;
+    transition: background 0.14s, color 0.12s;
+    white-space: nowrap;
 }
 
-.ebc-btn:hover {
-    background: var(--ebc-color, #cf6f98);
-    color: #12070d;
-    transform: scale(1.04);
+.ebc-wear-btn:hover { background: #91405f; color: #f7e6ee; }
+.ebc-wear-btn:active { transform: scale(0.96); }
+
+.ebc-wear-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
-.ebc-btn:active { transform: scale(0.96); }
-
-/* ── Empty state ── */
+/* ── Empty ── */
 .ebc-empty {
     color: #553142;
     font-family: "Trebuchet MS", serif;
     font-size: 12px;
     text-align: center;
-    padding: 24px 8px;
+    padding: 20px 8px;
     line-height: 1.7;
 }
 
 /* ── Footer ── */
 .ebc-footer {
     flex-shrink: 0;
-    padding: 6px 12px;
+    padding: 5px 12px;
     border-top: 1px solid #2a1421;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     color: #3a1a28;
     text-align: center;
-    line-height: 1.5;
 }
 
-.ebc-footer a {
-    color: #553142;
-    text-decoration: none;
-    transition: color 0.14s;
-}
-
+.ebc-footer a { color: #553142; text-decoration: none; transition: color 0.14s; }
 .ebc-footer a:hover { color: #cf6f98; }
 `;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helper ────────────────────────────────────────────────────────────────────
 
-function esc(str: string): string {
-    return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-}
-
-/** Darken a hex color for background use at low opacity */
-function colorToAlpha(hex: string, alpha: number): string {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r},${g},${b},${alpha})`;
+function esc(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 // ── Class ─────────────────────────────────────────────────────────────────────
@@ -219,7 +239,7 @@ export class EBCDrawer {
     private isOpen = false;
     private resizeObserver: ResizeObserver | null = null;
 
-    constructor(private getButtons: () => ActionButton[]) {
+    constructor() {
         EBCDrawer._instance = this;
         if (document.body) {
             this.setup();
@@ -239,17 +259,16 @@ export class EBCDrawer {
         el.className = "ebc-closed";
         el.style.display = "none";
         el.innerHTML = `
-            <div id="ebc-tab" title="EmeryBC actions">${TAB_ICON}</div>
+            <div id="ebc-tab" title="EmeryBC outfits">${TAB_ICON}</div>
             <div class="ebc-panel">
                 <div class="ebc-header">
-                    <span class="ebc-header-title">✦ EmeryBC</span>
-                    <div class="ebc-header-actions">
+                    <span class="ebc-title">✦ Outfits</span>
+                    <div class="ebc-header-btns">
+                        <button class="ebc-icon-btn" id="ebc-refresh-btn" title="Refresh outfit list">↺</button>
                         <button class="ebc-icon-btn" id="ebc-close-btn" title="Close">✕</button>
                     </div>
                 </div>
-                <div class="ebc-body">
-                    <div id="ebc-grid" class="ebc-grid"></div>
-                </div>
+                <div class="ebc-body" id="ebc-body"></div>
                 <div class="ebc-footer">
                     UI inspired by <a href="https://github.com/sin-1337/CRABS" target="_blank">CRABS</a> by Sin ♥
                 </div>
@@ -261,6 +280,7 @@ export class EBCDrawer {
 
         el.querySelector("#ebc-tab")!.addEventListener("click", () => this.toggle());
         el.querySelector("#ebc-close-btn")!.addEventListener("click", () => this.close());
+        el.querySelector("#ebc-refresh-btn")!.addEventListener("click", () => this.renderOutfits());
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.isOpen) this.close();
@@ -279,11 +299,11 @@ export class EBCDrawer {
         if (document.getElementById("emerybc-drawer-css")) return;
         const s = document.createElement("style");
         s.id = "emerybc-drawer-css";
-        s.textContent = DRAWER_CSS;
+        s.textContent = CSS;
         document.head.appendChild(s);
     }
 
-    // ── Positioning ───────────────────────────────────────────────────────────
+    // ── Positioning — lower portion of the chat log ───────────────────────────
 
     private syncToChat(): void {
         const chatLog = document.getElementById("TextAreaChatLog");
@@ -291,10 +311,12 @@ export class EBCDrawer {
         const rect = chatLog.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return;
 
-        this.el.style.top    = `${rect.top}px`;
+        // Start 40% down the chat log so it sits in the lower half
+        const topOffset = rect.height * 0.40;
+        this.el.style.top    = `${rect.top + topOffset}px`;
         this.el.style.right  = `${document.documentElement.clientWidth - rect.right}px`;
         this.el.style.width  = `${rect.width}px`;
-        this.el.style.height = `${Math.round(rect.height * 0.62)}px`;
+        this.el.style.height = `${Math.round(rect.height * 0.52)}px`;
     }
 
     // ── Visibility ────────────────────────────────────────────────────────────
@@ -322,34 +344,49 @@ export class EBCDrawer {
         }
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    // ── Render outfits ────────────────────────────────────────────────────────
 
-    private renderButtons(): void {
-        const grid = this.el?.querySelector("#ebc-grid");
-        if (!grid) return;
+    private renderOutfits(): void {
+        const body = this.el?.querySelector("#ebc-body");
+        if (!body) return;
 
-        const btns = this.getButtons().filter(b => b.enabled && b.label.trim());
+        const outfits = getOutfits();
 
-        if (btns.length === 0) {
-            grid.innerHTML = `<div class="ebc-empty">No action buttons set up yet.<br>Go to <b>Preferences → Extensions → EmeryBC</b> to add some.</div>`;
+        if (outfits.length === 0) {
+            body.innerHTML = `<div class="ebc-empty">No outfits saved yet.<br>Go to <b>Preferences → Extensions → EmeryBC → Outfits</b> to set some up.</div>`;
             return;
         }
 
-        grid.innerHTML = btns.map(b => {
-            const bg  = /^#[0-9a-f]{6}$/i.test(b.color) ? colorToAlpha(b.color, 0.18) : "rgba(42,20,33,0.8)";
-            const col = esc(b.color);
-            return `<button class="ebc-btn"
-                data-emote="${esc(b.emote)}"
-                style="--ebc-color:${col};--ebc-bg:${bg}"
-                title="${esc(b.emote)}">
-                ${esc(b.label)}
-            </button>`;
-        }).join("");
+        body.innerHTML = `<div class="ebc-section-label">Saved Outfits</div>` +
+            outfits.map((o: ConfiguredOutfit) => `
+                <div class="ebc-outfit-row">
+                    <div class="ebc-outfit-info">
+                        <span class="ebc-outfit-name">${esc(o.displayName)}</span>
+                        <span class="ebc-outfit-cmd">/${esc(o.command)}</span>
+                    </div>
+                    <button class="ebc-wear-btn" data-id="${esc(o.id)}">Wear</button>
+                </div>
+            `).join("");
 
-        grid.querySelectorAll<HTMLButtonElement>(".ebc-btn").forEach(btn => {
+        body.querySelectorAll<HTMLButtonElement>(".ebc-wear-btn").forEach(btn => {
             btn.addEventListener("click", () => {
-                const emote = btn.dataset.emote ?? "";
-                if (emote) ServerSend("ChatRoomChat", { Content: emote.trim(), Type: "Emote" });
+                const id = btn.dataset.id;
+                const outfit = getOutfits().find(o => o.id === id);
+                if (!outfit) return;
+
+                // Disable all wear buttons briefly to prevent double-tap
+                body.querySelectorAll<HTMLButtonElement>(".ebc-wear-btn").forEach(b => {
+                    b.disabled = true;
+                });
+
+                applyOutfit(outfit);
+
+                // Re-enable after outfit swap settles
+                window.setTimeout(() => {
+                    body.querySelectorAll<HTMLButtonElement>(".ebc-wear-btn").forEach(b => {
+                        b.disabled = false;
+                    });
+                }, 500);
             });
         });
     }
@@ -363,7 +400,7 @@ export class EBCDrawer {
         this.isOpen = true;
         this.el.className = "ebc-open";
         this.syncToChat();
-        this.renderButtons();
+        this.renderOutfits();
     }
 
     public close(): void {
