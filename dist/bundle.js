@@ -1314,7 +1314,7 @@
     position: absolute;
     right: 44px;   /* leave the 44px tab strip uncovered — tab is to our right */
     top: 0;
-    width: 300px;
+    width: 360px;
     height: 100%;  /* full chat log height — no vertical conflict with tab */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
     will-change: transform;
@@ -5053,7 +5053,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.95";
+    const MOD_VERSION = "0.1.96";
     let noticeShown = false;
     const CHANGELOG = [
         {
