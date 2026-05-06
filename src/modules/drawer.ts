@@ -1072,9 +1072,10 @@ export class EBCDrawer {
             this.lastRect.height !== rect.height ||
             this.lastRect.right  !== rightOffset
         ) {
+            const fullHeight = document.documentElement.clientHeight - rect.top;
             this.rootEl.style.top    = `${rect.top}px`;
             this.rootEl.style.right  = `${rightOffset}px`;
-            this.rootEl.style.height = `${rect.height}px`;
+            this.rootEl.style.height = `${fullHeight}px`;
             this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
             this.positioned = true;
         }

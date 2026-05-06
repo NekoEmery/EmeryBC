@@ -1764,9 +1764,10 @@
                 this.lastRect.width !== rect.width ||
                 this.lastRect.height !== rect.height ||
                 this.lastRect.right !== rightOffset) {
+                const fullHeight = document.documentElement.clientHeight - rect.top;
                 this.rootEl.style.top = `${rect.top}px`;
                 this.rootEl.style.right = `${rightOffset}px`;
-                this.rootEl.style.height = `${rect.height}px`;
+                this.rootEl.style.height = `${fullHeight}px`;
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
             }
@@ -2515,7 +2516,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.62";
+    const MOD_VERSION = "0.1.63";
     let noticeShown = false;
     const CHANGELOG = [
         {
@@ -2988,9 +2989,6 @@
         const top = typeof args[2] === "number" ? args[2] : null;
         const zoom = typeof args[3] === "number" ? args[3] : 1;
         if (!character || left == null || top == null || !hasEmeryBC(character))
-            return;
-        // Never draw the badge above your own character — you know you have EBC
-        if (character.MemberNumber === Player.MemberNumber)
             return;
         getSharedPresence(character);
         const width = Math.max(30, 34 * zoom);
