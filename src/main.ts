@@ -6,10 +6,17 @@ import { getBadgeEnabled } from "./modules/settings";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.69";
+const MOD_VERSION = "0.1.70";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.70",
+        changes: [
+            "Clean rebuild to resolve stale build artifact from v0.1.69.",
+            "Updated credits text for Lara and Lucy in the Special Thanks tab.",
+        ],
+    },
     {
         version: "0.1.55",
         changes: [
