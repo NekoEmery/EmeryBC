@@ -1658,7 +1658,7 @@
             badgeRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
             const badgeLbl = document.createElement("span");
             badgeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;flex:1;user-select:none;";
-            badgeLbl.textContent = "EBC overhead tag";
+            badgeLbl.textContent = "Show EBC tags";
             const badgeToggle = document.createElement("button");
             const updateBadgeToggle = () => {
                 const on = getBadgeEnabled();
@@ -1676,8 +1676,8 @@
                     "transition:background 0.14s,color 0.14s,border-color 0.14s",
                 ].join(";");
                 badgeToggle.title = on
-                    ? "EBC tag visible to others — click to hide"
-                    : "EBC tag hidden from others — click to show";
+                    ? "EBC tags visible — click to hide them on your screen"
+                    : "EBC tags hidden — click to show them on your screen";
             };
             this.refreshBadgeRow = updateBadgeToggle;
             try {
@@ -1685,33 +1685,10 @@
             }
             catch ( /* Player may not be ready yet — synced on first open */_a) { /* Player may not be ready yet — synced on first open */ }
             badgeToggle.addEventListener("click", () => {
-                var _a, _b;
+                // Client-side only — toggle just controls what YOU see locally.
+                // Your own presence is always broadcast regardless of this setting.
                 setBadgeEnabled(!getBadgeEnabled());
                 updateBadgeToggle();
-                // Immediately re-sync so the change propagates (or clears) without waiting
-                try {
-                    const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
-                    if (!getBadgeEnabled()) {
-                        if (shared["EmeryBC"]) {
-                            delete shared["EmeryBC"];
-                            ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
-                        }
-                    }
-                    else {
-                        // Re-broadcast presence immediately so the badge reappears.
-                        // Read from ExtensionSettings (written there by syncPresenceMarker).
-                        const addonExt = (_b = Player.ExtensionSettings) === null || _b === void 0 ? void 0 : _b.EmeryBC;
-                        const presence = addonExt === null || addonExt === void 0 ? void 0 : addonExt.presence;
-                        if (presence) {
-                            shared["EmeryBC"] = { presence };
-                        }
-                        else {
-                            delete shared["EmeryBC"]; // fallback: next sync will restore
-                        }
-                        ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
-                    }
-                }
-                catch ( /* ignore */_c) { /* ignore */ }
             });
             badgeRow.appendChild(badgeLbl);
             badgeRow.appendChild(badgeToggle);
@@ -2537,7 +2514,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.60";
+    const MOD_VERSION = "0.1.61";
     let noticeShown = false;
     const CHANGELOG = [
         {
@@ -2977,14 +2954,8 @@
     function syncPresenceMarker() {
         var _a, _b;
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
-        if (!getBadgeEnabled()) {
-            // Badge disabled — clear our presence so others stop rendering the tag
-            if (shared[MOD_NAME]) {
-                delete shared[MOD_NAME];
-                ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
-            }
-            return;
-        }
+        // Always broadcast presence regardless of local display toggle —
+        // the toggle only controls what YOU see, not what others see.
         const presence = { version: MOD_VERSION, marker: "EBC" };
         // Write to ExtensionSettings for local persistence
         const settings = getAddonSettings(Player, true);
@@ -3007,6 +2978,9 @@
     }
     function drawPresenceMarker(args) {
         if (CurrentScreen !== "ChatRoom")
+            return;
+        // Local display toggle — if off, skip drawing badges on everyone (client-side only)
+        if (!getBadgeEnabled())
             return;
         const character = args[0];
         const left = typeof args[1] === "number" ? args[1] : null;

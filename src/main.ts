@@ -6,7 +6,7 @@ import { getBadgeEnabled } from "./modules/settings";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.60";
+const MOD_VERSION = "0.1.61";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -465,15 +465,8 @@ function getAddonSettings(character: Character | null | undefined, create = fals
 function syncPresenceMarker(): void {
     const shared = (Player.OnlineSharedSettings ??= {});
 
-    if (!getBadgeEnabled()) {
-        // Badge disabled — clear our presence so others stop rendering the tag
-        if (shared[MOD_NAME]) {
-            delete shared[MOD_NAME];
-            ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
-        }
-        return;
-    }
-
+    // Always broadcast presence regardless of local display toggle —
+    // the toggle only controls what YOU see, not what others see.
     const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC" };
 
     // Write to ExtensionSettings for local persistence
@@ -499,6 +492,8 @@ function hasEmeryBC(character: Character | null | undefined): boolean {
 
 function drawPresenceMarker(args: unknown[]): void {
     if (CurrentScreen !== "ChatRoom") return;
+    // Local display toggle — if off, skip drawing badges on everyone (client-side only)
+    if (!getBadgeEnabled()) return;
 
     const character = args[0] as Character | undefined;
     const left = typeof args[1] === "number" ? args[1] : null;

@@ -954,7 +954,7 @@ export class EBCDrawer {
 
         const badgeLbl = document.createElement("span");
         badgeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;flex:1;user-select:none;";
-        badgeLbl.textContent = "EBC overhead tag";
+        badgeLbl.textContent = "Show EBC tags";
 
         const badgeToggle = document.createElement("button");
         const updateBadgeToggle = (): void => {
@@ -973,36 +973,17 @@ export class EBCDrawer {
                 "transition:background 0.14s,color 0.14s,border-color 0.14s",
             ].join(";");
             badgeToggle.title = on
-                ? "EBC tag visible to others — click to hide"
-                : "EBC tag hidden from others — click to show";
+                ? "EBC tags visible — click to hide them on your screen"
+                : "EBC tags hidden — click to show them on your screen";
         };
         this.refreshBadgeRow = updateBadgeToggle;
         try { updateBadgeToggle(); } catch { /* Player may not be ready yet — synced on first open */ }
 
         badgeToggle.addEventListener("click", () => {
+            // Client-side only — toggle just controls what YOU see locally.
+            // Your own presence is always broadcast regardless of this setting.
             setBadgeEnabled(!getBadgeEnabled());
             updateBadgeToggle();
-            // Immediately re-sync so the change propagates (or clears) without waiting
-            try {
-                const shared = (Player.OnlineSharedSettings ??= {});
-                if (!getBadgeEnabled()) {
-                    if (shared["EmeryBC"]) {
-                        delete shared["EmeryBC"];
-                        ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
-                    }
-                } else {
-                    // Re-broadcast presence immediately so the badge reappears.
-                    // Read from ExtensionSettings (written there by syncPresenceMarker).
-                    const addonExt = Player.ExtensionSettings?.EmeryBC as Record<string, unknown> | undefined;
-                    const presence = addonExt?.presence;
-                    if (presence) {
-                        shared["EmeryBC"] = { presence };
-                    } else {
-                        delete shared["EmeryBC"]; // fallback: next sync will restore
-                    }
-                    ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
-                }
-            } catch { /* ignore */ }
         });
 
         badgeRow.appendChild(badgeLbl);
