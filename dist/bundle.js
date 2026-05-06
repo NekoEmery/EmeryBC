@@ -23,17 +23,17 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$1() {
+    function getStore$2() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getButtons() {
-        const stored = getStore$1().actionButtons;
+        const stored = getStore$2().actionButtons;
         return Array.isArray(stored) ? stored : DEFAULT_BUTTONS;
     }
     function getSlotCount() {
-        const store = getStore$1();
+        const store = getStore$2();
         const n = store.actionSlotCount;
         if (typeof n === "number")
             return Math.min(ABSOLUTE_MAX, Math.max(1, n));
@@ -41,7 +41,7 @@
         return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$1();
+        const store = getStore$2();
         store.actionButtons = buttons;
         store.actionSlotCount = slotCount;
         ServerPlayerExtensionSettingsSync("EmeryBC");
@@ -612,13 +612,13 @@
     }
 
     // Private character notes — stored locally in Player.ExtensionSettings, never shared.
-    function getStore() {
+    function getStore$1() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getNotes() {
-        const raw = getStore().characterNotes;
+        const raw = getStore$1().characterNotes;
         return (raw && typeof raw === "object" && !Array.isArray(raw))
             ? raw
             : {};
@@ -632,7 +632,7 @@
         else {
             delete notes[key];
         }
-        getStore().characterNotes = notes;
+        getStore$1().characterNotes = notes;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
 
@@ -721,6 +721,24 @@
         ChatRoomCharacterUpdate(Player);
         ServerPlayerAppearanceSync();
         localNotice(`Removed ${unlocked} lock(s).`, UI.gold);
+    }
+
+    // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
+    function getStore() {
+        if (!Player.ExtensionSettings.EmeryBC)
+            Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    // -- Badge visibility ----------------------------------------------------------
+    // Controls whether the EBC overhead badge is broadcast to other users.
+    // Defaults to true (badge shown). Setting to false clears presence from
+    // OnlineSharedSettings so no one else renders the tag above your head.
+    function getBadgeEnabled() {
+        return getStore().badgeEnabled !== false;
+    }
+    function setBadgeEnabled(value) {
+        getStore().badgeEnabled = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
     }
 
     /**
@@ -1614,6 +1632,64 @@
             unlockBtn.textContent = "Remove Locks";
             quickActions.appendChild(releaseBtn);
             quickActions.appendChild(unlockBtn);
+            // Badge visibility toggle row (below the danger buttons)
+            const badgeRow = document.createElement("div");
+            badgeRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
+            const badgeLbl = document.createElement("span");
+            badgeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;flex:1;user-select:none;";
+            badgeLbl.textContent = "EBC overhead tag";
+            const badgeToggle = document.createElement("button");
+            const updateBadgeToggle = () => {
+                const on = getBadgeEnabled();
+                badgeToggle.textContent = on ? "ON" : "OFF";
+                badgeToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:2px 10px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+                badgeToggle.title = on
+                    ? "EBC tag visible to others — click to hide"
+                    : "EBC tag hidden from others — click to show";
+            };
+            updateBadgeToggle();
+            badgeToggle.addEventListener("click", () => {
+                var _a, _b;
+                setBadgeEnabled(!getBadgeEnabled());
+                updateBadgeToggle();
+                // Immediately re-sync so the change propagates (or clears) without waiting
+                try {
+                    const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
+                    if (!getBadgeEnabled()) {
+                        if (shared["EmeryBC"]) {
+                            delete shared["EmeryBC"];
+                            ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
+                        }
+                    }
+                    else {
+                        // Re-broadcast presence immediately so the badge reappears.
+                        // Read from ExtensionSettings (written there by syncPresenceMarker).
+                        const addonExt = (_b = Player.ExtensionSettings) === null || _b === void 0 ? void 0 : _b.EmeryBC;
+                        const presence = addonExt === null || addonExt === void 0 ? void 0 : addonExt.presence;
+                        if (presence) {
+                            shared["EmeryBC"] = { presence };
+                        }
+                        else {
+                            delete shared["EmeryBC"]; // fallback: next sync will restore
+                        }
+                        ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
+                    }
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+            });
+            badgeRow.appendChild(badgeLbl);
+            badgeRow.appendChild(badgeToggle);
             // Body
             const body = document.createElement("div");
             body.className = "ebc-body";
@@ -1625,6 +1701,7 @@
             panel.appendChild(header);
             panel.appendChild(tabBar);
             panel.appendChild(quickActions);
+            panel.appendChild(badgeRow);
             panel.appendChild(body);
             panel.appendChild(footer);
             slideContainer.appendChild(panel);
@@ -2423,9 +2500,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.53";
+    const MOD_VERSION = "0.1.54";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.54",
+            changes: [
+                "Added EBC overhead tag toggle in the drawer — hide or show your EBC badge from other users at any time.",
+            ],
+        },
         {
             version: "0.1.53",
             changes: [
@@ -2850,6 +2933,15 @@
     }
     function syncPresenceMarker() {
         var _a, _b;
+        const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
+        if (!getBadgeEnabled()) {
+            // Badge disabled — clear our presence so others stop rendering the tag
+            if (shared[MOD_NAME]) {
+                delete shared[MOD_NAME];
+                ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
+            }
+            return;
+        }
         const presence = { version: MOD_VERSION, marker: "EBC" };
         // Write to ExtensionSettings for local persistence
         const settings = getAddonSettings(Player, true);
@@ -2859,7 +2951,6 @@
         // Write to OnlineSharedSettings - this IS broadcast to all room members
         // via ChatRoomSync and CharacterUpdate packets, making the badge visible
         // to every other EmeryBC user in the room.
-        const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
         const current = shared[MOD_NAME];
         const alreadySynced = current && typeof current === "object" &&
             ((_b = current.presence) === null || _b === void 0 ? void 0 : _b.version) === MOD_VERSION;

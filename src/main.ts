@@ -2,13 +2,20 @@
 import { EBCDrawer } from "./modules/drawer";
 import { handleOutfitCommand } from "./modules/outfitManager";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
+import { getBadgeEnabled } from "./modules/settings";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.53";
+const MOD_VERSION = "0.1.54";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.54",
+        changes: [
+            "Added EBC overhead tag toggle in the drawer — hide or show your EBC badge from other users at any time.",
+        ],
+    },
     {
         version: "0.1.53",
         changes: [
@@ -450,6 +457,17 @@ function getAddonSettings(character: Character | null | undefined, create = fals
 }
 
 function syncPresenceMarker(): void {
+    const shared = (Player.OnlineSharedSettings ??= {});
+
+    if (!getBadgeEnabled()) {
+        // Badge disabled — clear our presence so others stop rendering the tag
+        if (shared[MOD_NAME]) {
+            delete shared[MOD_NAME];
+            ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
+        }
+        return;
+    }
+
     const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC" };
 
     // Write to ExtensionSettings for local persistence
@@ -460,7 +478,6 @@ function syncPresenceMarker(): void {
     // Write to OnlineSharedSettings - this IS broadcast to all room members
     // via ChatRoomSync and CharacterUpdate packets, making the badge visible
     // to every other EmeryBC user in the room.
-    const shared = (Player.OnlineSharedSettings ??= {});
     const current = shared[MOD_NAME];
     const alreadySynced = current && typeof current === "object" &&
         (current as EmeryAddonSettings).presence?.version === MOD_VERSION;

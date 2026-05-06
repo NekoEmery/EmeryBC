@@ -31,6 +31,7 @@ import {
     type ActionStyle,
 } from "./actionButtons";
 import { releaseRestraints, unlockItems } from "./restraints";
+import { getBadgeEnabled, setBadgeEnabled } from "./settings";
 
 // -- Icon ----------------------------------------------------------------------
 
@@ -945,6 +946,65 @@ export class EBCDrawer {
         quickActions.appendChild(releaseBtn);
         quickActions.appendChild(unlockBtn);
 
+        // Badge visibility toggle row (below the danger buttons)
+        const badgeRow = document.createElement("div");
+        badgeRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
+
+        const badgeLbl = document.createElement("span");
+        badgeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;flex:1;user-select:none;";
+        badgeLbl.textContent = "EBC overhead tag";
+
+        const badgeToggle = document.createElement("button");
+        const updateBadgeToggle = (): void => {
+            const on = getBadgeEnabled();
+            badgeToggle.textContent = on ? "ON" : "OFF";
+            badgeToggle.style.cssText = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:10px",
+                "font-weight:bold",
+                "padding:2px 10px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#553142"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+            badgeToggle.title = on
+                ? "EBC tag visible to others — click to hide"
+                : "EBC tag hidden from others — click to show";
+        };
+        updateBadgeToggle();
+
+        badgeToggle.addEventListener("click", () => {
+            setBadgeEnabled(!getBadgeEnabled());
+            updateBadgeToggle();
+            // Immediately re-sync so the change propagates (or clears) without waiting
+            try {
+                const shared = (Player.OnlineSharedSettings ??= {});
+                if (!getBadgeEnabled()) {
+                    if (shared["EmeryBC"]) {
+                        delete shared["EmeryBC"];
+                        ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
+                    }
+                } else {
+                    // Re-broadcast presence immediately so the badge reappears.
+                    // Read from ExtensionSettings (written there by syncPresenceMarker).
+                    const addonExt = Player.ExtensionSettings?.EmeryBC as Record<string, unknown> | undefined;
+                    const presence = addonExt?.presence;
+                    if (presence) {
+                        shared["EmeryBC"] = { presence };
+                    } else {
+                        delete shared["EmeryBC"]; // fallback: next sync will restore
+                    }
+                    ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
+                }
+            } catch { /* ignore */ }
+        });
+
+        badgeRow.appendChild(badgeLbl);
+        badgeRow.appendChild(badgeToggle);
+
         // Body
         const body = document.createElement("div");
         body.className = "ebc-body";
@@ -958,6 +1018,7 @@ export class EBCDrawer {
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(quickActions);
+        panel.appendChild(badgeRow);
         panel.appendChild(body);
         panel.appendChild(footer);
         slideContainer.appendChild(panel);
