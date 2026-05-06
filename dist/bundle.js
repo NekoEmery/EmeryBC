@@ -16,6 +16,7 @@
         { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true, style: "action" },
         { label: "BOW", emote: "bows politely.", color: "#c2185b", enabled: true, style: "action" },
         { label: "CHEER", emote: "cheers!", color: "#c2185b", enabled: true, style: "action" },
+        { label: "POUT", emote: "pouts.", color: "#c2185b", enabled: true, style: "emote" },
         { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
     ];
     const ABSOLUTE_MAX = 12;
@@ -569,6 +570,10 @@
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
     }
+    function deleteOutfit(id) {
+        const outfits = getOutfits().filter(o => o.id !== id);
+        saveOutfits(outfits);
+    }
 
     // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
     // Locks that must never be touched regardless of the operation.
@@ -923,6 +928,24 @@
 
 .ebc-preserve-btn.on  { border-color: #7a4a5e; color: #cf6f98; }
 .ebc-preserve-btn:hover { background: #3a1928; border-color: #7a4a5e; color: #cf6f98; }
+
+.ebc-outfit-del {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 13px;
+    line-height: 1;
+    padding: 2px 6px;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+}
+
+.ebc-outfit-del:hover    { background: #3a1017; color: #ff6b6b; border-color: #7a2020; }
+.ebc-outfit-del.confirm  { background: #3a1017; color: #ff6b6b; border-color: #7a2020; font-size: 10px; }
 
 /* -- Empty -- */
 .ebc-empty {
@@ -1496,10 +1519,15 @@
             const wearBtn = document.createElement("button");
             wearBtn.className = "ebc-wear-btn";
             wearBtn.textContent = "Wear";
+            const delBtn = document.createElement("button");
+            delBtn.className = "ebc-outfit-del";
+            delBtn.textContent = "×";
+            delBtn.title = "Delete this outfit";
             row.appendChild(info);
             row.appendChild(preserveBtn);
             row.appendChild(updateBtn);
             row.appendChild(wearBtn);
+            row.appendChild(delBtn);
             const setAllDisabled = (v) => {
                 body.querySelectorAll(".ebc-wear-btn, .ebc-update-btn").forEach(b => { b.disabled = v; });
             };
@@ -1533,6 +1561,28 @@
                     updateBtn.textContent = "Update";
                     setAllDisabled(false);
                 }, 1200);
+            });
+            let delPending = false;
+            let delTimer = null;
+            delBtn.addEventListener("click", () => {
+                if (!delPending) {
+                    delPending = true;
+                    delBtn.classList.add("confirm");
+                    delBtn.textContent = "Sure?";
+                    delBtn.title = "Click again to confirm deletion";
+                    delTimer = window.setTimeout(() => {
+                        delPending = false;
+                        delBtn.classList.remove("confirm");
+                        delBtn.textContent = "×";
+                        delBtn.title = "Delete this outfit";
+                    }, 2500);
+                }
+                else {
+                    if (delTimer !== null)
+                        window.clearTimeout(delTimer);
+                    deleteOutfit(o.id);
+                    this.renderOutfits();
+                }
             });
             return row;
         }
@@ -1851,9 +1901,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.40";
+    const MOD_VERSION = "0.1.41";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.41",
+            changes: [
+                "Outfit rows now have a × delete button — click once to arm (turns red), click again to confirm.",
+                "Added POUT default button (emote style: * pouts. *).",
+            ],
+        },
         {
             version: "0.1.40",
             changes: [

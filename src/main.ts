@@ -5,10 +5,17 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.40";
+const MOD_VERSION = "0.1.41";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.41",
+        changes: [
+            "Outfit rows now have a × delete button — click once to arm (turns red), click again to confirm.",
+            "Added POUT default button (emote style: * pouts. *).",
+        ],
+    },
     {
         version: "0.1.40",
         changes: [

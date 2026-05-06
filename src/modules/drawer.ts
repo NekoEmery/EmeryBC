@@ -289,6 +289,24 @@ const CSS = `
 .ebc-preserve-btn.on  { border-color: #7a4a5e; color: #cf6f98; }
 .ebc-preserve-btn:hover { background: #3a1928; border-color: #7a4a5e; color: #cf6f98; }
 
+.ebc-outfit-del {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #553142;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 13px;
+    line-height: 1;
+    padding: 2px 6px;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+}
+
+.ebc-outfit-del:hover    { background: #3a1017; color: #ff6b6b; border-color: #7a2020; }
+.ebc-outfit-del.confirm  { background: #3a1017; color: #ff6b6b; border-color: #7a2020; font-size: 10px; }
+
 /* -- Empty -- */
 .ebc-empty {
     color: #553142;
@@ -911,10 +929,16 @@ export class EBCDrawer {
         wearBtn.className = "ebc-wear-btn";
         wearBtn.textContent = "Wear";
 
+        const delBtn = document.createElement("button");
+        delBtn.className = "ebc-outfit-del";
+        delBtn.textContent = "×";
+        delBtn.title = "Delete this outfit";
+
         row.appendChild(info);
         row.appendChild(preserveBtn);
         row.appendChild(updateBtn);
         row.appendChild(wearBtn);
+        row.appendChild(delBtn);
 
         const setAllDisabled = (v: boolean): void => {
             body.querySelectorAll<HTMLButtonElement>(".ebc-wear-btn, .ebc-update-btn").forEach(b => { b.disabled = v; });
@@ -948,6 +972,27 @@ export class EBCDrawer {
                 updateBtn.textContent = "Update";
                 setAllDisabled(false);
             }, 1200);
+        });
+
+        let delPending = false;
+        let delTimer: ReturnType<typeof window.setTimeout> | null = null;
+        delBtn.addEventListener("click", () => {
+            if (!delPending) {
+                delPending = true;
+                delBtn.classList.add("confirm");
+                delBtn.textContent = "Sure?";
+                delBtn.title = "Click again to confirm deletion";
+                delTimer = window.setTimeout(() => {
+                    delPending = false;
+                    delBtn.classList.remove("confirm");
+                    delBtn.textContent = "×";
+                    delBtn.title = "Delete this outfit";
+                }, 2500);
+            } else {
+                if (delTimer !== null) window.clearTimeout(delTimer);
+                deleteOutfit(o.id);
+                this.renderOutfits();
+            }
         });
 
         return row;
