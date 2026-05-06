@@ -15,7 +15,7 @@
         { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true, style: "action" },
         { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true, style: "action" },
         { label: "BOW", emote: "bows politely.", color: "#c2185b", enabled: true, style: "action" },
-        { label: "CHEER", emote: "_|HandsUp|_|HandsUp|_", color: "#c2185b", enabled: true, style: "seq" },
+        { label: "CHEER", emote: "OverTheHead|_|OverTheHead|_", color: "#c2185b", enabled: true, style: "seq" },
         { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
     ];
     const ABSOLUTE_MAX = 12;
@@ -71,31 +71,23 @@
     //   *text      – send as * Name text * emote message
     // Steps run 500 ms apart. Original poses are restored when done.
     let seqRunning = false;
-    function bcSetPose(poseName) {
+    function syncPoseToRoom() {
         var _a;
-        const w = window;
-        const fn = w.CharacterSetActivePose;
-        if (typeof fn === "function") {
-            fn(Player, poseName, false);
-        }
-        else {
-            const cur = (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [];
-            if (!cur.includes(poseName))
-                Player.ActivePose = [...cur, poseName];
-        }
-    }
-    function bcClearPose(original) {
-        Player.ActivePose = original;
-    }
-    function bcRefresh() {
         try {
             CharacterRefresh(Player, false, false);
         }
-        catch (_) { /* ignore */ }
+        catch (_) { }
+        // Broadcast the new ActivePose to the room the same way outfitManager does
         try {
-            ChatRoomCharacterUpdate(Player);
+            if (Player.OnlineID != null) {
+                ServerSend("ChatRoomCharacterUpdate", {
+                    ID: Player.OnlineID,
+                    ActivePose: (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : null,
+                    Appearance: ServerAppearanceBundle(Player.Appearance),
+                });
+            }
         }
-        catch (_) { /* ignore */ }
+        catch (_) { }
     }
     function runSequence(sequence) {
         var _a;
@@ -108,30 +100,37 @@
         const originalPoses = [...((_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [])];
         let idx = 0;
         const next = () => {
-            if (idx >= steps.length) {
-                // Restore original pose and unlock
-                bcClearPose(originalPoses);
-                bcRefresh();
+            try {
+                if (idx >= steps.length) {
+                    // Restore original poses and finish
+                    Player.ActivePose = originalPoses;
+                    syncPoseToRoom();
+                    seqRunning = false;
+                    return;
+                }
+                const step = steps[idx++];
+                if (step === "_") {
+                    // Clear all active poses
+                    Player.ActivePose = [];
+                    syncPoseToRoom();
+                }
+                else if (step.startsWith("!")) {
+                    sendAction(step.slice(1), "action");
+                }
+                else if (step.startsWith("*")) {
+                    sendAction(step.slice(1), "emote");
+                }
+                else {
+                    // BC pose name — set it as the sole active pose
+                    Player.ActivePose = [step];
+                    syncPoseToRoom();
+                }
+            }
+            catch (_) {
                 seqRunning = false;
                 return;
             }
-            const step = steps[idx++];
-            if (step === "_") {
-                bcClearPose([]);
-                bcRefresh();
-            }
-            else if (step.startsWith("!")) {
-                sendAction(step.slice(1), "action");
-            }
-            else if (step.startsWith("*")) {
-                sendAction(step.slice(1), "emote");
-            }
-            else {
-                // Treat as BC pose name
-                bcSetPose(step);
-                bcRefresh();
-            }
-            window.setTimeout(next, 500);
+            window.setTimeout(next, 600);
         };
         next();
     }
@@ -1109,24 +1108,15 @@
 .ebc-slot-style.emote { background: #1b1117; color: #cf6f98; border-color: #7a4a5e; }
 .ebc-slot-style:hover  { border-color: #7a4a5e; color: #967281; }
 
-.ebc-slot-seq {
+.ebc-slot-seq-badge {
     flex-shrink: 0;
-    width: 30px;
-    height: 22px;
-    background: transparent;
-    border: 1px solid #4c2537;
-    border-radius: 4px;
-    color: #553142;
-    cursor: pointer;
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
-    font-weight: bold;
-    letter-spacing: 0.04em;
-    transition: background 0.14s, color 0.12s, border-color 0.12s;
+    font-size: 10px;
+    color: #7aba55;
+    padding: 0 3px;
+    user-select: none;
+    pointer-events: none;
 }
-
-.ebc-slot-seq.on  { background: #111b0d; color: #7aba55; border-color: #4a7a2e; }
-.ebc-slot-seq:hover { border-color: #4a7a2e; color: #7aba55; }
 
 /* -- Buttons tab footer -- */
 .ebc-btn-footer {
@@ -1643,51 +1633,43 @@
                     delBtn.className = "ebc-slot-del";
                     delBtn.textContent = "x";
                     delBtn.title = "Remove this slot";
-                    // SEQ toggle lives in the top row so the ( )/( *) toggle stays two-way
-                    const currentStyle = (_b = btn.style) !== null && _b !== void 0 ? _b : "action";
-                    const isSeq = currentStyle === "seq";
-                    const seqBtn = document.createElement("button");
-                    seqBtn.className = "ebc-slot-seq" + (isSeq ? " on" : "");
-                    seqBtn.textContent = "SEQ";
-                    seqBtn.title = isSeq
-                        ? "Animation/sequence mode ON — click to turn off"
-                        : "Turn on animation/sequence mode";
                     topLine.appendChild(toggle);
                     topLine.appendChild(labelInp);
                     topLine.appendChild(colorInp);
-                    topLine.appendChild(seqBtn);
                     topLine.appendChild(delBtn);
-                    // Bottom line: ( )/( *) style toggle | emote input
+                    // Bottom line: style toggle (hidden for seq) | emote/seq input
                     const botLine = document.createElement("div");
                     botLine.className = "ebc-slot-bottom";
-                    // The non-seq base style (remembered when toggling seq off)
-                    const baseStyle = isSeq ? "action" : currentStyle;
+                    const currentStyle = (_b = btn.style) !== null && _b !== void 0 ? _b : "action";
+                    const isSeq = currentStyle === "seq";
                     const styleBtn = document.createElement("button");
-                    styleBtn.className = "ebc-slot-style" + (baseStyle === "emote" ? " emote" : "");
-                    styleBtn.textContent = baseStyle === "emote" ? "* *" : "( )";
-                    styleBtn.title = baseStyle === "emote"
+                    styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
+                    styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
+                    styleBtn.title = currentStyle === "emote"
                         ? "Style: * emote * — click to switch"
                         : "Style: ( action ) — click to switch";
+                    // Seq buttons don't show the style toggle — animation is internal
                     styleBtn.style.display = isSeq ? "none" : "";
+                    // For seq buttons, show a small non-interactive badge instead
+                    const seqBadge = document.createElement("span");
+                    seqBadge.className = "ebc-slot-seq-badge";
+                    seqBadge.textContent = "✨";
+                    seqBadge.title = "Animation button — edit the pose sequence below";
+                    seqBadge.style.display = isSeq ? "inline" : "none";
                     const emoteInp = document.createElement("input");
                     emoteInp.className = "ebc-slot-emote";
                     emoteInp.type = "text";
                     emoteInp.maxLength = 240;
-                    emoteInp.placeholder = isSeq ? "e.g. _|HandsUp|_|HandsUp|_" : "e.g. nods.";
+                    emoteInp.placeholder = isSeq ? "e.g. OverTheHead|_|OverTheHead|_" : "e.g. nods.";
                     emoteInp.value = btn.emote;
                     emoteInp.title = isSeq
-                        ? "Pipe-separated steps: PoseName | _ (clear) | !action text | *emote text"
-                        : baseStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
+                        ? "Pose sequence: pipe-separated BC pose names, _ to clear"
+                        : currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
                     botLine.appendChild(styleBtn);
+                    botLine.appendChild(seqBadge);
                     botLine.appendChild(emoteInp);
-                    // Hint shown only in seq mode
-                    const seqHint = document.createElement("div");
-                    seqHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a7a2e;padding:1px 2px 0;line-height:1.4;";
-                    seqHint.textContent = "Steps by | : PoseName  _=reset  !action  *emote";
-                    seqHint.style.display = isSeq ? "block" : "none";
                     row.appendChild(topLine);
                     row.appendChild(botLine);
-                    row.appendChild(seqHint);
                     slotList.appendChild(row);
                     // -- Events (capture i) --
                     const idx = i;
@@ -1706,7 +1688,10 @@
                         btns[idx].emote = emoteInp.value;
                     });
                     styleBtn.addEventListener("click", () => {
-                        const cur = btns[idx].style === "emote" ? "emote" : "action";
+                        var _a;
+                        const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action";
+                        if (cur === "seq")
+                            return; // seq buttons don't cycle through styles
                         const next = cur === "action" ? "emote" : "action";
                         btns[idx].style = next;
                         styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
@@ -1717,31 +1702,6 @@
                         emoteInp.title = next === "emote"
                             ? "Text sent as * Name text *"
                             : "Text sent as ( Name text )";
-                    });
-                    seqBtn.addEventListener("click", () => {
-                        const nowSeq = btns[idx].style === "seq";
-                        if (nowSeq) {
-                            // turn off seq, restore base style
-                            btns[idx].style = styleBtn.classList.contains("emote") ? "emote" : "action";
-                            seqBtn.className = "ebc-slot-seq";
-                            seqBtn.title = "Turn on animation/sequence mode";
-                            styleBtn.style.display = "";
-                            emoteInp.placeholder = "e.g. nods.";
-                            emoteInp.title = btns[idx].style === "emote"
-                                ? "Text sent as * Name text *"
-                                : "Text sent as ( Name text )";
-                            seqHint.style.display = "none";
-                        }
-                        else {
-                            // turn on seq
-                            btns[idx].style = "seq";
-                            seqBtn.className = "ebc-slot-seq on";
-                            seqBtn.title = "Animation/sequence mode ON — click to turn off";
-                            styleBtn.style.display = "none";
-                            emoteInp.placeholder = "e.g. _|HandsUp|_|HandsUp|_";
-                            emoteInp.title = "Pipe-separated steps: PoseName | _ (clear) | !action text | *emote text";
-                            seqHint.style.display = "block";
-                        }
                     });
                     delBtn.addEventListener("click", () => {
                         btns.splice(idx, 1);

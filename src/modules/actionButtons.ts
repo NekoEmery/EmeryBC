@@ -15,12 +15,12 @@ export interface ActionButton {
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
-    { label: "NOD",   emote: "nods.",                       color: "#c2185b", enabled: true,  style: "action" },
-    { label: "SHAKE", emote: "shakes their head.",           color: "#c2185b", enabled: true,  style: "action" },
-    { label: "WAVE",  emote: "waves.",                       color: "#c2185b", enabled: true,  style: "action" },
-    { label: "BOW",   emote: "bows politely.",               color: "#c2185b", enabled: true,  style: "action" },
-    { label: "CHEER", emote: "_|HandsUp|_|HandsUp|_",       color: "#c2185b", enabled: true,  style: "seq"    },
-    { label: "",      emote: "",                             color: "#c2185b", enabled: false, style: "action" },
+    { label: "NOD",   emote: "nods.",                           color: "#c2185b", enabled: true,  style: "action" },
+    { label: "SHAKE", emote: "shakes their head.",               color: "#c2185b", enabled: true,  style: "action" },
+    { label: "WAVE",  emote: "waves.",                           color: "#c2185b", enabled: true,  style: "action" },
+    { label: "BOW",   emote: "bows politely.",                   color: "#c2185b", enabled: true,  style: "action" },
+    { label: "CHEER", emote: "OverTheHead|_|OverTheHead|_",     color: "#c2185b", enabled: true,  style: "seq"    },
+    { label: "",      emote: "",                                 color: "#c2185b", enabled: false, style: "action" },
 ];
 
 export const ABSOLUTE_MAX  = 12;
@@ -80,24 +80,18 @@ export function getDisplayName(): string {
 
 let seqRunning = false;
 
-function bcSetPose(poseName: string): void {
-    const w = window as unknown as Record<string, unknown>;
-    const fn = w.CharacterSetActivePose;
-    if (typeof fn === "function") {
-        (fn as (c: Character, p: string | null, b: boolean) => void)(Player, poseName, false);
-    } else {
-        const cur = Player.ActivePose ?? [];
-        if (!cur.includes(poseName)) Player.ActivePose = [...cur, poseName];
-    }
-}
-
-function bcClearPose(original: string[]): void {
-    Player.ActivePose = original;
-}
-
-function bcRefresh(): void {
-    try { CharacterRefresh(Player, false, false); } catch (_) { /* ignore */ }
-    try { ChatRoomCharacterUpdate(Player); } catch (_) { /* ignore */ }
+function syncPoseToRoom(): void {
+    try { CharacterRefresh(Player, false, false); } catch (_) {}
+    // Broadcast the new ActivePose to the room the same way outfitManager does
+    try {
+        if (Player.OnlineID != null) {
+            ServerSend("ChatRoomCharacterUpdate", {
+                ID: Player.OnlineID,
+                ActivePose: Player.ActivePose ?? null,
+                Appearance: ServerAppearanceBundle(Player.Appearance),
+            });
+        }
+    } catch (_) {}
 }
 
 export function runSequence(sequence: string): void {
@@ -110,30 +104,36 @@ export function runSequence(sequence: string): void {
     let idx = 0;
 
     const next = (): void => {
-        if (idx >= steps.length) {
-            // Restore original pose and unlock
-            bcClearPose(originalPoses);
-            bcRefresh();
+        try {
+            if (idx >= steps.length) {
+                // Restore original poses and finish
+                Player.ActivePose = originalPoses;
+                syncPoseToRoom();
+                seqRunning = false;
+                return;
+            }
+
+            const step = steps[idx++];
+
+            if (step === "_") {
+                // Clear all active poses
+                Player.ActivePose = [];
+                syncPoseToRoom();
+            } else if (step.startsWith("!")) {
+                sendAction(step.slice(1), "action");
+            } else if (step.startsWith("*")) {
+                sendAction(step.slice(1), "emote");
+            } else {
+                // BC pose name — set it as the sole active pose
+                Player.ActivePose = [step];
+                syncPoseToRoom();
+            }
+        } catch (_) {
             seqRunning = false;
             return;
         }
 
-        const step = steps[idx++];
-
-        if (step === "_") {
-            bcClearPose([]);
-            bcRefresh();
-        } else if (step.startsWith("!")) {
-            sendAction(step.slice(1), "action");
-        } else if (step.startsWith("*")) {
-            sendAction(step.slice(1), "emote");
-        } else {
-            // Treat as BC pose name
-            bcSetPose(step);
-            bcRefresh();
-        }
-
-        window.setTimeout(next, 500);
+        window.setTimeout(next, 600);
     };
 
     next();
