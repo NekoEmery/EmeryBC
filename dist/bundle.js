@@ -795,22 +795,23 @@
 /* Tab - always visible, hangs left of the anchor */
 #ebc-tab {
     pointer-events: auto;
-    width: 36px;
-    height: 36px;
-    background: rgba(42, 20, 33, 0.93);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(207, 111, 152, 0.45);
+    width: 44px;
+    height: 44px;
+    background: rgba(42, 20, 33, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(207, 111, 152, 0.2);
     border-right: none;
     border-radius: 8px 0 0 8px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    box-shadow: -3px 0 10px rgba(0,0,0,0.55);
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
     position: absolute;
-    left: -36px;
+    left: -44px;
     top: 10px;
+    z-index: 99;
     transition: background 0.18s;
 }
 
@@ -2529,7 +2530,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.55";
+    const MOD_VERSION = "0.1.56";
     let noticeShown = false;
     const CHANGELOG = [
         {
