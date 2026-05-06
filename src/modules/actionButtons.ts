@@ -1,12 +1,17 @@
 // Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
 
+export type ActionStyle = "action" | "emote" | "seq";
+// "action" = (Name text)
+// "emote"  = * Name text *
+// "seq"    = pose/action sequence (pipe-separated steps)
+
 export interface ActionButton {
     label:   string;
-    emote:   string;
+    emote:   string;   // for "seq" style: pipe-separated sequence steps
     color:   string;
     enabled: boolean;
-    style:   "action" | "emote";   // "action" = (Name text)   "emote" = * Name text *
+    style:   ActionStyle;
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
@@ -65,12 +70,83 @@ export function getDisplayName(): string {
     return (Player as unknown as Record<string, unknown>).Nickname as string || Player.Name || "Player";
 }
 
-// --- Send chat message --------------------------------------------------------
-// "action" -> (Name text)   "emote" -> * Name text *
+// --- Sequence runner ----------------------------------------------------------
+// Sequence steps are pipe-separated (|). Each step is one of:
+//   PoseName   – set BC pose (e.g. "HandsUp", "Yoked")
+//   _          – clear all active poses back to neutral
+//   !text      – send as (Name text) action message
+//   *text      – send as * Name text * emote message
+// Steps run 500 ms apart. Original poses are restored when done.
 
-export function sendAction(emote: string, style: "action" | "emote" = "action"): void {
+let seqRunning = false;
+
+function bcSetPose(poseName: string): void {
+    const w = window as unknown as Record<string, unknown>;
+    const fn = w.CharacterSetActivePose;
+    if (typeof fn === "function") {
+        (fn as (c: Character, p: string | null, b: boolean) => void)(Player, poseName, false);
+    } else {
+        const cur = Player.ActivePose ?? [];
+        if (!cur.includes(poseName)) Player.ActivePose = [...cur, poseName];
+    }
+}
+
+function bcClearPose(original: string[]): void {
+    Player.ActivePose = original;
+}
+
+function bcRefresh(): void {
+    try { CharacterRefresh(Player, false, false); } catch (_) { /* ignore */ }
+    try { ChatRoomCharacterUpdate(Player); } catch (_) { /* ignore */ }
+}
+
+export function runSequence(sequence: string): void {
+    if (seqRunning) return;
+    const steps = sequence.split("|").map(s => s.trim()).filter(Boolean);
+    if (!steps.length) return;
+
+    seqRunning = true;
+    const originalPoses: string[] = [...(Player.ActivePose ?? [])];
+    let idx = 0;
+
+    const next = (): void => {
+        if (idx >= steps.length) {
+            // Restore original pose and unlock
+            bcClearPose(originalPoses);
+            bcRefresh();
+            seqRunning = false;
+            return;
+        }
+
+        const step = steps[idx++];
+
+        if (step === "_") {
+            bcClearPose([]);
+            bcRefresh();
+        } else if (step.startsWith("!")) {
+            sendAction(step.slice(1), "action");
+        } else if (step.startsWith("*")) {
+            sendAction(step.slice(1), "emote");
+        } else {
+            // Treat as BC pose name
+            bcSetPose(step);
+            bcRefresh();
+        }
+
+        window.setTimeout(next, 500);
+    };
+
+    next();
+}
+
+// --- Send chat message --------------------------------------------------------
+// "action" -> (Name text)   "emote" -> * Name text *   "seq" -> runSequence
+
+export function sendAction(emote: string, style: ActionStyle = "action"): void {
     const text = emote.trim();
     if (!text) return;
+
+    if (style === "seq") { runSequence(text); return; }
 
     if (style === "emote") {
         // BC natively formats Emote as:  * Name text *
@@ -98,18 +174,17 @@ const BTN_X       = 0;
 const BTN_START_Y = 320;
 const BTN_SIZE    = 45;
 
-// Collapse toggle - sits above the action buttons with a bit of breathing room from BC's own buttons
+// Collapse toggle - shorter than action buttons so it reads as a control, not a content button
 const CHIP_X = 0;
 const CHIP_Y = 270;
 const CHIP_W = 45;
-const CHIP_H = 45;
+const CHIP_H = 28;
 
 let sidebarCollapsed = false;
 
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
 
-    // Collapse toggle button - same size as action buttons so it blends in
     DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H,
         sidebarCollapsed ? "+" : "=",
         sidebarCollapsed ? UI.buttonMuted : UI.cardMuted,

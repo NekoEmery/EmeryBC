@@ -5,10 +5,18 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.1.38";
+const MOD_VERSION = "0.1.39";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.1.39",
+        changes: [
+            "Hamburger collapse button is now shorter (28px) so it reads as a control rather than a content button.",
+            "New sequence button style (▶▶): pipe-separated steps animate the character — set BC poses, clear poses, or send action/emote messages.",
+            "Sequence steps: PoseName sets a BC pose, _ resets to neutral, !text sends (Name text), *text sends * Name text *.",
+        ],
+    },
     {
         version: "0.1.38",
         changes: [

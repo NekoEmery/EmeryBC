@@ -25,6 +25,7 @@ import {
     DEFAULT_BUTTONS,
     ABSOLUTE_MAX,
     type ActionButton,
+    type ActionStyle,
 } from "./actionButtons";
 import { releaseRestraints, unlockItems } from "./restraints";
 
@@ -512,6 +513,7 @@ const CSS = `
 }
 
 .ebc-slot-style.emote { background: #1b1117; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-slot-style.seq   { background: #111b0d; color: #7aba55; border-color: #4a7a2e; }
 .ebc-slot-style:hover  { border-color: #7a4a5e; color: #967281; }
 
 /* -- Buttons tab footer -- */
@@ -1108,34 +1110,59 @@ export class EBCDrawer {
                 topLine.appendChild(colorInp);
                 topLine.appendChild(delBtn);
 
-                // Bottom line: style toggle | emote input
+                // Bottom line: style toggle | emote/sequence input
                 const botLine = document.createElement("div");
                 botLine.className = "ebc-slot-bottom";
 
-                const isEmote = (btn.style ?? "action") === "emote";
+                const styleOrder: ActionStyle[] = ["action", "emote", "seq"];
+                const currentStyle: ActionStyle = (btn.style as ActionStyle) ?? "action";
+
+                const styleLabels: Record<ActionStyle, string> = {
+                    action: "( )",
+                    emote:  "* *",
+                    seq:    "▶▶",  // >> for sequence/animation
+                };
+                const styleTitles: Record<ActionStyle, string> = {
+                    action: "Style: ( action ) — click to cycle",
+                    emote:  "Style: * emote * — click to cycle",
+                    seq:    "Style: sequence/animation — click to cycle",
+                };
+                const emotePlaceholders: Record<ActionStyle, string> = {
+                    action: "e.g. nods.",
+                    emote:  "e.g. nods.",
+                    seq:    "e.g. _|HandsUp|_|HandsUp|_",
+                };
+                const emoteTitles: Record<ActionStyle, string> = {
+                    action: "Text sent as ( Name text )",
+                    emote:  "Text sent as * Name text *",
+                    seq:    "Pipe-separated steps: PoseName | _ (clear) | !action text | *emote text",
+                };
 
                 const styleBtn = document.createElement("button");
-                styleBtn.className = "ebc-slot-style" + (isEmote ? " emote" : "");
-                styleBtn.textContent = isEmote ? "* *" : "( )";
-                styleBtn.title = isEmote
-                    ? "Style: * emote * — click to switch to ( action )"
-                    : "Style: ( action ) — click to switch to * emote *";
+                styleBtn.className = "ebc-slot-style" + (currentStyle !== "action" ? " " + currentStyle : "");
+                styleBtn.textContent = styleLabels[currentStyle];
+                styleBtn.title = styleTitles[currentStyle];
 
                 const emoteInp = document.createElement("input");
                 emoteInp.className = "ebc-slot-emote";
                 emoteInp.type = "text";
-                emoteInp.maxLength = 120;
-                emoteInp.placeholder = "e.g. nods.";
+                emoteInp.maxLength = 240;
+                emoteInp.placeholder = emotePlaceholders[currentStyle];
                 emoteInp.value = btn.emote;
-                emoteInp.title = isEmote
-                    ? "Text sent as * Name text *"
-                    : "Text sent as ( Name text )";
+                emoteInp.title = emoteTitles[currentStyle];
 
                 botLine.appendChild(styleBtn);
                 botLine.appendChild(emoteInp);
 
+                // Hint row shown only when seq mode is active
+                const seqHint = document.createElement("div");
+                seqHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a7a2e;padding:1px 2px 0;line-height:1.4;";
+                seqHint.textContent = "Steps split by | — PoseName, _ (reset), !action text, *emote text";
+                seqHint.style.display = currentStyle === "seq" ? "block" : "none";
+
                 row.appendChild(topLine);
                 row.appendChild(botLine);
+                row.appendChild(seqHint);
                 slotList.appendChild(row);
 
                 // -- Events (capture i) --
@@ -1160,17 +1187,15 @@ export class EBCDrawer {
                 });
 
                 styleBtn.addEventListener("click", () => {
-                    const next = (btns[idx].style ?? "action") === "action" ? "emote" : "action";
+                    const cur: ActionStyle = (btns[idx].style as ActionStyle) ?? "action";
+                    const next = styleOrder[(styleOrder.indexOf(cur) + 1) % styleOrder.length];
                     btns[idx].style = next;
-                    const nowEmote = next === "emote";
-                    styleBtn.className = "ebc-slot-style" + (nowEmote ? " emote" : "");
-                    styleBtn.textContent = nowEmote ? "* *" : "( )";
-                    styleBtn.title = nowEmote
-                        ? "Style: * emote * — click to switch to ( action )"
-                        : "Style: ( action ) — click to switch to * emote *";
-                    emoteInp.title = nowEmote
-                        ? "Text sent as * Name text *"
-                        : "Text sent as ( Name text )";
+                    styleBtn.className = "ebc-slot-style" + (next !== "action" ? " " + next : "");
+                    styleBtn.textContent = styleLabels[next];
+                    styleBtn.title = styleTitles[next];
+                    emoteInp.placeholder = emotePlaceholders[next];
+                    emoteInp.title = emoteTitles[next];
+                    seqHint.style.display = next === "seq" ? "block" : "none";
                 });
 
                 delBtn.addEventListener("click", () => {

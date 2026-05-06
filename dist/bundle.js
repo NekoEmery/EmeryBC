@@ -63,12 +63,88 @@
             return nickFn(Player);
         return Player.Nickname || Player.Name || "Player";
     }
+    // --- Sequence runner ----------------------------------------------------------
+    // Sequence steps are pipe-separated (|). Each step is one of:
+    //   PoseName   – set BC pose (e.g. "HandsUp", "Yoked")
+    //   _          – clear all active poses back to neutral
+    //   !text      – send as (Name text) action message
+    //   *text      – send as * Name text * emote message
+    // Steps run 500 ms apart. Original poses are restored when done.
+    let seqRunning = false;
+    function bcSetPose(poseName) {
+        var _a;
+        const w = window;
+        const fn = w.CharacterSetActivePose;
+        if (typeof fn === "function") {
+            fn(Player, poseName, false);
+        }
+        else {
+            const cur = (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [];
+            if (!cur.includes(poseName))
+                Player.ActivePose = [...cur, poseName];
+        }
+    }
+    function bcClearPose(original) {
+        Player.ActivePose = original;
+    }
+    function bcRefresh() {
+        try {
+            CharacterRefresh(Player, false, false);
+        }
+        catch (_) { /* ignore */ }
+        try {
+            ChatRoomCharacterUpdate(Player);
+        }
+        catch (_) { /* ignore */ }
+    }
+    function runSequence(sequence) {
+        var _a;
+        if (seqRunning)
+            return;
+        const steps = sequence.split("|").map(s => s.trim()).filter(Boolean);
+        if (!steps.length)
+            return;
+        seqRunning = true;
+        const originalPoses = [...((_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [])];
+        let idx = 0;
+        const next = () => {
+            if (idx >= steps.length) {
+                // Restore original pose and unlock
+                bcClearPose(originalPoses);
+                bcRefresh();
+                seqRunning = false;
+                return;
+            }
+            const step = steps[idx++];
+            if (step === "_") {
+                bcClearPose([]);
+                bcRefresh();
+            }
+            else if (step.startsWith("!")) {
+                sendAction(step.slice(1), "action");
+            }
+            else if (step.startsWith("*")) {
+                sendAction(step.slice(1), "emote");
+            }
+            else {
+                // Treat as BC pose name
+                bcSetPose(step);
+                bcRefresh();
+            }
+            window.setTimeout(next, 500);
+        };
+        next();
+    }
     // --- Send chat message --------------------------------------------------------
-    // "action" -> (Name text)   "emote" -> * Name text *
+    // "action" -> (Name text)   "emote" -> * Name text *   "seq" -> runSequence
     function sendAction(emote, style = "action") {
         const text = emote.trim();
         if (!text)
             return;
+        if (style === "seq") {
+            runSequence(text);
+            return;
+        }
         if (style === "emote") {
             // BC natively formats Emote as:  * Name text *
             ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
@@ -91,16 +167,15 @@
     const BTN_X = 0;
     const BTN_START_Y = 320;
     const BTN_SIZE = 45;
-    // Collapse toggle - sits above the action buttons with a bit of breathing room from BC's own buttons
+    // Collapse toggle - shorter than action buttons so it reads as a control, not a content button
     const CHIP_X = 0;
     const CHIP_Y = 270;
     const CHIP_W = 45;
-    const CHIP_H = 45;
+    const CHIP_H = 28;
     let sidebarCollapsed = false;
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
-        // Collapse toggle button - same size as action buttons so it blends in
         DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H, sidebarCollapsed ? "+" : "=", sidebarCollapsed ? UI.buttonMuted : UI.cardMuted, "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
         if (sidebarCollapsed)
             return;
@@ -1032,6 +1107,7 @@
 }
 
 .ebc-slot-style.emote { background: #1b1117; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-slot-style.seq   { background: #111b0d; color: #7aba55; border-color: #4a7a2e; }
 .ebc-slot-style:hover  { border-color: #7a4a5e; color: #967281; }
 
 /* -- Buttons tab footer -- */
@@ -1553,29 +1629,52 @@
                     topLine.appendChild(labelInp);
                     topLine.appendChild(colorInp);
                     topLine.appendChild(delBtn);
-                    // Bottom line: style toggle | emote input
+                    // Bottom line: style toggle | emote/sequence input
                     const botLine = document.createElement("div");
                     botLine.className = "ebc-slot-bottom";
-                    const isEmote = ((_b = btn.style) !== null && _b !== void 0 ? _b : "action") === "emote";
+                    const styleOrder = ["action", "emote", "seq"];
+                    const currentStyle = (_b = btn.style) !== null && _b !== void 0 ? _b : "action";
+                    const styleLabels = {
+                        action: "( )",
+                        emote: "* *",
+                        seq: "▶▶", // >> for sequence/animation
+                    };
+                    const styleTitles = {
+                        action: "Style: ( action ) — click to cycle",
+                        emote: "Style: * emote * — click to cycle",
+                        seq: "Style: sequence/animation — click to cycle",
+                    };
+                    const emotePlaceholders = {
+                        action: "e.g. nods.",
+                        emote: "e.g. nods.",
+                        seq: "e.g. _|HandsUp|_|HandsUp|_",
+                    };
+                    const emoteTitles = {
+                        action: "Text sent as ( Name text )",
+                        emote: "Text sent as * Name text *",
+                        seq: "Pipe-separated steps: PoseName | _ (clear) | !action text | *emote text",
+                    };
                     const styleBtn = document.createElement("button");
-                    styleBtn.className = "ebc-slot-style" + (isEmote ? " emote" : "");
-                    styleBtn.textContent = isEmote ? "* *" : "( )";
-                    styleBtn.title = isEmote
-                        ? "Style: * emote * — click to switch to ( action )"
-                        : "Style: ( action ) — click to switch to * emote *";
+                    styleBtn.className = "ebc-slot-style" + (currentStyle !== "action" ? " " + currentStyle : "");
+                    styleBtn.textContent = styleLabels[currentStyle];
+                    styleBtn.title = styleTitles[currentStyle];
                     const emoteInp = document.createElement("input");
                     emoteInp.className = "ebc-slot-emote";
                     emoteInp.type = "text";
-                    emoteInp.maxLength = 120;
-                    emoteInp.placeholder = "e.g. nods.";
+                    emoteInp.maxLength = 240;
+                    emoteInp.placeholder = emotePlaceholders[currentStyle];
                     emoteInp.value = btn.emote;
-                    emoteInp.title = isEmote
-                        ? "Text sent as * Name text *"
-                        : "Text sent as ( Name text )";
+                    emoteInp.title = emoteTitles[currentStyle];
                     botLine.appendChild(styleBtn);
                     botLine.appendChild(emoteInp);
+                    // Hint row shown only when seq mode is active
+                    const seqHint = document.createElement("div");
+                    seqHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a7a2e;padding:1px 2px 0;line-height:1.4;";
+                    seqHint.textContent = "Steps split by | — PoseName, _ (reset), !action text, *emote text";
+                    seqHint.style.display = currentStyle === "seq" ? "block" : "none";
                     row.appendChild(topLine);
                     row.appendChild(botLine);
+                    row.appendChild(seqHint);
                     slotList.appendChild(row);
                     // -- Events (capture i) --
                     const idx = i;
@@ -1595,17 +1694,15 @@
                     });
                     styleBtn.addEventListener("click", () => {
                         var _a;
-                        const next = ((_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action") === "action" ? "emote" : "action";
+                        const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action";
+                        const next = styleOrder[(styleOrder.indexOf(cur) + 1) % styleOrder.length];
                         btns[idx].style = next;
-                        const nowEmote = next === "emote";
-                        styleBtn.className = "ebc-slot-style" + (nowEmote ? " emote" : "");
-                        styleBtn.textContent = nowEmote ? "* *" : "( )";
-                        styleBtn.title = nowEmote
-                            ? "Style: * emote * — click to switch to ( action )"
-                            : "Style: ( action ) — click to switch to * emote *";
-                        emoteInp.title = nowEmote
-                            ? "Text sent as * Name text *"
-                            : "Text sent as ( Name text )";
+                        styleBtn.className = "ebc-slot-style" + (next !== "action" ? " " + next : "");
+                        styleBtn.textContent = styleLabels[next];
+                        styleBtn.title = styleTitles[next];
+                        emoteInp.placeholder = emotePlaceholders[next];
+                        emoteInp.title = emoteTitles[next];
+                        seqHint.style.display = next === "seq" ? "block" : "none";
                     });
                     delBtn.addEventListener("click", () => {
                         btns.splice(idx, 1);
@@ -1707,9 +1804,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.1.38";
+    const MOD_VERSION = "0.1.39";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.1.39",
+            changes: [
+                "Hamburger collapse button is now shorter (28px) so it reads as a control rather than a content button.",
+                "New sequence button style (▶▶): pipe-separated steps animate the character — set BC poses, clear poses, or send action/emote messages.",
+                "Sequence steps: PoseName sets a BC pose, _ resets to neutral, !text sends (Name text), *text sends * Name text *.",
+            ],
+        },
         {
             version: "0.1.38",
             changes: [
