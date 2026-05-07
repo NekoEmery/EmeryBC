@@ -24,7 +24,18 @@ import {
     RESTRAINT_GROUPS,
     type ConfiguredOutfit,
     type SerializedItem,
+    getSchedules,
+    addSchedule,
+    removeSchedule,
+    toggleSchedule,
+    checkAndApplySchedules,
 } from "./outfitManager";
+import {
+    getExpressionPresets,
+    saveExpressionPresets,
+    captureCurrentExpression,
+    applyExpressionPreset,
+} from "./expressions";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
@@ -36,6 +47,7 @@ import {
     normalizeHex,
     DEFAULT_BUTTONS,
     ABSOLUTE_MAX,
+    parseStep,
     type ActionButton,
     type ActionStyle,
 } from "./actionButtons";
@@ -1288,6 +1300,253 @@ const CSS = `
     transition: background 0.14s, color 0.14s, border-color 0.14s;
 }
 .ebc-reset-loc-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
+
+/* -- Expression tab button (second floating tab below main tab) -- */
+#ebc-expr-tab {
+    pointer-events: auto;
+    width: 44px;
+    height: 44px;
+    background: rgba(42, 20, 33, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(207, 111, 152, 0.2);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
+    position: absolute;
+    left: -44px;
+    top: 110px;
+    font-size: 20px;
+    user-select: none;
+    transition: background 0.18s;
+}
+#ebc-expr-tab:hover { background: rgba(76, 37, 55, 0.97); }
+
+/* -- Floating expression panel -- */
+#ebc-expr-panel {
+    position: fixed;
+    width: 230px;
+    background: rgba(27, 13, 23, 0.97);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid #4c2537;
+    border-radius: 8px;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(10px);
+    transition: opacity 0.2s, transform 0.2s;
+    overflow: hidden;
+    z-index: 100;
+}
+
+#ebc-expr-panel.ebc-expr-open {
+    pointer-events: auto;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.ebc-expr-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 9px;
+    border-bottom: 1px solid #4c2537;
+    background: rgba(36, 17, 29, 0.9);
+}
+
+.ebc-expr-title {
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    font-weight: bold;
+    color: #cf6f98;
+    letter-spacing: 0.06em;
+}
+
+.ebc-expr-body {
+    padding: 7px;
+    overflow-y: auto;
+    max-height: 340px;
+    scrollbar-width: thin;
+    scrollbar-color: #4c2537 transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ebc-expr-capture-row {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.ebc-expr-preset-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.ebc-expr-pill {
+    flex: 1;
+    background: #2a1421;
+    border: 1px solid #4c2537;
+    border-radius: 14px;
+    color: #f7e6ee;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    padding: 4px 10px;
+    text-align: left;
+    transition: background 0.14s, border-color 0.14s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ebc-expr-pill:hover { background: #4c2537; border-color: #cf6f98; }
+
+.ebc-expr-del {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #553142;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 2px 6px;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+.ebc-expr-del:hover { background: #3a1017; color: #ff6b6b; border-color: #7a2020; }
+
+.ebc-expr-hint {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #553142;
+    text-align: center;
+    padding: 10px 4px;
+}
+
+/* -- Schedule rows (inside outfits tab) -- */
+.ebc-schedule-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    margin-bottom: 3px;
+    background: rgba(42, 20, 33, 0.5);
+    border: 1px solid #3a1928;
+}
+
+.ebc-schedule-name {
+    flex: 1;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    color: #f7e6ee;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ebc-schedule-time {
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    color: #e8d07a;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* -- Seq step builder -- */
+.ebc-seq-builder {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 3px;
+    padding: 5px;
+    background: rgba(27, 13, 23, 0.7);
+    border: 1px solid #3a1928;
+    border-radius: 5px;
+}
+
+.ebc-seq-step-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.ebc-seq-type-select {
+    flex-shrink: 0;
+    width: 80px;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #cf6f98;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    padding: 2px 3px;
+    outline: none;
+}
+
+.ebc-seq-text-inp {
+    flex: 1;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #f7e6ee;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 2px 4px;
+    outline: none;
+    min-width: 0;
+}
+
+.ebc-seq-delay-inp {
+    flex-shrink: 0;
+    width: 50px;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #e8d07a;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    padding: 2px 3px;
+    outline: none;
+    text-align: center;
+}
+
+.ebc-seq-step-del {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: #553142;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+}
+.ebc-seq-step-del:hover { color: #cf6f98; }
+
+.ebc-seq-add-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed #4c2537;
+    border-radius: 4px;
+    color: #7a4a5e;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    padding: 3px 0;
+    margin-top: 2px;
+    transition: background 0.14s, color 0.12s;
+}
+.ebc-seq-add-btn:hover { background: #1b0d17; color: #cf6f98; border-style: solid; }
 `;
 
 // -- VIP members (highlighted in Notes tab when present in the room) -----------
@@ -1326,6 +1585,9 @@ export class EBCDrawer {
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
     private resetLocationBtn: HTMLElement | null = null;
+    // Expression panel state
+    private exprPanelOpen = false;
+    private exprPanelEl: HTMLElement | null = null;
 
     constructor(version = "") {
         EBCDrawer._instance = this;
@@ -1358,6 +1620,19 @@ export class EBCDrawer {
         // Panel starts closed — clip the tab so it doesn't block the BC canvas.
         tab.classList.add("ebc-tab-closed");
         root.appendChild(tab);
+
+        // Expression tab button — sits below the main tab, always visible.
+        const exprTab = document.createElement("div");
+        exprTab.id = "ebc-expr-tab";
+        exprTab.title = "Expression Presets";
+        exprTab.textContent = "EXP";
+        root.appendChild(exprTab);
+
+        // Expression floating panel — created here, populated by renderExprPanel()
+        const exprPanel = document.createElement("div");
+        exprPanel.id = "ebc-expr-panel";
+        document.body.appendChild(exprPanel);
+        this.exprPanelEl = exprPanel;
 
         // Sliding panel container - this is the only thing that transforms
         const slideContainer = document.createElement("div");
@@ -1829,6 +2104,24 @@ export class EBCDrawer {
             this.updateCrabsPosition();
         });
 
+        // Expression tab click handler
+        exprTab.addEventListener("click", () => {
+            this.exprPanelOpen = !this.exprPanelOpen;
+            if (this.exprPanelEl) {
+                if (this.exprPanelOpen) {
+                    // Position the panel to the left of the expr tab
+                    const tabRect = exprTab.getBoundingClientRect();
+                    this.exprPanelEl.style.top  = `${tabRect.top}px`;
+                    this.exprPanelEl.style.right = `${window.innerWidth - tabRect.left + 4}px`;
+                    this.exprPanelEl.style.left  = "";
+                    this.renderExprPanel();
+                    this.exprPanelEl.classList.add("ebc-expr-open");
+                } else {
+                    this.exprPanelEl.classList.remove("ebc-expr-open");
+                }
+            }
+        });
+
         closeBtn.addEventListener("click", () => this.close());
         refreshBtn.addEventListener("click", () => {
             refreshBtn.classList.add("spinning");
@@ -2108,6 +2401,7 @@ export class EBCDrawer {
         if (room)  text += `  🕒 Room: ${room}`;
         if (bound) text += `  ⛓ Bound: ${bound}`;
         this.timerEl.textContent = text;
+        try { checkAndApplySchedules(); } catch { /* ignore */ }
     }
 
     private startTimerPoller(): void {
@@ -2157,6 +2451,126 @@ export class EBCDrawer {
         }
 
         this.buildNewOutfitSection(body);
+        this.buildScheduleSection(body);
+    }
+
+    // -- Outfit Schedule section ------------------------------------------------
+
+    private buildScheduleSection(body: HTMLElement): void {
+        const divEl = document.createElement("div");
+        divEl.className = "ebc-divider";
+        body.appendChild(divEl);
+
+        const lbl = document.createElement("div");
+        lbl.className = "ebc-section-label";
+        lbl.textContent = "Outfit Schedule";
+        body.appendChild(lbl);
+
+        const scheduleList = document.createElement("div");
+        body.appendChild(scheduleList);
+
+        const renderScheduleList = (): void => {
+            while (scheduleList.firstChild) scheduleList.removeChild(scheduleList.firstChild);
+            const schedules = getSchedules();
+            const outfits   = getOutfits();
+
+            if (schedules.length === 0) {
+                const empty = document.createElement("div");
+                empty.className = "ebc-empty";
+                empty.style.padding = "4px 4px 8px";
+                empty.textContent = "No schedules set.";
+                scheduleList.appendChild(empty);
+            }
+
+            for (const sched of schedules) {
+                const outfit = outfits.find(o => o.id === sched.outfitId);
+                const row = document.createElement("div");
+                row.className = "ebc-schedule-row";
+
+                // Enabled toggle
+                const togBtn = document.createElement("button");
+                togBtn.className = "ebc-slot-toggle" + (sched.enabled ? " on" : "");
+                togBtn.textContent = sched.enabled ? "ON" : "OFF";
+                togBtn.title = sched.enabled ? "Click to disable" : "Click to enable";
+                togBtn.addEventListener("click", () => {
+                    toggleSchedule(sched.id);
+                    renderScheduleList();
+                });
+
+                // Outfit name
+                const nameEl = document.createElement("span");
+                nameEl.className = "ebc-schedule-name";
+                nameEl.textContent = outfit ? outfit.displayName : "(deleted)";
+                nameEl.title = outfit ? ("/" + outfit.command) : "";
+
+                // Time
+                const timeEl = document.createElement("span");
+                timeEl.className = "ebc-schedule-time";
+                timeEl.textContent = sched.time;
+
+                // Delete button
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-outfit-del";
+                delBtn.textContent = "×";
+                delBtn.title = "Remove schedule";
+                delBtn.addEventListener("click", () => {
+                    removeSchedule(sched.id);
+                    renderScheduleList();
+                });
+
+                row.appendChild(togBtn);
+                row.appendChild(nameEl);
+                row.appendChild(timeEl);
+                row.appendChild(delBtn);
+                scheduleList.appendChild(row);
+            }
+        };
+
+        renderScheduleList();
+
+        // Add schedule row
+        const addRow = document.createElement("div");
+        addRow.style.cssText = "display:flex;gap:5px;align-items:center;margin-top:5px;";
+
+        const outfits = getOutfits();
+        const outfitSelect = document.createElement("select");
+        outfitSelect.className = "ebc-form-input";
+        outfitSelect.style.flex = "1";
+        if (outfits.length === 0) {
+            const opt = document.createElement("option");
+            opt.textContent = "No outfits";
+            opt.disabled = true;
+            outfitSelect.appendChild(opt);
+        } else {
+            for (const o of outfits) {
+                const opt = document.createElement("option");
+                opt.value = o.id;
+                opt.textContent = o.displayName;
+                outfitSelect.appendChild(opt);
+            }
+        }
+
+        const timeInput = document.createElement("input");
+        timeInput.type = "time";
+        timeInput.className = "ebc-form-input";
+        timeInput.style.width = "90px";
+        timeInput.style.flexShrink = "0";
+
+        const addBtn = document.createElement("button");
+        addBtn.className = "ebc-wear-btn";
+        addBtn.textContent = "+ Add";
+        addBtn.title = "Add schedule";
+        addBtn.addEventListener("click", () => {
+            if (!outfitSelect.value || !timeInput.value) return;
+            addSchedule(outfitSelect.value, timeInput.value);
+            timeInput.value = "";
+            renderScheduleList();
+        });
+
+        addRow.appendChild(outfitSelect);
+        addRow.appendChild(timeInput);
+        addRow.appendChild(addBtn);
+        body.appendChild(addRow);
     }
 
     // -- Restraint info --------------------------------------------------------
@@ -3027,6 +3441,146 @@ export class EBCDrawer {
         }
     }
 
+    // -- Seq step builder helper -----------------------------------------------
+
+    // Builds a step-builder UI for a seq button and wires it to btns[idx].emote.
+    private buildSeqStepBuilder(btns: ActionButton[], idx: number): HTMLElement {
+        const DEFAULT_DELAY = 600;
+
+        // Parse current emote value into step rows
+        interface SeqStep { type: "action" | "emote" | "pose" | "reset"; text: string; delay: number; }
+
+        const parseSteps = (raw: string): SeqStep[] => {
+            if (!raw.trim()) return [];
+            return raw.split("|").map(r => r.trim()).filter(Boolean).map(r => {
+                const { content, delay } = parseStep(r, DEFAULT_DELAY);
+                if (content === "_") return { type: "reset" as const, text: "", delay };
+                if (content.startsWith("!")) return { type: "action" as const, text: content.slice(1), delay };
+                if (content.startsWith("*")) return { type: "emote" as const, text: content.slice(1), delay };
+                return { type: "pose" as const, text: content, delay };
+            });
+        };
+
+        const serializeSteps = (steps: SeqStep[]): string => {
+            return steps.map(s => {
+                let content = "";
+                if (s.type === "reset") content = "_";
+                else if (s.type === "action") content = "!" + s.text;
+                else if (s.type === "emote") content = "*" + s.text;
+                else content = s.text;
+                return `${content}@${s.delay}`;
+            }).join("|");
+        };
+
+        let steps: SeqStep[] = parseSteps(btns[idx].emote);
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "ebc-seq-builder";
+
+        const stepList = document.createElement("div");
+        stepList.style.cssText = "display:flex;flex-direction:column;gap:3px;";
+        wrapper.appendChild(stepList);
+
+        const renderSteps = (): void => {
+            while (stepList.firstChild) stepList.removeChild(stepList.firstChild);
+
+            for (let si = 0; si < steps.length; si++) {
+                const step = steps[si];
+                const stepRow = document.createElement("div");
+                stepRow.className = "ebc-seq-step-row";
+
+                // Type dropdown
+                const typeSelect = document.createElement("select");
+                typeSelect.className = "ebc-seq-type-select";
+                [
+                    { value: "action", label: "Action !" },
+                    { value: "emote",  label: "Emote *"  },
+                    { value: "pose",   label: "Pose"     },
+                    { value: "reset",  label: "Reset _"  },
+                ].forEach(opt => {
+                    const o = document.createElement("option");
+                    o.value = opt.value; o.textContent = opt.label;
+                    if (opt.value === step.type) o.selected = true;
+                    typeSelect.appendChild(o);
+                });
+
+                // Text input
+                const textInp = document.createElement("input");
+                textInp.className = "ebc-seq-text-inp";
+                textInp.type = "text";
+                textInp.value = step.text;
+                textInp.placeholder = step.type === "pose" ? "e.g. HandsUp" : "text...";
+                textInp.disabled = step.type === "reset";
+                textInp.maxLength = 200;
+
+                // Delay input (ms)
+                const delayInp = document.createElement("input");
+                delayInp.className = "ebc-seq-delay-inp";
+                delayInp.type = "number";
+                delayInp.min = "0";
+                delayInp.max = "60000";
+                delayInp.step = "100";
+                delayInp.value = String(step.delay);
+                delayInp.title = "Delay after this step (ms)";
+
+                // Delete button
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-seq-step-del";
+                delBtn.textContent = "×";
+                delBtn.title = "Remove step";
+
+                stepRow.appendChild(typeSelect);
+                stepRow.appendChild(textInp);
+                stepRow.appendChild(delayInp);
+                stepRow.appendChild(delBtn);
+                stepList.appendChild(stepRow);
+
+                // Events (capture si)
+                const sidx = si;
+
+                typeSelect.addEventListener("change", () => {
+                    const t = typeSelect.value as SeqStep["type"];
+                    steps[sidx].type = t;
+                    textInp.disabled = t === "reset";
+                    if (t === "reset") { steps[sidx].text = ""; textInp.value = ""; }
+                    btns[idx].emote = serializeSteps(steps);
+                });
+
+                textInp.addEventListener("input", () => {
+                    steps[sidx].text = textInp.value;
+                    btns[idx].emote = serializeSteps(steps);
+                });
+
+                delayInp.addEventListener("input", () => {
+                    const v = parseInt(delayInp.value, 10);
+                    steps[sidx].delay = isNaN(v) ? DEFAULT_DELAY : Math.max(0, v);
+                    btns[idx].emote = serializeSteps(steps);
+                });
+
+                delBtn.addEventListener("click", () => {
+                    steps.splice(sidx, 1);
+                    btns[idx].emote = serializeSteps(steps);
+                    renderSteps();
+                });
+            }
+        };
+
+        renderSteps();
+
+        // + Add step button
+        const addBtn = document.createElement("button");
+        addBtn.className = "ebc-seq-add-btn";
+        addBtn.textContent = "+ Add step";
+        addBtn.addEventListener("click", () => {
+            steps.push({ type: "action", text: "", delay: DEFAULT_DELAY });
+            btns[idx].emote = serializeSteps(steps);
+            renderSteps();
+        });
+        wrapper.appendChild(addBtn);
+
+        return wrapper;
+    }
+
     // -- Buttons tab -----------------------------------------------------------
 
     private renderButtons(): void {
@@ -3118,18 +3672,17 @@ export class EBCDrawer {
                 const seqBadge = document.createElement("span");
                 seqBadge.className = "ebc-slot-seq-badge";
                 seqBadge.textContent = "✨";
-                seqBadge.title = "Animation button — edit the pose sequence below";
+                seqBadge.title = "Animation button — edit the sequence below";
                 seqBadge.style.display = isSeq ? "inline" : "none";
 
                 const emoteInp = document.createElement("input");
                 emoteInp.className = "ebc-slot-emote";
                 emoteInp.type = "text";
                 emoteInp.maxLength = 240;
-                emoteInp.placeholder = isSeq ? "e.g. OverTheHead|_|OverTheHead|_" : "e.g. nods.";
+                emoteInp.placeholder = "e.g. nods.";
                 emoteInp.value = btn.emote;
-                emoteInp.title = isSeq
-                    ? "Pose sequence: pipe-separated BC pose names, _ to clear"
-                    : currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
+                emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
+                emoteInp.style.display = isSeq ? "none" : "";
 
                 botLine.appendChild(styleBtn);
                 botLine.appendChild(seqBadge);
@@ -3138,6 +3691,12 @@ export class EBCDrawer {
                 row.appendChild(topLine);
                 row.appendChild(botLine);
                 slotList.appendChild(row);
+
+                // -- Seq step builder (only for seq style) --
+                if (isSeq) {
+                    const builderEl = this.buildSeqStepBuilder(btns, i);
+                    slotList.appendChild(builderEl);
+                }
 
                 // -- Events (capture i) --
                 const idx = i;
@@ -3302,7 +3861,8 @@ export class EBCDrawer {
                 const eInp = row.querySelector<HTMLInputElement>(".ebc-slot-emote");
                 if (lInp) btns[i].label = lInp.value.trim().slice(0, 6);
                 if (cInp) btns[i].color = normalizeHex(cInp.value);
-                if (eInp) btns[i].emote = eInp.value;
+                // Skip emote flush for seq buttons — seq builder keeps btns[i].emote in sync directly
+                if (eInp && btns[i].style !== "seq") btns[i].emote = eInp.value;
             });
             saveButtons([...btns], slotCount);
             saveBtn.textContent = "Saved!";
@@ -5159,6 +5719,114 @@ export class EBCDrawer {
             rebuildSets();
             body.scrollTop = body.scrollHeight;
         });
+    }
+
+    // -- Expression panel ------------------------------------------------------
+
+    private renderExprPanel(): void {
+        const panel = this.exprPanelEl;
+        if (!panel) return;
+        while (panel.firstChild) panel.removeChild(panel.firstChild);
+
+        // Header
+        const header = document.createElement("div");
+        header.className = "ebc-expr-header";
+
+        const title = document.createElement("span");
+        title.className = "ebc-expr-title";
+        title.textContent = "Expressions";
+
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "ebc-icon-btn";
+        closeBtn.textContent = "X";
+        closeBtn.addEventListener("click", () => {
+            this.exprPanelOpen = false;
+            panel.classList.remove("ebc-expr-open");
+        });
+
+        header.appendChild(title);
+        header.appendChild(closeBtn);
+        panel.appendChild(header);
+
+        // Body
+        const body = document.createElement("div");
+        body.className = "ebc-expr-body";
+        panel.appendChild(body);
+
+        // Capture row
+        const captureRow = document.createElement("div");
+        captureRow.className = "ebc-expr-capture-row";
+
+        const nameInp = document.createElement("input");
+        nameInp.className = "ebc-form-input";
+        nameInp.style.flex = "1";
+        nameInp.placeholder = "Preset name...";
+        nameInp.maxLength = 30;
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "ebc-wear-btn";
+        saveBtn.textContent = "Save";
+        saveBtn.title = "Capture current expression as a preset";
+        saveBtn.addEventListener("click", () => {
+            const name = nameInp.value.trim() || "Preset";
+            const preset = captureCurrentExpression(name);
+            const presets = getExpressionPresets();
+            presets.push(preset);
+            saveExpressionPresets(presets);
+            nameInp.value = "";
+            renderList();
+        });
+
+        captureRow.appendChild(nameInp);
+        captureRow.appendChild(saveBtn);
+        body.appendChild(captureRow);
+
+        // Preset list
+        const listEl = document.createElement("div");
+        listEl.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+        body.appendChild(listEl);
+
+        const renderList = (): void => {
+            while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+            const presets = getExpressionPresets();
+            if (presets.length === 0) {
+                const hint = document.createElement("div");
+                hint.className = "ebc-expr-hint";
+                hint.textContent = "No presets yet. Capture one!";
+                listEl.appendChild(hint);
+                return;
+            }
+            for (const preset of presets) {
+                const row = document.createElement("div");
+                row.className = "ebc-expr-preset-row";
+
+                const pill = document.createElement("button");
+                pill.className = "ebc-expr-pill";
+                pill.textContent = preset.name;
+                pill.title = "Click to apply";
+                pill.addEventListener("click", () => {
+                    applyExpressionPreset(preset);
+                    pill.textContent = "Applied!";
+                    window.setTimeout(() => { pill.textContent = preset.name; }, 1200);
+                });
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-expr-del";
+                delBtn.textContent = "×";
+                delBtn.title = "Delete preset";
+                delBtn.addEventListener("click", () => {
+                    const updated = getExpressionPresets().filter(p => p.id !== preset.id);
+                    saveExpressionPresets(updated);
+                    renderList();
+                });
+
+                row.appendChild(pill);
+                row.appendChild(delBtn);
+                listEl.appendChild(row);
+            }
+        };
+
+        renderList();
     }
 
     // -- Open / Close / Toggle -------------------------------------------------

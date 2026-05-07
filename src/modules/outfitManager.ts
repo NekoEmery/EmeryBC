@@ -59,10 +59,6 @@ function saveOutfits(list: ConfiguredOutfit[]): void {
     ServerPlayerExtensionSettingsSync("EmeryBC");
 }
 
-function uid(): string {
-    return Math.random().toString(36).slice(2, 9);
-}
-
 function sanitizeSerializable(value: unknown, seen = new WeakSet<object>(), depth = 0): unknown {
     if (value == null) return value;
     if (depth > MAX_SERIALIZE_DEPTH) return undefined;
@@ -452,6 +448,70 @@ export function importOutfitFromJSON(json: string): ConfiguredOutfit {
     saveOutfits([...existing, outfit]);
     localNotice(`Imported "${outfit.displayName}" (/${outfit.command}).`);
     return outfit;
+}
+
+// -- Outfit Schedules ---------------------------------------------------------
+
+export interface OutfitSchedule {
+    id: string;
+    outfitId: string;
+    time: string;   // "HH:MM" 24h
+    enabled: boolean;
+}
+
+function uid(): string {
+    return Math.random().toString(36).slice(2, 9);
+}
+
+export function getSchedules(): OutfitSchedule[] {
+    const list = getAddon().outfitSchedules;
+    return Array.isArray(list) ? (list as OutfitSchedule[]) : [];
+}
+
+function saveSchedules(schedules: OutfitSchedule[]): void {
+    getAddon().outfitSchedules = schedules;
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+export function addSchedule(outfitId: string, time: string): OutfitSchedule {
+    const schedule: OutfitSchedule = { id: uid(), outfitId, time, enabled: true };
+    saveSchedules([...getSchedules(), schedule]);
+    return schedule;
+}
+
+export function removeSchedule(id: string): void {
+    saveSchedules(getSchedules().filter(s => s.id !== id));
+}
+
+export function toggleSchedule(id: string): void {
+    const schedules = getSchedules().map(s =>
+        s.id === id ? { ...s, enabled: !s.enabled } : s
+    );
+    saveSchedules(schedules);
+}
+
+// Map of scheduleId -> last-applied HH:MM to avoid re-applying in the same minute
+const _lastApplied = new Map<string, string>();
+
+export function checkAndApplySchedules(): void {
+    try {
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, "0");
+        const mm = String(now.getMinutes()).padStart(2, "0");
+        const current = `${hh}:${mm}`;
+
+        for (const schedule of getSchedules()) {
+            if (!schedule.enabled) continue;
+            if (schedule.time !== current) continue;
+            if (_lastApplied.get(schedule.id) === current) continue;
+
+            const outfit = getOutfits().find(o => o.id === schedule.outfitId);
+            if (!outfit) continue;
+
+            _lastApplied.set(schedule.id, current);
+            applyOutfit(outfit);
+        }
+    } catch { /* ignore — Player may not be ready */ }
 }
 
 export type BCImportMode = "restraints" | "outfit" | "both";

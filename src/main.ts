@@ -10,10 +10,18 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.2.9";
+const MOD_VERSION = "0.3.0";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.0",
+        changes: [
+            "Sequence builder: each step now has its own delay — edit sequences as individual step rows with type/text/delay instead of raw text.",
+            "Outfit schedule: auto-wear an outfit at a set time (HH:MM). Schedule section at the bottom of the Outfits tab.",
+            "Expression presets: save and apply face/expression state (eyes, mouth, blush, etc.) separately from outfits. Toggle the Expressions panel with the new floating button below the main tab.",
+        ],
+    },
     {
         version: "0.2.9",
         changes: [

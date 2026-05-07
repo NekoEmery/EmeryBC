@@ -119,10 +119,28 @@ function syncPoseToRoom(): void {
     try { CharacterRefresh(Player, false, false); } catch (_) {}
 }
 
-export function runSequence(sequence: string, stepMs = 600): void {
+// Parses a single raw step token (may have @NNN suffix) into {content, delay}.
+// E.g. "!waves.@1000" -> { content: "!waves.", delay: 1000 }
+//      "HandsUp"      -> { content: "HandsUp", delay: defaultStepMs }
+export function parseStep(raw: string, defaultStepMs: number): { content: string; delay: number } {
+    const atIdx = raw.lastIndexOf("@");
+    if (atIdx > 0) {
+        const maybeMs = raw.slice(atIdx + 1);
+        const ms = parseInt(maybeMs, 10);
+        if (!isNaN(ms) && ms >= 0 && String(ms) === maybeMs) {
+            return { content: raw.slice(0, atIdx), delay: ms };
+        }
+    }
+    return { content: raw, delay: defaultStepMs };
+}
+
+export function runSequence(sequence: string, defaultStepMs = 600): void {
     if (seqRunning) return;
-    const steps = sequence.split("|").map(s => s.trim()).filter(Boolean);
-    if (!steps.length) return;
+    const rawSteps = sequence.split("|").map(s => s.trim()).filter(Boolean);
+    if (!rawSteps.length) return;
+
+    // Parse each step: strip @NNN suffix for per-step delay, keep content.
+    const steps = rawSteps.map(r => parseStep(r, defaultStepMs));
 
     seqRunning = true;
     // null means "no pose / neutral" in BC — store as null so we restore correctly.
@@ -143,7 +161,7 @@ export function runSequence(sequence: string, stepMs = 600): void {
                 return;
             }
 
-            const step = steps[idx++];
+            const { content: step, delay } = steps[idx++];
 
             if (step === "_") {
                 Player.ActivePose = originalPoses;
@@ -156,12 +174,11 @@ export function runSequence(sequence: string, stepMs = 600): void {
                 Player.ActivePose = [step];
                 sendPoseUpdate(appearanceBundle);
             }
+
+            window.setTimeout(next, delay);
         } catch (_) {
             seqRunning = false;
-            return;
         }
-
-        window.setTimeout(next, stepMs);
     };
 
     next();
