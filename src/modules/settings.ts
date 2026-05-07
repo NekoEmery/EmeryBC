@@ -112,18 +112,3 @@ export function setAntiRestraintConfirm(value: boolean): void {
     } catch { /* ignore */ }
 }
 
-// -- Expression quick-panel button visibility ----------------------------------
-// Defaults to false (hidden). User toggles it on from the ANIMS tab.
-
-export function getExprTabVisible(): boolean {
-    try { return getStore()?.exprTabVisible === true; } catch { return false; }
-}
-
-export function setExprTabVisible(value: boolean): void {
-    try {
-        const store = getStore();
-        if (!store) return;
-        store.exprTabVisible = value;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    } catch { /* ignore */ }
-}

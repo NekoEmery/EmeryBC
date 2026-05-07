@@ -23,17 +23,17 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$6() {
+    function getStore$5() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getButtons() {
-        const stored = getStore$6().actionButtons;
+        const stored = getStore$5().actionButtons;
         return Array.isArray(stored) ? stored : DEFAULT_BUTTONS;
     }
     function getSlotCount() {
-        const store = getStore$6();
+        const store = getStore$5();
         const n = store.actionSlotCount;
         if (typeof n === "number")
             return Math.min(ABSOLUTE_MAX, Math.max(1, n));
@@ -41,7 +41,7 @@
         return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$6();
+        const store = getStore$5();
         store.actionButtons = buttons;
         store.actionSlotCount = slotCount;
         ServerPlayerExtensionSettingsSync("EmeryBC");
@@ -578,7 +578,7 @@
             return null;
         }
         const outfit = {
-            id: uid$4(),
+            id: uid$3(),
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
@@ -690,12 +690,12 @@
         let suffix = 2;
         while (existing.some(o => o.command === finalCmd))
             finalCmd = baseCmd + suffix++;
-        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$4(), command: finalCmd }));
+        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$3(), command: finalCmd }));
         saveOutfits([...existing, outfit]);
         localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
     }
-    function uid$4() {
+    function uid$3() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getSchedules() {
@@ -707,7 +707,7 @@
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function addSchedule(outfitId, time) {
-        const schedule = { id: uid$4(), outfitId, time, enabled: true };
+        const schedule = { id: uid$3(), outfitId, time, enabled: true };
         saveSchedules([...getSchedules(), schedule]);
         return schedule;
     }
@@ -799,7 +799,7 @@
             finalCmd = baseCmd + sfx++;
         const includesRestraints = mode !== "outfit";
         const outfit = sanitizeOutfit({
-            id: uid$4(),
+            id: uid$3(),
             command: finalCmd,
             displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
@@ -815,23 +815,23 @@
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function getStore$5() {
+    function getStore$4() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function load$1() {
-        const list = getStore$5().palettes;
+        const list = getStore$4().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getStore$5().palettes = list;
+        getStore$4().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function uid$3() {
+    function uid$2() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getAllPalettes() {
@@ -848,7 +848,7 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$3(), name: name.trim() || "Palette", type: "outfit", colorMap };
+        const palette = { id: uid$2(), name: name.trim() || "Palette", type: "outfit", colorMap };
         save([...load$1(), palette]);
         return palette;
     }
@@ -860,7 +860,7 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$3(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
+        const palette = { id: uid$2(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
         save([...load$1(), palette]);
         return palette;
     }
@@ -913,94 +913,6 @@
             p.name = name.trim();
             save(list);
         }
-    }
-
-    // Expression presets and sequences — live expression picker + animated sequences.
-    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
-    function uid$2() {
-        return Math.random().toString(36).slice(2, 9);
-    }
-    function getStore$4() {
-        try {
-            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
-                return null;
-            if (!Player.ExtensionSettings.EmeryBC)
-                Player.ExtensionSettings.EmeryBC = {};
-            return Player.ExtensionSettings.EmeryBC;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    // -- Single-expression apply ---------------------------------------------------
-    // Uses CharacterSetFacialExpression (BC's proper API) if available,
-    // otherwise falls back to direct Appearance manipulation.
-    function applyExprGroup(group, exprName) {
-        try {
-            const setExpr = window.CharacterSetFacialExpression;
-            if (setExpr) {
-                setExpr(Player, group, exprName, null, null);
-            }
-            else {
-                const idx = Player.Appearance.findIndex((i) => i.Asset.Group.Name === group);
-                if (idx !== -1)
-                    Player.Appearance.splice(idx, 1);
-                if (exprName) {
-                    const asset = AssetGet(Player.AssetFamily, group, exprName);
-                    if (asset)
-                        Player.Appearance.push({ Asset: asset, Color: "Default", Difficulty: 0 });
-                }
-            }
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
-    function getExpressionPresets() {
-        var _a;
-        try {
-            const list = (_a = getStore$4()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
-            return Array.isArray(list) ? list : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function saveExpressionPresets(presets) {
-        try {
-            const store = getStore$4();
-            if (!store)
-                return;
-            store.expressionPresets = presets;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function captureCurrentExpression(name) {
-        const groups = {};
-        try {
-            for (const group of EXPR_GROUPS) {
-                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                groups[group] = item
-                    ? { Name: item.Asset.Name, Color: item.Color !== undefined ? item.Color : undefined }
-                    : null;
-            }
-        }
-        catch ( /* return whatever captured so far */_a) { /* return whatever captured so far */ }
-        return { id: uid$2(), name: name, groups };
-    }
-    function applyExpressionPreset(preset) {
-        try {
-            for (const [group, entry] of Object.entries(preset.groups)) {
-                try {
-                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
-                }
-                catch ( /* skip group */_a) { /* skip group */ }
-            }
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
     }
 
     // BC pose application and user-configurable pose combos.
@@ -1559,17 +1471,6 @@
             ServerPlayerExtensionSettingsSync("EmeryBC");
         }
         catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Expression quick-panel button visibility ----------------------------------
-    // Defaults to false (hidden). User toggles it on from the ANIMS tab.
-    function getExprTabVisible() {
-        var _a;
-        try {
-            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.exprTabVisible) === true;
-        }
-        catch (_b) {
-            return false;
-        }
     }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
@@ -2181,14 +2082,6 @@
         document.body.appendChild(overlay);
     }
     // -- Icon ----------------------------------------------------------------------
-    const EXPR_TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 90 90">'
-        + '<circle cx="45" cy="45" r="35" fill="#2a1421" stroke="#cf6f98" stroke-width="3"/>'
-        + '<circle cx="32" cy="38" r="5" fill="#f7e6ee"/>'
-        + '<circle cx="58" cy="38" r="5" fill="#f7e6ee"/>'
-        + '<path d="M33 57 Q45 67 57 57" stroke="#f7e6ee" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
-        + '<ellipse cx="23" cy="50" rx="8" ry="5" fill="rgba(207,111,152,0.5)"/>'
-        + '<ellipse cx="67" cy="50" rx="8" ry="5" fill="rgba(207,111,152,0.5)"/>'
-        + '</svg>';
     const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 90 90">'
         + '<rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>'
         + '<path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>'
@@ -3407,138 +3300,6 @@
 }
 .ebc-reset-loc-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
 
-/* -- Expression tab button (second floating tab below main tab) -- */
-#ebc-expr-tab {
-    pointer-events: auto;
-    width: 44px;
-    height: 44px;
-    background: rgba(42, 20, 33, 0.85);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(207, 111, 152, 0.2);
-    border-right: none;
-    border-radius: 8px 0 0 8px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: grab;
-    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
-    position: absolute;
-    left: -44px;
-    top: 110px;
-    font-size: 20px;
-    user-select: none;
-    transition: background 0.18s;
-}
-#ebc-expr-tab:hover  { background: rgba(76, 37, 55, 0.97); }
-#ebc-expr-tab:active { cursor: grabbing; }
-
-/* -- Floating expression panel -- */
-#ebc-expr-panel {
-    position: fixed;
-    width: 230px;
-    background: rgba(27, 13, 23, 0.97);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid #4c2537;
-    border-radius: 8px;
-    box-shadow: -4px 0 20px rgba(0,0,0,0.6);
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    pointer-events: none;
-    opacity: 0;
-    transform: translateX(10px);
-    transition: opacity 0.2s, transform 0.2s;
-    overflow: hidden;
-    z-index: 100;
-}
-
-#ebc-expr-panel.ebc-expr-open {
-    pointer-events: auto;
-    opacity: 1;
-    transform: translateX(0);
-}
-
-.ebc-expr-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 9px;
-    border-bottom: 1px solid #4c2537;
-    background: rgba(36, 17, 29, 0.9);
-}
-
-.ebc-expr-title {
-    font-family: "Trebuchet MS", serif;
-    font-size: 11px;
-    font-weight: bold;
-    color: #cf6f98;
-    letter-spacing: 0.06em;
-}
-
-.ebc-expr-body {
-    padding: 7px;
-    overflow-y: auto;
-    max-height: 340px;
-    scrollbar-width: thin;
-    scrollbar-color: #4c2537 transparent;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.ebc-expr-capture-row {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-}
-
-.ebc-expr-preset-row {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.ebc-expr-pill {
-    flex: 1;
-    background: #2a1421;
-    border: 1px solid #4c2537;
-    border-radius: 14px;
-    color: #f7e6ee;
-    cursor: pointer;
-    font-family: "Trebuchet MS", serif;
-    font-size: 11px;
-    padding: 4px 10px;
-    text-align: left;
-    transition: background 0.14s, border-color 0.14s;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.ebc-expr-pill:hover { background: #4c2537; border-color: #cf6f98; }
-
-.ebc-expr-del {
-    flex-shrink: 0;
-    background: transparent;
-    border: 1px solid #4c2537;
-    border-radius: 4px;
-    color: #553142;
-    cursor: pointer;
-    font-size: 13px;
-    line-height: 1;
-    padding: 2px 6px;
-    transition: background 0.14s, color 0.12s, border-color 0.12s;
-}
-.ebc-expr-del:hover { background: #3a1017; color: #ff6b6b; border-color: #7a2020; }
-
-.ebc-expr-hint {
-    font-family: "Trebuchet MS", serif;
-    font-size: 10px;
-    color: #553142;
-    text-align: center;
-    padding: 10px 4px;
-}
 
 /* -- Schedule rows (inside outfits tab) -- */
 .ebc-schedule-row {
@@ -3684,12 +3445,6 @@
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
             this.resetLocationBtn = null;
-            // Expression panel state
-            this.exprPanelOpen = false;
-            this.exprPanelEl = null;
-            this.exprPanelPosition = null;
-            // EXP tab button dragged position (fixed screen coords). null = default anchored.
-            this.exprTabOffset = null;
             // DEV tab auto-refresh poller
             this.devLogPoller = null;
             EBCDrawer._instance = this;
@@ -3720,19 +3475,6 @@
             // Panel starts closed — clip the tab so it doesn't block the BC canvas.
             tab.classList.add("ebc-tab-closed");
             root.appendChild(tab);
-            // Expression quick-panel toggle button — hidden by default.
-            // User enables it via the toggle in the ANIMS tab.
-            const exprTab = document.createElement("div");
-            exprTab.id = "ebc-expr-tab";
-            exprTab.title = "Expression Presets";
-            exprTab.innerHTML = EXPR_TAB_ICON;
-            exprTab.style.display = "none"; // hidden until user opts in
-            root.appendChild(exprTab);
-            // Expression floating panel — created here, populated by renderExprPanel()
-            const exprPanel = document.createElement("div");
-            exprPanel.id = "ebc-expr-panel";
-            document.body.appendChild(exprPanel);
-            this.exprPanelEl = exprPanel;
             // Sliding panel container - this is the only thing that transforms
             const slideContainer = document.createElement("div");
             slideContainer.id = "emerybc-panel";
@@ -4210,84 +3952,6 @@
                 this.saveTabOffset(null);
                 this.updateCrabsPosition();
             });
-            // Expression tab: mousedown handles both drag (reposition) and click (toggle panel)
-            exprTab.addEventListener("mousedown", (e) => {
-                if (e.button !== 0)
-                    return;
-                e.preventDefault();
-                const startX = e.clientX;
-                const startY = e.clientY;
-                const tabRect = exprTab.getBoundingClientRect();
-                const startTabX = tabRect.left;
-                const startTabY = tabRect.top;
-                let dragged = false;
-                const onMove = (ev) => {
-                    const dx = ev.clientX - startX;
-                    const dy = ev.clientY - startY;
-                    if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5)
-                        return;
-                    dragged = true;
-                    exprTab.style.cursor = "grabbing";
-                    if (exprTab.style.position !== "fixed")
-                        exprTab.style.position = "fixed";
-                    exprTab.style.left = `${Math.max(0, Math.min(window.innerWidth - 44, startTabX + dx))}px`;
-                    exprTab.style.top = `${Math.max(0, Math.min(window.innerHeight - 44, startTabY + dy))}px`;
-                };
-                const onUp = () => {
-                    document.removeEventListener("mousemove", onMove);
-                    document.removeEventListener("mouseup", onUp);
-                    exprTab.style.cursor = "";
-                    if (!dragged) {
-                        // Plain click — toggle the expression panel
-                        this.exprPanelOpen = !this.exprPanelOpen;
-                        if (this.exprPanelEl) {
-                            if (this.exprPanelOpen) {
-                                if (this.exprPanelPosition === null) {
-                                    const saved = this.loadExprPanelPosition();
-                                    if (saved !== null)
-                                        this.exprPanelPosition = saved;
-                                }
-                                this.renderExprPanel();
-                                if (this.exprPanelPosition) {
-                                    const w = window.innerWidth, h = window.innerHeight;
-                                    this.exprPanelEl.style.left = `${Math.max(0, Math.min(w - 240, this.exprPanelPosition.x))}px`;
-                                    this.exprPanelEl.style.top = `${Math.max(0, Math.min(h - 100, this.exprPanelPosition.y))}px`;
-                                    this.exprPanelEl.style.right = "";
-                                }
-                                else {
-                                    const r = exprTab.getBoundingClientRect();
-                                    this.exprPanelEl.style.top = `${r.top}px`;
-                                    this.exprPanelEl.style.right = `${window.innerWidth - r.left + 4}px`;
-                                    this.exprPanelEl.style.left = "";
-                                }
-                                this.exprPanelEl.classList.add("ebc-expr-open");
-                            }
-                            else {
-                                this.exprPanelEl.classList.remove("ebc-expr-open");
-                            }
-                        }
-                        return;
-                    }
-                    // Save the new fixed position
-                    const pos = {
-                        x: parseInt(exprTab.style.left, 10),
-                        y: parseInt(exprTab.style.top, 10),
-                    };
-                    this.exprTabOffset = pos;
-                    this.saveExprTabOffset(pos);
-                };
-                document.addEventListener("mousemove", onMove);
-                document.addEventListener("mouseup", onUp);
-            });
-            // Right-click EXP tab to reset position to default
-            exprTab.addEventListener("contextmenu", (e) => {
-                e.preventDefault();
-                this.exprTabOffset = null;
-                exprTab.style.position = "";
-                exprTab.style.left = "";
-                exprTab.style.top = "";
-                this.saveExprTabOffset(null);
-            });
             closeBtn.addEventListener("click", () => this.close());
             refreshBtn.addEventListener("click", () => {
                 refreshBtn.classList.add("spinning");
@@ -4417,55 +4081,6 @@
             catch (_a) {
                 return null;
             }
-        }
-        saveExprPanelPosition(pos) {
-            try {
-                if (!Player.ExtensionSettings.EmeryBC)
-                    Player.ExtensionSettings.EmeryBC = {};
-                Player.ExtensionSettings.EmeryBC.exprPanelPos = pos !== null && pos !== void 0 ? pos : null;
-                ServerPlayerExtensionSettingsSync("EmeryBC");
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-        }
-        loadExprPanelPosition() {
-            try {
-                const store = Player.ExtensionSettings.EmeryBC;
-                const v = store === null || store === void 0 ? void 0 : store.exprPanelPos;
-                if (v && typeof v.x === "number" && typeof v.y === "number")
-                    return { x: v.x, y: v.y };
-                return null;
-            }
-            catch (_a) {
-                return null;
-            }
-        }
-        saveExprTabOffset(pos) {
-            try {
-                if (!Player.ExtensionSettings.EmeryBC)
-                    Player.ExtensionSettings.EmeryBC = {};
-                Player.ExtensionSettings.EmeryBC.exprTabPos = pos !== null && pos !== void 0 ? pos : null;
-                ServerPlayerExtensionSettingsSync("EmeryBC");
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-        }
-        loadExprTabOffset() {
-            try {
-                const store = Player.ExtensionSettings.EmeryBC;
-                const v = store === null || store === void 0 ? void 0 : store.exprTabPos;
-                if (v && typeof v.x === "number" && typeof v.y === "number")
-                    return { x: v.x, y: v.y };
-                return null;
-            }
-            catch (_a) {
-                return null;
-            }
-        }
-        applyExprTabOffset(el, pos) {
-            const x = Math.max(0, Math.min(window.innerWidth - 44, pos.x));
-            const y = Math.max(0, Math.min(window.innerHeight - 44, pos.y));
-            el.style.position = "fixed";
-            el.style.left = `${x}px`;
-            el.style.top = `${y}px`;
         }
         enterFreeMode(pos) {
             if (!this.panelEl)
@@ -8058,156 +7673,8 @@
                 body.scrollTop = body.scrollHeight;
             });
         }
-        // -- Expression panel ------------------------------------------------------
-        renderExprPanel() {
-            const panel = this.exprPanelEl;
-            if (!panel)
-                return;
-            while (panel.firstChild)
-                panel.removeChild(panel.firstChild);
-            // Header
-            const header = document.createElement("div");
-            header.className = "ebc-expr-header";
-            const title = document.createElement("span");
-            title.className = "ebc-expr-title";
-            title.textContent = "Expressions";
-            const closeBtn = document.createElement("button");
-            closeBtn.className = "ebc-icon-btn";
-            closeBtn.textContent = "X";
-            closeBtn.addEventListener("click", () => {
-                this.exprPanelOpen = false;
-                panel.classList.remove("ebc-expr-open");
-            });
-            // Drag handle
-            const dragHandle = document.createElement("span");
-            dragHandle.className = "ebc-move-handle";
-            dragHandle.textContent = "⠿";
-            dragHandle.title = "Drag to reposition";
-            header.appendChild(dragHandle);
-            header.appendChild(title);
-            header.appendChild(closeBtn);
-            panel.appendChild(header);
-            // Make the header draggable, persisting position
-            dragHandle.addEventListener("mousedown", (e) => {
-                e.preventDefault();
-                const startX = e.clientX;
-                const startY = e.clientY;
-                const rect = panel.getBoundingClientRect();
-                panel.style.right = "";
-                panel.style.left = `${rect.left}px`;
-                panel.style.top = `${rect.top}px`;
-                dragHandle.style.cursor = "grabbing";
-                const onMove = (me) => {
-                    panel.style.left = `${rect.left + me.clientX - startX}px`;
-                    panel.style.top = `${rect.top + me.clientY - startY}px`;
-                };
-                const onUp = () => {
-                    dragHandle.style.cursor = "";
-                    const x = parseInt(panel.style.left, 10);
-                    const y = parseInt(panel.style.top, 10);
-                    if (!isNaN(x) && !isNaN(y)) {
-                        this.exprPanelPosition = { x, y };
-                        this.saveExprPanelPosition({ x, y });
-                    }
-                    document.removeEventListener("mousemove", onMove);
-                    document.removeEventListener("mouseup", onUp);
-                };
-                document.addEventListener("mousemove", onMove);
-                document.addEventListener("mouseup", onUp);
-            });
-            // Body
-            const body = document.createElement("div");
-            body.className = "ebc-expr-body";
-            panel.appendChild(body);
-            // Capture row
-            const captureRow = document.createElement("div");
-            captureRow.className = "ebc-expr-capture-row";
-            const nameInp = document.createElement("input");
-            nameInp.className = "ebc-form-input";
-            nameInp.style.flex = "1";
-            nameInp.placeholder = "Preset name...";
-            nameInp.maxLength = 30;
-            const saveBtn = document.createElement("button");
-            saveBtn.className = "ebc-wear-btn";
-            saveBtn.textContent = "Save";
-            saveBtn.title = "Capture current expression as a preset";
-            saveBtn.addEventListener("click", () => {
-                const name = nameInp.value.trim() || "Preset";
-                const preset = captureCurrentExpression(name);
-                const presets = getExpressionPresets();
-                presets.push(preset);
-                saveExpressionPresets(presets);
-                nameInp.value = "";
-                renderList();
-            });
-            captureRow.appendChild(nameInp);
-            captureRow.appendChild(saveBtn);
-            body.appendChild(captureRow);
-            // Preset list
-            const listEl = document.createElement("div");
-            listEl.style.cssText = "display:flex;flex-direction:column;gap:4px;";
-            body.appendChild(listEl);
-            const renderList = () => {
-                while (listEl.firstChild)
-                    listEl.removeChild(listEl.firstChild);
-                const presets = getExpressionPresets();
-                if (presets.length === 0) {
-                    const hint = document.createElement("div");
-                    hint.className = "ebc-expr-hint";
-                    hint.textContent = "No presets yet. Capture one!";
-                    listEl.appendChild(hint);
-                    return;
-                }
-                for (const preset of presets) {
-                    const row = document.createElement("div");
-                    row.className = "ebc-expr-preset-row";
-                    const pill = document.createElement("button");
-                    pill.className = "ebc-expr-pill";
-                    pill.textContent = preset.name;
-                    pill.title = "Click to apply";
-                    pill.addEventListener("click", () => {
-                        applyExpressionPreset(preset);
-                        pill.textContent = "Applied!";
-                        window.setTimeout(() => { pill.textContent = preset.name; }, 1200);
-                    });
-                    const delBtn = document.createElement("button");
-                    delBtn.className = "ebc-expr-del";
-                    delBtn.textContent = "×";
-                    delBtn.title = "Delete preset";
-                    delBtn.addEventListener("click", () => {
-                        const updated = getExpressionPresets().filter(p => p.id !== preset.id);
-                        saveExpressionPresets(updated);
-                        renderList();
-                    });
-                    row.appendChild(pill);
-                    row.appendChild(delBtn);
-                    listEl.appendChild(row);
-                }
-            };
-            renderList();
-        }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
-        updateExprTabVisibility() {
-            var _a;
-            const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-expr-tab");
-            if (!el)
-                return;
-            el.style.display = getExprTabVisible() ? "flex" : "none";
-            if (!getExprTabVisible())
-                return;
-            // Restore saved drag position (load once on first show)
-            if (this.exprTabOffset === null) {
-                const saved = this.loadExprTabOffset();
-                if (saved !== null) {
-                    this.exprTabOffset = saved;
-                    this.applyExprTabOffset(el, saved);
-                }
-            }
-            else {
-                this.applyExprTabOffset(el, this.exprTabOffset);
-            }
-        }
         open() {
             var _a, _b, _c;
             if (!this.panelEl)
@@ -8217,7 +7684,6 @@
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
             if (tabEl)
                 tabEl.classList.remove("ebc-tab-closed");
-            this.updateExprTabVisibility();
             // On first open, check for a saved free-float position
             if (this.panelPosition === null) {
                 const saved = this.loadPanelPosition();
@@ -8285,9 +7751,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.4.6";
+    const MOD_VERSION = "0.4.7";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.4.7",
+            changes: [
+                "Removed floating expression panel and its toggle entirely — all expression UI is gone.",
+            ],
+        },
         {
             version: "0.4.6",
             changes: [

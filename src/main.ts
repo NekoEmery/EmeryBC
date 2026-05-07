@@ -11,10 +11,16 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.4.6";
+const MOD_VERSION = "0.4.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.4.7",
+        changes: [
+            "Removed floating expression panel and its toggle entirely — all expression UI is gone.",
+        ],
+    },
     {
         version: "0.4.6",
         changes: [
