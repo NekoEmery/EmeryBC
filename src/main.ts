@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.4";
+const MOD_VERSION = "0.3.5";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.5",
+        changes: [
+            "EXP button now shows a face icon instead of text.",
+            "Expression panel is now draggable via the ⠿ handle on its header.",
+            "Expression panel position is saved to ExtensionSettings and restored on next open.",
+        ],
+    },
     {
         version: "0.3.4",
         changes: [

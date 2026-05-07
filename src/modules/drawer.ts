@@ -82,6 +82,15 @@ import {
 
 // -- Icon ----------------------------------------------------------------------
 
+const EXPR_TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 90 90">'
+    + '<circle cx="45" cy="45" r="35" fill="#2a1421" stroke="#cf6f98" stroke-width="3"/>'
+    + '<circle cx="32" cy="38" r="5" fill="#f7e6ee"/>'
+    + '<circle cx="58" cy="38" r="5" fill="#f7e6ee"/>'
+    + '<path d="M33 57 Q45 67 57 57" stroke="#f7e6ee" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+    + '<ellipse cx="23" cy="50" rx="8" ry="5" fill="rgba(207,111,152,0.5)"/>'
+    + '<ellipse cx="67" cy="50" rx="8" ry="5" fill="rgba(207,111,152,0.5)"/>'
+    + '</svg>';
+
 const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 90 90">'
     + '<rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>'
     + '<path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/>'
@@ -1589,6 +1598,7 @@ export class EBCDrawer {
     // Expression panel state
     private exprPanelOpen = false;
     private exprPanelEl: HTMLElement | null = null;
+    private exprPanelPosition: { x: number; y: number } | null = null;
 
     constructor(version = "") {
         EBCDrawer._instance = this;
@@ -1627,7 +1637,7 @@ export class EBCDrawer {
         const exprTab = document.createElement("div");
         exprTab.id = "ebc-expr-tab";
         exprTab.title = "Expression Presets";
-        exprTab.textContent = "EXP";
+        exprTab.innerHTML = EXPR_TAB_ICON;
         exprTab.style.display = "none"; // hidden until user opts in
         root.appendChild(exprTab);
 
@@ -2112,12 +2122,26 @@ export class EBCDrawer {
             this.exprPanelOpen = !this.exprPanelOpen;
             if (this.exprPanelEl) {
                 if (this.exprPanelOpen) {
-                    // Position the panel to the left of the expr tab
-                    const tabRect = exprTab.getBoundingClientRect();
-                    this.exprPanelEl.style.top  = `${tabRect.top}px`;
-                    this.exprPanelEl.style.right = `${window.innerWidth - tabRect.left + 4}px`;
-                    this.exprPanelEl.style.left  = "";
+                    // Load saved position on first open
+                    if (this.exprPanelPosition === null) {
+                        const saved = this.loadExprPanelPosition();
+                        if (saved !== null) this.exprPanelPosition = saved;
+                    }
                     this.renderExprPanel();
+                    if (this.exprPanelPosition) {
+                        // Restore to saved position
+                        const w = window.innerWidth;
+                        const h = window.innerHeight;
+                        this.exprPanelEl.style.left  = `${Math.max(0, Math.min(w - 240, this.exprPanelPosition.x))}px`;
+                        this.exprPanelEl.style.top   = `${Math.max(0, Math.min(h - 100, this.exprPanelPosition.y))}px`;
+                        this.exprPanelEl.style.right = "";
+                    } else {
+                        // Default: to the left of the expr tab
+                        const tabRect = exprTab.getBoundingClientRect();
+                        this.exprPanelEl.style.top   = `${tabRect.top}px`;
+                        this.exprPanelEl.style.right = `${window.innerWidth - tabRect.left + 4}px`;
+                        this.exprPanelEl.style.left  = "";
+                    }
                     this.exprPanelEl.classList.add("ebc-expr-open");
                 } else {
                     this.exprPanelEl.classList.remove("ebc-expr-open");
@@ -2253,6 +2277,23 @@ export class EBCDrawer {
         try {
             const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined;
             const v = store?.panelPos as { x?: unknown; y?: unknown } | null | undefined;
+            if (v && typeof v.x === "number" && typeof v.y === "number") return { x: v.x, y: v.y };
+            return null;
+        } catch { return null; }
+    }
+
+    private saveExprPanelPosition(pos: { x: number; y: number } | null): void {
+        try {
+            if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
+            (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).exprPanelPos = pos ?? null;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        } catch { /* ignore */ }
+    }
+
+    private loadExprPanelPosition(): { x: number; y: number } | null {
+        try {
+            const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined;
+            const v = store?.exprPanelPos as { x?: unknown; y?: unknown } | null | undefined;
             if (v && typeof v.x === "number" && typeof v.y === "number") return { x: v.x, y: v.y };
             return null;
         } catch { return null; }
@@ -6143,13 +6184,12 @@ export class EBCDrawer {
         header.appendChild(closeBtn);
         panel.appendChild(header);
 
-        // Make the header draggable
+        // Make the header draggable, persisting position
         dragHandle.addEventListener("mousedown", (e) => {
             e.preventDefault();
             const startX = e.clientX;
             const startY = e.clientY;
             const rect = panel.getBoundingClientRect();
-            // Switch to left-based positioning for free-float
             panel.style.right = "";
             panel.style.left  = `${rect.left}px`;
             panel.style.top   = `${rect.top}px`;
@@ -6161,6 +6201,12 @@ export class EBCDrawer {
             };
             const onUp = (): void => {
                 dragHandle.style.cursor = "";
+                const x = parseInt(panel.style.left, 10);
+                const y = parseInt(panel.style.top,  10);
+                if (!isNaN(x) && !isNaN(y)) {
+                    this.exprPanelPosition = { x, y };
+                    this.saveExprPanelPosition({ x, y });
+                }
                 document.removeEventListener("mousemove", onMove);
                 document.removeEventListener("mouseup",   onUp);
             };
