@@ -9,10 +9,17 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.2.4";
+const MOD_VERSION = "0.2.5";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.2.5",
+        changes: [
+            "DEV and CREDITS are now separate tabs — DEV holds developer tools, CREDITS holds special thanks cards.",
+            "DOM Tools restraint picker fix — all BC restraint groups (including gags) now appear correctly in the removal picker.",
+        ],
+    },
     {
         version: "0.2.4",
         changes: [

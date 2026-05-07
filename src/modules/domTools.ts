@@ -284,7 +284,7 @@ export function getTargetRestraints(): Array<{ target: DomTarget; items: Array<{
         const char = room.find(c => c.MemberNumber === target.id);
         if (!char) continue;
         const items = char.Appearance
-            .filter((a: Item) => RESTRAINT_GROUPS.has(a.Asset.Group.Name))
+            .filter((a: Item) => a.Asset.Group.IsRestraint)
             .map((a: Item) => ({ group: a.Asset.Group.Name, name: a.Asset.Name }));
         out.push({ target, items });
     }

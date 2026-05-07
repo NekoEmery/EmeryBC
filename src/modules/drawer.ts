@@ -1279,7 +1279,7 @@ const VIP_MEMBERS: Record<number, { label: string; color: string }> = {
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "buttons" | "poses" | "notes" | "thanks" | "dom";
+type DrawerTab = "outfits" | "buttons" | "poses" | "notes" | "thanks" | "dev" | "dom";
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -1465,8 +1465,14 @@ export class EBCDrawer {
         const thanksTabBtn = document.createElement("button");
         thanksTabBtn.className = "ebc-tab-btn";
         thanksTabBtn.id = "ebc-tab-thanks";
-        thanksTabBtn.textContent = "DEV";
-        thanksTabBtn.title = "Developer Tools & Credits";
+        thanksTabBtn.textContent = "CREDITS";
+        thanksTabBtn.title = "Special Thanks";
+
+        const devTabBtn2 = document.createElement("button");
+        devTabBtn2.className = "ebc-tab-btn";
+        devTabBtn2.id = "ebc-tab-dev";
+        devTabBtn2.textContent = "DEV";
+        devTabBtn2.title = "Developer Tools";
 
         // DOM tools tab — creator only, hidden until open() confirms the member number
         const domTabBtn = document.createElement("button");
@@ -1481,6 +1487,7 @@ export class EBCDrawer {
         tabBar.appendChild(posesTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(thanksTabBtn);
+        tabBar.appendChild(devTabBtn2);
         tabBar.appendChild(domTabBtn);
 
         // Quick actions bar (always visible below tabs)
@@ -1806,6 +1813,7 @@ export class EBCDrawer {
         posesTabBtn.addEventListener("click",    () => this.switchTab("poses"));
         notesTabBtn.addEventListener("click",    () => this.switchTab("notes"));
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
+        devTabBtn2.addEventListener("click",     () => this.switchTab("dev"));
         domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
 
         document.addEventListener("keydown", (e) => {
@@ -2039,6 +2047,7 @@ export class EBCDrawer {
             ["ebc-tab-poses",   "poses"],
             ["ebc-tab-notes",   "notes"],
             ["ebc-tab-thanks",  "thanks"],
+            ["ebc-tab-dev",     "dev"],
             ["ebc-tab-dom",     "dom"],
         ] as [string, DrawerTab][]) {
             const el = this.rootEl?.querySelector(`#${id}`);
@@ -2054,6 +2063,7 @@ export class EBCDrawer {
         else if (this.currentTab === "poses")    this.renderPoses();
         else if (this.currentTab === "notes")    this.renderNotes();
         else if (this.currentTab === "thanks")   this.renderThanks();
+        else if (this.currentTab === "dev")      this.renderDev();
         else if (this.currentTab === "dom")      this.renderDomTools();
     }
 
@@ -4134,14 +4144,13 @@ export class EBCDrawer {
         return container;
     }
 
-    // -- Special Thanks tab ----------------------------------------------------
+    // -- Developer Tools tab ---------------------------------------------------
 
-    private renderThanks(): void {
+    private renderDev(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // -- Developer Tools ---------------------------------------------------
         const devLbl = document.createElement("div");
         devLbl.className = "ebc-section-label";
         devLbl.textContent = "Developer Tools";
@@ -4255,15 +4264,18 @@ export class EBCDrawer {
         refreshPresence();
 
         const refreshBtn = document.createElement("button");
-        refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;margin-bottom:10px;";
+        refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
         refreshBtn.textContent = "↻ Refresh list";
         refreshBtn.addEventListener("click", () => { refreshPresence(); });
         body.appendChild(refreshBtn);
+    }
 
-        // -- Credits -----------------------------------------------------------
-        const credDiv = document.createElement("div");
-        credDiv.className = "ebc-divider";
-        body.appendChild(credDiv);
+    // -- Special Thanks tab ----------------------------------------------------
+
+    private renderThanks(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
 
         const credLbl = document.createElement("div");
         credLbl.className = "ebc-section-label";
