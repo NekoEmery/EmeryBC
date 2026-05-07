@@ -11,10 +11,17 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.4.5";
+const MOD_VERSION = "0.4.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.4.6",
+        changes: [
+            "Removed face/expression picker from ANIMS tab — poses and combos only.",
+            "Confirm before escaping now also gates Release Restraints and Remove Locks buttons — shows Cancel / Yes overlay before acting.",
+        ],
+    },
     {
         version: "0.4.5",
         changes: [

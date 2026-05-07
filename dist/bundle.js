@@ -813,156 +813,25 @@
         return outfit;
     }
 
-    // Expression presets and sequences — live expression picker + animated sequences.
-    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
-    // Friendly labels shown in the picker row headers
-    const EXPR_GROUP_LABELS = {
-        Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
-        Eyes: "Eyes L", Eyes2: "Eyes R", Mouth: "Mouth", Tears: "Tears",
-    };
-    function uid$3() {
-        return Math.random().toString(36).slice(2, 9);
-    }
-    function getStore$5() {
-        try {
-            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
-                return null;
-            if (!Player.ExtensionSettings.EmeryBC)
-                Player.ExtensionSettings.EmeryBC = {};
-            return Player.ExtensionSettings.EmeryBC;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    // -- Expression option discovery -----------------------------------------------
-    // Query BC's runtime Asset array for all expression options in a group.
-    // Falls back to a hardcoded list if the global isn't available.
-    const EXPR_FALLBACK = {
-        Blush: ["1", "2", "3", "4", "5"],
-        Emoticon: [
-            "Afk", "Anger", "Auction", "BecomeLeader", "Bed", "BrokenHeart", "Cake",
-            "Captured", "CollaredPickup", "Confused", "Dead", "GagTalk", "Heart",
-            "HighHeel", "Juice", "LostLeader", "Love", "Maid", "Meditate", "Music",
-            "Obey", "Orgasm", "Pain", "Question", "Read", "Shy", "Skull", "Sleeping",
-            "Snow", "Star", "Study", "Whisper", "XP", "Yell",
-        ],
-        Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Soft"],
-        Eyes: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
-        Eyes2: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
-        Mouth: ["Angry", "HalfOpen", "Open", "Sad", "Smile"],
-        Tears: ["Crying", "HeavyCrying", "Tear1", "Tear2", "Tear3"],
-    };
-    function getExprGroupOptions(group) {
-        var _a, _b;
-        try {
-            const bcAsset = window.Asset;
-            if (Array.isArray(bcAsset)) {
-                const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
-                // Family lives on the Group in BC, not on the Asset itself.
-                // Accept any asset whose group name matches and whose group family
-                // is either the player's family or unset (shared assets).
-                const opts = bcAsset
-                    .filter(a => a.Group.Name === group &&
-                    (a.Group.Family === family || !a.Group.Family))
-                    .map(a => a.Name);
-                if (opts.length > 0)
-                    return opts;
-            }
-        }
-        catch ( /* fall through */_c) { /* fall through */ }
-        return (_b = EXPR_FALLBACK[group]) !== null && _b !== void 0 ? _b : [];
-    }
-    // -- Single-expression apply ---------------------------------------------------
-    // Uses CharacterSetFacialExpression (BC's proper API) if available,
-    // otherwise falls back to direct Appearance manipulation.
-    function applyExprGroup(group, exprName) {
-        try {
-            const setExpr = window.CharacterSetFacialExpression;
-            if (setExpr) {
-                setExpr(Player, group, exprName, null, null);
-            }
-            else {
-                const idx = Player.Appearance.findIndex((i) => i.Asset.Group.Name === group);
-                if (idx !== -1)
-                    Player.Appearance.splice(idx, 1);
-                if (exprName) {
-                    const asset = AssetGet(Player.AssetFamily, group, exprName);
-                    if (asset)
-                        Player.Appearance.push({ Asset: asset, Color: "Default", Difficulty: 0 });
-                }
-            }
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
-    function getExpressionPresets() {
-        var _a;
-        try {
-            const list = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
-            return Array.isArray(list) ? list : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function saveExpressionPresets(presets) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.expressionPresets = presets;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function captureCurrentExpression(name) {
-        const groups = {};
-        try {
-            for (const group of EXPR_GROUPS) {
-                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                groups[group] = item
-                    ? { Name: item.Asset.Name, Color: item.Color !== undefined ? item.Color : undefined }
-                    : null;
-            }
-        }
-        catch ( /* return whatever captured so far */_a) { /* return whatever captured so far */ }
-        return { id: uid$3(), name: name || "Preset", groups };
-    }
-    function applyExpressionPreset(preset) {
-        try {
-            for (const [group, entry] of Object.entries(preset.groups)) {
-                try {
-                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
-                }
-                catch ( /* skip group */_a) { /* skip group */ }
-            }
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
-    }
-
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function getStore$4() {
+    function getStore$5() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function load$1() {
-        const list = getStore$4().palettes;
+        const list = getStore$5().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getStore$4().palettes = list;
+        getStore$5().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function uid$2() {
+    function uid$3() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getAllPalettes() {
@@ -979,7 +848,7 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$2(), name: name.trim() || "Palette", type: "outfit", colorMap };
+        const palette = { id: uid$3(), name: name.trim() || "Palette", type: "outfit", colorMap };
         save([...load$1(), palette]);
         return palette;
     }
@@ -991,7 +860,7 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$2(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
+        const palette = { id: uid$3(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
         save([...load$1(), palette]);
         return palette;
     }
@@ -1044,6 +913,94 @@
             p.name = name.trim();
             save(list);
         }
+    }
+
+    // Expression presets and sequences — live expression picker + animated sequences.
+    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
+    function uid$2() {
+        return Math.random().toString(36).slice(2, 9);
+    }
+    function getStore$4() {
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    // -- Single-expression apply ---------------------------------------------------
+    // Uses CharacterSetFacialExpression (BC's proper API) if available,
+    // otherwise falls back to direct Appearance manipulation.
+    function applyExprGroup(group, exprName) {
+        try {
+            const setExpr = window.CharacterSetFacialExpression;
+            if (setExpr) {
+                setExpr(Player, group, exprName, null, null);
+            }
+            else {
+                const idx = Player.Appearance.findIndex((i) => i.Asset.Group.Name === group);
+                if (idx !== -1)
+                    Player.Appearance.splice(idx, 1);
+                if (exprName) {
+                    const asset = AssetGet(Player.AssetFamily, group, exprName);
+                    if (asset)
+                        Player.Appearance.push({ Asset: asset, Color: "Default", Difficulty: 0 });
+                }
+            }
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
+    function getExpressionPresets() {
+        var _a;
+        try {
+            const list = (_a = getStore$4()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function saveExpressionPresets(presets) {
+        try {
+            const store = getStore$4();
+            if (!store)
+                return;
+            store.expressionPresets = presets;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function captureCurrentExpression(name) {
+        const groups = {};
+        try {
+            for (const group of EXPR_GROUPS) {
+                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
+                groups[group] = item
+                    ? { Name: item.Asset.Name, Color: item.Color !== undefined ? item.Color : undefined }
+                    : null;
+            }
+        }
+        catch ( /* return whatever captured so far */_a) { /* return whatever captured so far */ }
+        return { id: uid$2(), name: name, groups };
+    }
+    function applyExpressionPreset(preset) {
+        try {
+            for (const [group, entry] of Object.entries(preset.groups)) {
+                try {
+                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
+                }
+                catch ( /* skip group */_a) { /* skip group */ }
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
 
     // BC pose application and user-configurable pose combos.
@@ -1613,16 +1570,6 @@
         catch (_b) {
             return false;
         }
-    }
-    function setExprTabVisible(value) {
-        try {
-            const store = getStore$1();
-            if (!store)
-                return;
-            store.exprTabVisible = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
     }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
@@ -2201,6 +2148,38 @@
      * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
      * Thank you Sin for the open design!
      */
+    // -- Shared UI helpers ---------------------------------------------------------
+    function showQuickConfirm(message, onConfirm) {
+        const overlay = document.createElement("div");
+        overlay.style.cssText = [
+            "position:fixed", "top:50%", "left:50%",
+            "transform:translate(-50%,-50%)",
+            "background:#130810", "border:2px solid #cf6f98",
+            "border-radius:10px", "padding:16px 20px",
+            "z-index:999999", "font-family:'Trebuchet MS',serif",
+            "min-width:220px", "max-width:300px",
+            "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
+            "display:flex", "flex-direction:column", "gap:12px",
+        ].join(";");
+        const msg = document.createElement("div");
+        msg.style.cssText = "font-size:12px;color:#f7e6ee;line-height:1.5;text-align:center;";
+        msg.textContent = message;
+        overlay.appendChild(msg);
+        const btns = document.createElement("div");
+        btns.style.cssText = "display:flex;gap:8px;";
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #3a1928;background:#190b13;color:#7a5a6a;";
+        cancelBtn.addEventListener("click", () => overlay.remove());
+        const confirmBtn = document.createElement("button");
+        confirmBtn.textContent = "Yes";
+        confirmBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
+        confirmBtn.addEventListener("click", () => { overlay.remove(); onConfirm(); });
+        btns.appendChild(cancelBtn);
+        btns.appendChild(confirmBtn);
+        overlay.appendChild(btns);
+        document.body.appendChild(overlay);
+    }
     // -- Icon ----------------------------------------------------------------------
     const EXPR_TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 90 90">'
         + '<circle cx="45" cy="45" r="35" fill="#2a1421" stroke="#cf6f98" stroke-width="3"/>'
@@ -4054,6 +4033,16 @@
                     rebuildSelfPicker();
             });
             releaseBtn.addEventListener("click", () => {
+                if (getAntiRestraintConfirm()) {
+                    showQuickConfirm("Release all restraints?", () => {
+                        releaseBtn.disabled = true;
+                        releaseRestraints();
+                        if (selfPickPanel.style.display !== "none")
+                            rebuildSelfPicker();
+                        window.setTimeout(() => { releaseBtn.disabled = false; }, 1500);
+                    });
+                    return;
+                }
                 releaseBtn.disabled = true;
                 releaseRestraints();
                 if (selfPickPanel.style.display !== "none")
@@ -4061,6 +4050,16 @@
                 window.setTimeout(() => { releaseBtn.disabled = false; }, 1500);
             });
             unlockBtn.addEventListener("click", () => {
+                if (getAntiRestraintConfirm()) {
+                    showQuickConfirm("Remove all locks?", () => {
+                        unlockBtn.disabled = true;
+                        unlockItems();
+                        if (selfPickPanel.style.display !== "none")
+                            rebuildSelfPicker();
+                        window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
+                    });
+                    return;
+                }
                 unlockBtn.disabled = true;
                 unlockItems();
                 if (selfPickPanel.style.display !== "none")
@@ -6140,228 +6139,14 @@
         }
         // -- Poses tab -------------------------------------------------------------
         renderPoses() {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c, _d;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const currentPoses = getCurrentPoses();
-            // ── EXPRESSIONS ───────────────────────────────────────────────────────
-            // pickerState: what the user has selected (feeds sequence builder)
-            const pickerState = {};
-            for (const g of EXPR_GROUPS) {
-                try {
-                    const item = Player.Appearance.find((i) => i.Asset.Group.Name === g);
-                    pickerState[g] = item ? item.Asset.Name : null;
-                }
-                catch (_f) {
-                    pickerState[g] = null;
-                }
-            }
-            const BTN_BASE = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:border-color 0.1s,background 0.1s,color 0.1s;";
-            const BTN_ON = "border:1px solid #cf6f98;background:#3a1928;color:#cf6f98;";
-            const BTN_OFF = "border:1px solid #3a1928;background:#190b13;color:#7a5a6a;";
-            // Map: group → setActive fn (so preset-apply can refresh highlights)
-            const groupSetActive = new Map();
-            // ── Section 1: Presets quick-bar ──────────────────────────────────────
-            const presetSection = document.createElement("div");
-            presetSection.style.cssText = "margin-bottom:7px;";
-            body.appendChild(presetSection);
-            const presetHeader = document.createElement("div");
-            presetHeader.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:4px;";
-            const presetHdrLbl = document.createElement("span");
-            presetHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;flex:1;";
-            presetHdrLbl.textContent = "Presets";
-            const presetNameInp = Object.assign(document.createElement("input"), {
-                placeholder: "Name…", maxLength: 30,
-            });
-            presetNameInp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#190b13;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;width:88px;outline:none;";
-            presetNameInp.addEventListener("focus", () => { presetNameInp.style.borderColor = "#91405f"; });
-            presetNameInp.addEventListener("blur", () => { presetNameInp.style.borderColor = "#3a1928"; });
-            const presetSaveBtn = document.createElement("button");
-            presetSaveBtn.style.cssText = BTN_BASE + "border:1px solid #91405f;background:#3a1020;color:#cf6f98;";
-            presetSaveBtn.textContent = "Save";
-            presetSaveBtn.title = "Save current face as a preset";
-            presetHeader.appendChild(presetHdrLbl);
-            presetHeader.appendChild(presetNameInp);
-            presetHeader.appendChild(presetSaveBtn);
-            presetSection.appendChild(presetHeader);
-            const presetPillsRow = document.createElement("div");
-            presetPillsRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;min-height:20px;";
-            presetSection.appendChild(presetPillsRow);
-            const renderPresetList = () => {
-                while (presetPillsRow.firstChild)
-                    presetPillsRow.removeChild(presetPillsRow.firstChild);
-                const presets = getExpressionPresets();
-                if (presets.length === 0) {
-                    const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1928;";
-                    hint.textContent = "No presets yet";
-                    presetPillsRow.appendChild(hint);
-                    return;
-                }
-                for (const preset of presets) {
-                    const pill = document.createElement("button");
-                    pill.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 4px 2px 8px;border-radius:10px;border:1px solid #6b3048;background:#2a1421;color:#f7e6ee;cursor:pointer;transition:background 0.12s;";
-                    pill.addEventListener("mouseenter", () => { pill.style.background = "#3a1928"; });
-                    pill.addEventListener("mouseleave", () => { pill.style.background = "#2a1421"; });
-                    const pillName = document.createElement("span");
-                    pillName.textContent = preset.name;
-                    const pillApply = document.createElement("span");
-                    pillApply.style.cssText = "color:#cf6f98;font-size:9px;cursor:pointer;";
-                    pillApply.textContent = "▶";
-                    pillApply.title = "Apply";
-                    pillApply.addEventListener("click", (e) => {
-                        var _a, _b;
-                        e.stopPropagation();
-                        applyExpressionPreset(preset);
-                        for (const [g, fn] of groupSetActive)
-                            fn((_b = (_a = preset.groups[g]) === null || _a === void 0 ? void 0 : _a.Name) !== null && _b !== void 0 ? _b : null);
-                        const prev = pillName.textContent;
-                        pillName.textContent = "✓";
-                        window.setTimeout(() => { pillName.textContent = prev; }, 900);
-                    });
-                    const pillDel = document.createElement("span");
-                    pillDel.style.cssText = "color:#553142;font-size:11px;line-height:1;cursor:pointer;padding-left:1px;";
-                    pillDel.textContent = "×";
-                    pillDel.title = "Delete preset";
-                    pillDel.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
-                        renderPresetList();
-                    });
-                    pill.appendChild(pillApply);
-                    pill.appendChild(pillName);
-                    pill.appendChild(pillDel);
-                    presetPillsRow.appendChild(pill);
-                }
-            };
-            presetSaveBtn.addEventListener("click", () => {
-                const name = presetNameInp.value.trim() || "Preset";
-                const all = getExpressionPresets();
-                all.push(captureCurrentExpression(name));
-                saveExpressionPresets(all);
-                presetNameInp.value = "";
-                renderPresetList();
-            });
-            renderPresetList();
-            // ── Section 2: Face picker ─────────────────────────────────────────────
-            const faceBox = document.createElement("div");
-            faceBox.style.cssText = "background:#190b13;border:1px solid #3a1928;border-radius:5px;padding:5px 6px;margin-bottom:5px;display:flex;flex-direction:column;gap:3px;overflow:hidden;min-width:0;";
-            body.appendChild(faceBox);
-            const faceLblRow = document.createElement("div");
-            faceLblRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3040;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1px;";
-            faceLblRow.textContent = "Face";
-            faceBox.appendChild(faceLblRow);
-            const FACE_GROUPS = EXPR_GROUPS.filter(g => g !== "Emoticon");
-            for (const group of FACE_GROUPS) {
-                const options = getExprGroupOptions(group);
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:3px;min-width:0;";
-                const label = document.createElement("span");
-                label.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4458;width:46px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.03em;";
-                label.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
-                row.appendChild(label);
-                const scroll = document.createElement("div");
-                scroll.style.cssText = "display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin;scrollbar-color:#3a1928 transparent;padding-bottom:2px;";
-                const allBtns = [];
-                const setActive = (name) => {
-                    pickerState[group] = name;
-                    for (const { btn, name: n } of allBtns) {
-                        btn.style.cssText = BTN_BASE + (n === name ? BTN_ON : BTN_OFF);
-                    }
-                };
-                groupSetActive.set(group, setActive);
-                const noneBtn = document.createElement("button");
-                noneBtn.textContent = "×";
-                noneBtn.title = `Clear ${group}`;
-                noneBtn.style.cssText = BTN_BASE + (pickerState[group] === null ? BTN_ON : BTN_OFF);
-                noneBtn.addEventListener("click", () => { setActive(null); try {
-                    applyExprGroup(group, null);
-                }
-                catch ( /* ignore */_a) { /* ignore */ } });
-                allBtns.push({ btn: noneBtn, name: null });
-                scroll.appendChild(noneBtn);
-                for (const name of options) {
-                    const btn = document.createElement("button");
-                    btn.textContent = name;
-                    btn.title = `${group}: ${name}`;
-                    btn.style.cssText = BTN_BASE + (pickerState[group] === name ? BTN_ON : BTN_OFF);
-                    btn.addEventListener("click", () => { setActive(name); try {
-                        applyExprGroup(group, name);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ } });
-                    allBtns.push({ btn, name });
-                    scroll.appendChild(btn);
-                }
-                row.appendChild(scroll);
-                faceBox.appendChild(row);
-            }
-            // ── Section 3: Emoticons ──────────────────────────────────────────────
-            const emoBox = document.createElement("div");
-            emoBox.style.cssText = "background:#190b13;border:1px solid #3a1928;border-radius:5px;padding:5px 6px;margin-bottom:7px;";
-            body.appendChild(emoBox);
-            const emoLblRow = document.createElement("div");
-            emoLblRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3040;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
-            emoLblRow.textContent = "Emoticon";
-            emoBox.appendChild(emoLblRow);
-            const emoGrid = document.createElement("div");
-            emoGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:2px;";
-            emoBox.appendChild(emoGrid);
-            {
-                const group = "Emoticon";
-                const options = getExprGroupOptions(group);
-                const allBtns = [];
-                const setActive = (name) => {
-                    pickerState[group] = name;
-                    for (const { btn, name: n } of allBtns) {
-                        btn.style.cssText = BTN_BASE + (n === name ? BTN_ON : BTN_OFF);
-                    }
-                };
-                groupSetActive.set(group, setActive);
-                const noneBtn = document.createElement("button");
-                noneBtn.textContent = "× None";
-                noneBtn.title = "Clear emoticon";
-                noneBtn.style.cssText = BTN_BASE + (pickerState[group] === null ? BTN_ON : BTN_OFF);
-                noneBtn.addEventListener("click", () => { setActive(null); try {
-                    applyExprGroup(group, null);
-                }
-                catch ( /* ignore */_a) { /* ignore */ } });
-                allBtns.push({ btn: noneBtn, name: null });
-                emoGrid.appendChild(noneBtn);
-                for (const name of options) {
-                    const btn = document.createElement("button");
-                    btn.textContent = name;
-                    btn.title = `Emoticon: ${name}`;
-                    btn.style.cssText = BTN_BASE + (pickerState[group] === name ? BTN_ON : BTN_OFF);
-                    btn.addEventListener("click", () => { setActive(name); try {
-                        applyExprGroup(group, name);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ } });
-                    allBtns.push({ btn, name });
-                    emoGrid.appendChild(btn);
-                }
-            }
-            // ── Floating button toggle (bottom, unobtrusive) ──────────────────────
-            const exprToggleRow = document.createElement("div");
-            exprToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:4px;padding-top:6px;border-top:1px solid #2a1421;";
-            const exprToggleCb = Object.assign(document.createElement("input"), {
-                type: "checkbox", id: "ebc-anims-expr-toggle", checked: getExprTabVisible(),
-            });
-            exprToggleCb.style.accentColor = "#cf6f98";
-            exprToggleCb.addEventListener("change", () => { setExprTabVisible(exprToggleCb.checked); this.updateExprTabVisibility(); });
-            const exprToggleLbl = document.createElement("label");
-            exprToggleLbl.htmlFor = "ebc-anims-expr-toggle";
-            exprToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;cursor:pointer;";
-            exprToggleLbl.textContent = "Show floating expression button";
-            exprToggleRow.appendChild(exprToggleCb);
-            exprToggleRow.appendChild(exprToggleLbl);
-            body.appendChild(exprToggleRow);
-            // Second divider before poses
-            const posesDivider = document.createElement("div");
-            posesDivider.style.cssText = "border-top:1px solid #3a1928;margin:8px 0;";
-            body.appendChild(posesDivider);
+            // ── POSES ─────────────────────────────────────────────────────────────
             // Helper: true when a pose key is currently active
             const isPoseActive = (key) => currentPoses.includes(key);
             // Helper: build an ordered pose step editor.
@@ -6803,9 +6588,9 @@
                 poseSectionLbl.className = "ebc-import-hint";
                 poseSectionLbl.textContent = "Sequence:";
                 editor.appendChild(poseSectionLbl);
-                const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_c = combo.stepDelayMs) !== null && _c !== void 0 ? _c : 420);
+                const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_b = combo.stepDelayMs) !== null && _b !== void 0 ? _b : 420);
                 // Command + Announce
-                const { getCommand, getAnnounce } = buildComboOptions(editor, (_d = combo.command) !== null && _d !== void 0 ? _d : "", (_e = combo.announceText) !== null && _e !== void 0 ? _e : "");
+                const { getCommand, getAnnounce } = buildComboOptions(editor, (_c = combo.command) !== null && _c !== void 0 ? _c : "", (_d = combo.announceText) !== null && _d !== void 0 ? _d : "");
                 // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
                 topSaveBtn.addEventListener("click", () => {
                     updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
@@ -8500,9 +8285,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.4.5";
+    const MOD_VERSION = "0.4.6";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.4.6",
+            changes: [
+                "Removed face/expression picker from ANIMS tab — poses and combos only.",
+                "Confirm before escaping now also gates Release Restraints and Remove Locks buttons — shows Cancel / Yes overlay before acting.",
+            ],
+        },
         {
             version: "0.4.5",
             changes: [
