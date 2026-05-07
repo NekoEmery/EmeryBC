@@ -11,10 +11,19 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.4.1";
+const MOD_VERSION = "0.4.2";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.4.2",
+        changes: [
+            "Confirm before escaping moved to the quick-action bar between Release/Remove Locks and the item picker — always visible.",
+            "Expressions tab redesigned: presets as a quick-apply pill strip at top, face groups in a clean box, emoticons in their own wrap grid, sequences section with inline + New button.",
+            "Preset apply now syncs picker highlights immediately.",
+            "Floating expression button toggle moved to bottom of ANIMS tab.",
+        ],
+    },
     {
         version: "0.4.1",
         changes: [
