@@ -59,6 +59,58 @@ export function releaseRestraints(): void {
     localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
 }
 
+// Returns un-protected restraint items currently worn by the player.
+export function getPlayerRestraints(): Array<{ group: string; name: string }> {
+    return Player.Appearance
+        .filter(item => item.Asset.Group.IsRestraint && !isProtectedLock(item))
+        .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
+}
+
+// Returns locked (non-protected) items currently worn by the player.
+export function getPlayerLockedItems(): Array<{ group: string; name: string }> {
+    return Player.Appearance
+        .filter(item => !!(item.Property?.LockedBy) && !isProtectedLock(item))
+        .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
+}
+
+// Removes specific items by group name from the player. Returns count removed.
+export function removePlayerSpecificItems(groups: string[]): number {
+    let count = 0;
+    for (const group of groups) {
+        try { InventoryRemove(Player, group, false); count++; } catch { /* ignore */ }
+    }
+    if (count > 0) {
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+    }
+    return count;
+}
+
+// Unlocks specific items by group name on the player. Returns count unlocked.
+export function unlockPlayerSpecificItems(groups: string[]): number {
+    let count = 0;
+    for (const group of groups) {
+        const item = Player.Appearance.find(a => a.Asset.Group.Name === group);
+        if (!item?.Property || isProtectedLock(item)) continue;
+        delete item.Property["LockedBy"];
+        delete item.Property["LockMemberNumber"];
+        delete item.Property["CombinationNumber"];
+        delete item.Property["Password"];
+        delete item.Property["MemberNumberListKeys"];
+        delete item.Property["RemoveItem"];
+        delete item.Property["ShowTimer"];
+        delete item.Property["EnableRandomInput"];
+        count++;
+    }
+    if (count > 0) {
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+    }
+    return count;
+}
+
 // /ebc unlock - strips lock data from items, skips protected locks
 export function unlockItems(): void {
     let unlocked = 0;

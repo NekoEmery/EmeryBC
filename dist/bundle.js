@@ -1176,6 +1176,59 @@
         ServerPlayerAppearanceSync();
         localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
     }
+    // Returns un-protected restraint items currently worn by the player.
+    function getPlayerRestraints() {
+        return Player.Appearance
+            .filter(item => item.Asset.Group.IsRestraint && !isProtectedLock(item))
+            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
+    }
+    // Returns locked (non-protected) items currently worn by the player.
+    function getPlayerLockedItems() {
+        return Player.Appearance
+            .filter(item => { var _a; return !!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) && !isProtectedLock(item); })
+            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
+    }
+    // Removes specific items by group name from the player. Returns count removed.
+    function removePlayerSpecificItems(groups) {
+        let count = 0;
+        for (const group of groups) {
+            try {
+                InventoryRemove(Player, group, false);
+                count++;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        if (count > 0) {
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
+        }
+        return count;
+    }
+    // Unlocks specific items by group name on the player. Returns count unlocked.
+    function unlockPlayerSpecificItems(groups) {
+        let count = 0;
+        for (const group of groups) {
+            const item = Player.Appearance.find(a => a.Asset.Group.Name === group);
+            if (!(item === null || item === void 0 ? void 0 : item.Property) || isProtectedLock(item))
+                continue;
+            delete item.Property["LockedBy"];
+            delete item.Property["LockMemberNumber"];
+            delete item.Property["CombinationNumber"];
+            delete item.Property["Password"];
+            delete item.Property["MemberNumberListKeys"];
+            delete item.Property["RemoveItem"];
+            delete item.Property["ShowTimer"];
+            delete item.Property["EnableRandomInput"];
+            count++;
+        }
+        if (count > 0) {
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
+        }
+        return count;
+    }
     // /ebc unlock - strips lock data from items, skips protected locks
     function unlockItems() {
         var _a;
@@ -1397,7 +1450,7 @@
     }
     // Apply a restraint set to every in-room target, then send the announce emote.
     function applyDomSet(setId) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         const cfg = loadConfig();
         const set = cfg.sets.find(s => s.id === setId);
         if (!set)
@@ -1417,6 +1470,14 @@
                 try {
                     if (InventoryWearFn) {
                         InventoryWearFn(char, item.Name, item.Group, item.Color, (_b = item.Difficulty) !== null && _b !== void 0 ? _b : 0, Player.AssetFamily, item.Craft);
+                        // InventoryWear has no Property parameter — restore it after the call
+                        // so states like tight gag, device settings, etc. are preserved.
+                        if (item.Property && Object.keys(item.Property).length > 0) {
+                            const worn = char.Appearance.find((a) => a.Asset.Group.Name === item.Group);
+                            if (worn) {
+                                worn.Property = Object.assign(Object.assign({}, ((_c = worn.Property) !== null && _c !== void 0 ? _c : {})), item.Property);
+                            }
+                        }
                     }
                     else {
                         const asset = AssetGet(Player.AssetFamily, item.Group, item.Name);
@@ -1427,14 +1488,14 @@
                             char.Appearance.splice(idx, 1);
                         char.Appearance.push({
                             Asset: asset,
-                            Color: ((_c = item.Color) !== null && _c !== void 0 ? _c : "Default"),
-                            Property: ((_d = item.Property) !== null && _d !== void 0 ? _d : {}),
+                            Color: ((_d = item.Color) !== null && _d !== void 0 ? _d : "Default"),
+                            Property: ((_e = item.Property) !== null && _e !== void 0 ? _e : {}),
                             Craft: item.Craft,
                         });
                     }
                     anyApplied = true;
                 }
-                catch ( /* ignore individual item failures */_e) { /* ignore individual item failures */ }
+                catch ( /* ignore individual item failures */_f) { /* ignore individual item failures */ }
             }
             if (anyApplied) {
                 try {
@@ -1448,7 +1509,7 @@
                         updateFn(char);
                     applied.push(target.name);
                 }
-                catch (_f) {
+                catch (_g) {
                     skipped.push(target.name);
                 }
             }
@@ -2981,6 +3042,10 @@
             // Quick actions bar (always visible below tabs)
             const quickActions = document.createElement("div");
             quickActions.className = "ebc-quick-actions";
+            quickActions.style.cssText = quickActions.style.cssText + ";flex-direction:column;gap:4px;";
+            // Row 1: all-at-once danger buttons
+            const qaRow1 = document.createElement("div");
+            qaRow1.style.cssText = "display:flex;gap:5px;";
             const releaseBtn = document.createElement("button");
             releaseBtn.className = "ebc-action-btn danger";
             releaseBtn.title = "Remove all restraints (skips owner/lover/family locks)";
@@ -2989,8 +3054,136 @@
             unlockBtn.className = "ebc-action-btn danger";
             unlockBtn.title = "Remove all locks (skips owner/lover/family locks)";
             unlockBtn.textContent = "Remove Locks";
-            quickActions.appendChild(releaseBtn);
-            quickActions.appendChild(unlockBtn);
+            qaRow1.appendChild(releaseBtn);
+            qaRow1.appendChild(unlockBtn);
+            quickActions.appendChild(qaRow1);
+            // Row 2: self-picker toggle (full-width, subtle)
+            const selfPickToggle = document.createElement("button");
+            selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
+            selfPickToggle.textContent = "↓ Pick items to remove from yourself";
+            selfPickToggle.title = "Choose specific restraints or locks to strip from yourself";
+            selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.color = "#cf6f98"; });
+            selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none")
+                selfPickToggle.style.color = "#7a4a5e"; });
+            quickActions.appendChild(selfPickToggle);
+            // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
+            const selfPickPanel = document.createElement("div");
+            selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
+            const selfPickStatus = document.createElement("div");
+            selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
+            // Track selections: group → "restraint" | "lock"
+            const selfSelected = new Map();
+            const rebuildSelfPicker = () => {
+                while (selfPickPanel.firstChild)
+                    selfPickPanel.removeChild(selfPickPanel.firstChild);
+                selfSelected.clear();
+                const restraints = getPlayerRestraints();
+                const locks = getPlayerLockedItems();
+                if (restraints.length === 0 && locks.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:2px;";
+                    hint.textContent = "Nothing to remove — no restraints or locks found.";
+                    selfPickPanel.appendChild(hint);
+                    selfPickPanel.appendChild(selfPickStatus);
+                    return;
+                }
+                const makeSection = (title, items, kind) => {
+                    if (items.length === 0)
+                        return;
+                    const hdr = document.createElement("div");
+                    hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;";
+                    hdr.textContent = title;
+                    selfPickPanel.appendChild(hdr);
+                    for (const item of items) {
+                        const lbl = document.createElement("label");
+                        lbl.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
+                        lbl.addEventListener("mouseenter", () => { lbl.style.background = "rgba(42,20,33,0.6)"; });
+                        lbl.addEventListener("mouseleave", () => { lbl.style.background = ""; });
+                        const cb = document.createElement("input");
+                        cb.type = "checkbox";
+                        cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                        cb.addEventListener("change", () => {
+                            if (cb.checked)
+                                selfSelected.set(item.group, kind);
+                            else
+                                selfSelected.delete(item.group);
+                        });
+                        const nm = document.createElement("span");
+                        nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        nm.textContent = item.name;
+                        const gr = document.createElement("span");
+                        gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                        gr.textContent = item.group.replace("Item", "");
+                        lbl.appendChild(cb);
+                        lbl.appendChild(nm);
+                        lbl.appendChild(gr);
+                        selfPickPanel.appendChild(lbl);
+                    }
+                };
+                makeSection("Restraints", restraints, "restraint");
+                makeSection("Locks", locks, "lock");
+                // Two action buttons
+                const btnRow = document.createElement("div");
+                btnRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;";
+                const removeSelBtn = document.createElement("button");
+                removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+                removeSelBtn.textContent = "↑ Remove Selected";
+                removeSelBtn.addEventListener("mouseenter", () => { removeSelBtn.style.background = "#5a1c30"; });
+                removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a1020"; });
+                removeSelBtn.addEventListener("click", () => {
+                    const groups = [...selfSelected.entries()].filter(([, k]) => k === "restraint").map(([g]) => g);
+                    if (groups.length === 0) {
+                        selfPickStatus.textContent = "Select restraints first.";
+                        return;
+                    }
+                    const n = removePlayerSpecificItems(groups);
+                    selfPickStatus.textContent = n > 0 ? ("✓ Removed " + n + " item(s).") : "Nothing removed.";
+                    rebuildSelfPicker();
+                    window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
+                });
+                const unlockSelBtn = document.createElement("button");
+                unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
+                unlockSelBtn.textContent = "🔓 Unlock Selected";
+                unlockSelBtn.addEventListener("mouseenter", () => { unlockSelBtn.style.background = "#1a4a2a"; });
+                unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#0f2a1a"; });
+                unlockSelBtn.addEventListener("click", () => {
+                    const groups = [...selfSelected.entries()].filter(([, k]) => k === "lock").map(([g]) => g);
+                    if (groups.length === 0) {
+                        selfPickStatus.textContent = "Select locks first.";
+                        return;
+                    }
+                    const n = unlockPlayerSpecificItems(groups);
+                    selfPickStatus.textContent = n > 0 ? ("✓ Unlocked " + n + " item(s).") : "Nothing unlocked.";
+                    rebuildSelfPicker();
+                    window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
+                });
+                btnRow.appendChild(removeSelBtn);
+                btnRow.appendChild(unlockSelBtn);
+                selfPickPanel.appendChild(btnRow);
+                selfPickPanel.appendChild(selfPickStatus);
+            };
+            selfPickToggle.addEventListener("click", () => {
+                const isOpen = selfPickPanel.style.display !== "none";
+                selfPickPanel.style.display = isOpen ? "none" : "flex";
+                selfPickToggle.style.borderStyle = isOpen ? "dashed" : "solid";
+                selfPickToggle.style.color = isOpen ? "#7a4a5e" : "#cf6f98";
+                if (!isOpen)
+                    rebuildSelfPicker();
+            });
+            releaseBtn.addEventListener("click", () => {
+                releaseBtn.disabled = true;
+                releaseRestraints();
+                if (selfPickPanel.style.display !== "none")
+                    rebuildSelfPicker();
+                window.setTimeout(() => { releaseBtn.disabled = false; }, 1500);
+            });
+            unlockBtn.addEventListener("click", () => {
+                unlockBtn.disabled = true;
+                unlockItems();
+                if (selfPickPanel.style.display !== "none")
+                    rebuildSelfPicker();
+                window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
+            });
             // Badge visibility toggle row (below the danger buttons)
             const badgeRow = document.createElement("div");
             badgeRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
@@ -3045,6 +3238,7 @@
             panel.appendChild(header);
             panel.appendChild(tabBar);
             panel.appendChild(quickActions);
+            panel.appendChild(selfPickPanel);
             panel.appendChild(badgeRow);
             panel.appendChild(body);
             panel.appendChild(footer);
@@ -3139,16 +3333,6 @@
                 refreshBtn.classList.add("spinning");
                 refreshBtn.addEventListener("animationend", () => refreshBtn.classList.remove("spinning"), { once: true });
                 this.renderCurrentTab();
-            });
-            releaseBtn.addEventListener("click", () => {
-                releaseBtn.disabled = true;
-                releaseRestraints();
-                window.setTimeout(() => { releaseBtn.disabled = false; }, 1500);
-            });
-            unlockBtn.addEventListener("click", () => {
-                unlockBtn.disabled = true;
-                unlockItems();
-                window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
             });
             outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
             buttonsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
@@ -5986,9 +6170,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.2.1";
+    const MOD_VERSION = "0.2.2";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.2.2",
+            changes: [
+                "Fixed restraint states not being preserved when applying DOM sets: Property (tight gag, device settings, etc.) is now restored after InventoryWear since BC's function does not accept it as a parameter.",
+                "Self item picker: 'Pick items to remove from yourself' toggle in the quick-actions bar expands a panel showing your own restraints and locks as checkboxes, with Remove Selected and Unlock Selected buttons.",
+                "Quick 'Release Restraints' and 'Remove Locks' buttons now also refresh the self-picker panel if it is open.",
+            ],
+        },
         {
             version: "0.2.1",
             changes: [

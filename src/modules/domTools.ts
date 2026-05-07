@@ -187,6 +187,17 @@ export function applyDomSet(setId: string): { applied: string[]; skipped: string
                 if (InventoryWearFn) {
                     InventoryWearFn(char, item.Name, item.Group,
                         item.Color, item.Difficulty ?? 0, Player.AssetFamily, item.Craft);
+                    // InventoryWear has no Property parameter — restore it after the call
+                    // so states like tight gag, device settings, etc. are preserved.
+                    if (item.Property && Object.keys(item.Property).length > 0) {
+                        const worn = char.Appearance.find((a: Item) => a.Asset.Group.Name === item.Group);
+                        if (worn) {
+                            worn.Property = {
+                                ...(worn.Property as Record<string, unknown> ?? {}),
+                                ...(item.Property as Record<string, unknown>),
+                            } as Record<string, unknown>;
+                        }
+                    }
                 } else {
                     const asset = AssetGet(Player.AssetFamily, item.Group, item.Name);
                     if (!asset) continue;
