@@ -3096,6 +3096,7 @@
             tabStrip.id = "ebc-tab-strip";
             tabStrip.title = "Open EmeryBC";
             tabStrip.style.display = "block"; // visible on load (panel starts closed)
+            tabStrip.style.pointerEvents = "auto"; // must be explicit — inherits "none" from parent tab
             tabStrip.addEventListener("click", (e) => { e.stopPropagation(); this.open(); });
             tab.appendChild(tabStrip);
             root.appendChild(tab);
