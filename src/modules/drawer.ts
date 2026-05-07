@@ -35,6 +35,11 @@ import {
     saveExpressionPresets,
     captureCurrentExpression,
     applyExpressionPreset,
+    getExpressionSequences,
+    saveExpressionSequences,
+    createExpressionSequence,
+    playExpressionSequence,
+    isSeqRunning,
 } from "./expressions";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -4260,6 +4265,250 @@ export class EBCDrawer {
         const exprDivider = document.createElement("div");
         exprDivider.style.cssText = "border-top:1px solid #3a1928;margin:8px 0;";
         body.appendChild(exprDivider);
+
+        // ── Expression Sequences ──────────────────────────────────────────────
+        const seqSectionLbl = document.createElement("div");
+        seqSectionLbl.className = "ebc-section-label";
+        seqSectionLbl.textContent = "EXPRESSION SEQUENCES";
+        body.appendChild(seqSectionLbl);
+
+        const seqHint = document.createElement("div");
+        seqHint.className = "ebc-import-hint";
+        seqHint.style.marginBottom = "5px";
+        seqHint.textContent = "Chain expression presets with delays — plays like an animation.";
+        body.appendChild(seqHint);
+
+        // Sequence list
+        const seqListEl = document.createElement("div");
+        seqListEl.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:5px;";
+        body.appendChild(seqListEl);
+
+        const renderSeqList = (): void => {
+            while (seqListEl.firstChild) seqListEl.removeChild(seqListEl.firstChild);
+            const seqs = getExpressionSequences();
+            if (seqs.length === 0) {
+                const hint = document.createElement("div");
+                hint.className = "ebc-expr-hint";
+                hint.textContent = "No sequences yet — create one below.";
+                seqListEl.appendChild(hint);
+                return;
+            }
+            for (const seq of seqs) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:4px;";
+
+                const playBtn = document.createElement("button");
+                playBtn.className = "ebc-wear-btn";
+                playBtn.style.flexShrink = "0";
+                playBtn.textContent = "▶";
+                playBtn.title = `Play "${seq.name}" (${seq.steps.length} steps)`;
+                playBtn.addEventListener("click", () => {
+                    if (isSeqRunning()) return;
+                    playBtn.textContent = "…";
+                    playBtn.disabled = true;
+                    const totalMs = seq.steps.reduce((s, x) => s + x.delayMs, 0);
+                    playExpressionSequence(seq, () => {
+                        playBtn.textContent = "▶";
+                        playBtn.disabled = false;
+                    });
+                    window.setTimeout(() => {
+                        playBtn.textContent = "▶";
+                        playBtn.disabled = false;
+                    }, totalMs + 500);
+                });
+
+                const nameLbl = document.createElement("span");
+                nameLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                nameLbl.textContent = seq.name;
+                nameLbl.title = seq.steps.map((s, i) => {
+                    const p = getExpressionPresets().find(x => x.id === s.presetId);
+                    return `${i + 1}. ${p?.name ?? "(deleted)"} — ${s.delayMs}ms`;
+                }).join("\n");
+
+                const stepsLbl = document.createElement("span");
+                stepsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+                stepsLbl.textContent = `${seq.steps.length} step${seq.steps.length !== 1 ? "s" : ""}`;
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-expr-del";
+                delBtn.textContent = "×";
+                delBtn.title = "Delete sequence";
+                delBtn.addEventListener("click", () => {
+                    const updated = getExpressionSequences().filter(s => s.id !== seq.id);
+                    saveExpressionSequences(updated);
+                    renderSeqList();
+                });
+
+                row.appendChild(playBtn);
+                row.appendChild(nameLbl);
+                row.appendChild(stepsLbl);
+                row.appendChild(delBtn);
+                seqListEl.appendChild(row);
+            }
+        };
+        renderSeqList();
+
+        // New sequence builder
+        const nsToggleBtn = document.createElement("button");
+        nsToggleBtn.className = "ebc-icon-btn";
+        nsToggleBtn.style.cssText = "width:100%;font-size:10px;padding:3px;margin-bottom:4px;";
+        nsToggleBtn.textContent = "+ New Sequence";
+        body.appendChild(nsToggleBtn);
+
+        const nsBuilder = document.createElement("div");
+        nsBuilder.style.cssText = "background:#190b13;border:1px solid #3a1928;border-radius:5px;padding:6px;display:none;flex-direction:column;gap:5px;margin-bottom:6px;";
+        body.appendChild(nsBuilder);
+
+        nsToggleBtn.addEventListener("click", () => {
+            const open = nsBuilder.style.display !== "none";
+            nsBuilder.style.display = open ? "none" : "flex";
+            nsToggleBtn.textContent = open ? "+ New Sequence" : "− Cancel";
+        });
+
+        // Name row
+        const nsNameRow = document.createElement("div");
+        nsNameRow.className = "ebc-form-row";
+        const nsNameLbl = document.createElement("span");
+        nsNameLbl.className = "ebc-form-label";
+        nsNameLbl.textContent = "Name";
+        const nsNameInp = Object.assign(document.createElement("input"), {
+            type: "text", placeholder: "Sequence name...", maxLength: 30,
+        }) as HTMLInputElement;
+        nsNameInp.className = "ebc-form-input";
+        nsNameInp.style.flex = "1";
+        nsNameRow.appendChild(nsNameLbl);
+        nsNameRow.appendChild(nsNameInp);
+        nsBuilder.appendChild(nsNameRow);
+
+        // Step list
+        const nsStepListEl = document.createElement("div");
+        nsStepListEl.style.cssText = "display:flex;flex-direction:column;gap:3px;";
+        nsBuilder.appendChild(nsStepListEl);
+
+        const nsSteps: { presetId: string; delayMs: number }[] = [];
+
+        const renderNsSteps = (): void => {
+            while (nsStepListEl.firstChild) nsStepListEl.removeChild(nsStepListEl.firstChild);
+            const presets = getExpressionPresets();
+            if (nsSteps.length === 0) {
+                const hint = document.createElement("div");
+                hint.className = "ebc-expr-hint";
+                hint.textContent = "Add preset steps below.";
+                nsStepListEl.appendChild(hint);
+                return;
+            }
+            for (let i = 0; i < nsSteps.length; i++) {
+                const step = nsSteps[i];
+                const preset = presets.find(p => p.id === step.presetId);
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:4px;";
+
+                const numLbl = document.createElement("span");
+                numLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;width:14px;flex-shrink:0;";
+                numLbl.textContent = `${i + 1}.`;
+
+                const nameLbl = document.createElement("span");
+                nameLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                nameLbl.textContent = preset ? preset.name : "(deleted)";
+
+                const delayInp = Object.assign(document.createElement("input"), {
+                    type: "number", min: "100", max: "5000", value: String(step.delayMs),
+                    title: "Hold this expression for (ms)",
+                }) as HTMLInputElement;
+                delayInp.className = "ebc-form-input";
+                delayInp.style.cssText = "width:64px;flex-shrink:0;";
+                delayInp.addEventListener("change", () => {
+                    const v = parseInt(delayInp.value, 10);
+                    if (!isNaN(v)) nsSteps[i].delayMs = Math.max(100, Math.min(5000, v));
+                });
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-expr-del";
+                delBtn.textContent = "×";
+                delBtn.addEventListener("click", () => { nsSteps.splice(i, 1); renderNsSteps(); });
+
+                row.appendChild(numLbl);
+                row.appendChild(nameLbl);
+                row.appendChild(delayInp);
+                row.appendChild(delBtn);
+                nsStepListEl.appendChild(row);
+            }
+        };
+        renderNsSteps();
+
+        // Add-step row
+        const nsAddRow = document.createElement("div");
+        nsAddRow.style.cssText = "display:flex;gap:4px;align-items:center;";
+
+        const nsPresetSel = document.createElement("select");
+        nsPresetSel.className = "ebc-form-input";
+        nsPresetSel.style.flex = "1";
+
+        const refreshNsPresetSel = (): void => {
+            while (nsPresetSel.firstChild) nsPresetSel.removeChild(nsPresetSel.firstChild);
+            const presets = getExpressionPresets();
+            if (presets.length === 0) {
+                const opt = Object.assign(document.createElement("option"), { textContent: "No presets saved", disabled: true });
+                nsPresetSel.appendChild(opt);
+            } else {
+                for (const p of presets) {
+                    const opt = document.createElement("option");
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    nsPresetSel.appendChild(opt);
+                }
+            }
+        };
+        refreshNsPresetSel();
+
+        const nsDelayInp = Object.assign(document.createElement("input"), {
+            type: "number", min: "100", max: "5000", value: "600",
+            title: "Hold duration (ms)",
+        }) as HTMLInputElement;
+        nsDelayInp.className = "ebc-form-input";
+        nsDelayInp.style.width = "64px";
+
+        const nsAddBtn = document.createElement("button");
+        nsAddBtn.className = "ebc-update-btn";
+        nsAddBtn.textContent = "+ Step";
+        nsAddBtn.addEventListener("click", () => {
+            const id = nsPresetSel.value;
+            if (!id) return;
+            const delay = Math.max(100, Math.min(5000, parseInt(nsDelayInp.value, 10) || 600));
+            nsSteps.push({ presetId: id, delayMs: delay });
+            renderNsSteps();
+        });
+
+        nsAddRow.appendChild(nsPresetSel);
+        nsAddRow.appendChild(nsDelayInp);
+        nsAddRow.appendChild(nsAddBtn);
+        nsBuilder.appendChild(nsAddRow);
+
+        // Save button
+        const nsSaveBtn = document.createElement("button");
+        nsSaveBtn.className = "ebc-wear-btn";
+        nsSaveBtn.style.cssText = "width:100%;margin-top:2px;";
+        nsSaveBtn.textContent = "Save Sequence";
+        nsSaveBtn.addEventListener("click", () => {
+            const name = nsNameInp.value.trim();
+            if (!name) { nsNameInp.style.borderColor = "#cf6f98"; return; }
+            if (nsSteps.length === 0) return;
+            const all = getExpressionSequences();
+            all.push(createExpressionSequence(name, [...nsSteps]));
+            saveExpressionSequences(all);
+            nsNameInp.value = "";
+            nsSteps.length = 0;
+            renderNsSteps();
+            renderSeqList();
+            nsBuilder.style.display = "none";
+            nsToggleBtn.textContent = "+ New Sequence";
+        });
+        nsBuilder.appendChild(nsSaveBtn);
+
+        // Second divider before poses
+        const posesDivider = document.createElement("div");
+        posesDivider.style.cssText = "border-top:1px solid #3a1928;margin:8px 0;";
+        body.appendChild(posesDivider);
 
         // Helper: true when a pose key is currently active
         const isPoseActive = (key: string): boolean => currentPoses.includes(key);

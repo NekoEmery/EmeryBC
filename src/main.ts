@@ -11,10 +11,17 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.6";
+const MOD_VERSION = "0.3.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.7",
+        changes: [
+            "Fix: expression preset apply now uses AssetGet + direct Appearance manipulation instead of InventoryWear, which was silently rejected for cosmetic groups.",
+            "ANIMS tab: Expression Sequences — chain saved presets into an animated sequence with per-step hold durations; play button runs the sequence live.",
+        ],
+    },
     {
         version: "0.3.6",
         changes: [
