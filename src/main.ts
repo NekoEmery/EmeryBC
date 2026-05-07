@@ -9,10 +9,17 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.2.2";
+const MOD_VERSION = "0.2.3";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.2.3",
+        changes: [
+            "Fixed 'No restraint items found' error: parser now returns ALL items from a BC outfit code and lets you pick. Restraints are pre-checked; clothing items show unchecked so you can ignore them.",
+            "Checklist groups items into Restraints and Clothing / Other sections with a count per section.",
+        ],
+    },
     {
         version: "0.2.2",
         changes: [

@@ -58,6 +58,7 @@ import {
     updateDomSet,
     deleteDomSet,
     parseBCCodeItems,
+    type ParsedBCItem,
     applyDomSet,
     getTargetRestraints,
     removeTargetItems,
@@ -4665,7 +4666,7 @@ export class EBCDrawer {
                 const checklistEl = document.createElement("div");
                 checklistEl.style.cssText = "display:none;max-height:120px;overflow-y:auto;border:1px solid #3a1928;border-radius:5px;background:rgba(27,13,23,0.6);padding:4px;";
 
-                let parsedItems: SerializedItem[] = [];
+                let parsedItems: ParsedBCItem[] = [];
 
                 const parseBtn = document.createElement("button");
                 parseBtn.style.cssText = "width:100%;background:#2a1421;border:1px solid #7a4a5e;border-radius:5px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
@@ -4684,27 +4685,51 @@ export class EBCDrawer {
                         return;
                     }
                     while (checklistEl.firstChild) checklistEl.removeChild(checklistEl.firstChild);
-                    for (const pItem of parsedItems) {
+
+                    // Group: restraints first (pre-checked), then clothing (unchecked)
+                    const restraints = parsedItems.filter(p => p.isRestraint);
+                    const clothing   = parsedItems.filter(p => !p.isRestraint);
+
+                    const addSectionHeader = (text: string): void => {
+                        const sh = document.createElement("div");
+                        sh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;padding:3px 2px 1px;";
+                        sh.textContent = text;
+                        checklistEl.appendChild(sh);
+                    };
+
+                    const addCheckRow = (pItem: ParsedBCItem, defaultChecked: boolean): void => {
                         const lbl2 = document.createElement("label");
                         lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:3px;cursor:pointer;";
                         lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(42,20,33,0.5)"; });
                         lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
                         const cb = document.createElement("input");
                         cb.type = "checkbox";
-                        cb.checked = true;
+                        cb.checked = defaultChecked;
                         cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
                         const cbName = document.createElement("span");
-                        cbName.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        cbName.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" + (defaultChecked ? "color:#f7e6ee;" : "color:#7a5a6a;");
                         cbName.textContent = pItem.Name;
                         const cbGrp = document.createElement("span");
                         cbGrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
                         cbGrp.textContent = pItem.Group.replace("Item", "");
                         lbl2.appendChild(cb); lbl2.appendChild(cbName); lbl2.appendChild(cbGrp);
                         checklistEl.appendChild(lbl2);
+                    };
+
+                    if (restraints.length > 0) {
+                        addSectionHeader("Restraints (" + restraints.length + ")");
+                        restraints.forEach(p => addCheckRow(p, true));
                     }
+                    if (clothing.length > 0) {
+                        addSectionHeader("Clothing / Other (" + clothing.length + ")");
+                        clothing.forEach(p => addCheckRow(p, false));
+                    }
+
                     checklistEl.style.display = "block";
                     importMsg.style.color = "#79a885";
-                    importMsg.textContent = "Found " + parsedItems.length + " item(s). Check what to add:";
+                    const rCount = restraints.length;
+                    const cCount = clothing.length;
+                    importMsg.textContent = rCount + " restraint(s), " + cCount + " clothing — check what to add:";
                 });
 
                 const useSelectedBtn = document.createElement("button");
@@ -4712,7 +4737,13 @@ export class EBCDrawer {
                 useSelectedBtn.textContent = "Use Selected";
                 useSelectedBtn.addEventListener("click", () => {
                     const checks = checklistEl.querySelectorAll<HTMLInputElement>("input[type=checkbox]");
-                    const selected = parsedItems.filter((_, i) => checks[i]?.checked);
+                    // Map checkboxes back to parsedItems — order matches DOM insertion order:
+                    // restraints first, then clothing (same as rendering above).
+                    const ordered = [
+                        ...parsedItems.filter(p => p.isRestraint),
+                        ...parsedItems.filter(p => !p.isRestraint),
+                    ];
+                    const selected = ordered.filter((_, i) => checks[i]?.checked);
                     if (selected.length === 0) {
                         importMsg.style.color = "#ff6b6b";
                         importMsg.textContent = "Select at least one item.";

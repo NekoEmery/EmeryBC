@@ -138,9 +138,16 @@ export function deleteDomSet(id: string): void {
     saveConfig(cfg);
 }
 
-// Parse a BC outfit code and return all restraint items found — does NOT save anything.
-// The caller shows a picker and decides which items to keep.
-export function parseBCCodeItems(code: string): SerializedItem[] {
+// Parse a BC outfit code and return ALL items found — does NOT save anything.
+// Returns every item that has a Group and Name field; the caller's picker UI
+// shows checkboxes and the user decides which items to keep.
+// Restraint items (matching RESTRAINT_GROUPS) are flagged so the UI can
+// pre-check them by default.
+export interface ParsedBCItem extends SerializedItem {
+    isRestraint: boolean;
+}
+
+export function parseBCCodeItems(code: string): ParsedBCItem[] {
     const LZ = (window as unknown as Record<string, unknown>).LZString as
         { decompressFromBase64?: (s: string) => string | null } | undefined;
     if (!LZ?.decompressFromBase64) throw new Error("LZString not available on this page.");
@@ -150,17 +157,18 @@ export function parseBCCodeItems(code: string): SerializedItem[] {
     try { raw = JSON.parse(json); } catch { throw new Error("Decoded data is not valid JSON."); }
     if (!Array.isArray(raw)) throw new Error("Unexpected format — expected an appearance array.");
     const items = (raw as Record<string, unknown>[])
-        .filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group as string))
+        .filter(i => typeof i.Group === "string" && typeof i.Name === "string" && (i.Name as string) !== "")
         .map(i => ({
-            Group:      String(i.Group),
-            Name:       String(i.Name ?? ""),
-            Color:      i.Color as SerializedItem["Color"],
-            Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
-            Property:   typeof i.Property === "object" && i.Property !== null
+            Group:       String(i.Group),
+            Name:        String(i.Name ?? ""),
+            Color:       i.Color as SerializedItem["Color"],
+            Difficulty:  typeof i.Difficulty === "number" ? i.Difficulty : undefined,
+            Property:    typeof i.Property === "object" && i.Property !== null
                 ? i.Property as Record<string, unknown> : undefined,
-            Craft:      i.Craft as CraftingItem | undefined,
+            Craft:       i.Craft as CraftingItem | undefined,
+            isRestraint: RESTRAINT_GROUPS.has(String(i.Group)),
         }));
-    if (items.length === 0) throw new Error("No restraint items found in this code.");
+    if (items.length === 0) throw new Error("No items found in this code — is this a valid BC outfit code?");
     return items;
 }
 

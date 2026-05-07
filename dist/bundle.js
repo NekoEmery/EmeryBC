@@ -1412,8 +1412,6 @@
         cfg.sets = cfg.sets.filter(s => s.id !== id);
         saveConfig(cfg);
     }
-    // Parse a BC outfit code and return all restraint items found — does NOT save anything.
-    // The caller shows a picker and decides which items to keep.
     function parseBCCodeItems(code) {
         const LZ = window.LZString;
         if (!(LZ === null || LZ === void 0 ? void 0 : LZ.decompressFromBase64))
@@ -1431,7 +1429,7 @@
         if (!Array.isArray(raw))
             throw new Error("Unexpected format — expected an appearance array.");
         const items = raw
-            .filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group))
+            .filter(i => typeof i.Group === "string" && typeof i.Name === "string" && i.Name !== "")
             .map(i => {
             var _a;
             return ({
@@ -1442,10 +1440,11 @@
                 Property: typeof i.Property === "object" && i.Property !== null
                     ? i.Property : undefined,
                 Craft: i.Craft,
+                isRestraint: RESTRAINT_GROUPS.has(String(i.Group)),
             });
         });
         if (items.length === 0)
-            throw new Error("No restraint items found in this code.");
+            throw new Error("No items found in this code — is this a valid BC outfit code?");
         return items;
     }
     // Apply a restraint set to every in-room target, then send the announce emote.
@@ -5978,17 +5977,26 @@
                         }
                         while (checklistEl.firstChild)
                             checklistEl.removeChild(checklistEl.firstChild);
-                        for (const pItem of parsedItems) {
+                        // Group: restraints first (pre-checked), then clothing (unchecked)
+                        const restraints = parsedItems.filter(p => p.isRestraint);
+                        const clothing = parsedItems.filter(p => !p.isRestraint);
+                        const addSectionHeader = (text) => {
+                            const sh = document.createElement("div");
+                            sh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;padding:3px 2px 1px;";
+                            sh.textContent = text;
+                            checklistEl.appendChild(sh);
+                        };
+                        const addCheckRow = (pItem, defaultChecked) => {
                             const lbl2 = document.createElement("label");
                             lbl2.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:3px;cursor:pointer;";
                             lbl2.addEventListener("mouseenter", () => { lbl2.style.background = "rgba(42,20,33,0.5)"; });
                             lbl2.addEventListener("mouseleave", () => { lbl2.style.background = ""; });
                             const cb = document.createElement("input");
                             cb.type = "checkbox";
-                            cb.checked = true;
+                            cb.checked = defaultChecked;
                             cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
                             const cbName = document.createElement("span");
-                            cbName.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                            cbName.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" + (defaultChecked ? "color:#f7e6ee;" : "color:#7a5a6a;");
                             cbName.textContent = pItem.Name;
                             const cbGrp = document.createElement("span");
                             cbGrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
@@ -5997,17 +6005,33 @@
                             lbl2.appendChild(cbName);
                             lbl2.appendChild(cbGrp);
                             checklistEl.appendChild(lbl2);
+                        };
+                        if (restraints.length > 0) {
+                            addSectionHeader("Restraints (" + restraints.length + ")");
+                            restraints.forEach(p => addCheckRow(p, true));
+                        }
+                        if (clothing.length > 0) {
+                            addSectionHeader("Clothing / Other (" + clothing.length + ")");
+                            clothing.forEach(p => addCheckRow(p, false));
                         }
                         checklistEl.style.display = "block";
                         importMsg.style.color = "#79a885";
-                        importMsg.textContent = "Found " + parsedItems.length + " item(s). Check what to add:";
+                        const rCount = restraints.length;
+                        const cCount = clothing.length;
+                        importMsg.textContent = rCount + " restraint(s), " + cCount + " clothing — check what to add:";
                     });
                     const useSelectedBtn = document.createElement("button");
                     useSelectedBtn.style.cssText = "width:100%;background:#1b3021;border:1px solid #3a7a50;border-radius:5px;color:#79a885;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 0;transition:background 0.14s;";
                     useSelectedBtn.textContent = "Use Selected";
                     useSelectedBtn.addEventListener("click", () => {
                         const checks = checklistEl.querySelectorAll("input[type=checkbox]");
-                        const selected = parsedItems.filter((_, i) => { var _a; return (_a = checks[i]) === null || _a === void 0 ? void 0 : _a.checked; });
+                        // Map checkboxes back to parsedItems — order matches DOM insertion order:
+                        // restraints first, then clothing (same as rendering above).
+                        const ordered = [
+                            ...parsedItems.filter(p => p.isRestraint),
+                            ...parsedItems.filter(p => !p.isRestraint),
+                        ];
+                        const selected = ordered.filter((_, i) => { var _a; return (_a = checks[i]) === null || _a === void 0 ? void 0 : _a.checked; });
                         if (selected.length === 0) {
                             importMsg.style.color = "#ff6b6b";
                             importMsg.textContent = "Select at least one item.";
@@ -6170,9 +6194,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.2.2";
+    const MOD_VERSION = "0.2.3";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.2.3",
+            changes: [
+                "Fixed 'No restraint items found' error: parser now returns ALL items from a BC outfit code and lets you pick. Restraints are pre-checked; clothing items show unchecked so you can ignore them.",
+                "Checklist groups items into Restraints and Clothing / Other sections with a count per section.",
+            ],
+        },
         {
             version: "0.2.2",
             changes: [
