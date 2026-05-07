@@ -33,3 +33,16 @@ export function logMessage(data: Record<string, unknown>): void {
 
 export function getDevLog(): readonly DevLogEntry[] { return _log; }
 export function clearDevLog(): void { _log.length = 0; }
+
+// Push a UI test entry directly — bypasses the enabled guard so it works
+// even when logging is off, letting the user verify the log display itself.
+export function pushTestEntry(): void {
+    _log.push({
+        timestamp: new Date(),
+        type:    "Test",
+        content: "[EBC] Log UI is working — this is a test entry.",
+        sender:  undefined,
+        dictionary: { note: "manually injected, not a real server message" },
+    });
+    if (_log.length > MAX_ENTRIES) _log.shift();
+}

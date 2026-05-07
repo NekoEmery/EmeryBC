@@ -66,7 +66,7 @@ import {
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getExprTabVisible, setExprTabVisible } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, logMessage } from "./devLog";
+import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import {
     isDomEnabled,
     getDomConfig,
@@ -5592,11 +5592,30 @@ export class EBCDrawer {
         body.appendChild(hookRefreshBtn);
 
         // ── Message Logger ───────────────────────────────────────────────────────
+        const msgLblRow = document.createElement("div");
+        msgLblRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:12px;margin-bottom:2px;";
+
         const msgLbl = document.createElement("div");
         msgLbl.className = "ebc-section-label";
-        msgLbl.style.marginTop = "12px";
+        msgLbl.style.margin = "0";
         msgLbl.textContent = "Message Log";
-        body.appendChild(msgLbl);
+
+        const logStatusDot = document.createElement("span");
+        logStatusDot.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;padding:1px 6px;border-radius:3px;flex-shrink:0;";
+        const updateStatusDot = (): void => {
+            if (isDevLogEnabled()) {
+                logStatusDot.textContent = "● CAPTURING";
+                logStatusDot.style.cssText += "background:#1a3a1a;color:#6bd478;border:1px solid #2a6a2a;";
+            } else {
+                logStatusDot.textContent = "○ OFF";
+                logStatusDot.style.cssText += "background:#1a0a10;color:#7a4050;border:1px solid #3a1020;";
+            }
+        };
+        updateStatusDot();
+
+        msgLblRow.appendChild(msgLbl);
+        msgLblRow.appendChild(logStatusDot);
+        body.appendChild(msgLblRow);
 
         const msgCtrlRow = document.createElement("div");
         msgCtrlRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;align-items:center;";
@@ -5619,6 +5638,7 @@ export class EBCDrawer {
         logToggleChk.checked = isDevLogEnabled();
         logToggleChk.addEventListener("change", () => {
             setDevLogEnabled(logToggleChk.checked);
+            updateStatusDot();
             renderMsgLog();
         });
         logToggleWrap.appendChild(logToggleChk);
@@ -5630,7 +5650,7 @@ export class EBCDrawer {
         msgTestBtn.textContent = "Test";
         msgTestBtn.title = "Inject a test entry to verify the log UI is working";
         msgTestBtn.addEventListener("click", () => {
-            logMessage({ Type: "Test", Content: "[EBC] Log is working!", Sender: Player.MemberNumber, Dictionary: null });
+            pushTestEntry();
             renderMsgLog();
         });
 
@@ -5653,6 +5673,7 @@ export class EBCDrawer {
             setDevLogEnabled(true);
             logToggleChk.checked = true;
             logOffHint.style.display = "none";
+            updateStatusDot();
             renderMsgLog();
         });
         logOffHint.appendChild(enableBtn);

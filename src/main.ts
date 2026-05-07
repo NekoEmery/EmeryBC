@@ -11,10 +11,19 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.9";
+const MOD_VERSION = "0.3.10";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.10",
+        changes: [
+            "DEV log: logging is OFF by default and only starts when you explicitly enable it — no background accumulation.",
+            "DEV log: status indicator (● CAPTURING / ○ OFF) shows current state at a glance.",
+            "DEV log: Test button now works even when logging is disabled so you can verify the UI independently.",
+            "Removed auto room-sync log entry — the log stays completely silent until you turn it on.",
+        ],
+    },
     {
         version: "0.3.9",
         changes: [
@@ -791,7 +800,6 @@ function init(): void {
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
-        try { logMessage({ Type: "System", Content: "[EBC] Room synced — log is active", Dictionary: null }); } catch { /* ignore */ }
         return result;
     });
 

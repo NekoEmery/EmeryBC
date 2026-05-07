@@ -1660,6 +1660,19 @@
     }
     function getDevLog() { return _log; }
     function clearDevLog() { _log.length = 0; }
+    // Push a UI test entry directly — bypasses the enabled guard so it works
+    // even when logging is off, letting the user verify the log display itself.
+    function pushTestEntry() {
+        _log.push({
+            timestamp: new Date(),
+            type: "Test",
+            content: "[EBC] Log UI is working — this is a test entry.",
+            sender: undefined,
+            dictionary: { note: "manually injected, not a real server message" },
+        });
+        if (_log.length > MAX_ENTRIES)
+            _log.shift();
+    }
 
     // Creator-only DOM tools — visible exclusively to member #130267.
     // Supports multiple named restraint sets, each with its own items,
@@ -7184,11 +7197,28 @@
             hookRefreshBtn.addEventListener("click", renderHooks);
             body.appendChild(hookRefreshBtn);
             // ── Message Logger ───────────────────────────────────────────────────────
+            const msgLblRow = document.createElement("div");
+            msgLblRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:12px;margin-bottom:2px;";
             const msgLbl = document.createElement("div");
             msgLbl.className = "ebc-section-label";
-            msgLbl.style.marginTop = "12px";
+            msgLbl.style.margin = "0";
             msgLbl.textContent = "Message Log";
-            body.appendChild(msgLbl);
+            const logStatusDot = document.createElement("span");
+            logStatusDot.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;padding:1px 6px;border-radius:3px;flex-shrink:0;";
+            const updateStatusDot = () => {
+                if (isDevLogEnabled()) {
+                    logStatusDot.textContent = "● CAPTURING";
+                    logStatusDot.style.cssText += "background:#1a3a1a;color:#6bd478;border:1px solid #2a6a2a;";
+                }
+                else {
+                    logStatusDot.textContent = "○ OFF";
+                    logStatusDot.style.cssText += "background:#1a0a10;color:#7a4050;border:1px solid #3a1020;";
+                }
+            };
+            updateStatusDot();
+            msgLblRow.appendChild(msgLbl);
+            msgLblRow.appendChild(logStatusDot);
+            body.appendChild(msgLblRow);
             const msgCtrlRow = document.createElement("div");
             msgCtrlRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;align-items:center;";
             const msgRefreshBtn2 = document.createElement("button");
@@ -7207,6 +7237,7 @@
             logToggleChk.checked = isDevLogEnabled();
             logToggleChk.addEventListener("change", () => {
                 setDevLogEnabled(logToggleChk.checked);
+                updateStatusDot();
                 renderMsgLog();
             });
             logToggleWrap.appendChild(logToggleChk);
@@ -7217,7 +7248,7 @@
             msgTestBtn.textContent = "Test";
             msgTestBtn.title = "Inject a test entry to verify the log UI is working";
             msgTestBtn.addEventListener("click", () => {
-                logMessage({ Type: "Test", Content: "[EBC] Log is working!", Sender: Player.MemberNumber, Dictionary: null });
+                pushTestEntry();
                 renderMsgLog();
             });
             msgCtrlRow.appendChild(msgRefreshBtn2);
@@ -7238,6 +7269,7 @@
                 setDevLogEnabled(true);
                 logToggleChk.checked = true;
                 logOffHint.style.display = "none";
+                updateStatusDot();
                 renderMsgLog();
             });
             logOffHint.appendChild(enableBtn);
@@ -8294,9 +8326,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.9";
+    const MOD_VERSION = "0.3.10";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.10",
+            changes: [
+                "DEV log: logging is OFF by default and only starts when you explicitly enable it — no background accumulation.",
+                "DEV log: status indicator (● CAPTURING / ○ OFF) shows current state at a glance.",
+                "DEV log: Test button now works even when logging is disabled so you can verify the UI independently.",
+                "Removed auto room-sync log entry — the log stays completely silent until you turn it on.",
+            ],
+        },
         {
             version: "0.3.9",
             changes: [
@@ -9067,10 +9108,6 @@
                 snapshotPlayerRestraints();
             }
             catch ( /* ignore */_e) { /* ignore */ }
-            try {
-                logMessage({ Type: "System", Content: "[EBC] Room synced — log is active", Dictionary: null });
-            }
-            catch ( /* ignore */_f) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
