@@ -813,8 +813,13 @@
         return outfit;
     }
 
-    // Expression presets and sequences — save/apply facial expression states.
+    // Expression presets and sequences — live expression picker + animated sequences.
     const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
+    // Friendly labels shown in the picker row headers
+    const EXPR_GROUP_LABELS = {
+        Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
+        Eyes: "Eyes L", Eyes2: "Eyes R", Mouth: "Mouth", Tears: "Tears",
+    };
     function uid$3() {
         return Math.random().toString(36).slice(2, 9);
     }
@@ -830,14 +835,69 @@
             return null;
         }
     }
-    // -- Presets -------------------------------------------------------------------
-    function getExpressionPresets() {
+    // -- Expression option discovery -----------------------------------------------
+    // Query BC's runtime Asset array for all expression options in a group.
+    // Falls back to a hardcoded list if the global isn't available.
+    const EXPR_FALLBACK = {
+        Blush: ["1", "2", "3", "4", "5"],
+        Emoticon: ["Afk", "Anger", "Auction", "BrokenHeart", "Cake", "Confused", "Dead",
+            "GagTalk", "Heart", "HighHeel", "Juice", "Love", "Maid", "Music",
+            "Question", "Read", "Shy", "Skull", "Sleeping", "Star", "Study", "Yell"],
+        Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Soft"],
+        Eyes: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
+        Eyes2: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
+        Mouth: ["Angry", "HalfOpen", "Open", "Sad", "Smile"],
+        Tears: ["Crying", "HeavyCrying", "Tear1", "Tear2", "Tear3"],
+    };
+    function getExprGroupOptions(group) {
+        var _a, _b;
         try {
-            const store = getStore$5();
-            const list = store === null || store === void 0 ? void 0 : store.expressionPresets;
+            const bcAsset = window.Asset;
+            if (Array.isArray(bcAsset)) {
+                const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
+                const opts = bcAsset
+                    .filter(a => a.Family === family && a.Group.Name === group)
+                    .map(a => a.Name);
+                if (opts.length > 0)
+                    return opts;
+            }
+        }
+        catch ( /* fall through */_c) { /* fall through */ }
+        return (_b = EXPR_FALLBACK[group]) !== null && _b !== void 0 ? _b : [];
+    }
+    // -- Single-expression apply ---------------------------------------------------
+    // Uses CharacterSetFacialExpression (BC's proper API) if available,
+    // otherwise falls back to direct Appearance manipulation.
+    function applyExprGroup(group, exprName) {
+        try {
+            const setExpr = window.CharacterSetFacialExpression;
+            if (setExpr) {
+                setExpr(Player, group, exprName, null, null);
+            }
+            else {
+                const idx = Player.Appearance.findIndex((i) => i.Asset.Group.Name === group);
+                if (idx !== -1)
+                    Player.Appearance.splice(idx, 1);
+                if (exprName) {
+                    const asset = AssetGet(Player.AssetFamily, group, exprName);
+                    if (asset)
+                        Player.Appearance.push({ Asset: asset, Color: "Default", Difficulty: 0 });
+                }
+            }
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
+    function getExpressionPresets() {
+        var _a;
+        try {
+            const list = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
             return Array.isArray(list) ? list : [];
         }
-        catch (_a) {
+        catch (_b) {
             return [];
         }
     }
@@ -856,69 +916,33 @@
         try {
             for (const group of EXPR_GROUPS) {
                 const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                if (item) {
-                    const color = item.Color;
-                    groups[group] = {
-                        Name: item.Asset.Name,
-                        Color: color !== undefined ? color : undefined,
-                    };
-                }
-                else {
-                    groups[group] = null;
-                }
+                groups[group] = item
+                    ? { Name: item.Asset.Name, Color: item.Color !== undefined ? item.Color : undefined }
+                    : null;
             }
         }
         catch ( /* return whatever captured so far */_a) { /* return whatever captured so far */ }
         return { id: uid$3(), name: name || "Preset", groups };
     }
-    // Use BC's CharacterSetFacialExpression when available (proper API for expressions),
-    // falling back to direct Appearance manipulation otherwise.
     function applyExpressionPreset(preset) {
-        var _a, _b;
         try {
-            // Runtime check — CharacterSetFacialExpression is the correct BC API
-            const setExpr = window.CharacterSetFacialExpression;
             for (const [group, entry] of Object.entries(preset.groups)) {
                 try {
-                    if (setExpr) {
-                        // BC's own function — handles asset lookup, removal, and push internally
-                        const exprName = (entry !== null && entry !== undefined) ? entry.Name : null;
-                        const color = (_a = entry === null || entry === void 0 ? void 0 : entry.Color) !== null && _a !== void 0 ? _a : null;
-                        setExpr(Player, group, exprName, null, color);
-                    }
-                    else {
-                        // Fallback: direct Appearance manipulation
-                        const existingIdx = Player.Appearance.findIndex((i) => i.Asset.Group.Name === group);
-                        if (existingIdx !== -1)
-                            Player.Appearance.splice(existingIdx, 1);
-                        if (entry !== null && entry !== undefined) {
-                            const asset = AssetGet(Player.AssetFamily, group, entry.Name);
-                            if (asset) {
-                                Player.Appearance.push({
-                                    Asset: asset,
-                                    Color: ((_b = entry.Color) !== null && _b !== void 0 ? _b : "Default"),
-                                    Difficulty: 0,
-                                });
-                            }
-                        }
-                    }
+                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
                 }
-                catch ( /* skip this group */_c) { /* skip this group */ }
+                catch ( /* skip group */_a) { /* skip group */ }
             }
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
     // -- Sequences -----------------------------------------------------------------
     function getExpressionSequences() {
+        var _a;
         try {
-            const store = getStore$5();
-            const list = store === null || store === void 0 ? void 0 : store.expressionSequences;
+            const list = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.expressionSequences;
             return Array.isArray(list) ? list : [];
         }
-        catch (_a) {
+        catch (_b) {
             return [];
         }
     }
@@ -941,20 +965,27 @@
         if (_seqRunning)
             return;
         _seqRunning = true;
-        const presets = getExpressionPresets();
         let i = 0;
         const runStep = () => {
+            var _a, _b;
             if (i >= seq.steps.length) {
                 _seqRunning = false;
                 onDone === null || onDone === void 0 ? void 0 : onDone();
                 return;
             }
             const step = seq.steps[i];
-            const preset = presets.find(p => p.id === step.presetId);
-            if (preset)
-                applyExpressionPreset(preset);
+            try {
+                const groups = (_a = step.groups) !== null && _a !== void 0 ? _a : {};
+                for (const [group, name] of Object.entries(groups)) {
+                    try {
+                        applyExprGroup(group, name !== null && name !== void 0 ? name : null);
+                    }
+                    catch ( /* skip */_c) { /* skip */ }
+                }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
             i++;
-            window.setTimeout(runStep, step.delayMs);
+            window.setTimeout(runStep, Math.max(100, (_b = step.delayMs) !== null && _b !== void 0 ? _b : 500));
         };
         runStep();
     }
@@ -6237,55 +6268,134 @@
         }
         // -- Poses tab -------------------------------------------------------------
         renderPoses() {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const currentPoses = getCurrentPoses();
-            // ── Expression Presets ────────────────────────────────────────────────
+            // ── Expression Picker ─────────────────────────────────────────────────
+            // Shows all BC facial expressions per group as clickable buttons.
+            // Click = apply immediately. State feeds into the sequence builder.
             const exprLbl = document.createElement("div");
             exprLbl.className = "ebc-section-label";
-            exprLbl.textContent = "EXPRESSION PRESETS";
+            exprLbl.textContent = "EXPRESSIONS";
             body.appendChild(exprLbl);
-            // Capture row
-            const exprCaptureRow = document.createElement("div");
-            exprCaptureRow.className = "ebc-expr-capture-row";
-            const exprNameInp = document.createElement("input");
-            exprNameInp.className = "ebc-form-input";
-            exprNameInp.style.flex = "1";
-            exprNameInp.placeholder = "Preset name...";
-            exprNameInp.maxLength = 30;
-            const exprSaveBtn = document.createElement("button");
-            exprSaveBtn.className = "ebc-wear-btn";
-            exprSaveBtn.textContent = "Save";
-            exprSaveBtn.title = "Capture current expression as a preset";
-            exprSaveBtn.addEventListener("click", () => {
-                const name = exprNameInp.value.trim() || "Preset";
-                const preset = captureCurrentExpression(name);
-                const allPresets = getExpressionPresets();
-                allPresets.push(preset);
-                saveExpressionPresets(allPresets);
-                exprNameInp.value = "";
-                renderExprList();
+            // -- EXP panel toggle checkbox --
+            const exprToggleRow = document.createElement("div");
+            exprToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:6px;";
+            const exprToggleCb = Object.assign(document.createElement("input"), {
+                type: "checkbox", id: "ebc-anims-expr-toggle", checked: getExprTabVisible(),
             });
-            exprCaptureRow.appendChild(exprNameInp);
-            exprCaptureRow.appendChild(exprSaveBtn);
-            body.appendChild(exprCaptureRow);
-            // Preset list
-            const exprListEl = document.createElement("div");
-            exprListEl.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:4px;";
-            body.appendChild(exprListEl);
-            const renderExprList = () => {
-                while (exprListEl.firstChild)
-                    exprListEl.removeChild(exprListEl.firstChild);
+            exprToggleCb.style.accentColor = "#cf6f98";
+            exprToggleCb.addEventListener("change", () => { setExprTabVisible(exprToggleCb.checked); this.updateExprTabVisibility(); });
+            const exprToggleLbl = document.createElement("label");
+            exprToggleLbl.htmlFor = "ebc-anims-expr-toggle";
+            exprToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;cursor:pointer;";
+            exprToggleLbl.textContent = "Show floating expression button";
+            exprToggleRow.appendChild(exprToggleCb);
+            exprToggleRow.appendChild(exprToggleLbl);
+            body.appendChild(exprToggleRow);
+            // -- Expression picker: one row per group, all options as clickable buttons --
+            // pickerState tracks what's currently selected in the picker (not necessarily
+            // what's on the character — they stay in sync when you click).
+            const pickerState = {};
+            for (const g of EXPR_GROUPS) {
+                try {
+                    const item = Player.Appearance.find((i) => i.Asset.Group.Name === g);
+                    pickerState[g] = item ? item.Asset.Name : null;
+                }
+                catch (_f) {
+                    pickerState[g] = null;
+                }
+            }
+            const BTN_BASE = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:border-color 0.1s,background 0.1s,color 0.1s;";
+            const BTN_ON = "border:1px solid #cf6f98;background:#3a1928;color:#cf6f98;";
+            const BTN_OFF = "border:1px solid #3a1928;background:#190b13;color:#7a5a6a;";
+            const pickerContainer = document.createElement("div");
+            pickerContainer.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:8px;";
+            body.appendChild(pickerContainer);
+            for (const group of EXPR_GROUPS) {
+                const options = getExprGroupOptions(group);
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:3px;min-width:0;";
+                const label = document.createElement("span");
+                label.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;width:52px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.03em;";
+                label.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
+                row.appendChild(label);
+                const scroll = document.createElement("div");
+                scroll.style.cssText = "display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none;padding-bottom:2px;";
+                const allBtns = [];
+                const setActive = (name) => {
+                    pickerState[group] = name;
+                    for (const { btn, name: n } of allBtns) {
+                        const active = n === name;
+                        btn.style.cssText = BTN_BASE + (active ? BTN_ON : BTN_OFF);
+                    }
+                };
+                // "×" = clear expression
+                const noneBtn = document.createElement("button");
+                noneBtn.textContent = "×";
+                noneBtn.title = `Clear ${group}`;
+                noneBtn.style.cssText = BTN_BASE + (pickerState[group] === null ? BTN_ON : BTN_OFF);
+                noneBtn.addEventListener("click", () => {
+                    setActive(null);
+                    try {
+                        applyExprGroup(group, null);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                });
+                allBtns.push({ btn: noneBtn, name: null });
+                scroll.appendChild(noneBtn);
+                for (const name of options) {
+                    const btn = document.createElement("button");
+                    btn.textContent = name;
+                    btn.title = `${group}: ${name}`;
+                    btn.style.cssText = BTN_BASE + (pickerState[group] === name ? BTN_ON : BTN_OFF);
+                    btn.addEventListener("click", () => {
+                        setActive(name);
+                        try {
+                            applyExprGroup(group, name);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    });
+                    allBtns.push({ btn, name });
+                    scroll.appendChild(btn);
+                }
+                row.appendChild(scroll);
+                pickerContainer.appendChild(row);
+            }
+            // -- Saved presets (quick-apply named face states) --
+            const presetDivider = document.createElement("div");
+            presetDivider.style.cssText = "border-top:1px solid #3a1928;margin:4px 0 6px;";
+            body.appendChild(presetDivider);
+            const presetLbl = document.createElement("div");
+            presetLbl.className = "ebc-section-label";
+            presetLbl.textContent = "SAVED PRESETS";
+            body.appendChild(presetLbl);
+            const presetCaptureRow = document.createElement("div");
+            presetCaptureRow.className = "ebc-expr-capture-row";
+            const presetNameInp = Object.assign(document.createElement("input"), {
+                placeholder: "Preset name...", maxLength: 30,
+            });
+            presetNameInp.className = "ebc-form-input";
+            presetNameInp.style.flex = "1";
+            const presetSaveBtn = document.createElement("button");
+            presetSaveBtn.className = "ebc-wear-btn";
+            presetSaveBtn.textContent = "Save";
+            presetSaveBtn.title = "Save current face as a named preset";
+            const presetListEl = document.createElement("div");
+            presetListEl.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:4px;";
+            const renderPresetList = () => {
+                while (presetListEl.firstChild)
+                    presetListEl.removeChild(presetListEl.firstChild);
                 const presets = getExpressionPresets();
                 if (presets.length === 0) {
                     const hint = document.createElement("div");
                     hint.className = "ebc-expr-hint";
-                    hint.textContent = "No presets yet — save one above!";
-                    exprListEl.appendChild(hint);
+                    hint.textContent = "No presets — set a face above and save it";
+                    presetListEl.appendChild(hint);
                     return;
                 }
                 for (const preset of presets) {
@@ -6294,7 +6404,7 @@
                     const pill = document.createElement("button");
                     pill.className = "ebc-expr-pill";
                     pill.textContent = preset.name;
-                    pill.title = "Click to apply";
+                    pill.title = "Apply this preset";
                     pill.addEventListener("click", () => {
                         applyExpressionPreset(preset);
                         pill.textContent = "Applied!";
@@ -6303,52 +6413,37 @@
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-expr-del";
                     delBtn.textContent = "×";
-                    delBtn.title = "Delete preset";
                     delBtn.addEventListener("click", () => {
-                        const updated = getExpressionPresets().filter(p => p.id !== preset.id);
-                        saveExpressionPresets(updated);
-                        renderExprList();
+                        saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
+                        renderPresetList();
                     });
                     row.appendChild(pill);
                     row.appendChild(delBtn);
-                    exprListEl.appendChild(row);
+                    presetListEl.appendChild(row);
                 }
             };
-            renderExprList();
-            // Toggle: show EXP floating button
-            const exprToggleRow = document.createElement("div");
-            exprToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:6px;margin-bottom:4px;";
-            const exprToggleCb = Object.assign(document.createElement("input"), {
-                type: "checkbox",
-                id: "ebc-anims-expr-toggle",
-                checked: getExprTabVisible(),
+            presetSaveBtn.addEventListener("click", () => {
+                const name = presetNameInp.value.trim() || "Preset";
+                const preset = captureCurrentExpression(name);
+                const all = getExpressionPresets();
+                all.push(preset);
+                saveExpressionPresets(all);
+                presetNameInp.value = "";
+                renderPresetList();
             });
-            exprToggleCb.style.accentColor = "#cf6f98";
-            exprToggleCb.addEventListener("change", () => {
-                setExprTabVisible(exprToggleCb.checked);
-                this.updateExprTabVisibility();
-            });
-            const exprToggleLbl = document.createElement("label");
-            exprToggleLbl.htmlFor = "ebc-anims-expr-toggle";
-            exprToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#a08090;cursor:pointer;";
-            exprToggleLbl.textContent = "Show expression quick-panel button";
-            exprToggleRow.appendChild(exprToggleCb);
-            exprToggleRow.appendChild(exprToggleLbl);
-            body.appendChild(exprToggleRow);
-            // Divider
-            const exprDivider = document.createElement("div");
-            exprDivider.style.cssText = "border-top:1px solid #3a1928;margin:8px 0;";
-            body.appendChild(exprDivider);
+            presetCaptureRow.appendChild(presetNameInp);
+            presetCaptureRow.appendChild(presetSaveBtn);
+            body.appendChild(presetCaptureRow);
+            body.appendChild(presetListEl);
+            renderPresetList();
             // ── Expression Sequences ──────────────────────────────────────────────
+            const seqDivider = document.createElement("div");
+            seqDivider.style.cssText = "border-top:1px solid #3a1928;margin:8px 0;";
+            body.appendChild(seqDivider);
             const seqSectionLbl = document.createElement("div");
             seqSectionLbl.className = "ebc-section-label";
             seqSectionLbl.textContent = "EXPRESSION SEQUENCES";
             body.appendChild(seqSectionLbl);
-            const seqHint = document.createElement("div");
-            seqHint.className = "ebc-import-hint";
-            seqHint.style.marginBottom = "5px";
-            seqHint.textContent = "Chain expression presets with delays — plays like an animation.";
-            body.appendChild(seqHint);
             // Sequence list
             const seqListEl = document.createElement("div");
             seqListEl.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:5px;";
@@ -6377,34 +6472,21 @@
                             return;
                         playBtn.textContent = "…";
                         playBtn.disabled = true;
-                        const totalMs = seq.steps.reduce((s, x) => s + x.delayMs, 0);
-                        playExpressionSequence(seq, () => {
-                            playBtn.textContent = "▶";
-                            playBtn.disabled = false;
-                        });
-                        window.setTimeout(() => {
-                            playBtn.textContent = "▶";
-                            playBtn.disabled = false;
-                        }, totalMs + 500);
+                        const totalMs = seq.steps.reduce((s, x) => { var _a; return s + ((_a = x.delayMs) !== null && _a !== void 0 ? _a : 500); }, 0);
+                        playExpressionSequence(seq, () => { playBtn.textContent = "▶"; playBtn.disabled = false; });
+                        window.setTimeout(() => { playBtn.textContent = "▶"; playBtn.disabled = false; }, totalMs + 500);
                     });
                     const nameLbl = document.createElement("span");
                     nameLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                     nameLbl.textContent = seq.name;
-                    nameLbl.title = seq.steps.map((s, i) => {
-                        var _a;
-                        const p = getExpressionPresets().find(x => x.id === s.presetId);
-                        return `${i + 1}. ${(_a = p === null || p === void 0 ? void 0 : p.name) !== null && _a !== void 0 ? _a : "(deleted)"} — ${s.delayMs}ms`;
-                    }).join("\n");
                     const stepsLbl = document.createElement("span");
                     stepsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
                     stepsLbl.textContent = `${seq.steps.length} step${seq.steps.length !== 1 ? "s" : ""}`;
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-expr-del";
                     delBtn.textContent = "×";
-                    delBtn.title = "Delete sequence";
                     delBtn.addEventListener("click", () => {
-                        const updated = getExpressionSequences().filter(s => s.id !== seq.id);
-                        saveExpressionSequences(updated);
+                        saveExpressionSequences(getExpressionSequences().filter(s => s.id !== seq.id));
                         renderSeqList();
                     });
                     row.appendChild(playBtn);
@@ -6429,7 +6511,7 @@
                 nsBuilder.style.display = open ? "none" : "flex";
                 nsToggleBtn.textContent = open ? "+ New Sequence" : "− Cancel";
             });
-            // Name row
+            // Name input
             const nsNameRow = document.createElement("div");
             nsNameRow.className = "ebc-form-row";
             const nsNameLbl = document.createElement("span");
@@ -6443,102 +6525,92 @@
             nsNameRow.appendChild(nsNameLbl);
             nsNameRow.appendChild(nsNameInp);
             nsBuilder.appendChild(nsNameRow);
-            // Step list
+            // Step list display
             const nsStepListEl = document.createElement("div");
             nsStepListEl.style.cssText = "display:flex;flex-direction:column;gap:3px;";
             nsBuilder.appendChild(nsStepListEl);
+            // Each step stores the picker state snapshot + delay
             const nsSteps = [];
+            const stepSummary = (groups) => {
+                const parts = Object.entries(groups)
+                    .filter(([, v]) => v !== null)
+                    .map(([k, v]) => `${k}:${v}`);
+                return parts.length ? parts.join(", ") : "(clear all)";
+            };
             const renderNsSteps = () => {
                 while (nsStepListEl.firstChild)
                     nsStepListEl.removeChild(nsStepListEl.firstChild);
-                const presets = getExpressionPresets();
                 if (nsSteps.length === 0) {
                     const hint = document.createElement("div");
                     hint.className = "ebc-expr-hint";
-                    hint.textContent = "Add preset steps below.";
+                    hint.textContent = "Set expressions in the picker above, then click + Add Step.";
                     nsStepListEl.appendChild(hint);
                     return;
                 }
                 for (let i = 0; i < nsSteps.length; i++) {
                     const step = nsSteps[i];
-                    const preset = presets.find(p => p.id === step.presetId);
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const numLbl = document.createElement("span");
                     numLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;width:14px;flex-shrink:0;";
                     numLbl.textContent = `${i + 1}.`;
-                    const nameLbl = document.createElement("span");
-                    nameLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                    nameLbl.textContent = preset ? preset.name : "(deleted)";
+                    const summaryLbl = document.createElement("span");
+                    summaryLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    summaryLbl.textContent = stepSummary(step.groups);
+                    summaryLbl.title = stepSummary(step.groups);
                     const delayInp = Object.assign(document.createElement("input"), {
-                        type: "number", min: "100", max: "5000", value: String(step.delayMs),
-                        title: "Hold this expression for (ms)",
+                        type: "number", min: "100", max: "10000", value: String(step.delayMs),
+                        title: "Hold duration (ms)",
                     });
                     delayInp.className = "ebc-form-input";
-                    delayInp.style.cssText = "width:64px;flex-shrink:0;";
+                    delayInp.style.cssText = "width:68px;flex-shrink:0;";
                     delayInp.addEventListener("change", () => {
                         const v = parseInt(delayInp.value, 10);
                         if (!isNaN(v))
-                            nsSteps[i].delayMs = Math.max(100, Math.min(5000, v));
+                            nsSteps[i].delayMs = Math.max(100, Math.min(10000, v));
                     });
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-expr-del";
                     delBtn.textContent = "×";
                     delBtn.addEventListener("click", () => { nsSteps.splice(i, 1); renderNsSteps(); });
                     row.appendChild(numLbl);
-                    row.appendChild(nameLbl);
+                    row.appendChild(summaryLbl);
                     row.appendChild(delayInp);
                     row.appendChild(delBtn);
                     nsStepListEl.appendChild(row);
                 }
             };
             renderNsSteps();
-            // Add-step row
+            // Add step from picker + delay input
             const nsAddRow = document.createElement("div");
             nsAddRow.style.cssText = "display:flex;gap:4px;align-items:center;";
-            const nsPresetSel = document.createElement("select");
-            nsPresetSel.className = "ebc-form-input";
-            nsPresetSel.style.flex = "1";
-            const refreshNsPresetSel = () => {
-                while (nsPresetSel.firstChild)
-                    nsPresetSel.removeChild(nsPresetSel.firstChild);
-                const presets = getExpressionPresets();
-                if (presets.length === 0) {
-                    const opt = Object.assign(document.createElement("option"), { textContent: "No presets saved", disabled: true });
-                    nsPresetSel.appendChild(opt);
-                }
-                else {
-                    for (const p of presets) {
-                        const opt = document.createElement("option");
-                        opt.value = p.id;
-                        opt.textContent = p.name;
-                        nsPresetSel.appendChild(opt);
-                    }
-                }
-            };
-            refreshNsPresetSel();
             const nsDelayInp = Object.assign(document.createElement("input"), {
-                type: "number", min: "100", max: "5000", value: "600",
-                title: "Hold duration (ms)",
+                type: "number", min: "100", max: "10000", value: "600",
+                title: "Hold this face for (ms)",
             });
             nsDelayInp.className = "ebc-form-input";
-            nsDelayInp.style.width = "64px";
+            nsDelayInp.style.cssText = "flex:1;";
+            const nsDelayLbl = document.createElement("span");
+            nsDelayLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+            nsDelayLbl.textContent = "ms";
             const nsAddBtn = document.createElement("button");
             nsAddBtn.className = "ebc-update-btn";
-            nsAddBtn.textContent = "+ Step";
+            nsAddBtn.textContent = "+ Add Step";
+            nsAddBtn.title = "Capture current picker state as the next sequence step";
             nsAddBtn.addEventListener("click", () => {
-                const id = nsPresetSel.value;
-                if (!id)
-                    return;
-                const delay = Math.max(100, Math.min(5000, parseInt(nsDelayInp.value, 10) || 600));
-                nsSteps.push({ presetId: id, delayMs: delay });
+                var _a;
+                const snapshot = {};
+                for (const g of EXPR_GROUPS)
+                    snapshot[g] = (_a = pickerState[g]) !== null && _a !== void 0 ? _a : null;
+                const delay = Math.max(100, Math.min(10000, parseInt(nsDelayInp.value, 10) || 600));
+                nsSteps.push({ groups: snapshot, delayMs: delay });
                 renderNsSteps();
             });
-            nsAddRow.appendChild(nsPresetSel);
             nsAddRow.appendChild(nsDelayInp);
+            nsAddRow.appendChild(nsDelayLbl);
             nsAddRow.appendChild(nsAddBtn);
             nsBuilder.appendChild(nsAddRow);
-            // Save button
+            // Save sequence button
             const nsSaveBtn = document.createElement("button");
             nsSaveBtn.className = "ebc-wear-btn";
             nsSaveBtn.style.cssText = "width:100%;margin-top:2px;";
@@ -6552,7 +6624,7 @@
                 if (nsSteps.length === 0)
                     return;
                 const all = getExpressionSequences();
-                all.push(createExpressionSequence(name, [...nsSteps]));
+                all.push(createExpressionSequence(name, nsSteps.map(s => ({ groups: Object.assign({}, s.groups), delayMs: s.delayMs }))));
                 saveExpressionSequences(all);
                 nsNameInp.value = "";
                 nsSteps.length = 0;
@@ -7007,9 +7079,9 @@
                 poseSectionLbl.className = "ebc-import-hint";
                 poseSectionLbl.textContent = "Sequence:";
                 editor.appendChild(poseSectionLbl);
-                const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_b = combo.stepDelayMs) !== null && _b !== void 0 ? _b : 420);
+                const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_c = combo.stepDelayMs) !== null && _c !== void 0 ? _c : 420);
                 // Command + Announce
-                const { getCommand, getAnnounce } = buildComboOptions(editor, (_c = combo.command) !== null && _c !== void 0 ? _c : "", (_d = combo.announceText) !== null && _d !== void 0 ? _d : "");
+                const { getCommand, getAnnounce } = buildComboOptions(editor, (_d = combo.command) !== null && _d !== void 0 ? _d : "", (_e = combo.announceText) !== null && _e !== void 0 ? _e : "");
                 // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
                 topSaveBtn.addEventListener("click", () => {
                     updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
@@ -8564,9 +8636,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.13";
+    const MOD_VERSION = "0.4.0";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.4.0",
+            changes: [
+                "ANIMS: full expression picker — every BC facial expression shown per group as clickable buttons; click to apply instantly.",
+                "Picker reads available options from BC's runtime Asset array so it always matches the character's actual options.",
+                "Sequences redesigned: steps now embed the full face state directly (no preset reference). Set expressions in the picker, enter a hold time, click '+ Add Step' to build each frame.",
+                "Saved presets kept as a quick-apply shortcut (separate 'Saved Presets' section below the picker).",
+            ],
+        },
         {
             version: "0.3.13",
             changes: [

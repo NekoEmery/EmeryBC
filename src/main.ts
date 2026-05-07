@@ -11,10 +11,19 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.13";
+const MOD_VERSION = "0.4.0";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.4.0",
+        changes: [
+            "ANIMS: full expression picker — every BC facial expression shown per group as clickable buttons; click to apply instantly.",
+            "Picker reads available options from BC's runtime Asset array so it always matches the character's actual options.",
+            "Sequences redesigned: steps now embed the full face state directly (no preset reference). Set expressions in the picker, enter a hold time, click '+ Add Step' to build each frame.",
+            "Saved presets kept as a quick-apply shortcut (separate 'Saved Presets' section below the picker).",
+        ],
+    },
     {
         version: "0.3.13",
         changes: [
