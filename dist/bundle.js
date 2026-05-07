@@ -1942,10 +1942,10 @@
     color: #7a5a6a;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: bold;
-    letter-spacing: 0.06em;
-    padding: 6px 0;
+    letter-spacing: 0.01em;
+    padding: 6px 1px;
     transition: color 0.14s, border-color 0.14s;
 }
 
@@ -3151,8 +3151,6 @@
             // Tab bar
             const tabBar = document.createElement("div");
             tabBar.className = "ebc-tabs";
-            // 5-tab bar — slightly smaller font to keep labels readable
-            tabBar.style.fontSize = "10px";
             const outfitTabBtn = document.createElement("button");
             outfitTabBtn.className = "ebc-tab-btn ebc-tab-active";
             outfitTabBtn.id = "ebc-tab-outfits";
