@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.3";
+const MOD_VERSION = "0.3.4";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.4",
+        changes: [
+            "Fix: expression preset apply was silently bailing due to unnecessary window-wrapping guard; rewrote to call BC globals directly.",
+            "Fix: missing ChatRoomCharacterUpdate meant expression changes were invisible to others in the room.",
+            "Fix: captureCurrentExpression now has error handling so a bad Appearance state can't silently swallow a save.",
+        ],
+    },
     {
         version: "0.3.3",
         changes: [

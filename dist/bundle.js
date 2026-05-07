@@ -833,52 +833,35 @@
     }
     function captureCurrentExpression(name) {
         const groups = {};
-        for (const group of EXPR_GROUPS) {
-            const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
-            if (item) {
-                groups[group] = {
-                    Name: item.Asset.Name,
-                    Color: item.Color,
-                };
-            }
-            else {
-                groups[group] = null;
+        try {
+            for (const group of EXPR_GROUPS) {
+                const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
+                groups[group] = item
+                    ? { Name: item.Asset.Name, Color: item.Color }
+                    : null;
             }
         }
+        catch ( /* return whatever was captured so far */_a) { /* return whatever was captured so far */ }
         return { id: uid$3(), name: name || "Preset", groups };
     }
     function applyExpressionPreset(preset) {
         try {
-            const IW = window.InventoryWear;
-            const IR = window.InventoryRemove;
-            const CR = window.CharacterRefresh;
-            const SPAS = window.ServerPlayerAppearanceSync;
-            if (!IW || !IR)
-                return;
             for (const [group, entry] of Object.entries(preset.groups)) {
-                if (entry === null || entry === undefined) {
-                    try {
-                        IR(Player, group, false);
+                try {
+                    if (entry === null || entry === undefined) {
+                        InventoryRemove(Player, group, false);
                     }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                }
-                else {
-                    try {
-                        IW(Player, entry.Name, group, entry.Color);
+                    else {
+                        InventoryWear(Player, entry.Name, group, entry.Color);
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
                 }
+                catch ( /* skip this group */_a) { /* skip this group */ }
             }
-            try {
-                CR === null || CR === void 0 ? void 0 : CR(Player, false);
-            }
-            catch ( /* ignore */_c) { /* ignore */ }
-            try {
-                SPAS === null || SPAS === void 0 ? void 0 : SPAS();
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
         }
-        catch ( /* ignore */_e) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
 
     // Color palette manager — capture the full color map of your current
@@ -7849,9 +7832,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.3";
+    const MOD_VERSION = "0.3.4";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.4",
+            changes: [
+                "Fix: expression preset apply was silently bailing due to unnecessary window-wrapping guard; rewrote to call BC globals directly.",
+                "Fix: missing ChatRoomCharacterUpdate meant expression changes were invisible to others in the room.",
+                "Fix: captureCurrentExpression now has error handling so a bad Appearance state can't silently swallow a save.",
+            ],
+        },
         {
             version: "0.3.3",
             changes: [

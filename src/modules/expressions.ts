@@ -30,42 +30,31 @@ export function saveExpressionPresets(presets: ExpressionPreset[]): void {
 
 export function captureCurrentExpression(name: string): ExpressionPreset {
     const groups: ExpressionPreset["groups"] = {};
-    for (const group of EXPR_GROUPS) {
-        const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
-        if (item) {
-            groups[group] = {
-                Name: item.Asset.Name,
-                Color: item.Color,
-            };
-        } else {
-            groups[group] = null;
+    try {
+        for (const group of EXPR_GROUPS) {
+            const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
+            groups[group] = item
+                ? { Name: item.Asset.Name, Color: item.Color }
+                : null;
         }
-    }
+    } catch { /* return whatever was captured so far */ }
     return { id: uid(), name: name || "Preset", groups };
 }
 
 export function applyExpressionPreset(preset: ExpressionPreset): void {
     try {
-        const IW = (window as unknown as Record<string, unknown>).InventoryWear as
-            ((C: Character, ItemName: string, GroupName: string, ItemColor?: string | string[]) => void) | undefined;
-        const IR = (window as unknown as Record<string, unknown>).InventoryRemove as
-            ((C: Character, GroupName: string, Push?: boolean) => void) | undefined;
-        const CR = (window as unknown as Record<string, unknown>).CharacterRefresh as
-            ((C: Character, Push?: boolean, RefreshAssets?: boolean) => void) | undefined;
-        const SPAS = (window as unknown as Record<string, unknown>).ServerPlayerAppearanceSync as
-            (() => void) | undefined;
-
-        if (!IW || !IR) return;
-
         for (const [group, entry] of Object.entries(preset.groups)) {
-            if (entry === null || entry === undefined) {
-                try { IR(Player, group, false); } catch { /* ignore */ }
-            } else {
-                try { IW(Player, entry.Name, group, entry.Color as string | undefined); } catch { /* ignore */ }
-            }
+            try {
+                if (entry === null || entry === undefined) {
+                    InventoryRemove(Player, group, false);
+                } else {
+                    InventoryWear(Player, entry.Name, group,
+                        entry.Color as string | string[] | undefined);
+                }
+            } catch { /* skip this group */ }
         }
-
-        try { CR?.(Player, false); } catch { /* ignore */ }
-        try { SPAS?.(); } catch { /* ignore */ }
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
     } catch { /* ignore */ }
 }
