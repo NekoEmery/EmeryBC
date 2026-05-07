@@ -1304,6 +1304,28 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Version badge visibility --------------------------------------------------
+    // When enabled, the overhead EBC badge shows the player's EBC version number.
+    // Defaults to false (badge shows just "EBC").
+    function getShowVersionBadge() {
+        var _a;
+        try {
+            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setShowVersionBadge(value) {
+        try {
+            const store = getStore$1();
+            if (!store)
+                return;
+            store.showVersionBadge = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
 
     // Creator-only DOM tools — visible exclusively to member #130267.
     // Supports multiple named restraint sets, each with its own items,
@@ -1448,7 +1470,7 @@
         return items;
     }
     // Apply a restraint set to every in-room target, then send the announce emote.
-    function applyDomSet(setId) {
+    function applyDomSet(setId, targetIds) {
         var _a, _b, _c, _d, _e;
         const cfg = loadConfig();
         const set = cfg.sets.find(s => s.id === setId);
@@ -1461,6 +1483,10 @@
         for (const target of cfg.targets) {
             const char = room.find(c => c.MemberNumber === target.id);
             if (!char) {
+                skipped.push(target.name);
+                continue;
+            }
+            if (targetIds && !targetIds.has(target.id)) {
                 skipped.push(target.name);
                 continue;
             }
@@ -1498,14 +1524,7 @@
             }
             if (anyApplied) {
                 try {
-                    CharacterRefresh(char, true, false);
-                    // Belt-and-suspenders: call ChatRoomCharacterUpdate directly so
-                    // the updated appearance is guaranteed to broadcast to the room.
-                    // CharacterRefresh(push=true) calls this internally, but some BC
-                    // builds skip it when called outside the ChatRoom screen context.
-                    const updateFn = window.ChatRoomCharacterUpdate;
-                    if (updateFn)
-                        updateFn(char);
+                    syncChar(char);
                     applied.push(target.name);
                 }
                 catch (_g) {
@@ -1540,16 +1559,27 @@
     // ── Release / rescue helpers ─────────────────────────────────────────────────
     // Shared sync helper for non-player characters.
     function syncChar(char) {
+        // Local visual refresh first (no push)
         try {
-            CharacterRefresh(char, true, false);
+            CharacterRefresh(char, false, false);
         }
         catch ( /* ignore */_a) { /* ignore */ }
+        // Sort layers so the server packet contains the correct layer order
         try {
-            const fn = window.ChatRoomCharacterUpdate;
-            if (fn)
-                fn(char);
+            const sortFn = window.CharacterAppearanceSortLayers;
+            if (sortFn)
+                sortFn(char);
         }
         catch ( /* ignore */_b) { /* ignore */ }
+        // Push update to server — BC validates relationship permissions server-side
+        try {
+            const updateFn = window.ChatRoomCharacterUpdate;
+            if (updateFn)
+                updateFn(char);
+            else
+                CharacterRefresh(char, true, false);
+        }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     // Returns the restraint items currently worn by each in-room target.
     function getTargetRestraints() {
@@ -1596,13 +1626,15 @@
         return { inRoom: true, count };
     }
     // Removes ALL restraint items from every in-room target.
-    function removeAllTargetRestraints() {
+    function removeAllTargetRestraints(targetIds) {
         var _a;
         const cfg = loadConfig();
         const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
         return cfg.targets.map(target => {
             const char = room.find(c => c.MemberNumber === target.id);
             if (!char)
+                return { name: target.name, count: 0, inRoom: false };
+            if (targetIds && !targetIds.has(target.id))
                 return { name: target.name, count: 0, inRoom: false };
             const groups = char.Appearance
                 .filter((a) => RESTRAINT_GROUPS.has(a.Asset.Group.Name))
@@ -1612,13 +1644,15 @@
         });
     }
     // Unlocks ALL locked items on every in-room target.
-    function unlockAllTargetItems() {
+    function unlockAllTargetItems(targetIds) {
         var _a;
         const cfg = loadConfig();
         const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
         return cfg.targets.map(target => {
             const char = room.find(c => c.MemberNumber === target.id);
             if (!char)
+                return { name: target.name, count: 0, inRoom: false };
+            if (targetIds && !targetIds.has(target.id))
                 return { name: target.name, count: 0, inRoom: false };
             let count = 0;
             for (const item of char.Appearance) {
@@ -2883,6 +2917,7 @@
             // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
             this.userTabOffset = null;
             this.tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
+            this.domSelectedTargets = new Set();
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
             this.resetLocationBtn = null;
@@ -3023,8 +3058,8 @@
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
             thanksTabBtn.id = "ebc-tab-thanks";
-            thanksTabBtn.textContent = "CREDITS";
-            thanksTabBtn.title = "Special Thanks";
+            thanksTabBtn.textContent = "DEV";
+            thanksTabBtn.title = "Developer Tools & Credits";
             // DOM tools tab — creator only, hidden until open() confirms the member number
             const domTabBtn = document.createElement("button");
             domTabBtn.className = "ebc-tab-btn";
@@ -5467,6 +5502,117 @@
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // -- Developer Tools ---------------------------------------------------
+            const devLbl = document.createElement("div");
+            devLbl.className = "ebc-section-label";
+            devLbl.textContent = "Developer Tools";
+            body.appendChild(devLbl);
+            // -- Toggle: show EBC version in overhead badge --
+            const verRow = document.createElement("div");
+            verRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:4px;";
+            const verLbl = document.createElement("span");
+            verLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+            verLbl.textContent = "Show version in overhead badge";
+            const verHint = document.createElement("span");
+            verHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+            verHint.textContent = "Shows EBC version above room members";
+            const verInfo = document.createElement("div");
+            verInfo.style.cssText = "flex:1;min-width:0;";
+            verInfo.appendChild(verLbl);
+            verInfo.appendChild(document.createElement("br"));
+            verInfo.appendChild(verHint);
+            const verToggle = document.createElement("button");
+            const refreshVerToggle = () => {
+                const on = getShowVersionBadge();
+                verToggle.textContent = on ? "ON" : "OFF";
+                verToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:2px 10px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshVerToggle();
+            verToggle.addEventListener("click", () => {
+                setShowVersionBadge(!getShowVersionBadge());
+                refreshVerToggle();
+            });
+            verRow.appendChild(verInfo);
+            verRow.appendChild(verToggle);
+            body.appendChild(verRow);
+            // -- Room EBC presence list --
+            const presLbl = document.createElement("div");
+            presLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
+            presLbl.textContent = "EBC users in this room";
+            body.appendChild(presLbl);
+            const presListEl = document.createElement("div");
+            body.appendChild(presListEl);
+            const refreshPresence = () => {
+                var _a, _b, _c, _d, _e;
+                while (presListEl.firstChild)
+                    presListEl.removeChild(presListEl.firstChild);
+                const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+                const found = [];
+                for (const c of room) {
+                    const memberNum = c.MemberNumber;
+                    const isSelf = memberNum === Player.MemberNumber;
+                    if (isSelf) {
+                        found.push({ name: String((_b = c.Name) !== null && _b !== void 0 ? _b : "You"), id: memberNum !== null && memberNum !== void 0 ? memberNum : 0, version: "self", isSelf: true });
+                        continue;
+                    }
+                    const shared = (_c = c.OnlineSharedSettings) === null || _c === void 0 ? void 0 : _c["EmeryBC"];
+                    const presence = shared === null || shared === void 0 ? void 0 : shared["presence"];
+                    if ((presence === null || presence === void 0 ? void 0 : presence["marker"]) === "EBC") {
+                        found.push({ name: String((_d = c.Name) !== null && _d !== void 0 ? _d : "?"), id: memberNum !== null && memberNum !== void 0 ? memberNum : 0, version: String((_e = presence["version"]) !== null && _e !== void 0 ? _e : "?"), isSelf: false });
+                    }
+                }
+                if (found.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
+                    hint.textContent = "No other EBC users detected in this room.";
+                    presListEl.appendChild(hint);
+                    return;
+                }
+                for (const p of found) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+                    nameEl.textContent = p.isSelf ? "You" : p.name;
+                    const idEl = document.createElement("span");
+                    idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+                    idEl.textContent = "#" + p.id;
+                    const verEl = document.createElement("span");
+                    verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;" +
+                        (p.isSelf ? "color:#7a5a6a;background:#1b0d17;border:1px solid #3a1928;" : "color:#cf6f98;background:#2a1421;border:1px solid #6b3048;");
+                    verEl.textContent = p.isSelf ? "you" : ("v" + p.version);
+                    row.appendChild(nameEl);
+                    row.appendChild(idEl);
+                    row.appendChild(verEl);
+                    presListEl.appendChild(row);
+                }
+            };
+            refreshPresence();
+            const refreshBtn = document.createElement("button");
+            refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;margin-bottom:10px;";
+            refreshBtn.textContent = "↻ Refresh list";
+            refreshBtn.addEventListener("click", () => { refreshPresence(); });
+            body.appendChild(refreshBtn);
+            // -- Credits -----------------------------------------------------------
+            const credDiv = document.createElement("div");
+            credDiv.className = "ebc-divider";
+            body.appendChild(credDiv);
+            const credLbl = document.createElement("div");
+            credLbl.className = "ebc-section-label";
+            credLbl.textContent = "Special Thanks";
+            body.appendChild(credLbl);
             const intro = document.createElement("div");
             intro.className = "ebc-thanks-intro";
             intro.textContent = "People who made EmeryBC possible.";
@@ -5507,12 +5653,12 @@
                 const namEl = document.createElement("span");
                 namEl.className = "ebc-thanks-name";
                 namEl.textContent = p.name;
-                const idEl = document.createElement("span");
-                idEl.style.cssText = "font-size:9px;color:#7a5a6a;font-family:'Trebuchet MS',serif;flex-shrink:0;";
-                idEl.textContent = `#${p.memberId}`;
-                idEl.title = "BC Member Number — confirms this is the right person";
+                const idEl2 = document.createElement("span");
+                idEl2.style.cssText = "font-size:9px;color:#7a5a6a;font-family:'Trebuchet MS',serif;flex-shrink:0;";
+                idEl2.textContent = "#" + p.memberId;
+                idEl2.title = "BC Member Number";
                 nameRow.appendChild(namEl);
-                nameRow.appendChild(idEl);
+                nameRow.appendChild(idEl2);
                 const reason = document.createElement("span");
                 reason.className = "ebc-thanks-reason";
                 reason.textContent = p.reason;
@@ -5541,6 +5687,16 @@
                 msg.textContent = "Not available.";
                 body.appendChild(msg);
                 return;
+            }
+            // Sync selected targets: add any new targets that aren't tracked yet
+            const allTargetIds = getDomConfig().targets.map(t => t.id);
+            if (this.domSelectedTargets.size === 0) {
+                allTargetIds.forEach(id => this.domSelectedTargets.add(id));
+            }
+            // Remove stale IDs
+            for (const id of this.domSelectedTargets) {
+                if (!allTargetIds.includes(id))
+                    this.domSelectedTargets.delete(id);
             }
             // Helper: labelled text input row
             const makeField = (label, value, prefix = "", placeholder = "") => {
@@ -5583,6 +5739,17 @@
                 for (const t of getDomConfig().targets) {
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;margin-bottom:3px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;";
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox";
+                    cb.checked = this.domSelectedTargets.has(t.id);
+                    cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                    cb.addEventListener("change", () => {
+                        if (cb.checked)
+                            this.domSelectedTargets.add(t.id);
+                        else
+                            this.domSelectedTargets.delete(t.id);
+                    });
+                    row.appendChild(cb);
                     const nameEl = document.createElement("span");
                     nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
                     nameEl.textContent = t.name;
@@ -5676,12 +5843,12 @@
             };
             removeAllBtn.addEventListener("click", () => {
                 removeAllBtn.disabled = true;
-                showReleaseStatus(removeAllTargetRestraints());
+                showReleaseStatus(removeAllTargetRestraints(this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined));
                 window.setTimeout(() => { removeAllBtn.disabled = false; }, 2000);
             });
             unlockAllBtn.addEventListener("click", () => {
                 unlockAllBtn.disabled = true;
-                showReleaseStatus(unlockAllTargetItems());
+                showReleaseStatus(unlockAllTargetItems(this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined));
                 window.setTimeout(() => { unlockAllBtn.disabled = false; }, 2000);
             });
             // ── "Pick items to remove" picker ─────────────────────────────────────
@@ -5851,7 +6018,7 @@
                     setsContainer.appendChild(applyStatus);
                     applyBtn.addEventListener("click", () => {
                         applyBtn.disabled = true;
-                        const { applied, skipped } = applyDomSet(set.id);
+                        const { applied, skipped } = applyDomSet(set.id, this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined);
                         const parts = [];
                         if (applied.length)
                             parts.push("✓ " + applied.join(", "));
@@ -6194,9 +6361,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.2.3";
+    const MOD_VERSION = "0.2.4";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.2.4",
+            changes: [
+                "DOM Tools: target checkboxes — tick which targets to include before hitting Apply, All Restraints, or All Locks.",
+                "DOM Tools: sync fix — CharacterAppearanceSortLayers now called before ChatRoomCharacterUpdate so the appearance packet is properly ordered.",
+                "DEV tab (was CREDITS): developer tools section shows EBC version badge toggle and a live list of EBC users in the room with their versions.",
+                "Version badge toggle — when on, the overhead badge shows 'v0.2.4' instead of 'EBC' so you can see what version everyone is running.",
+            ],
+        },
         {
             version: "0.2.3",
             changes: [
@@ -6738,6 +6914,7 @@
         return !!getSharedPresence(character);
     }
     function drawPresenceMarker(args) {
+        var _a;
         if (CurrentScreen !== "ChatRoom")
             return;
         // Local display toggle — if off, skip drawing badges on everyone (client-side only)
@@ -6749,13 +6926,14 @@
         const zoom = typeof args[3] === "number" ? args[3] : 1;
         if (!character || left == null || top == null)
             return;
-        // For our own character we always have EBC — skip the shared-settings lookup
-        // which can fail if OnlineSharedSettings hasn't synced yet on first render.
         const isSelf = character.MemberNumber === Player.MemberNumber;
         if (!isSelf && !hasEmeryBC(character))
             return;
-        getSharedPresence(character);
-        const width = Math.max(30, 34 * zoom);
+        const presence = getSharedPresence(character);
+        const showVer = getShowVersionBadge();
+        const verStr = (_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : MOD_VERSION;
+        const label = showVer ? ("v" + verStr) : "EBC";
+        const width = showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom);
         const height = Math.max(12, 14 * zoom);
         const x = left + 197 * zoom;
         const y = top + 26 * zoom;
@@ -6764,7 +6942,7 @@
         DrawRect(badgeLeft + 1, badgeTop + 1, width, height, "rgba(0, 0, 0, 0.28)");
         DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
         DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
-        DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 6, UI.accent);
+        DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 6, UI.accent);
     }
     function showRoomLoadNotice() {
         if (noticeShown)

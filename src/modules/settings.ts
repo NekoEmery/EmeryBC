@@ -31,3 +31,20 @@ export function setBadgeEnabled(value: boolean): void {
         ServerPlayerExtensionSettingsSync("EmeryBC");
     } catch { /* ignore */ }
 }
+
+// -- Version badge visibility --------------------------------------------------
+// When enabled, the overhead EBC badge shows the player's EBC version number.
+// Defaults to false (badge shows just "EBC").
+
+export function getShowVersionBadge(): boolean {
+    try { return getStore()?.showVersionBadge === true; } catch { return false; }
+}
+
+export function setShowVersionBadge(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.showVersionBadge = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}

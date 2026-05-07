@@ -47,7 +47,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge } from "./settings";
 import {
     isDomEnabled,
     getDomConfig,
@@ -1300,6 +1300,7 @@ export class EBCDrawer {
     // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
     private userTabOffset: { x: number; y: number } | null = null;
     private tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
+    private domSelectedTargets = new Set<number>();
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
     private resetLocationBtn: HTMLElement | null = null;
@@ -1464,8 +1465,8 @@ export class EBCDrawer {
         const thanksTabBtn = document.createElement("button");
         thanksTabBtn.className = "ebc-tab-btn";
         thanksTabBtn.id = "ebc-tab-thanks";
-        thanksTabBtn.textContent = "CREDITS";
-        thanksTabBtn.title = "Special Thanks";
+        thanksTabBtn.textContent = "DEV";
+        thanksTabBtn.title = "Developer Tools & Credits";
 
         // DOM tools tab — creator only, hidden until open() confirms the member number
         const domTabBtn = document.createElement("button");
@@ -4140,6 +4141,135 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        // -- Developer Tools ---------------------------------------------------
+        const devLbl = document.createElement("div");
+        devLbl.className = "ebc-section-label";
+        devLbl.textContent = "Developer Tools";
+        body.appendChild(devLbl);
+
+        // -- Toggle: show EBC version in overhead badge --
+        const verRow = document.createElement("div");
+        verRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:4px;";
+
+        const verLbl = document.createElement("span");
+        verLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+        verLbl.textContent = "Show version in overhead badge";
+        const verHint = document.createElement("span");
+        verHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+        verHint.textContent = "Shows EBC version above room members";
+
+        const verInfo = document.createElement("div");
+        verInfo.style.cssText = "flex:1;min-width:0;";
+        verInfo.appendChild(verLbl);
+        verInfo.appendChild(document.createElement("br"));
+        verInfo.appendChild(verHint);
+
+        const verToggle = document.createElement("button");
+        const refreshVerToggle = (): void => {
+            const on = getShowVersionBadge();
+            verToggle.textContent = on ? "ON" : "OFF";
+            verToggle.style.cssText = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:10px",
+                "font-weight:bold",
+                "padding:2px 10px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "flex-shrink:0",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#553142"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+        };
+        refreshVerToggle();
+        verToggle.addEventListener("click", () => {
+            setShowVersionBadge(!getShowVersionBadge());
+            refreshVerToggle();
+        });
+
+        verRow.appendChild(verInfo);
+        verRow.appendChild(verToggle);
+        body.appendChild(verRow);
+
+        // -- Room EBC presence list --
+        const presLbl = document.createElement("div");
+        presLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
+        presLbl.textContent = "EBC users in this room";
+        body.appendChild(presLbl);
+
+        const presListEl = document.createElement("div");
+        body.appendChild(presListEl);
+
+        const refreshPresence = (): void => {
+            while (presListEl.firstChild) presListEl.removeChild(presListEl.firstChild);
+            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Array<Record<string, unknown>> | undefined) ?? [];
+            const found: Array<{ name: string; id: number; version: string; isSelf: boolean }> = [];
+
+            for (const c of room) {
+                const memberNum = c.MemberNumber as number | undefined;
+                const isSelf = memberNum === Player.MemberNumber;
+                if (isSelf) {
+                    found.push({ name: String(c.Name ?? "You"), id: memberNum ?? 0, version: "self", isSelf: true });
+                    continue;
+                }
+                const shared = (c.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EmeryBC"] as Record<string, unknown> | undefined;
+                const presence = shared?.["presence"] as Record<string, unknown> | undefined;
+                if (presence?.["marker"] === "EBC") {
+                    found.push({ name: String(c.Name ?? "?"), id: memberNum ?? 0, version: String(presence["version"] ?? "?"), isSelf: false });
+                }
+            }
+
+            if (found.length === 0) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
+                hint.textContent = "No other EBC users detected in this room.";
+                presListEl.appendChild(hint);
+                return;
+            }
+
+            for (const p of found) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
+
+                const nameEl = document.createElement("span");
+                nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+                nameEl.textContent = p.isSelf ? "You" : p.name;
+
+                const idEl = document.createElement("span");
+                idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+                idEl.textContent = "#" + p.id;
+
+                const verEl = document.createElement("span");
+                verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;" +
+                    (p.isSelf ? "color:#7a5a6a;background:#1b0d17;border:1px solid #3a1928;" : "color:#cf6f98;background:#2a1421;border:1px solid #6b3048;");
+                verEl.textContent = p.isSelf ? "you" : ("v" + p.version);
+
+                row.appendChild(nameEl);
+                row.appendChild(idEl);
+                row.appendChild(verEl);
+                presListEl.appendChild(row);
+            }
+        };
+
+        refreshPresence();
+
+        const refreshBtn = document.createElement("button");
+        refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;margin-bottom:10px;";
+        refreshBtn.textContent = "↻ Refresh list";
+        refreshBtn.addEventListener("click", () => { refreshPresence(); });
+        body.appendChild(refreshBtn);
+
+        // -- Credits -----------------------------------------------------------
+        const credDiv = document.createElement("div");
+        credDiv.className = "ebc-divider";
+        body.appendChild(credDiv);
+
+        const credLbl = document.createElement("div");
+        credLbl.className = "ebc-section-label";
+        credLbl.textContent = "Special Thanks";
+        body.appendChild(credLbl);
+
         const intro = document.createElement("div");
         intro.className = "ebc-thanks-intro";
         intro.textContent = "People who made EmeryBC possible.";
@@ -4187,13 +4317,13 @@ export class EBCDrawer {
             namEl.className = "ebc-thanks-name";
             namEl.textContent = p.name;
 
-            const idEl = document.createElement("span");
-            idEl.style.cssText = "font-size:9px;color:#7a5a6a;font-family:'Trebuchet MS',serif;flex-shrink:0;";
-            idEl.textContent = `#${p.memberId}`;
-            idEl.title = "BC Member Number — confirms this is the right person";
+            const idEl2 = document.createElement("span");
+            idEl2.style.cssText = "font-size:9px;color:#7a5a6a;font-family:'Trebuchet MS',serif;flex-shrink:0;";
+            idEl2.textContent = "#" + p.memberId;
+            idEl2.title = "BC Member Number";
 
             nameRow.appendChild(namEl);
-            nameRow.appendChild(idEl);
+            nameRow.appendChild(idEl2);
 
             const reason = document.createElement("span");
             reason.className = "ebc-thanks-reason";
@@ -4226,6 +4356,16 @@ export class EBCDrawer {
             msg.textContent = "Not available.";
             body.appendChild(msg);
             return;
+        }
+
+        // Sync selected targets: add any new targets that aren't tracked yet
+        const allTargetIds = getDomConfig().targets.map(t => t.id);
+        if (this.domSelectedTargets.size === 0) {
+            allTargetIds.forEach(id => this.domSelectedTargets.add(id));
+        }
+        // Remove stale IDs
+        for (const id of this.domSelectedTargets) {
+            if (!allTargetIds.includes(id)) this.domSelectedTargets.delete(id);
         }
 
         // Helper: labelled text input row
@@ -4270,6 +4410,15 @@ export class EBCDrawer {
             for (const t of getDomConfig().targets) {
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;margin-bottom:3px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;";
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.checked = this.domSelectedTargets.has(t.id);
+                cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                cb.addEventListener("change", () => {
+                    if (cb.checked) this.domSelectedTargets.add(t.id);
+                    else this.domSelectedTargets.delete(t.id);
+                });
+                row.appendChild(cb);
                 const nameEl = document.createElement("span");
                 nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
                 nameEl.textContent = t.name;
@@ -4368,13 +4517,13 @@ export class EBCDrawer {
 
         removeAllBtn.addEventListener("click", () => {
             removeAllBtn.disabled = true;
-            showReleaseStatus(removeAllTargetRestraints());
+            showReleaseStatus(removeAllTargetRestraints(this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined));
             window.setTimeout(() => { removeAllBtn.disabled = false; }, 2000);
         });
 
         unlockAllBtn.addEventListener("click", () => {
             unlockAllBtn.disabled = true;
-            showReleaseStatus(unlockAllTargetItems());
+            showReleaseStatus(unlockAllTargetItems(this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined));
             window.setTimeout(() => { unlockAllBtn.disabled = false; }, 2000);
         });
 
@@ -4559,7 +4708,7 @@ export class EBCDrawer {
 
                 applyBtn.addEventListener("click", () => {
                     applyBtn.disabled = true;
-                    const { applied, skipped } = applyDomSet(set.id);
+                    const { applied, skipped } = applyDomSet(set.id, this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined);
                     const parts: string[] = [];
                     if (applied.length) parts.push("✓ " + applied.join(", "));
                     if (skipped.length) parts.push("⟳ not in room: " + skipped.join(", "));

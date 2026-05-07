@@ -173,7 +173,7 @@ export function parseBCCodeItems(code: string): ParsedBCItem[] {
 }
 
 // Apply a restraint set to every in-room target, then send the announce emote.
-export function applyDomSet(setId: string): { applied: string[]; skipped: string[] } {
+export function applyDomSet(setId: string, targetIds?: Set<number>): { applied: string[]; skipped: string[] } {
     const cfg = loadConfig();
     const set = cfg.sets.find(s => s.id === setId);
     if (!set) return { applied: [], skipped: [] };
@@ -188,6 +188,7 @@ export function applyDomSet(setId: string): { applied: string[]; skipped: string
     for (const target of cfg.targets) {
         const char = room.find(c => c.MemberNumber === target.id);
         if (!char) { skipped.push(target.name); continue; }
+        if (targetIds && !targetIds.has(target.id)) { skipped.push(target.name); continue; }
 
         let anyApplied = false;
         for (const item of set.items) {
@@ -224,17 +225,7 @@ export function applyDomSet(setId: string): { applied: string[]; skipped: string
         }
 
         if (anyApplied) {
-            try {
-                CharacterRefresh(char, true, false);
-                // Belt-and-suspenders: call ChatRoomCharacterUpdate directly so
-                // the updated appearance is guaranteed to broadcast to the room.
-                // CharacterRefresh(push=true) calls this internally, but some BC
-                // builds skip it when called outside the ChatRoom screen context.
-                const updateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
-                    ((c: Character) => void) | undefined;
-                if (updateFn) updateFn(char);
-                applied.push(target.name);
-            }
+            try { syncChar(char); applied.push(target.name); }
             catch { skipped.push(target.name); }
         } else {
             skipped.push(target.name);
@@ -267,11 +258,20 @@ export function applyDomSet(setId: string): { applied: string[]; skipped: string
 
 // Shared sync helper for non-player characters.
 function syncChar(char: Character): void {
-    try { CharacterRefresh(char, true, false); } catch { /* ignore */ }
+    // Local visual refresh first (no push)
+    try { CharacterRefresh(char, false, false); } catch { /* ignore */ }
+    // Sort layers so the server packet contains the correct layer order
     try {
-        const fn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
+        const sortFn = (window as unknown as Record<string, unknown>).CharacterAppearanceSortLayers as
+            ((c: Character) => Character) | undefined;
+        if (sortFn) sortFn(char);
+    } catch { /* ignore */ }
+    // Push update to server — BC validates relationship permissions server-side
+    try {
+        const updateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
             ((c: Character) => void) | undefined;
-        if (fn) fn(char);
+        if (updateFn) updateFn(char);
+        else CharacterRefresh(char, true, false);
     } catch { /* ignore */ }
 }
 
@@ -317,12 +317,13 @@ export function removeTargetItems(targetId: number, groups: string[]): { inRoom:
 }
 
 // Removes ALL restraint items from every in-room target.
-export function removeAllTargetRestraints(): Array<{ name: string; count: number; inRoom: boolean }> {
+export function removeAllTargetRestraints(targetIds?: Set<number>): Array<{ name: string; count: number; inRoom: boolean }> {
     const cfg = loadConfig();
     const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
     return cfg.targets.map(target => {
         const char = room.find(c => c.MemberNumber === target.id);
         if (!char) return { name: target.name, count: 0, inRoom: false };
+        if (targetIds && !targetIds.has(target.id)) return { name: target.name, count: 0, inRoom: false };
         const groups = char.Appearance
             .filter((a: Item) => RESTRAINT_GROUPS.has(a.Asset.Group.Name))
             .map((a: Item) => a.Asset.Group.Name);
@@ -332,12 +333,13 @@ export function removeAllTargetRestraints(): Array<{ name: string; count: number
 }
 
 // Unlocks ALL locked items on every in-room target.
-export function unlockAllTargetItems(): Array<{ name: string; count: number; inRoom: boolean }> {
+export function unlockAllTargetItems(targetIds?: Set<number>): Array<{ name: string; count: number; inRoom: boolean }> {
     const cfg = loadConfig();
     const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
     return cfg.targets.map(target => {
         const char = room.find(c => c.MemberNumber === target.id);
         if (!char) return { name: target.name, count: 0, inRoom: false };
+        if (targetIds && !targetIds.has(target.id)) return { name: target.name, count: 0, inRoom: false };
         let count = 0;
         for (const item of char.Appearance) {
             const prop = item.Property as Record<string, unknown> | undefined;

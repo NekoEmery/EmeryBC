@@ -4,15 +4,24 @@ import { handleOutfitCommand } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge } from "./modules/settings";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.2.3";
+const MOD_VERSION = "0.2.4";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.2.4",
+        changes: [
+            "DOM Tools: target checkboxes — tick which targets to include before hitting Apply, All Restraints, or All Locks.",
+            "DOM Tools: sync fix — CharacterAppearanceSortLayers now called before ChatRoomCharacterUpdate so the appearance packet is properly ordered.",
+            "DEV tab (was CREDITS): developer tools section shows EBC version badge toggle and a live list of EBC users in the room with their versions.",
+            "Version badge toggle — when on, the overhead badge shows 'v0.2.4' instead of 'EBC' so you can see what version everyone is running.",
+        ],
+    },
     {
         version: "0.2.3",
         changes: [
@@ -584,13 +593,14 @@ function drawPresenceMarker(args: unknown[]): void {
     const top = typeof args[2] === "number" ? args[2] : null;
     const zoom = typeof args[3] === "number" ? args[3] : 1;
     if (!character || left == null || top == null) return;
-    // For our own character we always have EBC — skip the shared-settings lookup
-    // which can fail if OnlineSharedSettings hasn't synced yet on first render.
     const isSelf = character.MemberNumber === Player.MemberNumber;
     if (!isSelf && !hasEmeryBC(character)) return;
 
     const presence = getSharedPresence(character);
-    const width = Math.max(30, 34 * zoom);
+    const showVer = getShowVersionBadge();
+    const verStr = presence?.version ?? MOD_VERSION;
+    const label = showVer ? ("v" + verStr) : "EBC";
+    const width = showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom);
     const height = Math.max(12, 14 * zoom);
     const x = left + 197 * zoom;
     const y = top + 26 * zoom;
@@ -600,7 +610,7 @@ function drawPresenceMarker(args: unknown[]): void {
     DrawRect(badgeLeft + 1, badgeTop + 1, width, height, "rgba(0, 0, 0, 0.28)");
     DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
     DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
-    DrawTextFit("EBC", badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 6, UI.accent);
+    DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 6, UI.accent);
 }
 
 function showRoomLoadNotice(): void {
