@@ -63,14 +63,15 @@ const EXPR_FALLBACK: Record<string, string[]> = {
 export function getExprGroupOptions(group: string): string[] {
     try {
         const bcAsset = (window as unknown as Record<string, unknown>).Asset as
-            Array<{ Group: { Name: string; Family?: string }; Name: string; Family?: string }> | undefined;
+            Array<{ Group: { Name: string; Family?: string }; Name: string }> | undefined;
         if (Array.isArray(bcAsset)) {
             const family = Player?.AssetFamily ?? "Female3DCG";
+            // Family lives on the Group in BC, not on the Asset itself.
+            // Accept any asset whose group name matches and whose group family
+            // is either the player's family or unset (shared assets).
             const opts = bcAsset
-                .filter(a =>
-                    a.Group.Name === group &&
-                    (a.Family === family || a.Group.Family === family || (!a.Family && !a.Group.Family))
-                )
+                .filter(a => a.Group.Name === group &&
+                    (a.Group.Family === family || !a.Group.Family))
                 .map(a => a.Name);
             if (opts.length > 0) return opts;
         }

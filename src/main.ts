@@ -11,10 +11,17 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.4.2";
+const MOD_VERSION = "0.4.3";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.4.3",
+        changes: [
+            "Fix: expression face rows now scroll properly — min-width:0 added so overflow-x:auto actually constrains buttons.",
+            "Fix: asset query now only checks Group.Family (where BC stores it) so all expression options are found correctly.",
+        ],
+    },
     {
         version: "0.4.2",
         changes: [

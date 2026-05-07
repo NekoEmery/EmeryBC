@@ -4382,7 +4382,7 @@ export class EBCDrawer {
 
         // ── Section 2: Face picker ─────────────────────────────────────────────
         const faceBox = document.createElement("div");
-        faceBox.style.cssText = "background:#190b13;border:1px solid #3a1928;border-radius:5px;padding:5px 6px;margin-bottom:5px;display:flex;flex-direction:column;gap:3px;";
+        faceBox.style.cssText = "background:#190b13;border:1px solid #3a1928;border-radius:5px;padding:5px 6px;margin-bottom:5px;display:flex;flex-direction:column;gap:3px;overflow:hidden;min-width:0;";
         body.appendChild(faceBox);
 
         const faceLblRow = document.createElement("div");
@@ -4402,7 +4402,7 @@ export class EBCDrawer {
             row.appendChild(label);
 
             const scroll = document.createElement("div");
-            scroll.style.cssText = "display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none;padding-bottom:1px;";
+            scroll.style.cssText = "display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin;scrollbar-color:#3a1928 transparent;padding-bottom:2px;";
 
             const allBtns: Array<{ btn: HTMLButtonElement; name: string | null }> = [];
 

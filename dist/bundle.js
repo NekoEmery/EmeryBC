@@ -859,9 +859,12 @@
             const bcAsset = window.Asset;
             if (Array.isArray(bcAsset)) {
                 const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
+                // Family lives on the Group in BC, not on the Asset itself.
+                // Accept any asset whose group name matches and whose group family
+                // is either the player's family or unset (shared assets).
                 const opts = bcAsset
                     .filter(a => a.Group.Name === group &&
-                    (a.Family === family || a.Group.Family === family || (!a.Family && !a.Group.Family)))
+                    (a.Group.Family === family || !a.Group.Family))
                     .map(a => a.Name);
                 if (opts.length > 0)
                     return opts;
@@ -6250,7 +6253,7 @@
             renderPresetList();
             // ── Section 2: Face picker ─────────────────────────────────────────────
             const faceBox = document.createElement("div");
-            faceBox.style.cssText = "background:#190b13;border:1px solid #3a1928;border-radius:5px;padding:5px 6px;margin-bottom:5px;display:flex;flex-direction:column;gap:3px;";
+            faceBox.style.cssText = "background:#190b13;border:1px solid #3a1928;border-radius:5px;padding:5px 6px;margin-bottom:5px;display:flex;flex-direction:column;gap:3px;overflow:hidden;min-width:0;";
             body.appendChild(faceBox);
             const faceLblRow = document.createElement("div");
             faceLblRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3040;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1px;";
@@ -6266,7 +6269,7 @@
                 label.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
                 row.appendChild(label);
                 const scroll = document.createElement("div");
-                scroll.style.cssText = "display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none;padding-bottom:1px;";
+                scroll.style.cssText = "display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin;scrollbar-color:#3a1928 transparent;padding-bottom:2px;";
                 const allBtns = [];
                 const setActive = (name) => {
                     pickerState[group] = name;
@@ -8681,9 +8684,25 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.4.1";
+    const MOD_VERSION = "0.4.3";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.4.3",
+            changes: [
+                "Fix: expression face rows now scroll properly — min-width:0 added so overflow-x:auto actually constrains buttons.",
+                "Fix: asset query now only checks Group.Family (where BC stores it) so all expression options are found correctly.",
+            ],
+        },
+        {
+            version: "0.4.2",
+            changes: [
+                "Confirm before escaping moved to the quick-action bar between Release/Remove Locks and the item picker — always visible.",
+                "Expressions tab redesigned: presets as a quick-apply pill strip at top, face groups in a clean box, emoticons in their own wrap grid, sequences section with inline + New button.",
+                "Preset apply now syncs picker highlights immediately.",
+                "Floating expression button toggle moved to bottom of ANIMS tab.",
+            ],
+        },
         {
             version: "0.4.1",
             changes: [
