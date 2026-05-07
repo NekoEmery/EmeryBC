@@ -6658,9 +6658,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.2.7";
+    const MOD_VERSION = "0.2.8";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.2.8",
+            changes: [
+                "Fixed: closed panel no longer blocks clicks on BC UI behind it (pointer-events inherit fix).",
+                "Fixed: tab icon now stays visible when drawer is closed (slide instead of clip-path).",
+                "Boop: sends as native BC Activity type so addon reaction systems (LSCG etc.) fire correctly.",
+                "Boop: nose boops only.",
+            ],
+        },
         {
             version: "0.2.7",
             changes: [
