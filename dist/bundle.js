@@ -1863,21 +1863,36 @@
     position: absolute;
     left: -44px;
     top: 58px;
-    transition: background 0.18s, width 0.18s, left 0.18s, opacity 0.18s;
-    overflow: hidden;
+    transition: background 0.18s;
 }
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
 #ebc-tab:active { cursor: grabbing; }
 
-/* Collapsed pull-strip — shown when the panel is closed so the tab footprint
-   on the BC canvas is minimal (6px) and doesn't block restraint menus. */
+/* When the panel is closed the full tab would block BC canvas clicks.
+   pointer-events:none makes it click-through; the #ebc-tab-strip child
+   provides a thin 6px clickable edge so the user can still reopen it. */
 #ebc-tab.ebc-tab-collapsed {
+    pointer-events: none;
+    cursor: default;
+}
+
+/* Thin clickable strip at the right edge of the tab (closest to chat log,
+   least overlap with the BC canvas). Only active when the tab is collapsed. */
+#ebc-tab-strip {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 0;
     width: 6px;
-    left: -6px;
+    height: 100%;
+    pointer-events: auto;
     cursor: pointer;
-    opacity: 0.55;
-    border-radius: 4px 0 0 4px;
+    border-radius: 0;
+}
+
+#ebc-tab.ebc-tab-collapsed #ebc-tab-strip {
+    display: block;
 }
 
 /* Sliding panel - only this element transforms, not the tab */
@@ -3081,12 +3096,19 @@
             root.style.display = "none";
             root.style.right = "-9999px"; // off-screen until syncToChat runs
             // Tab button - child of root, OUTSIDE the sliding panel so it never moves.
-            // Starts collapsed (thin strip) so it doesn't block BC canvas menus when closed.
+            // Starts collapsed so the full 44px hit area doesn't block BC canvas menus.
             const tab = document.createElement("div");
             tab.id = "ebc-tab";
             tab.title = "EmeryBC";
             tab.innerHTML = TAB_ICON;
             tab.classList.add("ebc-tab-collapsed");
+            // Thin click strip — only active when tab is collapsed. Lets the user
+            // reopen the panel without the full tab blocking BC canvas clicks.
+            const tabStrip = document.createElement("div");
+            tabStrip.id = "ebc-tab-strip";
+            tabStrip.title = "Open EmeryBC";
+            tabStrip.addEventListener("click", () => this.toggle());
+            tab.appendChild(tabStrip);
             root.appendChild(tab);
             // Sliding panel container - this is the only thing that transforms
             const slideContainer = document.createElement("div");
