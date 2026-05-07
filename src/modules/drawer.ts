@@ -143,7 +143,7 @@ const CSS = `
 #emerybc-panel.ebc-open   { transform: translateX(0); pointer-events: auto; }
 
 .ebc-panel {
-    pointer-events: auto;
+    pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
     background: rgba(27, 13, 23, 0.97);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
