@@ -938,8 +938,6 @@
                 { key: "OverTheHead", label: "Arms Up" },
                 { key: "BackCuffs", label: "Arms Back" },
                 { key: "BackBoxTie", label: "Box Tie" },
-                { key: "BackElbowCuffs", label: "Elbow Cuffs" },
-                { key: "FrontCuffs", label: "Front Cuffs" },
                 { key: "Yoked", label: "Yoked" },
             ],
         },
