@@ -6022,6 +6022,169 @@
                 window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
             });
             body.appendChild(boopBtn);
+            // ── Auto-Escape ──────────────────────────────────────────────────────
+            const escapeDivider = document.createElement("div");
+            escapeDivider.style.cssText = "border-top:1px solid #3a1928;margin:10px 0 8px;";
+            body.appendChild(escapeDivider);
+            const antiLbl = document.createElement("div");
+            antiLbl.className = "ebc-section-label";
+            antiLbl.textContent = "Auto-Escape";
+            body.appendChild(antiLbl);
+            const antiRow = document.createElement("div");
+            antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+            const antiInfo = document.createElement("div");
+            antiInfo.style.cssText = "flex:1;min-width:0;";
+            const antiTitle = document.createElement("span");
+            antiTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+            antiTitle.textContent = "Auto-escape incoming restraints";
+            const antiHint = document.createElement("span");
+            antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
+            antiHint.textContent = "Removes any restraint put on you and sends a playful room emote";
+            antiInfo.appendChild(antiTitle);
+            antiInfo.appendChild(antiHint);
+            const antiToggle = document.createElement("button");
+            const refreshAntiToggle = () => {
+                const on = getAntiRestraintEnabled();
+                antiToggle.textContent = on ? "ON" : "OFF";
+                antiToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:2px 10px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshAntiToggle();
+            antiToggle.addEventListener("click", () => {
+                const next = !getAntiRestraintEnabled();
+                setAntiRestraintEnabled(next);
+                if (next)
+                    try {
+                        snapshotPlayerRestraints();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                refreshAntiToggle();
+            });
+            antiRow.appendChild(antiInfo);
+            antiRow.appendChild(antiToggle);
+            body.appendChild(antiRow);
+            // -- Confirm before escaping --
+            const confirmRow = document.createElement("div");
+            confirmRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+            const confirmInfo = document.createElement("div");
+            confirmInfo.style.cssText = "flex:1;min-width:0;";
+            const confirmTitle = document.createElement("span");
+            confirmTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+            confirmTitle.textContent = "Confirm before escaping";
+            const confirmHint = document.createElement("span");
+            confirmHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
+            confirmHint.textContent = "Ask OK/Cancel before removing — OK keeps it, Cancel escapes";
+            confirmInfo.appendChild(confirmTitle);
+            confirmInfo.appendChild(confirmHint);
+            const confirmToggle = document.createElement("button");
+            const refreshConfirmToggle = () => {
+                const on = getAntiRestraintConfirm();
+                confirmToggle.textContent = on ? "ON" : "OFF";
+                confirmToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:2px 10px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshConfirmToggle();
+            confirmToggle.addEventListener("click", () => {
+                setAntiRestraintConfirm(!getAntiRestraintConfirm());
+                refreshConfirmToggle();
+            });
+            confirmRow.appendChild(confirmInfo);
+            confirmRow.appendChild(confirmToggle);
+            body.appendChild(confirmRow);
+            // -- Whitelist --
+            const whitelistSection = document.createElement("div");
+            whitelistSection.style.cssText = "margin-bottom:6px;";
+            const wlTitle = document.createElement("span");
+            wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
+            wlTitle.textContent = "Escape whitelist — items auto-escape will keep";
+            whitelistSection.appendChild(wlTitle);
+            const friendlyGroup = (g) => g.replace(/^Item/, "").replace(/([A-Z])/g, " $1").trim();
+            const makeChip = (label, onRemove) => {
+                const chip = document.createElement("div");
+                chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
+                const txt = document.createElement("span");
+                txt.textContent = label;
+                const x = document.createElement("button");
+                x.textContent = "×";
+                x.title = "Remove from whitelist";
+                x.style.cssText = "background:none;border:none;cursor:pointer;color:#cf6f98;font-size:11px;line-height:1;padding:0 0 0 2px;";
+                x.addEventListener("click", onRemove);
+                chip.appendChild(txt);
+                chip.appendChild(x);
+                return chip;
+            };
+            const wlChips = document.createElement("div");
+            wlChips.style.cssText = "min-height:18px;margin-bottom:4px;";
+            const wlAddRow = document.createElement("div");
+            wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+            const refreshWhitelistUI = () => {
+                wlChips.innerHTML = "";
+                wlAddRow.innerHTML = "";
+                const whitelist = getAntiRestraintWhitelist();
+                if (whitelist.length === 0) {
+                    const empty = document.createElement("span");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4c2537;";
+                    empty.textContent = "Nothing whitelisted — all restraints will be escaped";
+                    wlChips.appendChild(empty);
+                }
+                else {
+                    for (const group of whitelist) {
+                        wlChips.appendChild(makeChip(friendlyGroup(group), () => {
+                            removeFromAntiRestraintWhitelist(group);
+                            refreshWhitelistUI();
+                        }));
+                    }
+                }
+                try {
+                    const wornGroups = Player.Appearance
+                        .filter((i) => i.Asset.Group.IsRestraint && !whitelist.includes(i.Asset.Group.Name))
+                        .map((i) => i.Asset.Group.Name);
+                    if (wornGroups.length > 0) {
+                        const addLabel = document.createElement("span");
+                        addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;align-self:center;";
+                        addLabel.textContent = "Currently wearing:";
+                        wlAddRow.appendChild(addLabel);
+                        for (const group of wornGroups) {
+                            const btn = document.createElement("button");
+                            btn.textContent = "+ " + friendlyGroup(group);
+                            btn.title = "Add to whitelist — auto-escape will keep this";
+                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#7a5a6a;padding:2px 8px;cursor:pointer;";
+                            btn.addEventListener("click", () => {
+                                addToAntiRestraintWhitelist(group);
+                                refreshWhitelistUI();
+                            });
+                            wlAddRow.appendChild(btn);
+                        }
+                    }
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            refreshWhitelistUI();
+            whitelistSection.appendChild(wlChips);
+            whitelistSection.appendChild(wlAddRow);
+            body.appendChild(whitelistSection);
         }
         // -- Appearance diff -------------------------------------------------------
         renderDiff(panel, outfit) {
@@ -7569,178 +7732,6 @@
                 body.appendChild(msg);
                 return;
             }
-            // ── Anti-Restraint ───────────────────────────────────────────────────
-            const antiLbl = document.createElement("div");
-            antiLbl.className = "ebc-section-label";
-            antiLbl.textContent = "Anti-Restraint";
-            body.appendChild(antiLbl);
-            const antiRow = document.createElement("div");
-            antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
-            const antiInfo = document.createElement("div");
-            antiInfo.style.cssText = "flex:1;min-width:0;";
-            const antiTitle = document.createElement("span");
-            antiTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
-            antiTitle.textContent = "Auto-escape incoming restraints";
-            const antiHint = document.createElement("span");
-            antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
-            antiHint.textContent = "Removes any restraint put on you and sends a playful room emote";
-            antiInfo.appendChild(antiTitle);
-            antiInfo.appendChild(antiHint);
-            const antiToggle = document.createElement("button");
-            const refreshAntiToggle = () => {
-                const on = getAntiRestraintEnabled();
-                antiToggle.textContent = on ? "ON" : "OFF";
-                antiToggle.style.cssText = [
-                    "font-family:'Trebuchet MS',serif",
-                    "font-size:10px",
-                    "font-weight:bold",
-                    "padding:2px 10px",
-                    "border-radius:4px",
-                    "cursor:pointer",
-                    "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                    "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#553142"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-            };
-            refreshAntiToggle();
-            antiToggle.addEventListener("click", () => {
-                const next = !getAntiRestraintEnabled();
-                setAntiRestraintEnabled(next);
-                // When turning ON, snapshot current restraints so we don't
-                // immediately try to escape restraints the player already has.
-                if (next)
-                    try {
-                        snapshotPlayerRestraints();
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                refreshAntiToggle();
-            });
-            antiRow.appendChild(antiInfo);
-            antiRow.appendChild(antiToggle);
-            body.appendChild(antiRow);
-            // -- Anti-restraint whitelist ------------------------------------------
-            // Shows below the toggle. Lets the user protect specific restraint groups
-            // so auto-escape never removes them even when applied by others.
-            const whitelistSection = document.createElement("div");
-            whitelistSection.style.cssText = "margin-bottom:10px;";
-            const wlHeader = document.createElement("div");
-            wlHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;";
-            const wlTitle = document.createElement("span");
-            wlTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;flex:1;";
-            wlTitle.textContent = "Escape whitelist — items auto-escape will keep";
-            wlHeader.appendChild(wlTitle);
-            whitelistSection.appendChild(wlHeader);
-            // Helper: readable group name (strips "Item" prefix, spaces CamelCase)
-            const friendlyGroup = (g) => g.replace(/^Item/, "").replace(/([A-Z])/g, " $1").trim();
-            // Chip factory
-            const makeChip = (label, onRemove) => {
-                const chip = document.createElement("div");
-                chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
-                const txt = document.createElement("span");
-                txt.textContent = label;
-                const x = document.createElement("button");
-                x.textContent = "×";
-                x.title = "Remove from whitelist";
-                x.style.cssText = "background:none;border:none;cursor:pointer;color:#cf6f98;font-size:11px;line-height:1;padding:0 0 0 2px;";
-                x.addEventListener("click", onRemove);
-                chip.appendChild(txt);
-                chip.appendChild(x);
-                return chip;
-            };
-            // Container for whitelist chips
-            const wlChips = document.createElement("div");
-            wlChips.style.cssText = "min-height:20px;margin-bottom:4px;";
-            // Container for "add from current restraints" buttons
-            const wlAddRow = document.createElement("div");
-            wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
-            const refreshWhitelistUI = () => {
-                wlChips.innerHTML = "";
-                wlAddRow.innerHTML = "";
-                const whitelist = getAntiRestraintWhitelist();
-                if (whitelist.length === 0) {
-                    const empty = document.createElement("span");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4c2537;";
-                    empty.textContent = "Nothing whitelisted — all restraints will be escaped";
-                    wlChips.appendChild(empty);
-                }
-                else {
-                    for (const group of whitelist) {
-                        wlChips.appendChild(makeChip(friendlyGroup(group), () => {
-                            removeFromAntiRestraintWhitelist(group);
-                            refreshWhitelistUI();
-                        }));
-                    }
-                }
-                // Show currently worn restraints not already whitelisted as "+ Add" options
-                try {
-                    const wornGroups = Player.Appearance
-                        .filter((i) => i.Asset.Group.IsRestraint && !whitelist.includes(i.Asset.Group.Name))
-                        .map((i) => i.Asset.Group.Name);
-                    if (wornGroups.length > 0) {
-                        const addLabel = document.createElement("span");
-                        addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;align-self:center;";
-                        addLabel.textContent = "Currently wearing:";
-                        wlAddRow.appendChild(addLabel);
-                        for (const group of wornGroups) {
-                            const btn = document.createElement("button");
-                            btn.textContent = "+ " + friendlyGroup(group);
-                            btn.title = "Add to whitelist — auto-escape will keep this";
-                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#7a5a6a;padding:2px 8px;cursor:pointer;";
-                            btn.addEventListener("click", () => {
-                                addToAntiRestraintWhitelist(group);
-                                refreshWhitelistUI();
-                            });
-                            wlAddRow.appendChild(btn);
-                        }
-                    }
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            };
-            refreshWhitelistUI();
-            whitelistSection.appendChild(wlChips);
-            whitelistSection.appendChild(wlAddRow);
-            body.appendChild(whitelistSection);
-            // -- Confirm before escaping -------------------------------------------
-            const confirmRow = document.createElement("div");
-            confirmRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
-            const confirmInfo = document.createElement("div");
-            confirmInfo.style.cssText = "flex:1;min-width:0;";
-            const confirmTitle = document.createElement("span");
-            confirmTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
-            confirmTitle.textContent = "Confirm before escaping";
-            const confirmHint = document.createElement("span");
-            confirmHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
-            confirmHint.textContent = "Ask OK/Cancel before removing — OK keeps it, Cancel escapes";
-            confirmInfo.appendChild(confirmTitle);
-            confirmInfo.appendChild(confirmHint);
-            const confirmToggle = document.createElement("button");
-            const refreshConfirmToggle = () => {
-                const on = getAntiRestraintConfirm();
-                confirmToggle.textContent = on ? "ON" : "OFF";
-                confirmToggle.style.cssText = [
-                    "font-family:'Trebuchet MS',serif",
-                    "font-size:10px",
-                    "font-weight:bold",
-                    "padding:2px 10px",
-                    "border-radius:4px",
-                    "cursor:pointer",
-                    "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                    "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#553142"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-            };
-            refreshConfirmToggle();
-            confirmToggle.addEventListener("click", () => {
-                setAntiRestraintConfirm(!getAntiRestraintConfirm());
-                refreshConfirmToggle();
-            });
-            confirmRow.appendChild(confirmInfo);
-            confirmRow.appendChild(confirmToggle);
-            body.appendChild(confirmRow);
             // Sync selected targets: add any new targets that aren't tracked yet
             const allTargetIds = getDomConfig().targets.map(t => t.id);
             if (this.domSelectedTargets.size === 0) {
@@ -8573,9 +8564,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.12";
+    const MOD_VERSION = "0.3.13";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.13",
+            changes: [
+                "Auto-escape (toggle, confirm, whitelist) moved from DOM tab to Buttons tab — accessible to everyone regardless of DOM tools.",
+            ],
+        },
         {
             version: "0.3.12",
             changes: [
