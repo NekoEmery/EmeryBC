@@ -6661,22 +6661,18 @@
     }
     EBCDrawer._instance = null;
     // -- Boop friends ----------------------------------------------------------
-    // Pool of boop messages; {name} is replaced with the friend's display name.
+    // Pool of nose-boop messages; {name} is replaced with the friend's display name.
     EBCDrawer.BOOP_MESSAGES = [
-        "gently boops {name} on the nose~ *boop*",
-        "sneaks up behind {name} and taps them on the shoulder. Boo!",
-        "reaches over and gives {name}'s cheek a tiny squish.",
-        "flicks {name}'s ear with one finger and darts away.",
-        "pokes {name} with a single extended claw. poke.",
-        "bonks {name} softly on the head with a foam hammer.",
-        "blows a raspberry in {name}'s direction. pffft~",
-        "nudges {name} with an elbow and wiggles their eyebrows.",
-        "lobs a tiny marshmallow at {name}. thwp.",
-        "tiptoes over and taps {name}'s nose, then pretends nothing happened.",
-        "sends {name} a single finger-gun and a wink.",
-        "stealthily places a 'boop' sticky note on {name}'s forehead.",
-        "boops {name} so softly they might have imagined it.",
-        "charges up a super-boop and unleashes it squarely on {name}'s nose.",
+        "boops {name} on the nose. boop.",
+        "gently boops {name}'s nose~ ♡",
+        "reaches over and boops {name} right on the nose.",
+        "sneaks up and gives {name}'s nose a tiny boop.",
+        "extends one finger and boops {name}'s nose softly.",
+        "tiptoes over and boops {name}'s nose, then acts innocent.",
+        "boops {name}'s nose so softly they might have imagined it.",
+        "delivers a precise nose boop to {name}. boop.",
+        "gives {name} a quick nose boop and steps back.",
+        "boops {name}'s nose with a happy little smile.",
     ];
 
     const MOD_NAME = "EmeryBC";
