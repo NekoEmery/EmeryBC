@@ -11,10 +11,16 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.2";
+const MOD_VERSION = "0.3.3";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.3",
+        changes: [
+            "Outfit schedule: time input now uses military time (HH:MM, 24h) with auto-colon and validation.",
+        ],
+    },
     {
         version: "0.3.2",
         changes: [

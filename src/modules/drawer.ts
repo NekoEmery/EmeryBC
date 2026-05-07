@@ -2553,19 +2553,36 @@ export class EBCDrawer {
             }
         }
 
-        const timeInput = document.createElement("input");
-        timeInput.type = "time";
+        const timeInput = Object.assign(document.createElement("input"), {
+            type: "text",
+            placeholder: "HH:MM",
+            maxLength: 5,
+            title: "24-hour time (e.g. 08:30, 14:00)",
+        }) as HTMLInputElement;
         timeInput.className = "ebc-form-input";
-        timeInput.style.width = "90px";
+        timeInput.style.width = "72px";
         timeInput.style.flexShrink = "0";
+        // Auto-insert colon after two digits
+        timeInput.addEventListener("input", () => {
+            let v = timeInput.value.replace(/[^0-9]/g, "");
+            if (v.length > 2) v = v.slice(0, 2) + ":" + v.slice(2, 4);
+            timeInput.value = v;
+        });
 
         const addBtn = document.createElement("button");
         addBtn.className = "ebc-wear-btn";
         addBtn.textContent = "+ Add";
         addBtn.title = "Add schedule";
         addBtn.addEventListener("click", () => {
-            if (!outfitSelect.value || !timeInput.value) return;
-            addSchedule(outfitSelect.value, timeInput.value);
+            const raw = timeInput.value.trim();
+            if (!outfitSelect.value) return;
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(raw)) {
+                timeInput.style.borderColor = "#cf6f98";
+                timeInput.title = "Use HH:MM (00:00–23:59)";
+                return;
+            }
+            timeInput.style.borderColor = "";
+            addSchedule(outfitSelect.value, raw);
             timeInput.value = "";
             renderScheduleList();
         });

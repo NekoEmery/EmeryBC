@@ -4400,19 +4400,37 @@
                     outfitSelect.appendChild(opt);
                 }
             }
-            const timeInput = document.createElement("input");
-            timeInput.type = "time";
+            const timeInput = Object.assign(document.createElement("input"), {
+                type: "text",
+                placeholder: "HH:MM",
+                maxLength: 5,
+                title: "24-hour time (e.g. 08:30, 14:00)",
+            });
             timeInput.className = "ebc-form-input";
-            timeInput.style.width = "90px";
+            timeInput.style.width = "72px";
             timeInput.style.flexShrink = "0";
+            // Auto-insert colon after two digits
+            timeInput.addEventListener("input", () => {
+                let v = timeInput.value.replace(/[^0-9]/g, "");
+                if (v.length > 2)
+                    v = v.slice(0, 2) + ":" + v.slice(2, 4);
+                timeInput.value = v;
+            });
             const addBtn = document.createElement("button");
             addBtn.className = "ebc-wear-btn";
             addBtn.textContent = "+ Add";
             addBtn.title = "Add schedule";
             addBtn.addEventListener("click", () => {
-                if (!outfitSelect.value || !timeInput.value)
+                const raw = timeInput.value.trim();
+                if (!outfitSelect.value)
                     return;
-                addSchedule(outfitSelect.value, timeInput.value);
+                if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(raw)) {
+                    timeInput.style.borderColor = "#cf6f98";
+                    timeInput.title = "Use HH:MM (00:00–23:59)";
+                    return;
+                }
+                timeInput.style.borderColor = "";
+                addSchedule(outfitSelect.value, raw);
                 timeInput.value = "";
                 renderScheduleList();
             });
@@ -7831,9 +7849,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.2";
+    const MOD_VERSION = "0.3.3";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.3",
+            changes: [
+                "Outfit schedule: time input now uses military time (HH:MM, 24h) with auto-colon and validation.",
+            ],
+        },
         {
             version: "0.3.2",
             changes: [
