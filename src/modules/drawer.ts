@@ -2989,21 +2989,32 @@ export class EBCDrawer {
             let booped = 0;
             for (const friend of friends) {
                 const delay = booped * 400;
-                const targetNum = friend.MemberNumber!;
+                const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
+                const targetName: string =
+                    (typeof nickFn === "function"
+                        ? (nickFn as (c: Character) => string)(friend)
+                        : null)
+                    ?? (friend as unknown as Record<string, unknown>).Nickname as string | undefined
+                    ?? friend.Name
+                    ?? "someone";
+                const senderName: string =
+                    (typeof nickFn === "function"
+                        ? (nickFn as (c: Character) => string)(Player)
+                        : null)
+                    ?? Player.Name;
+                // "Boop" is not a native BC activity so Type:"Activity" produces
+                // "MISSING ACTIVITY DESCRIPTION" errors. Use Type:"Action" with the
+                // standard BC possessive format — displays as (Emery boops Lucy's nose.)
+                // and text-based addon reaction rules (LSCG, BCX, etc.) can match it.
+                const text = `${senderName} boops ${targetName}'s nose.`;
                 window.setTimeout(() => {
                     try {
-                        // Send as a native BC Activity message (Type "Activity" + proper Content key +
-                        // SourceCharacter/TargetCharacter dictionary) so addon reaction systems
-                        // (LSCG activity reactions, BCX rules, etc.) fire correctly.
-                        // BC renders "ActivityBoopItemHead" as "{source} boops {target}'s nose."
                         ServerSend("ChatRoomChat", {
-                            Type: "Activity",
-                            Content: "ActivityBoopItemHead",
+                            Type: "Action",
+                            Content: text,
                             Dictionary: [
-                                { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
-                                { Tag: "TargetCharacter", MemberNumber: targetNum },
-                                { ActivityGroup: "ItemHead" },
-                                { ActivityName: "Boop" },
+                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                                { SourceCharacter: Player.MemberNumber },
                             ],
                         });
                     } catch { /* ignore */ }

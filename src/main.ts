@@ -10,16 +10,21 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.2.8";
+const MOD_VERSION = "0.2.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.2.9",
+        changes: [
+            "Boop: fixed 'MISSING ACTIVITY DESCRIPTION' error — Boop is not a native BC activity so reverted to Type:Action with standard possessive format (Emery boops Lucy's nose.).",
+        ],
+    },
     {
         version: "0.2.8",
         changes: [
             "Fixed: closed panel no longer blocks clicks on BC UI behind it (pointer-events inherit fix).",
             "Fixed: tab icon now stays visible when drawer is closed (slide instead of clip-path).",
-            "Boop: sends as native BC Activity type so addon reaction systems (LSCG etc.) fire correctly.",
             "Boop: nose boops only.",
         ],
     },

@@ -4562,7 +4562,7 @@
         }
         // -- Boop friends ----------------------------------------------------------
         boopFriendsInRoom() {
-            var _a;
+            var _a, _b, _c, _d, _e;
             try {
                 const friendList = Player.FriendList;
                 if (!Array.isArray(friendList) || friendList.length === 0)
@@ -4575,21 +4575,26 @@
                 let booped = 0;
                 for (const friend of friends) {
                     const delay = booped * 400;
-                    const targetNum = friend.MemberNumber;
+                    const nickFn = window.CharacterNickname;
+                    const targetName = (_d = (_c = (_b = (typeof nickFn === "function"
+                        ? nickFn(friend)
+                        : null)) !== null && _b !== void 0 ? _b : friend.Nickname) !== null && _c !== void 0 ? _c : friend.Name) !== null && _d !== void 0 ? _d : "someone";
+                    const senderName = (_e = (typeof nickFn === "function"
+                        ? nickFn(Player)
+                        : null)) !== null && _e !== void 0 ? _e : Player.Name;
+                    // "Boop" is not a native BC activity so Type:"Activity" produces
+                    // "MISSING ACTIVITY DESCRIPTION" errors. Use Type:"Action" with the
+                    // standard BC possessive format — displays as (Emery boops Lucy's nose.)
+                    // and text-based addon reaction rules (LSCG, BCX, etc.) can match it.
+                    const text = `${senderName} boops ${targetName}'s nose.`;
                     window.setTimeout(() => {
                         try {
-                            // Send as a native BC Activity message (Type "Activity" + proper Content key +
-                            // SourceCharacter/TargetCharacter dictionary) so addon reaction systems
-                            // (LSCG activity reactions, BCX rules, etc.) fire correctly.
-                            // BC renders "ActivityBoopItemHead" as "{source} boops {target}'s nose."
                             ServerSend("ChatRoomChat", {
-                                Type: "Activity",
-                                Content: "ActivityBoopItemHead",
+                                Type: "Action",
+                                Content: text,
                                 Dictionary: [
-                                    { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
-                                    { Tag: "TargetCharacter", MemberNumber: targetNum },
-                                    { ActivityGroup: "ItemHead" },
-                                    { ActivityName: "Boop" },
+                                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                                    { SourceCharacter: Player.MemberNumber },
                                 ],
                             });
                         }
@@ -4599,7 +4604,7 @@
                 }
                 return booped;
             }
-            catch (_b) {
+            catch (_f) {
                 return 0;
             }
         }
@@ -6658,15 +6663,20 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.2.8";
+    const MOD_VERSION = "0.2.9";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.2.9",
+            changes: [
+                "Boop: fixed 'MISSING ACTIVITY DESCRIPTION' error — Boop is not a native BC activity so reverted to Type:Action with standard possessive format (Emery boops Lucy's nose.).",
+            ],
+        },
         {
             version: "0.2.8",
             changes: [
                 "Fixed: closed panel no longer blocks clicks on BC UI behind it (pointer-events inherit fix).",
                 "Fixed: tab icon now stays visible when drawer is closed (slide instead of clip-path).",
-                "Boop: sends as native BC Activity type so addon reaction systems (LSCG etc.) fire correctly.",
                 "Boop: nose boops only.",
             ],
         },
