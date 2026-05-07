@@ -4560,8 +4560,9 @@
                 }
             });
         }
+        // -- Boop friends ----------------------------------------------------------
         boopFriendsInRoom() {
-            var _a, _b, _c, _d;
+            var _a;
             try {
                 const friendList = Player.FriendList;
                 if (!Array.isArray(friendList) || friendList.length === 0)
@@ -4571,29 +4572,24 @@
                 const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber));
                 if (friends.length === 0)
                     return 0;
-                const pool = [...EBCDrawer.BOOP_MESSAGES];
-                // Shuffle pool so the order is random each call
-                for (let i = pool.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [pool[i], pool[j]] = [pool[j], pool[i]];
-                }
                 let booped = 0;
                 for (const friend of friends) {
-                    const nickFn = window.CharacterNickname;
-                    const name = (_d = (_c = (_b = (typeof nickFn === "function"
-                        ? nickFn(friend)
-                        : null)) !== null && _b !== void 0 ? _b : friend.Nickname) !== null && _c !== void 0 ? _c : friend.Name) !== null && _d !== void 0 ? _d : "someone";
-                    const template = pool[booped % pool.length];
-                    const text = template.replace(/\{name\}/gi, name);
-                    const delay = booped * 350;
+                    const delay = booped * 400;
+                    const targetNum = friend.MemberNumber;
                     window.setTimeout(() => {
                         try {
+                            // Send as a native BC Activity message (Type "Activity" + proper Content key +
+                            // SourceCharacter/TargetCharacter dictionary) so addon reaction systems
+                            // (LSCG activity reactions, BCX rules, etc.) fire correctly.
+                            // BC renders "ActivityBoopItemHead" as "{source} boops {target}'s nose."
                             ServerSend("ChatRoomChat", {
-                                Type: "Action",
-                                Content: getDisplayName() + " " + text,
+                                Type: "Activity",
+                                Content: "ActivityBoopItemHead",
                                 Dictionary: [
-                                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-                                    { SourceCharacter: Player.MemberNumber },
+                                    { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
+                                    { Tag: "TargetCharacter", MemberNumber: targetNum },
+                                    { ActivityGroup: "ItemHead" },
+                                    { ActivityName: "Boop" },
                                 ],
                             });
                         }
@@ -4603,7 +4599,7 @@
                 }
                 return booped;
             }
-            catch (_e) {
+            catch (_b) {
                 return 0;
             }
         }
@@ -6660,20 +6656,6 @@
         }
     }
     EBCDrawer._instance = null;
-    // -- Boop friends ----------------------------------------------------------
-    // Pool of nose-boop messages; {name} is replaced with the friend's display name.
-    EBCDrawer.BOOP_MESSAGES = [
-        "boops {name} on the nose. boop.",
-        "gently boops {name}'s nose~ ♡",
-        "reaches over and boops {name} right on the nose.",
-        "sneaks up and gives {name}'s nose a tiny boop.",
-        "extends one finger and boops {name}'s nose softly.",
-        "tiptoes over and boops {name}'s nose, then acts innocent.",
-        "boops {name}'s nose so softly they might have imagined it.",
-        "delivers a precise nose boop to {name}. boop.",
-        "gives {name} a quick nose boop and steps back.",
-        "boops {name}'s nose with a happy little smile.",
-    ];
 
     const MOD_NAME = "EmeryBC";
     const MOD_VERSION = "0.2.7";
