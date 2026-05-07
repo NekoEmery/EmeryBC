@@ -1376,8 +1376,9 @@
     // Re-entry guard — set true while we are actively removing items so the
     // CharacterRefresh we trigger ourselves doesn't recurse into the escape logic.
     let escaping = false;
-    // Call this whenever the player's restraint state resets to a known baseline
-    // (room enter, toggle on, after escaping).
+    // Full snapshot — replaces knownRestraints entirely. Only call on room enter
+    // or when the toggle is turned on. Never call mid-session or cursed items
+    // that briefly vanish will lose their protection.
     function snapshotPlayerRestraints() {
         try {
             knownRestraints = new Set(Player.Appearance
@@ -1386,22 +1387,28 @@
         }
         catch ( /* ignore — may fire before Player is ready */_a) { /* ignore — may fire before Player is ready */ }
     }
+    // Merge currently worn restraint groups INTO knownRestraints without ever
+    // shrinking it. This protects cursed items that briefly vanish and reappear.
+    function mergeCurrentRestraints() {
+        try {
+            Player.Appearance
+                .filter((i) => i.Asset.Group.IsRestraint)
+                .forEach((i) => knownRestraints.add(i.Asset.Group.Name));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // Called from the CharacterRefresh hook in main.ts whenever C === Player.
     function antiRestraintOnPlayerRefresh() {
         if (escaping)
             return;
-        if (!getAntiRestraintEnabled()) {
-            // Keep the snapshot fresh even while disabled so we don't false-trigger
-            // the moment it gets re-enabled.
-            snapshotPlayerRestraints();
+        if (!getAntiRestraintEnabled())
             return;
-        }
         try {
             const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
             const newItems = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name));
             if (newItems.length === 0) {
-                // Nothing new — but items may have been removed, keep snapshot current.
-                snapshotPlayerRestraints();
+                // Nothing new — do NOT shrink the snapshot. Cursed items that
+                // briefly disappear must stay protected when they come back.
                 return;
             }
             escaping = true;
@@ -1423,7 +1430,8 @@
             CharacterRefresh(Player, false);
             ChatRoomCharacterUpdate(Player);
             ServerPlayerAppearanceSync();
-            snapshotPlayerRestraints();
+            // Merge (never replace) so existing protected groups stay protected.
+            mergeCurrentRestraints();
             window.setTimeout(() => {
                 try {
                     const text = restrainer

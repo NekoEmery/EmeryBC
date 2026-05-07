@@ -30,8 +30,9 @@ let knownRestraints = new Set<string>();
 // CharacterRefresh we trigger ourselves doesn't recurse into the escape logic.
 let escaping = false;
 
-// Call this whenever the player's restraint state resets to a known baseline
-// (room enter, toggle on, after escaping).
+// Full snapshot — replaces knownRestraints entirely. Only call on room enter
+// or when the toggle is turned on. Never call mid-session or cursed items
+// that briefly vanish will lose their protection.
 export function snapshotPlayerRestraints(): void {
     try {
         knownRestraints = new Set(
@@ -42,24 +43,29 @@ export function snapshotPlayerRestraints(): void {
     } catch { /* ignore — may fire before Player is ready */ }
 }
 
+// Merge currently worn restraint groups INTO knownRestraints without ever
+// shrinking it. This protects cursed items that briefly vanish and reappear.
+function mergeCurrentRestraints(): void {
+    try {
+        Player.Appearance
+            .filter((i: Item) => i.Asset.Group.IsRestraint)
+            .forEach((i: Item) => knownRestraints.add(i.Asset.Group.Name));
+    } catch { /* ignore */ }
+}
+
 // Called from the CharacterRefresh hook in main.ts whenever C === Player.
 export function antiRestraintOnPlayerRefresh(): void {
     if (escaping) return;
 
-    if (!getAntiRestraintEnabled()) {
-        // Keep the snapshot fresh even while disabled so we don't false-trigger
-        // the moment it gets re-enabled.
-        snapshotPlayerRestraints();
-        return;
-    }
+    if (!getAntiRestraintEnabled()) return;
 
     try {
         const current = Player.Appearance.filter((i: Item) => i.Asset.Group.IsRestraint);
         const newItems = current.filter((i: Item) => !knownRestraints.has(i.Asset.Group.Name));
 
         if (newItems.length === 0) {
-            // Nothing new — but items may have been removed, keep snapshot current.
-            snapshotPlayerRestraints();
+            // Nothing new — do NOT shrink the snapshot. Cursed items that
+            // briefly disappear must stay protected when they come back.
             return;
         }
 
@@ -84,7 +90,8 @@ export function antiRestraintOnPlayerRefresh(): void {
         CharacterRefresh(Player, false);
         ChatRoomCharacterUpdate(Player);
         ServerPlayerAppearanceSync();
-        snapshotPlayerRestraints();
+        // Merge (never replace) so existing protected groups stay protected.
+        mergeCurrentRestraints();
 
         window.setTimeout(() => {
             try {
