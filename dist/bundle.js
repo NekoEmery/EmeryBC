@@ -995,30 +995,43 @@
         save([...load$1(), palette]);
         return palette;
     }
+    // Locks that block color edits — owner/exclusive/high-security tiers.
+    const PROTECTED_LOCKS = new Set([
+        "OwnerOnlyPadlock", "ExclusivePadlock", "HighSecurityPadlock",
+        "MistressPadlock", "MistressTimerPadlock",
+        "LoversPadlock", "LoversTimerPadlock",
+    ]);
+    function isProtectedLock$1(item) {
+        var _a;
+        try {
+            const lock = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy;
+            return !!lock && PROTECTED_LOCKS.has(lock);
+        }
+        catch (_b) {
+            return false;
+        }
+    }
     // Apply a palette to the current live appearance — only groups present in
     // the palette are updated; everything else is left as-is.
+    // For restraint palettes, items with owner/exclusive/high-security locks are skipped.
     function applyPalette(id) {
-        var _a;
         const palette = load$1().find(p => p.id === id);
         if (!palette)
             return false;
         for (const item of Player.Appearance) {
             const saved = palette.colorMap[item.Asset.Group.Name];
-            if (saved !== undefined) {
-                item.Color = saved;
-            }
+            if (saved === undefined)
+                continue;
+            if (palette.type === "restraint" && isProtectedLock$1(item))
+                continue;
+            item.Color = saved;
         }
         try {
-            CharacterRefresh(Player, false, false);
-            if (Player.OnlineID != null) {
-                ServerSend("ChatRoomCharacterUpdate", {
-                    ID: Player.OnlineID,
-                    ActivePose: (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : null,
-                    Appearance: ServerAppearanceBundle(Player.Appearance),
-                });
-            }
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_a) { /* ignore */ }
         return true;
     }
     function deletePalette(id) {
@@ -1064,12 +1077,11 @@
     ];
     function applyPoses(poses) {
         const filtered = poses.filter(Boolean);
-        // Use CharacterRefresh(Player, true, false) — Push=true — so BC handles BOTH the local
-        // visual update AND the server sync itself, exactly like BC's own wardrobe does.
-        // Our previous manual ServerSend attempts were fighting BC's internal state management.
         try {
             Player.ActivePose = filtered;
-            CharacterRefresh(Player, true, false);
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1617,6 +1629,40 @@
     // another character is immediately removed and a glare emote is sent.
     // Whitelisted groups are always kept even if applied by others.
     // Removal is attempted up to 2 times per group before giving up (locked items).
+    // Show a custom in-game overlay rather than window.confirm (which can be
+    // suppressed by some browsers / userscript sandboxes).
+    function showEscapePrompt(itemName, restrainer, onKeep, onEscape) {
+        const overlay = document.createElement("div");
+        overlay.style.cssText = [
+            "position:fixed", "top:50%", "left:50%",
+            "transform:translate(-50%,-50%)",
+            "background:#130810", "border:2px solid #cf6f98",
+            "border-radius:10px", "padding:18px 22px",
+            "z-index:999999", "font-family:'Trebuchet MS',serif",
+            "min-width:250px", "max-width:320px",
+            "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
+            "display:flex", "flex-direction:column", "gap:12px",
+        ].join(";");
+        const who = restrainer ? `<b style="color:#f7e6ee">${restrainer}</b> is` : "Someone is";
+        const msg = document.createElement("div");
+        msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;";
+        msg.innerHTML = `${who} applying <b style="color:#f7e6ee">${itemName}</b> on you.<br>What would you like to do?`;
+        overlay.appendChild(msg);
+        const btns = document.createElement("div");
+        btns.style.cssText = "display:flex;gap:8px;";
+        const keepBtn = document.createElement("button");
+        keepBtn.textContent = "Keep it";
+        keepBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #79a885;background:#0f2a1a;color:#79a885;";
+        keepBtn.addEventListener("click", () => { overlay.remove(); onKeep(); });
+        const escBtn = document.createElement("button");
+        escBtn.textContent = "Escape!";
+        escBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
+        escBtn.addEventListener("click", () => { overlay.remove(); onEscape(); });
+        btns.appendChild(keepBtn);
+        btns.appendChild(escBtn);
+        overlay.appendChild(btns);
+        document.body.appendChild(overlay);
+    }
     let lastRestrainerName = null;
     function recordRestrainer(sourceMemberNumber) {
         var _a;
@@ -1657,7 +1703,6 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
     function antiRestraintOnPlayerRefresh() {
-        var _a;
         if (escaping)
             return;
         if (!getAntiRestraintEnabled())
@@ -1682,66 +1727,70 @@
                 || "restraint";
             const restrainer = lastRestrainerName;
             lastRestrainerName = null;
-            // Confirm dialog — if enabled, ask before escaping. The user can choose
-            // to accept the restraint (adds to known so we stop reacting to it).
+            // Confirm dialog — show a custom overlay and handle accept/escape via callbacks.
             if (getAntiRestraintConfirm()) {
-                const who = restrainer ? `${restrainer} is` : "Someone is";
-                const accepted = window.confirm(`[EmeryBC] ${who} applying ${itemName}.\n\nOK = Accept and keep it\nCancel = Escape it`);
-                if (accepted) {
+                showEscapePrompt(itemName, restrainer, () => {
+                    // Keep — add to known so anti-escape ignores them
                     for (const item of newItems)
                         knownRestraints.add(item.Asset.Group.Name);
                     escaping = false;
-                    return;
-                }
+                }, () => {
+                    // Escape — proceed with removal
+                    doEscape(newItems, restrainer, itemName);
+                });
+                return; // escaping stays true until one of the callbacks fires
             }
-            for (const item of newItems) {
-                try {
-                    InventoryRemove(Player, item.Asset.Group.Name, false);
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
-            }
-            // Check which groups are still present after removal attempt.
-            const stillPresent = new Set(Player.Appearance
-                .filter((i) => i.Asset.Group.IsRestraint)
-                .map((i) => i.Asset.Group.Name));
-            let anySucceeded = false;
-            for (const item of newItems) {
-                const group = item.Asset.Group.Name;
-                if (stillPresent.has(group)) {
-                    failAttempts.set(group, ((_a = failAttempts.get(group)) !== null && _a !== void 0 ? _a : 0) + 1);
-                }
-                else {
-                    anySucceeded = true;
-                    failAttempts.delete(group);
-                }
-            }
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-            mergeCurrentRestraints();
-            window.setTimeout(() => {
-                try {
-                    if (anySucceeded) {
-                        const text = restrainer
-                            ? `glares at ${restrainer} as the ${itemName} falls away.`
-                            : `glares ahead as the ${itemName} falls away.`;
-                        ServerSend("ChatRoomChat", {
-                            Type: "Action",
-                            Content: Player.Name + " " + text,
-                            Dictionary: [
-                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                                { SourceCharacter: Player.MemberNumber },
-                            ],
-                        });
-                    }
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                escaping = false;
-            }, 200);
+            doEscape(newItems, restrainer, itemName);
         }
-        catch (_c) {
+        catch (_a) {
             escaping = false;
         }
+    }
+    function doEscape(newItems, restrainer, itemName) {
+        var _a;
+        for (const item of newItems) {
+            try {
+                InventoryRemove(Player, item.Asset.Group.Name, false);
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        const stillPresent = new Set(Player.Appearance
+            .filter((i) => i.Asset.Group.IsRestraint)
+            .map((i) => i.Asset.Group.Name));
+        let anySucceeded = false;
+        for (const item of newItems) {
+            const group = item.Asset.Group.Name;
+            if (stillPresent.has(group)) {
+                failAttempts.set(group, ((_a = failAttempts.get(group)) !== null && _a !== void 0 ? _a : 0) + 1);
+            }
+            else {
+                anySucceeded = true;
+                failAttempts.delete(group);
+            }
+        }
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+        mergeCurrentRestraints();
+        window.setTimeout(() => {
+            try {
+                if (anySucceeded) {
+                    const text = restrainer
+                        ? `glares at ${restrainer} as the ${itemName} falls away.`
+                        : `glares ahead as the ${itemName} falls away.`;
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: Player.Name + " " + text,
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            escaping = false;
+        }, 200);
     }
 
     // DevLog — circular buffer of recent ChatRoomMessage events.
@@ -3863,7 +3912,7 @@
             const qaConfirmRow = document.createElement("div");
             qaConfirmRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:7px;";
             const qaConfirmLbl = document.createElement("span");
-            qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;user-select:none;";
+            qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;user-select:none;";
             qaConfirmLbl.textContent = "Confirm before escaping";
             const qaConfirmToggle = document.createElement("button");
             const refreshQaConfirm = () => {
@@ -8451,9 +8500,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.4.4";
+    const MOD_VERSION = "0.4.5";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.4.5",
+            changes: [
+                "Fix: confirm-before-escaping now uses a custom in-game overlay (Keep it / Escape!) instead of window.confirm — shows reliably in all browser environments.",
+                "Fix: body and arm pose buttons now apply and sync correctly (CharacterRefresh + ChatRoomCharacterUpdate + ServerPlayerAppearanceSync).",
+                "Restraint palette apply now skips items with owner/exclusive/high-security/mistress/lover locks — protected items are never recolored.",
+                "Confirm before escaping label is now more readable in the quick-action bar.",
+            ],
+        },
         {
             version: "0.4.4",
             changes: [

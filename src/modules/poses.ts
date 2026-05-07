@@ -42,12 +42,11 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
 
 export function applyPoses(poses: string[]): void {
     const filtered = poses.filter(Boolean);
-    // Use CharacterRefresh(Player, true, false) — Push=true — so BC handles BOTH the local
-    // visual update AND the server sync itself, exactly like BC's own wardrobe does.
-    // Our previous manual ServerSend attempts were fighting BC's internal state management.
     try {
         (Player as unknown as Record<string, unknown>).ActivePose = filtered;
-        CharacterRefresh(Player, true, false);
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
     } catch { /* ignore */ }
 }
 

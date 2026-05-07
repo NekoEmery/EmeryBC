@@ -5,6 +5,51 @@
 
 import { getAntiRestraintEnabled, getAntiRestraintWhitelist, getAntiRestraintConfirm } from "./settings";
 
+// Show a custom in-game overlay rather than window.confirm (which can be
+// suppressed by some browsers / userscript sandboxes).
+function showEscapePrompt(
+    itemName: string,
+    restrainer: string | null,
+    onKeep: () => void,
+    onEscape: () => void,
+): void {
+    const overlay = document.createElement("div");
+    overlay.style.cssText = [
+        "position:fixed", "top:50%", "left:50%",
+        "transform:translate(-50%,-50%)",
+        "background:#130810", "border:2px solid #cf6f98",
+        "border-radius:10px", "padding:18px 22px",
+        "z-index:999999", "font-family:'Trebuchet MS',serif",
+        "min-width:250px", "max-width:320px",
+        "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
+        "display:flex", "flex-direction:column", "gap:12px",
+    ].join(";");
+
+    const who = restrainer ? `<b style="color:#f7e6ee">${restrainer}</b> is` : "Someone is";
+    const msg = document.createElement("div");
+    msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;";
+    msg.innerHTML = `${who} applying <b style="color:#f7e6ee">${itemName}</b> on you.<br>What would you like to do?`;
+    overlay.appendChild(msg);
+
+    const btns = document.createElement("div");
+    btns.style.cssText = "display:flex;gap:8px;";
+
+    const keepBtn = document.createElement("button");
+    keepBtn.textContent = "Keep it";
+    keepBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #79a885;background:#0f2a1a;color:#79a885;";
+    keepBtn.addEventListener("click", () => { overlay.remove(); onKeep(); });
+
+    const escBtn = document.createElement("button");
+    escBtn.textContent = "Escape!";
+    escBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
+    escBtn.addEventListener("click", () => { overlay.remove(); onEscape(); });
+
+    btns.appendChild(keepBtn);
+    btns.appendChild(escBtn);
+    overlay.appendChild(btns);
+    document.body.appendChild(overlay);
+}
+
 let lastRestrainerName: string | null = null;
 
 export function recordRestrainer(sourceMemberNumber: number): void {
@@ -83,67 +128,74 @@ export function antiRestraintOnPlayerRefresh(): void {
         const restrainer = lastRestrainerName;
         lastRestrainerName = null;
 
-        // Confirm dialog — if enabled, ask before escaping. The user can choose
-        // to accept the restraint (adds to known so we stop reacting to it).
+        // Confirm dialog — show a custom overlay and handle accept/escape via callbacks.
         if (getAntiRestraintConfirm()) {
-            const who = restrainer ? `${restrainer} is` : "Someone is";
-            const accepted = window.confirm(
-                `[EmeryBC] ${who} applying ${itemName}.\n\nOK = Accept and keep it\nCancel = Escape it`
+            showEscapePrompt(
+                itemName,
+                restrainer,
+                () => {
+                    // Keep — add to known so anti-escape ignores them
+                    for (const item of newItems) knownRestraints.add(item.Asset.Group.Name);
+                    escaping = false;
+                },
+                () => {
+                    // Escape — proceed with removal
+                    doEscape(newItems, restrainer, itemName);
+                },
             );
-            if (accepted) {
-                for (const item of newItems) knownRestraints.add(item.Asset.Group.Name);
-                escaping = false;
-                return;
-            }
+            return; // escaping stays true until one of the callbacks fires
         }
 
-        for (const item of newItems) {
-            try { InventoryRemove(Player, item.Asset.Group.Name, false); } catch { /* ignore */ }
-        }
-
-        // Check which groups are still present after removal attempt.
-        const stillPresent = new Set(
-            Player.Appearance
-                .filter((i: Item) => i.Asset.Group.IsRestraint)
-                .map((i: Item) => i.Asset.Group.Name)
-        );
-
-        let anySucceeded = false;
-        for (const item of newItems) {
-            const group = item.Asset.Group.Name;
-            if (stillPresent.has(group)) {
-                failAttempts.set(group, (failAttempts.get(group) ?? 0) + 1);
-            } else {
-                anySucceeded = true;
-                failAttempts.delete(group);
-            }
-        }
-
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
-        mergeCurrentRestraints();
-
-        window.setTimeout(() => {
-            try {
-                if (anySucceeded) {
-                    const text = restrainer
-                        ? `glares at ${restrainer} as the ${itemName} falls away.`
-                        : `glares ahead as the ${itemName} falls away.`;
-                    ServerSend("ChatRoomChat", {
-                        Type: "Action",
-                        Content: Player.Name + " " + text,
-                        Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                            { SourceCharacter: Player.MemberNumber },
-                        ],
-                    });
-                }
-            } catch { /* ignore */ }
-            escaping = false;
-        }, 200);
+        doEscape(newItems, restrainer, itemName);
 
     } catch {
         escaping = false;
     }
+}
+
+function doEscape(newItems: Item[], restrainer: string | null, itemName: string): void {
+    for (const item of newItems) {
+        try { InventoryRemove(Player, item.Asset.Group.Name, false); } catch { /* ignore */ }
+    }
+
+    const stillPresent = new Set(
+        Player.Appearance
+            .filter((i: Item) => i.Asset.Group.IsRestraint)
+            .map((i: Item) => i.Asset.Group.Name)
+    );
+
+    let anySucceeded = false;
+    for (const item of newItems) {
+        const group = item.Asset.Group.Name;
+        if (stillPresent.has(group)) {
+            failAttempts.set(group, (failAttempts.get(group) ?? 0) + 1);
+        } else {
+            anySucceeded = true;
+            failAttempts.delete(group);
+        }
+    }
+
+    CharacterRefresh(Player, false);
+    ChatRoomCharacterUpdate(Player);
+    ServerPlayerAppearanceSync();
+    mergeCurrentRestraints();
+
+    window.setTimeout(() => {
+        try {
+            if (anySucceeded) {
+                const text = restrainer
+                    ? `glares at ${restrainer} as the ${itemName} falls away.`
+                    : `glares ahead as the ${itemName} falls away.`;
+                ServerSend("ChatRoomChat", {
+                    Type: "Action",
+                    Content: Player.Name + " " + text,
+                    Dictionary: [
+                        { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                        { SourceCharacter: Player.MemberNumber },
+                    ],
+                });
+            }
+        } catch { /* ignore */ }
+        escaping = false;
+    }, 200);
 }

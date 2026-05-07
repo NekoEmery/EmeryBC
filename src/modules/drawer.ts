@@ -1843,7 +1843,7 @@ export class EBCDrawer {
         qaConfirmRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:7px;";
 
         const qaConfirmLbl = document.createElement("span");
-        qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;user-select:none;";
+        qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;user-select:none;";
         qaConfirmLbl.textContent = "Confirm before escaping";
 
         const qaConfirmToggle = document.createElement("button");

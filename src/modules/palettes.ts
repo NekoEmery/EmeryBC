@@ -68,28 +68,38 @@ export function captureRestraintPalette(name: string): ColorPalette {
     return palette;
 }
 
+// Locks that block color edits — owner/exclusive/high-security tiers.
+const PROTECTED_LOCKS = new Set([
+    "OwnerOnlyPadlock", "ExclusivePadlock", "HighSecurityPadlock",
+    "MistressPadlock", "MistressTimerPadlock",
+    "LoversPadlock", "LoversTimerPadlock",
+]);
+
+function isProtectedLock(item: Item): boolean {
+    try {
+        const lock = ((item as unknown as Record<string, unknown>).Property as Record<string, unknown> | undefined)?.LockedBy as string | undefined;
+        return !!lock && PROTECTED_LOCKS.has(lock);
+    } catch { return false; }
+}
+
 // Apply a palette to the current live appearance — only groups present in
 // the palette are updated; everything else is left as-is.
+// For restraint palettes, items with owner/exclusive/high-security locks are skipped.
 export function applyPalette(id: string): boolean {
     const palette = load().find(p => p.id === id);
     if (!palette) return false;
 
     for (const item of Player.Appearance) {
         const saved = palette.colorMap[item.Asset.Group.Name];
-        if (saved !== undefined) {
-            (item as unknown as Record<string, unknown>).Color = saved;
-        }
+        if (saved === undefined) continue;
+        if (palette.type === "restraint" && isProtectedLock(item)) continue;
+        (item as unknown as Record<string, unknown>).Color = saved;
     }
 
     try {
-        CharacterRefresh(Player, false, false);
-        if (Player.OnlineID != null) {
-            ServerSend("ChatRoomCharacterUpdate", {
-                ID: Player.OnlineID,
-                ActivePose: Player.ActivePose ?? null,
-                Appearance: ServerAppearanceBundle(Player.Appearance),
-            });
-        }
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
     } catch { /* ignore */ }
 
     return true;
