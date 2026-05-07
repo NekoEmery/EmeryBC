@@ -1505,6 +1505,37 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Anti-restraint whitelist --------------------------------------------------
+    // Group names that auto-escape will never touch, even when applied by others.
+    // Populated by the user from the Settings UI while wearing the items.
+    function getAntiRestraintWhitelist() {
+        var _a;
+        try {
+            const list = (_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function setAntiRestraintWhitelist(groups) {
+        try {
+            const store = getStore$1();
+            if (!store)
+                return;
+            store.antiRestraintWhitelist = groups;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function addToAntiRestraintWhitelist(group) {
+        const list = getAntiRestraintWhitelist();
+        if (!list.includes(group))
+            setAntiRestraintWhitelist([...list, group]);
+    }
+    function removeFromAntiRestraintWhitelist(group) {
+        setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
+    }
     // -- Expression quick-panel button visibility ----------------------------------
     // Defaults to false (hidden). User toggles it on from the ANIMS tab.
     function getExprTabVisible() {
@@ -1529,11 +1560,9 @@
 
     // Anti-restraint — when enabled, any restraint applied to the player by
     // another character is immediately removed and a glare emote is sent.
-    // The name of the last person who interacted with the player.
-    // Set by recordRestrainer() which is called from a ChatRoomMessage hook.
+    // Whitelisted groups are always kept even if applied by others.
+    // Removal is attempted up to 2 times per group before giving up (locked items).
     let lastRestrainerName = null;
-    // Called from main.ts whenever a ChatRoomMessage Action arrives targeting
-    // the player — captures who sent it so the escape emote can name them.
     function recordRestrainer(sourceMemberNumber) {
         var _a;
         try {
@@ -1548,87 +1577,102 @@
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
-    // Snapshot of restraint groups currently on the player.
-    // Populated on room enter and after each escape so we can detect additions.
     let knownRestraints = new Set();
-    // Re-entry guard — set true while we are actively removing items so the
-    // CharacterRefresh we trigger ourselves doesn't recurse into the escape logic.
     let escaping = false;
-    // Full snapshot — replaces knownRestraints entirely. Only call on room enter
-    // or when the toggle is turned on. Never call mid-session or cursed items
-    // that briefly vanish will lose their protection.
+    // Tracks failed removal attempts per group. Items here are NOT merged into
+    // knownRestraints so they remain detectable for a retry.
+    const failAttempts = new Map();
     function snapshotPlayerRestraints() {
         try {
             knownRestraints = new Set(Player.Appearance
                 .filter((i) => i.Asset.Group.IsRestraint)
                 .map((i) => i.Asset.Group.Name));
+            failAttempts.clear();
         }
-        catch ( /* ignore — may fire before Player is ready */_a) { /* ignore — may fire before Player is ready */ }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
-    // Merge currently worn restraint groups INTO knownRestraints without ever
-    // shrinking it. This protects cursed items that briefly vanish and reappear.
+    // Merge currently worn restraint groups into knownRestraints, but skip groups
+    // that still have pending retry attempts — they need to stay detectable.
     function mergeCurrentRestraints() {
         try {
             Player.Appearance
-                .filter((i) => i.Asset.Group.IsRestraint)
+                .filter((i) => i.Asset.Group.IsRestraint && !failAttempts.has(i.Asset.Group.Name))
                 .forEach((i) => knownRestraints.add(i.Asset.Group.Name));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // Called from the CharacterRefresh hook in main.ts whenever C === Player.
     function antiRestraintOnPlayerRefresh() {
+        var _a;
         if (escaping)
             return;
         if (!getAntiRestraintEnabled())
             return;
         try {
+            const whitelist = getAntiRestraintWhitelist();
             const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
-            const newItems = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name));
-            if (newItems.length === 0) {
-                // Nothing new — do NOT shrink the snapshot. Cursed items that
-                // briefly disappear must stay protected when they come back.
-                return;
+            const candidates = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name) &&
+                !whitelist.includes(i.Asset.Group.Name));
+            // Promote items that have hit the retry limit: add to known and drop them.
+            for (const item of candidates.filter(i => { var _a; return ((_a = failAttempts.get(i.Asset.Group.Name)) !== null && _a !== void 0 ? _a : 0) >= 2; })) {
+                knownRestraints.add(item.Asset.Group.Name);
+                failAttempts.delete(item.Asset.Group.Name);
             }
+            const newItems = candidates.filter((i) => !knownRestraints.has(i.Asset.Group.Name));
+            if (newItems.length === 0)
+                return;
             escaping = true;
-            // Grab a human-readable item name before we remove anything.
             const firstItem = newItems[0];
             const itemName = firstItem.Asset.Description
                 || firstItem.Asset.Name
                 || "restraint";
-            // Capture restrainer name now, then clear it so the next escape is fresh.
             const restrainer = lastRestrainerName;
             lastRestrainerName = null;
-            // Strip every newly added restraint.
             for (const item of newItems) {
                 try {
                     InventoryRemove(Player, item.Asset.Group.Name, false);
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_b) { /* ignore */ }
+            }
+            // Check which groups are still present after removal attempt.
+            const stillPresent = new Set(Player.Appearance
+                .filter((i) => i.Asset.Group.IsRestraint)
+                .map((i) => i.Asset.Group.Name));
+            let anySucceeded = false;
+            for (const item of newItems) {
+                const group = item.Asset.Group.Name;
+                if (stillPresent.has(group)) {
+                    failAttempts.set(group, ((_a = failAttempts.get(group)) !== null && _a !== void 0 ? _a : 0) + 1);
+                }
+                else {
+                    anySucceeded = true;
+                    failAttempts.delete(group);
+                }
             }
             CharacterRefresh(Player, false);
             ChatRoomCharacterUpdate(Player);
             ServerPlayerAppearanceSync();
-            // Merge (never replace) so existing protected groups stay protected.
             mergeCurrentRestraints();
             window.setTimeout(() => {
                 try {
-                    const text = restrainer
-                        ? `glares at ${restrainer} as the ${itemName} falls away.`
-                        : `glares ahead as the ${itemName} falls away.`;
-                    ServerSend("ChatRoomChat", {
-                        Type: "Action",
-                        Content: Player.Name + " " + text,
-                        Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                            { SourceCharacter: Player.MemberNumber },
-                        ],
-                    });
+                    if (anySucceeded) {
+                        const text = restrainer
+                            ? `glares at ${restrainer} as the ${itemName} falls away.`
+                            : `glares ahead as the ${itemName} falls away.`;
+                        ServerSend("ChatRoomChat", {
+                            Type: "Action",
+                            Content: Player.Name + " " + text,
+                            Dictionary: [
+                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                                { SourceCharacter: Player.MemberNumber },
+                            ],
+                        });
+                    }
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
                 escaping = false;
             }, 200);
         }
-        catch (_b) {
+        catch (_c) {
             escaping = false;
         }
     }
@@ -7494,6 +7538,88 @@
             antiRow.appendChild(antiInfo);
             antiRow.appendChild(antiToggle);
             body.appendChild(antiRow);
+            // -- Anti-restraint whitelist ------------------------------------------
+            // Shows below the toggle. Lets the user protect specific restraint groups
+            // so auto-escape never removes them even when applied by others.
+            const whitelistSection = document.createElement("div");
+            whitelistSection.style.cssText = "margin-bottom:10px;";
+            const wlHeader = document.createElement("div");
+            wlHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;";
+            const wlTitle = document.createElement("span");
+            wlTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;flex:1;";
+            wlTitle.textContent = "Escape whitelist — items auto-escape will keep";
+            wlHeader.appendChild(wlTitle);
+            whitelistSection.appendChild(wlHeader);
+            // Helper: readable group name (strips "Item" prefix, spaces CamelCase)
+            const friendlyGroup = (g) => g.replace(/^Item/, "").replace(/([A-Z])/g, " $1").trim();
+            // Chip factory
+            const makeChip = (label, onRemove) => {
+                const chip = document.createElement("div");
+                chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
+                const txt = document.createElement("span");
+                txt.textContent = label;
+                const x = document.createElement("button");
+                x.textContent = "×";
+                x.title = "Remove from whitelist";
+                x.style.cssText = "background:none;border:none;cursor:pointer;color:#cf6f98;font-size:11px;line-height:1;padding:0 0 0 2px;";
+                x.addEventListener("click", onRemove);
+                chip.appendChild(txt);
+                chip.appendChild(x);
+                return chip;
+            };
+            // Container for whitelist chips
+            const wlChips = document.createElement("div");
+            wlChips.style.cssText = "min-height:20px;margin-bottom:4px;";
+            // Container for "add from current restraints" buttons
+            const wlAddRow = document.createElement("div");
+            wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+            const refreshWhitelistUI = () => {
+                wlChips.innerHTML = "";
+                wlAddRow.innerHTML = "";
+                const whitelist = getAntiRestraintWhitelist();
+                if (whitelist.length === 0) {
+                    const empty = document.createElement("span");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4c2537;";
+                    empty.textContent = "Nothing whitelisted — all restraints will be escaped";
+                    wlChips.appendChild(empty);
+                }
+                else {
+                    for (const group of whitelist) {
+                        wlChips.appendChild(makeChip(friendlyGroup(group), () => {
+                            removeFromAntiRestraintWhitelist(group);
+                            refreshWhitelistUI();
+                        }));
+                    }
+                }
+                // Show currently worn restraints not already whitelisted as "+ Add" options
+                try {
+                    const wornGroups = Player.Appearance
+                        .filter((i) => i.Asset.Group.IsRestraint && !whitelist.includes(i.Asset.Group.Name))
+                        .map((i) => i.Asset.Group.Name);
+                    if (wornGroups.length > 0) {
+                        const addLabel = document.createElement("span");
+                        addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;align-self:center;";
+                        addLabel.textContent = "Currently wearing:";
+                        wlAddRow.appendChild(addLabel);
+                        for (const group of wornGroups) {
+                            const btn = document.createElement("button");
+                            btn.textContent = "+ " + friendlyGroup(group);
+                            btn.title = "Add to whitelist — auto-escape will keep this";
+                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#7a5a6a;padding:2px 8px;cursor:pointer;";
+                            btn.addEventListener("click", () => {
+                                addToAntiRestraintWhitelist(group);
+                                refreshWhitelistUI();
+                            });
+                            wlAddRow.appendChild(btn);
+                        }
+                    }
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            refreshWhitelistUI();
+            whitelistSection.appendChild(wlChips);
+            whitelistSection.appendChild(wlAddRow);
+            body.appendChild(whitelistSection);
             // Sync selected targets: add any new targets that aren't tracked yet
             const allTargetIds = getDomConfig().targets.map(t => t.id);
             if (this.domSelectedTargets.size === 0) {
@@ -8326,9 +8452,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.10";
+    const MOD_VERSION = "0.3.11";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.11",
+            changes: [
+                "Auto-escape whitelist: mark specific restraint slots as 'keep' — they'll never be escaped even when applied by others.",
+                "Whitelist UI in Settings shows your currently worn restraints with one-click add buttons and × to remove.",
+                "Auto-escape now retries up to 2 times before giving up on a locked/unclearable item, then stops attempting.",
+            ],
+        },
         {
             version: "0.3.10",
             changes: [

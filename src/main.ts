@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.10";
+const MOD_VERSION = "0.3.11";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.11",
+        changes: [
+            "Auto-escape whitelist: mark specific restraint slots as 'keep' — they'll never be escaped even when applied by others.",
+            "Whitelist UI in Settings shows your currently worn restraints with one-click add buttons and × to remove.",
+            "Auto-escape now retries up to 2 times before giving up on a locked/unclearable item, then stops attempting.",
+        ],
+    },
     {
         version: "0.3.10",
         changes: [

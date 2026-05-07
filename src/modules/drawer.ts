@@ -64,7 +64,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getExprTabVisible, setExprTabVisible } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getExprTabVisible, setExprTabVisible, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import {
@@ -5914,6 +5914,98 @@ export class EBCDrawer {
         antiRow.appendChild(antiInfo);
         antiRow.appendChild(antiToggle);
         body.appendChild(antiRow);
+
+        // -- Anti-restraint whitelist ------------------------------------------
+        // Shows below the toggle. Lets the user protect specific restraint groups
+        // so auto-escape never removes them even when applied by others.
+        const whitelistSection = document.createElement("div");
+        whitelistSection.style.cssText = "margin-bottom:10px;";
+
+        const wlHeader = document.createElement("div");
+        wlHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;";
+        const wlTitle = document.createElement("span");
+        wlTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;flex:1;";
+        wlTitle.textContent = "Escape whitelist — items auto-escape will keep";
+        wlHeader.appendChild(wlTitle);
+        whitelistSection.appendChild(wlHeader);
+
+        // Helper: readable group name (strips "Item" prefix, spaces CamelCase)
+        const friendlyGroup = (g: string): string =>
+            g.replace(/^Item/, "").replace(/([A-Z])/g, " $1").trim();
+
+        // Chip factory
+        const makeChip = (label: string, onRemove: () => void): HTMLDivElement => {
+            const chip = document.createElement("div");
+            chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
+            const txt = document.createElement("span");
+            txt.textContent = label;
+            const x = document.createElement("button");
+            x.textContent = "×";
+            x.title = "Remove from whitelist";
+            x.style.cssText = "background:none;border:none;cursor:pointer;color:#cf6f98;font-size:11px;line-height:1;padding:0 0 0 2px;";
+            x.addEventListener("click", onRemove);
+            chip.appendChild(txt);
+            chip.appendChild(x);
+            return chip;
+        };
+
+        // Container for whitelist chips
+        const wlChips = document.createElement("div");
+        wlChips.style.cssText = "min-height:20px;margin-bottom:4px;";
+
+        // Container for "add from current restraints" buttons
+        const wlAddRow = document.createElement("div");
+        wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+
+        const refreshWhitelistUI = (): void => {
+            wlChips.innerHTML = "";
+            wlAddRow.innerHTML = "";
+
+            const whitelist = getAntiRestraintWhitelist();
+
+            if (whitelist.length === 0) {
+                const empty = document.createElement("span");
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4c2537;";
+                empty.textContent = "Nothing whitelisted — all restraints will be escaped";
+                wlChips.appendChild(empty);
+            } else {
+                for (const group of whitelist) {
+                    wlChips.appendChild(makeChip(friendlyGroup(group), () => {
+                        removeFromAntiRestraintWhitelist(group);
+                        refreshWhitelistUI();
+                    }));
+                }
+            }
+
+            // Show currently worn restraints not already whitelisted as "+ Add" options
+            try {
+                const wornGroups = Player.Appearance
+                    .filter((i: Item) => i.Asset.Group.IsRestraint && !whitelist.includes(i.Asset.Group.Name))
+                    .map((i: Item) => i.Asset.Group.Name);
+                if (wornGroups.length > 0) {
+                    const addLabel = document.createElement("span");
+                    addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;align-self:center;";
+                    addLabel.textContent = "Currently wearing:";
+                    wlAddRow.appendChild(addLabel);
+                    for (const group of wornGroups) {
+                        const btn = document.createElement("button");
+                        btn.textContent = "+ " + friendlyGroup(group);
+                        btn.title = "Add to whitelist — auto-escape will keep this";
+                        btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#7a5a6a;padding:2px 8px;cursor:pointer;";
+                        btn.addEventListener("click", () => {
+                            addToAntiRestraintWhitelist(group);
+                            refreshWhitelistUI();
+                        });
+                        wlAddRow.appendChild(btn);
+                    }
+                }
+            } catch { /* ignore */ }
+        };
+
+        refreshWhitelistUI();
+        whitelistSection.appendChild(wlChips);
+        whitelistSection.appendChild(wlAddRow);
+        body.appendChild(whitelistSection);
 
         // Sync selected targets: add any new targets that aren't tracked yet
         const allTargetIds = getDomConfig().targets.map(t => t.id);

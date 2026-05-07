@@ -66,6 +66,35 @@ export function setAntiRestraintEnabled(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Anti-restraint whitelist --------------------------------------------------
+// Group names that auto-escape will never touch, even when applied by others.
+// Populated by the user from the Settings UI while wearing the items.
+
+export function getAntiRestraintWhitelist(): string[] {
+    try {
+        const list = getStore()?.antiRestraintWhitelist;
+        return Array.isArray(list) ? (list as string[]) : [];
+    } catch { return []; }
+}
+
+export function setAntiRestraintWhitelist(groups: string[]): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.antiRestraintWhitelist = groups;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}
+
+export function addToAntiRestraintWhitelist(group: string): void {
+    const list = getAntiRestraintWhitelist();
+    if (!list.includes(group)) setAntiRestraintWhitelist([...list, group]);
+}
+
+export function removeFromAntiRestraintWhitelist(group: string): void {
+    setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
+}
+
 // -- Expression quick-panel button visibility ----------------------------------
 // Defaults to false (hidden). User toggles it on from the ANIMS tab.
 
