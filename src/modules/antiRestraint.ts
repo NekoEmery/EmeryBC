@@ -7,17 +7,17 @@ import { getAntiRestraintEnabled } from "./settings";
 // that tried (and failed) to stay on.
 const ESCAPE_MESSAGES: Array<(n: string) => string> = [
     n => `tilts her head slowly, eyes meeting whoever dared, as the ${n} slides off her without a sound and drops to the floor.`,
-    n => `glances down at the ${n} with a calm, almost bored expression — it loosens on its own and falls away before it ever had a chance.`,
-    n => `lets the ${n} sit on her for exactly one breath before it slips free, as if it simply knew better.`,
+    n => `glances down at the ${n} with a calm, almost bored expression as the strap loosens and it falls away before it could catch.`,
     n => `raises an eyebrow, unimpressed, as the ${n} comes undone and clatters to the ground at her feet.`,
-    n => `doesn't even flinch as the ${n} tightens — then sighs softly as it unravels and falls, like it never stood a chance.`,
-    n => `fixes her gaze forward as the ${n} buckles shut — only for every clasp to pop open again, one by one.`,
-    n => `tilts her chin up slightly as the ${n} touches her, then watches it slip free with a quiet, knowing smile.`,
-    n => `barely acknowledges the ${n} before it slides off her and settles on the floor with a dull thud.`,
-    n => `exhales softly and the ${n} falls away, as though even it understood this was never going to work.`,
-    n => `glances at the ${n} with quiet amusement as it comes undone all on its own and drops without ceremony.`,
-    n => `stands perfectly still as the ${n} closes — then opens — then simply gives up and falls.`,
-    n => `watches the ${n} attempt to hold, her expression patient and unbothered, before it surrenders and hits the ground.`,
+    n => `doesn't even flinch as the ${n} tightens — then exhales slowly as the buckle gives and it drops.`,
+    n => `fixes her gaze forward as the ${n} clicks shut — only for each clasp to pop open again, one by one.`,
+    n => `tilts her chin up slightly as the ${n} is brought toward her, then watches it slip loose with a quiet, knowing look.`,
+    n => `barely acknowledges the ${n} before the strap slides free and it settles on the floor with a dull thud.`,
+    n => `glances at the ${n} with quiet amusement as the fastening fails to hold and it drops without ceremony.`,
+    n => `stands perfectly still as the ${n} closes — the latch catches for a moment, then gives, and it falls.`,
+    n => `watches the ${n} get secured around her, expression patient and unbothered, before the knot slips and it hits the ground.`,
+    n => `shifts her weight just slightly and the ${n} comes loose, sliding off before the clasp ever fully catches.`,
+    n => `meets the gaze of whoever applied the ${n} with a calm, level stare as it loosens and falls at her feet.`,
 ];
 
 // Snapshot of restraint groups currently on the player.
