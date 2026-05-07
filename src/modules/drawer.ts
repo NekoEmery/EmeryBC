@@ -117,18 +117,6 @@ const CSS = `
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
 #ebc-tab:active { cursor: grabbing; }
 
-/* Thin clickable strip inside the tab — made visible when the panel is closed
-   so the user can reopen it. Controlled entirely via inline style in open/close. */
-#ebc-tab-strip {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 6px;
-    height: 100%;
-    cursor: pointer;
-}
-
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
     position: absolute;
@@ -1342,25 +1330,10 @@ export class EBCDrawer {
         root.style.right = "-9999px"; // off-screen until syncToChat runs
 
         // Tab button - child of root, OUTSIDE the sliding panel so it never moves.
-        // Starts collapsed so the full 44px hit area doesn't block BC canvas menus.
         const tab = document.createElement("div");
         tab.id = "ebc-tab";
         tab.title = "EmeryBC";
         tab.innerHTML = TAB_ICON;
-        // Start in pass-through state (panel is closed on load)
-        tab.style.pointerEvents = "none";
-        tab.style.cursor = "default";
-
-        // Thin click strip — visible only when panel is closed. Clicking it
-        // reopens the panel without the full tab blocking BC canvas clicks.
-        const tabStrip = document.createElement("div");
-        tabStrip.id = "ebc-tab-strip";
-        tabStrip.title = "Open EmeryBC";
-        tabStrip.style.display = "block";       // visible on load (panel starts closed)
-        tabStrip.style.pointerEvents = "auto";  // must be explicit — inherits "none" from parent tab
-        tabStrip.addEventListener("click", (e) => { e.stopPropagation(); this.open(); });
-        tab.appendChild(tabStrip);
-
         root.appendChild(tab);
 
         // Sliding panel container - this is the only thing that transforms
@@ -2027,10 +2000,6 @@ export class EBCDrawer {
             this.rootEl.style.display = "none";
             this.isOpen = false;
             this.panelEl.className = "ebc-closed";
-            const t = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
-            if (t) { t.style.pointerEvents = "none"; t.style.cursor = "default"; }
-            const s = this.rootEl.querySelector<HTMLElement>("#ebc-tab-strip");
-            if (s) s.style.display = "block";
             this.positioned = false;
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.resizeObserver?.disconnect();
@@ -5090,11 +5059,6 @@ export class EBCDrawer {
         if (!this.panelEl) return;
         this.isOpen = true;
 
-        // Restore full pointer-events on the tab so it can be clicked and dragged
-        const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
-        if (tabEl) { tabEl.style.pointerEvents = "auto"; tabEl.style.cursor = "grab"; }
-        const stripEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-strip");
-        if (stripEl) stripEl.style.display = "none";
 
         // On first open, check for a saved free-float position
         if (this.panelPosition === null) {
@@ -5126,11 +5090,6 @@ export class EBCDrawer {
         if (!this.panelEl) return;
         this.isOpen = false;
 
-        // Disable pointer-events on the tab so BC canvas clicks aren't blocked
-        const tabElC = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
-        if (tabElC) { tabElC.style.pointerEvents = "none"; tabElC.style.cursor = "default"; }
-        const stripElC = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-strip");
-        if (stripElC) stripElC.style.display = "block";
 
         if (this.panelPosition !== null) {
             // Free-float: keep mode class, just swap open→closed for opacity fade
