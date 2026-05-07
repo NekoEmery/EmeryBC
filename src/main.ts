@@ -7,13 +7,22 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer } from "./modules/antiRestraint";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
+import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.0";
+const MOD_VERSION = "0.3.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.1",
+        changes: [
+            "DEV: Character Inspector — pick any room member, dump their full appearance + property data as JSON.",
+            "DEV: Hook Inspector — lists all mods loaded via bcModSdk with version and hook count.",
+            "DEV: Message Log — toggle-enabled circular buffer of the last 60 ChatRoomMessages. Click any entry to expand its full dictionary.",
+        ],
+    },
     {
         version: "0.3.0",
         changes: [
@@ -731,6 +740,7 @@ function init(): void {
         const result = next(args);
         try {
             const [data] = args as [Record<string, unknown>];
+            logMessage(data);
             if (data.Type !== "Action") return result;
             const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;
             if (!dict) return result;
