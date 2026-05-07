@@ -1354,18 +1354,18 @@
     // Creative escape messages. Each receives the display name of the item
     // that tried (and failed) to stay on.
     const ESCAPE_MESSAGES = [
-        n => `tilts her head as the ${n} shimmers and dissolves before it can even close~`,
-        n => `blinks in surprise as the ${n} barely touches her before bouncing right off~`,
-        n => `giggles softly as the ${n} seems to reject itself and falls to the floor~`,
-        n => `watches with wide eyes as the ${n} unclasps itself and drifts away on its own~`,
-        n => `smiles as an invisible force causes the ${n} to slip right off~`,
-        n => `glances down curiously as the ${n} simply... refuses to stay on~`,
-        n => `lets out a quiet laugh as the ${n} clasps shut for just a moment before popping back open~`,
-        n => `tilts her head as the ${n} wriggles free all by itself~`,
-        n => `raises a brow as the ${n} tumbles off before anyone can blink~`,
-        n => `gasps softly as the ${n} shudders and slips free, as though it had somewhere else to be~`,
-        n => `watches the ${n} hover in the air for a moment before floating gently away~`,
-        n => `quirks a smile as the ${n} snaps shut — then immediately snaps right back open~`,
+        n => `tilts her head slowly, eyes meeting whoever dared, as the ${n} slides off her without a sound and drops to the floor.`,
+        n => `glances down at the ${n} with a calm, almost bored expression — it loosens on its own and falls away before it ever had a chance.`,
+        n => `lets the ${n} sit on her for exactly one breath before it slips free, as if it simply knew better.`,
+        n => `raises an eyebrow, unimpressed, as the ${n} comes undone and clatters to the ground at her feet.`,
+        n => `doesn't even flinch as the ${n} tightens — then sighs softly as it unravels and falls, like it never stood a chance.`,
+        n => `fixes her gaze forward as the ${n} buckles shut — only for every clasp to pop open again, one by one.`,
+        n => `tilts her chin up slightly as the ${n} touches her, then watches it slip free with a quiet, knowing smile.`,
+        n => `barely acknowledges the ${n} before it slides off her and settles on the floor with a dull thud.`,
+        n => `exhales softly and the ${n} falls away, as though even it understood this was never going to work.`,
+        n => `glances at the ${n} with quiet amusement as it comes undone all on its own and drops without ceremony.`,
+        n => `stands perfectly still as the ${n} closes — then opens — then simply gives up and falls.`,
+        n => `watches the ${n} attempt to hold, her expression patient and unbothered, before it surrenders and hits the ground.`,
     ];
     // Snapshot of restraint groups currently on the player.
     // Populated on room enter and after each escape so we can detect additions.
