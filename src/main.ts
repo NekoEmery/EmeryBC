@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.8";
+const MOD_VERSION = "0.3.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.9",
+        changes: [
+            "EXP button is now draggable — same drag/click logic as the main drawer icon.",
+            "EXP button position saved to ExtensionSettings and restored on next load.",
+            "Right-click EXP button to reset it back to its default position.",
+        ],
+    },
     {
         version: "0.3.8",
         changes: [

@@ -3269,7 +3269,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    cursor: pointer;
+    cursor: grab;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
     position: absolute;
     left: -44px;
@@ -3278,7 +3278,8 @@
     user-select: none;
     transition: background 0.18s;
 }
-#ebc-expr-tab:hover { background: rgba(76, 37, 55, 0.97); }
+#ebc-expr-tab:hover  { background: rgba(76, 37, 55, 0.97); }
+#ebc-expr-tab:active { cursor: grabbing; }
 
 /* -- Floating expression panel -- */
 #ebc-expr-panel {
@@ -3535,6 +3536,8 @@
             this.exprPanelOpen = false;
             this.exprPanelEl = null;
             this.exprPanelPosition = null;
+            // EXP tab button dragged position (fixed screen coords). null = default anchored.
+            this.exprTabOffset = null;
             // DEV tab auto-refresh poller
             this.devLogPoller = null;
             EBCDrawer._instance = this;
@@ -4003,39 +4006,83 @@
                 this.saveTabOffset(null);
                 this.updateCrabsPosition();
             });
-            // Expression tab click handler
-            exprTab.addEventListener("click", () => {
-                this.exprPanelOpen = !this.exprPanelOpen;
-                if (this.exprPanelEl) {
-                    if (this.exprPanelOpen) {
-                        // Load saved position on first open
-                        if (this.exprPanelPosition === null) {
-                            const saved = this.loadExprPanelPosition();
-                            if (saved !== null)
-                                this.exprPanelPosition = saved;
+            // Expression tab: mousedown handles both drag (reposition) and click (toggle panel)
+            exprTab.addEventListener("mousedown", (e) => {
+                if (e.button !== 0)
+                    return;
+                e.preventDefault();
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const tabRect = exprTab.getBoundingClientRect();
+                const startTabX = tabRect.left;
+                const startTabY = tabRect.top;
+                let dragged = false;
+                const onMove = (ev) => {
+                    const dx = ev.clientX - startX;
+                    const dy = ev.clientY - startY;
+                    if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5)
+                        return;
+                    dragged = true;
+                    exprTab.style.cursor = "grabbing";
+                    if (exprTab.style.position !== "fixed")
+                        exprTab.style.position = "fixed";
+                    exprTab.style.left = `${Math.max(0, Math.min(window.innerWidth - 44, startTabX + dx))}px`;
+                    exprTab.style.top = `${Math.max(0, Math.min(window.innerHeight - 44, startTabY + dy))}px`;
+                };
+                const onUp = () => {
+                    document.removeEventListener("mousemove", onMove);
+                    document.removeEventListener("mouseup", onUp);
+                    exprTab.style.cursor = "";
+                    if (!dragged) {
+                        // Plain click — toggle the expression panel
+                        this.exprPanelOpen = !this.exprPanelOpen;
+                        if (this.exprPanelEl) {
+                            if (this.exprPanelOpen) {
+                                if (this.exprPanelPosition === null) {
+                                    const saved = this.loadExprPanelPosition();
+                                    if (saved !== null)
+                                        this.exprPanelPosition = saved;
+                                }
+                                this.renderExprPanel();
+                                if (this.exprPanelPosition) {
+                                    const w = window.innerWidth, h = window.innerHeight;
+                                    this.exprPanelEl.style.left = `${Math.max(0, Math.min(w - 240, this.exprPanelPosition.x))}px`;
+                                    this.exprPanelEl.style.top = `${Math.max(0, Math.min(h - 100, this.exprPanelPosition.y))}px`;
+                                    this.exprPanelEl.style.right = "";
+                                }
+                                else {
+                                    const r = exprTab.getBoundingClientRect();
+                                    this.exprPanelEl.style.top = `${r.top}px`;
+                                    this.exprPanelEl.style.right = `${window.innerWidth - r.left + 4}px`;
+                                    this.exprPanelEl.style.left = "";
+                                }
+                                this.exprPanelEl.classList.add("ebc-expr-open");
+                            }
+                            else {
+                                this.exprPanelEl.classList.remove("ebc-expr-open");
+                            }
                         }
-                        this.renderExprPanel();
-                        if (this.exprPanelPosition) {
-                            // Restore to saved position
-                            const w = window.innerWidth;
-                            const h = window.innerHeight;
-                            this.exprPanelEl.style.left = `${Math.max(0, Math.min(w - 240, this.exprPanelPosition.x))}px`;
-                            this.exprPanelEl.style.top = `${Math.max(0, Math.min(h - 100, this.exprPanelPosition.y))}px`;
-                            this.exprPanelEl.style.right = "";
-                        }
-                        else {
-                            // Default: to the left of the expr tab
-                            const tabRect = exprTab.getBoundingClientRect();
-                            this.exprPanelEl.style.top = `${tabRect.top}px`;
-                            this.exprPanelEl.style.right = `${window.innerWidth - tabRect.left + 4}px`;
-                            this.exprPanelEl.style.left = "";
-                        }
-                        this.exprPanelEl.classList.add("ebc-expr-open");
+                        return;
                     }
-                    else {
-                        this.exprPanelEl.classList.remove("ebc-expr-open");
-                    }
-                }
+                    // Save the new fixed position
+                    const pos = {
+                        x: parseInt(exprTab.style.left, 10),
+                        y: parseInt(exprTab.style.top, 10),
+                    };
+                    this.exprTabOffset = pos;
+                    this.saveExprTabOffset(pos);
+                };
+                document.addEventListener("mousemove", onMove);
+                document.addEventListener("mouseup", onUp);
+            });
+            // Right-click EXP tab to reset position to default
+            exprTab.addEventListener("contextmenu", (e) => {
+                e.preventDefault();
+                this.exprTabOffset = null;
+                exprTab.style.position = "";
+                exprTab.style.left = "";
+                exprTab.style.top = "";
+                this.saveExprTabOffset(null);
             });
             closeBtn.addEventListener("click", () => this.close());
             refreshBtn.addEventListener("click", () => {
@@ -4187,6 +4234,34 @@
             catch (_a) {
                 return null;
             }
+        }
+        saveExprTabOffset(pos) {
+            try {
+                if (!Player.ExtensionSettings.EmeryBC)
+                    Player.ExtensionSettings.EmeryBC = {};
+                Player.ExtensionSettings.EmeryBC.exprTabPos = pos !== null && pos !== void 0 ? pos : null;
+                ServerPlayerExtensionSettingsSync("EmeryBC");
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        loadExprTabOffset() {
+            try {
+                const store = Player.ExtensionSettings.EmeryBC;
+                const v = store === null || store === void 0 ? void 0 : store.exprTabPos;
+                if (v && typeof v.x === "number" && typeof v.y === "number")
+                    return { x: v.x, y: v.y };
+                return null;
+            }
+            catch (_a) {
+                return null;
+            }
+        }
+        applyExprTabOffset(el, pos) {
+            const x = Math.max(0, Math.min(window.innerWidth - 44, pos.x));
+            const y = Math.max(0, Math.min(window.innerHeight - 44, pos.y));
+            el.style.position = "fixed";
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
         }
         enterFreeMode(pos) {
             if (!this.panelEl)
@@ -8125,8 +8200,22 @@
         updateExprTabVisibility() {
             var _a;
             const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-expr-tab");
-            if (el)
-                el.style.display = getExprTabVisible() ? "flex" : "none";
+            if (!el)
+                return;
+            el.style.display = getExprTabVisible() ? "flex" : "none";
+            if (!getExprTabVisible())
+                return;
+            // Restore saved drag position (load once on first show)
+            if (this.exprTabOffset === null) {
+                const saved = this.loadExprTabOffset();
+                if (saved !== null) {
+                    this.exprTabOffset = saved;
+                    this.applyExprTabOffset(el, saved);
+                }
+            }
+            else {
+                this.applyExprTabOffset(el, this.exprTabOffset);
+            }
         }
         open() {
             var _a, _b, _c;
@@ -8205,9 +8294,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.8";
+    const MOD_VERSION = "0.3.9";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.9",
+            changes: [
+                "EXP button is now draggable — same drag/click logic as the main drawer icon.",
+                "EXP button position saved to ExtensionSettings and restored on next load.",
+                "Right-click EXP button to reset it back to its default position.",
+            ],
+        },
         {
             version: "0.3.8",
             changes: [
