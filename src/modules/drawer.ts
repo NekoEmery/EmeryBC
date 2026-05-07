@@ -112,17 +112,17 @@ const CSS = `
     position: absolute;
     left: -44px;
     top: 58px;
-    transition: background 0.18s, clip-path 0.18s;
+    transition: background 0.18s, left 0.22s;
 }
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
 #ebc-tab:active { cursor: grabbing; }
 
-/* When panel is closed, clip-path trims the tab to a 6px strip at its right
-   edge (the chat-log boundary). clip-path also clips the hit area, so the
-   38px that overlapped the BC game canvas no longer blocks any clicks. */
+/* When panel is closed, slide the tab right so only ~10px overlaps the BC
+   game canvas. The icon is still fully visible (it's mostly over the chat-log
+   column), and the hit area is almost entirely out of the canvas. */
 #ebc-tab.ebc-tab-closed {
-    clip-path: inset(0 0 0 38px);
+    left: -10px;
     cursor: pointer;
 }
 
