@@ -1599,6 +1599,8 @@ export class EBCDrawer {
     private exprPanelOpen = false;
     private exprPanelEl: HTMLElement | null = null;
     private exprPanelPosition: { x: number; y: number } | null = null;
+    // DEV tab auto-refresh poller
+    private devLogPoller: ReturnType<typeof window.setInterval> | null = null;
 
     constructor(version = "") {
         EBCDrawer._instance = this;
@@ -2405,7 +2407,15 @@ export class EBCDrawer {
 
     // -- Tab switching ---------------------------------------------------------
 
+    private stopDevLogPoller(): void {
+        if (this.devLogPoller !== null) {
+            window.clearInterval(this.devLogPoller);
+            this.devLogPoller = null;
+        }
+    }
+
     private switchTab(tab: DrawerTab): void {
+        this.stopDevLogPoller();
         this.currentTab = tab;
 
         for (const [id, name] of [
@@ -5282,14 +5292,35 @@ export class EBCDrawer {
         const logToggleChk = document.createElement("input");
         logToggleChk.type = "checkbox";
         logToggleChk.checked = isDevLogEnabled();
-        logToggleChk.addEventListener("change", () => setDevLogEnabled(logToggleChk.checked));
+        logToggleChk.addEventListener("change", () => {
+            setDevLogEnabled(logToggleChk.checked);
+            renderMsgLog();
+        });
         logToggleWrap.appendChild(logToggleChk);
-        logToggleWrap.appendChild(document.createTextNode(" Logging"));
+        logToggleWrap.appendChild(document.createTextNode(" Live logging"));
 
         msgCtrlRow.appendChild(msgRefreshBtn2);
         msgCtrlRow.appendChild(msgClearBtn);
         msgCtrlRow.appendChild(logToggleWrap);
         body.appendChild(msgCtrlRow);
+
+        // Hint row — shown when logging is off
+        const logOffHint = document.createElement("div");
+        logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a5060;background:#1a080f;border:1px dashed #4c2537;border-radius:4px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px;";
+        logOffHint.style.display = isDevLogEnabled() ? "none" : "";
+        logOffHint.innerHTML = "<span>Logging is off — enable it to capture messages.</span>";
+        const enableBtn = document.createElement("button");
+        enableBtn.className = "ebc-wear-btn";
+        enableBtn.textContent = "Enable";
+        enableBtn.style.flexShrink = "0";
+        enableBtn.addEventListener("click", () => {
+            setDevLogEnabled(true);
+            logToggleChk.checked = true;
+            logOffHint.style.display = "none";
+            renderMsgLog();
+        });
+        logOffHint.appendChild(enableBtn);
+        body.appendChild(logOffHint);
 
         const msgLogEl = document.createElement("div");
         msgLogEl.style.cssText = "background:#100810;border:1px solid #3a1928;border-radius:4px;max-height:260px;overflow-y:auto;";
@@ -5365,6 +5396,12 @@ export class EBCDrawer {
         renderMsgLog();
         msgRefreshBtn2.addEventListener("click", renderMsgLog);
         msgClearBtn.addEventListener("click", () => { clearDevLog(); renderMsgLog(); });
+
+        // Auto-refresh every 1.5 s while the DEV tab is open
+        this.stopDevLogPoller();
+        this.devLogPoller = window.setInterval(() => {
+            if (this.currentTab === "dev" && isDevLogEnabled()) renderMsgLog();
+        }, 1500);
     }
 
     // -- Special Thanks tab ----------------------------------------------------
@@ -6341,6 +6378,7 @@ export class EBCDrawer {
 
     public close(): void {
         if (!this.panelEl) return;
+        this.stopDevLogPoller();
         this.isOpen = false;
 
         // Panel is closing — clip tab so it no longer blocks the BC canvas

@@ -3488,6 +3488,8 @@
             this.exprPanelOpen = false;
             this.exprPanelEl = null;
             this.exprPanelPosition = null;
+            // DEV tab auto-refresh poller
+            this.devLogPoller = null;
             EBCDrawer._instance = this;
             this.version = version;
             if (document.body) {
@@ -4247,8 +4249,15 @@
             this.startTimerPoller();
         }
         // -- Tab switching ---------------------------------------------------------
+        stopDevLogPoller() {
+            if (this.devLogPoller !== null) {
+                window.clearInterval(this.devLogPoller);
+                this.devLogPoller = null;
+            }
+        }
         switchTab(tab) {
             var _a;
+            this.stopDevLogPoller();
             this.currentTab = tab;
             for (const [id, name] of [
                 ["ebc-tab-outfits", "outfits"],
@@ -6847,13 +6856,33 @@
             const logToggleChk = document.createElement("input");
             logToggleChk.type = "checkbox";
             logToggleChk.checked = isDevLogEnabled();
-            logToggleChk.addEventListener("change", () => setDevLogEnabled(logToggleChk.checked));
+            logToggleChk.addEventListener("change", () => {
+                setDevLogEnabled(logToggleChk.checked);
+                renderMsgLog();
+            });
             logToggleWrap.appendChild(logToggleChk);
-            logToggleWrap.appendChild(document.createTextNode(" Logging"));
+            logToggleWrap.appendChild(document.createTextNode(" Live logging"));
             msgCtrlRow.appendChild(msgRefreshBtn2);
             msgCtrlRow.appendChild(msgClearBtn);
             msgCtrlRow.appendChild(logToggleWrap);
             body.appendChild(msgCtrlRow);
+            // Hint row — shown when logging is off
+            const logOffHint = document.createElement("div");
+            logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a5060;background:#1a080f;border:1px dashed #4c2537;border-radius:4px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px;";
+            logOffHint.style.display = isDevLogEnabled() ? "none" : "";
+            logOffHint.innerHTML = "<span>Logging is off — enable it to capture messages.</span>";
+            const enableBtn = document.createElement("button");
+            enableBtn.className = "ebc-wear-btn";
+            enableBtn.textContent = "Enable";
+            enableBtn.style.flexShrink = "0";
+            enableBtn.addEventListener("click", () => {
+                setDevLogEnabled(true);
+                logToggleChk.checked = true;
+                logOffHint.style.display = "none";
+                renderMsgLog();
+            });
+            logOffHint.appendChild(enableBtn);
+            body.appendChild(logOffHint);
             const msgLogEl = document.createElement("div");
             msgLogEl.style.cssText = "background:#100810;border:1px solid #3a1928;border-radius:4px;max-height:260px;overflow-y:auto;";
             body.appendChild(msgLogEl);
@@ -6927,6 +6956,12 @@
             renderMsgLog();
             msgRefreshBtn2.addEventListener("click", renderMsgLog);
             msgClearBtn.addEventListener("click", () => { clearDevLog(); renderMsgLog(); });
+            // Auto-refresh every 1.5 s while the DEV tab is open
+            this.stopDevLogPoller();
+            this.devLogPoller = window.setInterval(() => {
+                if (this.currentTab === "dev" && isDevLogEnabled())
+                    renderMsgLog();
+            }, 1500);
         }
         // -- Special Thanks tab ----------------------------------------------------
         renderThanks() {
@@ -7851,6 +7886,7 @@
             var _a;
             if (!this.panelEl)
                 return;
+            this.stopDevLogPoller();
             this.isOpen = false;
             // Panel is closing — clip tab so it no longer blocks the BC canvas
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
@@ -7883,9 +7919,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.5";
+    const MOD_VERSION = "0.3.6";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.6",
+            changes: [
+                "DEV log: auto-refreshes every 1.5 s while the DEV tab is open — no more manual ↻.",
+                "DEV log: prominent 'Enable' banner when logging is off so the toggle is hard to miss.",
+                "DEV log: toggling the checkbox now immediately refreshes the list.",
+            ],
+        },
         {
             version: "0.3.5",
             changes: [

@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.5";
+const MOD_VERSION = "0.3.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.6",
+        changes: [
+            "DEV log: auto-refreshes every 1.5 s while the DEV tab is open — no more manual ↻.",
+            "DEV log: prominent 'Enable' banner when logging is off so the toggle is hard to miss.",
+            "DEV log: toggling the checkbox now immediately refreshes the list.",
+        ],
+    },
     {
         version: "0.3.5",
         changes: [
