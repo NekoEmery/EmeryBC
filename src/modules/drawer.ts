@@ -2988,7 +2988,7 @@ export class EBCDrawer {
 
             let booped = 0;
             for (const friend of friends) {
-                const delay = booped * 1500;
+                const delay = booped * 4000;
                 const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
                 const targetName: string =
                     (typeof nickFn === "function"
