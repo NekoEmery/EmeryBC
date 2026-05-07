@@ -845,7 +845,7 @@
                 groups[group] = null;
             }
         }
-        return { id: uid$3(), name: name, groups };
+        return { id: uid$3(), name: name || "Preset", groups };
     }
     function applyExpressionPreset(preset) {
         try {
@@ -1475,6 +1475,27 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Expression quick-panel button visibility ----------------------------------
+    // Defaults to false (hidden). User toggles it on from the ANIMS tab.
+    function getExprTabVisible() {
+        var _a;
+        try {
+            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.exprTabVisible) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setExprTabVisible(value) {
+        try {
+            const store = getStore$1();
+            if (!store)
+                return;
+            store.exprTabVisible = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
     // another character is immediately removed and a glare emote is sent.
@@ -2018,7 +2039,7 @@
     position: absolute;
     left: -44px;
     top: 58px;
-    transition: background 0.18s, left 0.22s;
+    transition: background 0.18s;
 }
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
@@ -3503,11 +3524,13 @@
             // Panel starts closed — clip the tab so it doesn't block the BC canvas.
             tab.classList.add("ebc-tab-closed");
             root.appendChild(tab);
-            // Expression tab button — sits below the main tab, always visible.
+            // Expression quick-panel toggle button — hidden by default.
+            // User enables it via the toggle in the ANIMS tab.
             const exprTab = document.createElement("div");
             exprTab.id = "ebc-expr-tab";
             exprTab.title = "Expression Presets";
             exprTab.textContent = "EXP";
+            exprTab.style.display = "none"; // hidden until user opts in
             root.appendChild(exprTab);
             // Expression floating panel — created here, populated by renderExprPanel()
             const exprPanel = document.createElement("div");
@@ -3621,7 +3644,7 @@
             const posesTabBtn = document.createElement("button");
             posesTabBtn.className = "ebc-tab-btn";
             posesTabBtn.id = "ebc-tab-poses";
-            posesTabBtn.textContent = "POSES";
+            posesTabBtn.textContent = "ANIMS";
             const notesTabBtn = document.createElement("button");
             notesTabBtn.className = "ebc-tab-btn";
             notesTabBtn.id = "ebc-tab-notes";
@@ -3965,7 +3988,7 @@
             });
             outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
             buttonsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
-            posesTabBtn.addEventListener("click", () => this.switchTab("poses"));
+            posesTabBtn.addEventListener("click", () => this.switchTab("anims"));
             notesTabBtn.addEventListener("click", () => this.switchTab("notes"));
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
@@ -4201,7 +4224,7 @@
             for (const [id, name] of [
                 ["ebc-tab-outfits", "outfits"],
                 ["ebc-tab-buttons", "buttons"],
-                ["ebc-tab-poses", "poses"],
+                ["ebc-tab-poses", "anims"],
                 ["ebc-tab-notes", "notes"],
                 ["ebc-tab-thanks", "thanks"],
                 ["ebc-tab-dev", "dev"],
@@ -4218,7 +4241,7 @@
                 this.renderOutfits();
             else if (this.currentTab === "buttons")
                 this.renderButtons();
-            else if (this.currentTab === "poses")
+            else if (this.currentTab === "anims")
                 this.renderPoses();
             else if (this.currentTab === "notes")
                 this.renderNotes();
@@ -5741,6 +5764,101 @@
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const currentPoses = getCurrentPoses();
+            // ── Expression Presets ────────────────────────────────────────────────
+            const exprLbl = document.createElement("div");
+            exprLbl.className = "ebc-section-label";
+            exprLbl.textContent = "EXPRESSION PRESETS";
+            body.appendChild(exprLbl);
+            // Capture row
+            const exprCaptureRow = document.createElement("div");
+            exprCaptureRow.className = "ebc-expr-capture-row";
+            const exprNameInp = document.createElement("input");
+            exprNameInp.className = "ebc-form-input";
+            exprNameInp.style.flex = "1";
+            exprNameInp.placeholder = "Preset name...";
+            exprNameInp.maxLength = 30;
+            const exprSaveBtn = document.createElement("button");
+            exprSaveBtn.className = "ebc-wear-btn";
+            exprSaveBtn.textContent = "Save";
+            exprSaveBtn.title = "Capture current expression as a preset";
+            exprSaveBtn.addEventListener("click", () => {
+                const name = exprNameInp.value.trim() || "Preset";
+                const preset = captureCurrentExpression(name);
+                const allPresets = getExpressionPresets();
+                allPresets.push(preset);
+                saveExpressionPresets(allPresets);
+                exprNameInp.value = "";
+                renderExprList();
+            });
+            exprCaptureRow.appendChild(exprNameInp);
+            exprCaptureRow.appendChild(exprSaveBtn);
+            body.appendChild(exprCaptureRow);
+            // Preset list
+            const exprListEl = document.createElement("div");
+            exprListEl.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:4px;";
+            body.appendChild(exprListEl);
+            const renderExprList = () => {
+                while (exprListEl.firstChild)
+                    exprListEl.removeChild(exprListEl.firstChild);
+                const presets = getExpressionPresets();
+                if (presets.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.className = "ebc-expr-hint";
+                    hint.textContent = "No presets yet — save one above!";
+                    exprListEl.appendChild(hint);
+                    return;
+                }
+                for (const preset of presets) {
+                    const row = document.createElement("div");
+                    row.className = "ebc-expr-preset-row";
+                    const pill = document.createElement("button");
+                    pill.className = "ebc-expr-pill";
+                    pill.textContent = preset.name;
+                    pill.title = "Click to apply";
+                    pill.addEventListener("click", () => {
+                        applyExpressionPreset(preset);
+                        pill.textContent = "Applied!";
+                        window.setTimeout(() => { pill.textContent = preset.name; }, 1200);
+                    });
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "ebc-expr-del";
+                    delBtn.textContent = "×";
+                    delBtn.title = "Delete preset";
+                    delBtn.addEventListener("click", () => {
+                        const updated = getExpressionPresets().filter(p => p.id !== preset.id);
+                        saveExpressionPresets(updated);
+                        renderExprList();
+                    });
+                    row.appendChild(pill);
+                    row.appendChild(delBtn);
+                    exprListEl.appendChild(row);
+                }
+            };
+            renderExprList();
+            // Toggle: show EXP floating button
+            const exprToggleRow = document.createElement("div");
+            exprToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:6px;margin-bottom:4px;";
+            const exprToggleCb = Object.assign(document.createElement("input"), {
+                type: "checkbox",
+                id: "ebc-anims-expr-toggle",
+                checked: getExprTabVisible(),
+            });
+            exprToggleCb.style.accentColor = "#cf6f98";
+            exprToggleCb.addEventListener("change", () => {
+                setExprTabVisible(exprToggleCb.checked);
+                this.updateExprTabVisibility();
+            });
+            const exprToggleLbl = document.createElement("label");
+            exprToggleLbl.htmlFor = "ebc-anims-expr-toggle";
+            exprToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#a08090;cursor:pointer;";
+            exprToggleLbl.textContent = "Show expression quick-panel button";
+            exprToggleRow.appendChild(exprToggleCb);
+            exprToggleRow.appendChild(exprToggleLbl);
+            body.appendChild(exprToggleRow);
+            // Divider
+            const exprDivider = document.createElement("div");
+            exprDivider.style.cssText = "border-top:1px solid #3a1928;margin:8px 0;";
+            body.appendChild(exprDivider);
             // Helper: true when a pose key is currently active
             const isPoseActive = (key) => currentPoses.includes(key);
             // Helper: build an ordered pose step editor.
@@ -7526,9 +7644,38 @@
                 this.exprPanelOpen = false;
                 panel.classList.remove("ebc-expr-open");
             });
+            // Drag handle
+            const dragHandle = document.createElement("span");
+            dragHandle.className = "ebc-move-handle";
+            dragHandle.textContent = "⠿";
+            dragHandle.title = "Drag to reposition";
+            header.appendChild(dragHandle);
             header.appendChild(title);
             header.appendChild(closeBtn);
             panel.appendChild(header);
+            // Make the header draggable
+            dragHandle.addEventListener("mousedown", (e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const rect = panel.getBoundingClientRect();
+                // Switch to left-based positioning for free-float
+                panel.style.right = "";
+                panel.style.left = `${rect.left}px`;
+                panel.style.top = `${rect.top}px`;
+                dragHandle.style.cursor = "grabbing";
+                const onMove = (me) => {
+                    panel.style.left = `${rect.left + me.clientX - startX}px`;
+                    panel.style.top = `${rect.top + me.clientY - startY}px`;
+                };
+                const onUp = () => {
+                    dragHandle.style.cursor = "";
+                    document.removeEventListener("mousemove", onMove);
+                    document.removeEventListener("mouseup", onUp);
+                };
+                document.addEventListener("mousemove", onMove);
+                document.addEventListener("mouseup", onUp);
+            });
             // Body
             const body = document.createElement("div");
             body.className = "ebc-expr-body";
@@ -7602,6 +7749,12 @@
         }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
+        updateExprTabVisibility() {
+            var _a;
+            const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-expr-tab");
+            if (el)
+                el.style.display = getExprTabVisible() ? "flex" : "none";
+        }
         open() {
             var _a, _b, _c;
             if (!this.panelEl)
@@ -7611,6 +7764,7 @@
             const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
             if (tabEl)
                 tabEl.classList.remove("ebc-tab-closed");
+            this.updateExprTabVisibility();
             // On first open, check for a saved free-float position
             if (this.panelPosition === null) {
                 const saved = this.loadPanelPosition();
@@ -7677,9 +7831,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.1";
+    const MOD_VERSION = "0.3.2";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.2",
+            changes: [
+                "ANIMS tab: Expression Presets section added at the top — capture, apply, and delete face presets without leaving the panel.",
+                "ANIMS tab: Toggle to show/hide the EXP floating quick-panel button.",
+                "EXP floating panel: drag handle on header for free repositioning.",
+            ],
+        },
         {
             version: "0.3.1",
             changes: [

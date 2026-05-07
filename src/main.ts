@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.1";
+const MOD_VERSION = "0.3.2";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.2",
+        changes: [
+            "ANIMS tab: Expression Presets section added at the top — capture, apply, and delete face presets without leaving the panel.",
+            "ANIMS tab: Toggle to show/hide the EXP floating quick-panel button.",
+            "EXP floating panel: drag handle on header for free repositioning.",
+        ],
+    },
     {
         version: "0.3.1",
         changes: [
