@@ -1863,11 +1863,19 @@
     position: absolute;
     left: -44px;
     top: 58px;
-    transition: background 0.18s;
+    transition: background 0.18s, clip-path 0.18s;
 }
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
 #ebc-tab:active { cursor: grabbing; }
+
+/* When panel is closed, clip-path trims the tab to a 6px strip at its right
+   edge (the chat-log boundary). clip-path also clips the hit area, so the
+   38px that overlapped the BC game canvas no longer blocks any clicks. */
+#ebc-tab.ebc-tab-closed {
+    clip-path: inset(0 0 0 38px);
+    cursor: pointer;
+}
 
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
@@ -1940,6 +1948,19 @@
 
 @keyframes ebc-spin { to { transform: rotate(360deg); } }
 .ebc-icon-btn.spinning svg { animation: ebc-spin 0.6s linear; }
+
+.ebc-move-handle {
+    font-size: 14px;
+    color: #cf6f98;
+    opacity: 0.55;
+    cursor: grab;
+    line-height: 1;
+    padding: 0 2px;
+    user-select: none;
+    transition: opacity 0.14s;
+}
+.ebc-move-handle:hover { opacity: 1; }
+.ebc-move-handle:active { cursor: grabbing; }
 
 /* -- Tabs -- */
 .ebc-tabs {
@@ -3074,6 +3095,8 @@
             tab.id = "ebc-tab";
             tab.title = "EmeryBC";
             tab.innerHTML = TAB_ICON;
+            // Panel starts closed — clip the tab so it doesn't block the BC canvas.
+            tab.classList.add("ebc-tab-closed");
             root.appendChild(tab);
             // Sliding panel container - this is the only thing that transforms
             const slideContainer = document.createElement("div");
@@ -3094,6 +3117,11 @@
             refreshBtn.className = "ebc-icon-btn";
             refreshBtn.title = "Refresh";
             refreshBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+            // Drag handle icon — same mousedown behaviour as the header title area.
+            const moveHandle = document.createElement("span");
+            moveHandle.className = "ebc-move-handle";
+            moveHandle.title = "Drag to move";
+            moveHandle.textContent = "⠿";
             const resetLocBtn = document.createElement("button");
             resetLocBtn.className = "ebc-reset-loc-btn";
             resetLocBtn.title = "Reset drawer to default position (anchored to chat log)";
@@ -3105,6 +3133,7 @@
             closeBtn.title = "Close";
             closeBtn.textContent = "X";
             headerBtns.appendChild(refreshBtn);
+            headerBtns.appendChild(moveHandle);
             headerBtns.appendChild(resetLocBtn);
             headerBtns.appendChild(closeBtn);
             header.appendChild(title);
@@ -3697,6 +3726,9 @@
                 this.rootEl.style.display = "none";
                 this.isOpen = false;
                 this.panelEl.className = "ebc-closed";
+                const tabEl2 = this.rootEl.querySelector("#ebc-tab");
+                if (tabEl2)
+                    tabEl2.classList.add("ebc-tab-closed");
                 this.positioned = false;
                 this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
                 (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
@@ -4528,6 +4560,53 @@
                 }
             });
         }
+        boopFriendsInRoom() {
+            var _a, _b, _c, _d;
+            try {
+                const friendList = Player.FriendList;
+                if (!Array.isArray(friendList) || friendList.length === 0)
+                    return 0;
+                const friendSet = new Set(friendList);
+                const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+                const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber));
+                if (friends.length === 0)
+                    return 0;
+                const pool = [...EBCDrawer.BOOP_MESSAGES];
+                // Shuffle pool so the order is random each call
+                for (let i = pool.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [pool[i], pool[j]] = [pool[j], pool[i]];
+                }
+                let booped = 0;
+                for (const friend of friends) {
+                    const nickFn = window.CharacterNickname;
+                    const name = (_d = (_c = (_b = (typeof nickFn === "function"
+                        ? nickFn(friend)
+                        : null)) !== null && _b !== void 0 ? _b : friend.Nickname) !== null && _c !== void 0 ? _c : friend.Name) !== null && _d !== void 0 ? _d : "someone";
+                    const template = pool[booped % pool.length];
+                    const text = template.replace(/\{name\}/gi, name);
+                    const delay = booped * 350;
+                    window.setTimeout(() => {
+                        try {
+                            ServerSend("ChatRoomChat", {
+                                Type: "Action",
+                                Content: getDisplayName() + " " + text,
+                                Dictionary: [
+                                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                                    { SourceCharacter: Player.MemberNumber },
+                                ],
+                            });
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    }, delay);
+                    booped++;
+                }
+                return booped;
+            }
+            catch (_e) {
+                return 0;
+            }
+        }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
             var _a;
@@ -4903,6 +4982,28 @@
                     importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
                 }
             });
+            // -- Fun Actions --------------------------------------------------------
+            const funLbl = document.createElement("div");
+            funLbl.className = "ebc-section-label";
+            funLbl.style.marginTop = "10px";
+            funLbl.textContent = "Fun Actions";
+            body.appendChild(funLbl);
+            const boopBtn = document.createElement("button");
+            boopBtn.className = "ebc-create-btn";
+            boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
+            boopBtn.title = "Send a unique boop message to every friend currently in the room";
+            boopBtn.textContent = "🐾 Boop all friends in room";
+            boopBtn.addEventListener("click", () => {
+                const booped = this.boopFriendsInRoom();
+                if (booped === 0) {
+                    boopBtn.textContent = "No friends here~";
+                }
+                else {
+                    boopBtn.textContent = `Booped ${booped}!`;
+                }
+                window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
+            });
+            body.appendChild(boopBtn);
         }
         // -- Appearance diff -------------------------------------------------------
         renderDiff(panel, outfit) {
@@ -6487,10 +6588,14 @@
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a, _b;
+            var _a, _b, _c;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
+            // Panel is opening — restore full tab hit area
+            const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
+            if (tabEl)
+                tabEl.classList.remove("ebc-tab-closed");
             // On first open, check for a saved free-float position
             if (this.panelPosition === null) {
                 const saved = this.loadPanelPosition();
@@ -6511,20 +6616,25 @@
             if (!this.positioned)
                 this.syncToChat();
             try {
-                (_a = this.refreshBadgeRow) === null || _a === void 0 ? void 0 : _a.call(this);
+                (_b = this.refreshBadgeRow) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             // Show the DOM tab only for the creator
-            const domTabEl = (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-tab-dom");
+            const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
             if (domTabEl)
                 domTabEl.style.display = isDomEnabled() ? "" : "none";
             this.updateTimer();
             this.renderCurrentTab();
         }
         close() {
+            var _a;
             if (!this.panelEl)
                 return;
             this.isOpen = false;
+            // Panel is closing — clip tab so it no longer blocks the BC canvas
+            const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
+            if (tabEl)
+                tabEl.classList.add("ebc-tab-closed");
             if (this.panelPosition !== null) {
                 // Free-float: keep mode class, just swap open→closed for opacity fade
                 this.panelEl.classList.remove("ebc-open");
@@ -6550,11 +6660,37 @@
         }
     }
     EBCDrawer._instance = null;
+    // -- Boop friends ----------------------------------------------------------
+    // Pool of boop messages; {name} is replaced with the friend's display name.
+    EBCDrawer.BOOP_MESSAGES = [
+        "gently boops {name} on the nose~ *boop*",
+        "sneaks up behind {name} and taps them on the shoulder. Boo!",
+        "reaches over and gives {name}'s cheek a tiny squish.",
+        "flicks {name}'s ear with one finger and darts away.",
+        "pokes {name} with a single extended claw. poke.",
+        "bonks {name} softly on the head with a foam hammer.",
+        "blows a raspberry in {name}'s direction. pffft~",
+        "nudges {name} with an elbow and wiggles their eyebrows.",
+        "lobs a tiny marshmallow at {name}. thwp.",
+        "tiptoes over and taps {name}'s nose, then pretends nothing happened.",
+        "sends {name} a single finger-gun and a wink.",
+        "stealthily places a 'boop' sticky note on {name}'s forehead.",
+        "boops {name} so softly they might have imagined it.",
+        "charges up a super-boop and unleashes it squarely on {name}'s nose.",
+    ];
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.2.6";
+    const MOD_VERSION = "0.2.7";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.2.7",
+            changes: [
+                "Fixed: panel tab no longer blocks BC canvas clicks when the drawer is closed (clip-path hit area).",
+                "Header: move-handle icon (⠿) added beside refresh for an explicit drag target.",
+                "Buttons tab: 'Boop all friends in room' — sends a unique playful emote to each friend in the room with a small delay between each boop.",
+            ],
+        },
         {
             version: "0.2.6",
             changes: [

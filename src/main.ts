@@ -10,10 +10,18 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.2.6";
+const MOD_VERSION = "0.2.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.2.7",
+        changes: [
+            "Fixed: panel tab no longer blocks BC canvas clicks when the drawer is closed (clip-path hit area).",
+            "Header: move-handle icon (⠿) added beside refresh for an explicit drag target.",
+            "Buttons tab: 'Boop all friends in room' — sends a unique playful emote to each friend in the room with a small delay between each boop.",
+        ],
+    },
     {
         version: "0.2.6",
         changes: [
