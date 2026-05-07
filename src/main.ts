@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.7";
+const MOD_VERSION = "0.3.8";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.8",
+        changes: [
+            "DEV log: Test button — injects a dummy entry so you can verify the log UI is working independently of room activity.",
+            "DEV log: Room sync now writes a System entry ([EBC] Room synced) so you can confirm the logging hook is active as soon as you enter a room.",
+            "DEV log: clearer empty-state text.",
+        ],
+    },
     {
         version: "0.3.7",
         changes: [
@@ -775,6 +783,7 @@ function init(): void {
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
+        try { logMessage({ Type: "System", Content: "[EBC] Room synced — log is active", Dictionary: null }); } catch { /* ignore */ }
         return result;
     });
 

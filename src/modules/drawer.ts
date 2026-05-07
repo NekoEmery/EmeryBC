@@ -66,7 +66,7 @@ import {
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getExprTabVisible, setExprTabVisible } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog } from "./devLog";
+import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, logMessage } from "./devLog";
 import {
     isDomEnabled,
     getDomConfig,
@@ -5548,8 +5548,19 @@ export class EBCDrawer {
         logToggleWrap.appendChild(logToggleChk);
         logToggleWrap.appendChild(document.createTextNode(" Live logging"));
 
+        const msgTestBtn = document.createElement("button");
+        msgTestBtn.className = "ebc-icon-btn";
+        msgTestBtn.style.cssText = "font-size:10px;padding:2px 8px;";
+        msgTestBtn.textContent = "Test";
+        msgTestBtn.title = "Inject a test entry to verify the log UI is working";
+        msgTestBtn.addEventListener("click", () => {
+            logMessage({ Type: "Test", Content: "[EBC] Log is working!", Sender: Player.MemberNumber, Dictionary: null });
+            renderMsgLog();
+        });
+
         msgCtrlRow.appendChild(msgRefreshBtn2);
         msgCtrlRow.appendChild(msgClearBtn);
+        msgCtrlRow.appendChild(msgTestBtn);
         msgCtrlRow.appendChild(logToggleWrap);
         body.appendChild(msgCtrlRow);
 
@@ -5593,7 +5604,9 @@ export class EBCDrawer {
             if (entries.length === 0) {
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:8px 6px;";
-                hint.textContent = isDevLogEnabled() ? "No messages yet — try chatting or performing an action." : "Enable logging above to start capturing messages.";
+                hint.textContent = isDevLogEnabled()
+                    ? "No messages yet. Must be in a room — chat, emote, or have someone do an action. Click Test above to verify the UI works."
+                    : "Logging is off. Click Enable above, then do something in a room.";
                 msgLogEl.appendChild(hint);
                 return;
             }

@@ -7136,8 +7136,18 @@
             });
             logToggleWrap.appendChild(logToggleChk);
             logToggleWrap.appendChild(document.createTextNode(" Live logging"));
+            const msgTestBtn = document.createElement("button");
+            msgTestBtn.className = "ebc-icon-btn";
+            msgTestBtn.style.cssText = "font-size:10px;padding:2px 8px;";
+            msgTestBtn.textContent = "Test";
+            msgTestBtn.title = "Inject a test entry to verify the log UI is working";
+            msgTestBtn.addEventListener("click", () => {
+                logMessage({ Type: "Test", Content: "[EBC] Log is working!", Sender: Player.MemberNumber, Dictionary: null });
+                renderMsgLog();
+            });
             msgCtrlRow.appendChild(msgRefreshBtn2);
             msgCtrlRow.appendChild(msgClearBtn);
+            msgCtrlRow.appendChild(msgTestBtn);
             msgCtrlRow.appendChild(logToggleWrap);
             body.appendChild(msgCtrlRow);
             // Hint row — shown when logging is off
@@ -7178,7 +7188,9 @@
                 if (entries.length === 0) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:8px 6px;";
-                    hint.textContent = isDevLogEnabled() ? "No messages yet — try chatting or performing an action." : "Enable logging above to start capturing messages.";
+                    hint.textContent = isDevLogEnabled()
+                        ? "No messages yet. Must be in a room — chat, emote, or have someone do an action. Click Test above to verify the UI works."
+                        : "Logging is off. Click Enable above, then do something in a room.";
                     msgLogEl.appendChild(hint);
                     return;
                 }
@@ -8193,9 +8205,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.7";
+    const MOD_VERSION = "0.3.8";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.8",
+            changes: [
+                "DEV log: Test button — injects a dummy entry so you can verify the log UI is working independently of room activity.",
+                "DEV log: Room sync now writes a System entry ([EBC] Room synced) so you can confirm the logging hook is active as soon as you enter a room.",
+                "DEV log: clearer empty-state text.",
+            ],
+        },
         {
             version: "0.3.7",
             changes: [
@@ -8950,6 +8970,10 @@
                 snapshotPlayerRestraints();
             }
             catch ( /* ignore */_e) { /* ignore */ }
+            try {
+                logMessage({ Type: "System", Content: "[EBC] Room synced — log is active", Dictionary: null });
+            }
+            catch ( /* ignore */_f) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
