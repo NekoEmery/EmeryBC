@@ -5523,7 +5523,7 @@
                     return 0;
                 let booped = 0;
                 for (const friend of friends) {
-                    const delay = booped * 4000;
+                    const delay = booped * 1800;
                     const nickFn = window.CharacterNickname;
                     const targetName = (_d = (_c = (_b = (typeof nickFn === "function"
                         ? nickFn(friend)
