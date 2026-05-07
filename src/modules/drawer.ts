@@ -111,11 +111,22 @@ const CSS = `
     position: absolute;
     left: -44px;
     top: 58px;
-    transition: background 0.18s;
+    transition: background 0.18s, width 0.18s, left 0.18s, opacity 0.18s;
+    overflow: hidden;
 }
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
 #ebc-tab:active { cursor: grabbing; }
+
+/* Collapsed pull-strip — shown when the panel is closed so the tab footprint
+   on the BC canvas is minimal (6px) and doesn't block restraint menus. */
+#ebc-tab.ebc-tab-collapsed {
+    width: 6px;
+    left: -6px;
+    cursor: pointer;
+    opacity: 0.55;
+    border-radius: 4px 0 0 4px;
+}
 
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
@@ -1329,11 +1340,13 @@ export class EBCDrawer {
         root.style.display = "none";
         root.style.right = "-9999px"; // off-screen until syncToChat runs
 
-        // Tab button - child of root, OUTSIDE the sliding panel so it never moves
+        // Tab button - child of root, OUTSIDE the sliding panel so it never moves.
+        // Starts collapsed (thin strip) so it doesn't block BC canvas menus when closed.
         const tab = document.createElement("div");
         tab.id = "ebc-tab";
         tab.title = "EmeryBC";
         tab.innerHTML = TAB_ICON;
+        tab.classList.add("ebc-tab-collapsed");
         root.appendChild(tab);
 
         // Sliding panel container - this is the only thing that transforms
@@ -2000,6 +2013,7 @@ export class EBCDrawer {
             this.rootEl.style.display = "none";
             this.isOpen = false;
             this.panelEl.className = "ebc-closed";
+            this.rootEl.querySelector("#ebc-tab")?.classList.add("ebc-tab-collapsed");
             this.positioned = false;
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.resizeObserver?.disconnect();
@@ -5059,6 +5073,9 @@ export class EBCDrawer {
         if (!this.panelEl) return;
         this.isOpen = true;
 
+        // Expand the tab to full size so it can be dragged while the panel is open
+        this.rootEl?.querySelector("#ebc-tab")?.classList.remove("ebc-tab-collapsed");
+
         // On first open, check for a saved free-float position
         if (this.panelPosition === null) {
             const saved = this.loadPanelPosition();
@@ -5088,6 +5105,10 @@ export class EBCDrawer {
     public close(): void {
         if (!this.panelEl) return;
         this.isOpen = false;
+
+        // Collapse the tab back to a thin strip so it doesn't block BC canvas menus
+        this.rootEl?.querySelector("#ebc-tab")?.classList.add("ebc-tab-collapsed");
+
         if (this.panelPosition !== null) {
             // Free-float: keep mode class, just swap open→closed for opacity fade
             this.panelEl.classList.remove("ebc-open");

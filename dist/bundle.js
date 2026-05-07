@@ -1855,11 +1855,22 @@
     position: absolute;
     left: -44px;
     top: 58px;
-    transition: background 0.18s;
+    transition: background 0.18s, width 0.18s, left 0.18s, opacity 0.18s;
+    overflow: hidden;
 }
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
 #ebc-tab:active { cursor: grabbing; }
+
+/* Collapsed pull-strip — shown when the panel is closed so the tab footprint
+   on the BC canvas is minimal (6px) and doesn't block restraint menus. */
+#ebc-tab.ebc-tab-collapsed {
+    width: 6px;
+    left: -6px;
+    cursor: pointer;
+    opacity: 0.55;
+    border-radius: 4px 0 0 4px;
+}
 
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
@@ -3061,11 +3072,13 @@
             root.id = "emerybc-root";
             root.style.display = "none";
             root.style.right = "-9999px"; // off-screen until syncToChat runs
-            // Tab button - child of root, OUTSIDE the sliding panel so it never moves
+            // Tab button - child of root, OUTSIDE the sliding panel so it never moves.
+            // Starts collapsed (thin strip) so it doesn't block BC canvas menus when closed.
             const tab = document.createElement("div");
             tab.id = "ebc-tab";
             tab.title = "EmeryBC";
             tab.innerHTML = TAB_ICON;
+            tab.classList.add("ebc-tab-collapsed");
             root.appendChild(tab);
             // Sliding panel container - this is the only thing that transforms
             const slideContainer = document.createElement("div");
@@ -3681,7 +3694,7 @@
         }
         // -- Visibility ------------------------------------------------------------
         updateVisibility() {
-            var _a;
+            var _a, _b;
             if (!this.rootEl || !this.panelEl)
                 return;
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
@@ -3689,9 +3702,10 @@
                 this.rootEl.style.display = "none";
                 this.isOpen = false;
                 this.panelEl.className = "ebc-closed";
+                (_a = this.rootEl.querySelector("#ebc-tab")) === null || _a === void 0 ? void 0 : _a.classList.add("ebc-tab-collapsed");
                 this.positioned = false;
                 this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
-                (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
+                (_b = this.resizeObserver) === null || _b === void 0 ? void 0 : _b.disconnect();
                 this.resizeObserver = null;
                 this.stopCrabsPoller();
                 this.stopTimerPoller();
@@ -6479,10 +6493,12 @@
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a, _b;
+            var _a, _b, _c, _d;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
+            // Expand the tab to full size so it can be dragged while the panel is open
+            (_b = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab")) === null || _b === void 0 ? void 0 : _b.classList.remove("ebc-tab-collapsed");
             // On first open, check for a saved free-float position
             if (this.panelPosition === null) {
                 const saved = this.loadPanelPosition();
@@ -6503,20 +6519,23 @@
             if (!this.positioned)
                 this.syncToChat();
             try {
-                (_a = this.refreshBadgeRow) === null || _a === void 0 ? void 0 : _a.call(this);
+                (_c = this.refreshBadgeRow) === null || _c === void 0 ? void 0 : _c.call(this);
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             // Show the DOM tab only for the creator
-            const domTabEl = (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-tab-dom");
+            const domTabEl = (_d = this.rootEl) === null || _d === void 0 ? void 0 : _d.querySelector("#ebc-tab-dom");
             if (domTabEl)
                 domTabEl.style.display = isDomEnabled() ? "" : "none";
             this.updateTimer();
             this.renderCurrentTab();
         }
         close() {
+            var _a, _b;
             if (!this.panelEl)
                 return;
             this.isOpen = false;
+            // Collapse the tab back to a thin strip so it doesn't block BC canvas menus
+            (_b = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab")) === null || _b === void 0 ? void 0 : _b.classList.add("ebc-tab-collapsed");
             if (this.panelPosition !== null) {
                 // Free-float: keep mode class, just swap open→closed for opacity fade
                 this.panelEl.classList.remove("ebc-open");
