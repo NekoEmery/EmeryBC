@@ -47,7 +47,8 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled } from "./settings";
+import { snapshotPlayerRestraints } from "./antiRestraint";
 import {
     isDomEnabled,
     getDomConfig,
@@ -4369,6 +4370,58 @@ export class EBCDrawer {
             body.appendChild(msg);
             return;
         }
+
+        // ── Anti-Restraint ───────────────────────────────────────────────────
+        const antiLbl = document.createElement("div");
+        antiLbl.className = "ebc-section-label";
+        antiLbl.textContent = "Anti-Restraint";
+        body.appendChild(antiLbl);
+
+        const antiRow = document.createElement("div");
+        antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+
+        const antiInfo = document.createElement("div");
+        antiInfo.style.cssText = "flex:1;min-width:0;";
+        const antiTitle = document.createElement("span");
+        antiTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+        antiTitle.textContent = "Auto-escape incoming restraints";
+        const antiHint = document.createElement("span");
+        antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
+        antiHint.textContent = "Removes any restraint put on you and sends a playful room emote";
+        antiInfo.appendChild(antiTitle);
+        antiInfo.appendChild(antiHint);
+
+        const antiToggle = document.createElement("button");
+        const refreshAntiToggle = (): void => {
+            const on = getAntiRestraintEnabled();
+            antiToggle.textContent = on ? "ON" : "OFF";
+            antiToggle.style.cssText = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:10px",
+                "font-weight:bold",
+                "padding:2px 10px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "flex-shrink:0",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#553142"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+        };
+        refreshAntiToggle();
+        antiToggle.addEventListener("click", () => {
+            const next = !getAntiRestraintEnabled();
+            setAntiRestraintEnabled(next);
+            // When turning ON, snapshot current restraints so we don't
+            // immediately try to escape restraints the player already has.
+            if (next) try { snapshotPlayerRestraints(); } catch { /* ignore */ }
+            refreshAntiToggle();
+        });
+
+        antiRow.appendChild(antiInfo);
+        antiRow.appendChild(antiToggle);
+        body.appendChild(antiRow);
 
         // Sync selected targets: add any new targets that aren't tracked yet
         const allTargetIds = getDomConfig().targets.map(t => t.id);

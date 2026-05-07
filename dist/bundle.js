@@ -1326,6 +1326,120 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Anti-restraint -----------------------------------------------------------
+    // When enabled, any restraint applied to the player by someone else is
+    // immediately removed and a playful emote is sent to the room.
+    function getAntiRestraintEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAntiRestraintEnabled(value) {
+        try {
+            const store = getStore$1();
+            if (!store)
+                return;
+            store.antiRestraint = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+
+    // Anti-restraint — when enabled, any restraint applied to the player by
+    // another character is immediately removed and a playful emote is sent.
+    // Creative escape messages. Each receives the display name of the item
+    // that tried (and failed) to stay on.
+    const ESCAPE_MESSAGES = [
+        n => `tilts her head as the ${n} shimmers and dissolves before it can even close~`,
+        n => `blinks in surprise as the ${n} barely touches her before bouncing right off~`,
+        n => `giggles softly as the ${n} seems to reject itself and falls to the floor~`,
+        n => `watches with wide eyes as the ${n} unclasps itself and drifts away on its own~`,
+        n => `smiles as an invisible force causes the ${n} to slip right off~`,
+        n => `glances down curiously as the ${n} simply... refuses to stay on~`,
+        n => `lets out a quiet laugh as the ${n} clasps shut for just a moment before popping back open~`,
+        n => `tilts her head as the ${n} wriggles free all by itself~`,
+        n => `raises a brow as the ${n} tumbles off before anyone can blink~`,
+        n => `gasps softly as the ${n} shudders and slips free, as though it had somewhere else to be~`,
+        n => `watches the ${n} hover in the air for a moment before floating gently away~`,
+        n => `quirks a smile as the ${n} snaps shut — then immediately snaps right back open~`,
+    ];
+    // Snapshot of restraint groups currently on the player.
+    // Populated on room enter and after each escape so we can detect additions.
+    let knownRestraints = new Set();
+    // Re-entry guard — set true while we are actively removing items so the
+    // CharacterRefresh we trigger ourselves doesn't recurse into the escape logic.
+    let escaping = false;
+    // Call this whenever the player's restraint state resets to a known baseline
+    // (room enter, toggle on, after escaping). Thread-safe: always call outside
+    // of escaping = true sections.
+    function snapshotPlayerRestraints() {
+        try {
+            knownRestraints = new Set(Player.Appearance
+                .filter((i) => i.Asset.Group.IsRestraint)
+                .map((i) => i.Asset.Group.Name));
+        }
+        catch ( /* ignore — may fire before Player is ready */_a) { /* ignore — may fire before Player is ready */ }
+    }
+    // Called from the CharacterRefresh hook in main.ts whenever C === Player.
+    function antiRestraintOnPlayerRefresh() {
+        if (escaping)
+            return;
+        if (!getAntiRestraintEnabled()) {
+            // Keep the snapshot fresh even while disabled so we don't false-trigger
+            // the moment it gets re-enabled.
+            snapshotPlayerRestraints();
+            return;
+        }
+        try {
+            const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
+            const newItems = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name));
+            if (newItems.length === 0) {
+                // Nothing new — but items may have been removed, keep snapshot current.
+                snapshotPlayerRestraints();
+                return;
+            }
+            escaping = true;
+            // Grab a human-readable name before we remove anything.
+            const firstItem = newItems[0];
+            const displayName = firstItem.Asset.Description
+                || firstItem.Asset.Name
+                || "restraint";
+            // Strip every newly added restraint.
+            for (const item of newItems) {
+                try {
+                    InventoryRemove(Player, item.Asset.Group.Name, false);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
+            snapshotPlayerRestraints();
+            // Pick a random escape message and send it as a room emote.
+            const msgFn = ESCAPE_MESSAGES[Math.floor(Math.random() * ESCAPE_MESSAGES.length)];
+            window.setTimeout(() => {
+                try {
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: Player.Name + " " + msgFn(displayName),
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                escaping = false;
+            }, 200);
+        }
+        catch (_b) {
+            escaping = false;
+        }
+    }
 
     // Creator-only DOM tools — visible exclusively to member #130267.
     // Supports multiple named restraint sets, each with its own items,
@@ -5702,6 +5816,57 @@
                 body.appendChild(msg);
                 return;
             }
+            // ── Anti-Restraint ───────────────────────────────────────────────────
+            const antiLbl = document.createElement("div");
+            antiLbl.className = "ebc-section-label";
+            antiLbl.textContent = "Anti-Restraint";
+            body.appendChild(antiLbl);
+            const antiRow = document.createElement("div");
+            antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+            const antiInfo = document.createElement("div");
+            antiInfo.style.cssText = "flex:1;min-width:0;";
+            const antiTitle = document.createElement("span");
+            antiTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+            antiTitle.textContent = "Auto-escape incoming restraints";
+            const antiHint = document.createElement("span");
+            antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
+            antiHint.textContent = "Removes any restraint put on you and sends a playful room emote";
+            antiInfo.appendChild(antiTitle);
+            antiInfo.appendChild(antiHint);
+            const antiToggle = document.createElement("button");
+            const refreshAntiToggle = () => {
+                const on = getAntiRestraintEnabled();
+                antiToggle.textContent = on ? "ON" : "OFF";
+                antiToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:2px 10px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshAntiToggle();
+            antiToggle.addEventListener("click", () => {
+                const next = !getAntiRestraintEnabled();
+                setAntiRestraintEnabled(next);
+                // When turning ON, snapshot current restraints so we don't
+                // immediately try to escape restraints the player already has.
+                if (next)
+                    try {
+                        snapshotPlayerRestraints();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                refreshAntiToggle();
+            });
+            antiRow.appendChild(antiInfo);
+            antiRow.appendChild(antiToggle);
+            body.appendChild(antiRow);
             // Sync selected targets: add any new targets that aren't tracked yet
             const allTargetIds = getDomConfig().targets.map(t => t.id);
             if (this.domSelectedTargets.size === 0) {
@@ -6375,9 +6540,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.2.5";
+    const MOD_VERSION = "0.2.6";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.2.6",
+            changes: [
+                "Anti-Restraint: toggle in the DOM tab. When on, any restraint applied to you is instantly removed and a playful room emote is sent.",
+            ],
+        },
         {
             version: "0.2.5",
             changes: [
@@ -7039,6 +7210,21 @@
                 drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
             }
             catch ( /* ignore */_d) { /* ignore */ }
+            try {
+                snapshotPlayerRestraints();
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
+            return result;
+        });
+        // Anti-restraint: detect new restraints on the player after any refresh
+        tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
+            const result = next(args);
+            try {
+                const [C] = args;
+                if (C === Player)
+                    antiRestraintOnPlayerRefresh();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             return result;
         });
         // Keep drawer visibility in sync whenever the BC screen changes

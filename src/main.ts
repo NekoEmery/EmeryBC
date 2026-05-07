@@ -5,14 +5,21 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge } from "./modules/settings";
+import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints } from "./modules/antiRestraint";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.2.5";
+const MOD_VERSION = "0.2.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.2.6",
+        changes: [
+            "Anti-Restraint: toggle in the DOM tab. When on, any restraint applied to you is instantly removed and a playful room emote is sent.",
+        ],
+    },
     {
         version: "0.2.5",
         changes: [
@@ -679,10 +686,21 @@ function init(): void {
 
     modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
         const result = next(args);
-        try { syncPresenceMarker();       } catch { /* ignore */ }
-        try { showRoomLoadNotice();       } catch { /* ignore */ }
-        try { timerOnRoomEnter();         } catch { /* ignore */ }
-        try { drawer?.updateVisibility(); } catch { /* ignore */ }
+        try { syncPresenceMarker();         } catch { /* ignore */ }
+        try { showRoomLoadNotice();         } catch { /* ignore */ }
+        try { timerOnRoomEnter();           } catch { /* ignore */ }
+        try { drawer?.updateVisibility();   } catch { /* ignore */ }
+        try { snapshotPlayerRestraints();   } catch { /* ignore */ }
+        return result;
+    });
+
+    // Anti-restraint: detect new restraints on the player after any refresh
+    tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
+        const result = next(args);
+        try {
+            const [C] = args as [Character];
+            if (C === Player) antiRestraintOnPlayerRefresh();
+        } catch { /* ignore */ }
         return result;
     });
 

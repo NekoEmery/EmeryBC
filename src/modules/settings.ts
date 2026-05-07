@@ -48,3 +48,20 @@ export function setShowVersionBadge(value: boolean): void {
         ServerPlayerExtensionSettingsSync("EmeryBC");
     } catch { /* ignore */ }
 }
+
+// -- Anti-restraint -----------------------------------------------------------
+// When enabled, any restraint applied to the player by someone else is
+// immediately removed and a playful emote is sent to the room.
+
+export function getAntiRestraintEnabled(): boolean {
+    try { return getStore()?.antiRestraint === true; } catch { return false; }
+}
+
+export function setAntiRestraintEnabled(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.antiRestraint = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}
