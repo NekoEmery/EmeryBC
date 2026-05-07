@@ -1,8 +1,6 @@
 // Color palette manager — capture the full color map of your current
 // appearance as a named palette and re-apply it later (or to a different outfit).
 
-import { RESTRAINT_GROUPS } from "./outfitManager";
-
 export type PaletteType = "outfit" | "restraint";
 
 export interface ColorPalette {
@@ -59,7 +57,7 @@ export function captureCurrentPalette(name: string): ColorPalette {
 export function captureRestraintPalette(name: string): ColorPalette {
     const colorMap: Record<string, string | string[]> = {};
     for (const item of Player.Appearance) {
-        if (RESTRAINT_GROUPS.has(item.Asset.Group.Name) && item.Color !== undefined) {
+        if (item.Asset.Group.IsRestraint && item.Color !== undefined) {
             colorMap[item.Asset.Group.Name] = item.Color as string | string[];
         }
     }

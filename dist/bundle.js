@@ -856,7 +856,7 @@
     function captureRestraintPalette(name) {
         const colorMap = {};
         for (const item of Player.Appearance) {
-            if (RESTRAINT_GROUPS.has(item.Asset.Group.Name) && item.Color !== undefined) {
+            if (item.Asset.Group.IsRestraint && item.Color !== undefined) {
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
