@@ -4529,13 +4529,13 @@ export class EBCDrawer {
 
         removeAllBtn.addEventListener("click", () => {
             removeAllBtn.disabled = true;
-            showReleaseStatus(removeAllTargetRestraints(this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined));
+            showReleaseStatus(removeAllTargetRestraints(this.domSelectedTargets));
             window.setTimeout(() => { removeAllBtn.disabled = false; }, 2000);
         });
 
         unlockAllBtn.addEventListener("click", () => {
             unlockAllBtn.disabled = true;
-            showReleaseStatus(unlockAllTargetItems(this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined));
+            showReleaseStatus(unlockAllTargetItems(this.domSelectedTargets));
             window.setTimeout(() => { unlockAllBtn.disabled = false; }, 2000);
         });
 
@@ -4720,7 +4720,7 @@ export class EBCDrawer {
 
                 applyBtn.addEventListener("click", () => {
                     applyBtn.disabled = true;
-                    const { applied, skipped } = applyDomSet(set.id, this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined);
+                    const { applied, skipped } = applyDomSet(set.id, this.domSelectedTargets);
                     const parts: string[] = [];
                     if (applied.length) parts.push("✓ " + applied.join(", "));
                     if (skipped.length) parts.push("⟳ not in room: " + skipped.join(", "));

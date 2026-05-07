@@ -1637,7 +1637,7 @@
             if (targetIds && !targetIds.has(target.id))
                 return { name: target.name, count: 0, inRoom: false };
             const groups = char.Appearance
-                .filter((a) => RESTRAINT_GROUPS.has(a.Asset.Group.Name))
+                .filter((a) => a.Asset.Group.IsRestraint)
                 .map((a) => a.Asset.Group.Name);
             const { count } = removeTargetItems(target.id, groups);
             return { name: target.name, count, inRoom: true };
@@ -5857,12 +5857,12 @@
             };
             removeAllBtn.addEventListener("click", () => {
                 removeAllBtn.disabled = true;
-                showReleaseStatus(removeAllTargetRestraints(this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined));
+                showReleaseStatus(removeAllTargetRestraints(this.domSelectedTargets));
                 window.setTimeout(() => { removeAllBtn.disabled = false; }, 2000);
             });
             unlockAllBtn.addEventListener("click", () => {
                 unlockAllBtn.disabled = true;
-                showReleaseStatus(unlockAllTargetItems(this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined));
+                showReleaseStatus(unlockAllTargetItems(this.domSelectedTargets));
                 window.setTimeout(() => { unlockAllBtn.disabled = false; }, 2000);
             });
             // ── "Pick items to remove" picker ─────────────────────────────────────
@@ -6032,7 +6032,7 @@
                     setsContainer.appendChild(applyStatus);
                     applyBtn.addEventListener("click", () => {
                         applyBtn.disabled = true;
-                        const { applied, skipped } = applyDomSet(set.id, this.domSelectedTargets.size > 0 ? this.domSelectedTargets : undefined);
+                        const { applied, skipped } = applyDomSet(set.id, this.domSelectedTargets);
                         const parts = [];
                         if (applied.length)
                             parts.push("✓ " + applied.join(", "));

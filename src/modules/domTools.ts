@@ -325,7 +325,7 @@ export function removeAllTargetRestraints(targetIds?: Set<number>): Array<{ name
         if (!char) return { name: target.name, count: 0, inRoom: false };
         if (targetIds && !targetIds.has(target.id)) return { name: target.name, count: 0, inRoom: false };
         const groups = char.Appearance
-            .filter((a: Item) => RESTRAINT_GROUPS.has(a.Asset.Group.Name))
+            .filter((a: Item) => a.Asset.Group.IsRestraint)
             .map((a: Item) => a.Asset.Group.Name);
         const { count } = removeTargetItems(target.id, groups);
         return { name: target.name, count, inRoom: true };
