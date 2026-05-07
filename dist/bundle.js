@@ -1350,23 +1350,26 @@
     }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
-    // another character is immediately removed and a playful emote is sent.
-    // Creative escape messages. Each receives the display name of the item
-    // that tried (and failed) to stay on.
-    const ESCAPE_MESSAGES = [
-        n => `tilts her head slowly, eyes meeting whoever dared, as the ${n} slides off her without a sound and drops to the floor.`,
-        n => `glances down at the ${n} with a calm, almost bored expression as the strap loosens and it falls away before it could catch.`,
-        n => `raises an eyebrow, unimpressed, as the ${n} comes undone and clatters to the ground at her feet.`,
-        n => `doesn't even flinch as the ${n} tightens — then exhales slowly as the buckle gives and it drops.`,
-        n => `fixes her gaze forward as the ${n} clicks shut — only for each clasp to pop open again, one by one.`,
-        n => `tilts her chin up slightly as the ${n} is brought toward her, then watches it slip loose with a quiet, knowing look.`,
-        n => `barely acknowledges the ${n} before the strap slides free and it settles on the floor with a dull thud.`,
-        n => `glances at the ${n} with quiet amusement as the fastening fails to hold and it drops without ceremony.`,
-        n => `stands perfectly still as the ${n} closes — the latch catches for a moment, then gives, and it falls.`,
-        n => `watches the ${n} get secured around her, expression patient and unbothered, before the knot slips and it hits the ground.`,
-        n => `shifts her weight just slightly and the ${n} comes loose, sliding off before the clasp ever fully catches.`,
-        n => `meets the gaze of whoever applied the ${n} with a calm, level stare as it loosens and falls at her feet.`,
-    ];
+    // another character is immediately removed and a glare emote is sent.
+    // The name of the last person who interacted with the player.
+    // Set by recordRestrainer() which is called from a ChatRoomMessage hook.
+    let lastRestrainerName = null;
+    // Called from main.ts whenever a ChatRoomMessage Action arrives targeting
+    // the player — captures who sent it so the escape emote can name them.
+    function recordRestrainer(sourceMemberNumber) {
+        var _a;
+        try {
+            const room = window.ChatRoomCharacter;
+            const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === sourceMemberNumber);
+            if (!char)
+                return;
+            lastRestrainerName =
+                ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) ||
+                    char.Name ||
+                    null;
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
     // Snapshot of restraint groups currently on the player.
     // Populated on room enter and after each escape so we can detect additions.
     let knownRestraints = new Set();
@@ -1374,8 +1377,7 @@
     // CharacterRefresh we trigger ourselves doesn't recurse into the escape logic.
     let escaping = false;
     // Call this whenever the player's restraint state resets to a known baseline
-    // (room enter, toggle on, after escaping). Thread-safe: always call outside
-    // of escaping = true sections.
+    // (room enter, toggle on, after escaping).
     function snapshotPlayerRestraints() {
         try {
             knownRestraints = new Set(Player.Appearance
@@ -1403,11 +1405,14 @@
                 return;
             }
             escaping = true;
-            // Grab a human-readable name before we remove anything.
+            // Grab a human-readable item name before we remove anything.
             const firstItem = newItems[0];
-            const displayName = firstItem.Asset.Description
+            const itemName = firstItem.Asset.Description
                 || firstItem.Asset.Name
                 || "restraint";
+            // Capture restrainer name now, then clear it so the next escape is fresh.
+            const restrainer = lastRestrainerName;
+            lastRestrainerName = null;
             // Strip every newly added restraint.
             for (const item of newItems) {
                 try {
@@ -1419,13 +1424,14 @@
             ChatRoomCharacterUpdate(Player);
             ServerPlayerAppearanceSync();
             snapshotPlayerRestraints();
-            // Pick a random escape message and send it as a room emote.
-            const msgFn = ESCAPE_MESSAGES[Math.floor(Math.random() * ESCAPE_MESSAGES.length)];
             window.setTimeout(() => {
                 try {
+                    const text = restrainer
+                        ? `glares at ${restrainer} as the ${itemName} falls away.`
+                        : `glares ahead as the ${itemName} falls away.`;
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
-                        Content: Player.Name + " " + msgFn(displayName),
+                        Content: Player.Name + " " + text,
                         Dictionary: [
                             { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
                             { SourceCharacter: Player.MemberNumber },
@@ -7212,6 +7218,40 @@
                 snapshotPlayerRestraints();
             }
             catch ( /* ignore */_e) { /* ignore */ }
+            return result;
+        });
+        // Anti-restraint: record who last acted on the player so the escape emote
+        // can name them. BC sends an Action message with SourceCharacter / TargetCharacter
+        // in the Dictionary whenever someone uses an item on another character.
+        tryHookFunction(modAPI, "ChatRoomMessage", 3, (args, next) => {
+            const result = next(args);
+            try {
+                const [data] = args;
+                if (data.Type !== "Action")
+                    return result;
+                const dict = data.Dictionary;
+                if (!dict)
+                    return result;
+                // Dictionary entries can use either {Tag, MemberNumber} or direct keys.
+                let sourceNum;
+                let targetNum;
+                for (const entry of dict) {
+                    if (entry.Tag === "SourceCharacter" && typeof entry.MemberNumber === "number")
+                        sourceNum = entry.MemberNumber;
+                    if (entry.Tag === "TargetCharacter" && typeof entry.MemberNumber === "number")
+                        targetNum = entry.MemberNumber;
+                    // Alternative flat format
+                    if (typeof entry.SourceCharacter === "number")
+                        sourceNum = entry.SourceCharacter;
+                    if (typeof entry.TargetCharacter === "number")
+                        targetNum = entry.TargetCharacter;
+                }
+                if (typeof targetNum === "number" && targetNum === Player.MemberNumber &&
+                    typeof sourceNum === "number" && sourceNum !== Player.MemberNumber) {
+                    recordRestrainer(sourceNum);
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             return result;
         });
         // Anti-restraint: detect new restraints on the player after any refresh

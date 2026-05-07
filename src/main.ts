@@ -5,7 +5,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge } from "./modules/settings";
-import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints } from "./modules/antiRestraint";
+import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer } from "./modules/antiRestraint";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { UI } from "./modules/ui";
 
@@ -691,6 +691,38 @@ function init(): void {
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
+        return result;
+    });
+
+    // Anti-restraint: record who last acted on the player so the escape emote
+    // can name them. BC sends an Action message with SourceCharacter / TargetCharacter
+    // in the Dictionary whenever someone uses an item on another character.
+    tryHookFunction(modAPI, "ChatRoomMessage", 3, (args, next) => {
+        const result = next(args);
+        try {
+            const [data] = args as [Record<string, unknown>];
+            if (data.Type !== "Action") return result;
+            const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;
+            if (!dict) return result;
+
+            // Dictionary entries can use either {Tag, MemberNumber} or direct keys.
+            let sourceNum: number | undefined;
+            let targetNum: number | undefined;
+            for (const entry of dict) {
+                if (entry.Tag === "SourceCharacter" && typeof entry.MemberNumber === "number")
+                    sourceNum = entry.MemberNumber;
+                if (entry.Tag === "TargetCharacter" && typeof entry.MemberNumber === "number")
+                    targetNum = entry.MemberNumber;
+                // Alternative flat format
+                if (typeof entry.SourceCharacter === "number") sourceNum = entry.SourceCharacter;
+                if (typeof entry.TargetCharacter === "number") targetNum = entry.TargetCharacter;
+            }
+
+            if (typeof targetNum === "number" && targetNum === Player.MemberNumber &&
+                typeof sourceNum === "number" && sourceNum !== Player.MemberNumber) {
+                recordRestrainer(sourceNum);
+            }
+        } catch { /* ignore */ }
         return result;
     });
 
