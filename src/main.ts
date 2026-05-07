@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.4.3";
+const MOD_VERSION = "0.4.4";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.4.4",
+        changes: [
+            "Removed expression sequence creator and button — expression tab now shows picker and presets only.",
+            "Notes tab renamed to Users; your own character now appears at the top (name + member number, no note editor).",
+            "Room section shows all other players in the room; Saved section shows offline notes.",
+        ],
+    },
     {
         version: "0.4.3",
         changes: [

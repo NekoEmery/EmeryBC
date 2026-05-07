@@ -39,11 +39,6 @@ import {
     saveExpressionPresets,
     captureCurrentExpression,
     applyExpressionPreset,
-    getExpressionSequences,
-    saveExpressionSequences,
-    createExpressionSequence,
-    playExpressionSequence,
-    isSeqRunning,
 } from "./expressions";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -1790,7 +1785,7 @@ export class EBCDrawer {
         const notesTabBtn = document.createElement("button");
         notesTabBtn.className = "ebc-tab-btn";
         notesTabBtn.id = "ebc-tab-notes";
-        notesTabBtn.textContent = "NOTES";
+        notesTabBtn.textContent = "USERS";
 
         const thanksTabBtn = document.createElement("button");
         thanksTabBtn.className = "ebc-tab-btn";
@@ -4482,216 +4477,6 @@ export class EBCDrawer {
             }
         }
 
-        // ── Section 4: Sequences ──────────────────────────────────────────────
-        const seqDivider = document.createElement("div");
-        seqDivider.style.cssText = "border-top:1px solid #3a1928;margin:4px 0 6px;";
-        body.appendChild(seqDivider);
-
-        const seqHdrRow = document.createElement("div");
-        seqHdrRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:4px;";
-        const seqHdrLbl = document.createElement("span");
-        seqHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;flex:1;";
-        seqHdrLbl.textContent = "Sequences";
-        const nsToggleBtn = document.createElement("button");
-        nsToggleBtn.style.cssText = BTN_BASE + "border:1px solid #3a4a28;background:#0e1a0a;color:#79a885;";
-        nsToggleBtn.textContent = "+ New";
-        seqHdrRow.appendChild(seqHdrLbl);
-        seqHdrRow.appendChild(nsToggleBtn);
-        body.appendChild(seqHdrRow);
-
-        // Sequence list
-        const seqListEl = document.createElement("div");
-        seqListEl.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:5px;";
-        body.appendChild(seqListEl);
-
-        const renderSeqList = (): void => {
-            while (seqListEl.firstChild) seqListEl.removeChild(seqListEl.firstChild);
-            const seqs = getExpressionSequences();
-            if (seqs.length === 0) {
-                const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1928;padding:2px 0;";
-                hint.textContent = "No sequences — click + New to build one.";
-                seqListEl.appendChild(hint);
-                return;
-            }
-            for (const seq of seqs) {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:4px;background:#190b13;border:1px solid #2a1421;border-radius:4px;padding:3px 5px;";
-
-                const playBtn = document.createElement("button");
-                playBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1a2e1a;border:1px solid #3a6a3a;border-radius:3px;color:#79a885;padding:1px 7px;cursor:pointer;flex-shrink:0;";
-                playBtn.textContent = "▶";
-                playBtn.title = `Play "${seq.name}" (${seq.steps.length} steps)`;
-                playBtn.addEventListener("click", () => {
-                    if (isSeqRunning()) return;
-                    playBtn.textContent = "…";
-                    playBtn.disabled = true;
-                    const totalMs = seq.steps.reduce((s, x) => s + (x.delayMs ?? 500), 0);
-                    playExpressionSequence(seq, () => { playBtn.textContent = "▶"; playBtn.disabled = false; });
-                    window.setTimeout(() => { playBtn.textContent = "▶"; playBtn.disabled = false; }, totalMs + 500);
-                });
-
-                const nameLbl = document.createElement("span");
-                nameLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                nameLbl.textContent = seq.name;
-
-                const stepsLbl = document.createElement("span");
-                stepsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
-                stepsLbl.textContent = `${seq.steps.length}×`;
-
-                const delBtn = document.createElement("button");
-                delBtn.style.cssText = "background:none;border:none;cursor:pointer;color:#4c2537;font-size:12px;line-height:1;padding:0 2px;flex-shrink:0;";
-                delBtn.textContent = "×";
-                delBtn.addEventListener("click", () => {
-                    saveExpressionSequences(getExpressionSequences().filter(s => s.id !== seq.id));
-                    renderSeqList();
-                });
-
-                row.appendChild(playBtn);
-                row.appendChild(nameLbl);
-                row.appendChild(stepsLbl);
-                row.appendChild(delBtn);
-                seqListEl.appendChild(row);
-            }
-        };
-        renderSeqList();
-
-        // New sequence builder (collapsed)
-        const nsBuilder = document.createElement("div");
-        nsBuilder.style.cssText = "background:#190b13;border:1px solid #3a1928;border-radius:5px;padding:6px;display:none;flex-direction:column;gap:5px;margin-bottom:6px;";
-        body.appendChild(nsBuilder);
-
-        nsToggleBtn.addEventListener("click", () => {
-            const open = nsBuilder.style.display !== "none";
-            nsBuilder.style.display = open ? "none" : "flex";
-            nsToggleBtn.textContent = open ? "+ New" : "− Cancel";
-        });
-
-        // Name input
-        const nsNameRow = document.createElement("div");
-        nsNameRow.className = "ebc-form-row";
-        const nsNameLbl = document.createElement("span");
-        nsNameLbl.className = "ebc-form-label";
-        nsNameLbl.textContent = "Name";
-        const nsNameInp = Object.assign(document.createElement("input"), {
-            type: "text", placeholder: "Sequence name...", maxLength: 30,
-        }) as HTMLInputElement;
-        nsNameInp.className = "ebc-form-input";
-        nsNameInp.style.flex = "1";
-        nsNameRow.appendChild(nsNameLbl);
-        nsNameRow.appendChild(nsNameInp);
-        nsBuilder.appendChild(nsNameRow);
-
-        // Step list display
-        const nsStepListEl = document.createElement("div");
-        nsStepListEl.style.cssText = "display:flex;flex-direction:column;gap:3px;";
-        nsBuilder.appendChild(nsStepListEl);
-
-        const nsSteps: Array<{ groups: Record<string, string | null>; delayMs: number }> = [];
-
-        const stepSummary = (groups: Record<string, string | null>): string => {
-            const parts = Object.entries(groups)
-                .filter(([, v]) => v !== null)
-                .map(([k, v]) => `${EXPR_GROUP_LABELS[k] ?? k}: ${v}`);
-            return parts.length ? parts.join("  ·  ") : "(clear all)";
-        };
-
-        const renderNsSteps = (): void => {
-            while (nsStepListEl.firstChild) nsStepListEl.removeChild(nsStepListEl.firstChild);
-            if (nsSteps.length === 0) {
-                const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1928;";
-                hint.textContent = "Set a face with the picker above, then click + Add Step.";
-                nsStepListEl.appendChild(hint);
-                return;
-            }
-            for (let i = 0; i < nsSteps.length; i++) {
-                const step = nsSteps[i];
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:4px;";
-
-                const numLbl = document.createElement("span");
-                numLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;width:14px;flex-shrink:0;";
-                numLbl.textContent = `${i + 1}.`;
-
-                const summaryLbl = document.createElement("span");
-                summaryLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                summaryLbl.textContent = stepSummary(step.groups);
-                summaryLbl.title = stepSummary(step.groups);
-
-                const delayInp = Object.assign(document.createElement("input"), {
-                    type: "number", min: "100", max: "10000", value: String(step.delayMs),
-                    title: "Hold (ms)",
-                }) as HTMLInputElement;
-                delayInp.className = "ebc-form-input";
-                delayInp.style.cssText = "width:64px;flex-shrink:0;";
-                delayInp.addEventListener("change", () => {
-                    const v = parseInt(delayInp.value, 10);
-                    if (!isNaN(v)) nsSteps[i].delayMs = Math.max(100, Math.min(10000, v));
-                });
-
-                const delBtn = document.createElement("button");
-                delBtn.style.cssText = "background:none;border:none;cursor:pointer;color:#4c2537;font-size:12px;line-height:1;padding:0 2px;";
-                delBtn.textContent = "×";
-                delBtn.addEventListener("click", () => { nsSteps.splice(i, 1); renderNsSteps(); });
-
-                row.appendChild(numLbl);
-                row.appendChild(summaryLbl);
-                row.appendChild(delayInp);
-                row.appendChild(delBtn);
-                nsStepListEl.appendChild(row);
-            }
-        };
-        renderNsSteps();
-
-        // Add step row
-        const nsAddRow = document.createElement("div");
-        nsAddRow.style.cssText = "display:flex;gap:4px;align-items:center;";
-        const nsDelayInp = Object.assign(document.createElement("input"), {
-            type: "number", min: "100", max: "10000", value: "600",
-            title: "Hold this face for (ms)",
-        }) as HTMLInputElement;
-        nsDelayInp.className = "ebc-form-input";
-        nsDelayInp.style.cssText = "width:72px;flex-shrink:0;";
-        const nsDelayLbl = document.createElement("span");
-        nsDelayLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
-        nsDelayLbl.textContent = "ms";
-        const nsAddBtn = document.createElement("button");
-        nsAddBtn.style.cssText = BTN_BASE + "border:1px solid #3a4a28;background:#0e1a0a;color:#79a885;flex:1;";
-        nsAddBtn.textContent = "+ Add Step";
-        nsAddBtn.title = "Capture current picker state as a sequence step";
-        nsAddBtn.addEventListener("click", () => {
-            const snapshot: Record<string, string | null> = {};
-            for (const g of EXPR_GROUPS) snapshot[g] = pickerState[g] ?? null;
-            const delay = Math.max(100, Math.min(10000, parseInt(nsDelayInp.value, 10) || 600));
-            nsSteps.push({ groups: snapshot, delayMs: delay });
-            renderNsSteps();
-        });
-        nsAddRow.appendChild(nsDelayInp);
-        nsAddRow.appendChild(nsDelayLbl);
-        nsAddRow.appendChild(nsAddBtn);
-        nsBuilder.appendChild(nsAddRow);
-
-        const nsSaveBtn = document.createElement("button");
-        nsSaveBtn.className = "ebc-wear-btn";
-        nsSaveBtn.style.cssText = "width:100%;margin-top:2px;";
-        nsSaveBtn.textContent = "Save Sequence";
-        nsSaveBtn.addEventListener("click", () => {
-            const name = nsNameInp.value.trim();
-            if (!name) { nsNameInp.style.borderColor = "#cf6f98"; return; }
-            if (nsSteps.length === 0) return;
-            const all = getExpressionSequences();
-            all.push(createExpressionSequence(name, nsSteps.map(s => ({ groups: { ...s.groups }, delayMs: s.delayMs }))));
-            saveExpressionSequences(all);
-            nsNameInp.value = "";
-            nsSteps.length = 0;
-            renderNsSteps();
-            renderSeqList();
-            nsBuilder.style.display = "none";
-            nsToggleBtn.textContent = "+ New";
-        });
-        nsBuilder.appendChild(nsSaveBtn);
-
         // ── Floating button toggle (bottom, unobtrusive) ──────────────────────
         const exprToggleRow = document.createElement("div");
         exprToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:4px;padding-top:6px;border-top:1px solid #2a1421;";
@@ -5320,9 +5105,20 @@ export class EBCDrawer {
 
         const notes = getNotes();
         const roomChars: Character[] = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
-        const roomOthers = roomChars.filter(c => c.MemberNumber !== Player.MemberNumber);
 
+        // ── You ──────────────────────────────────────────────────────────────
+        const selfLbl = document.createElement("div");
+        selfLbl.className = "ebc-section-label";
+        selfLbl.textContent = "You";
+        body.appendChild(selfLbl);
+        body.appendChild(this.buildNoteRow(Player.MemberNumber!, this.charDisplayName(Player as unknown as Character), "", true));
+
+        // ── In This Room ─────────────────────────────────────────────────────
+        const roomOthers = roomChars.filter(c => c.MemberNumber !== Player.MemberNumber);
         if (roomOthers.length > 0) {
+            const div = document.createElement("div");
+            div.className = "ebc-divider";
+            body.appendChild(div);
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
             lbl.textContent = "In This Room";
@@ -5334,16 +5130,16 @@ export class EBCDrawer {
             }
         }
 
-        const roomNums = new Set(roomOthers.map(c => String(c.MemberNumber)));
+        // ── Saved (offline) ──────────────────────────────────────────────────
+        const roomNums = new Set(roomChars.map(c => String(c.MemberNumber)));
         const offlineEntries = Object.entries(notes).filter(([k]) => !roomNums.has(k));
-
         if (offlineEntries.length > 0) {
             const div = document.createElement("div");
             div.className = "ebc-divider";
             body.appendChild(div);
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
-            lbl.textContent = "Saved Notes";
+            lbl.textContent = "Saved";
             body.appendChild(lbl);
             for (const [key, data] of offlineEntries) {
                 body.appendChild(this.buildNoteRow(parseInt(key), data.name, data.note));
@@ -5353,7 +5149,7 @@ export class EBCDrawer {
         if (roomOthers.length === 0 && offlineEntries.length === 0) {
             const empty = document.createElement("div");
             empty.className = "ebc-empty";
-            empty.innerHTML = "No notes saved yet.<br><span style='color:#4c2537'>Join a room to add notes about people.</span>";
+            empty.innerHTML = "No other players in this room yet.";
             body.appendChild(empty);
         }
     }
@@ -5366,7 +5162,7 @@ export class EBCDrawer {
         return (char as unknown as Record<string, unknown>).Nickname as string || char.Name || "Unknown";
     }
 
-    private buildNoteRow(memberNumber: number, displayName: string, currentNote: string): HTMLElement {
+    private buildNoteRow(memberNumber: number, displayName: string, currentNote: string, isSelf = false): HTMLElement {
         const hasNote = !!currentNote.trim();
         const vip = VIP_MEMBERS[memberNumber];
 
@@ -5406,6 +5202,14 @@ export class EBCDrawer {
         }
         header.appendChild(num);
         container.appendChild(header);
+
+        if (isSelf) {
+            const selfNote = document.createElement("div");
+            selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1928;padding:2px 4px 4px 18px;";
+            selfNote.textContent = "That's you — notes on yourself are not supported.";
+            container.appendChild(selfNote);
+            return container;
+        }
 
         const editor = document.createElement("div");
         editor.className = "ebc-notes-editor";
