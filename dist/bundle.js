@@ -840,9 +840,13 @@
     // Falls back to a hardcoded list if the global isn't available.
     const EXPR_FALLBACK = {
         Blush: ["1", "2", "3", "4", "5"],
-        Emoticon: ["Afk", "Anger", "Auction", "BrokenHeart", "Cake", "Confused", "Dead",
-            "GagTalk", "Heart", "HighHeel", "Juice", "Love", "Maid", "Music",
-            "Question", "Read", "Shy", "Skull", "Sleeping", "Star", "Study", "Yell"],
+        Emoticon: [
+            "Afk", "Anger", "Auction", "BecomeLeader", "Bed", "BrokenHeart", "Cake",
+            "Captured", "CollaredPickup", "Confused", "Dead", "GagTalk", "Heart",
+            "HighHeel", "Juice", "LostLeader", "Love", "Maid", "Meditate", "Music",
+            "Obey", "Orgasm", "Pain", "Question", "Read", "Shy", "Skull", "Sleeping",
+            "Snow", "Star", "Study", "Whisper", "XP", "Yell",
+        ],
         Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Soft"],
         Eyes: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
         Eyes2: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
@@ -856,7 +860,8 @@
             if (Array.isArray(bcAsset)) {
                 const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
                 const opts = bcAsset
-                    .filter(a => a.Family === family && a.Group.Name === group)
+                    .filter(a => a.Group.Name === group &&
+                    (a.Family === family || a.Group.Family === family || (!a.Family && !a.Group.Family)))
                     .map(a => a.Name);
                 if (opts.length > 0)
                     return opts;
@@ -6053,58 +6058,14 @@
                 window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
             });
             body.appendChild(boopBtn);
-            // ── Auto-Escape ──────────────────────────────────────────────────────
+            // ── Restraint Protection ─────────────────────────────────────────────
             const escapeDivider = document.createElement("div");
             escapeDivider.style.cssText = "border-top:1px solid #3a1928;margin:10px 0 8px;";
             body.appendChild(escapeDivider);
             const antiLbl = document.createElement("div");
             antiLbl.className = "ebc-section-label";
-            antiLbl.textContent = "Auto-Escape";
+            antiLbl.textContent = "Restraint Protection";
             body.appendChild(antiLbl);
-            const antiRow = document.createElement("div");
-            antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
-            const antiInfo = document.createElement("div");
-            antiInfo.style.cssText = "flex:1;min-width:0;";
-            const antiTitle = document.createElement("span");
-            antiTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
-            antiTitle.textContent = "Auto-escape incoming restraints";
-            const antiHint = document.createElement("span");
-            antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
-            antiHint.textContent = "Removes any restraint put on you and sends a playful room emote";
-            antiInfo.appendChild(antiTitle);
-            antiInfo.appendChild(antiHint);
-            const antiToggle = document.createElement("button");
-            const refreshAntiToggle = () => {
-                const on = getAntiRestraintEnabled();
-                antiToggle.textContent = on ? "ON" : "OFF";
-                antiToggle.style.cssText = [
-                    "font-family:'Trebuchet MS',serif",
-                    "font-size:10px",
-                    "font-weight:bold",
-                    "padding:2px 10px",
-                    "border-radius:4px",
-                    "cursor:pointer",
-                    "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                    "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#553142"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-            };
-            refreshAntiToggle();
-            antiToggle.addEventListener("click", () => {
-                const next = !getAntiRestraintEnabled();
-                setAntiRestraintEnabled(next);
-                if (next)
-                    try {
-                        snapshotPlayerRestraints();
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                refreshAntiToggle();
-            });
-            antiRow.appendChild(antiInfo);
-            antiRow.appendChild(antiToggle);
-            body.appendChild(antiRow);
             // -- Confirm before escaping --
             const confirmRow = document.createElement("div");
             confirmRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
@@ -6144,78 +6105,6 @@
             confirmRow.appendChild(confirmInfo);
             confirmRow.appendChild(confirmToggle);
             body.appendChild(confirmRow);
-            // -- Whitelist --
-            const whitelistSection = document.createElement("div");
-            whitelistSection.style.cssText = "margin-bottom:6px;";
-            const wlTitle = document.createElement("span");
-            wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
-            wlTitle.textContent = "Escape whitelist — items auto-escape will keep";
-            whitelistSection.appendChild(wlTitle);
-            const friendlyGroup = (g) => g.replace(/^Item/, "").replace(/([A-Z])/g, " $1").trim();
-            const makeChip = (label, onRemove) => {
-                const chip = document.createElement("div");
-                chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
-                const txt = document.createElement("span");
-                txt.textContent = label;
-                const x = document.createElement("button");
-                x.textContent = "×";
-                x.title = "Remove from whitelist";
-                x.style.cssText = "background:none;border:none;cursor:pointer;color:#cf6f98;font-size:11px;line-height:1;padding:0 0 0 2px;";
-                x.addEventListener("click", onRemove);
-                chip.appendChild(txt);
-                chip.appendChild(x);
-                return chip;
-            };
-            const wlChips = document.createElement("div");
-            wlChips.style.cssText = "min-height:18px;margin-bottom:4px;";
-            const wlAddRow = document.createElement("div");
-            wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
-            const refreshWhitelistUI = () => {
-                wlChips.innerHTML = "";
-                wlAddRow.innerHTML = "";
-                const whitelist = getAntiRestraintWhitelist();
-                if (whitelist.length === 0) {
-                    const empty = document.createElement("span");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4c2537;";
-                    empty.textContent = "Nothing whitelisted — all restraints will be escaped";
-                    wlChips.appendChild(empty);
-                }
-                else {
-                    for (const group of whitelist) {
-                        wlChips.appendChild(makeChip(friendlyGroup(group), () => {
-                            removeFromAntiRestraintWhitelist(group);
-                            refreshWhitelistUI();
-                        }));
-                    }
-                }
-                try {
-                    const wornGroups = Player.Appearance
-                        .filter((i) => i.Asset.Group.IsRestraint && !whitelist.includes(i.Asset.Group.Name))
-                        .map((i) => i.Asset.Group.Name);
-                    if (wornGroups.length > 0) {
-                        const addLabel = document.createElement("span");
-                        addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;align-self:center;";
-                        addLabel.textContent = "Currently wearing:";
-                        wlAddRow.appendChild(addLabel);
-                        for (const group of wornGroups) {
-                            const btn = document.createElement("button");
-                            btn.textContent = "+ " + friendlyGroup(group);
-                            btn.title = "Add to whitelist — auto-escape will keep this";
-                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#7a5a6a;padding:2px 8px;cursor:pointer;";
-                            btn.addEventListener("click", () => {
-                                addToAntiRestraintWhitelist(group);
-                                refreshWhitelistUI();
-                            });
-                            wlAddRow.appendChild(btn);
-                        }
-                    }
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            };
-            refreshWhitelistUI();
-            whitelistSection.appendChild(wlChips);
-            whitelistSection.appendChild(wlAddRow);
-            body.appendChild(whitelistSection);
         }
         // -- Appearance diff -------------------------------------------------------
         renderDiff(panel, outfit) {
@@ -6318,14 +6207,21 @@
             body.appendChild(pickerContainer);
             for (const group of EXPR_GROUPS) {
                 const options = getExprGroupOptions(group);
+                const isWrap = group === "Emoticon";
                 const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:3px;min-width:0;";
+                row.style.cssText = isWrap
+                    ? "display:flex;flex-direction:column;gap:2px;min-width:0;"
+                    : "display:flex;align-items:center;gap:3px;min-width:0;";
                 const label = document.createElement("span");
-                label.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;width:52px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.03em;";
+                label.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;" +
+                    (isWrap ? "" : "width:52px;flex-shrink:0;") +
+                    "text-transform:uppercase;letter-spacing:0.03em;";
                 label.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
                 row.appendChild(label);
                 const scroll = document.createElement("div");
-                scroll.style.cssText = "display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none;padding-bottom:2px;";
+                scroll.style.cssText = isWrap
+                    ? "display:flex;flex-wrap:wrap;gap:2px;padding-bottom:2px;"
+                    : "display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none;padding-bottom:2px;";
                 const allBtns = [];
                 const setActive = (name) => {
                     pickerState[group] = name;
@@ -7797,6 +7693,128 @@
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Auto-Escape (visible to all, not gated behind isDomEnabled) ───────
+            const aeLbl = document.createElement("div");
+            aeLbl.className = "ebc-section-label";
+            aeLbl.textContent = "Auto-Escape";
+            body.appendChild(aeLbl);
+            const antiRow = document.createElement("div");
+            antiRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+            const antiInfo = document.createElement("div");
+            antiInfo.style.cssText = "flex:1;min-width:0;";
+            const antiTitle = document.createElement("span");
+            antiTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+            antiTitle.textContent = "Auto-escape incoming restraints";
+            const antiHint = document.createElement("span");
+            antiHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
+            antiHint.textContent = "Removes any restraint put on you and sends a playful room emote";
+            antiInfo.appendChild(antiTitle);
+            antiInfo.appendChild(antiHint);
+            const antiToggle = document.createElement("button");
+            const refreshAntiToggle = () => {
+                const on = getAntiRestraintEnabled();
+                antiToggle.textContent = on ? "ON" : "OFF";
+                antiToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:2px 10px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshAntiToggle();
+            antiToggle.addEventListener("click", () => {
+                const next = !getAntiRestraintEnabled();
+                setAntiRestraintEnabled(next);
+                if (next)
+                    try {
+                        snapshotPlayerRestraints();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                refreshAntiToggle();
+            });
+            antiRow.appendChild(antiInfo);
+            antiRow.appendChild(antiToggle);
+            body.appendChild(antiRow);
+            // -- Whitelist --
+            const whitelistSection = document.createElement("div");
+            whitelistSection.style.cssText = "margin-bottom:10px;";
+            const wlTitle = document.createElement("span");
+            wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
+            wlTitle.textContent = "Escape whitelist — items auto-escape will keep";
+            whitelistSection.appendChild(wlTitle);
+            const domFriendlyGroup = (g) => g.replace(/^Item/, "").replace(/([A-Z])/g, " $1").trim();
+            const domMakeChip = (label, onRemove) => {
+                const chip = document.createElement("div");
+                chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
+                const txt = document.createElement("span");
+                txt.textContent = label;
+                const x = document.createElement("button");
+                x.textContent = "×";
+                x.title = "Remove from whitelist";
+                x.style.cssText = "background:none;border:none;cursor:pointer;color:#cf6f98;font-size:11px;line-height:1;padding:0 0 0 2px;";
+                x.addEventListener("click", onRemove);
+                chip.appendChild(txt);
+                chip.appendChild(x);
+                return chip;
+            };
+            const wlChips = document.createElement("div");
+            wlChips.style.cssText = "min-height:18px;margin-bottom:4px;";
+            const wlAddRow = document.createElement("div");
+            wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+            const refreshWhitelistUI = () => {
+                wlChips.innerHTML = "";
+                wlAddRow.innerHTML = "";
+                const whitelist = getAntiRestraintWhitelist();
+                if (whitelist.length === 0) {
+                    const empty = document.createElement("span");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4c2537;";
+                    empty.textContent = "Nothing whitelisted — all restraints will be escaped";
+                    wlChips.appendChild(empty);
+                }
+                else {
+                    for (const group of whitelist) {
+                        wlChips.appendChild(domMakeChip(domFriendlyGroup(group), () => {
+                            removeFromAntiRestraintWhitelist(group);
+                            refreshWhitelistUI();
+                        }));
+                    }
+                }
+                try {
+                    const wornGroups = Player.Appearance
+                        .filter((i) => i.Asset.Group.IsRestraint && !whitelist.includes(i.Asset.Group.Name))
+                        .map((i) => i.Asset.Group.Name);
+                    if (wornGroups.length > 0) {
+                        const addLabel = document.createElement("span");
+                        addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;align-self:center;";
+                        addLabel.textContent = "Currently wearing:";
+                        wlAddRow.appendChild(addLabel);
+                        for (const group of wornGroups) {
+                            const btn = document.createElement("button");
+                            btn.textContent = "+ " + domFriendlyGroup(group);
+                            btn.title = "Add to whitelist — auto-escape will keep this";
+                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#7a5a6a;padding:2px 8px;cursor:pointer;";
+                            btn.addEventListener("click", () => {
+                                addToAntiRestraintWhitelist(group);
+                                refreshWhitelistUI();
+                            });
+                            wlAddRow.appendChild(btn);
+                        }
+                    }
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            refreshWhitelistUI();
+            whitelistSection.appendChild(wlChips);
+            whitelistSection.appendChild(wlAddRow);
+            body.appendChild(whitelistSection);
+            // ── DOM Tools (creator-only below this point) ─────────────────────────
             if (!isDomEnabled()) {
                 const msg = document.createElement("div");
                 msg.className = "ebc-empty";
@@ -8636,9 +8654,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.4.0";
+    const MOD_VERSION = "0.4.1";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.4.1",
+            changes: [
+                "Auto-escape toggle and whitelist moved to the DOM tab (visible to all, DOM tools below remain creator-only).",
+                "Emoticons now shown in a wrapping grid instead of a horizontal scroll row — no more cut-off options.",
+                "Expanded emoticon list with all known BC options (BecomeLeader, Bed, Captured, CollaredPickup, LostLeader, Meditate, Obey, Orgasm, Pain, Snow, Whisper, XP, and more).",
+                "Fixed asset query for expression options: now checks Group.Family as well so expressions are never missed.",
+            ],
+        },
         {
             version: "0.4.0",
             changes: [

@@ -11,10 +11,19 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.4.0";
+const MOD_VERSION = "0.4.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.4.1",
+        changes: [
+            "Auto-escape toggle and whitelist moved to the DOM tab (visible to all, DOM tools below remain creator-only).",
+            "Emoticons now shown in a wrapping grid instead of a horizontal scroll row — no more cut-off options.",
+            "Expanded emoticon list with all known BC options (BecomeLeader, Bed, Captured, CollaredPickup, LostLeader, Meditate, Obey, Orgasm, Pain, Snow, Whisper, XP, and more).",
+            "Fixed asset query for expression options: now checks Group.Family as well so expressions are never missed.",
+        ],
+    },
     {
         version: "0.4.0",
         changes: [
