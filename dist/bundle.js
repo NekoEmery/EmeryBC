@@ -819,74 +819,122 @@
         return Math.random().toString(36).slice(2, 9);
     }
     function getStore$5() {
-        if (!Player.ExtensionSettings.EmeryBC)
-            Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC;
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
     }
     // -- Presets -------------------------------------------------------------------
     function getExpressionPresets() {
-        const list = getStore$5().expressionPresets;
-        return Array.isArray(list) ? list : [];
+        try {
+            const store = getStore$5();
+            const list = store === null || store === void 0 ? void 0 : store.expressionPresets;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_a) {
+            return [];
+        }
     }
     function saveExpressionPresets(presets) {
-        getStore$5().expressionPresets = presets;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.expressionPresets = presets;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     function captureCurrentExpression(name) {
         const groups = {};
         try {
             for (const group of EXPR_GROUPS) {
-                const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
-                groups[group] = item
-                    ? { Name: item.Asset.Name, Color: item.Color }
-                    : null;
+                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
+                if (item) {
+                    const color = item.Color;
+                    groups[group] = {
+                        Name: item.Asset.Name,
+                        Color: color !== undefined ? color : undefined,
+                    };
+                }
+                else {
+                    groups[group] = null;
+                }
             }
         }
-        catch ( /* return whatever was captured so far */_a) { /* return whatever was captured so far */ }
+        catch ( /* return whatever captured so far */_a) { /* return whatever captured so far */ }
         return { id: uid$3(), name: name || "Preset", groups };
     }
+    // Use BC's CharacterSetFacialExpression when available (proper API for expressions),
+    // falling back to direct Appearance manipulation otherwise.
     function applyExpressionPreset(preset) {
-        var _a;
+        var _a, _b;
         try {
+            // Runtime check — CharacterSetFacialExpression is the correct BC API
+            const setExpr = window.CharacterSetFacialExpression;
             for (const [group, entry] of Object.entries(preset.groups)) {
                 try {
-                    // Remove any existing item in this slot first
-                    const existingIdx = Player.Appearance.findIndex(i => i.Asset.Group.Name === group);
-                    if (existingIdx !== -1)
-                        Player.Appearance.splice(existingIdx, 1);
-                    if (entry !== null && entry !== undefined) {
-                        // Resolve the asset and push directly onto Appearance
-                        const asset = AssetGet(Player.AssetFamily, group, entry.Name);
-                        if (asset) {
-                            Player.Appearance.push({
-                                Asset: asset,
-                                Color: ((_a = entry.Color) !== null && _a !== void 0 ? _a : "Default"),
-                                Difficulty: 0,
-                            });
+                    if (setExpr) {
+                        // BC's own function — handles asset lookup, removal, and push internally
+                        const exprName = (entry !== null && entry !== undefined) ? entry.Name : null;
+                        const color = (_a = entry === null || entry === void 0 ? void 0 : entry.Color) !== null && _a !== void 0 ? _a : null;
+                        setExpr(Player, group, exprName, null, color);
+                    }
+                    else {
+                        // Fallback: direct Appearance manipulation
+                        const existingIdx = Player.Appearance.findIndex((i) => i.Asset.Group.Name === group);
+                        if (existingIdx !== -1)
+                            Player.Appearance.splice(existingIdx, 1);
+                        if (entry !== null && entry !== undefined) {
+                            const asset = AssetGet(Player.AssetFamily, group, entry.Name);
+                            if (asset) {
+                                Player.Appearance.push({
+                                    Asset: asset,
+                                    Color: ((_b = entry.Color) !== null && _b !== void 0 ? _b : "Default"),
+                                    Difficulty: 0,
+                                });
+                            }
                         }
                     }
                 }
-                catch ( /* skip this group */_b) { /* skip this group */ }
+                catch ( /* skip this group */_c) { /* skip this group */ }
             }
             CharacterRefresh(Player, false);
             ChatRoomCharacterUpdate(Player);
             ServerPlayerAppearanceSync();
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
     }
     // -- Sequences -----------------------------------------------------------------
     function getExpressionSequences() {
-        const list = getStore$5().expressionSequences;
-        return Array.isArray(list) ? list : [];
+        try {
+            const store = getStore$5();
+            const list = store === null || store === void 0 ? void 0 : store.expressionSequences;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_a) {
+            return [];
+        }
     }
     function saveExpressionSequences(seqs) {
-        getStore$5().expressionSequences = seqs;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.expressionSequences = seqs;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     function createExpressionSequence(name, steps) {
         return { id: uid$3(), name: name || "Sequence", steps };
     }
-    // Re-entry guard so a sequence can't be double-triggered
     let _seqRunning = false;
     function isSeqRunning() { return _seqRunning; }
     function playExpressionSequence(seq, onDone) {
@@ -1536,6 +1584,28 @@
     function removeFromAntiRestraintWhitelist(group) {
         setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
     }
+    // -- Anti-restraint confirm dialog ---------------------------------------------
+    // When enabled, shows a confirm() prompt before auto-escaping so the user
+    // can choose to accept the restraint instead. Off by default.
+    function getAntiRestraintConfirm() {
+        var _a;
+        try {
+            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAntiRestraintConfirm(value) {
+        try {
+            const store = getStore$1();
+            if (!store)
+                return;
+            store.antiRestraintConfirm = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Expression quick-panel button visibility ----------------------------------
     // Defaults to false (hidden). User toggles it on from the ANIMS tab.
     function getExprTabVisible() {
@@ -1627,6 +1697,18 @@
                 || "restraint";
             const restrainer = lastRestrainerName;
             lastRestrainerName = null;
+            // Confirm dialog — if enabled, ask before escaping. The user can choose
+            // to accept the restraint (adds to known so we stop reacting to it).
+            if (getAntiRestraintConfirm()) {
+                const who = restrainer ? `${restrainer} is` : "Someone is";
+                const accepted = window.confirm(`[EmeryBC] ${who} applying ${itemName}.\n\nOK = Accept and keep it\nCancel = Escape it`);
+                if (accepted) {
+                    for (const item of newItems)
+                        knownRestraints.add(item.Asset.Group.Name);
+                    escaping = false;
+                    return;
+                }
+            }
             for (const item of newItems) {
                 try {
                     InventoryRemove(Player, item.Asset.Group.Name, false);
@@ -7620,6 +7702,45 @@
             whitelistSection.appendChild(wlChips);
             whitelistSection.appendChild(wlAddRow);
             body.appendChild(whitelistSection);
+            // -- Confirm before escaping -------------------------------------------
+            const confirmRow = document.createElement("div");
+            confirmRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+            const confirmInfo = document.createElement("div");
+            confirmInfo.style.cssText = "flex:1;min-width:0;";
+            const confirmTitle = document.createElement("span");
+            confirmTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+            confirmTitle.textContent = "Confirm before escaping";
+            const confirmHint = document.createElement("span");
+            confirmHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
+            confirmHint.textContent = "Ask OK/Cancel before removing — OK keeps it, Cancel escapes";
+            confirmInfo.appendChild(confirmTitle);
+            confirmInfo.appendChild(confirmHint);
+            const confirmToggle = document.createElement("button");
+            const refreshConfirmToggle = () => {
+                const on = getAntiRestraintConfirm();
+                confirmToggle.textContent = on ? "ON" : "OFF";
+                confirmToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:2px 10px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshConfirmToggle();
+            confirmToggle.addEventListener("click", () => {
+                setAntiRestraintConfirm(!getAntiRestraintConfirm());
+                refreshConfirmToggle();
+            });
+            confirmRow.appendChild(confirmInfo);
+            confirmRow.appendChild(confirmToggle);
+            body.appendChild(confirmRow);
             // Sync selected targets: add any new targets that aren't tracked yet
             const allTargetIds = getDomConfig().targets.map(t => t.id);
             if (this.domSelectedTargets.size === 0) {
@@ -8452,9 +8573,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.3.11";
+    const MOD_VERSION = "0.3.12";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.3.12",
+            changes: [
+                "Fix: expression presets now use CharacterSetFacialExpression (BC's own API) so apply actually works; direct-push fallback kept for safety.",
+                "Fix: expression store is now null-safe so saving no longer silently fails before Player.ExtensionSettings is ready.",
+                "Auto-escape: 'Confirm before escaping' toggle (off by default) — shows OK/Cancel; OK accepts the restraint, Cancel escapes it.",
+            ],
+        },
         {
             version: "0.3.11",
             changes: [

@@ -95,6 +95,23 @@ export function removeFromAntiRestraintWhitelist(group: string): void {
     setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
 }
 
+// -- Anti-restraint confirm dialog ---------------------------------------------
+// When enabled, shows a confirm() prompt before auto-escaping so the user
+// can choose to accept the restraint instead. Off by default.
+
+export function getAntiRestraintConfirm(): boolean {
+    try { return getStore()?.antiRestraintConfirm === true; } catch { return false; }
+}
+
+export function setAntiRestraintConfirm(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.antiRestraintConfirm = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}
+
 // -- Expression quick-panel button visibility ----------------------------------
 // Defaults to false (hidden). User toggles it on from the ANIMS tab.
 

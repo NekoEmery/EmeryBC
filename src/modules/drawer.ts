@@ -64,7 +64,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getExprTabVisible, setExprTabVisible, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getExprTabVisible, setExprTabVisible, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import {
@@ -6006,6 +6006,49 @@ export class EBCDrawer {
         whitelistSection.appendChild(wlChips);
         whitelistSection.appendChild(wlAddRow);
         body.appendChild(whitelistSection);
+
+        // -- Confirm before escaping -------------------------------------------
+        const confirmRow = document.createElement("div");
+        confirmRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+
+        const confirmInfo = document.createElement("div");
+        confirmInfo.style.cssText = "flex:1;min-width:0;";
+        const confirmTitle = document.createElement("span");
+        confirmTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+        confirmTitle.textContent = "Confirm before escaping";
+        const confirmHint = document.createElement("span");
+        confirmHint.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:1px;";
+        confirmHint.textContent = "Ask OK/Cancel before removing — OK keeps it, Cancel escapes";
+        confirmInfo.appendChild(confirmTitle);
+        confirmInfo.appendChild(confirmHint);
+
+        const confirmToggle = document.createElement("button");
+        const refreshConfirmToggle = (): void => {
+            const on = getAntiRestraintConfirm();
+            confirmToggle.textContent = on ? "ON" : "OFF";
+            confirmToggle.style.cssText = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:10px",
+                "font-weight:bold",
+                "padding:2px 10px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "flex-shrink:0",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#553142"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+        };
+        refreshConfirmToggle();
+        confirmToggle.addEventListener("click", () => {
+            setAntiRestraintConfirm(!getAntiRestraintConfirm());
+            refreshConfirmToggle();
+        });
+
+        confirmRow.appendChild(confirmInfo);
+        confirmRow.appendChild(confirmToggle);
+        body.appendChild(confirmRow);
 
         // Sync selected targets: add any new targets that aren't tracked yet
         const allTargetIds = getDomConfig().targets.map(t => t.id);

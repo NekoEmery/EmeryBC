@@ -10,7 +10,7 @@ export interface ExpressionPreset {
 }
 
 export interface ExprSequenceStep {
-    presetId: string;  // references a saved ExpressionPreset by id
+    presetId: string;
     delayMs: number;
 }
 
@@ -24,59 +24,89 @@ function uid(): string {
     return Math.random().toString(36).slice(2, 9);
 }
 
-function getStore(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+function getStore(): Record<string, unknown> | null {
+    try {
+        if (!Player?.ExtensionSettings) return null;
+        if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+    } catch {
+        return null;
+    }
 }
 
 // -- Presets -------------------------------------------------------------------
 
 export function getExpressionPresets(): ExpressionPreset[] {
-    const list = getStore().expressionPresets;
-    return Array.isArray(list) ? (list as ExpressionPreset[]) : [];
+    try {
+        const store = getStore();
+        const list = store?.expressionPresets;
+        return Array.isArray(list) ? (list as ExpressionPreset[]) : [];
+    } catch { return []; }
 }
 
 export function saveExpressionPresets(presets: ExpressionPreset[]): void {
-    getStore().expressionPresets = presets;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.expressionPresets = presets;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
 }
 
 export function captureCurrentExpression(name: string): ExpressionPreset {
     const groups: ExpressionPreset["groups"] = {};
     try {
         for (const group of EXPR_GROUPS) {
-            const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
-            groups[group] = item
-                ? { Name: item.Asset.Name, Color: item.Color }
-                : null;
+            const item = Player.Appearance.find((i: Item) => i.Asset.Group.Name === group);
+            if (item) {
+                const color = item.Color;
+                groups[group] = {
+                    Name: item.Asset.Name,
+                    Color: color !== undefined ? color : undefined,
+                };
+            } else {
+                groups[group] = null;
+            }
         }
-    } catch { /* return whatever was captured so far */ }
+    } catch { /* return whatever captured so far */ }
     return { id: uid(), name: name || "Preset", groups };
 }
 
+// Use BC's CharacterSetFacialExpression when available (proper API for expressions),
+// falling back to direct Appearance manipulation otherwise.
 export function applyExpressionPreset(preset: ExpressionPreset): void {
     try {
+        // Runtime check — CharacterSetFacialExpression is the correct BC API
+        const setExpr = (window as unknown as Record<string, unknown>).CharacterSetFacialExpression as
+            ((c: Character, group: string, expr: string | null, intensity?: number | null, color?: string | string[] | null) => void) | undefined;
+
         for (const [group, entry] of Object.entries(preset.groups)) {
             try {
-                // Remove any existing item in this slot first
-                const existingIdx = Player.Appearance.findIndex(
-                    i => i.Asset.Group.Name === group,
-                );
-                if (existingIdx !== -1) Player.Appearance.splice(existingIdx, 1);
-
-                if (entry !== null && entry !== undefined) {
-                    // Resolve the asset and push directly onto Appearance
-                    const asset = AssetGet(Player.AssetFamily, group, entry.Name);
-                    if (asset) {
-                        Player.Appearance.push({
-                            Asset: asset,
-                            Color: (entry.Color ?? "Default") as string | string[],
-                            Difficulty: 0,
-                        } as Item);
+                if (setExpr) {
+                    // BC's own function — handles asset lookup, removal, and push internally
+                    const exprName = (entry !== null && entry !== undefined) ? entry.Name : null;
+                    const color = entry?.Color ?? null;
+                    setExpr(Player, group, exprName, null, color as string | null);
+                } else {
+                    // Fallback: direct Appearance manipulation
+                    const existingIdx = Player.Appearance.findIndex(
+                        (i: Item) => i.Asset.Group.Name === group,
+                    );
+                    if (existingIdx !== -1) Player.Appearance.splice(existingIdx, 1);
+                    if (entry !== null && entry !== undefined) {
+                        const asset = AssetGet(Player.AssetFamily, group, entry.Name);
+                        if (asset) {
+                            Player.Appearance.push({
+                                Asset: asset,
+                                Color: (entry.Color ?? "Default") as string | string[],
+                                Difficulty: 0,
+                            } as Item);
+                        }
                     }
                 }
             } catch { /* skip this group */ }
         }
+
         CharacterRefresh(Player, false);
         ChatRoomCharacterUpdate(Player);
         ServerPlayerAppearanceSync();
@@ -86,20 +116,26 @@ export function applyExpressionPreset(preset: ExpressionPreset): void {
 // -- Sequences -----------------------------------------------------------------
 
 export function getExpressionSequences(): ExpressionSequence[] {
-    const list = getStore().expressionSequences;
-    return Array.isArray(list) ? (list as ExpressionSequence[]) : [];
+    try {
+        const store = getStore();
+        const list = store?.expressionSequences;
+        return Array.isArray(list) ? (list as ExpressionSequence[]) : [];
+    } catch { return []; }
 }
 
 export function saveExpressionSequences(seqs: ExpressionSequence[]): void {
-    getStore().expressionSequences = seqs;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.expressionSequences = seqs;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
 }
 
 export function createExpressionSequence(name: string, steps: ExprSequenceStep[]): ExpressionSequence {
     return { id: uid(), name: name || "Sequence", steps };
 }
 
-// Re-entry guard so a sequence can't be double-triggered
 let _seqRunning = false;
 
 export function isSeqRunning(): boolean { return _seqRunning; }

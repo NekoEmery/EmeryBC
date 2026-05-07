@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.3.11";
+const MOD_VERSION = "0.3.12";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.3.12",
+        changes: [
+            "Fix: expression presets now use CharacterSetFacialExpression (BC's own API) so apply actually works; direct-push fallback kept for safety.",
+            "Fix: expression store is now null-safe so saving no longer silently fails before Player.ExtensionSettings is ready.",
+            "Auto-escape: 'Confirm before escaping' toggle (off by default) — shows OK/Cancel; OK accepts the restraint, Cancel escapes it.",
+        ],
+    },
     {
         version: "0.3.11",
         changes: [

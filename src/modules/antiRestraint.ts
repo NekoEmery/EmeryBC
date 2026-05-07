@@ -3,7 +3,7 @@
 // Whitelisted groups are always kept even if applied by others.
 // Removal is attempted up to 2 times per group before giving up (locked items).
 
-import { getAntiRestraintEnabled, getAntiRestraintWhitelist } from "./settings";
+import { getAntiRestraintEnabled, getAntiRestraintWhitelist, getAntiRestraintConfirm } from "./settings";
 
 let lastRestrainerName: string | null = null;
 
@@ -82,6 +82,20 @@ export function antiRestraintOnPlayerRefresh(): void {
 
         const restrainer = lastRestrainerName;
         lastRestrainerName = null;
+
+        // Confirm dialog — if enabled, ask before escaping. The user can choose
+        // to accept the restraint (adds to known so we stop reacting to it).
+        if (getAntiRestraintConfirm()) {
+            const who = restrainer ? `${restrainer} is` : "Someone is";
+            const accepted = window.confirm(
+                `[EmeryBC] ${who} applying ${itemName}.\n\nOK = Accept and keep it\nCancel = Escape it`
+            );
+            if (accepted) {
+                for (const item of newItems) knownRestraints.add(item.Asset.Group.Name);
+                escaping = false;
+                return;
+            }
+        }
 
         for (const item of newItems) {
             try { InventoryRemove(Player, item.Asset.Group.Name, false); } catch { /* ignore */ }
