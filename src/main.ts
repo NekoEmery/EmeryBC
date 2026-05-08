@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.8.0";
+const MOD_VERSION = "0.8.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.8.1",
+        changes: [
+            "Fix: Scene chat '* *' emote steps no longer double the name. BC's Type:Emote auto-prepends the sender's name — we were also including it, producing '*Emery Emery screams*'. Now sends only the raw text so BC renders it correctly as '*Emery screams*'.",
+            "Fix: Scene chat '( )' OOC steps now render as '(Emery text)' instead of '*Emery (text)*'. Switched from Type:Emote (which wraps in asterisks) to Type:Action which renders the content as-is.",
+        ],
+    },
     {
         version: "0.8.0",
         changes: [

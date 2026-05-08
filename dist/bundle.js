@@ -1620,17 +1620,24 @@
                     if ((_c = step.text) === null || _c === void 0 ? void 0 : _c.trim()) {
                         const txt = step.text.trim();
                         if (step.chatFormat === "*") {
-                            // Emote — displayed as *Name text* in BC chat (not garbled by gags)
+                            // Emote — BC Type:"Emote" auto-prepends the sender's name and wraps
+                            // in *...*. Send only the raw text so it renders as *Name text*.
                             ServerSend("ChatRoomChat", {
                                 Type: "Emote",
-                                Content: getDisplayName() + " " + txt,
+                                Content: txt,
                             });
                         }
                         else if (step.chatFormat === "(") {
-                            // OOC — send as Emote with parens so it bypasses gag speech garbling
+                            // OOC — Type:"Action" renders the content as-is without asterisks.
+                            // We include the name ourselves so it shows as (Name text).
+                            // Action messages bypass gag speech processing.
                             ServerSend("ChatRoomChat", {
-                                Type: "Emote",
-                                Content: "(" + txt + ")",
+                                Type: "Action",
+                                Content: "(" + getDisplayName() + " " + txt + ")",
+                                Dictionary: [
+                                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                                    { SourceCharacter: Player.MemberNumber },
+                                ],
                             });
                         }
                         else {
@@ -11719,9 +11726,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.8.0";
+    const MOD_VERSION = "0.8.1";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.8.1",
+            changes: [
+                "Fix: Scene chat '* *' emote steps no longer double the name. BC's Type:Emote auto-prepends the sender's name — we were also including it, producing '*Emery Emery screams*'. Now sends only the raw text so BC renders it correctly as '*Emery screams*'.",
+                "Fix: Scene chat '( )' OOC steps now render as '(Emery text)' instead of '*Emery (text)*'. Switched from Type:Emote (which wraps in asterisks) to Type:Action which renders the content as-is.",
+            ],
+        },
         {
             version: "0.8.0",
             changes: [

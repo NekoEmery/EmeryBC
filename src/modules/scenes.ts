@@ -114,16 +114,23 @@ function executeStep(step: SceneStep): void {
                 if (step.text?.trim()) {
                     const txt = step.text.trim();
                     if (step.chatFormat === "*") {
-                        // Emote — displayed as *Name text* in BC chat (not garbled by gags)
+                        // Emote — BC Type:"Emote" auto-prepends the sender's name and wraps
+                        // in *...*. Send only the raw text so it renders as *Name text*.
                         ServerSend("ChatRoomChat", {
                             Type: "Emote",
-                            Content: getDisplayName() + " " + txt,
+                            Content: txt,
                         });
                     } else if (step.chatFormat === "(") {
-                        // OOC — send as Emote with parens so it bypasses gag speech garbling
+                        // OOC — Type:"Action" renders the content as-is without asterisks.
+                        // We include the name ourselves so it shows as (Name text).
+                        // Action messages bypass gag speech processing.
                         ServerSend("ChatRoomChat", {
-                            Type: "Emote",
-                            Content: "(" + txt + ")",
+                            Type: "Action",
+                            Content: "(" + getDisplayName() + " " + txt + ")",
+                            Dictionary: [
+                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                                { SourceCharacter: Player.MemberNumber },
+                            ],
                         });
                     } else {
                         // Plain speech — goes through normal chat (gag effects apply)
