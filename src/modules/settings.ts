@@ -112,3 +112,17 @@ export function setAntiRestraintConfirm(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Beep mute -----------------------------------------------------------------
+
+export function getBeepMuted(): boolean {
+    try { return getStore()?.beepMuted === true; } catch { return false; }
+}
+
+export function setBeepMuted(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.beepMuted = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}

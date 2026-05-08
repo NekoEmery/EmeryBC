@@ -54,7 +54,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getFriendList, getFriendStatus, getFriendTags, setFriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
@@ -165,6 +165,19 @@ const CSS = `
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
 #ebc-tab:active { cursor: grabbing; }
+
+#ebc-tab-unread-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 9px;
+    height: 9px;
+    background: #cf6f98;
+    border-radius: 50%;
+    border: 1.5px solid #130810;
+    box-shadow: 0 0 5px #cf6f98;
+    pointer-events: none;
+}
 
 /* When panel is closed, slide the tab right so only ~10px overlaps the BC
    game canvas. The icon is still fully visible (it's mostly over the chat-log
@@ -1543,6 +1556,54 @@ const CSS = `
 }
 #ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
 
+#ebc-beep-win.minimized {
+    height: 44px !important;
+    min-height: 0;
+    bottom: 0;
+    border-radius: 10px 10px 0 0;
+    overflow: hidden;
+    resize: none;
+}
+#ebc-beep-win.minimized #ebc-beep-win-history,
+#ebc-beep-win.minimized #ebc-beep-reply-bar,
+#ebc-beep-win.minimized #ebc-beep-win-footer { display: none !important; }
+
+#ebc-beep-win-minimize {
+    background: none;
+    border: none;
+    color: #9a6878;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+#ebc-beep-win-minimize:hover { color: #cf6f98; }
+
+#ebc-beep-win-mute {
+    background: none;
+    border: none;
+    color: #9a6878;
+    font-size: 12px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+#ebc-beep-win-mute:hover { color: #cf6f98; }
+#ebc-beep-win-mute.muted { color: #5a3a4a; }
+
+#ebc-beep-win-unread-dot {
+    width: 8px;
+    height: 8px;
+    background: #cf6f98;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 4px #cf6f98;
+    display: none;
+}
+#ebc-beep-win-unread-dot.visible { display: block; }
+
 #ebc-beep-reply-bar {
     display: flex;
     align-items: center;
@@ -1787,6 +1848,7 @@ export class EBCDrawer {
     private version = "";
     private refreshBadgeRow: (() => void) | null = null;
     private refreshConfirmToggle: (() => void) | null = null;
+    private beepWinMinimized = false;
     private beepWinEl: HTMLElement | null = null;
     private beepWinMember = 0;
     private beepUnread = new Map<number, number>();
@@ -5748,6 +5810,21 @@ export class EBCDrawer {
 
     // -- Beep window -----------------------------------------------------------
 
+    private refreshTabDot(): void {
+        const tab = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
+        if (!tab) return;
+        const hasUnread = this.beepUnread.size > 0;
+        let dot = tab.querySelector<HTMLElement>("#ebc-tab-unread-dot");
+        if (hasUnread && !dot) {
+            dot = document.createElement("div");
+            dot.id = "ebc-tab-unread-dot";
+            tab.style.position = "relative";
+            tab.appendChild(dot);
+        } else if (!hasUnread && dot) {
+            dot.remove();
+        }
+    }
+
     public openBeepWindow(memberNumber: number): void {
         // If window already open for this member, just focus it
         if (this.beepWinEl && this.beepWinMember === memberNumber) {
@@ -5756,7 +5833,9 @@ export class EBCDrawer {
         }
         this.beepWinEl?.remove();
         this.beepWinMember = memberNumber;
+        this.beepWinMinimized = false;
         this.beepUnread.delete(memberNumber);
+        this.refreshTabDot();
 
         const win = document.createElement("div");
         win.id = "ebc-beep-win";
@@ -5773,13 +5852,53 @@ export class EBCDrawer {
         title.id = "ebc-beep-win-title";
         title.textContent = resolveName(memberNumber);
 
+        // Unread dot (shown on minimized bar)
+        const unreadDot = document.createElement("div");
+        unreadDot.id = "ebc-beep-win-unread-dot";
+
+        const muteBtn = document.createElement("button");
+        muteBtn.id = "ebc-beep-win-mute";
+        const refreshMuteBtn = (): void => {
+            const muted = getBeepMuted();
+            muteBtn.textContent = muted ? "🔕" : "🔔";
+            muteBtn.title = muted ? "Unmute notifications" : "Mute notifications";
+            muteBtn.classList.toggle("muted", muted);
+        };
+        refreshMuteBtn();
+        muteBtn.addEventListener("click", () => { setBeepMuted(!getBeepMuted()); refreshMuteBtn(); });
+
+        const minimizeBtn = document.createElement("button");
+        minimizeBtn.id = "ebc-beep-win-minimize";
+        minimizeBtn.textContent = "–";
+        minimizeBtn.title = "Minimize";
+        minimizeBtn.addEventListener("click", () => {
+            this.beepWinMinimized = !this.beepWinMinimized;
+            win.classList.toggle("minimized", this.beepWinMinimized);
+            minimizeBtn.textContent = this.beepWinMinimized ? "▲" : "–";
+            minimizeBtn.title = this.beepWinMinimized ? "Restore" : "Minimize";
+            if (!this.beepWinMinimized) {
+                // Clear dot when restoring — user is reading
+                unreadDot.classList.remove("visible");
+                this.beepUnread.delete(memberNumber);
+                this.refreshTabDot();
+                if (this.currentTab === "notes") try { this.renderNotes(); } catch { /* ignore */ }
+            }
+        });
+
         const closeBtn = document.createElement("button");
         closeBtn.id = "ebc-beep-win-close";
         closeBtn.textContent = "×";
-        closeBtn.addEventListener("click", () => { win.remove(); this.beepWinEl = null; });
+        closeBtn.addEventListener("click", () => {
+            win.remove();
+            this.beepWinEl = null;
+            this.beepWinMinimized = false;
+        });
 
         header.appendChild(dot);
         header.appendChild(title);
+        header.appendChild(unreadDot);
+        header.appendChild(muteBtn);
+        header.appendChild(minimizeBtn);
         header.appendChild(closeBtn);
         win.appendChild(header);
 
@@ -5958,14 +6077,21 @@ export class EBCDrawer {
     }
 
     public onIncomingBeep(fromNum: number): void {
-        // If the window is open for this sender, just refresh it; otherwise
-        // increment unread and re-render the friends section so the badge shows.
-        if (this.beepWinEl && this.beepWinMember === fromNum) {
+        const winOpen = this.beepWinEl && this.beepWinMember === fromNum;
+        const winVisible = winOpen && !this.beepWinMinimized;
+
+        if (winVisible) {
             this.refreshBeepWindow(fromNum);
         } else {
             this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
+            this.refreshTabDot();
             if (this.currentTab === "notes") {
                 try { this.renderNotes(); } catch { /* ignore */ }
+            }
+            // Show dot on the minimized bar if window is open but minimized
+            if (winOpen) {
+                const dot = this.beepWinEl?.querySelector<HTMLElement>("#ebc-beep-win-unread-dot");
+                if (dot) dot.classList.add("visible");
             }
         }
     }

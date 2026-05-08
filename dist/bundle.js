@@ -1586,6 +1586,26 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Beep mute -----------------------------------------------------------------
+    function getBeepMuted() {
+        var _a;
+        try {
+            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setBeepMuted(value) {
+        try {
+            const store = getStore$2();
+            if (!store)
+                return;
+            store.beepMuted = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
     // another character is immediately removed and a glare emote is sent.
@@ -2358,6 +2378,19 @@
 
 #ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
 #ebc-tab:active { cursor: grabbing; }
+
+#ebc-tab-unread-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 9px;
+    height: 9px;
+    background: #cf6f98;
+    border-radius: 50%;
+    border: 1.5px solid #130810;
+    box-shadow: 0 0 5px #cf6f98;
+    pointer-events: none;
+}
 
 /* When panel is closed, slide the tab right so only ~10px overlaps the BC
    game canvas. The icon is still fully visible (it's mostly over the chat-log
@@ -3736,6 +3769,54 @@
 }
 #ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
 
+#ebc-beep-win.minimized {
+    height: 44px !important;
+    min-height: 0;
+    bottom: 0;
+    border-radius: 10px 10px 0 0;
+    overflow: hidden;
+    resize: none;
+}
+#ebc-beep-win.minimized #ebc-beep-win-history,
+#ebc-beep-win.minimized #ebc-beep-reply-bar,
+#ebc-beep-win.minimized #ebc-beep-win-footer { display: none !important; }
+
+#ebc-beep-win-minimize {
+    background: none;
+    border: none;
+    color: #9a6878;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+#ebc-beep-win-minimize:hover { color: #cf6f98; }
+
+#ebc-beep-win-mute {
+    background: none;
+    border: none;
+    color: #9a6878;
+    font-size: 12px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+#ebc-beep-win-mute:hover { color: #cf6f98; }
+#ebc-beep-win-mute.muted { color: #5a3a4a; }
+
+#ebc-beep-win-unread-dot {
+    width: 8px;
+    height: 8px;
+    background: #cf6f98;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 4px #cf6f98;
+    display: none;
+}
+#ebc-beep-win-unread-dot.visible { display: block; }
+
 #ebc-beep-reply-bar {
     display: flex;
     align-items: center;
@@ -3972,6 +4053,7 @@
             this.version = "";
             this.refreshBadgeRow = null;
             this.refreshConfirmToggle = null;
+            this.beepWinMinimized = false;
             this.beepWinEl = null;
             this.beepWinMember = 0;
             this.beepUnread = new Map();
@@ -7573,6 +7655,23 @@
             });
         }
         // -- Beep window -----------------------------------------------------------
+        refreshTabDot() {
+            var _a;
+            const tab = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
+            if (!tab)
+                return;
+            const hasUnread = this.beepUnread.size > 0;
+            let dot = tab.querySelector("#ebc-tab-unread-dot");
+            if (hasUnread && !dot) {
+                dot = document.createElement("div");
+                dot.id = "ebc-tab-unread-dot";
+                tab.style.position = "relative";
+                tab.appendChild(dot);
+            }
+            else if (!hasUnread && dot) {
+                dot.remove();
+            }
+        }
         openBeepWindow(memberNumber) {
             var _a, _b;
             // If window already open for this member, just focus it
@@ -7582,7 +7681,9 @@
             }
             (_b = this.beepWinEl) === null || _b === void 0 ? void 0 : _b.remove();
             this.beepWinMember = memberNumber;
+            this.beepWinMinimized = false;
             this.beepUnread.delete(memberNumber);
+            this.refreshTabDot();
             const win = document.createElement("div");
             win.id = "ebc-beep-win";
             this.beepWinEl = win;
@@ -7594,12 +7695,53 @@
             const title = document.createElement("span");
             title.id = "ebc-beep-win-title";
             title.textContent = resolveName(memberNumber);
+            // Unread dot (shown on minimized bar)
+            const unreadDot = document.createElement("div");
+            unreadDot.id = "ebc-beep-win-unread-dot";
+            const muteBtn = document.createElement("button");
+            muteBtn.id = "ebc-beep-win-mute";
+            const refreshMuteBtn = () => {
+                const muted = getBeepMuted();
+                muteBtn.textContent = muted ? "🔕" : "🔔";
+                muteBtn.title = muted ? "Unmute notifications" : "Mute notifications";
+                muteBtn.classList.toggle("muted", muted);
+            };
+            refreshMuteBtn();
+            muteBtn.addEventListener("click", () => { setBeepMuted(!getBeepMuted()); refreshMuteBtn(); });
+            const minimizeBtn = document.createElement("button");
+            minimizeBtn.id = "ebc-beep-win-minimize";
+            minimizeBtn.textContent = "–";
+            minimizeBtn.title = "Minimize";
+            minimizeBtn.addEventListener("click", () => {
+                this.beepWinMinimized = !this.beepWinMinimized;
+                win.classList.toggle("minimized", this.beepWinMinimized);
+                minimizeBtn.textContent = this.beepWinMinimized ? "▲" : "–";
+                minimizeBtn.title = this.beepWinMinimized ? "Restore" : "Minimize";
+                if (!this.beepWinMinimized) {
+                    // Clear dot when restoring — user is reading
+                    unreadDot.classList.remove("visible");
+                    this.beepUnread.delete(memberNumber);
+                    this.refreshTabDot();
+                    if (this.currentTab === "notes")
+                        try {
+                            this.renderNotes();
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                }
+            });
             const closeBtn = document.createElement("button");
             closeBtn.id = "ebc-beep-win-close";
             closeBtn.textContent = "×";
-            closeBtn.addEventListener("click", () => { win.remove(); this.beepWinEl = null; });
+            closeBtn.addEventListener("click", () => {
+                win.remove();
+                this.beepWinEl = null;
+                this.beepWinMinimized = false;
+            });
             header.appendChild(dot);
             header.appendChild(title);
+            header.appendChild(unreadDot);
+            header.appendChild(muteBtn);
+            header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
             // Make header draggable
@@ -7757,19 +7899,26 @@
             refresh === null || refresh === void 0 ? void 0 : refresh();
         }
         onIncomingBeep(fromNum) {
-            var _a;
-            // If the window is open for this sender, just refresh it; otherwise
-            // increment unread and re-render the friends section so the badge shows.
-            if (this.beepWinEl && this.beepWinMember === fromNum) {
+            var _a, _b;
+            const winOpen = this.beepWinEl && this.beepWinMember === fromNum;
+            const winVisible = winOpen && !this.beepWinMinimized;
+            if (winVisible) {
                 this.refreshBeepWindow(fromNum);
             }
             else {
                 this.beepUnread.set(fromNum, ((_a = this.beepUnread.get(fromNum)) !== null && _a !== void 0 ? _a : 0) + 1);
+                this.refreshTabDot();
                 if (this.currentTab === "notes") {
                     try {
                         this.renderNotes();
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
+                    catch ( /* ignore */_c) { /* ignore */ }
+                }
+                // Show dot on the minimized bar if window is open but minimized
+                if (winOpen) {
+                    const dot = (_b = this.beepWinEl) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-beep-win-unread-dot");
+                    if (dot)
+                        dot.classList.add("visible");
                 }
             }
         }
@@ -9313,9 +9462,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.5.5";
+    const MOD_VERSION = "0.5.6";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.5.6",
+            changes: [
+                "Drawer tab: pink unread dot appears when you have any unread beep messages.",
+                "Beep window: minimize button collapses the chat to a title bar at the bottom of the screen.",
+                "Beep window: unread dot on the minimized bar when a new message arrives while minimized.",
+                "Beep window: mute toggle (bell icon) silences the sound notification; state saved across sessions.",
+            ],
+        },
         {
             version: "0.5.5",
             changes: [
@@ -10363,10 +10521,12 @@
                 if (name)
                     cacheName(fromNum, name);
                 addBeepEntry({ from: fromNum, to: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, message: msg, ts: Date.now() });
-                try {
-                    playBeepSound();
+                if (!getBeepMuted()) {
+                    try {
+                        playBeepSound();
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
                 }
-                catch ( /* ignore */_b) { /* ignore */ }
                 try {
                     drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                 }

@@ -5,7 +5,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getBeepMuted } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer } from "./modules/antiRestraint";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
@@ -13,10 +13,19 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.5";
+const MOD_VERSION = "0.5.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.5.6",
+        changes: [
+            "Drawer tab: pink unread dot appears when you have any unread beep messages.",
+            "Beep window: minimize button collapses the chat to a title bar at the bottom of the screen.",
+            "Beep window: unread dot on the minimized bar when a new message arrives while minimized.",
+            "Beep window: mute toggle (bell icon) silences the sound notification; state saved across sessions.",
+        ],
+    },
     {
         version: "0.5.5",
         changes: [
@@ -1055,7 +1064,7 @@ function init(): void {
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
             if (name) cacheName(fromNum, name);
             addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-            try { playBeepSound(); } catch { /* ignore */ }
+            if (!getBeepMuted()) { try { playBeepSound(); } catch { /* ignore */ } }
             try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
