@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.9.9";
+const MOD_VERSION = "1.0.0";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.0.0",
+        changes: [
+            "Colours tab: hex code text beside colour selectors is now a visible light-pink colour instead of dark/unreadable.",
+            "Dev tab: Hook Inspector renamed to 'Addons Loaded'; removed the 'no hooks listed' / hook-count badge from each addon row — rows now show addon name + version only.",
+        ],
+    },
     {
         version: "0.9.9",
         changes: [

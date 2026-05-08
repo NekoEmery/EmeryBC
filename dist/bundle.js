@@ -4699,7 +4699,7 @@
 .ebc-zone-hex {
     font-family: 'Courier New', monospace;
     font-size: 8px;
-    color: #7a5060;
+    color: #c48aa8;
     flex-shrink: 0;
     width: 56px;
     letter-spacing: 0.3px;
@@ -6724,6 +6724,7 @@
                 selDot.className = "ebc-sel-dot";
                 const selHex = document.createElement("span");
                 selHex.className = "ebc-sel-hex";
+                selHex.style.cssText = "font-family:'Courier New',monospace;font-size:9px;color:#c48aa8;flex-shrink:0;";
                 const selHint = document.createElement("span");
                 selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;flex:1;";
                 selHint.textContent = "No colour selected";
@@ -11184,11 +11185,11 @@
                     charDump.style.display = "";
                 }
             });
-            // ── Hook Inspector ───────────────────────────────────────────────────────
+            // ── Addons Loaded ────────────────────────────────────────────────────────
             const hookLbl = document.createElement("div");
             hookLbl.className = "ebc-section-label";
             hookLbl.style.marginTop = "12px";
-            hookLbl.textContent = "Hook Inspector";
+            hookLbl.textContent = "Addons Loaded";
             body.appendChild(hookLbl);
             const hookList = document.createElement("div");
             body.appendChild(hookList);
@@ -11220,12 +11221,8 @@
                         const verEl = document.createElement("span");
                         verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;";
                         verEl.textContent = "v" + String((_b = m.version) !== null && _b !== void 0 ? _b : "?");
-                        const hookCount = document.createElement("span");
-                        hookCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-                        hookCount.textContent = hooks.length > 0 ? `${hooks.length} hooks` : "no hooks listed";
                         topLine.appendChild(nameEl);
                         topLine.appendChild(verEl);
-                        topLine.appendChild(hookCount);
                         row.appendChild(topLine);
                         if (hooks.length > 0) {
                             const hookDetail = document.createElement("div");
@@ -11246,7 +11243,7 @@
             renderHooks();
             const hookRefreshBtn = document.createElement("button");
             hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-            hookRefreshBtn.textContent = "↻ Refresh hooks";
+            hookRefreshBtn.textContent = "↻ Refresh";
             hookRefreshBtn.addEventListener("click", renderHooks);
             body.appendChild(hookRefreshBtn);
             // ── Message Logger ───────────────────────────────────────────────────────
@@ -12706,9 +12703,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.9.9";
+    const MOD_VERSION = "1.0.0";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.0.0",
+            changes: [
+                "Colours tab: hex code text beside colour selectors is now a visible light-pink colour instead of dark/unreadable.",
+                "Dev tab: Hook Inspector renamed to 'Addons Loaded'; removed the 'no hooks listed' / hook-count badge from each addon row — rows now show addon name + version only.",
+            ],
+        },
         {
             version: "0.9.9",
             changes: [

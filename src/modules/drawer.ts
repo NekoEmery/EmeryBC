@@ -1742,7 +1742,7 @@ const CSS = `
 .ebc-zone-hex {
     font-family: 'Courier New', monospace;
     font-size: 8px;
-    color: #7a5060;
+    color: #c48aa8;
     flex-shrink: 0;
     width: 56px;
     letter-spacing: 0.3px;
@@ -3857,6 +3857,7 @@ export class EBCDrawer {
 
             const selDot = document.createElement("span"); selDot.className = "ebc-sel-dot";
             const selHex = document.createElement("span"); selHex.className = "ebc-sel-hex";
+            selHex.style.cssText = "font-family:'Courier New',monospace;font-size:9px;color:#c48aa8;flex-shrink:0;";
             const selHint = document.createElement("span");
             selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;flex:1;";
             selHint.textContent = "No colour selected";
@@ -8575,11 +8576,11 @@ export class EBCDrawer {
             }
         });
 
-        // ── Hook Inspector ───────────────────────────────────────────────────────
+        // ── Addons Loaded ────────────────────────────────────────────────────────
         const hookLbl = document.createElement("div");
         hookLbl.className = "ebc-section-label";
         hookLbl.style.marginTop = "12px";
-        hookLbl.textContent = "Hook Inspector";
+        hookLbl.textContent = "Addons Loaded";
         body.appendChild(hookLbl);
 
         const hookList = document.createElement("div");
@@ -8615,13 +8616,8 @@ export class EBCDrawer {
                     verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;";
                     verEl.textContent = "v" + String(m.version ?? "?");
 
-                    const hookCount = document.createElement("span");
-                    hookCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-                    hookCount.textContent = hooks.length > 0 ? `${hooks.length} hooks` : "no hooks listed";
-
                     topLine.appendChild(nameEl);
                     topLine.appendChild(verEl);
-                    topLine.appendChild(hookCount);
                     row.appendChild(topLine);
 
                     if (hooks.length > 0) {
@@ -8643,7 +8639,7 @@ export class EBCDrawer {
 
         const hookRefreshBtn = document.createElement("button");
         hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-        hookRefreshBtn.textContent = "↻ Refresh hooks";
+        hookRefreshBtn.textContent = "↻ Refresh";
         hookRefreshBtn.addEventListener("click", renderHooks);
         body.appendChild(hookRefreshBtn);
 
