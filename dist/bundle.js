@@ -8590,9 +8590,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.4.9";
+    const MOD_VERSION = "0.5.0";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.5.0",
+            changes: [
+                "Scene equip/unequip steps now use dropdowns populated from BC's asset data — no need to know group names.",
+                "Scene unequip targets a slot (removes whatever is worn there) instead of a specific item — scenes work with any outfit.",
+                "Scene: added Chat step type for sending chat messages with * emotes, ( OOC, or plain dialogue.",
+            ],
+        },
         {
             version: "0.4.9",
             changes: [
