@@ -6792,22 +6792,30 @@
                     else if (type === "chat") {
                         const row = document.createElement("div");
                         row.className = "ebc-scene-fields-row";
-                        const fmtSel = document.createElement("select");
-                        fmtSel.className = "ebc-scene-type-sel";
-                        fmtSel.style.cssText = "flex:0 0 auto;width:84px;";
-                        fmtSel.title = "Message format";
-                        [
-                            { value: "", label: "Plain" },
-                            { value: "*", label: "* Emote" },
-                            { value: "(", label: "( OOC" },
-                        ].forEach(o => {
-                            const opt = document.createElement("option");
-                            opt.value = o.value;
-                            opt.textContent = o.label;
-                            opt.selected = o.value === chatFormat;
-                            fmtSel.appendChild(opt);
-                        });
-                        fmtSel.addEventListener("change", () => { chatFormat = fmtSel.value; });
+                        const makeToggle = (label, val) => {
+                            const btn = document.createElement("button");
+                            btn.textContent = label;
+                            btn.style.cssText = [
+                                "flex:0 0 auto", "padding:2px 9px", "font-size:11px",
+                                "font-family:'Trebuchet MS',serif", "border-radius:4px", "cursor:pointer",
+                                "border:1px solid #5a2840", "transition:background 0.12s,color 0.12s",
+                            ].join(";");
+                            const setActive = (active) => {
+                                btn.style.background = active ? "#cf6f98" : "#1b0d17";
+                                btn.style.color = active ? "#fff" : "#9a6878";
+                            };
+                            setActive(chatFormat === val);
+                            btn.addEventListener("click", () => {
+                                chatFormat = val;
+                                row.querySelectorAll("[data-fmt]").forEach(b => {
+                                    const bVal = b.dataset.fmt;
+                                    b.style.background = bVal === val ? "#cf6f98" : "#1b0d17";
+                                    b.style.color = bVal === val ? "#fff" : "#9a6878";
+                                });
+                            });
+                            btn.dataset.fmt = val;
+                            return btn;
+                        };
                         const textInp = Object.assign(document.createElement("input"), {
                             className: "ebc-form-input", type: "text",
                             placeholder: "message text...",
@@ -6815,7 +6823,8 @@
                         });
                         textInp.style.flex = "1";
                         textInp.addEventListener("input", () => { emoteText = textInp.value; });
-                        row.appendChild(fmtSel);
+                        row.appendChild(makeToggle("* *", "*"));
+                        row.appendChild(makeToggle("( )", "("));
                         row.appendChild(textInp);
                         fieldsEl.appendChild(row);
                     }
