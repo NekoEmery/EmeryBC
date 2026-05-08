@@ -10,12 +10,22 @@ import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestraine
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
+import { addBeepEntry } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.0";
+const MOD_VERSION = "0.5.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.5.1",
+        changes: [
+            "Friends section in Users tab: lists all BC friends with green (in room) / gray (away) status dot, tag system (click to edit inline), and per-friend beep chat window.",
+            "Beep chat window: floating draggable overlay with conversation history, synced across devices via ExtensionSettings.",
+            "Beep All In Room button: send one message to every friend currently in your room.",
+            "Incoming beeps are recorded to history automatically so the chat window stays up to date.",
+        ],
+    },
     {
         version: "0.5.0",
         changes: [
@@ -970,6 +980,22 @@ function init(): void {
     tryHookFunction(modAPI, "DrawCharacter", 1, (args, next) => {
         try { timerCheckRestraints(); } catch { /* ignore */ }
         return next(args);
+    });
+
+    // Record incoming beeps so history is synced across devices and the chat
+    // window can be refreshed live if it happens to be open.
+    tryHookFunction(modAPI, "AccountBeep", 3, (args, next) => {
+        const result = next(args);
+        try {
+            const [data] = args as [Record<string, unknown>];
+            const fromNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+            const msg = typeof data.Message === "string" ? data.Message : "";
+            if (fromNum && msg) {
+                addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
+                try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
+            }
+        } catch { /* ignore */ }
+        return result;
     });
 
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {

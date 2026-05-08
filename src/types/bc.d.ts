@@ -40,6 +40,7 @@ interface Character {
     AssetFamily: string;
     OnlineID?: string | number;
     ActivePose?: string | string[] | null;
+    FriendList?: number[];
     IsRestrained(): boolean;
 }
 

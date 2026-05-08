@@ -23,17 +23,17 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$6() {
+    function getStore$7() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getButtons() {
-        const stored = getStore$6().actionButtons;
+        const stored = getStore$7().actionButtons;
         return Array.isArray(stored) ? stored : DEFAULT_BUTTONS;
     }
     function getSlotCount() {
-        const store = getStore$6();
+        const store = getStore$7();
         const n = store.actionSlotCount;
         if (typeof n === "number")
             return Math.min(ABSOLUTE_MAX, Math.max(1, n));
@@ -41,7 +41,7 @@
         return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$6();
+        const store = getStore$7();
         store.actionButtons = buttons;
         store.actionSlotCount = slotCount;
         ServerPlayerExtensionSettingsSync("EmeryBC");
@@ -815,20 +815,20 @@
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function getStore$5() {
+    function getStore$6() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function load$2() {
-        const list = getStore$5().palettes;
+        const list = getStore$6().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getStore$5().palettes = list;
+        getStore$6().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function uid$3() {
@@ -976,18 +976,18 @@
         }
     }
     // -- Combo storage -------------------------------------------------------
-    function getStore$4() {
+    function getStore$5() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function uid$2() { return Math.random().toString(36).slice(2, 9); }
     function load$1() {
-        const list = getStore$4().poseCombos;
+        const list = getStore$5().poseCombos;
         return Array.isArray(list) ? list : [];
     }
     function saveCombos(list) {
-        getStore$4().poseCombos = list;
+        getStore$5().poseCombos = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getPoseCombos() { return load$1(); }
@@ -1056,18 +1056,18 @@
 
     // Scene sequencer — chain pose changes, item equips/unequips, emotes and
     // waits into a named sequence that plays back step by step with per-step timing.
-    function getStore$3() {
+    function getStore$4() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function uid$1() { return Math.random().toString(36).slice(2, 9); }
     function load() {
-        const raw = getStore$3().scenes;
+        const raw = getStore$4().scenes;
         return Array.isArray(raw) ? raw : [];
     }
     function saveScenes(list) {
-        getStore$3().scenes = list;
+        getStore$4().scenes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getScenes() { return load(); }
@@ -1289,13 +1289,13 @@
     }
 
     // Private character notes — stored locally in Player.ExtensionSettings, never shared.
-    function getStore$2() {
+    function getStore$3() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getNotes() {
-        const raw = getStore$2().characterNotes;
+        const raw = getStore$3().characterNotes;
         return (raw && typeof raw === "object" && !Array.isArray(raw))
             ? raw
             : {};
@@ -1309,7 +1309,7 @@
         else {
             delete notes[key];
         }
-        getStore$2().characterNotes = notes;
+        getStore$3().characterNotes = notes;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
 
@@ -1454,7 +1454,7 @@
     }
 
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
-    function getStore$1() {
+    function getStore$2() {
         try {
             if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
                 return null;
@@ -1473,7 +1473,7 @@
     function getBadgeEnabled() {
         var _a;
         try {
-            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
+            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
         }
         catch (_b) {
             return true; // safe default
@@ -1481,7 +1481,7 @@
     }
     function setBadgeEnabled(value) {
         try {
-            const store = getStore$1();
+            const store = getStore$2();
             if (!store)
                 return;
             store.badgeEnabled = value;
@@ -1495,7 +1495,7 @@
     function getShowVersionBadge() {
         var _a;
         try {
-            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
+            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
         }
         catch (_b) {
             return false;
@@ -1503,7 +1503,7 @@
     }
     function setShowVersionBadge(value) {
         try {
-            const store = getStore$1();
+            const store = getStore$2();
             if (!store)
                 return;
             store.showVersionBadge = value;
@@ -1517,7 +1517,7 @@
     function getAntiRestraintEnabled() {
         var _a;
         try {
-            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
+            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
         }
         catch (_b) {
             return false;
@@ -1525,7 +1525,7 @@
     }
     function setAntiRestraintEnabled(value) {
         try {
-            const store = getStore$1();
+            const store = getStore$2();
             if (!store)
                 return;
             store.antiRestraint = value;
@@ -1539,7 +1539,7 @@
     function getAntiRestraintWhitelist() {
         var _a;
         try {
-            const list = (_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
+            const list = (_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
             return Array.isArray(list) ? list : [];
         }
         catch (_b) {
@@ -1548,7 +1548,7 @@
     }
     function setAntiRestraintWhitelist(groups) {
         try {
-            const store = getStore$1();
+            const store = getStore$2();
             if (!store)
                 return;
             store.antiRestraintWhitelist = groups;
@@ -1570,7 +1570,7 @@
     function getAntiRestraintConfirm() {
         var _a;
         try {
-            return ((_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
+            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
         }
         catch (_b) {
             return false;
@@ -1578,7 +1578,7 @@
     }
     function setAntiRestraintConfirm(value) {
         try {
-            const store = getStore$1();
+            const store = getStore$2();
             if (!store)
                 return;
             store.antiRestraintConfirm = value;
@@ -1753,6 +1753,114 @@
             catch ( /* ignore */_a) { /* ignore */ }
             escaping = false;
         }, 200);
+    }
+
+    // Friends system — tags, beep history, name cache.
+    // All data stored in Player.ExtensionSettings.EmeryBC and synced to server
+    // so it's available across devices on next login.
+    function getStore$1() {
+        if (!Player.ExtensionSettings.EmeryBC)
+            Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function sync() {
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    // -- Name cache ----------------------------------------------------------------
+    function getCachedNames() {
+        const v = getStore$1().friendNames;
+        return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
+    }
+    function cacheName(memberNumber, name) {
+        const store = getStore$1();
+        if (!store.friendNames || typeof store.friendNames !== "object")
+            store.friendNames = {};
+        store.friendNames[String(memberNumber)] = name;
+        // Sync is deferred — name cache is saved alongside the next real operation
+    }
+    function resolveName(memberNumber) {
+        var _a, _b;
+        try {
+            const room = window.ChatRoomCharacter;
+            const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === memberNumber);
+            if (char) {
+                const name = ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || char.Name || String(memberNumber);
+                cacheName(memberNumber, name);
+                return name;
+            }
+        }
+        catch ( /* ignore */_c) { /* ignore */ }
+        return (_b = getCachedNames()[String(memberNumber)]) !== null && _b !== void 0 ? _b : `#${memberNumber}`;
+    }
+    // -- Friend list ---------------------------------------------------------------
+    function getFriendList() {
+        try {
+            const fl = Player.FriendList;
+            return Array.isArray(fl) ? [...fl] : [];
+        }
+        catch (_a) {
+            return [];
+        }
+    }
+    function getFriendStatus(memberNumber) {
+        try {
+            const room = window.ChatRoomCharacter;
+            if (room === null || room === void 0 ? void 0 : room.some(c => c.MemberNumber === memberNumber))
+                return "room";
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return "away";
+    }
+    // -- Tags ----------------------------------------------------------------------
+    function getFriendTags() {
+        const v = getStore$1().friendTags;
+        return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
+    }
+    function setFriendTag(memberNumber, tag) {
+        const store = getStore$1();
+        if (!store.friendTags || typeof store.friendTags !== "object")
+            store.friendTags = {};
+        const tags = store.friendTags;
+        if (tag.trim())
+            tags[String(memberNumber)] = tag.trim();
+        else
+            delete tags[String(memberNumber)];
+        sync();
+    }
+    // -- Beep history --------------------------------------------------------------
+    const MAX_ENTRIES$1 = 300;
+    function getBeepHistory() {
+        const v = getStore$1().beepHistory;
+        return Array.isArray(v) ? v : [];
+    }
+    function addBeepEntry(entry) {
+        const store = getStore$1();
+        const history = getBeepHistory();
+        history.push(entry);
+        if (history.length > MAX_ENTRIES$1)
+            history.splice(0, history.length - MAX_ENTRIES$1);
+        store.beepHistory = history;
+        sync();
+    }
+    function getConversation(memberNumber) {
+        var _a;
+        const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+        return getBeepHistory().filter(e => (e.from === memberNumber && e.to === self) ||
+            (e.from === self && e.to === memberNumber));
+    }
+    // -- Sending -------------------------------------------------------------------
+    function sendBeep(memberNumber, message) {
+        var _a;
+        try {
+            ServerSend("Beep", { MemberNumber: memberNumber, Message: message });
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+        addBeepEntry({
+            from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0,
+            to: memberNumber,
+            message,
+            ts: Date.now(),
+        });
     }
 
     // DevLog — circular buffer of recent ChatRoomMessage events.
@@ -3436,6 +3544,188 @@
     flex-wrap: wrap;
 }
 
+/* -- Friends section -- */
+.ebc-friend-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 4px;
+    border-radius: 5px;
+    margin-bottom: 2px;
+    background: #130810;
+}
+.ebc-friend-row:hover { background: #1a0d15; }
+
+.ebc-friend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.ebc-friend-dot.room { background: #4caf50; box-shadow: 0 0 4px #4caf50aa; }
+.ebc-friend-dot.away { background: #555; }
+
+.ebc-friend-name {
+    flex: 1;
+    font-size: 11px;
+    color: #e8d0d8;
+    font-family: "Trebuchet MS", serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ebc-friend-tag {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: #3a1928;
+    color: #cf6f98;
+    flex-shrink: 0;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ebc-friend-btn {
+    background: none;
+    border: 1px solid #3a1928;
+    border-radius: 4px;
+    color: #9a6878;
+    font-size: 11px;
+    padding: 1px 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: "Trebuchet MS", serif;
+    line-height: 1.3;
+}
+.ebc-friend-btn:hover { background: #2e1525; color: #cf6f98; border-color: #cf6f98; }
+
+/* -- Beep window -- */
+#ebc-beep-win {
+    position: fixed;
+    width: 300px;
+    height: 380px;
+    background: #130810;
+    border: 2px solid #cf6f98;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    z-index: 999998;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.9);
+    font-family: "Trebuchet MS", serif;
+    bottom: 80px;
+    right: 340px;
+    overflow: hidden;
+}
+
+#ebc-beep-win-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px 6px;
+    background: #1e0d1a;
+    border-bottom: 1px solid #3a1928;
+    cursor: grab;
+    user-select: none;
+    flex-shrink: 0;
+}
+#ebc-beep-win-header:active { cursor: grabbing; }
+
+#ebc-beep-win-title {
+    flex: 1;
+    font-size: 11px;
+    font-weight: bold;
+    color: #cf6f98;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#ebc-beep-win-close {
+    background: none;
+    border: none;
+    color: #9a6878;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+#ebc-beep-win-close:hover { color: #cf6f98; }
+
+#ebc-beep-win-history {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ebc-beep-msg {
+    font-size: 10px;
+    line-height: 1.5;
+    padding: 4px 7px;
+    border-radius: 6px;
+    max-width: 85%;
+    word-break: break-word;
+}
+.ebc-beep-msg.sent {
+    align-self: flex-end;
+    background: #3a1028;
+    color: #f0c8d8;
+    border-bottom-right-radius: 2px;
+}
+.ebc-beep-msg.received {
+    align-self: flex-start;
+    background: #1e0d1a;
+    color: #e0c0cc;
+    border: 1px solid #3a1928;
+    border-bottom-left-radius: 2px;
+}
+.ebc-beep-ts {
+    font-size: 9px;
+    color: #7a5a6a;
+    margin-bottom: 1px;
+}
+.ebc-beep-msg.sent .ebc-beep-ts { text-align: right; }
+
+#ebc-beep-win-footer {
+    display: flex;
+    gap: 5px;
+    padding: 7px 8px;
+    border-top: 1px solid #3a1928;
+    flex-shrink: 0;
+}
+
+#ebc-beep-win-input {
+    flex: 1;
+    background: #1e0d1a;
+    border: 1px solid #5a2840;
+    border-radius: 5px;
+    color: #e8d0d8;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    padding: 4px 7px;
+    outline: none;
+}
+#ebc-beep-win-input:focus { border-color: #cf6f98; }
+
+#ebc-beep-win-send {
+    background: #3a1028;
+    border: 1px solid #cf6f98;
+    border-radius: 5px;
+    color: #cf6f98;
+    font-size: 11px;
+    font-family: "Trebuchet MS", serif;
+    padding: 4px 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+#ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
+
 /* -- Free-float panel mode -- */
 #emerybc-panel.ebc-free-mode {
     position: fixed !important;
@@ -3609,6 +3899,8 @@
             this.positioned = false;
             this.version = "";
             this.refreshBadgeRow = null;
+            this.beepWinEl = null;
+            this.beepWinMember = 0;
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
             this.crabsPoller = null;
@@ -7199,9 +7491,131 @@
                 }
             });
         }
+        // -- Beep window -----------------------------------------------------------
+        openBeepWindow(memberNumber) {
+            var _a, _b;
+            // If window already open for this member, just focus it
+            if (this.beepWinEl && this.beepWinMember === memberNumber) {
+                (_a = this.beepWinEl.querySelector("#ebc-beep-win-input")) === null || _a === void 0 ? void 0 : _a.focus();
+                return;
+            }
+            (_b = this.beepWinEl) === null || _b === void 0 ? void 0 : _b.remove();
+            this.beepWinMember = memberNumber;
+            const win = document.createElement("div");
+            win.id = "ebc-beep-win";
+            this.beepWinEl = win;
+            // Header
+            const header = document.createElement("div");
+            header.id = "ebc-beep-win-header";
+            const dot = document.createElement("span");
+            dot.className = "ebc-friend-dot " + getFriendStatus(memberNumber);
+            const title = document.createElement("span");
+            title.id = "ebc-beep-win-title";
+            title.textContent = resolveName(memberNumber);
+            const closeBtn = document.createElement("button");
+            closeBtn.id = "ebc-beep-win-close";
+            closeBtn.textContent = "×";
+            closeBtn.addEventListener("click", () => { win.remove(); this.beepWinEl = null; });
+            header.appendChild(dot);
+            header.appendChild(title);
+            header.appendChild(closeBtn);
+            win.appendChild(header);
+            // Make header draggable
+            header.addEventListener("mousedown", (e) => {
+                if (e.target === closeBtn)
+                    return;
+                e.preventDefault();
+                const rect = win.getBoundingClientRect();
+                const ox = e.clientX - rect.left;
+                const oy = e.clientY - rect.top;
+                const onMove = (ev) => {
+                    win.style.left = `${Math.max(0, Math.min(window.innerWidth - 300, ev.clientX - ox))}px`;
+                    win.style.top = `${Math.max(0, Math.min(window.innerHeight - 380, ev.clientY - oy))}px`;
+                    win.style.right = "";
+                    win.style.bottom = "";
+                };
+                const onUp = () => {
+                    document.removeEventListener("mousemove", onMove);
+                    document.removeEventListener("mouseup", onUp);
+                };
+                document.addEventListener("mousemove", onMove);
+                document.addEventListener("mouseup", onUp);
+            });
+            // History
+            const history = document.createElement("div");
+            history.id = "ebc-beep-win-history";
+            win.appendChild(history);
+            const renderHistory = () => {
+                var _a;
+                while (history.firstChild)
+                    history.removeChild(history.firstChild);
+                const entries = getConversation(memberNumber);
+                const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+                if (entries.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "text-align:center;color:#5a3a4a;font-size:10px;padding:20px 0;";
+                    hint.textContent = "No messages yet. Say hi!";
+                    history.appendChild(hint);
+                }
+                for (const e of entries) {
+                    const isSent = e.from === self;
+                    const wrap = document.createElement("div");
+                    wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
+                    const ts = document.createElement("div");
+                    ts.className = "ebc-beep-ts";
+                    const d = new Date(e.ts);
+                    ts.textContent = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                    const bubble = document.createElement("div");
+                    bubble.className = "ebc-beep-msg " + (isSent ? "sent" : "received");
+                    bubble.appendChild(ts);
+                    const text = document.createElement("div");
+                    text.textContent = e.message;
+                    bubble.appendChild(text);
+                    wrap.appendChild(bubble);
+                    history.appendChild(wrap);
+                }
+                history.scrollTop = history.scrollHeight;
+            };
+            renderHistory();
+            // Footer
+            const footer = document.createElement("div");
+            footer.id = "ebc-beep-win-footer";
+            const input = document.createElement("input");
+            input.id = "ebc-beep-win-input";
+            input.type = "text";
+            input.placeholder = "Type a message...";
+            input.maxLength = 300;
+            const sendBtn = document.createElement("button");
+            sendBtn.id = "ebc-beep-win-send";
+            sendBtn.textContent = "Send";
+            const doSend = () => {
+                const msg = input.value.trim();
+                if (!msg)
+                    return;
+                sendBeep(memberNumber, msg);
+                input.value = "";
+                renderHistory();
+            };
+            sendBtn.addEventListener("click", doSend);
+            input.addEventListener("keydown", (e) => { if (e.key === "Enter")
+                doSend(); });
+            footer.appendChild(input);
+            footer.appendChild(sendBtn);
+            win.appendChild(footer);
+            document.body.appendChild(win);
+            input.focus();
+            // Store renderHistory so incoming beeps can trigger a refresh
+            win._refresh = renderHistory;
+        }
+        refreshBeepWindow(memberNumber) {
+            if (!this.beepWinEl || this.beepWinMember !== memberNumber)
+                return;
+            const refresh = this.beepWinEl._refresh;
+            refresh === null || refresh === void 0 ? void 0 : refresh();
+        }
         // -- Notes tab -------------------------------------------------------------
         renderNotes() {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -7251,6 +7665,96 @@
                 empty.className = "ebc-empty";
                 empty.innerHTML = "No other players in this room yet.";
                 body.appendChild(empty);
+            }
+            // ── Friends ──────────────────────────────────────────────────────────
+            const friendList = getFriendList();
+            if (friendList.length > 0) {
+                const divF = document.createElement("div");
+                divF.className = "ebc-divider";
+                body.appendChild(divF);
+                const lblF = document.createElement("div");
+                lblF.className = "ebc-section-label";
+                lblF.textContent = "Friends";
+                body.appendChild(lblF);
+                // "Beep All In Room" button
+                const inRoomFriends = friendList.filter(n => getFriendStatus(n) === "room");
+                const beepAllBtn = document.createElement("button");
+                beepAllBtn.className = "ebc-friend-btn";
+                beepAllBtn.style.cssText = "width:100%;margin-bottom:6px;padding:4px 8px;";
+                beepAllBtn.textContent = `Beep All In Room (${inRoomFriends.length})`;
+                beepAllBtn.disabled = inRoomFriends.length === 0;
+                beepAllBtn.addEventListener("click", () => {
+                    const msg = prompt("Message to send to all friends in room:");
+                    if (!(msg === null || msg === void 0 ? void 0 : msg.trim()))
+                        return;
+                    for (const num of inRoomFriends)
+                        sendBeep(num, msg.trim());
+                });
+                body.appendChild(beepAllBtn);
+                const tags = getFriendTags();
+                // Sort: room first, then alphabetical by name
+                const sorted = [...friendList].sort((a, b) => {
+                    const sa = getFriendStatus(a) === "room" ? 0 : 1;
+                    const sb = getFriendStatus(b) === "room" ? 0 : 1;
+                    if (sa !== sb)
+                        return sa - sb;
+                    return resolveName(a).localeCompare(resolveName(b));
+                });
+                for (const num of sorted) {
+                    const status = getFriendStatus(num);
+                    const name = resolveName(num);
+                    const tag = (_d = tags[String(num)]) !== null && _d !== void 0 ? _d : "";
+                    const row = document.createElement("div");
+                    row.className = "ebc-friend-row";
+                    const dot = document.createElement("div");
+                    dot.className = "ebc-friend-dot " + status;
+                    const nameEl = document.createElement("span");
+                    nameEl.className = "ebc-friend-name";
+                    nameEl.textContent = name;
+                    const numEl = document.createElement("span");
+                    numEl.style.cssText = "font-size:9px;color:#6a4558;margin-left:3px;flex-shrink:0;";
+                    numEl.textContent = "#" + num;
+                    // Tag badge — click to edit inline
+                    const tagEl = document.createElement("span");
+                    tagEl.className = "ebc-friend-tag";
+                    tagEl.textContent = tag || "+tag";
+                    tagEl.style.opacity = tag ? "1" : "0.4";
+                    tagEl.title = "Click to edit tag";
+                    tagEl.addEventListener("click", () => {
+                        var _a;
+                        const cur = (_a = tags[String(num)]) !== null && _a !== void 0 ? _a : "";
+                        const input = document.createElement("input");
+                        input.type = "text";
+                        input.value = cur;
+                        input.maxLength = 30;
+                        input.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#e8b4c8;border:1px solid #cf6f98;border-radius:3px;padding:1px 4px;width:80px;outline:none;";
+                        tagEl.replaceWith(input);
+                        input.focus();
+                        const commit = () => {
+                            setFriendTag(num, input.value);
+                            tags[String(num)] = input.value.trim();
+                            tagEl.textContent = input.value.trim() || "+tag";
+                            tagEl.style.opacity = input.value.trim() ? "1" : "0.4";
+                            input.replaceWith(tagEl);
+                        };
+                        input.addEventListener("blur", commit);
+                        input.addEventListener("keydown", e => { if (e.key === "Enter") {
+                            e.preventDefault();
+                            commit();
+                        } });
+                    });
+                    const beepBtn = document.createElement("button");
+                    beepBtn.className = "ebc-friend-btn";
+                    beepBtn.textContent = "💬";
+                    beepBtn.title = "Open beep chat";
+                    beepBtn.addEventListener("click", () => this.openBeepWindow(num));
+                    row.appendChild(dot);
+                    row.appendChild(nameEl);
+                    row.appendChild(numEl);
+                    row.appendChild(tagEl);
+                    row.appendChild(beepBtn);
+                    body.appendChild(row);
+                }
             }
         }
         charDisplayName(char) {
@@ -8639,9 +9143,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.5.0";
+    const MOD_VERSION = "0.5.1";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.5.1",
+            changes: [
+                "Friends section in Users tab: lists all BC friends with green (in room) / gray (away) status dot, tag system (click to edit inline), and per-friend beep chat window.",
+                "Beep chat window: floating draggable overlay with conversation history, synced across devices via ExtensionSettings.",
+                "Beep All In Room button: send one message to every friend currently in your room.",
+                "Incoming beeps are recorded to history automatically so the chat window stays up to date.",
+            ],
+        },
         {
             version: "0.5.0",
             changes: [
@@ -9599,6 +10112,26 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
+        });
+        // Record incoming beeps so history is synced across devices and the chat
+        // window can be refreshed live if it happens to be open.
+        tryHookFunction(modAPI, "AccountBeep", 3, (args, next) => {
+            var _a;
+            const result = next(args);
+            try {
+                const [data] = args;
+                const fromNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+                const msg = typeof data.Message === "string" ? data.Message : "";
+                if (fromNum && msg) {
+                    addBeepEntry({ from: fromNum, to: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, message: msg, ts: Date.now() });
+                    try {
+                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                }
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+            return result;
         });
         modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
             try {
