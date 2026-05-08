@@ -4743,7 +4743,7 @@ export class EBCDrawer {
 
         if (isSelf) {
             const selfNote = document.createElement("div");
-            selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1928;padding:2px 4px 4px 18px;";
+            selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c8a84b;padding:2px 4px 4px 18px;";
             selfNote.textContent = "That's you — notes on yourself are not supported.";
             container.appendChild(selfNote);
             return container;
