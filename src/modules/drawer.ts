@@ -6291,10 +6291,56 @@ export class EBCDrawer {
         graceSetRow.appendChild(graceDurUnit);
         inner.appendChild(graceSetRow);
 
+        // Outfit selectors — pick an outfit to auto-apply on yellow / red
+        const makeOutfitRow = (
+            label: string,
+            colorClass: string,
+            getOutfitId: () => string | null,
+            setOutfitId: (id: string | null) => void,
+        ): void => {
+            const outfits = getOutfits();
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${colorClass};flex-shrink:0;width:44px;`;
+            lbl.textContent = label;
+            const sel = document.createElement("select");
+            sel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 5px;outline:none;cursor:pointer;min-width:0;";
+            // None option
+            const noneOpt = document.createElement("option");
+            noneOpt.value = "";
+            noneOpt.textContent = "— none —";
+            sel.appendChild(noneOpt);
+            for (const o of outfits) {
+                const opt = document.createElement("option");
+                opt.value = o.id;
+                opt.textContent = o.displayName;
+                sel.appendChild(opt);
+            }
+            sel.value = getOutfitId() ?? "";
+            sel.addEventListener("change", () => {
+                setOutfitId(sel.value || null);
+            });
+            row.appendChild(lbl);
+            row.appendChild(sel);
+            inner.appendChild(row);
+        };
+
+        makeOutfitRow(
+            "Y outfit:", "#c8b840",
+            () => getSafewordConfig().yellowOutfitId,
+            (id) => setSafewordConfig({ ...getSafewordConfig(), yellowOutfitId: id }),
+        );
+        makeOutfitRow(
+            "R outfit:", "#e06060",
+            () => getSafewordConfig().redOutfitId,
+            (id) => setSafewordConfig({ ...getSafewordConfig(), redOutfitId: id }),
+        );
+
         // Description hint
         const hint = document.createElement("div");
         hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;line-height:1.45;padding:0 1px;";
-        hint.textContent = "Type the Yellow or Red word alone in chat and press Enter to trigger. Yellow releases restraints + starts grace. Red also announces and leaves the room.";
+        hint.textContent = "Type the Yellow or Red word alone in chat and press Enter to trigger. Yellow releases restraints + starts grace. Red also announces and leaves the room. Outfit is applied right after.";
         inner.appendChild(hint);
 
         hdr.addEventListener("click", () => {

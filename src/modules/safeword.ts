@@ -4,11 +4,15 @@
 //
 // Grace period enforcement is hooked into CharacterRefresh in main.ts.
 
+import { applyOutfit, getOutfits } from "./outfitManager";
+
 export interface SafewordConfig {
     enabled: boolean;
-    yellowWord: string;       // exact chat input to match (case-insensitive)
-    redWord: string;          // exact chat input to match (case-insensitive)
-    graceDurationMs: number;  // 0 = indefinite; otherwise milliseconds
+    yellowWord: string;           // exact chat input to match (case-insensitive)
+    redWord: string;              // exact chat input to match (case-insensitive)
+    graceDurationMs: number;      // 0 = indefinite; otherwise milliseconds
+    yellowOutfitId: string | null; // outfit to apply on yellow trigger (null = none)
+    redOutfitId: string | null;    // outfit to apply on red trigger (null = none)
 }
 
 const DEFAULTS: SafewordConfig = {
@@ -16,6 +20,8 @@ const DEFAULTS: SafewordConfig = {
     yellowWord: "yellow",
     redWord: "red",
     graceDurationMs: 300_000,  // 5 minutes
+    yellowOutfitId: null,
+    redOutfitId: null,
 };
 
 function getStore(): Record<string, unknown> {
@@ -28,10 +34,12 @@ export function getSafewordConfig(): SafewordConfig {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULTS };
     const r = raw as Record<string, unknown>;
     return {
-        enabled:        typeof r.enabled        === "boolean" ? r.enabled        : DEFAULTS.enabled,
-        yellowWord:     typeof r.yellowWord     === "string"  ? r.yellowWord     : DEFAULTS.yellowWord,
-        redWord:        typeof r.redWord        === "string"  ? r.redWord        : DEFAULTS.redWord,
-        graceDurationMs:typeof r.graceDurationMs === "number" ? r.graceDurationMs : DEFAULTS.graceDurationMs,
+        enabled:         typeof r.enabled          === "boolean" ? r.enabled          : DEFAULTS.enabled,
+        yellowWord:      typeof r.yellowWord        === "string"  ? r.yellowWord        : DEFAULTS.yellowWord,
+        redWord:         typeof r.redWord           === "string"  ? r.redWord           : DEFAULTS.redWord,
+        graceDurationMs: typeof r.graceDurationMs   === "number"  ? r.graceDurationMs   : DEFAULTS.graceDurationMs,
+        yellowOutfitId:  typeof r.yellowOutfitId    === "string"  ? r.yellowOutfitId    : DEFAULTS.yellowOutfitId,
+        redOutfitId:     typeof r.redOutfitId       === "string"  ? r.redOutfitId       : DEFAULTS.redOutfitId,
     };
 }
 
@@ -148,6 +156,16 @@ export function triggerYellow(): void {
             ],
         });
     } catch { /* ignore */ }
+    // Apply outfit after a short delay so the restraint release syncs first
+    if (cfg.yellowOutfitId) {
+        const id = cfg.yellowOutfitId;
+        window.setTimeout(() => {
+            try {
+                const outfit = getOutfits().find(o => o.id === id);
+                if (outfit) applyOutfit(outfit);
+            } catch { /* ignore */ }
+        }, 150);
+    }
 }
 
 export function triggerRed(): void {
@@ -165,6 +183,16 @@ export function triggerRed(): void {
             ],
         });
     } catch { /* ignore */ }
+    // Apply outfit before leaving
+    if (cfg.redOutfitId) {
+        const id = cfg.redOutfitId;
+        window.setTimeout(() => {
+            try {
+                const outfit = getOutfits().find(o => o.id === id);
+                if (outfit) applyOutfit(outfit);
+            } catch { /* ignore */ }
+        }, 150);
+    }
     window.setTimeout(() => {
         try { ChatRoomLeave(); } catch { /* ignore */ }
     }, 800);
