@@ -10,13 +10,21 @@ import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestraine
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName } from "./modules/friends";
+import { addBeepEntry, cacheName, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.3";
+const MOD_VERSION = "0.5.4";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.5.4",
+        changes: [
+            "Fix: Friends online count and status dots now reflect BC's full online list (not just your current room) — hooks AccountQueryResult OnlineFriends query.",
+            "Friends list sorted: room (bright green) → online elsewhere (yellow-green) → offline (gray).",
+            "Sound notification on incoming beep — short descending tone via Web Audio API.",
+        ],
+    },
     {
         version: "0.5.3",
         changes: [
@@ -707,6 +715,24 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     },
 ];
 
+function playBeepSound(): void {
+    try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.18, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.25);
+        osc.onended = () => ctx.close();
+    } catch { /* ignore — AudioContext may not be available */ }
+}
+
 function appendLocalLogLine(text: string, color = UI.accent): void {
     const log = document.getElementById("TextAreaChatLog");
     if (!log) return;
@@ -1023,6 +1049,7 @@ function init(): void {
                 const name = typeof data.MemberName === "string" ? data.MemberName : null;
                 if (name) { try { cacheName(fromNum, name); } catch { /* ignore */ } }
                 addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
+                try { playBeepSound(); } catch { /* ignore */ }
                 try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
             } catch { /* ignore */ }
         };
@@ -1037,6 +1064,30 @@ function init(): void {
             const num = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
             const name = typeof data.MemberName === "string" ? data.MemberName : null;
             if (num && name) cacheName(num, name);
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Track which friends BC considers online (not just in our room).
+    // BC periodically queries OnlineFriends and calls AccountQueryResult with the list.
+    tryHookFunction(modAPI, "AccountQueryResult", 1, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            if (data.Query === "OnlineFriends") {
+                const results = data.Result as Array<Record<string, unknown>> | undefined;
+                if (Array.isArray(results)) {
+                    const nums: number[] = [];
+                    for (const r of results) {
+                        const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                        const name = typeof r.MemberName === "string" ? r.MemberName : null;
+                        if (n) {
+                            nums.push(n);
+                            if (name) cacheName(n, name);
+                        }
+                    }
+                    updateOnlineFriends(nums);
+                }
+            }
         } catch { /* ignore */ }
         return next(args);
     });

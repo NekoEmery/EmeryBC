@@ -57,7 +57,15 @@ export function getFriendList(): number[] {
     } catch { return []; }
 }
 
-export type FriendStatus = "room" | "away";
+// Set of member numbers BC reports as online (updated via AccountQueryResult hook)
+const onlineSet = new Set<number>();
+
+export function updateOnlineFriends(numbers: number[]): void {
+    onlineSet.clear();
+    for (const n of numbers) onlineSet.add(n);
+}
+
+export type FriendStatus = "room" | "online" | "away";
 
 export function getFriendStatus(memberNumber: number): FriendStatus {
     try {
@@ -65,6 +73,7 @@ export function getFriendStatus(memberNumber: number): FriendStatus {
             Array<{ MemberNumber?: number }> | undefined;
         if (room?.some(c => c.MemberNumber === memberNumber)) return "room";
     } catch { /* ignore */ }
+    if (onlineSet.has(memberNumber)) return "online";
     return "away";
 }
 

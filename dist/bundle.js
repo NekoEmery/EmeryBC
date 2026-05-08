@@ -1802,6 +1802,13 @@
             return [];
         }
     }
+    // Set of member numbers BC reports as online (updated via AccountQueryResult hook)
+    const onlineSet = new Set();
+    function updateOnlineFriends(numbers) {
+        onlineSet.clear();
+        for (const n of numbers)
+            onlineSet.add(n);
+    }
     function getFriendStatus(memberNumber) {
         try {
             const room = window.ChatRoomCharacter;
@@ -1809,6 +1816,8 @@
                 return "room";
         }
         catch ( /* ignore */_a) { /* ignore */ }
+        if (onlineSet.has(memberNumber))
+            return "online";
         return "away";
     }
     // -- Tags ----------------------------------------------------------------------
@@ -3562,8 +3571,9 @@
     border-radius: 50%;
     flex-shrink: 0;
 }
-.ebc-friend-dot.room { background: #4caf50; box-shadow: 0 0 4px #4caf50aa; }
-.ebc-friend-dot.away { background: #555; }
+.ebc-friend-dot.room   { background: #4caf50; box-shadow: 0 0 4px #4caf50aa; }
+.ebc-friend-dot.online { background: #a0cf50; box-shadow: 0 0 4px #a0cf5088; }
+.ebc-friend-dot.away   { background: #555; }
 
 .ebc-friend-name {
     flex: 1;
@@ -7822,7 +7832,7 @@
                 const divF = document.createElement("div");
                 divF.className = "ebc-divider";
                 body.appendChild(divF);
-                const onlineCount = friendList.filter(n => getFriendStatus(n) === "room").length;
+                const onlineCount = friendList.filter(n => getFriendStatus(n) !== "away").length;
                 const lblF = document.createElement("div");
                 lblF.className = "ebc-section-label";
                 lblF.style.cssText = "display:flex;align-items:center;gap:6px;";
@@ -7835,12 +7845,12 @@
                 lblF.appendChild(lblFCount);
                 body.appendChild(lblF);
                 const tags = getFriendTags();
-                // Sort: room first, then alphabetical by name
+                // Sort: room first, online second, away last, then alphabetical
+                const statusOrder = (n) => ({ room: 0, online: 1, away: 2 }[getFriendStatus(n)]);
                 const sorted = [...friendList].sort((a, b) => {
-                    const sa = getFriendStatus(a) === "room" ? 0 : 1;
-                    const sb = getFriendStatus(b) === "room" ? 0 : 1;
-                    if (sa !== sb)
-                        return sa - sb;
+                    const diff = statusOrder(a) - statusOrder(b);
+                    if (diff !== 0)
+                        return diff;
                     return resolveName(a).localeCompare(resolveName(b));
                 });
                 for (const num of sorted) {
@@ -9303,9 +9313,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.5.3";
+    const MOD_VERSION = "0.5.4";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.5.4",
+            changes: [
+                "Fix: Friends online count and status dots now reflect BC's full online list (not just your current room) — hooks AccountQueryResult OnlineFriends query.",
+                "Friends list sorted: room (bright green) → online elsewhere (yellow-green) → offline (gray).",
+                "Sound notification on incoming beep — short descending tone via Web Audio API.",
+            ],
+        },
         {
             version: "0.5.3",
             changes: [
@@ -9995,6 +10013,24 @@
             ],
         },
     ];
+    function playBeepSound() {
+        try {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.18, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.25);
+            osc.onended = () => ctx.close();
+        }
+        catch ( /* ignore — AudioContext may not be available */_a) { /* ignore — AudioContext may not be available */ }
+    }
     function appendLocalLogLine(text, color = UI.accent) {
         const log = document.getElementById("TextAreaChatLog");
         if (!log)
@@ -10324,11 +10360,15 @@
                     }
                     addBeepEntry({ from: fromNum, to: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, message: msg, ts: Date.now() });
                     try {
-                        drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
+                        playBeepSound();
                     }
                     catch ( /* ignore */_c) { /* ignore */ }
+                    try {
+                        drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
+                    }
+                    catch ( /* ignore */_d) { /* ignore */ }
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
             };
             socket === null || socket === void 0 ? void 0 : socket.on("AccountBeep", handleIncomingBeep);
         }
@@ -10342,6 +10382,31 @@
                 const name = typeof data.MemberName === "string" ? data.MemberName : null;
                 if (num && name)
                     cacheName(num, name);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return next(args);
+        });
+        // Track which friends BC considers online (not just in our room).
+        // BC periodically queries OnlineFriends and calls AccountQueryResult with the list.
+        tryHookFunction(modAPI, "AccountQueryResult", 1, (args, next) => {
+            try {
+                const [data] = args;
+                if (data.Query === "OnlineFriends") {
+                    const results = data.Result;
+                    if (Array.isArray(results)) {
+                        const nums = [];
+                        for (const r of results) {
+                            const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                            const name = typeof r.MemberName === "string" ? r.MemberName : null;
+                            if (n) {
+                                nums.push(n);
+                                if (name)
+                                    cacheName(n, name);
+                            }
+                        }
+                        updateOnlineFriends(nums);
+                    }
+                }
             }
             catch ( /* ignore */_a) { /* ignore */ }
             return next(args);

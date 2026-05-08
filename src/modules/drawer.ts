@@ -1378,8 +1378,9 @@ const CSS = `
     border-radius: 50%;
     flex-shrink: 0;
 }
-.ebc-friend-dot.room { background: #4caf50; box-shadow: 0 0 4px #4caf50aa; }
-.ebc-friend-dot.away { background: #555; }
+.ebc-friend-dot.room   { background: #4caf50; box-shadow: 0 0 4px #4caf50aa; }
+.ebc-friend-dot.online { background: #a0cf50; box-shadow: 0 0 4px #a0cf5088; }
+.ebc-friend-dot.away   { background: #555; }
 
 .ebc-friend-name {
     flex: 1;
@@ -6033,7 +6034,7 @@ export class EBCDrawer {
             divF.className = "ebc-divider";
             body.appendChild(divF);
 
-            const onlineCount = friendList.filter(n => getFriendStatus(n) === "room").length;
+            const onlineCount = friendList.filter(n => getFriendStatus(n) !== "away").length;
             const lblF = document.createElement("div");
             lblF.className = "ebc-section-label";
             lblF.style.cssText = "display:flex;align-items:center;gap:6px;";
@@ -6048,11 +6049,11 @@ export class EBCDrawer {
 
             const tags = getFriendTags();
 
-            // Sort: room first, then alphabetical by name
+            // Sort: room first, online second, away last, then alphabetical
+            const statusOrder = (n: number): number => ({ room: 0, online: 1, away: 2 }[getFriendStatus(n)]);
             const sorted = [...friendList].sort((a, b) => {
-                const sa = getFriendStatus(a) === "room" ? 0 : 1;
-                const sb = getFriendStatus(b) === "room" ? 0 : 1;
-                if (sa !== sb) return sa - sb;
+                const diff = statusOrder(a) - statusOrder(b);
+                if (diff !== 0) return diff;
                 return resolveName(a).localeCompare(resolveName(b));
             });
 
