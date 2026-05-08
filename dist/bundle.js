@@ -1582,12 +1582,10 @@
                     break;
                 case "equip":
                     if (step.group && step.assetName) {
-                        InventoryAdd(Player, step.assetName, step.group, false);
-                        if (step.color !== undefined) {
-                            const item = InventoryGet(Player, step.group);
-                            if (item)
-                                item.Color = step.color;
-                        }
+                        // InventoryWear actually puts the item on the character;
+                        // InventoryAdd only adds to the wardrobe (never appears worn).
+                        const color = step.color;
+                        InventoryWear(Player, step.assetName, step.group, color, undefined, Player.MemberNumber);
                         // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
                         // see the newly-added restraint as "unknown" and immediately strip it.
                         snapshotPlayerRestraints();
@@ -6451,12 +6449,12 @@
                 const selHex = document.createElement("span");
                 selHex.className = "ebc-sel-hex";
                 const selHint = document.createElement("span");
-                selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;flex:1;";
+                selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;flex:1;";
                 selHint.textContent = "No colour selected";
                 const editPickerBtn = document.createElement("button");
                 editPickerBtn.className = "ebc-wear-btn";
                 editPickerBtn.style.cssText = "font-size:8px;padding:1px 7px;flex-shrink:0;";
-                editPickerBtn.textContent = "Edit v";
+                editPickerBtn.textContent = "🎨 Colour ▾";
                 const clrBtn = document.createElement("button");
                 clrBtn.textContent = "x";
                 clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#5a3a4a;cursor:pointer;flex-shrink:0;display:none;";
@@ -6507,14 +6505,14 @@
                 editPickerBtn.addEventListener("click", () => {
                     pickerOpen = !pickerOpen;
                     pickerPanel.style.display = pickerOpen ? "flex" : "none";
-                    editPickerBtn.textContent = pickerOpen ? "Close ^" : "Edit v";
+                    editPickerBtn.textContent = pickerOpen ? "▴ Close" : "🎨 Colour ▾";
                 });
                 // Exposed to zone rows so they can open the picker when no colour is selected
                 openPicker = () => {
                     if (!pickerOpen) {
                         pickerOpen = true;
                         pickerPanel.style.display = "flex";
-                        editPickerBtn.textContent = "Close ^";
+                        editPickerBtn.textContent = "▴ Close";
                     }
                 };
                 updateSelBar = () => {
@@ -7705,11 +7703,12 @@
                     labelInp.placeholder = "Label";
                     labelInp.value = btn.label;
                     labelInp.title = "Button label (max 6 chars)";
-                    // Colour preview dot + hex text input (replaces native OS color picker)
+                    // Colour preview dot + hex text input; dot opens floating picker
                     const colorWrap = document.createElement("span");
                     colorWrap.style.cssText = "display:inline-flex;align-items:center;gap:3px;flex-shrink:0;";
                     const colorDot = document.createElement("span");
-                    colorDot.style.cssText = `width:14px;height:14px;border-radius:3px;border:1px solid #3a1928;flex-shrink:0;background:${normalizeHex(btn.color)};`;
+                    colorDot.style.cssText = `width:14px;height:14px;border-radius:3px;border:1px solid #5a2a3e;flex-shrink:0;background:${normalizeHex(btn.color)};cursor:pointer;`;
+                    colorDot.title = "Click to open colour picker";
                     const colorInp = document.createElement("input");
                     colorInp.className = "ebc-slot-color";
                     colorInp.type = "text";
@@ -7720,6 +7719,55 @@
                     colorInp.style.cssText = "width:52px;font-size:8px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
                     colorWrap.appendChild(colorDot);
                     colorWrap.appendChild(colorInp);
+                    // Floating picker popup — created on demand, one per slot at a time
+                    let slotPickerPopup = null;
+                    let slotPickerCleanup = null;
+                    const closeSlotPicker = () => {
+                        if (slotPickerPopup) {
+                            slotPickerCleanup === null || slotPickerCleanup === void 0 ? void 0 : slotPickerCleanup();
+                            slotPickerCleanup = null;
+                            slotPickerPopup.remove();
+                            slotPickerPopup = null;
+                        }
+                    };
+                    colorDot.addEventListener("click", (e) => {
+                        var _a;
+                        e.stopPropagation();
+                        if (slotPickerPopup) {
+                            closeSlotPicker();
+                            return;
+                        }
+                        const popup = document.createElement("div");
+                        popup.style.cssText = "position:fixed;z-index:100000;background:#1b0d17;border:1px solid #5a2a3e;border-radius:8px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,0.7);";
+                        const pw = this.buildColorPickerWidget((_a = btns[i].color) !== null && _a !== void 0 ? _a : "#cf6f98", (hex) => {
+                            btns[i].color = hex;
+                            colorDot.style.background = hex;
+                            colorInp.value = hex;
+                            colorInp.style.color = "#f7e6ee";
+                        });
+                        const wpw = pw;
+                        slotPickerCleanup = wpw._cleanup;
+                        const doneBtn = document.createElement("button");
+                        doneBtn.className = "ebc-wear-btn";
+                        doneBtn.style.cssText = "width:100%;margin-top:6px;";
+                        doneBtn.textContent = "✓ Done";
+                        doneBtn.addEventListener("click", closeSlotPicker);
+                        popup.appendChild(pw);
+                        popup.appendChild(doneBtn);
+                        const rect = colorDot.getBoundingClientRect();
+                        popup.style.top = Math.min(rect.bottom + 4, window.innerHeight - 280) + "px";
+                        popup.style.left = Math.max(4, Math.min(rect.left, window.innerWidth - 220)) + "px";
+                        document.body.appendChild(popup);
+                        slotPickerPopup = popup;
+                        // Close when clicking outside the popup
+                        const onOutside = (ev) => {
+                            if (!popup.contains(ev.target)) {
+                                closeSlotPicker();
+                                document.removeEventListener("click", onOutside, true);
+                            }
+                        };
+                        window.setTimeout(() => document.addEventListener("click", onOutside, true), 80);
+                    });
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-slot-del";
                     delBtn.textContent = "x";
@@ -11733,9 +11781,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.8.3";
+    const MOD_VERSION = "0.8.5";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.8.5",
+            changes: [
+                "Fix: Scene Equip steps now actually wear the item. Was calling InventoryAdd (adds to wardrobe) instead of InventoryWear (puts item on character). Color is now passed directly to InventoryWear.",
+                "Fix: Action button colour dot is now clickable — opens a floating colour picker popup. Click the dot to pick, click Done or outside to close.",
+                "UI: 'No colour selected' hint text is now readable (was nearly invisible dark pink).",
+                "UI: Colour picker toggle renamed from 'Edit v'/'Close ^' to '🎨 Colour ▾'/'▴ Close' for clarity.",
+            ],
+        },
         {
             version: "0.8.3",
             changes: [

@@ -77,11 +77,10 @@ function executeStep(step: SceneStep): void {
                 break;
             case "equip":
                 if (step.group && step.assetName) {
-                    InventoryAdd(Player, step.assetName, step.group, false);
-                    if (step.color !== undefined) {
-                        const item = InventoryGet(Player, step.group);
-                        if (item) (item as unknown as Record<string, unknown>).Color = step.color;
-                    }
+                    // InventoryWear actually puts the item on the character;
+                    // InventoryAdd only adds to the wardrobe (never appears worn).
+                    const color = step.color as string | string[] | undefined;
+                    InventoryWear(Player, step.assetName, step.group, color, undefined, Player.MemberNumber);
                     // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
                     // see the newly-added restraint as "unknown" and immediately strip it.
                     snapshotPlayerRestraints();
