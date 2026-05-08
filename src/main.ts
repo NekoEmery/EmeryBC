@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "1.0.1";
+const MOD_VERSION = "1.0.2";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.0.2",
+        changes: [
+            "Beep chat: message timestamps now include the date for messages from previous days (e.g. '9 May · 14:32'). Today's messages still show just the time.",
+        ],
+    },
     {
         version: "1.0.1",
         changes: [

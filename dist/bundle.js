@@ -10248,7 +10248,16 @@
                     const ts = document.createElement("div");
                     ts.className = "ebc-beep-ts";
                     const d = new Date(e.ts);
-                    ts.textContent = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                    const now = new Date();
+                    const timeStr = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                    const isToday = d.getFullYear() === now.getFullYear()
+                        && d.getMonth() === now.getMonth()
+                        && d.getDate() === now.getDate();
+                    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    const dateStr = isToday
+                        ? timeStr
+                        : `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? " " + d.getFullYear() : ""} · ${timeStr}`;
+                    ts.textContent = dateStr;
                     bubble.appendChild(ts);
                     // Strip embedded JSON metadata appended by other mods (WCE, FBC, etc.)
                     const cleanMsg = stripBeepMetadata(e.message);
@@ -12706,9 +12715,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "1.0.1";
+    const MOD_VERSION = "1.0.2";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.0.2",
+            changes: [
+                "Beep chat: message timestamps now include the date for messages from previous days (e.g. '9 May · 14:32'). Today's messages still show just the time.",
+            ],
+        },
         {
             version: "1.0.1",
             changes: [
