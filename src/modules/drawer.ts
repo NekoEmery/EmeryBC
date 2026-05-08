@@ -6324,8 +6324,11 @@ export class EBCDrawer {
                 if (!Array.isArray(bcAsset)) return { types: [], varHeight: null };
                 const a = bcAsset.find(x =>
                     (x.Group as Record<string, unknown>)?.Name === groupName && x.Name === assetName);
-                console.log("[EmeryBC] asset found:", !!a, a);
+                console.log("[EmeryBC] asset found:", !!a);
                 if (!a) return { types: [], varHeight: null };
+                console.log("[EmeryBC] asset keys:", Object.keys(a));
+                console.log("[EmeryBC] AllowType:", a.AllowType, "| Extended:", a.Extended, "| Archetype:", a.Archetype, "| Config:", a.Config, "| Options:", a.Options);
+                console.log("[EmeryBC] DynamicAfterLoad:", a.DynamicAfterLoad, "| DynamicBeforeDraw:", a.DynamicBeforeDraw, "| Extended full:", JSON.stringify(a.Extended));
 
                 // ── Type variants ─────────────────────────────────────────────
                 let types: string[] = [];

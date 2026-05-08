@@ -9049,9 +9049,12 @@
                     if (!Array.isArray(bcAsset))
                         return { types: [], varHeight: null };
                     const a = bcAsset.find(x => { var _a; return ((_a = x.Group) === null || _a === void 0 ? void 0 : _a.Name) === groupName && x.Name === assetName; });
-                    console.log("[EmeryBC] asset found:", !!a, a);
+                    console.log("[EmeryBC] asset found:", !!a);
                     if (!a)
                         return { types: [], varHeight: null };
+                    console.log("[EmeryBC] asset keys:", Object.keys(a));
+                    console.log("[EmeryBC] AllowType:", a.AllowType, "| Extended:", a.Extended, "| Archetype:", a.Archetype, "| Config:", a.Config, "| Options:", a.Options);
+                    console.log("[EmeryBC] DynamicAfterLoad:", a.DynamicAfterLoad, "| DynamicBeforeDraw:", a.DynamicBeforeDraw, "| Extended full:", JSON.stringify(a.Extended));
                     // ── Type variants ─────────────────────────────────────────────
                     let types = [];
                     const pickNames = (arr) => Array.isArray(arr)
