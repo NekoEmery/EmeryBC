@@ -3,6 +3,7 @@
 
 import { applyPoses } from "./poses";
 import { getDisplayName } from "./actionButtons";
+import { snapshotPlayerRestraints } from "./antiRestraint";
 
 export type StepType = "pose" | "equip" | "unequip" | "emote" | "chat" | "wait";
 
@@ -81,6 +82,9 @@ function executeStep(step: SceneStep): void {
                         const item = InventoryGet(Player, step.group);
                         if (item) (item as unknown as Record<string, unknown>).Color = step.color;
                     }
+                    // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
+                    // see the newly-added restraint as "unknown" and immediately strip it.
+                    snapshotPlayerRestraints();
                     CharacterRefresh(Player, false);
                     ChatRoomCharacterUpdate(Player);
                     ServerPlayerAppearanceSync();
@@ -100,7 +104,7 @@ function executeStep(step: SceneStep): void {
                         Type: "Action",
                         Content: getDisplayName() + " " + step.text.trim(),
                         Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                             { SourceCharacter: Player.MemberNumber },
                         ],
                     });
@@ -108,10 +112,24 @@ function executeStep(step: SceneStep): void {
                 break;
             case "chat":
                 if (step.text?.trim()) {
-                    let msg = step.text.trim();
-                    if (step.chatFormat === "*") msg = `*${msg}*`;
-                    else if (step.chatFormat === "(") msg = `(${msg})`;
-                    ServerSend("ChatRoomChat", { Type: "Chat", Content: msg });
+                    const txt = step.text.trim();
+                    if (step.chatFormat === "*") {
+                        // Emote-style action — same format as nod/giggle buttons
+                        ServerSend("ChatRoomChat", {
+                            Type: "Action",
+                            Content: getDisplayName() + " " + txt,
+                            Dictionary: [
+                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                                { SourceCharacter: Player.MemberNumber },
+                            ],
+                        });
+                    } else if (step.chatFormat === "(") {
+                        // OOC — plain chat with parentheses
+                        ServerSend("ChatRoomChat", { Type: "Chat", Content: `(${txt})` });
+                    } else {
+                        // Plain speech
+                        ServerSend("ChatRoomChat", { Type: "Chat", Content: txt });
+                    }
                 }
                 break;
             case "wait":

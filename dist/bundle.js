@@ -1086,20 +1086,364 @@
         return true;
     }
 
+    // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
+    function getStore$5() {
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    // -- Badge visibility ----------------------------------------------------------
+    // Controls whether the EBC overhead badge is broadcast to other users.
+    // Defaults to true (badge shown). Setting to false clears presence from
+    // OnlineSharedSettings so no one else renders the tag above your head.
+    function getBadgeEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
+        }
+        catch (_b) {
+            return true; // safe default
+        }
+    }
+    function setBadgeEnabled(value) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.badgeEnabled = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Version badge visibility --------------------------------------------------
+    // When enabled, the overhead EBC badge shows the player's EBC version number.
+    // Defaults to false (badge shows just "EBC").
+    function getShowVersionBadge() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setShowVersionBadge(value) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.showVersionBadge = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Anti-restraint -----------------------------------------------------------
+    // When enabled, any restraint applied to the player by someone else is
+    // immediately removed and a playful emote is sent to the room.
+    function getAntiRestraintEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAntiRestraintEnabled(value) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.antiRestraint = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Anti-restraint whitelist --------------------------------------------------
+    // Group names that auto-escape will never touch, even when applied by others.
+    // Populated by the user from the Settings UI while wearing the items.
+    function getAntiRestraintWhitelist() {
+        var _a;
+        try {
+            const list = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function setAntiRestraintWhitelist(groups) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.antiRestraintWhitelist = groups;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function addToAntiRestraintWhitelist(group) {
+        const list = getAntiRestraintWhitelist();
+        if (!list.includes(group))
+            setAntiRestraintWhitelist([...list, group]);
+    }
+    function removeFromAntiRestraintWhitelist(group) {
+        setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
+    }
+    // -- Anti-restraint confirm dialog ---------------------------------------------
+    // When enabled, shows a confirm() prompt before auto-escaping so the user
+    // can choose to accept the restraint instead. Off by default.
+    function getAntiRestraintConfirm() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAntiRestraintConfirm(value) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.antiRestraintConfirm = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Suppress native beep notification ----------------------------------------
+    // When on (default), plain beeps handled by our IM don't also show in BC's
+    // main chat log. Game beeps (friend requests etc.) always pass through.
+    function getSuppressNativeBeep() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setSuppressNativeBeep(value) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.suppressNativeBeep = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Beep mute -----------------------------------------------------------------
+    function getBeepMuted() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setBeepMuted(value) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.beepMuted = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+
+    // Anti-restraint — when enabled, any restraint applied to the player by
+    // another character is immediately removed and a glare emote is sent.
+    // Whitelisted groups are always kept even if applied by others.
+    // Removal is attempted up to 2 times per group before giving up (locked items).
+    // Show a custom in-game overlay rather than window.confirm (which can be
+    // suppressed by some browsers / userscript sandboxes).
+    function showEscapePrompt(itemName, restrainer, onKeep, onEscape) {
+        const overlay = document.createElement("div");
+        overlay.style.cssText = [
+            "position:fixed", "top:50%", "left:50%",
+            "transform:translate(-50%,-50%)",
+            "background:#130810", "border:2px solid #cf6f98",
+            "border-radius:10px", "padding:18px 22px",
+            "z-index:999999", "font-family:'Trebuchet MS',serif",
+            "min-width:250px", "max-width:320px",
+            "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
+            "display:flex", "flex-direction:column", "gap:12px",
+        ].join(";");
+        const who = restrainer ? `<b style="color:#f7e6ee">${restrainer}</b> is` : "Someone is";
+        const msg = document.createElement("div");
+        msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;";
+        msg.innerHTML = `${who} applying <b style="color:#f7e6ee">${itemName}</b> on you.<br>What would you like to do?`;
+        overlay.appendChild(msg);
+        const btns = document.createElement("div");
+        btns.style.cssText = "display:flex;gap:8px;";
+        const keepBtn = document.createElement("button");
+        keepBtn.textContent = "Keep it";
+        keepBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #79a885;background:#0f2a1a;color:#79a885;";
+        keepBtn.addEventListener("click", () => { overlay.remove(); onKeep(); });
+        const escBtn = document.createElement("button");
+        escBtn.textContent = "Escape!";
+        escBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
+        escBtn.addEventListener("click", () => { overlay.remove(); onEscape(); });
+        btns.appendChild(keepBtn);
+        btns.appendChild(escBtn);
+        overlay.appendChild(btns);
+        document.body.appendChild(overlay);
+    }
+    let lastRestrainerName = null;
+    function recordRestrainer(sourceMemberNumber) {
+        var _a;
+        try {
+            const room = window.ChatRoomCharacter;
+            const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === sourceMemberNumber);
+            if (!char)
+                return;
+            lastRestrainerName =
+                ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) ||
+                    char.Name ||
+                    null;
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    let knownRestraints = new Set();
+    let escaping = false;
+    // Tracks failed removal attempts per group. Items here are NOT merged into
+    // knownRestraints so they remain detectable for a retry.
+    const failAttempts = new Map();
+    function snapshotPlayerRestraints() {
+        try {
+            knownRestraints = new Set(Player.Appearance
+                .filter((i) => i.Asset.Group.IsRestraint)
+                .map((i) => i.Asset.Group.Name));
+            failAttempts.clear();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // Merge currently worn restraint groups into knownRestraints, but skip groups
+    // that still have pending retry attempts — they need to stay detectable.
+    function mergeCurrentRestraints() {
+        try {
+            Player.Appearance
+                .filter((i) => i.Asset.Group.IsRestraint && !failAttempts.has(i.Asset.Group.Name))
+                .forEach((i) => knownRestraints.add(i.Asset.Group.Name));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function antiRestraintOnPlayerRefresh() {
+        if (escaping)
+            return;
+        if (!getAntiRestraintEnabled())
+            return;
+        try {
+            const whitelist = getAntiRestraintWhitelist();
+            const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
+            const candidates = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name) &&
+                !whitelist.includes(i.Asset.Group.Name));
+            // Promote items that have hit the retry limit: add to known and drop them.
+            for (const item of candidates.filter(i => { var _a; return ((_a = failAttempts.get(i.Asset.Group.Name)) !== null && _a !== void 0 ? _a : 0) >= 2; })) {
+                knownRestraints.add(item.Asset.Group.Name);
+                failAttempts.delete(item.Asset.Group.Name);
+            }
+            const newItems = candidates.filter((i) => !knownRestraints.has(i.Asset.Group.Name));
+            if (newItems.length === 0)
+                return;
+            escaping = true;
+            const firstItem = newItems[0];
+            const itemName = firstItem.Asset.Description
+                || firstItem.Asset.Name
+                || "restraint";
+            const restrainer = lastRestrainerName;
+            lastRestrainerName = null;
+            // Confirm dialog — show a custom overlay and handle accept/escape via callbacks.
+            if (getAntiRestraintConfirm()) {
+                showEscapePrompt(itemName, restrainer, () => {
+                    // Keep — add to known so anti-escape ignores them
+                    for (const item of newItems)
+                        knownRestraints.add(item.Asset.Group.Name);
+                    escaping = false;
+                }, () => {
+                    // Escape — proceed with removal
+                    doEscape(newItems, restrainer, itemName);
+                });
+                return; // escaping stays true until one of the callbacks fires
+            }
+            doEscape(newItems, restrainer, itemName);
+        }
+        catch (_a) {
+            escaping = false;
+        }
+    }
+    function doEscape(newItems, restrainer, itemName) {
+        var _a;
+        for (const item of newItems) {
+            try {
+                InventoryRemove(Player, item.Asset.Group.Name, false);
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        const stillPresent = new Set(Player.Appearance
+            .filter((i) => i.Asset.Group.IsRestraint)
+            .map((i) => i.Asset.Group.Name));
+        let anySucceeded = false;
+        for (const item of newItems) {
+            const group = item.Asset.Group.Name;
+            if (stillPresent.has(group)) {
+                failAttempts.set(group, ((_a = failAttempts.get(group)) !== null && _a !== void 0 ? _a : 0) + 1);
+            }
+            else {
+                anySucceeded = true;
+                failAttempts.delete(group);
+            }
+        }
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+        mergeCurrentRestraints();
+        window.setTimeout(() => {
+            try {
+                if (anySucceeded) {
+                    const text = restrainer
+                        ? `glares at ${restrainer} as the ${itemName} falls away.`
+                        : `glares ahead as the ${itemName} falls away.`;
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: Player.Name + " " + text,
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            escaping = false;
+        }, 200);
+    }
+
     // Scene sequencer — chain pose changes, item equips/unequips, emotes and
     // waits into a named sequence that plays back step by step with per-step timing.
-    function getStore$5() {
+    function getStore$4() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function uid$1() { return Math.random().toString(36).slice(2, 9); }
     function load() {
-        const raw = getStore$5().scenes;
+        const raw = getStore$4().scenes;
         return Array.isArray(raw) ? raw : [];
     }
     function saveScenes(list) {
-        getStore$5().scenes = list;
+        getStore$4().scenes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getScenes() { return load(); }
@@ -1141,6 +1485,9 @@
                             if (item)
                                 item.Color = step.color;
                         }
+                        // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
+                        // see the newly-added restraint as "unknown" and immediately strip it.
+                        snapshotPlayerRestraints();
                         CharacterRefresh(Player, false);
                         ChatRoomCharacterUpdate(Player);
                         ServerPlayerAppearanceSync();
@@ -1160,7 +1507,7 @@
                             Type: "Action",
                             Content: getDisplayName() + " " + step.text.trim(),
                             Dictionary: [
-                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                                 { SourceCharacter: Player.MemberNumber },
                             ],
                         });
@@ -1168,12 +1515,26 @@
                     break;
                 case "chat":
                     if ((_c = step.text) === null || _c === void 0 ? void 0 : _c.trim()) {
-                        let msg = step.text.trim();
-                        if (step.chatFormat === "*")
-                            msg = `*${msg}*`;
-                        else if (step.chatFormat === "(")
-                            msg = `(${msg})`;
-                        ServerSend("ChatRoomChat", { Type: "Chat", Content: msg });
+                        const txt = step.text.trim();
+                        if (step.chatFormat === "*") {
+                            // Emote-style action — same format as nod/giggle buttons
+                            ServerSend("ChatRoomChat", {
+                                Type: "Action",
+                                Content: getDisplayName() + " " + txt,
+                                Dictionary: [
+                                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                                    { SourceCharacter: Player.MemberNumber },
+                                ],
+                            });
+                        }
+                        else if (step.chatFormat === "(") {
+                            // OOC — plain chat with parentheses
+                            ServerSend("ChatRoomChat", { Type: "Chat", Content: `(${txt})` });
+                        }
+                        else {
+                            // Plain speech
+                            ServerSend("ChatRoomChat", { Type: "Chat", Content: txt });
+                        }
                     }
                     break;
                 case "wait":
@@ -1355,13 +1716,13 @@
     }
 
     // Private character notes — stored locally in Player.ExtensionSettings, never shared.
-    function getStore$4() {
+    function getStore$3() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getNotes() {
-        const raw = getStore$4().characterNotes;
+        const raw = getStore$3().characterNotes;
         return (raw && typeof raw === "object" && !Array.isArray(raw))
             ? raw
             : {};
@@ -1375,7 +1736,7 @@
         else {
             delete notes[key];
         }
-        getStore$4().characterNotes = notes;
+        getStore$3().characterNotes = notes;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
 
@@ -1517,350 +1878,6 @@
         ChatRoomCharacterUpdate(Player);
         ServerPlayerAppearanceSync();
         localNotice(`Removed ${unlocked} lock(s).`, UI.gold);
-    }
-
-    // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
-    function getStore$3() {
-        try {
-            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
-                return null;
-            if (!Player.ExtensionSettings.EmeryBC)
-                Player.ExtensionSettings.EmeryBC = {};
-            return Player.ExtensionSettings.EmeryBC;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    // -- Badge visibility ----------------------------------------------------------
-    // Controls whether the EBC overhead badge is broadcast to other users.
-    // Defaults to true (badge shown). Setting to false clears presence from
-    // OnlineSharedSettings so no one else renders the tag above your head.
-    function getBadgeEnabled() {
-        var _a;
-        try {
-            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
-        }
-        catch (_b) {
-            return true; // safe default
-        }
-    }
-    function setBadgeEnabled(value) {
-        try {
-            const store = getStore$3();
-            if (!store)
-                return;
-            store.badgeEnabled = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Version badge visibility --------------------------------------------------
-    // When enabled, the overhead EBC badge shows the player's EBC version number.
-    // Defaults to false (badge shows just "EBC").
-    function getShowVersionBadge() {
-        var _a;
-        try {
-            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setShowVersionBadge(value) {
-        try {
-            const store = getStore$3();
-            if (!store)
-                return;
-            store.showVersionBadge = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Anti-restraint -----------------------------------------------------------
-    // When enabled, any restraint applied to the player by someone else is
-    // immediately removed and a playful emote is sent to the room.
-    function getAntiRestraintEnabled() {
-        var _a;
-        try {
-            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setAntiRestraintEnabled(value) {
-        try {
-            const store = getStore$3();
-            if (!store)
-                return;
-            store.antiRestraint = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Anti-restraint whitelist --------------------------------------------------
-    // Group names that auto-escape will never touch, even when applied by others.
-    // Populated by the user from the Settings UI while wearing the items.
-    function getAntiRestraintWhitelist() {
-        var _a;
-        try {
-            const list = (_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
-            return Array.isArray(list) ? list : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function setAntiRestraintWhitelist(groups) {
-        try {
-            const store = getStore$3();
-            if (!store)
-                return;
-            store.antiRestraintWhitelist = groups;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function addToAntiRestraintWhitelist(group) {
-        const list = getAntiRestraintWhitelist();
-        if (!list.includes(group))
-            setAntiRestraintWhitelist([...list, group]);
-    }
-    function removeFromAntiRestraintWhitelist(group) {
-        setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
-    }
-    // -- Anti-restraint confirm dialog ---------------------------------------------
-    // When enabled, shows a confirm() prompt before auto-escaping so the user
-    // can choose to accept the restraint instead. Off by default.
-    function getAntiRestraintConfirm() {
-        var _a;
-        try {
-            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setAntiRestraintConfirm(value) {
-        try {
-            const store = getStore$3();
-            if (!store)
-                return;
-            store.antiRestraintConfirm = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Suppress native beep notification ----------------------------------------
-    // When on (default), plain beeps handled by our IM don't also show in BC's
-    // main chat log. Game beeps (friend requests etc.) always pass through.
-    function getSuppressNativeBeep() {
-        var _a;
-        try {
-            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
-        }
-        catch (_b) {
-            return true;
-        }
-    }
-    function setSuppressNativeBeep(value) {
-        try {
-            const store = getStore$3();
-            if (!store)
-                return;
-            store.suppressNativeBeep = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Beep mute -----------------------------------------------------------------
-    function getBeepMuted() {
-        var _a;
-        try {
-            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setBeepMuted(value) {
-        try {
-            const store = getStore$3();
-            if (!store)
-                return;
-            store.beepMuted = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-
-    // Anti-restraint — when enabled, any restraint applied to the player by
-    // another character is immediately removed and a glare emote is sent.
-    // Whitelisted groups are always kept even if applied by others.
-    // Removal is attempted up to 2 times per group before giving up (locked items).
-    // Show a custom in-game overlay rather than window.confirm (which can be
-    // suppressed by some browsers / userscript sandboxes).
-    function showEscapePrompt(itemName, restrainer, onKeep, onEscape) {
-        const overlay = document.createElement("div");
-        overlay.style.cssText = [
-            "position:fixed", "top:50%", "left:50%",
-            "transform:translate(-50%,-50%)",
-            "background:#130810", "border:2px solid #cf6f98",
-            "border-radius:10px", "padding:18px 22px",
-            "z-index:999999", "font-family:'Trebuchet MS',serif",
-            "min-width:250px", "max-width:320px",
-            "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
-            "display:flex", "flex-direction:column", "gap:12px",
-        ].join(";");
-        const who = restrainer ? `<b style="color:#f7e6ee">${restrainer}</b> is` : "Someone is";
-        const msg = document.createElement("div");
-        msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;";
-        msg.innerHTML = `${who} applying <b style="color:#f7e6ee">${itemName}</b> on you.<br>What would you like to do?`;
-        overlay.appendChild(msg);
-        const btns = document.createElement("div");
-        btns.style.cssText = "display:flex;gap:8px;";
-        const keepBtn = document.createElement("button");
-        keepBtn.textContent = "Keep it";
-        keepBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #79a885;background:#0f2a1a;color:#79a885;";
-        keepBtn.addEventListener("click", () => { overlay.remove(); onKeep(); });
-        const escBtn = document.createElement("button");
-        escBtn.textContent = "Escape!";
-        escBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
-        escBtn.addEventListener("click", () => { overlay.remove(); onEscape(); });
-        btns.appendChild(keepBtn);
-        btns.appendChild(escBtn);
-        overlay.appendChild(btns);
-        document.body.appendChild(overlay);
-    }
-    let lastRestrainerName = null;
-    function recordRestrainer(sourceMemberNumber) {
-        var _a;
-        try {
-            const room = window.ChatRoomCharacter;
-            const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === sourceMemberNumber);
-            if (!char)
-                return;
-            lastRestrainerName =
-                ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) ||
-                    char.Name ||
-                    null;
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
-    }
-    let knownRestraints = new Set();
-    let escaping = false;
-    // Tracks failed removal attempts per group. Items here are NOT merged into
-    // knownRestraints so they remain detectable for a retry.
-    const failAttempts = new Map();
-    function snapshotPlayerRestraints() {
-        try {
-            knownRestraints = new Set(Player.Appearance
-                .filter((i) => i.Asset.Group.IsRestraint)
-                .map((i) => i.Asset.Group.Name));
-            failAttempts.clear();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // Merge currently worn restraint groups into knownRestraints, but skip groups
-    // that still have pending retry attempts — they need to stay detectable.
-    function mergeCurrentRestraints() {
-        try {
-            Player.Appearance
-                .filter((i) => i.Asset.Group.IsRestraint && !failAttempts.has(i.Asset.Group.Name))
-                .forEach((i) => knownRestraints.add(i.Asset.Group.Name));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function antiRestraintOnPlayerRefresh() {
-        if (escaping)
-            return;
-        if (!getAntiRestraintEnabled())
-            return;
-        try {
-            const whitelist = getAntiRestraintWhitelist();
-            const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
-            const candidates = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name) &&
-                !whitelist.includes(i.Asset.Group.Name));
-            // Promote items that have hit the retry limit: add to known and drop them.
-            for (const item of candidates.filter(i => { var _a; return ((_a = failAttempts.get(i.Asset.Group.Name)) !== null && _a !== void 0 ? _a : 0) >= 2; })) {
-                knownRestraints.add(item.Asset.Group.Name);
-                failAttempts.delete(item.Asset.Group.Name);
-            }
-            const newItems = candidates.filter((i) => !knownRestraints.has(i.Asset.Group.Name));
-            if (newItems.length === 0)
-                return;
-            escaping = true;
-            const firstItem = newItems[0];
-            const itemName = firstItem.Asset.Description
-                || firstItem.Asset.Name
-                || "restraint";
-            const restrainer = lastRestrainerName;
-            lastRestrainerName = null;
-            // Confirm dialog — show a custom overlay and handle accept/escape via callbacks.
-            if (getAntiRestraintConfirm()) {
-                showEscapePrompt(itemName, restrainer, () => {
-                    // Keep — add to known so anti-escape ignores them
-                    for (const item of newItems)
-                        knownRestraints.add(item.Asset.Group.Name);
-                    escaping = false;
-                }, () => {
-                    // Escape — proceed with removal
-                    doEscape(newItems, restrainer, itemName);
-                });
-                return; // escaping stays true until one of the callbacks fires
-            }
-            doEscape(newItems, restrainer, itemName);
-        }
-        catch (_a) {
-            escaping = false;
-        }
-    }
-    function doEscape(newItems, restrainer, itemName) {
-        var _a;
-        for (const item of newItems) {
-            try {
-                InventoryRemove(Player, item.Asset.Group.Name, false);
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
-        }
-        const stillPresent = new Set(Player.Appearance
-            .filter((i) => i.Asset.Group.IsRestraint)
-            .map((i) => i.Asset.Group.Name));
-        let anySucceeded = false;
-        for (const item of newItems) {
-            const group = item.Asset.Group.Name;
-            if (stillPresent.has(group)) {
-                failAttempts.set(group, ((_a = failAttempts.get(group)) !== null && _a !== void 0 ? _a : 0) + 1);
-            }
-            else {
-                anySucceeded = true;
-                failAttempts.delete(group);
-            }
-        }
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
-        mergeCurrentRestraints();
-        window.setTimeout(() => {
-            try {
-                if (anySucceeded) {
-                    const text = restrainer
-                        ? `glares at ${restrainer} as the ${itemName} falls away.`
-                        : `glares ahead as the ${itemName} falls away.`;
-                    ServerSend("ChatRoomChat", {
-                        Type: "Action",
-                        Content: Player.Name + " " + text,
-                        Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                            { SourceCharacter: Player.MemberNumber },
-                        ],
-                    });
-                }
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            escaping = false;
-        }, 200);
     }
 
     // Friends system — tags, beep history, name cache.
@@ -10822,9 +10839,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.7.0";
+    const MOD_VERSION = "0.7.1";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.7.1",
+            changes: [
+                "Fix: Scene equip steps now work correctly — the anti-restraint system's known-restraint snapshot is updated immediately after equipping so it no longer strips the item back off.",
+                "Fix: Scene chat steps with the '* *' format now send as BC action messages (same format as nod/giggle buttons) instead of plain chat. OOC '( )' and plain chat remain as regular chat messages.",
+            ],
+        },
         {
             version: "0.7.0",
             changes: [
