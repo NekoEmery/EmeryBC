@@ -5946,35 +5946,30 @@ export class EBCDrawer {
         refreshMuteBtn();
         muteBtn.addEventListener("click", () => { setBeepMuted(!getBeepMuted()); refreshMuteBtn(); });
 
-        // Suppress-in-BC-chat toggle — chat icon with a red slash when suppressed (default)
+        // Suppress-in-BC-chat toggle — SVG chat bubble, slash through it when suppressed (default)
         const suppressBtn = document.createElement("button");
         suppressBtn.className = "ebc-beep-win-hbtn";
-        const suppressIconWrap = document.createElement("span");
-        suppressIconWrap.style.cssText = "position:relative;display:inline-block;line-height:1;pointer-events:none;";
-        const suppressIconEmoji = document.createElement("span");
-        suppressIconEmoji.textContent = "💬";
-        const suppressSlash = document.createElement("span");
-        suppressSlash.style.cssText = "position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);width:140%;height:2.5px;background:#ff5060;border-radius:2px;pointer-events:none;box-shadow:0 0 4px #ff5060cc;";
-        suppressIconWrap.appendChild(suppressIconEmoji);
-        suppressIconWrap.appendChild(suppressSlash);
-        suppressBtn.appendChild(suppressIconWrap);
-        suppressBtn.style.cssText = "background:#2a0e1e;border-radius:5px;cursor:pointer;line-height:1;padding:4px 8px;flex-shrink:0;font-size:15px;transition:background 0.12s,border-color 0.12s;";
+        suppressBtn.style.cssText = "background:#2a0e1e;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
         const refreshSuppressBtn = (): void => {
             const suppressed = getSuppressNativeBeep();
-            suppressSlash.style.display = suppressed ? "block" : "none";
+            const bubbleColor = suppressed ? "#6a3a4a" : "#cf6f98";
+            const slashLine  = suppressed
+                ? `<line x1="1" y1="15" x2="15" y2="1" stroke="#ff4455" stroke-width="2.2" stroke-linecap="round"/>`
+                : "";
+            suppressBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;">
+                <rect x="1" y="1" width="12" height="10" rx="3" fill="${bubbleColor}"/>
+                <polygon points="2,11 1,15 5,12.5" fill="${bubbleColor}"/>
+                ${slashLine}
+            </svg>`;
             suppressBtn.title = suppressed
                 ? "Beeps hidden from BC chat — click to show them there too"
                 : "Beeps visible in BC chat — click to hide them";
-            suppressBtn.style.border = suppressed
-                ? "1px solid #8a2030"
-                : "1px solid #cf6f98";
-            suppressIconEmoji.style.filter = suppressed ? "none" : "brightness(1.3)";
+            suppressBtn.style.border = suppressed ? "1px solid #5a2030" : "1px solid #cf6f98";
         };
         refreshSuppressBtn();
         (win as unknown as Record<string, unknown>)._refreshSuppressBtn = refreshSuppressBtn;
         suppressBtn.addEventListener("click", () => {
             setSuppressNativeBeep(!getSuppressNativeBeep());
-            // Sync all open beep windows so they reflect the same state
             for (const { el } of this.beepWins.values()) {
                 const fn = (el as unknown as Record<string, unknown>)._refreshSuppressBtn as (() => void) | undefined;
                 try { fn?.(); } catch { /* ignore */ }
