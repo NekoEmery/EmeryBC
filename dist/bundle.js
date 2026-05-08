@@ -3708,17 +3708,21 @@
     text-overflow: ellipsis;
 }
 
-#ebc-beep-win-close {
-    background: none;
-    border: none;
+.ebc-beep-win-hbtn {
+    background: #2a0e1e;
+    border: 1px solid #4a2035;
+    border-radius: 5px;
     color: #9a6878;
-    font-size: 14px;
+    font-size: 13px;
     cursor: pointer;
     line-height: 1;
-    padding: 0 2px;
+    padding: 3px 7px;
     flex-shrink: 0;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-#ebc-beep-win-close:hover { color: #cf6f98; }
+.ebc-beep-win-hbtn:hover { background: #3a1028; color: #cf6f98; border-color: #cf6f98; }
+#ebc-beep-win-close.ebc-beep-win-hbtn:hover { background: #4a1020; color: #ff6080; border-color: #ff6080; }
+#ebc-beep-win-mute.muted { color: #4a2a38; border-color: #3a1928; }
 
 #ebc-beep-win-history {
     flex: 1;
@@ -3803,30 +3807,6 @@
 #ebc-beep-win.minimized #ebc-beep-reply-bar,
 #ebc-beep-win.minimized #ebc-beep-win-footer { display: none !important; }
 
-#ebc-beep-win-minimize {
-    background: none;
-    border: none;
-    color: #9a6878;
-    font-size: 14px;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0 2px;
-    flex-shrink: 0;
-}
-#ebc-beep-win-minimize:hover { color: #cf6f98; }
-
-#ebc-beep-win-mute {
-    background: none;
-    border: none;
-    color: #9a6878;
-    font-size: 12px;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0 2px;
-    flex-shrink: 0;
-}
-#ebc-beep-win-mute:hover { color: #cf6f98; }
-#ebc-beep-win-mute.muted { color: #5a3a4a; }
 
 #ebc-beep-win-unread-dot {
     width: 8px;
@@ -7696,8 +7676,10 @@
         }
         openBeepWindow(memberNumber) {
             var _a, _b;
-            // If window already open for this member, just focus it
+            // If window already open for this member, refresh history and focus
             if (this.beepWinEl && this.beepWinMember === memberNumber) {
+                const refresh = this.beepWinEl._refresh;
+                refresh === null || refresh === void 0 ? void 0 : refresh();
                 (_a = this.beepWinEl.querySelector("#ebc-beep-win-input")) === null || _a === void 0 ? void 0 : _a.focus();
                 return;
             }
@@ -7722,6 +7704,7 @@
             unreadDot.id = "ebc-beep-win-unread-dot";
             const muteBtn = document.createElement("button");
             muteBtn.id = "ebc-beep-win-mute";
+            muteBtn.className = "ebc-beep-win-hbtn";
             const refreshMuteBtn = () => {
                 const muted = getBeepMuted();
                 muteBtn.textContent = muted ? "🔕" : "🔔";
@@ -7732,6 +7715,7 @@
             muteBtn.addEventListener("click", () => { setBeepMuted(!getBeepMuted()); refreshMuteBtn(); });
             const minimizeBtn = document.createElement("button");
             minimizeBtn.id = "ebc-beep-win-minimize";
+            minimizeBtn.className = "ebc-beep-win-hbtn";
             minimizeBtn.textContent = "–";
             minimizeBtn.title = "Minimize";
             minimizeBtn.addEventListener("click", () => {
@@ -7753,6 +7737,7 @@
             });
             const closeBtn = document.createElement("button");
             closeBtn.id = "ebc-beep-win-close";
+            closeBtn.className = "ebc-beep-win-hbtn";
             closeBtn.textContent = "×";
             closeBtn.addEventListener("click", () => {
                 win.remove();
@@ -7775,8 +7760,8 @@
                 const ox = e.clientX - rect.left;
                 const oy = e.clientY - rect.top;
                 const onMove = (ev) => {
-                    win.style.left = `${Math.max(0, Math.min(window.innerWidth - 300, ev.clientX - ox))}px`;
-                    win.style.top = `${Math.max(0, Math.min(window.innerHeight - 380, ev.clientY - oy))}px`;
+                    win.style.left = `${ev.clientX - ox}px`;
+                    win.style.top = `${ev.clientY - oy}px`;
                     win.style.right = "";
                     win.style.bottom = "";
                 };
@@ -9504,9 +9489,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.5.7";
+    const MOD_VERSION = "0.5.8";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.5.8",
+            changes: [
+                "Beep window: close, minimize, and mute buttons are now styled as proper pill buttons — larger and easier to hit.",
+                "Beep window: opening an already-open window now immediately refreshes the message history.",
+                "Beep window: drag is now fully free — no viewport clamping, move it anywhere on screen.",
+            ],
+        },
         {
             version: "0.5.7",
             changes: [

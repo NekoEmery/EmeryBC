@@ -13,10 +13,18 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.7";
+const MOD_VERSION = "0.5.8";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.5.8",
+        changes: [
+            "Beep window: close, minimize, and mute buttons are now styled as proper pill buttons — larger and easier to hit.",
+            "Beep window: opening an already-open window now immediately refreshes the message history.",
+            "Beep window: drag is now fully free — no viewport clamping, move it anywhere on screen.",
+        ],
+    },
     {
         version: "0.5.7",
         changes: [
