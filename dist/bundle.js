@@ -7857,6 +7857,10 @@
                     const isSent = e.from === self;
                     const wrap = document.createElement("div");
                     wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
+                    const nameLabel = document.createElement("div");
+                    nameLabel.textContent = resolveName(isSent ? self : e.from);
+                    nameLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;margin-bottom:2px;padding:0 3px;";
+                    wrap.appendChild(nameLabel);
                     const bubble = document.createElement("div");
                     bubble.className = "ebc-beep-msg " + (isSent ? "sent" : "received");
                     const ts = document.createElement("div");
