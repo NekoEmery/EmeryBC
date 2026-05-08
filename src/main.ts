@@ -13,10 +13,17 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.6.5";
+const MOD_VERSION = "0.6.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.6.6",
+        changes: [
+            "Friends: tags now support multiple tags per friend, each with a custom colour (8 presets). Existing tags are automatically migrated.",
+            "Tag display: first tag shows on the friend row; hover it to see all tags in a tooltip. Add/remove tags from the click-to-expand panel.",
+        ],
+    },
     {
         version: "0.6.5",
         changes: [

@@ -138,16 +138,29 @@ export function togglePinFriend(memberNumber: number): boolean {
 
 // -- Tags ----------------------------------------------------------------------
 
-export function getFriendTags(): Record<string, string> {
-    const v = getStore().friendTags;
-    return (v && typeof v === "object" && !Array.isArray(v)) ? v as Record<string, string> : {};
+export interface FriendTag {
+    text: string;
+    color: string; // hex e.g. "#cf6f98"
 }
 
-export function setFriendTag(memberNumber: number, tag: string): void {
+function migrateTagValue(v: unknown): FriendTag[] {
+    if (Array.isArray(v)) return v as FriendTag[];
+    if (typeof v === "string" && v.trim()) return [{ text: v.trim(), color: "#cf6f98" }];
+    return [];
+}
+
+export function getFriendTagList(memberNumber: number): FriendTag[] {
+    const store = getStore();
+    const raw = store.friendTags;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    return migrateTagValue((raw as Record<string, unknown>)[String(memberNumber)]);
+}
+
+export function setFriendTagList(memberNumber: number, tagList: FriendTag[]): void {
     const store = getStore();
     if (!store.friendTags || typeof store.friendTags !== "object") store.friendTags = {};
-    const tags = store.friendTags as Record<string, string>;
-    if (tag.trim()) tags[String(memberNumber)] = tag.trim();
+    const tags = store.friendTags as Record<string, unknown>;
+    if (tagList.length > 0) tags[String(memberNumber)] = tagList;
     else delete tags[String(memberNumber)];
     sync();
 }

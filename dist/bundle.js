@@ -1942,18 +1942,27 @@
         sync();
         return idx < 0; // true = now pinned
     }
-    // -- Tags ----------------------------------------------------------------------
-    function getFriendTags() {
-        const v = getStore$1().friendTags;
-        return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
+    function migrateTagValue(v) {
+        if (Array.isArray(v))
+            return v;
+        if (typeof v === "string" && v.trim())
+            return [{ text: v.trim(), color: "#cf6f98" }];
+        return [];
     }
-    function setFriendTag(memberNumber, tag) {
+    function getFriendTagList(memberNumber) {
+        const store = getStore$1();
+        const raw = store.friendTags;
+        if (!raw || typeof raw !== "object" || Array.isArray(raw))
+            return [];
+        return migrateTagValue(raw[String(memberNumber)]);
+    }
+    function setFriendTagList(memberNumber, tagList) {
         const store = getStore$1();
         if (!store.friendTags || typeof store.friendTags !== "object")
             store.friendTags = {};
         const tags = store.friendTags;
-        if (tag.trim())
-            tags[String(memberNumber)] = tag.trim();
+        if (tagList.length > 0)
+            tags[String(memberNumber)] = tagList;
         else
             delete tags[String(memberNumber)];
         sync();
@@ -3804,18 +3813,85 @@
     text-overflow: ellipsis;
 }
 
+/* tag chip in the friend row (display-only, coloured by tag) */
 .ebc-friend-tag {
-    font-size: 9px;
+    font-family: "Trebuchet MS", serif;
+    font-size: 8px;
     padding: 1px 5px;
     border-radius: 3px;
-    background: #3a1928;
-    color: #cf6f98;
     flex-shrink: 0;
-    max-width: 70px;
+    max-width: 72px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: default;
 }
+
+/* "+N more" pill */
+.ebc-friend-tag-more {
+    font-family: "Trebuchet MS", serif;
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    background: #1e0d17;
+    color: #7a5a6a;
+    border: 1px solid #2e1520;
+    cursor: default;
+}
+
+/* tag tooltip (fixed-position, pointer-events: none) */
+.ebc-tag-tooltip {
+    position: fixed;
+    z-index: 1000001;
+    background: #190b13;
+    border: 1px solid #4a2035;
+    border-radius: 7px;
+    padding: 7px 9px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: 200px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    pointer-events: none;
+}
+
+/* tag chip inside the expand panel — larger, with remove button */
+.ebc-etag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    padding: 2px 4px 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.ebc-etag-chip-remove {
+    background: none;
+    border: none;
+    padding: 0 1px;
+    cursor: pointer;
+    font-size: 9px;
+    line-height: 1;
+    opacity: 0.6;
+}
+.ebc-etag-chip-remove:hover { opacity: 1; }
+
+/* color swatch circle */
+.ebc-color-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: 2px solid transparent;
+    box-sizing: border-box;
+    transition: border-color 0.1s;
+}
+.ebc-color-swatch.sel { border-color: #fff; }
 
 .ebc-friend-btn {
     background: none;
@@ -8311,7 +8387,7 @@
         }
         // -- Notes tab -------------------------------------------------------------
         renderNotes() {
-            var _a, _b, _c, _d, _e, _f;
+            var _a, _b, _c, _d;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -8380,7 +8456,8 @@
                 lblF.appendChild(lblFText);
                 lblF.appendChild(lblFCount);
                 body.appendChild(lblF);
-                const tags = getFriendTags();
+                // Preset tag colours
+                const TAG_COLORS = ["#cf6f98", "#e06060", "#e09040", "#c8b840", "#5aaa70", "#40a0b8", "#7060d0", "#a060c0"];
                 // Sort: pinned first, then room/online/away, then alphabetical
                 const statusOrder = (n) => ({ room: 0, online: 1, away: 2 }[getFriendStatus(n)]);
                 const sorted = [...friendList].sort((a, b) => {
@@ -8393,10 +8470,12 @@
                         return diff;
                     return resolveName(a).localeCompare(resolveName(b));
                 });
+                // Shared tooltip element (reused across all rows)
+                let activeTooltip = null;
+                const hideTooltip = () => { activeTooltip === null || activeTooltip === void 0 ? void 0 : activeTooltip.remove(); activeTooltip = null; };
                 for (const num of sorted) {
                     const status = getFriendStatus(num);
                     const name = resolveName(num);
-                    const tag = (_d = tags[String(num)]) !== null && _d !== void 0 ? _d : "";
                     const pinned = isFriendPinned(num);
                     // Wrapper holds both the row and the expand panel
                     const wrap = document.createElement("div");
@@ -8406,7 +8485,6 @@
                     row.className = "ebc-friend-row" + (pinned ? " pinned" : "");
                     const dot = document.createElement("div");
                     dot.className = "ebc-friend-dot " + status;
-                    // Pin indicator
                     const pinDot = document.createElement("span");
                     pinDot.textContent = "📌";
                     pinDot.style.cssText = "font-size:9px;flex-shrink:0;line-height:1;" + (pinned ? "" : "display:none;");
@@ -8416,11 +8494,6 @@
                     const numEl = document.createElement("span");
                     numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;flex-shrink:0;";
                     numEl.textContent = "#" + num;
-                    // Tag badge (display only — editing is in the expand panel)
-                    const tagBadge = document.createElement("span");
-                    tagBadge.className = "ebc-friend-tag";
-                    tagBadge.style.opacity = tag ? "1" : "0";
-                    tagBadge.textContent = tag;
                     // Room info tag
                     const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
                     if (info) {
@@ -8496,10 +8569,61 @@
                         ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
                         row.appendChild(ebcBadge);
                     }
-                    if (tag)
-                        row.appendChild(tagBadge);
+                    // ── Tag display area (first tag + "+N more", hover = tooltip) ──
+                    const tagArea = document.createElement("span");
+                    tagArea.style.cssText = "display:inline-flex;align-items:center;gap:3px;flex-shrink:0;";
+                    const renderTagArea = () => {
+                        tagArea.innerHTML = "";
+                        const tl = getFriendTagList(num);
+                        if (!tl.length)
+                            return;
+                        // First tag pill
+                        const first = tl[0];
+                        const pill = document.createElement("span");
+                        pill.className = "ebc-friend-tag";
+                        pill.textContent = first.text;
+                        pill.style.cssText = `background:${first.color}22;color:${first.color};border:1px solid ${first.color}55;`;
+                        tagArea.appendChild(pill);
+                        // "+N more" indicator
+                        if (tl.length > 1) {
+                            const more = document.createElement("span");
+                            more.className = "ebc-friend-tag-more";
+                            more.textContent = "+" + (tl.length - 1);
+                            tagArea.appendChild(more);
+                        }
+                    };
+                    renderTagArea();
+                    // Hover tooltip showing all tags
+                    tagArea.addEventListener("mouseenter", () => {
+                        const tl = getFriendTagList(num);
+                        if (tl.length < 2)
+                            return;
+                        hideTooltip();
+                        const tt = document.createElement("div");
+                        tt.className = "ebc-tag-tooltip";
+                        for (const t of tl) {
+                            const chip = document.createElement("span");
+                            chip.className = "ebc-friend-tag";
+                            chip.textContent = t.text;
+                            chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                            tt.appendChild(chip);
+                        }
+                        document.body.appendChild(tt);
+                        activeTooltip = tt;
+                        const rect = tagArea.getBoundingClientRect();
+                        const ttW = tt.offsetWidth || 160;
+                        let left = rect.left;
+                        if (left + ttW > window.innerWidth - 8)
+                            left = window.innerWidth - ttW - 8;
+                        const top = rect.bottom + 4;
+                        tt.style.left = `${left}px`;
+                        tt.style.top = `${top}px`;
+                    });
+                    tagArea.addEventListener("mouseleave", hideTooltip);
+                    if (getFriendTagList(num).length > 0)
+                        row.appendChild(tagArea);
                     // Beep button — does NOT toggle expand
-                    const unread = (_e = this.beepUnread.get(num)) !== null && _e !== void 0 ? _e : 0;
+                    const unread = (_d = this.beepUnread.get(num)) !== null && _d !== void 0 ? _d : 0;
                     const beepBtn = document.createElement("button");
                     beepBtn.className = "ebc-friend-btn";
                     beepBtn.style.cssText = "position:relative;margin-left:auto;flex-shrink:0;";
@@ -8525,42 +8649,108 @@
                     // ── Expand panel ───────────────────────────────────────────
                     const expand = document.createElement("div");
                     expand.className = "ebc-friend-expand";
-                    // Tag row
-                    const tagRow = document.createElement("div");
-                    tagRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-                    const tagLbl = document.createElement("span");
-                    tagLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
-                    tagLbl.textContent = "Tag";
-                    const tagInput = document.createElement("input");
-                    tagInput.type = "text";
-                    tagInput.value = (_f = tags[String(num)]) !== null && _f !== void 0 ? _f : "";
-                    tagInput.maxLength = 30;
-                    tagInput.placeholder = "add a tag…";
-                    tagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
-                    tagInput.addEventListener("focus", () => { tagInput.style.borderColor = "#cf6f98"; });
-                    tagInput.addEventListener("blur", () => { tagInput.style.borderColor = "#3a1928"; });
-                    const tagSaveBtn = document.createElement("button");
-                    tagSaveBtn.textContent = "Save";
-                    tagSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
-                    tagSaveBtn.addEventListener("click", () => {
-                        const v = tagInput.value.trim();
-                        setFriendTag(num, v);
-                        tags[String(num)] = v;
-                        tagBadge.textContent = v;
-                        tagBadge.style.opacity = v ? "1" : "0";
-                        if (v && !row.contains(tagBadge))
-                            row.insertBefore(tagBadge, beepBtn);
-                    });
-                    tagInput.addEventListener("keydown", e => { if (e.key === "Enter") {
+                    // -- Tags section --
+                    const tagsLbl = document.createElement("div");
+                    tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
+                    tagsLbl.textContent = "Tags";
+                    expand.appendChild(tagsLbl);
+                    // Chips container (existing tags)
+                    const chipsEl = document.createElement("div");
+                    chipsEl.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;min-height:6px;";
+                    expand.appendChild(chipsEl);
+                    const rebuildChips = () => {
+                        chipsEl.innerHTML = "";
+                        const tl = getFriendTagList(num);
+                        for (let i = 0; i < tl.length; i++) {
+                            const t = tl[i];
+                            const chip = document.createElement("span");
+                            chip.className = "ebc-etag-chip";
+                            chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                            const dot2 = document.createElement("span");
+                            dot2.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${t.color};flex-shrink:0;`;
+                            const txt = document.createElement("span");
+                            txt.textContent = t.text;
+                            const rmBtn = document.createElement("button");
+                            rmBtn.className = "ebc-etag-chip-remove";
+                            rmBtn.textContent = "✕";
+                            rmBtn.style.color = t.color;
+                            rmBtn.addEventListener("click", () => {
+                                const updated = getFriendTagList(num).filter((_, j) => j !== i);
+                                setFriendTagList(num, updated);
+                                rebuildChips();
+                                renderTagArea();
+                                if (updated.length > 0) {
+                                    if (!row.contains(tagArea))
+                                        row.insertBefore(tagArea, beepBtn);
+                                }
+                                else
+                                    tagArea.remove();
+                            });
+                            chip.appendChild(dot2);
+                            chip.appendChild(txt);
+                            chip.appendChild(rmBtn);
+                            chipsEl.appendChild(chip);
+                        }
+                    };
+                    rebuildChips();
+                    // Add-tag row
+                    const addRow = document.createElement("div");
+                    addRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
+                    const newTagInput = document.createElement("input");
+                    newTagInput.type = "text";
+                    newTagInput.maxLength = 30;
+                    newTagInput.placeholder = "new tag…";
+                    newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
+                    newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
+                    newTagInput.addEventListener("blur", () => { newTagInput.style.borderColor = "#3a1928"; });
+                    const addTagBtn = document.createElement("button");
+                    addTagBtn.textContent = "+ Add";
+                    addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                    addRow.appendChild(newTagInput);
+                    addRow.appendChild(addTagBtn);
+                    expand.appendChild(addRow);
+                    // Color swatches row
+                    const swatchRow = document.createElement("div");
+                    swatchRow.style.cssText = "display:flex;gap:5px;align-items:center;flex-wrap:wrap;";
+                    let selectedColor = TAG_COLORS[0];
+                    const swatches = [];
+                    for (const c of TAG_COLORS) {
+                        const sw = document.createElement("span");
+                        sw.className = "ebc-color-swatch" + (c === selectedColor ? " sel" : "");
+                        sw.style.background = c;
+                        sw.title = c;
+                        sw.addEventListener("click", () => {
+                            selectedColor = c;
+                            swatches.forEach(s => s.classList.remove("sel"));
+                            sw.classList.add("sel");
+                        });
+                        swatches.push(sw);
+                        swatchRow.appendChild(sw);
+                    }
+                    expand.appendChild(swatchRow);
+                    const doAddTag = () => {
+                        const text = newTagInput.value.trim();
+                        if (!text) {
+                            newTagInput.style.borderColor = "#cf6f98";
+                            return;
+                        }
+                        const updated = [...getFriendTagList(num), { text, color: selectedColor }];
+                        setFriendTagList(num, updated);
+                        newTagInput.value = "";
+                        newTagInput.style.borderColor = "#3a1928";
+                        rebuildChips();
+                        renderTagArea();
+                        if (!row.contains(tagArea))
+                            row.insertBefore(tagArea, beepBtn);
+                    };
+                    addTagBtn.addEventListener("click", doAddTag);
+                    newTagInput.addEventListener("keydown", e => { if (e.key === "Enter") {
                         e.preventDefault();
-                        tagSaveBtn.click();
+                        doAddTag();
                     } });
-                    tagRow.appendChild(tagLbl);
-                    tagRow.appendChild(tagInput);
-                    tagRow.appendChild(tagSaveBtn);
-                    // Actions row: pin + clear tag
+                    // -- Pin button --
                     const actRow = document.createElement("div");
-                    actRow.style.cssText = "display:flex;gap:5px;";
+                    actRow.style.cssText = "display:flex;gap:5px;margin-top:2px;";
                     const pinBtn = document.createElement("button");
                     const refreshPinBtn = () => {
                         const p = isFriendPinned(num);
@@ -8571,26 +8761,14 @@
                     };
                     refreshPinBtn();
                     pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
-                    const clearTagBtn = document.createElement("button");
-                    clearTagBtn.textContent = "✕ Clear tag";
-                    clearTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:transparent;color:#5a3a4a;";
-                    clearTagBtn.addEventListener("click", () => {
-                        tagInput.value = "";
-                        setFriendTag(num, "");
-                        tags[String(num)] = "";
-                        tagBadge.style.opacity = "0";
-                        tagBadge.textContent = "";
-                    });
                     actRow.appendChild(pinBtn);
-                    actRow.appendChild(clearTagBtn);
-                    expand.appendChild(tagRow);
                     expand.appendChild(actRow);
                     // Toggle expand on row click
                     row.addEventListener("click", () => {
                         const open = expand.classList.toggle("visible");
                         row.classList.toggle("expanded", open);
                         if (open)
-                            setTimeout(() => tagInput.focus(), 50);
+                            setTimeout(() => newTagInput.focus(), 50);
                     });
                     wrap.appendChild(row);
                     wrap.appendChild(expand);
@@ -9991,9 +10169,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.6.5";
+    const MOD_VERSION = "0.6.6";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.6.6",
+            changes: [
+                "Friends: tags now support multiple tags per friend, each with a custom colour (8 presets). Existing tags are automatically migrated.",
+                "Tag display: first tag shows on the friend row; hover it to see all tags in a tooltip. Add/remove tags from the click-to-expand panel.",
+            ],
+        },
         {
             version: "0.6.5",
             changes: [
