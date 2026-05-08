@@ -11,10 +11,18 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.4.7";
+const MOD_VERSION = "0.4.8";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.4.8",
+        changes: [
+            "Removed Front Cuffs and Elbow Cuffs from the Arms pose list.",
+            "Fix: restraint palette capture now uses BC's IsRestraint flag instead of a hardcoded group list — all binds are captured correctly.",
+            "Fix: 'That's you' label in Users tab is now readable gold instead of invisible pink-on-pink.",
+        ],
+    },
     {
         version: "0.4.7",
         changes: [
