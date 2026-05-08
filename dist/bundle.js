@@ -2426,9 +2426,10 @@
         }
         if (cfg.yellowLeave) {
             window.setTimeout(() => {
+                // CommonSetScreen is async in BC R127 — attach .catch() so the returned
+                // Promise doesn't become an unhandled rejection if BC throws inside it.
                 try {
-                    if (typeof CommonSetScreen === "function")
-                        CommonSetScreen("Online", "ChatSearch");
+                    Promise.resolve(CommonSetScreen("Online", "ChatSearch")).catch(() => { });
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
                 try {
@@ -2475,9 +2476,10 @@
             window.setTimeout(() => {
                 // Navigate away BEFORE ChatRoomLeave() clears room state so hooks
                 // from other mods (e.g. CRABS) don't crash on the next render frame.
+                // CommonSetScreen is async in BC R127 — attach .catch() so the returned
+                // Promise doesn't become an unhandled rejection if BC throws inside it.
                 try {
-                    if (typeof CommonSetScreen === "function")
-                        CommonSetScreen("Online", "ChatSearch");
+                    Promise.resolve(CommonSetScreen("Online", "ChatSearch")).catch(() => { });
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
                 try {
@@ -12682,9 +12684,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.9.6";
+    const MOD_VERSION = "0.9.7";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.9.7",
+            changes: [
+                "Fix unhandled Promise rejection when using red/yellow safeword: CommonSetScreen is async in BC R127, so .catch() is now attached to silence any async error without affecting behaviour.",
+            ],
+        },
         {
             version: "0.9.6",
             changes: [

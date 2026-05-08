@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.9.6";
+const MOD_VERSION = "0.9.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.9.7",
+        changes: [
+            "Fix unhandled Promise rejection when using red/yellow safeword: CommonSetScreen is async in BC R127, so .catch() is now attached to silence any async error without affecting behaviour.",
+        ],
+    },
     {
         version: "0.9.6",
         changes: [

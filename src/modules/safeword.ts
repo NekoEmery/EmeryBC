@@ -211,7 +211,9 @@ export function triggerYellow(): void {
     }
     if (cfg.yellowLeave) {
         window.setTimeout(() => {
-            try { if (typeof CommonSetScreen === "function") CommonSetScreen("Online", "ChatSearch"); } catch { /* ignore */ }
+            // CommonSetScreen is async in BC R127 — attach .catch() so the returned
+            // Promise doesn't become an unhandled rejection if BC throws inside it.
+            try { Promise.resolve(CommonSetScreen("Online", "ChatSearch")).catch(() => {}); } catch { /* ignore */ }
             try { ChatRoomLeave(); } catch { /* ignore */ }
         }, 800);
     }
@@ -248,7 +250,9 @@ export function triggerRed(): void {
         window.setTimeout(() => {
             // Navigate away BEFORE ChatRoomLeave() clears room state so hooks
             // from other mods (e.g. CRABS) don't crash on the next render frame.
-            try { if (typeof CommonSetScreen === "function") CommonSetScreen("Online", "ChatSearch"); } catch { /* ignore */ }
+            // CommonSetScreen is async in BC R127 — attach .catch() so the returned
+            // Promise doesn't become an unhandled rejection if BC throws inside it.
+            try { Promise.resolve(CommonSetScreen("Online", "ChatSearch")).catch(() => {}); } catch { /* ignore */ }
             try { ChatRoomLeave(); } catch { /* ignore */ }
         }, 800);
     }
