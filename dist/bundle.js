@@ -7988,8 +7988,8 @@
                         popup.appendChild(pw);
                         popup.appendChild(doneBtn);
                         const rect = colorDot.getBoundingClientRect();
-                        popup.style.top = Math.min(rect.bottom + 4, window.innerHeight - 280) + "px";
-                        popup.style.left = Math.max(4, Math.min(rect.left, window.innerWidth - 220)) + "px";
+                        popup.style.top = Math.max(4, Math.min(rect.top - 4, window.innerHeight - 280)) + "px";
+                        popup.style.left = Math.max(4, rect.left - 224) + "px";
                         document.body.appendChild(popup);
                         slotPickerPopup = popup;
                         // Close when clicking outside the popup
