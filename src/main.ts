@@ -13,10 +13,17 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.9";
+const MOD_VERSION = "0.6.0";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.6.0",
+        changes: [
+            "Beep chat: multiple windows can now be open simultaneously, each staggered so they don't overlap.",
+            "Scrollbars throughout EBC now match the pink/dark theme instead of the default browser style.",
+        ],
+    },
     {
         version: "0.5.9",
         changes: [

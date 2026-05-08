@@ -2555,12 +2555,19 @@
     overflow-y: auto;
     padding: 7px;
     scrollbar-width: thin;
-    scrollbar-color: #4c2537 transparent;
+    scrollbar-color: #cf6f98 #1a0814;
 }
 
-.ebc-body::-webkit-scrollbar { width: 4px; }
-.ebc-body::-webkit-scrollbar-track { background: transparent; }
-.ebc-body::-webkit-scrollbar-thumb { background: #4c2537; border-radius: 2px; }
+/* Unified scrollbar theme for all EBC scrollable areas */
+.ebc-body::-webkit-scrollbar,
+.ebc-beep-win-history::-webkit-scrollbar { width: 5px; }
+.ebc-body::-webkit-scrollbar-track,
+.ebc-beep-win-history::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
+.ebc-body::-webkit-scrollbar-thumb,
+.ebc-beep-win-history::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
+.ebc-body::-webkit-scrollbar-thumb:hover,
+.ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
+.ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
 /* -- Section label -- */
 .ebc-section-label {
@@ -3685,7 +3692,7 @@
 .ebc-friend-btn:hover { background: #2e1525; color: #cf6f98; border-color: #cf6f98; }
 
 /* -- Beep window -- */
-#ebc-beep-win {
+.ebc-beep-win {
     position: fixed;
     width: 300px;
     height: 380px;
@@ -3702,7 +3709,7 @@
     overflow: hidden;
 }
 
-#ebc-beep-win-header {
+.ebc-beep-win-header {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -3713,9 +3720,9 @@
     user-select: none;
     flex-shrink: 0;
 }
-#ebc-beep-win-header:active { cursor: grabbing; }
+.ebc-beep-win-header:active { cursor: grabbing; }
 
-#ebc-beep-win-title {
+.ebc-beep-win-title {
     flex: 1;
     font-size: 11px;
     font-weight: bold;
@@ -3738,10 +3745,10 @@
     transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .ebc-beep-win-hbtn:hover { background: #3a1028; color: #cf6f98; border-color: #cf6f98; }
-#ebc-beep-win-close.ebc-beep-win-hbtn:hover { background: #4a1020; color: #ff6080; border-color: #ff6080; }
-#ebc-beep-win-mute.muted { color: #4a2a38; border-color: #3a1928; }
+.ebc-beep-win-close.ebc-beep-win-hbtn:hover { background: #4a1020; color: #ff6080; border-color: #ff6080; }
+.ebc-beep-win-mute.muted { color: #4a2a38; border-color: #3a1928; }
 
-#ebc-beep-win-history {
+.ebc-beep-win-history {
     flex: 1;
     overflow-y: auto;
     padding: 8px 10px;
@@ -3778,7 +3785,7 @@
 }
 .ebc-beep-msg.sent .ebc-beep-ts { text-align: right; }
 
-#ebc-beep-win-footer {
+.ebc-beep-win-footer {
     display: flex;
     gap: 5px;
     padding: 7px 8px;
@@ -3786,7 +3793,7 @@
     flex-shrink: 0;
 }
 
-#ebc-beep-win-input {
+.ebc-beep-win-input {
     flex: 1;
     background: #1e0d1a;
     border: 1px solid #5a2840;
@@ -3797,9 +3804,9 @@
     padding: 4px 7px;
     outline: none;
 }
-#ebc-beep-win-input:focus { border-color: #cf6f98; }
+.ebc-beep-win-input:focus { border-color: #cf6f98; }
 
-#ebc-beep-win-send {
+.ebc-beep-win-send {
     background: #3a1028;
     border: 1px solid #cf6f98;
     border-radius: 5px;
@@ -3810,9 +3817,9 @@
     cursor: pointer;
     flex-shrink: 0;
 }
-#ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
+.ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
 
-#ebc-beep-win.minimized {
+.ebc-beep-win.minimized {
     height: 44px !important;
     min-height: 0;
     bottom: 0;
@@ -3820,12 +3827,12 @@
     overflow: hidden;
     resize: none;
 }
-#ebc-beep-win.minimized #ebc-beep-win-history,
-#ebc-beep-win.minimized #ebc-beep-reply-bar,
-#ebc-beep-win.minimized #ebc-beep-win-footer { display: none !important; }
+.ebc-beep-win.minimized .ebc-beep-win-history,
+.ebc-beep-win.minimized .ebc-beep-reply-bar,
+.ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
 
 
-#ebc-beep-win-unread-dot {
+.ebc-beep-win-unread-dot {
     width: 8px;
     height: 8px;
     background: #cf6f98;
@@ -3834,9 +3841,9 @@
     box-shadow: 0 0 4px #cf6f98;
     display: none;
 }
-#ebc-beep-win-unread-dot.visible { display: block; }
+.ebc-beep-win-unread-dot.visible { display: block; }
 
-#ebc-beep-reply-bar {
+.ebc-beep-reply-bar {
     display: flex;
     align-items: center;
     gap: 5px;
@@ -3849,13 +3856,13 @@
     color: #c88aa8;
     flex-shrink: 0;
 }
-#ebc-beep-reply-bar span {
+.ebc-beep-reply-bar span {
     flex: 1;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
-#ebc-beep-reply-cancel {
+.ebc-beep-reply-cancel {
     background: none;
     border: none;
     color: #7a5a6a;
@@ -3864,7 +3871,7 @@
     padding: 0 2px;
     flex-shrink: 0;
 }
-#ebc-beep-reply-cancel:hover { color: #cf6f98; }
+.ebc-beep-reply-cancel:hover { color: #cf6f98; }
 
 .ebc-beep-quote {
     border-left: 2px solid #cf6f9880;
@@ -4072,9 +4079,7 @@
             this.version = "";
             this.refreshBadgeRow = null;
             this.refreshConfirmToggle = null;
-            this.beepWinMinimized = false;
-            this.beepWinEl = null;
-            this.beepWinMember = 0;
+            this.beepWins = new Map();
             this.beepUnread = new Map();
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
@@ -7692,36 +7697,37 @@
             }
         }
         openBeepWindow(memberNumber) {
-            var _a, _b;
+            var _a;
             // If window already open for this member, refresh history and focus
-            if (this.beepWinEl && this.beepWinMember === memberNumber) {
-                const refresh = this.beepWinEl._refresh;
+            const existing = this.beepWins.get(memberNumber);
+            if (existing) {
+                const refresh = existing.el._refresh;
                 refresh === null || refresh === void 0 ? void 0 : refresh();
-                (_a = this.beepWinEl.querySelector("#ebc-beep-win-input")) === null || _a === void 0 ? void 0 : _a.focus();
+                (_a = existing.el.querySelector(".ebc-beep-win-input")) === null || _a === void 0 ? void 0 : _a.focus();
                 return;
             }
-            (_b = this.beepWinEl) === null || _b === void 0 ? void 0 : _b.remove();
-            this.beepWinMember = memberNumber;
-            this.beepWinMinimized = false;
             this.beepUnread.delete(memberNumber);
             this.refreshTabDot();
+            // Offset each new window slightly so they don't all stack at the same position
+            const offset = this.beepWins.size * 28;
             const win = document.createElement("div");
-            win.id = "ebc-beep-win";
-            this.beepWinEl = win;
+            win.className = "ebc-beep-win";
+            win.style.bottom = `${80 + offset}px`;
+            win.style.right = `${340 + offset}px`;
+            this.beepWins.set(memberNumber, { el: win, minimized: false });
             // Header
             const header = document.createElement("div");
-            header.id = "ebc-beep-win-header";
+            header.className = "ebc-beep-win-header";
             const dot = document.createElement("span");
             dot.className = "ebc-friend-dot " + getFriendStatus(memberNumber);
             const title = document.createElement("span");
-            title.id = "ebc-beep-win-title";
+            title.className = "ebc-beep-win-title";
             title.textContent = resolveName(memberNumber);
             // Unread dot (shown on minimized bar)
             const unreadDot = document.createElement("div");
-            unreadDot.id = "ebc-beep-win-unread-dot";
+            unreadDot.className = "ebc-beep-win-unread-dot";
             const muteBtn = document.createElement("button");
-            muteBtn.id = "ebc-beep-win-mute";
-            muteBtn.className = "ebc-beep-win-hbtn";
+            muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
             const refreshMuteBtn = () => {
                 const muted = getBeepMuted();
                 muteBtn.textContent = muted ? "🔕" : "🔔";
@@ -7731,17 +7737,18 @@
             refreshMuteBtn();
             muteBtn.addEventListener("click", () => { setBeepMuted(!getBeepMuted()); refreshMuteBtn(); });
             const minimizeBtn = document.createElement("button");
-            minimizeBtn.id = "ebc-beep-win-minimize";
             minimizeBtn.className = "ebc-beep-win-hbtn";
             minimizeBtn.textContent = "–";
             minimizeBtn.title = "Minimize";
             minimizeBtn.addEventListener("click", () => {
-                this.beepWinMinimized = !this.beepWinMinimized;
-                win.classList.toggle("minimized", this.beepWinMinimized);
-                minimizeBtn.textContent = this.beepWinMinimized ? "▲" : "–";
-                minimizeBtn.title = this.beepWinMinimized ? "Restore" : "Minimize";
-                if (!this.beepWinMinimized) {
-                    // Clear dot when restoring — user is reading
+                const entry = this.beepWins.get(memberNumber);
+                if (!entry)
+                    return;
+                entry.minimized = !entry.minimized;
+                win.classList.toggle("minimized", entry.minimized);
+                minimizeBtn.textContent = entry.minimized ? "▲" : "–";
+                minimizeBtn.title = entry.minimized ? "Restore" : "Minimize";
+                if (!entry.minimized) {
                     unreadDot.classList.remove("visible");
                     this.beepUnread.delete(memberNumber);
                     this.refreshTabDot();
@@ -7753,13 +7760,11 @@
                 }
             });
             const closeBtn = document.createElement("button");
-            closeBtn.id = "ebc-beep-win-close";
-            closeBtn.className = "ebc-beep-win-hbtn";
+            closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
             closeBtn.textContent = "×";
             closeBtn.addEventListener("click", () => {
                 win.remove();
-                this.beepWinEl = null;
-                this.beepWinMinimized = false;
+                this.beepWins.delete(memberNumber);
             });
             header.appendChild(dot);
             header.appendChild(title);
@@ -7791,7 +7796,7 @@
             });
             // History
             const history = document.createElement("div");
-            history.id = "ebc-beep-win-history";
+            history.className = "ebc-beep-win-history";
             win.appendChild(history);
             // Reply state
             let replyText = "";
@@ -7870,14 +7875,14 @@
             renderHistory();
             // Reply bar (shown above footer when replying)
             const replyBar = document.createElement("div");
-            replyBar.id = "ebc-beep-reply-bar";
+            replyBar.className = "ebc-beep-reply-bar";
             replyBar.style.display = "none";
             const replyBarLabel = document.createElement("span");
             replyBarLabel.style.cssText = "color:#cf6f98;font-weight:bold;flex-shrink:0;";
             replyBarLabel.textContent = "↩";
             const replyBarSpan = document.createElement("span");
             const replyCancel = document.createElement("button");
-            replyCancel.id = "ebc-beep-reply-cancel";
+            replyCancel.className = "ebc-beep-reply-cancel";
             replyCancel.textContent = "×";
             replyCancel.addEventListener("click", clearReply);
             replyBar.appendChild(replyBarLabel);
@@ -7886,14 +7891,14 @@
             win.appendChild(replyBar);
             // Footer
             const footer = document.createElement("div");
-            footer.id = "ebc-beep-win-footer";
+            footer.className = "ebc-beep-win-footer";
             const input = document.createElement("input");
-            input.id = "ebc-beep-win-input";
+            input.className = "ebc-beep-win-input";
             input.type = "text";
             input.placeholder = "Type a message...";
             input.maxLength = 300;
             const sendBtn = document.createElement("button");
-            sendBtn.id = "ebc-beep-win-send";
+            sendBtn.className = "ebc-beep-win-send";
             sendBtn.textContent = "Send";
             const doSend = () => {
                 const msg = input.value.trim();
@@ -7917,15 +7922,16 @@
             win._refresh = renderHistory;
         }
         refreshBeepWindow(memberNumber) {
-            if (!this.beepWinEl || this.beepWinMember !== memberNumber)
+            const entry = this.beepWins.get(memberNumber);
+            if (!entry)
                 return;
-            const refresh = this.beepWinEl._refresh;
+            const refresh = entry.el._refresh;
             refresh === null || refresh === void 0 ? void 0 : refresh();
         }
         onIncomingBeep(fromNum) {
-            var _a, _b;
-            const winOpen = this.beepWinEl && this.beepWinMember === fromNum;
-            const winVisible = winOpen && !this.beepWinMinimized;
+            var _a;
+            const entry = this.beepWins.get(fromNum);
+            const winVisible = entry && !entry.minimized;
             if (winVisible) {
                 this.refreshBeepWindow(fromNum);
             }
@@ -7936,11 +7942,11 @@
                     try {
                         this.renderNotes();
                     }
-                    catch ( /* ignore */_c) { /* ignore */ }
+                    catch ( /* ignore */_b) { /* ignore */ }
                 }
-                // Show dot on the minimized bar if window is open but minimized
-                if (winOpen) {
-                    const dot = (_b = this.beepWinEl) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-beep-win-unread-dot");
+                // Show dot on the minimized bar if window exists but is minimized
+                if (entry) {
+                    const dot = entry.el.querySelector(".ebc-beep-win-unread-dot");
                     if (dot)
                         dot.classList.add("visible");
                 }
@@ -9537,9 +9543,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.5.9";
+    const MOD_VERSION = "0.6.0";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.6.0",
+            changes: [
+                "Beep chat: multiple windows can now be open simultaneously, each staggered so they don't overlap.",
+                "Scrollbars throughout EBC now match the pink/dark theme instead of the default browser style.",
+            ],
+        },
         {
             version: "0.5.9",
             changes: [

@@ -303,12 +303,19 @@ const CSS = `
     overflow-y: auto;
     padding: 7px;
     scrollbar-width: thin;
-    scrollbar-color: #4c2537 transparent;
+    scrollbar-color: #cf6f98 #1a0814;
 }
 
-.ebc-body::-webkit-scrollbar { width: 4px; }
-.ebc-body::-webkit-scrollbar-track { background: transparent; }
-.ebc-body::-webkit-scrollbar-thumb { background: #4c2537; border-radius: 2px; }
+/* Unified scrollbar theme for all EBC scrollable areas */
+.ebc-body::-webkit-scrollbar,
+.ebc-beep-win-history::-webkit-scrollbar { width: 5px; }
+.ebc-body::-webkit-scrollbar-track,
+.ebc-beep-win-history::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
+.ebc-body::-webkit-scrollbar-thumb,
+.ebc-beep-win-history::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
+.ebc-body::-webkit-scrollbar-thumb:hover,
+.ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
+.ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
 /* -- Section label -- */
 .ebc-section-label {
@@ -1433,7 +1440,7 @@ const CSS = `
 .ebc-friend-btn:hover { background: #2e1525; color: #cf6f98; border-color: #cf6f98; }
 
 /* -- Beep window -- */
-#ebc-beep-win {
+.ebc-beep-win {
     position: fixed;
     width: 300px;
     height: 380px;
@@ -1450,7 +1457,7 @@ const CSS = `
     overflow: hidden;
 }
 
-#ebc-beep-win-header {
+.ebc-beep-win-header {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1461,9 +1468,9 @@ const CSS = `
     user-select: none;
     flex-shrink: 0;
 }
-#ebc-beep-win-header:active { cursor: grabbing; }
+.ebc-beep-win-header:active { cursor: grabbing; }
 
-#ebc-beep-win-title {
+.ebc-beep-win-title {
     flex: 1;
     font-size: 11px;
     font-weight: bold;
@@ -1486,10 +1493,10 @@ const CSS = `
     transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .ebc-beep-win-hbtn:hover { background: #3a1028; color: #cf6f98; border-color: #cf6f98; }
-#ebc-beep-win-close.ebc-beep-win-hbtn:hover { background: #4a1020; color: #ff6080; border-color: #ff6080; }
-#ebc-beep-win-mute.muted { color: #4a2a38; border-color: #3a1928; }
+.ebc-beep-win-close.ebc-beep-win-hbtn:hover { background: #4a1020; color: #ff6080; border-color: #ff6080; }
+.ebc-beep-win-mute.muted { color: #4a2a38; border-color: #3a1928; }
 
-#ebc-beep-win-history {
+.ebc-beep-win-history {
     flex: 1;
     overflow-y: auto;
     padding: 8px 10px;
@@ -1526,7 +1533,7 @@ const CSS = `
 }
 .ebc-beep-msg.sent .ebc-beep-ts { text-align: right; }
 
-#ebc-beep-win-footer {
+.ebc-beep-win-footer {
     display: flex;
     gap: 5px;
     padding: 7px 8px;
@@ -1534,7 +1541,7 @@ const CSS = `
     flex-shrink: 0;
 }
 
-#ebc-beep-win-input {
+.ebc-beep-win-input {
     flex: 1;
     background: #1e0d1a;
     border: 1px solid #5a2840;
@@ -1545,9 +1552,9 @@ const CSS = `
     padding: 4px 7px;
     outline: none;
 }
-#ebc-beep-win-input:focus { border-color: #cf6f98; }
+.ebc-beep-win-input:focus { border-color: #cf6f98; }
 
-#ebc-beep-win-send {
+.ebc-beep-win-send {
     background: #3a1028;
     border: 1px solid #cf6f98;
     border-radius: 5px;
@@ -1558,9 +1565,9 @@ const CSS = `
     cursor: pointer;
     flex-shrink: 0;
 }
-#ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
+.ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
 
-#ebc-beep-win.minimized {
+.ebc-beep-win.minimized {
     height: 44px !important;
     min-height: 0;
     bottom: 0;
@@ -1568,12 +1575,12 @@ const CSS = `
     overflow: hidden;
     resize: none;
 }
-#ebc-beep-win.minimized #ebc-beep-win-history,
-#ebc-beep-win.minimized #ebc-beep-reply-bar,
-#ebc-beep-win.minimized #ebc-beep-win-footer { display: none !important; }
+.ebc-beep-win.minimized .ebc-beep-win-history,
+.ebc-beep-win.minimized .ebc-beep-reply-bar,
+.ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
 
 
-#ebc-beep-win-unread-dot {
+.ebc-beep-win-unread-dot {
     width: 8px;
     height: 8px;
     background: #cf6f98;
@@ -1582,9 +1589,9 @@ const CSS = `
     box-shadow: 0 0 4px #cf6f98;
     display: none;
 }
-#ebc-beep-win-unread-dot.visible { display: block; }
+.ebc-beep-win-unread-dot.visible { display: block; }
 
-#ebc-beep-reply-bar {
+.ebc-beep-reply-bar {
     display: flex;
     align-items: center;
     gap: 5px;
@@ -1597,13 +1604,13 @@ const CSS = `
     color: #c88aa8;
     flex-shrink: 0;
 }
-#ebc-beep-reply-bar span {
+.ebc-beep-reply-bar span {
     flex: 1;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
-#ebc-beep-reply-cancel {
+.ebc-beep-reply-cancel {
     background: none;
     border: none;
     color: #7a5a6a;
@@ -1612,7 +1619,7 @@ const CSS = `
     padding: 0 2px;
     flex-shrink: 0;
 }
-#ebc-beep-reply-cancel:hover { color: #cf6f98; }
+.ebc-beep-reply-cancel:hover { color: #cf6f98; }
 
 .ebc-beep-quote {
     border-left: 2px solid #cf6f9880;
@@ -1828,9 +1835,7 @@ export class EBCDrawer {
     private version = "";
     private refreshBadgeRow: (() => void) | null = null;
     private refreshConfirmToggle: (() => void) | null = null;
-    private beepWinMinimized = false;
-    private beepWinEl: HTMLElement | null = null;
-    private beepWinMember = 0;
+    private beepWins = new Map<number, { el: HTMLElement; minimized: boolean }>();
     private beepUnread = new Map<number, number>();
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
@@ -5807,40 +5812,43 @@ export class EBCDrawer {
 
     public openBeepWindow(memberNumber: number): void {
         // If window already open for this member, refresh history and focus
-        if (this.beepWinEl && this.beepWinMember === memberNumber) {
-            const refresh = (this.beepWinEl as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
+        const existing = this.beepWins.get(memberNumber);
+        if (existing) {
+            const refresh = (existing.el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
             refresh?.();
-            (this.beepWinEl.querySelector("#ebc-beep-win-input") as HTMLInputElement | null)?.focus();
+            (existing.el.querySelector(".ebc-beep-win-input") as HTMLInputElement | null)?.focus();
             return;
         }
-        this.beepWinEl?.remove();
-        this.beepWinMember = memberNumber;
-        this.beepWinMinimized = false;
+
         this.beepUnread.delete(memberNumber);
         this.refreshTabDot();
 
+        // Offset each new window slightly so they don't all stack at the same position
+        const offset = this.beepWins.size * 28;
+
         const win = document.createElement("div");
-        win.id = "ebc-beep-win";
-        this.beepWinEl = win;
+        win.className = "ebc-beep-win";
+        win.style.bottom = `${80 + offset}px`;
+        win.style.right  = `${340 + offset}px`;
+        this.beepWins.set(memberNumber, { el: win, minimized: false });
 
         // Header
         const header = document.createElement("div");
-        header.id = "ebc-beep-win-header";
+        header.className = "ebc-beep-win-header";
 
         const dot = document.createElement("span");
         dot.className = "ebc-friend-dot " + getFriendStatus(memberNumber);
 
         const title = document.createElement("span");
-        title.id = "ebc-beep-win-title";
+        title.className = "ebc-beep-win-title";
         title.textContent = resolveName(memberNumber);
 
         // Unread dot (shown on minimized bar)
         const unreadDot = document.createElement("div");
-        unreadDot.id = "ebc-beep-win-unread-dot";
+        unreadDot.className = "ebc-beep-win-unread-dot";
 
         const muteBtn = document.createElement("button");
-        muteBtn.id = "ebc-beep-win-mute";
-        muteBtn.className = "ebc-beep-win-hbtn";
+        muteBtn.className = "ebc-beep-win-hbtn ebc-beep-win-mute";
         const refreshMuteBtn = (): void => {
             const muted = getBeepMuted();
             muteBtn.textContent = muted ? "🔕" : "🔔";
@@ -5851,17 +5859,17 @@ export class EBCDrawer {
         muteBtn.addEventListener("click", () => { setBeepMuted(!getBeepMuted()); refreshMuteBtn(); });
 
         const minimizeBtn = document.createElement("button");
-        minimizeBtn.id = "ebc-beep-win-minimize";
         minimizeBtn.className = "ebc-beep-win-hbtn";
         minimizeBtn.textContent = "–";
         minimizeBtn.title = "Minimize";
         minimizeBtn.addEventListener("click", () => {
-            this.beepWinMinimized = !this.beepWinMinimized;
-            win.classList.toggle("minimized", this.beepWinMinimized);
-            minimizeBtn.textContent = this.beepWinMinimized ? "▲" : "–";
-            minimizeBtn.title = this.beepWinMinimized ? "Restore" : "Minimize";
-            if (!this.beepWinMinimized) {
-                // Clear dot when restoring — user is reading
+            const entry = this.beepWins.get(memberNumber);
+            if (!entry) return;
+            entry.minimized = !entry.minimized;
+            win.classList.toggle("minimized", entry.minimized);
+            minimizeBtn.textContent = entry.minimized ? "▲" : "–";
+            minimizeBtn.title = entry.minimized ? "Restore" : "Minimize";
+            if (!entry.minimized) {
                 unreadDot.classList.remove("visible");
                 this.beepUnread.delete(memberNumber);
                 this.refreshTabDot();
@@ -5870,13 +5878,11 @@ export class EBCDrawer {
         });
 
         const closeBtn = document.createElement("button");
-        closeBtn.id = "ebc-beep-win-close";
-        closeBtn.className = "ebc-beep-win-hbtn";
+        closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
         closeBtn.textContent = "×";
         closeBtn.addEventListener("click", () => {
             win.remove();
-            this.beepWinEl = null;
-            this.beepWinMinimized = false;
+            this.beepWins.delete(memberNumber);
         });
 
         header.appendChild(dot);
@@ -5910,7 +5916,7 @@ export class EBCDrawer {
 
         // History
         const history = document.createElement("div");
-        history.id = "ebc-beep-win-history";
+        history.className = "ebc-beep-win-history";
         win.appendChild(history);
 
         // Reply state
@@ -6002,14 +6008,14 @@ export class EBCDrawer {
 
         // Reply bar (shown above footer when replying)
         const replyBar = document.createElement("div");
-        replyBar.id = "ebc-beep-reply-bar";
+        replyBar.className = "ebc-beep-reply-bar";
         replyBar.style.display = "none";
         const replyBarLabel = document.createElement("span");
         replyBarLabel.style.cssText = "color:#cf6f98;font-weight:bold;flex-shrink:0;";
         replyBarLabel.textContent = "↩";
         const replyBarSpan = document.createElement("span");
         const replyCancel = document.createElement("button");
-        replyCancel.id = "ebc-beep-reply-cancel";
+        replyCancel.className = "ebc-beep-reply-cancel";
         replyCancel.textContent = "×";
         replyCancel.addEventListener("click", clearReply);
         replyBar.appendChild(replyBarLabel);
@@ -6019,16 +6025,16 @@ export class EBCDrawer {
 
         // Footer
         const footer = document.createElement("div");
-        footer.id = "ebc-beep-win-footer";
+        footer.className = "ebc-beep-win-footer";
 
         const input = document.createElement("input");
-        input.id = "ebc-beep-win-input";
+        input.className = "ebc-beep-win-input";
         input.type = "text";
         input.placeholder = "Type a message...";
         input.maxLength = 300;
 
         const sendBtn = document.createElement("button");
-        sendBtn.id = "ebc-beep-win-send";
+        sendBtn.className = "ebc-beep-win-send";
         sendBtn.textContent = "Send";
 
         const doSend = (): void => {
@@ -6056,14 +6062,15 @@ export class EBCDrawer {
     }
 
     public refreshBeepWindow(memberNumber: number): void {
-        if (!this.beepWinEl || this.beepWinMember !== memberNumber) return;
-        const refresh = (this.beepWinEl as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
+        const entry = this.beepWins.get(memberNumber);
+        if (!entry) return;
+        const refresh = (entry.el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
         refresh?.();
     }
 
     public onIncomingBeep(fromNum: number): void {
-        const winOpen = this.beepWinEl && this.beepWinMember === fromNum;
-        const winVisible = winOpen && !this.beepWinMinimized;
+        const entry = this.beepWins.get(fromNum);
+        const winVisible = entry && !entry.minimized;
 
         if (winVisible) {
             this.refreshBeepWindow(fromNum);
@@ -6073,9 +6080,9 @@ export class EBCDrawer {
             if (this.currentTab === "notes") {
                 try { this.renderNotes(); } catch { /* ignore */ }
             }
-            // Show dot on the minimized bar if window is open but minimized
-            if (winOpen) {
-                const dot = this.beepWinEl?.querySelector<HTMLElement>("#ebc-beep-win-unread-dot");
+            // Show dot on the minimized bar if window exists but is minimized
+            if (entry) {
+                const dot = entry.el.querySelector<HTMLElement>(".ebc-beep-win-unread-dot");
                 if (dot) dot.classList.add("visible");
             }
         }
