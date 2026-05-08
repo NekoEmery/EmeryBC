@@ -32,7 +32,7 @@ import {
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
-import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene } from "./scenes";
+import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
@@ -5684,6 +5684,32 @@ export class EBCDrawer {
             editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
             editBtn.title = "Edit scene";
 
+            const exportBtn = document.createElement("button");
+            exportBtn.className = "ebc-edit-btn";
+            exportBtn.title = "Copy scene JSON to clipboard";
+            exportBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>';
+            exportBtn.addEventListener("click", () => {
+                const json = exportScene(scene.id);
+                if (!json) return;
+                const copied = (): void => {
+                    exportBtn.textContent = "✓";
+                    window.setTimeout(() => { exportBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>'; }, 1500);
+                };
+                const fallback = (): void => {
+                    const tmp = document.createElement("textarea");
+                    tmp.value = json;
+                    tmp.style.cssText = "position:fixed;top:-9999px;";
+                    document.body.appendChild(tmp);
+                    tmp.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(tmp);
+                    copied();
+                };
+                if (navigator.clipboard?.writeText) {
+                    navigator.clipboard.writeText(json).then(copied).catch(fallback);
+                } else { fallback(); }
+            });
+
             let delPending = false;
             let delTimer: ReturnType<typeof window.setTimeout> | null = null;
             const delBtn = document.createElement("button");
@@ -5708,6 +5734,7 @@ export class EBCDrawer {
             row.appendChild(nameEl);
             row.appendChild(stepCountEl);
             row.appendChild(playBtn);
+            row.appendChild(exportBtn);
             row.appendChild(editBtn);
             row.appendChild(delBtn);
 
@@ -5886,6 +5913,70 @@ export class EBCDrawer {
             if (!open) {
                 nsNameInp.focus();
                 window.setTimeout(() => newSceneToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+            }
+        });
+
+        // ── Import scene ──────────────────────────────────────────────────────
+        const impToggleBtn = document.createElement("button");
+        impToggleBtn.className = "ebc-new-outfit-btn";
+        impToggleBtn.textContent = "↓ Import Scene";
+        body.appendChild(impToggleBtn);
+
+        const impPanel = document.createElement("div");
+        impPanel.className = "ebc-import-panel";
+        body.appendChild(impPanel);
+
+        const impHint = document.createElement("div");
+        impHint.className = "ebc-import-hint";
+        impHint.textContent = "Paste scene JSON exported from another EBC user:";
+        impPanel.appendChild(impHint);
+
+        const impTextarea = document.createElement("textarea");
+        impTextarea.placeholder = 'Paste scene JSON here…';
+        impTextarea.style.cssText = "width:100%;min-height:72px;resize:vertical;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:5px;box-sizing:border-box;outline:none;";
+        impPanel.appendChild(impTextarea);
+
+        const impError = document.createElement("div");
+        impError.className = "ebc-import-error";
+        impPanel.appendChild(impError);
+
+        const impActionRow = document.createElement("div");
+        impActionRow.style.cssText = "display:flex;gap:5px;";
+        const impLoadBtn = document.createElement("button");
+        impLoadBtn.className = "ebc-create-btn";
+        impLoadBtn.style.marginTop = "0";
+        impLoadBtn.textContent = "Import";
+        const impCancelBtn = document.createElement("button");
+        impCancelBtn.className = "ebc-btn-footer-btn";
+        impCancelBtn.textContent = "Cancel";
+        impActionRow.appendChild(impLoadBtn);
+        impActionRow.appendChild(impCancelBtn);
+        impPanel.appendChild(impActionRow);
+
+        const closeImpPanel = (): void => {
+            impPanel.classList.remove("open");
+            impToggleBtn.textContent = "↓ Import Scene";
+            impTextarea.value = "";
+            impError.textContent = "";
+        };
+
+        impToggleBtn.addEventListener("click", () => {
+            const open = impPanel.classList.contains("open");
+            impPanel.classList.toggle("open", !open);
+            impToggleBtn.textContent = open ? "↓ Import Scene" : "- Cancel Import";
+            if (!open) { impTextarea.value = ""; impError.textContent = ""; impTextarea.focus(); }
+        });
+
+        impCancelBtn.addEventListener("click", closeImpPanel);
+
+        impLoadBtn.addEventListener("click", () => {
+            impError.textContent = "";
+            try {
+                importScene(impTextarea.value.trim());
+                closeImpPanel();
+                this.renderPoses();
+            } catch (err) {
+                impError.textContent = err instanceof Error ? err.message : "Invalid format.";
             }
         });
     }

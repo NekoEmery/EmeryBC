@@ -129,6 +129,34 @@ export function runScene(scene: Scene): void {
     }
 }
 
+// -- Export / Import -----------------------------------------------------------
+
+export function exportScene(id: string): string | null {
+    const scene = load().find(s => s.id === id);
+    if (!scene) return null;
+    return JSON.stringify(scene);
+}
+
+export function importScene(json: string): Scene {
+    let parsed: unknown;
+    try { parsed = JSON.parse(json); } catch { throw new Error("Invalid JSON."); }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+        throw new Error("Not a valid scene object.");
+    const obj = parsed as Record<string, unknown>;
+    if (typeof obj.name !== "string" || !Array.isArray(obj.steps))
+        throw new Error("Missing required fields (name, steps).");
+    const scene: Scene = {
+        id: uid(),
+        name: (obj.name as string).trim() || "Imported Scene",
+        steps: obj.steps as SceneStep[],
+        command: typeof obj.command === "string"
+            ? obj.command.toLowerCase().trim().replace(/\s+/g, "") || undefined
+            : undefined,
+    };
+    saveScenes([...load(), scene]);
+    return scene;
+}
+
 export function handleSceneCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;

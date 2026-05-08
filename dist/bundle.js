@@ -1158,6 +1158,37 @@
             window.setTimeout(() => executeStep(s), elapsed);
         }
     }
+    // -- Export / Import -----------------------------------------------------------
+    function exportScene(id) {
+        const scene = load().find(s => s.id === id);
+        if (!scene)
+            return null;
+        return JSON.stringify(scene);
+    }
+    function importScene(json) {
+        let parsed;
+        try {
+            parsed = JSON.parse(json);
+        }
+        catch (_a) {
+            throw new Error("Invalid JSON.");
+        }
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+            throw new Error("Not a valid scene object.");
+        const obj = parsed;
+        if (typeof obj.name !== "string" || !Array.isArray(obj.steps))
+            throw new Error("Missing required fields (name, steps).");
+        const scene = {
+            id: uid$1(),
+            name: obj.name.trim() || "Imported Scene",
+            steps: obj.steps,
+            command: typeof obj.command === "string"
+                ? obj.command.toLowerCase().trim().replace(/\s+/g, "") || undefined
+                : undefined,
+        };
+        saveScenes([...load(), scene]);
+        return scene;
+    }
     function handleSceneCommand(inputValue) {
         const trimmed = inputValue.trim();
         if (!trimmed.startsWith("/"))
@@ -1174,6 +1205,9 @@
     // room and how long active restraints have been present.
     // Per-item timestamps are persisted in ExtensionSettings so they survive
     // offline sessions and page reloads.
+    // Collar/leash/neck items are tracked per-slot but do NOT count toward the
+    // overall "Bound" timer — wearing a collar alone should not say you are bound.
+    const NECK_GROUPS = new Set(["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"]);
     // Session start: fixed at module load time — "how long have I been online"
     const SESSION_START = Date.now();
     let roomEnterTime = null;
@@ -1232,8 +1266,8 @@
             const currentGroups = new Set(Player.Appearance
                 .filter(i => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
                 .map(i => i.Asset.Group.Name));
-            // Overall restrained timer
-            const isBound = currentGroups.size > 0;
+            // Overall bound timer — neck/collar groups excluded
+            const isBound = [...currentGroups].some(g => !NECK_GROUPS.has(g));
             if (isBound) {
                 if (restraintStartTime === null)
                     restraintStartTime = Date.now();
@@ -7614,6 +7648,36 @@
                 editBtn.className = "ebc-edit-btn";
                 editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
                 editBtn.title = "Edit scene";
+                const exportBtn = document.createElement("button");
+                exportBtn.className = "ebc-edit-btn";
+                exportBtn.title = "Copy scene JSON to clipboard";
+                exportBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>';
+                exportBtn.addEventListener("click", () => {
+                    var _a;
+                    const json = exportScene(scene.id);
+                    if (!json)
+                        return;
+                    const copied = () => {
+                        exportBtn.textContent = "✓";
+                        window.setTimeout(() => { exportBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>'; }, 1500);
+                    };
+                    const fallback = () => {
+                        const tmp = document.createElement("textarea");
+                        tmp.value = json;
+                        tmp.style.cssText = "position:fixed;top:-9999px;";
+                        document.body.appendChild(tmp);
+                        tmp.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(tmp);
+                        copied();
+                    };
+                    if ((_a = navigator.clipboard) === null || _a === void 0 ? void 0 : _a.writeText) {
+                        navigator.clipboard.writeText(json).then(copied).catch(fallback);
+                    }
+                    else {
+                        fallback();
+                    }
+                });
                 let delPending = false;
                 let delTimer = null;
                 const delBtn = document.createElement("button");
@@ -7641,6 +7705,7 @@
                 row.appendChild(nameEl);
                 row.appendChild(stepCountEl);
                 row.appendChild(playBtn);
+                row.appendChild(exportBtn);
                 row.appendChild(editBtn);
                 row.appendChild(delBtn);
                 // Inline editor
@@ -7801,6 +7866,65 @@
                 if (!open) {
                     nsNameInp.focus();
                     window.setTimeout(() => newSceneToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+                }
+            });
+            // ── Import scene ──────────────────────────────────────────────────────
+            const impToggleBtn = document.createElement("button");
+            impToggleBtn.className = "ebc-new-outfit-btn";
+            impToggleBtn.textContent = "↓ Import Scene";
+            body.appendChild(impToggleBtn);
+            const impPanel = document.createElement("div");
+            impPanel.className = "ebc-import-panel";
+            body.appendChild(impPanel);
+            const impHint = document.createElement("div");
+            impHint.className = "ebc-import-hint";
+            impHint.textContent = "Paste scene JSON exported from another EBC user:";
+            impPanel.appendChild(impHint);
+            const impTextarea = document.createElement("textarea");
+            impTextarea.placeholder = 'Paste scene JSON here…';
+            impTextarea.style.cssText = "width:100%;min-height:72px;resize:vertical;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:5px;box-sizing:border-box;outline:none;";
+            impPanel.appendChild(impTextarea);
+            const impError = document.createElement("div");
+            impError.className = "ebc-import-error";
+            impPanel.appendChild(impError);
+            const impActionRow = document.createElement("div");
+            impActionRow.style.cssText = "display:flex;gap:5px;";
+            const impLoadBtn = document.createElement("button");
+            impLoadBtn.className = "ebc-create-btn";
+            impLoadBtn.style.marginTop = "0";
+            impLoadBtn.textContent = "Import";
+            const impCancelBtn = document.createElement("button");
+            impCancelBtn.className = "ebc-btn-footer-btn";
+            impCancelBtn.textContent = "Cancel";
+            impActionRow.appendChild(impLoadBtn);
+            impActionRow.appendChild(impCancelBtn);
+            impPanel.appendChild(impActionRow);
+            const closeImpPanel = () => {
+                impPanel.classList.remove("open");
+                impToggleBtn.textContent = "↓ Import Scene";
+                impTextarea.value = "";
+                impError.textContent = "";
+            };
+            impToggleBtn.addEventListener("click", () => {
+                const open = impPanel.classList.contains("open");
+                impPanel.classList.toggle("open", !open);
+                impToggleBtn.textContent = open ? "↓ Import Scene" : "- Cancel Import";
+                if (!open) {
+                    impTextarea.value = "";
+                    impError.textContent = "";
+                    impTextarea.focus();
+                }
+            });
+            impCancelBtn.addEventListener("click", closeImpPanel);
+            impLoadBtn.addEventListener("click", () => {
+                impError.textContent = "";
+                try {
+                    importScene(impTextarea.value.trim());
+                    closeImpPanel();
+                    this.renderPoses();
+                }
+                catch (err) {
+                    impError.textContent = err instanceof Error ? err.message : "Invalid format.";
                 }
             });
         }
@@ -9867,9 +9991,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.6.4";
+    const MOD_VERSION = "0.6.5";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.6.5",
+            changes: [
+                "Fix: Bound timer no longer counts collars, leashes, or other neck items — only actual binding restraints (arms, legs, etc.) start the timer.",
+                "Scenes: export any scene to clipboard JSON (clipboard icon on each row) and import scenes shared by others (↓ Import Scene button at the bottom of the scene list).",
+            ],
+        },
         {
             version: "0.6.4",
             changes: [

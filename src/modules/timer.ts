@@ -5,6 +5,10 @@
 
 import { RESTRAINT_GROUPS } from "./outfitManager";
 
+// Collar/leash/neck items are tracked per-slot but do NOT count toward the
+// overall "Bound" timer — wearing a collar alone should not say you are bound.
+const NECK_GROUPS = new Set(["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"]);
+
 // Session start: fixed at module load time — "how long have I been online"
 const SESSION_START = Date.now();
 
@@ -63,8 +67,8 @@ export function timerCheckRestraints(): void {
                 .map(i => i.Asset.Group.Name),
         );
 
-        // Overall restrained timer
-        const isBound = currentGroups.size > 0;
+        // Overall bound timer — neck/collar groups excluded
+        const isBound = [...currentGroups].some(g => !NECK_GROUPS.has(g));
         if (isBound) {
             if (restraintStartTime === null) restraintStartTime = Date.now();
         } else {
