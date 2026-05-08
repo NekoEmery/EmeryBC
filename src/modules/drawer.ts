@@ -6326,9 +6326,30 @@ export class EBCDrawer {
                     (x.Group as Record<string, unknown>)?.Name === groupName && x.Name === assetName);
                 console.log("[EmeryBC] asset found:", !!a);
                 if (!a) return { types: [], varHeight: null };
-                console.log("[EmeryBC] asset keys:", Object.keys(a));
-                console.log("[EmeryBC] AllowType:", a.AllowType, "| Extended:", a.Extended, "| Archetype:", a.Archetype, "| Config:", a.Config, "| Options:", a.Options);
-                console.log("[EmeryBC] DynamicAfterLoad:", a.DynamicAfterLoad, "| DynamicBeforeDraw:", a.DynamicBeforeDraw, "| Extended full:", JSON.stringify(a.Extended));
+
+                // Probe the side-channel globals BC R91+ uses to store typed options
+                const w = window as unknown as Record<string, unknown>;
+                const probeKeys = [
+                    `${family}${groupName}${assetName}`,          // e.g. Female3DCGItemArmsCeilingShackles
+                    assetName,                                     // bare name
+                    `${groupName}${assetName}`,                    // GroupName+AssetName
+                ];
+                const probeGlobals = ["TypedItemData","TypedItemConfigs","AssetExtendedItems","ExtendedItemConfig","AssetConfig"];
+                for (const pk of probeKeys) {
+                    const direct = w[pk];
+                    if (direct) console.log(`[EmeryBC] window["${pk}"]:`, direct);
+                }
+                for (const pg of probeGlobals) {
+                    const g = w[pg] as Record<string, unknown> | undefined;
+                    if (g) {
+                        // Try nested paths
+                        const v = (g[assetName] ?? (g[groupName] as Record<string,unknown> | undefined)?.[assetName]
+                            ?? (g[family] as Record<string,unknown> | undefined)?.[groupName]);
+                        console.log(`[EmeryBC] ${pg}["${assetName}"] =`, v ?? "(not found)");
+                    } else {
+                        console.log(`[EmeryBC] window.${pg} =`, g);
+                    }
+                }
 
                 // ── Type variants ─────────────────────────────────────────────
                 let types: string[] = [];

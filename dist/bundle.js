@@ -9039,7 +9039,7 @@
                 }
             };
             const getAssetExtInfo = (groupName, assetName) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
                 // Always log first — before any early returns
                 console.log("[EmeryBC] getAssetExtInfo called:", groupName, assetName);
                 try {
@@ -9052,9 +9052,30 @@
                     console.log("[EmeryBC] asset found:", !!a);
                     if (!a)
                         return { types: [], varHeight: null };
-                    console.log("[EmeryBC] asset keys:", Object.keys(a));
-                    console.log("[EmeryBC] AllowType:", a.AllowType, "| Extended:", a.Extended, "| Archetype:", a.Archetype, "| Config:", a.Config, "| Options:", a.Options);
-                    console.log("[EmeryBC] DynamicAfterLoad:", a.DynamicAfterLoad, "| DynamicBeforeDraw:", a.DynamicBeforeDraw, "| Extended full:", JSON.stringify(a.Extended));
+                    // Probe the side-channel globals BC R91+ uses to store typed options
+                    const w = window;
+                    const probeKeys = [
+                        `${family}${groupName}${assetName}`, // e.g. Female3DCGItemArmsCeilingShackles
+                        assetName, // bare name
+                        `${groupName}${assetName}`, // GroupName+AssetName
+                    ];
+                    const probeGlobals = ["TypedItemData", "TypedItemConfigs", "AssetExtendedItems", "ExtendedItemConfig", "AssetConfig"];
+                    for (const pk of probeKeys) {
+                        const direct = w[pk];
+                        if (direct)
+                            console.log(`[EmeryBC] window["${pk}"]:`, direct);
+                    }
+                    for (const pg of probeGlobals) {
+                        const g = w[pg];
+                        if (g) {
+                            // Try nested paths
+                            const v = ((_c = (_a = g[assetName]) !== null && _a !== void 0 ? _a : (_b = g[groupName]) === null || _b === void 0 ? void 0 : _b[assetName]) !== null && _c !== void 0 ? _c : (_d = g[family]) === null || _d === void 0 ? void 0 : _d[groupName]);
+                            console.log(`[EmeryBC] ${pg}["${assetName}"] =`, v !== null && v !== void 0 ? v : "(not found)");
+                        }
+                        else {
+                            console.log(`[EmeryBC] window.${pg} =`, g);
+                        }
+                    }
                     // ── Type variants ─────────────────────────────────────────────
                     let types = [];
                     const pickNames = (arr) => Array.isArray(arr)
@@ -9074,7 +9095,7 @@
                                 types = pickNames(cfg.Options);
                             // Config.ArchetypeConfig.Options[]
                             if (types.length === 0)
-                                types = pickNames((_a = cfg.ArchetypeConfig) === null || _a === void 0 ? void 0 : _a.Options);
+                                types = pickNames((_e = cfg.ArchetypeConfig) === null || _e === void 0 ? void 0 : _e.Options);
                         }
                     }
                     // 3. Extended Typed — various structures across BC versions
@@ -9086,10 +9107,10 @@
                                 types = pickNames(ext.Options);
                             // Extended.Typed.Options
                             if (types.length === 0)
-                                types = pickNames((_b = ext.Typed) === null || _b === void 0 ? void 0 : _b.Options);
+                                types = pickNames((_f = ext.Typed) === null || _f === void 0 ? void 0 : _f.Options);
                             // Extended.Config.Options
                             if (types.length === 0)
-                                types = pickNames((_c = ext.Config) === null || _c === void 0 ? void 0 : _c.Options);
+                                types = pickNames((_g = ext.Config) === null || _g === void 0 ? void 0 : _g.Options);
                             // DrawImages keys (older pattern)
                             if (types.length === 0 && ext.DrawImages && typeof ext.DrawImages === "object")
                                 types = Object.keys(ext.DrawImages).filter(k => k !== "");
@@ -9113,12 +9134,12 @@
                     // R91+ Archetype = "variableheight" / "VariableHeight"
                     const archetype = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
                     if (archetype === "variableheight") {
-                        varHeight = (_f = (_d = tryVH(a.Config)) !== null && _d !== void 0 ? _d : tryVH((_e = a.Config) === null || _e === void 0 ? void 0 : _e.ArchetypeConfig)) !== null && _f !== void 0 ? _f : { min: 0, max: 100 };
+                        varHeight = (_k = (_h = tryVH(a.Config)) !== null && _h !== void 0 ? _h : tryVH((_j = a.Config) === null || _j === void 0 ? void 0 : _j.ArchetypeConfig)) !== null && _k !== void 0 ? _k : { min: 0, max: 100 };
                     }
                     // Older paths
                     if (!varHeight) {
                         const ext = a.Extended;
-                        varHeight = (_j = (_h = tryVH((_g = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _g !== void 0 ? _g : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeight)) !== null && _j !== void 0 ? _j : tryVH(a.VariableHeightConfig);
+                        varHeight = (_o = (_m = tryVH((_l = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _l !== void 0 ? _l : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _m !== void 0 ? _m : tryVH(a.VariableHeight)) !== null && _o !== void 0 ? _o : tryVH(a.VariableHeightConfig);
                     }
                     console.log("[EmeryBC] result — types:", types, "varHeight:", varHeight);
                     return { types, varHeight };
