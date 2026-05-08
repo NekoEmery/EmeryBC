@@ -1628,12 +1628,12 @@
                             });
                         }
                         else if (step.chatFormat === "(") {
-                            // OOC — Type:"Action" renders the content as-is without asterisks.
-                            // We include the name ourselves so it shows as (Name text).
+                            // OOC — Type:"Action" already wraps the content in ( ) when rendered.
+                            // Don't add our own parens or they double up: ((text)).
                             // Action messages bypass gag speech processing.
                             ServerSend("ChatRoomChat", {
                                 Type: "Action",
-                                Content: "(" + getDisplayName() + " " + txt + ")",
+                                Content: getDisplayName() + " " + txt,
                                 Dictionary: [
                                     { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
                                     { SourceCharacter: Player.MemberNumber },
@@ -2293,21 +2293,23 @@
         "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
     ]);
     function releaseBindingRestraints() {
-        const toRemove = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint && !NECK_GROUPS.has(i.Asset.Group.Name));
-        for (const item of toRemove) {
-            try {
-                InventoryRemove(Player, item.Asset.Group.Name, false);
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
+        const removeGroups = new Set(Player.Appearance
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .map((i) => i.Asset.Group.Name));
+        if (removeGroups.size === 0)
+            return;
+        // Filter the appearance array directly — InventoryRemove respects BC lock
+        // rules and silently fails on owner/exclusive-locked items.
+        Player.Appearance = Player.Appearance.filter((i) => !removeGroups.has(i.Asset.Group.Name));
+        // Update the anti-restraint snapshot so it treats the now-empty slots as
+        // the new baseline and doesn't try to fight the removal.
+        snapshotPlayerRestraints();
+        try {
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
         }
-        if (toRemove.length > 0) {
-            try {
-                CharacterRefresh(Player, false);
-                ChatRoomCharacterUpdate(Player);
-                ServerPlayerAppearanceSync();
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
-        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // Guard flag to prevent re-entrant calls during grace enforcement.
     let enforcing = false;
@@ -2321,23 +2323,21 @@
         checkGraceExpiry();
         if (!isGraceActive())
             return;
-        const toRemove = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint && !NECK_GROUPS.has(i.Asset.Group.Name));
-        if (toRemove.length === 0)
+        const removeGroups = new Set(Player.Appearance
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .map((i) => i.Asset.Group.Name));
+        if (removeGroups.size === 0)
             return;
         enforcing = true;
         try {
-            for (const item of toRemove) {
-                try {
-                    InventoryRemove(Player, item.Asset.Group.Name, false);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            }
+            Player.Appearance = Player.Appearance.filter((i) => !removeGroups.has(i.Asset.Group.Name));
+            snapshotPlayerRestraints();
             try {
                 CharacterRefresh(Player, false);
                 ChatRoomCharacterUpdate(Player);
                 ServerPlayerAppearanceSync();
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_a) { /* ignore */ }
         }
         finally {
             enforcing = false;
@@ -11726,9 +11726,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.8.1";
+    const MOD_VERSION = "0.8.2";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.8.2",
+            changes: [
+                "Fix: Scene '( )' OOC steps no longer produce double parens. BC's Type:Action already wraps the output in ( ) — we were adding our own, giving ((text)). Now sends just the name + text.",
+                "Fix: Safeword restraint release now works on locked items. InventoryRemove silently fails on owner/exclusive-locked restraints. Now directly filters Player.Appearance to bypass lock checks, then syncs.",
+                "Fix: Grace period enforcement (yellow safeword) uses the same direct-filter approach so locked restraints are stripped during the grace period too.",
+            ],
+        },
         {
             version: "0.8.1",
             changes: [

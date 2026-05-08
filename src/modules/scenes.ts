@@ -121,12 +121,12 @@ function executeStep(step: SceneStep): void {
                             Content: txt,
                         });
                     } else if (step.chatFormat === "(") {
-                        // OOC — Type:"Action" renders the content as-is without asterisks.
-                        // We include the name ourselves so it shows as (Name text).
+                        // OOC — Type:"Action" already wraps the content in ( ) when rendered.
+                        // Don't add our own parens or they double up: ((text)).
                         // Action messages bypass gag speech processing.
                         ServerSend("ChatRoomChat", {
                             Type: "Action",
-                            Content: "(" + getDisplayName() + " " + txt + ")",
+                            Content: getDisplayName() + " " + txt,
                             Dictionary: [
                                 { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
                                 { SourceCharacter: Player.MemberNumber },

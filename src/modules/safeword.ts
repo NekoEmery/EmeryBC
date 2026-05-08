@@ -4,7 +4,8 @@
 //
 // Grace period enforcement is hooked into CharacterRefresh in main.ts.
 
-import { applyOutfit, getOutfits } from "./outfitManager";
+import { applyOutfit, getOutfits, RESTRAINT_GROUPS } from "./outfitManager";
+import { snapshotPlayerRestraints } from "./antiRestraint";
 
 export interface SafewordConfig {
     enabled: boolean;
@@ -89,19 +90,28 @@ const NECK_GROUPS = new Set([
 ]);
 
 function releaseBindingRestraints(): void {
-    const toRemove = Player.Appearance.filter((i: Item) =>
-        i.Asset.Group.IsRestraint && !NECK_GROUPS.has(i.Asset.Group.Name),
+    const removeGroups = new Set(
+        Player.Appearance
+            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .map((i: Item) => i.Asset.Group.Name),
     );
-    for (const item of toRemove) {
-        try { InventoryRemove(Player, item.Asset.Group.Name, false); } catch { /* ignore */ }
-    }
-    if (toRemove.length > 0) {
-        try {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-        } catch { /* ignore */ }
-    }
+    if (removeGroups.size === 0) return;
+
+    // Filter the appearance array directly — InventoryRemove respects BC lock
+    // rules and silently fails on owner/exclusive-locked items.
+    Player.Appearance = Player.Appearance.filter(
+        (i: Item) => !removeGroups.has(i.Asset.Group.Name),
+    );
+
+    // Update the anti-restraint snapshot so it treats the now-empty slots as
+    // the new baseline and doesn't try to fight the removal.
+    snapshotPlayerRestraints();
+
+    try {
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+    } catch { /* ignore */ }
 }
 
 // Guard flag to prevent re-entrant calls during grace enforcement.
@@ -116,16 +126,19 @@ export function enforceGracePeriod(): void {
     checkGraceExpiry();
     if (!isGraceActive()) return;
 
-    const toRemove = Player.Appearance.filter((i: Item) =>
-        i.Asset.Group.IsRestraint && !NECK_GROUPS.has(i.Asset.Group.Name),
+    const removeGroups = new Set(
+        Player.Appearance
+            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
+            .map((i: Item) => i.Asset.Group.Name),
     );
-    if (toRemove.length === 0) return;
+    if (removeGroups.size === 0) return;
 
     enforcing = true;
     try {
-        for (const item of toRemove) {
-            try { InventoryRemove(Player, item.Asset.Group.Name, false); } catch { /* ignore */ }
-        }
+        Player.Appearance = Player.Appearance.filter(
+            (i: Item) => !removeGroups.has(i.Asset.Group.Name),
+        );
+        snapshotPlayerRestraints();
         try {
             CharacterRefresh(Player, false);
             ChatRoomCharacterUpdate(Player);
