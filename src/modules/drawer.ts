@@ -8504,7 +8504,7 @@ export class EBCDrawer {
                 emoji: "🌙",
                 name: "Lucy",
                 memberId: 230466,
-                reason: "Stayed up nearly 19 hours with me while this came to life, sharing ideas and keeping the energy going the whole way through.",
+                reason: "Lost count of the hours a long time ago — what started as one very long late night turned into something much bigger, and she was there for all of it. Every idea, every problem, every version of this thing. She made it genuinely fun to build.",
                 heart: "💜",
             },
             {
