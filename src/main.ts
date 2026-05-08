@@ -982,21 +982,23 @@ function init(): void {
         return next(args);
     });
 
-    // Record incoming beeps so history is synced across devices and the chat
-    // window can be refreshed live if it happens to be open.
-    tryHookFunction(modAPI, "AccountBeep", 3, (args, next) => {
-        const result = next(args);
-        try {
-            const [data] = args as [Record<string, unknown>];
-            const fromNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
-            const msg = typeof data.Message === "string" ? data.Message : "";
-            if (fromNum && msg) {
-                addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-                try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
-            }
-        } catch { /* ignore */ }
-        return result;
-    });
+    // Record incoming beeps via socket listener (AccountBeep is a socket event,
+    // not a patchable global, so ModSDK hooks won't find it).
+    try {
+        const socket = (window as unknown as Record<string, unknown>).ServerSocket as
+            { on(event: string, cb: (data: unknown) => void): void } | undefined;
+        socket?.on("AccountBeep", (raw: unknown) => {
+            try {
+                const data = raw as Record<string, unknown>;
+                const fromNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+                const msg = typeof data.Message === "string" ? data.Message : "";
+                if (fromNum && msg) {
+                    addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
+                    try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
+                }
+            } catch { /* ignore */ }
+        });
+    } catch { /* ignore */ }
 
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
         try {

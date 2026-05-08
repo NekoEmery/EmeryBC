@@ -10113,26 +10113,28 @@
             catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
-        // Record incoming beeps so history is synced across devices and the chat
-        // window can be refreshed live if it happens to be open.
-        tryHookFunction(modAPI, "AccountBeep", 3, (args, next) => {
-            var _a;
-            const result = next(args);
-            try {
-                const [data] = args;
-                const fromNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
-                const msg = typeof data.Message === "string" ? data.Message : "";
-                if (fromNum && msg) {
-                    addBeepEntry({ from: fromNum, to: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, message: msg, ts: Date.now() });
-                    try {
-                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
+        // Record incoming beeps via socket listener (AccountBeep is a socket event,
+        // not a patchable global, so ModSDK hooks won't find it).
+        try {
+            const socket = window.ServerSocket;
+            socket === null || socket === void 0 ? void 0 : socket.on("AccountBeep", (raw) => {
+                var _a;
+                try {
+                    const data = raw;
+                    const fromNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+                    const msg = typeof data.Message === "string" ? data.Message : "";
+                    if (fromNum && msg) {
+                        addBeepEntry({ from: fromNum, to: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, message: msg, ts: Date.now() });
+                        try {
+                            drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
+                        }
+                        catch ( /* ignore */_b) { /* ignore */ }
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
                 }
-            }
-            catch ( /* ignore */_c) { /* ignore */ }
-            return result;
-        });
+                catch ( /* ignore */_c) { /* ignore */ }
+            });
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
         modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
             try {
                 if (typeof KeyPress !== "undefined" && KeyPress === 13) {
@@ -10164,7 +10166,7 @@
         try {
             syncPresenceMarker();
         }
-        catch (_a) {
+        catch (_b) {
             // Ignore early sync failures.
         }
         console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
