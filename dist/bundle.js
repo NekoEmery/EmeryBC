@@ -3831,8 +3831,6 @@
 .ebc-beep-win.minimized {
     height: 44px !important;
     min-height: 0;
-    bottom: 0;
-    border-radius: 10px 10px 0 0;
     overflow: hidden;
     resize: none;
 }
@@ -7782,19 +7780,20 @@
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
-            // Make header draggable
+            // Make header draggable — anchored by bottom so expanding grows upward
             header.addEventListener("mousedown", (e) => {
                 if (e.target === closeBtn)
                     return;
                 e.preventDefault();
                 const rect = win.getBoundingClientRect();
                 const ox = e.clientX - rect.left;
-                const oy = e.clientY - rect.top;
+                const vh = window.innerHeight;
+                const oyFromBottom = rect.bottom - e.clientY;
                 const onMove = (ev) => {
                     win.style.left = `${ev.clientX - ox}px`;
-                    win.style.top = `${ev.clientY - oy}px`;
+                    win.style.bottom = `${vh - ev.clientY - oyFromBottom}px`;
                     win.style.right = "";
-                    win.style.bottom = "";
+                    win.style.top = "";
                 };
                 const onUp = () => {
                     document.removeEventListener("mousemove", onMove);
@@ -9568,9 +9567,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.6.1";
+    const MOD_VERSION = "0.6.2";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.6.2",
+            changes: [
+                "Beep windows now expand upward — dragging anchors to the bottom edge so windows near the bottom of the screen open toward the top instead of disappearing off screen.",
+            ],
+        },
         {
             version: "0.6.1",
             changes: [
