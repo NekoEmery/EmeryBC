@@ -238,7 +238,9 @@ export function applyDomSet(setId: string, targetIds?: Set<number>): { applied: 
             try {
                 const text = set.announceTemplate
                     .replace(/\{name\}/gi,    set.name)
-                    .replace(/\{targets\}/gi, applied.join(", "));
+                    .replace(/\{targets\}/gi, applied.length > 1
+                        ? applied.slice(0, -1).join(", ") + " and " + applied[applied.length - 1]
+                        : applied[0] ?? "");
                 ServerSend("ChatRoomChat", {
                     Type: "Action",
                     Content: getDisplayName() + " " + text,

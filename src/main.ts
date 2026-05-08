@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "1.0.0";
+const MOD_VERSION = "1.0.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.0.1",
+        changes: [
+            "Dom Tools: multiple targets in announce now join with 'and' instead of a comma — e.g. 'Lucy and Lara' instead of 'Lucy, Lara'.",
+        ],
+    },
     {
         version: "1.0.0",
         changes: [

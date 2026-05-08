@@ -2751,10 +2751,13 @@
         // Send room announce after items have synced
         if (applied.length > 0 && set.announceTemplate.trim()) {
             window.setTimeout(() => {
+                var _a;
                 try {
                     const text = set.announceTemplate
                         .replace(/\{name\}/gi, set.name)
-                        .replace(/\{targets\}/gi, applied.join(", "));
+                        .replace(/\{targets\}/gi, applied.length > 1
+                        ? applied.slice(0, -1).join(", ") + " and " + applied[applied.length - 1]
+                        : (_a = applied[0]) !== null && _a !== void 0 ? _a : "");
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
                         Content: getDisplayName() + " " + text,
@@ -2764,7 +2767,7 @@
                         ],
                     });
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_b) { /* ignore */ }
             }, 200);
         }
         return { applied, skipped };
@@ -12703,9 +12706,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "1.0.0";
+    const MOD_VERSION = "1.0.1";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.0.1",
+            changes: [
+                "Dom Tools: multiple targets in announce now join with 'and' instead of a comma — e.g. 'Lucy and Lara' instead of 'Lucy, Lara'.",
+            ],
+        },
         {
             version: "1.0.0",
             changes: [
