@@ -6027,7 +6027,7 @@ export class EBCDrawer {
 
                 history.appendChild(wrap);
             }
-            history.scrollTop = history.scrollHeight;
+            requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
         };
 
         renderHistory();

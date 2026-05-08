@@ -7904,7 +7904,7 @@
                     }
                     history.appendChild(wrap);
                 }
-                history.scrollTop = history.scrollHeight;
+                requestAnimationFrame(() => { history.scrollTop = history.scrollHeight; });
             };
             renderHistory();
             // Reply bar (shown above footer when replying)
