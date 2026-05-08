@@ -6686,6 +6686,28 @@ export class EBCDrawer {
                     heightWrap.appendChild(heightInp);
                     heightWrap.appendChild(heightRangeLbl);
 
+                    // One-time scan: find which window global holds CeilingShackles options
+                    (() => {
+                        const w = window as unknown as Record<string, unknown>;
+                        for (const k1 of Object.keys(w)) {
+                            try {
+                                const v1 = w[k1];
+                                if (!v1 || typeof v1 !== "object" || Array.isArray(v1)) continue;
+                                const o1 = v1 as Record<string, unknown>;
+                                if ("CeilingShackles" in o1) { console.log(`[EBC] window.${k1}.CeilingShackles =`, o1["CeilingShackles"]); continue; }
+                                for (const k2 of Object.keys(o1)) {
+                                    try {
+                                        const v2 = o1[k2];
+                                        if (!v2 || typeof v2 !== "object" || Array.isArray(v2)) continue;
+                                        const o2 = v2 as Record<string, unknown>;
+                                        if ("CeilingShackles" in o2) console.log(`[EBC] window.${k1}.${k2}.CeilingShackles =`, o2["CeilingShackles"]);
+                                    } catch { /* skip */ }
+                                }
+                            } catch { /* skip */ }
+                        }
+                        console.log("[EBC] scan done");
+                    })();
+
                     const updateStateRow = (): void => {
                         const info = getAssetExtInfo(groupSel.value, assetSel.value);
 
