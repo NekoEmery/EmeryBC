@@ -14,10 +14,18 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.9.5";
+const MOD_VERSION = "0.9.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.9.6",
+        changes: [
+            "Scenes equip: variant options are now detected via TypedItemGetOptionNames (BC R91+ global) — all typed items including Ceiling Shackles show their real options (HeadLevel, Overhead, etc.) instead of a text box.",
+            "Scenes equip: equipping with a variant now also sets Property.TypeRecord for full BC R91+ compatibility.",
+            "Scenes equip: 📷 capture button now reads TypeRecord (BC R91+) to detect the active variant, falling back to Property.Type for older items.",
+        ],
+    },
     {
         version: "0.9.5",
         changes: [

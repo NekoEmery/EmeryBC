@@ -90,8 +90,23 @@ function executeStep(step: SceneStep): void {
                         const worn = InventoryGet(Player, step.group);
                         if (worn) {
                             if (!worn.Property) worn.Property = {};
-                            if (step.propertyType)
+                            if (step.propertyType) {
+                                // Legacy compat — some BC systems still read Type
                                 worn.Property.Type = step.propertyType;
+                                // BC R91+ TypeRecord: { "typed": <optionIndex> }
+                                type GetOptionsFn = (g: string, n: string) => Array<{ Name: string }> | null;
+                                const getFn = (window as unknown as Record<string, unknown>).TypedItemGetOptions as GetOptionsFn | undefined;
+                                if (typeof getFn === "function") {
+                                    try {
+                                        const opts = getFn(step.group, step.assetName!);
+                                        if (opts) {
+                                            const idx = opts.findIndex(o => o.Name === step.propertyType);
+                                            if (idx >= 0)
+                                                (worn.Property as Record<string, unknown>).TypeRecord = { typed: idx };
+                                        }
+                                    } catch { /* ignore */ }
+                                }
+                            }
                             if (step.heightModifier !== undefined)
                                 (worn.Property as Record<string, unknown>).HeightModifier = step.heightModifier;
                         }

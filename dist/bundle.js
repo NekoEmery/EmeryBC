@@ -1594,8 +1594,22 @@
                             if (worn) {
                                 if (!worn.Property)
                                     worn.Property = {};
-                                if (step.propertyType)
+                                if (step.propertyType) {
+                                    // Legacy compat — some BC systems still read Type
                                     worn.Property.Type = step.propertyType;
+                                    const getFn = window.TypedItemGetOptions;
+                                    if (typeof getFn === "function") {
+                                        try {
+                                            const opts = getFn(step.group, step.assetName);
+                                            if (opts) {
+                                                const idx = opts.findIndex(o => o.Name === step.propertyType);
+                                                if (idx >= 0)
+                                                    worn.Property.TypeRecord = { typed: idx };
+                                            }
+                                        }
+                                        catch ( /* ignore */_d) { /* ignore */ }
+                                    }
+                                }
                                 if (step.heightModifier !== undefined)
                                     worn.Property.HeightModifier = step.heightModifier;
                             }
@@ -1662,7 +1676,7 @@
                     break; // delay alone is the effect
             }
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
     }
     function runScene(scene) {
         let elapsed = 0;
@@ -9039,7 +9053,7 @@
                 }
             };
             const getAssetExtInfo = (groupName, assetName) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+                var _a, _b, _c, _d, _e, _f, _g, _h;
                 try {
                     const bcAsset = window.Asset;
                     if (!Array.isArray(bcAsset))
@@ -9049,40 +9063,38 @@
                         return { types: [], varHeight: null, isTyped: false };
                     // ── Type variants ─────────────────────────────────────────────
                     let types = [];
+                    // 1. BC R91+: TypedItemGetOptionNames is a global function that returns the
+                    //    registered option names for any typed item from TypedItemDataLookup.
+                    //    This is the authoritative source — use it first.
+                    {
+                        const fn = window.TypedItemGetOptionNames;
+                        if (typeof fn === "function") {
+                            try {
+                                const r = fn(groupName, assetName);
+                                if (r.length > 0)
+                                    types = r;
+                            }
+                            catch ( /* ignore */_j) { /* ignore */ }
+                        }
+                    }
                     const pickNames = (arr) => Array.isArray(arr)
                         ? arr
                             .map(o => { var _a, _b; return (_b = (_a = o === null || o === void 0 ? void 0 : o.Name) !== null && _a !== void 0 ? _a : o === null || o === void 0 ? void 0 : o.Self) !== null && _b !== void 0 ? _b : o; })
                             .filter((n) => typeof n === "string")
                         : [];
-                    // 1. Legacy AllowType array
-                    if (Array.isArray(a.AllowType) && a.AllowType.length > 0)
+                    // 2. Legacy AllowType array (pre-R91)
+                    if (types.length === 0 && Array.isArray(a.AllowType) && a.AllowType.length > 0)
                         types = a.AllowType;
-                    // 2. R91+ Archetype / Config pattern
-                    if (types.length === 0) {
-                        const cfg = a.Config;
-                        if (cfg) {
-                            // Config.Options[] — Typed archetype
-                            if (types.length === 0)
-                                types = pickNames(cfg.Options);
-                            // Config.ArchetypeConfig.Options[]
-                            if (types.length === 0)
-                                types = pickNames((_a = cfg.ArchetypeConfig) === null || _a === void 0 ? void 0 : _a.Options);
-                        }
-                    }
-                    // 3. Extended Typed — various structures across BC versions
+                    // 3. Extended Typed — various older structures
                     if (types.length === 0) {
                         const ext = a.Extended;
                         if (ext && typeof ext === "object") {
-                            // Direct Options[] on Extended
                             if (types.length === 0)
                                 types = pickNames(ext.Options);
-                            // Extended.Typed.Options
                             if (types.length === 0)
-                                types = pickNames((_b = ext.Typed) === null || _b === void 0 ? void 0 : _b.Options);
-                            // Extended.Config.Options
+                                types = pickNames((_a = ext.Typed) === null || _a === void 0 ? void 0 : _a.Options);
                             if (types.length === 0)
-                                types = pickNames((_c = ext.Config) === null || _c === void 0 ? void 0 : _c.Options);
-                            // DrawImages keys (older pattern)
+                                types = pickNames((_b = ext.Config) === null || _b === void 0 ? void 0 : _b.Options);
                             if (types.length === 0 && ext.DrawImages && typeof ext.DrawImages === "object")
                                 types = Object.keys(ext.DrawImages).filter(k => k !== "");
                         }
@@ -9090,29 +9102,6 @@
                     // 4. Top-level Options[] (some older assets)
                     if (types.length === 0)
                         types = pickNames(a.Options);
-                    // 5. Layer.AllowTypes — BC R91+ stores typed variants per-layer.
-                    //    Collect all unique type names across every layer on the asset.
-                    //    This works even when the options list isn't exposed on the asset object itself.
-                    if (types.length === 0) {
-                        const layers = a.Layer;
-                        if (Array.isArray(layers)) {
-                            const typeSet = new Set();
-                            for (const layer of layers) {
-                                // BC uses AllowTypes, AllowType, or CopyLayerColor depending on version
-                                for (const key of ["AllowTypes", "AllowType", "Types", "ShowFor"]) {
-                                    const val = layer[key];
-                                    if (Array.isArray(val)) {
-                                        for (const t of val) {
-                                            if (typeof t === "string" && t !== "")
-                                                typeSet.add(t);
-                                        }
-                                    }
-                                }
-                            }
-                            if (typeSet.size > 0)
-                                types = Array.from(typeSet);
-                        }
-                    }
                     // ── Variable Height ────────────────────────────────────────────
                     let varHeight = null;
                     const tryVH = (src) => {
@@ -9128,12 +9117,12 @@
                     // R91+ Archetype = "variableheight" / "VariableHeight"
                     const archetype = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
                     if (archetype === "variableheight") {
-                        varHeight = (_f = (_d = tryVH(a.Config)) !== null && _d !== void 0 ? _d : tryVH((_e = a.Config) === null || _e === void 0 ? void 0 : _e.ArchetypeConfig)) !== null && _f !== void 0 ? _f : { min: 0, max: 100 };
+                        varHeight = (_e = (_c = tryVH(a.Config)) !== null && _c !== void 0 ? _c : tryVH((_d = a.Config) === null || _d === void 0 ? void 0 : _d.ArchetypeConfig)) !== null && _e !== void 0 ? _e : { min: 0, max: 100 };
                     }
                     // Older paths
                     if (!varHeight) {
                         const ext = a.Extended;
-                        varHeight = (_j = (_h = tryVH((_g = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _g !== void 0 ? _g : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeight)) !== null && _j !== void 0 ? _j : tryVH(a.VariableHeightConfig);
+                        varHeight = (_h = (_g = tryVH((_f = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _f !== void 0 ? _f : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _g !== void 0 ? _g : tryVH(a.VariableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeightConfig);
                     }
                     const archStr = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
                     const isTyped = archStr === "typed" || (Array.isArray(a.AllowType) && a.AllowType.length > 0);
@@ -9433,6 +9422,7 @@
                         };
                         assetSel.addEventListener("change", () => updateStateRow());
                         captureBtn.addEventListener("click", () => {
+                            var _a, _b;
                             try {
                                 const g = groupSel.value;
                                 if (!g)
@@ -9449,11 +9439,31 @@
                                     equipColorRaw = s;
                                 }
                                 const prop = item.Property;
-                                // Capture Property.Type
-                                if (typeof (prop === null || prop === void 0 ? void 0 : prop.Type) === "string") {
-                                    equipPropertyType = prop.Type;
-                                    stateSel.value = equipPropertyType;
-                                    typeTextInp.value = equipPropertyType;
+                                // Capture Property.Type — try TypeRecord (BC R91+) first, fall back to Type string
+                                {
+                                    let capturedType = "";
+                                    // BC R91+: TypeRecord = { "typed": <index> }, map index → option Name
+                                    const typeRecord = prop === null || prop === void 0 ? void 0 : prop.TypeRecord;
+                                    if (typeRecord && typeof typeRecord === "object") {
+                                        const getFn = window.TypedItemGetOptions;
+                                        if (typeof getFn === "function") {
+                                            try {
+                                                const opts = getFn(item.Asset.Group.Name, item.Asset.Name);
+                                                const idx = ((_a = Object.values(typeRecord)[0]) !== null && _a !== void 0 ? _a : -1);
+                                                if (opts && idx >= 0 && idx < opts.length)
+                                                    capturedType = (_b = opts[idx].Name) !== null && _b !== void 0 ? _b : "";
+                                            }
+                                            catch ( /* ignore */_c) { /* ignore */ }
+                                        }
+                                    }
+                                    // Legacy fallback: Property.Type string
+                                    if (!capturedType && typeof (prop === null || prop === void 0 ? void 0 : prop.Type) === "string")
+                                        capturedType = prop.Type;
+                                    if (capturedType) {
+                                        equipPropertyType = capturedType;
+                                        stateSel.value = equipPropertyType;
+                                        typeTextInp.value = equipPropertyType;
+                                    }
                                 }
                                 // Capture Property.HeightModifier
                                 if (typeof (prop === null || prop === void 0 ? void 0 : prop.HeightModifier) === "number") {
@@ -9461,7 +9471,7 @@
                                     heightInp.value = String(equipHeightModifier);
                                 }
                             }
-                            catch ( /* ignore */_a) { /* ignore */ }
+                            catch ( /* ignore */_d) { /* ignore */ }
                         });
                         row1.appendChild(groupSel);
                         row1.appendChild(assetSel);
@@ -12672,9 +12682,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.9.5";
+    const MOD_VERSION = "0.9.6";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.9.6",
+            changes: [
+                "Scenes equip: variant options are now detected via TypedItemGetOptionNames (BC R91+ global) — all typed items including Ceiling Shackles show their real options (HeadLevel, Overhead, etc.) instead of a text box.",
+                "Scenes equip: equipping with a variant now also sets Property.TypeRecord for full BC R91+ compatibility.",
+                "Scenes equip: 📷 capture button now reads TypeRecord (BC R91+) to detect the active variant, falling back to Property.Type for older items.",
+            ],
+        },
         {
             version: "0.9.5",
             changes: [

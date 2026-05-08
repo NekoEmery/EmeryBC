@@ -6326,6 +6326,17 @@ export class EBCDrawer {
                 // ── Type variants ─────────────────────────────────────────────
                 let types: string[] = [];
 
+                // 1. BC R91+: TypedItemGetOptionNames is a global function that returns the
+                //    registered option names for any typed item from TypedItemDataLookup.
+                //    This is the authoritative source — use it first.
+                {
+                    type GetOptNamesFn = (group: string, name: string) => string[];
+                    const fn = (window as unknown as Record<string, unknown>).TypedItemGetOptionNames as GetOptNamesFn | undefined;
+                    if (typeof fn === "function") {
+                        try { const r = fn(groupName, assetName); if (r.length > 0) types = r; } catch { /* ignore */ }
+                    }
+                }
+
                 const pickNames = (arr: unknown): string[] =>
                     Array.isArray(arr)
                         ? (arr as Array<Record<string, unknown>>)
@@ -6333,32 +6344,17 @@ export class EBCDrawer {
                             .filter((n): n is string => typeof n === "string")
                         : [];
 
-                // 1. Legacy AllowType array
-                if (Array.isArray(a.AllowType) && (a.AllowType as unknown[]).length > 0)
+                // 2. Legacy AllowType array (pre-R91)
+                if (types.length === 0 && Array.isArray(a.AllowType) && (a.AllowType as unknown[]).length > 0)
                     types = a.AllowType as string[];
 
-                // 2. R91+ Archetype / Config pattern
-                if (types.length === 0) {
-                    const cfg = a.Config as Record<string, unknown> | undefined;
-                    if (cfg) {
-                        // Config.Options[] — Typed archetype
-                        if (types.length === 0) types = pickNames(cfg.Options);
-                        // Config.ArchetypeConfig.Options[]
-                        if (types.length === 0) types = pickNames((cfg.ArchetypeConfig as Record<string, unknown> | undefined)?.Options);
-                    }
-                }
-
-                // 3. Extended Typed — various structures across BC versions
+                // 3. Extended Typed — various older structures
                 if (types.length === 0) {
                     const ext = a.Extended as Record<string, unknown> | undefined;
                     if (ext && typeof ext === "object") {
-                        // Direct Options[] on Extended
                         if (types.length === 0) types = pickNames(ext.Options);
-                        // Extended.Typed.Options
                         if (types.length === 0) types = pickNames((ext.Typed as Record<string, unknown> | undefined)?.Options);
-                        // Extended.Config.Options
                         if (types.length === 0) types = pickNames((ext.Config as Record<string, unknown> | undefined)?.Options);
-                        // DrawImages keys (older pattern)
                         if (types.length === 0 && ext.DrawImages && typeof ext.DrawImages === "object")
                             types = Object.keys(ext.DrawImages as object).filter(k => k !== "");
                     }
@@ -6366,28 +6362,6 @@ export class EBCDrawer {
 
                 // 4. Top-level Options[] (some older assets)
                 if (types.length === 0) types = pickNames(a.Options);
-
-                // 5. Layer.AllowTypes — BC R91+ stores typed variants per-layer.
-                //    Collect all unique type names across every layer on the asset.
-                //    This works even when the options list isn't exposed on the asset object itself.
-                if (types.length === 0) {
-                    const layers = a.Layer as Array<Record<string, unknown>> | undefined;
-                    if (Array.isArray(layers)) {
-                        const typeSet = new Set<string>();
-                        for (const layer of layers) {
-                            // BC uses AllowTypes, AllowType, or CopyLayerColor depending on version
-                            for (const key of ["AllowTypes", "AllowType", "Types", "ShowFor"]) {
-                                const val = layer[key];
-                                if (Array.isArray(val)) {
-                                    for (const t of val) {
-                                        if (typeof t === "string" && t !== "") typeSet.add(t);
-                                    }
-                                }
-                            }
-                        }
-                        if (typeSet.size > 0) types = Array.from(typeSet);
-                    }
-                }
 
                 // ── Variable Height ────────────────────────────────────────────
                 let varHeight: { min: number; max: number } | null = null;
@@ -6766,11 +6740,29 @@ export class EBCDrawer {
                                 equipColorRaw = s;
                             }
                             const prop = item.Property as Record<string, unknown> | undefined;
-                            // Capture Property.Type
-                            if (typeof prop?.Type === "string") {
-                                equipPropertyType = prop.Type as string;
-                                stateSel.value = equipPropertyType;
-                                typeTextInp.value = equipPropertyType;
+                            // Capture Property.Type — try TypeRecord (BC R91+) first, fall back to Type string
+                            {
+                                let capturedType = "";
+                                // BC R91+: TypeRecord = { "typed": <index> }, map index → option Name
+                                const typeRecord = prop?.TypeRecord as Record<string, number> | undefined;
+                                if (typeRecord && typeof typeRecord === "object") {
+                                    type GetOptionsFn = (g: string, n: string) => Array<{ Name: string }> | null;
+                                    const getFn = (window as unknown as Record<string, unknown>).TypedItemGetOptions as GetOptionsFn | undefined;
+                                    if (typeof getFn === "function") {
+                                        try {
+                                            const opts = getFn(item.Asset.Group.Name, item.Asset.Name);
+                                            const idx = (Object.values(typeRecord)[0] ?? -1) as number;
+                                            if (opts && idx >= 0 && idx < opts.length) capturedType = opts[idx].Name ?? "";
+                                        } catch { /* ignore */ }
+                                    }
+                                }
+                                // Legacy fallback: Property.Type string
+                                if (!capturedType && typeof prop?.Type === "string") capturedType = prop.Type as string;
+                                if (capturedType) {
+                                    equipPropertyType = capturedType;
+                                    stateSel.value = equipPropertyType;
+                                    typeTextInp.value = equipPropertyType;
+                                }
                             }
                             // Capture Property.HeightModifier
                             if (typeof prop?.HeightModifier === "number") {
