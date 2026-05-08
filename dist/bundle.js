@@ -7832,6 +7832,39 @@
             };
             refreshMuteBtn();
             muteBtn.addEventListener("click", () => { setBeepMuted(!getBeepMuted()); refreshMuteBtn(); });
+            // Suppress-in-BC-chat toggle — chat icon with a red slash when suppressed (default)
+            const suppressBtn = document.createElement("button");
+            suppressBtn.className = "ebc-beep-win-hbtn";
+            const suppressIconWrap = document.createElement("span");
+            suppressIconWrap.style.cssText = "position:relative;display:inline-block;line-height:1;pointer-events:none;";
+            const suppressIconEmoji = document.createElement("span");
+            suppressIconEmoji.textContent = "💬";
+            const suppressSlash = document.createElement("span");
+            suppressSlash.style.cssText = "position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);width:130%;height:2px;background:#ff5060;border-radius:1px;pointer-events:none;box-shadow:0 0 3px #ff506099;";
+            suppressIconWrap.appendChild(suppressIconEmoji);
+            suppressIconWrap.appendChild(suppressSlash);
+            suppressBtn.appendChild(suppressIconWrap);
+            const refreshSuppressBtn = () => {
+                const suppressed = getSuppressNativeBeep();
+                suppressSlash.style.display = suppressed ? "block" : "none";
+                suppressBtn.title = suppressed
+                    ? "Beeps are hidden from BC's chat log — click to show them there too"
+                    : "Beeps are showing in BC's chat log — click to hide them";
+                suppressBtn.style.opacity = suppressed ? "0.55" : "1";
+            };
+            refreshSuppressBtn();
+            win._refreshSuppressBtn = refreshSuppressBtn;
+            suppressBtn.addEventListener("click", () => {
+                setSuppressNativeBeep(!getSuppressNativeBeep());
+                // Sync all open beep windows so they reflect the same state
+                for (const { el } of this.beepWins.values()) {
+                    const fn = el._refreshSuppressBtn;
+                    try {
+                        fn === null || fn === void 0 ? void 0 : fn();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            });
             const minimizeBtn = document.createElement("button");
             minimizeBtn.className = "ebc-beep-win-hbtn";
             minimizeBtn.textContent = "–";
@@ -7866,6 +7899,7 @@
             header.appendChild(title);
             header.appendChild(unreadDot);
             header.appendChild(muteBtn);
+            header.appendChild(suppressBtn);
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
@@ -8183,28 +8217,8 @@
                 const lblFCount = document.createElement("span");
                 lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;flex:1;";
                 lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
-                const suppressBtn = document.createElement("button");
-                const refreshSuppressBtn = () => {
-                    const on = getSuppressNativeBeep();
-                    suppressBtn.textContent = on ? "beeps: hidden" : "beeps: in chat";
-                    suppressBtn.title = on ? "Beeps are hidden from BC's main chat log — click to show them there too" : "Beeps appear in BC's main chat log — click to hide them";
-                    suppressBtn.style.cssText = [
-                        "font-family:'Trebuchet MS',serif",
-                        "font-size:8px",
-                        "padding:1px 5px",
-                        "border-radius:4px",
-                        "cursor:pointer",
-                        "flex-shrink:0",
-                        "border:1px solid " + (on ? "#3a1928" : "#cf6f98"),
-                        "background:transparent",
-                        "color:" + (on ? "#5a3a4a" : "#cf6f98"),
-                    ].join(";");
-                };
-                refreshSuppressBtn();
-                suppressBtn.addEventListener("click", () => { setSuppressNativeBeep(!getSuppressNativeBeep()); refreshSuppressBtn(); });
                 lblF.appendChild(lblFText);
                 lblF.appendChild(lblFCount);
-                lblF.appendChild(suppressBtn);
                 body.appendChild(lblF);
                 const tags = getFriendTags();
                 // Sort: room first, online second, away last, then alphabetical
