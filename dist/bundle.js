@@ -2220,7 +2220,7 @@
     //
     // Grace period enforcement is hooked into CharacterRefresh in main.ts.
     const DEFAULTS = {
-        enabled: false,
+        enabled: true,
         yellowWord: "yellow",
         redWord: "red",
         graceDurationMs: 300000, // 5 minutes
@@ -5338,12 +5338,12 @@
             safewordRow.style.cssText = "display:flex;flex-direction:column;flex-shrink:0;border-top:1px solid #2a1421;background:rgba(12,4,10,0.6);";
             // Header row — one line, always visible
             const swHdr = document.createElement("div");
-            swHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;cursor:pointer;user-select:none;";
+            swHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;";
             const swIcon = document.createElement("span");
             swIcon.textContent = "🛑";
-            swIcon.style.cssText = "font-size:10px;flex-shrink:0;";
+            swIcon.style.cssText = "font-size:11px;flex-shrink:0;";
             const swLabel = document.createElement("span");
-            swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.05em;flex:1;color:#5a3a4a;";
+            swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.05em;flex:1;";
             swLabel.textContent = "SAFEWORDS";
             // Grace active indicator (hidden unless grace is running)
             const swGraceTag = document.createElement("span");
@@ -5352,20 +5352,24 @@
             const swEnableBtn = document.createElement("button");
             const refreshSwEnable = () => {
                 const on = getSafewordConfig().enabled;
-                swEnableBtn.textContent = on ? "ON" : "OFF";
+                swEnableBtn.textContent = on ? "● ENABLED" : "○ DISABLED";
                 swEnableBtn.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
                     "font-size:9px",
                     "font-weight:bold",
-                    "padding:1px 7px",
-                    "border-radius:4px",
+                    "padding:3px 10px",
+                    "border-radius:6px",
                     "cursor:pointer",
                     "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
-                    "background:" + (on ? "#4a1f30" : "#100508"),
-                    "color:" + (on ? "#f7e6ee" : "#4c2537"),
+                    "letter-spacing:0.04em",
+                    on
+                        ? "border:1px solid #cf6f98;background:#4a1030;color:#f7cce0;"
+                        : "border:1px solid #a03050;background:#2a0515;color:#e05070;",
                 ].join(";");
-                swLabel.style.color = on ? "#cf6f98" : "#5a3a4a";
+                swLabel.style.color = on ? "#cf6f98" : "#c04060";
+                safewordRow.style.background = on
+                    ? "rgba(12,4,10,0.6)"
+                    : "rgba(40,5,15,0.75)";
             };
             try {
                 refreshSwEnable();
@@ -11674,9 +11678,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.7.5";
+    const MOD_VERSION = "0.7.6";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.7.6",
+            changes: [
+                "Fix: Safewords now default to ENABLED — previously the system was off by default so safewords were never checked.",
+                "Safeword toggle is now larger and clearly visible: green-on-pink when enabled, red warning when disabled, so you always know the current state at a glance.",
+            ],
+        },
         {
             version: "0.7.5",
             changes: [

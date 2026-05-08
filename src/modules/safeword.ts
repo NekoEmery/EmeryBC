@@ -16,7 +16,7 @@ export interface SafewordConfig {
 }
 
 const DEFAULTS: SafewordConfig = {
-    enabled: false,
+    enabled: true,
     yellowWord: "yellow",
     redWord: "red",
     graceDurationMs: 300_000,  // 5 minutes
