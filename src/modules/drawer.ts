@@ -56,7 +56,7 @@ import {
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { getFriendList, getFriendStatus, getFriendTags, setFriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTags, setFriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import {
     isDomEnabled,
@@ -6206,7 +6206,7 @@ export class EBCDrawer {
                 nameEl.textContent = name;
 
                 const numEl = document.createElement("span");
-                numEl.style.cssText = "font-size:9px;color:#6a4558;margin-left:3px;flex-shrink:0;";
+                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;margin-left:3px;flex-shrink:0;";
                 numEl.textContent = "#" + num;
 
                 // Tag badge — click to edit inline
@@ -6257,6 +6257,25 @@ export class EBCDrawer {
                 row.appendChild(dot);
                 row.appendChild(nameEl);
                 row.appendChild(numEl);
+
+                // Room info tag for online/in-room friends
+                const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
+                if (info?.roomName) {
+                    const isPrivate = info.roomPrivate;
+                    const isLocked  = info.roomLocked;
+                    const isFull    = info.roomFull;
+                    let icon = isLocked ? "🔐" : isPrivate ? "🔒" : "📢";
+                    let bg = "#1e0d1a"; let color = "#9a6878"; let border = "#3a1928";
+                    if (isLocked)       { bg = "#1a100d"; color = "#c8905a"; border = "#5a3020"; }
+                    else if (isPrivate) { bg = "#1a0d20"; color = "#b07ab8"; border = "#4a2060"; }
+                    else                { bg = "#0d1a18"; color = "#60a898"; border = "#1e4038"; }
+                    const roomTag = document.createElement("span");
+                    roomTag.textContent = icon + " " + (isFull ? "full · " : "") + info.roomName;
+                    roomTag.title = info.roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "");
+                    roomTag.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
+                    row.appendChild(roomTag);
+                }
+
                 row.appendChild(tagEl);
                 row.appendChild(beepBtn);
                 body.appendChild(row);

@@ -13,10 +13,17 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.8";
+const MOD_VERSION = "0.5.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.5.9",
+        changes: [
+            "Friends: member numbers now shown in a distinct blue-gray (#7a9ab8) instead of near-invisible dark pink.",
+            "Friends: online friends show a room tag — 🔒 private (purple), 📢 public (teal), 🔐 locked (orange); 'full' shown if room is full.",
+        ],
+    },
     {
         version: "0.5.8",
         changes: [
@@ -1110,13 +1117,12 @@ function init(): void {
                 if (data.Query !== "OnlineFriends") return;
                 const results = data.Result as Array<Record<string, unknown>> | undefined;
                 if (!Array.isArray(results)) return;
-                const nums: number[] = [];
                 for (const r of results) {
                     const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
                     const name = typeof r.MemberName === "string" ? r.MemberName : null;
-                    if (n) { nums.push(n); if (name) cacheName(n, name); }
+                    if (n && name) cacheName(n, name);
                 }
-                updateOnlineFriends(nums);
+                updateOnlineFriends(results);
             } catch { /* ignore */ }
         });
     } catch { /* ignore */ }

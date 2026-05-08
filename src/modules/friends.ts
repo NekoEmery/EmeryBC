@@ -57,12 +57,38 @@ export function getFriendList(): number[] {
     } catch { return []; }
 }
 
+export interface FriendOnlineInfo {
+    roomName?: string;
+    roomPrivate?: boolean;
+    roomFull?: boolean;
+    roomLocked?: boolean;
+    roomSpace?: string;
+}
+
 // Set of member numbers BC reports as online (updated via AccountQueryResult hook)
 const onlineSet = new Set<number>();
+const onlineInfo = new Map<number, FriendOnlineInfo>();
 
-export function updateOnlineFriends(numbers: number[]): void {
+export function updateOnlineFriends(entries: Array<Record<string, unknown>>): void {
     onlineSet.clear();
-    for (const n of numbers) onlineSet.add(n);
+    onlineInfo.clear();
+    for (const r of entries) {
+        const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+        if (!n) continue;
+        onlineSet.add(n);
+        onlineInfo.set(n, {
+            roomName:    typeof r.ChatRoomName    === "string"  ? r.ChatRoomName    : undefined,
+            roomSpace:   typeof r.ChatRoomSpace   === "string"  ? r.ChatRoomSpace   : undefined,
+            roomPrivate: typeof r.Private         === "boolean" ? r.Private         :
+                         typeof r.Type            === "string"  ? r.Type === "Private" : undefined,
+            roomFull:    typeof r.ChatRoomFull    === "boolean" ? r.ChatRoomFull    : undefined,
+            roomLocked:  typeof r.Locked          === "boolean" ? r.Locked          : undefined,
+        });
+    }
+}
+
+export function getFriendOnlineInfo(memberNumber: number): FriendOnlineInfo | undefined {
+    return onlineInfo.get(memberNumber);
 }
 
 export type FriendStatus = "room" | "online" | "away";

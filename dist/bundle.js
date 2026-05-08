@@ -1846,10 +1846,27 @@
     }
     // Set of member numbers BC reports as online (updated via AccountQueryResult hook)
     const onlineSet = new Set();
-    function updateOnlineFriends(numbers) {
+    const onlineInfo = new Map();
+    function updateOnlineFriends(entries) {
         onlineSet.clear();
-        for (const n of numbers)
+        onlineInfo.clear();
+        for (const r of entries) {
+            const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+            if (!n)
+                continue;
             onlineSet.add(n);
+            onlineInfo.set(n, {
+                roomName: typeof r.ChatRoomName === "string" ? r.ChatRoomName : undefined,
+                roomSpace: typeof r.ChatRoomSpace === "string" ? r.ChatRoomSpace : undefined,
+                roomPrivate: typeof r.Private === "boolean" ? r.Private :
+                    typeof r.Type === "string" ? r.Type === "Private" : undefined,
+                roomFull: typeof r.ChatRoomFull === "boolean" ? r.ChatRoomFull : undefined,
+                roomLocked: typeof r.Locked === "boolean" ? r.Locked : undefined,
+            });
+        }
+    }
+    function getFriendOnlineInfo(memberNumber) {
+        return onlineInfo.get(memberNumber);
     }
     function getFriendStatus(memberNumber) {
         try {
@@ -8041,7 +8058,7 @@
                     nameEl.className = "ebc-friend-name";
                     nameEl.textContent = name;
                     const numEl = document.createElement("span");
-                    numEl.style.cssText = "font-size:9px;color:#6a4558;margin-left:3px;flex-shrink:0;";
+                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;margin-left:3px;flex-shrink:0;";
                     numEl.textContent = "#" + num;
                     // Tag badge — click to edit inline
                     const tagEl = document.createElement("span");
@@ -8097,6 +8114,37 @@
                     row.appendChild(dot);
                     row.appendChild(nameEl);
                     row.appendChild(numEl);
+                    // Room info tag for online/in-room friends
+                    const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
+                    if (info === null || info === void 0 ? void 0 : info.roomName) {
+                        const isPrivate = info.roomPrivate;
+                        const isLocked = info.roomLocked;
+                        const isFull = info.roomFull;
+                        let icon = isLocked ? "🔐" : isPrivate ? "🔒" : "📢";
+                        let bg = "#1e0d1a";
+                        let color = "#9a6878";
+                        let border = "#3a1928";
+                        if (isLocked) {
+                            bg = "#1a100d";
+                            color = "#c8905a";
+                            border = "#5a3020";
+                        }
+                        else if (isPrivate) {
+                            bg = "#1a0d20";
+                            color = "#b07ab8";
+                            border = "#4a2060";
+                        }
+                        else {
+                            bg = "#0d1a18";
+                            color = "#60a898";
+                            border = "#1e4038";
+                        }
+                        const roomTag = document.createElement("span");
+                        roomTag.textContent = icon + " " + (isFull ? "full · " : "") + info.roomName;
+                        roomTag.title = info.roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "");
+                        roomTag.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
+                        row.appendChild(roomTag);
+                    }
                     row.appendChild(tagEl);
                     row.appendChild(beepBtn);
                     body.appendChild(row);
@@ -9489,9 +9537,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.5.8";
+    const MOD_VERSION = "0.5.9";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.5.9",
+            changes: [
+                "Friends: member numbers now shown in a distinct blue-gray (#7a9ab8) instead of near-invisible dark pink.",
+                "Friends: online friends show a room tag — 🔒 private (purple), 📢 public (teal), 🔐 locked (orange); 'full' shown if room is full.",
+            ],
+        },
         {
             version: "0.5.8",
             changes: [
@@ -10604,17 +10659,13 @@
                     const results = data.Result;
                     if (!Array.isArray(results))
                         return;
-                    const nums = [];
                     for (const r of results) {
                         const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
                         const name = typeof r.MemberName === "string" ? r.MemberName : null;
-                        if (n) {
-                            nums.push(n);
-                            if (name)
-                                cacheName(n, name);
-                        }
+                        if (n && name)
+                            cacheName(n, name);
                     }
-                    updateOnlineFriends(nums);
+                    updateOnlineFriends(results);
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
             });
