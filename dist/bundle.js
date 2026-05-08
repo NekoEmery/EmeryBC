@@ -9045,10 +9045,11 @@
                     if (!Array.isArray(bcAsset))
                         return { types: [], varHeight: null };
                     const a = bcAsset.find(x => { var _a; return ((_a = x.Group) === null || _a === void 0 ? void 0 : _a.Name) === groupName && x.Name === assetName; });
+                    console.log("[EmeryBC] looking up asset:", groupName, "/", assetName, "— found:", !!a);
                     if (!a)
                         return { types: [], varHeight: null };
-                    // Debug: log full asset so we can see what BC puts on it
-                    console.debug("[EmeryBC] asset lookup:", groupName, assetName, a);
+                    // Log full asset object so we can see every property BC puts on it
+                    console.log("[EmeryBC] asset object:", a);
                     // ── Type variants ─────────────────────────────────────────────
                     let types = [];
                     const pickNames = (arr) => Array.isArray(arr)
@@ -9114,9 +9115,11 @@
                         const ext = a.Extended;
                         varHeight = (_j = (_h = tryVH((_g = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _g !== void 0 ? _g : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeight)) !== null && _j !== void 0 ? _j : tryVH(a.VariableHeightConfig);
                     }
+                    console.log("[EmeryBC] result — types:", types, "varHeight:", varHeight);
                     return { types, varHeight };
                 }
-                catch (_k) {
+                catch (err) {
+                    console.log("[EmeryBC] getAssetExtInfo error:", err);
                     return { types: [], varHeight: null };
                 }
             };

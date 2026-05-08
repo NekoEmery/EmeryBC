@@ -6321,10 +6321,11 @@ export class EBCDrawer {
                 if (!Array.isArray(bcAsset)) return { types: [], varHeight: null };
                 const a = bcAsset.find(x =>
                     (x.Group as Record<string, unknown>)?.Name === groupName && x.Name === assetName);
+                console.log("[EmeryBC] looking up asset:", groupName, "/", assetName, "— found:", !!a);
                 if (!a) return { types: [], varHeight: null };
 
-                // Debug: log full asset so we can see what BC puts on it
-                console.debug("[EmeryBC] asset lookup:", groupName, assetName, a);
+                // Log full asset object so we can see every property BC puts on it
+                console.log("[EmeryBC] asset object:", a);
 
                 // ── Type variants ─────────────────────────────────────────────
                 let types: string[] = [];
@@ -6398,8 +6399,9 @@ export class EBCDrawer {
                         ?? tryVH(a.VariableHeightConfig);
                 }
 
+                console.log("[EmeryBC] result — types:", types, "varHeight:", varHeight);
                 return { types, varHeight };
-            } catch { return { types: [], varHeight: null }; }
+            } catch (err) { console.log("[EmeryBC] getAssetExtInfo error:", err); return { types: [], varHeight: null }; }
         };
         // Thin wrappers kept for the state-dropdown call site
         const getAssetTypes = (g: string, a: string): string[] => getAssetExtInfo(g, a).types;
