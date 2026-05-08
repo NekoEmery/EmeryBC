@@ -6323,46 +6323,79 @@ export class EBCDrawer {
                     (x.Group as Record<string, unknown>)?.Name === groupName && x.Name === assetName);
                 if (!a) return { types: [], varHeight: null };
 
+                // Debug: log full asset so we can see what BC puts on it
+                console.debug("[EmeryBC] asset lookup:", groupName, assetName, a);
+
                 // ── Type variants ─────────────────────────────────────────────
                 let types: string[] = [];
+
+                const pickNames = (arr: unknown): string[] =>
+                    Array.isArray(arr)
+                        ? (arr as Array<Record<string, unknown>>)
+                            .map(o => o?.Name ?? o?.Self ?? o)
+                            .filter((n): n is string => typeof n === "string")
+                        : [];
 
                 // 1. Legacy AllowType array
                 if (Array.isArray(a.AllowType) && (a.AllowType as unknown[]).length > 0)
                     types = a.AllowType as string[];
 
-                // 2. Extended Typed — BC uses several structures depending on version
+                // 2. R91+ Archetype / Config pattern
+                if (types.length === 0) {
+                    const cfg = a.Config as Record<string, unknown> | undefined;
+                    if (cfg) {
+                        // Config.Options[] — Typed archetype
+                        if (types.length === 0) types = pickNames(cfg.Options);
+                        // Config.ArchetypeConfig.Options[]
+                        if (types.length === 0) types = pickNames((cfg.ArchetypeConfig as Record<string, unknown> | undefined)?.Options);
+                    }
+                }
+
+                // 3. Extended Typed — various structures across BC versions
                 if (types.length === 0) {
                     const ext = a.Extended as Record<string, unknown> | undefined;
-                    if (ext) {
-                        // Direct Options[] on Extended (some versions)
-                        if (Array.isArray(ext.Options))
-                            types = (ext.Options as Array<Record<string, unknown>>)
-                                .map(o => o.Name).filter((n): n is string => typeof n === "string");
-                        // Typed sub-object with Options[] (R90+ Extended Typed)
-                        if (types.length === 0) {
-                            const typed = ext.Typed as Record<string, unknown> | undefined;
-                            if (typed && Array.isArray(typed.Options))
-                                types = (typed.Options as Array<Record<string, unknown>>)
-                                    .map(o => o.Name).filter((n): n is string => typeof n === "string");
-                        }
-                        // DrawImages: keys are type names (another older pattern)
+                    if (ext && typeof ext === "object") {
+                        // Direct Options[] on Extended
+                        if (types.length === 0) types = pickNames(ext.Options);
+                        // Extended.Typed.Options
+                        if (types.length === 0) types = pickNames((ext.Typed as Record<string, unknown> | undefined)?.Options);
+                        // Extended.Config.Options
+                        if (types.length === 0) types = pickNames((ext.Config as Record<string, unknown> | undefined)?.Options);
+                        // DrawImages keys (older pattern)
                         if (types.length === 0 && ext.DrawImages && typeof ext.DrawImages === "object")
                             types = Object.keys(ext.DrawImages as object).filter(k => k !== "");
                     }
                 }
 
+                // 4. Top-level Options[] (some older assets)
+                if (types.length === 0) types = pickNames(a.Options);
+
                 // ── Variable Height ────────────────────────────────────────────
                 let varHeight: { min: number; max: number } | null = null;
-                // Check several known paths where BC may store this config
-                const ext = a.Extended as Record<string, unknown> | undefined;
-                const vhSrc = ext?.VariableHeight ?? ext?.variableHeight
-                    ?? a.VariableHeight ?? a.VariableHeightConfig;
-                if (vhSrc && typeof vhSrc === "object") {
-                    const vh = vhSrc as Record<string, unknown>;
-                    varHeight = {
-                        max: typeof vh.MaxHeight === "number" ? vh.MaxHeight : 100,
-                        min: typeof vh.MinHeight === "number" ? vh.MinHeight : 0,
-                    };
+
+                const tryVH = (src: unknown): { min: number; max: number } | null => {
+                    if (!src || typeof src !== "object") return null;
+                    const v = src as Record<string, unknown>;
+                    const hasMax = typeof v.MaxHeight === "number";
+                    const hasMin = typeof v.MinHeight === "number";
+                    if (!hasMax && !hasMin) return null;
+                    return { max: hasMax ? v.MaxHeight as number : 100, min: hasMin ? v.MinHeight as number : 0 };
+                };
+
+                // R91+ Archetype = "variableheight" / "VariableHeight"
+                const archetype = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
+                if (archetype === "variableheight") {
+                    varHeight = tryVH(a.Config) ??
+                        tryVH((a.Config as Record<string, unknown> | undefined)?.ArchetypeConfig) ??
+                        { min: 0, max: 100 };
+                }
+
+                // Older paths
+                if (!varHeight) {
+                    const ext = a.Extended as Record<string, unknown> | undefined;
+                    varHeight = tryVH(ext?.VariableHeight ?? ext?.variableHeight)
+                        ?? tryVH(a.VariableHeight)
+                        ?? tryVH(a.VariableHeightConfig);
                 }
 
                 return { types, varHeight };

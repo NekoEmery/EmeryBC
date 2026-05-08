@@ -9039,7 +9039,7 @@
                 }
             };
             const getAssetExtInfo = (groupName, assetName) => {
-                var _a, _b, _c;
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j;
                 try {
                     const bcAsset = window.Asset;
                     if (!Array.isArray(bcAsset))
@@ -9047,46 +9047,76 @@
                     const a = bcAsset.find(x => { var _a; return ((_a = x.Group) === null || _a === void 0 ? void 0 : _a.Name) === groupName && x.Name === assetName; });
                     if (!a)
                         return { types: [], varHeight: null };
+                    // Debug: log full asset so we can see what BC puts on it
+                    console.debug("[EmeryBC] asset lookup:", groupName, assetName, a);
                     // ── Type variants ─────────────────────────────────────────────
                     let types = [];
+                    const pickNames = (arr) => Array.isArray(arr)
+                        ? arr
+                            .map(o => { var _a, _b; return (_b = (_a = o === null || o === void 0 ? void 0 : o.Name) !== null && _a !== void 0 ? _a : o === null || o === void 0 ? void 0 : o.Self) !== null && _b !== void 0 ? _b : o; })
+                            .filter((n) => typeof n === "string")
+                        : [];
                     // 1. Legacy AllowType array
                     if (Array.isArray(a.AllowType) && a.AllowType.length > 0)
                         types = a.AllowType;
-                    // 2. Extended Typed — BC uses several structures depending on version
+                    // 2. R91+ Archetype / Config pattern
+                    if (types.length === 0) {
+                        const cfg = a.Config;
+                        if (cfg) {
+                            // Config.Options[] — Typed archetype
+                            if (types.length === 0)
+                                types = pickNames(cfg.Options);
+                            // Config.ArchetypeConfig.Options[]
+                            if (types.length === 0)
+                                types = pickNames((_a = cfg.ArchetypeConfig) === null || _a === void 0 ? void 0 : _a.Options);
+                        }
+                    }
+                    // 3. Extended Typed — various structures across BC versions
                     if (types.length === 0) {
                         const ext = a.Extended;
-                        if (ext) {
-                            // Direct Options[] on Extended (some versions)
-                            if (Array.isArray(ext.Options))
-                                types = ext.Options
-                                    .map(o => o.Name).filter((n) => typeof n === "string");
-                            // Typed sub-object with Options[] (R90+ Extended Typed)
-                            if (types.length === 0) {
-                                const typed = ext.Typed;
-                                if (typed && Array.isArray(typed.Options))
-                                    types = typed.Options
-                                        .map(o => o.Name).filter((n) => typeof n === "string");
-                            }
-                            // DrawImages: keys are type names (another older pattern)
+                        if (ext && typeof ext === "object") {
+                            // Direct Options[] on Extended
+                            if (types.length === 0)
+                                types = pickNames(ext.Options);
+                            // Extended.Typed.Options
+                            if (types.length === 0)
+                                types = pickNames((_b = ext.Typed) === null || _b === void 0 ? void 0 : _b.Options);
+                            // Extended.Config.Options
+                            if (types.length === 0)
+                                types = pickNames((_c = ext.Config) === null || _c === void 0 ? void 0 : _c.Options);
+                            // DrawImages keys (older pattern)
                             if (types.length === 0 && ext.DrawImages && typeof ext.DrawImages === "object")
                                 types = Object.keys(ext.DrawImages).filter(k => k !== "");
                         }
                     }
+                    // 4. Top-level Options[] (some older assets)
+                    if (types.length === 0)
+                        types = pickNames(a.Options);
                     // ── Variable Height ────────────────────────────────────────────
                     let varHeight = null;
-                    // Check several known paths where BC may store this config
-                    const ext = a.Extended;
-                    const vhSrc = (_c = (_b = (_a = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _a !== void 0 ? _a : ext === null || ext === void 0 ? void 0 : ext.variableHeight) !== null && _b !== void 0 ? _b : a.VariableHeight) !== null && _c !== void 0 ? _c : a.VariableHeightConfig;
-                    if (vhSrc && typeof vhSrc === "object") {
-                        const vh = vhSrc;
-                        varHeight = {
-                            max: typeof vh.MaxHeight === "number" ? vh.MaxHeight : 100,
-                            min: typeof vh.MinHeight === "number" ? vh.MinHeight : 0,
-                        };
+                    const tryVH = (src) => {
+                        if (!src || typeof src !== "object")
+                            return null;
+                        const v = src;
+                        const hasMax = typeof v.MaxHeight === "number";
+                        const hasMin = typeof v.MinHeight === "number";
+                        if (!hasMax && !hasMin)
+                            return null;
+                        return { max: hasMax ? v.MaxHeight : 100, min: hasMin ? v.MinHeight : 0 };
+                    };
+                    // R91+ Archetype = "variableheight" / "VariableHeight"
+                    const archetype = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
+                    if (archetype === "variableheight") {
+                        varHeight = (_f = (_d = tryVH(a.Config)) !== null && _d !== void 0 ? _d : tryVH((_e = a.Config) === null || _e === void 0 ? void 0 : _e.ArchetypeConfig)) !== null && _f !== void 0 ? _f : { min: 0, max: 100 };
+                    }
+                    // Older paths
+                    if (!varHeight) {
+                        const ext = a.Extended;
+                        varHeight = (_j = (_h = tryVH((_g = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _g !== void 0 ? _g : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeight)) !== null && _j !== void 0 ? _j : tryVH(a.VariableHeightConfig);
                     }
                     return { types, varHeight };
                 }
-                catch (_d) {
+                catch (_k) {
                     return { types: [], varHeight: null };
                 }
             };
