@@ -56,7 +56,7 @@ import {
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { getFriendList, getFriendStatus, getFriendTags, setFriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTags, setFriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import {
     isDomEnabled,
@@ -6156,20 +6156,23 @@ export class EBCDrawer {
 
     public onIncomingBeep(fromNum: number): void {
         const entry = this.beepWins.get(fromNum);
-        const winVisible = entry && !entry.minimized;
 
-        if (winVisible) {
+        if (entry) {
+            // Always refresh history so it's current when the user restores the window
             this.refreshBeepWindow(fromNum);
+            if (entry.minimized) {
+                // Window is minimized — increment unread and light up the dot
+                this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
+                this.refreshTabDot();
+                const dot = entry.el.querySelector<HTMLElement>(".ebc-beep-win-unread-dot");
+                if (dot) dot.classList.add("visible");
+            }
         } else {
+            // No window open at all
             this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
             this.refreshTabDot();
             if (this.currentTab === "notes") {
                 try { this.renderNotes(); } catch { /* ignore */ }
-            }
-            // Show dot on the minimized bar if window exists but is minimized
-            if (entry) {
-                const dot = entry.el.querySelector<HTMLElement>(".ebc-beep-win-unread-dot");
-                if (dot) dot.classList.add("visible");
             }
         }
 
@@ -6310,8 +6313,8 @@ export class EBCDrawer {
             const suppressBtn = document.createElement("button");
             const refreshSuppressBtn = (): void => {
                 const on = getSuppressNativeBeep();
-                suppressBtn.textContent = on ? "💬 hide in chat" : "💬 show in chat";
-                suppressBtn.title = on ? "Beep messages are hidden from BC's main chat — click to show them" : "Beep messages show in BC's main chat — click to hide them";
+                suppressBtn.textContent = on ? "beeps: hidden" : "beeps: in chat";
+                suppressBtn.title = on ? "Beeps are hidden from BC's main chat log — click to show them there too" : "Beeps appear in BC's main chat log — click to hide them";
                 suppressBtn.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
                     "font-size:8px",
@@ -6412,24 +6415,51 @@ export class EBCDrawer {
 
                 // Room info tag for online/in-room friends
                 const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
-                if (info?.roomName) {
+                if (info) {
                     const isPrivate = info.roomPrivate;
                     const isLocked  = info.roomLocked;
                     const isFull    = info.roomFull;
+                    const roomName  = info.roomName;
                     let icon = isLocked ? "🔐" : isPrivate ? "🔒" : "📢";
                     let bg = "#1e0d1a"; let color = "#9a6878"; let border = "#3a1928";
                     if (isLocked)       { bg = "#1a100d"; color = "#c8905a"; border = "#5a3020"; }
                     else if (isPrivate) { bg = "#1a0d20"; color = "#b07ab8"; border = "#4a2060"; }
-                    else                { bg = "#0d1a18"; color = "#60a898"; border = "#1e4038"; }
+                    else if (roomName)  { bg = "#0d1a18"; color = "#60a898"; border = "#1e4038"; }
                     const roomTag = document.createElement("span");
-                    roomTag.textContent = icon + " " + (isFull ? "full · " : "") + info.roomName;
-                    roomTag.title = info.roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "");
+                    const label = roomName
+                        ? (isFull ? "full · " : "") + roomName
+                        : isLocked ? "locked room" : isPrivate ? "private room" : "online";
+                    roomTag.textContent = icon + " " + label;
+                    roomTag.title = roomName
+                        ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
+                        : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
                     roomTag.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
                     row.appendChild(roomTag);
                 }
 
-                // EBC version badge — only shown if we've seen them run EBC this session
-                const ebcVer = getEBCVersion(num);
+                // EBC version badge — check live room data first, fall back to session cache
+                const ebcVer = (() => {
+                    try {
+                        const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                            Array<{ MemberNumber?: number; OnlineSharedSettings?: Record<string, unknown> }> | undefined;
+                        const char = room?.find(c => c.MemberNumber === num);
+                        if (char?.OnlineSharedSettings) {
+                            const sh = char.OnlineSharedSettings["EmeryBC"];
+                            if (sh && typeof sh === "object") {
+                                const p = (sh as Record<string, unknown>).presence;
+                                if (p && typeof p === "object") {
+                                    const v = (p as Record<string, unknown>).version;
+                                    const m = (p as Record<string, unknown>).marker;
+                                    if (m === "EBC" && typeof v === "string") {
+                                        cacheEBCVersion(num, v);
+                                        return v;
+                                    }
+                                }
+                            }
+                        }
+                    } catch { /* ignore */ }
+                    return getEBCVersion(num);
+                })();
                 if (ebcVer) {
                     const ebcBadge = document.createElement("span");
                     ebcBadge.textContent = "EBC " + ebcVer;
