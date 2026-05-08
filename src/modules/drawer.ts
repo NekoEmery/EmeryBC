@@ -3740,6 +3740,8 @@ export class EBCDrawer {
         // Custom picker handles — refreshed each time build() creates a new widget
         let pickerCleanup: (() => void) | null = null;
         let setPickerHex:  ((hex: string) => void) | null = null;
+        // Opens the MY COLOURS picker panel from zone row interactions
+        let openPicker:    () => void = () => {};
 
         // Flash the selected-colour bar to prompt the user to pick a colour first
         const flashSelBar = (): void => {
@@ -3833,6 +3835,15 @@ export class EBCDrawer {
                 pickerPanel.style.display = pickerOpen ? "flex" : "none";
                 editPickerBtn.textContent = pickerOpen ? "Close ^" : "Edit v";
             });
+
+            // Exposed to zone rows so they can open the picker when no colour is selected
+            openPicker = (): void => {
+                if (!pickerOpen) {
+                    pickerOpen = true;
+                    pickerPanel.style.display = "flex";
+                    editPickerBtn.textContent = "Close ^";
+                }
+            };
 
             updateSelBar = (): void => {
                 if (selectedColor) {
@@ -3998,29 +4009,14 @@ export class EBCDrawer {
                             const zRow = document.createElement("div");
                             zRow.className = "ebc-zone-row";
 
-                            // Inline colour wheel for this zone
-                            const zPicker = document.createElement("input");
-                            zPicker.type = "color";
-                            zPicker.value = isDefault ? "#000000" : zc;
-                            zPicker.className = "ebc-zone-picker";
-                            zPicker.title = `Colour wheel for ${zn}`;
-                            zPicker.addEventListener("change", () => {
-                                applyColorZoneToGroup(w.group, zi, zPicker.value);
-                                zDot.style.background = zPicker.value;
-                                zHex.textContent = zPicker.value.toUpperCase();
-                                zDot.title = zPicker.value.toUpperCase();
-                                refreshPreview();
-                            });
-
                             // Colour dot — click to paste selected colour
                             const zDot = document.createElement("span");
                             zDot.className = "ebc-zone-dot";
                             zDot.style.background = isDefault ? "#3a2030" : zc;
                             zDot.title = isDefault ? "Default — click to apply selected" : `${(zc ?? "").toUpperCase()} — click to apply selected`;
                             zDot.addEventListener("click", () => {
-                                if (!selectedColor) { flashSelBar(); return; }
+                                if (!selectedColor) { flashSelBar(); openPicker(); return; }
                                 applyColorZoneToGroup(w.group, zi, selectedColor);
-                                zPicker.value = selectedColor;
                                 zDot.style.background = selectedColor;
                                 zHex.textContent = selectedColor.toUpperCase();
                                 zDot.title = selectedColor.toUpperCase();
@@ -4043,9 +4039,8 @@ export class EBCDrawer {
                             zSetBtn.textContent = "Set";
                             zSetBtn.title = "Apply selected colour to this zone";
                             zSetBtn.addEventListener("click", () => {
-                                if (!selectedColor) { flashSelBar(); return; }
+                                if (!selectedColor) { flashSelBar(); openPicker(); return; }
                                 applyColorZoneToGroup(w.group, zi, selectedColor);
-                                zPicker.value = selectedColor;
                                 zDot.style.background = selectedColor;
                                 zHex.textContent = selectedColor.toUpperCase();
                                 zDot.title = selectedColor.toUpperCase();
@@ -4054,7 +4049,6 @@ export class EBCDrawer {
                                 window.setTimeout(() => { zSetBtn.textContent = "Set"; }, 1000);
                             });
 
-                            zRow.appendChild(zPicker);
                             zRow.appendChild(zDot);
                             zRow.appendChild(zHex);
                             zRow.appendChild(zLabel);
@@ -5053,11 +5047,21 @@ export class EBCDrawer {
                 labelInp.value = btn.label;
                 labelInp.title = "Button label (max 6 chars)";
 
+                // Colour preview dot + hex text input (replaces native OS color picker)
+                const colorWrap = document.createElement("span");
+                colorWrap.style.cssText = "display:inline-flex;align-items:center;gap:3px;flex-shrink:0;";
+                const colorDot = document.createElement("span");
+                colorDot.style.cssText = `width:14px;height:14px;border-radius:3px;border:1px solid #3a1928;flex-shrink:0;background:${normalizeHex(btn.color)};`;
                 const colorInp = document.createElement("input");
                 colorInp.className = "ebc-slot-color";
-                colorInp.type = "color";
+                colorInp.type = "text";
+                colorInp.maxLength = 7;
+                colorInp.placeholder = "#hex";
                 colorInp.value = normalizeHex(btn.color);
-                colorInp.title = "Button color";
+                colorInp.title = "Button colour (hex, e.g. #cf6f98)";
+                colorInp.style.cssText = "width:52px;font-size:8px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
+                colorWrap.appendChild(colorDot);
+                colorWrap.appendChild(colorInp);
 
                 const delBtn = document.createElement("button");
                 delBtn.className = "ebc-slot-del";
@@ -5066,7 +5070,7 @@ export class EBCDrawer {
 
                 topLine.appendChild(toggle);
                 topLine.appendChild(labelInp);
-                topLine.appendChild(colorInp);
+                topLine.appendChild(colorWrap);
                 topLine.appendChild(delBtn);
 
                 // Bottom line: style toggle (hidden for seq) | emote/seq input
@@ -5129,7 +5133,15 @@ export class EBCDrawer {
                 });
 
                 colorInp.addEventListener("input", () => {
-                    btns[idx].color = normalizeHex(colorInp.value);
+                    let v = colorInp.value.trim();
+                    if (!v.startsWith("#")) v = "#" + v;
+                    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                        btns[idx].color = v;
+                        colorDot.style.background = v;
+                        colorInp.style.color = "#f7e6ee";
+                    } else {
+                        colorInp.style.color = "#cf3060";
+                    }
                 });
 
                 emoteInp.addEventListener("input", () => {

@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.7.9";
+const MOD_VERSION = "0.8.0";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.8.0",
+        changes: [
+            "Colours tab: native OS colour pickers removed from restraint zone rows. Zones now use the custom picker — click a zone dot or Set without a colour selected to auto-open the picker above.",
+            "Action buttons: native colour picker replaced with a small preview dot + hex text input consistent with the rest of the addon.",
+        ],
+    },
     {
         version: "0.7.9",
         changes: [

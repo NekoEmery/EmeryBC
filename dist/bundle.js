@@ -6410,6 +6410,8 @@
             // Custom picker handles — refreshed each time build() creates a new widget
             let pickerCleanup = null;
             let setPickerHex = null;
+            // Opens the MY COLOURS picker panel from zone row interactions
+            let openPicker = () => { };
             // Flash the selected-colour bar to prompt the user to pick a colour first
             const flashSelBar = () => {
                 const el = container.querySelector(".ebc-sel-bar");
@@ -6500,6 +6502,14 @@
                     pickerPanel.style.display = pickerOpen ? "flex" : "none";
                     editPickerBtn.textContent = pickerOpen ? "Close ^" : "Edit v";
                 });
+                // Exposed to zone rows so they can open the picker when no colour is selected
+                openPicker = () => {
+                    if (!pickerOpen) {
+                        pickerOpen = true;
+                        pickerPanel.style.display = "flex";
+                        editPickerBtn.textContent = "Close ^";
+                    }
+                };
                 updateSelBar = () => {
                     if (selectedColor) {
                         selDot.style.background = selectedColor;
@@ -6663,19 +6673,6 @@
                                 const isDefault = !zc || zc === "Default";
                                 const zRow = document.createElement("div");
                                 zRow.className = "ebc-zone-row";
-                                // Inline colour wheel for this zone
-                                const zPicker = document.createElement("input");
-                                zPicker.type = "color";
-                                zPicker.value = isDefault ? "#000000" : zc;
-                                zPicker.className = "ebc-zone-picker";
-                                zPicker.title = `Colour wheel for ${zn}`;
-                                zPicker.addEventListener("change", () => {
-                                    applyColorZoneToGroup(w.group, zi, zPicker.value);
-                                    zDot.style.background = zPicker.value;
-                                    zHex.textContent = zPicker.value.toUpperCase();
-                                    zDot.title = zPicker.value.toUpperCase();
-                                    refreshPreview();
-                                });
                                 // Colour dot — click to paste selected colour
                                 const zDot = document.createElement("span");
                                 zDot.className = "ebc-zone-dot";
@@ -6684,10 +6681,10 @@
                                 zDot.addEventListener("click", () => {
                                     if (!selectedColor) {
                                         flashSelBar();
+                                        openPicker();
                                         return;
                                     }
                                     applyColorZoneToGroup(w.group, zi, selectedColor);
-                                    zPicker.value = selectedColor;
                                     zDot.style.background = selectedColor;
                                     zHex.textContent = selectedColor.toUpperCase();
                                     zDot.title = selectedColor.toUpperCase();
@@ -6709,10 +6706,10 @@
                                 zSetBtn.addEventListener("click", () => {
                                     if (!selectedColor) {
                                         flashSelBar();
+                                        openPicker();
                                         return;
                                     }
                                     applyColorZoneToGroup(w.group, zi, selectedColor);
-                                    zPicker.value = selectedColor;
                                     zDot.style.background = selectedColor;
                                     zHex.textContent = selectedColor.toUpperCase();
                                     zDot.title = selectedColor.toUpperCase();
@@ -6720,7 +6717,6 @@
                                     zSetBtn.textContent = "✓";
                                     window.setTimeout(() => { zSetBtn.textContent = "Set"; }, 1000);
                                 });
-                                zRow.appendChild(zPicker);
                                 zRow.appendChild(zDot);
                                 zRow.appendChild(zHex);
                                 zRow.appendChild(zLabel);
@@ -7698,18 +7694,28 @@
                     labelInp.placeholder = "Label";
                     labelInp.value = btn.label;
                     labelInp.title = "Button label (max 6 chars)";
+                    // Colour preview dot + hex text input (replaces native OS color picker)
+                    const colorWrap = document.createElement("span");
+                    colorWrap.style.cssText = "display:inline-flex;align-items:center;gap:3px;flex-shrink:0;";
+                    const colorDot = document.createElement("span");
+                    colorDot.style.cssText = `width:14px;height:14px;border-radius:3px;border:1px solid #3a1928;flex-shrink:0;background:${normalizeHex(btn.color)};`;
                     const colorInp = document.createElement("input");
                     colorInp.className = "ebc-slot-color";
-                    colorInp.type = "color";
+                    colorInp.type = "text";
+                    colorInp.maxLength = 7;
+                    colorInp.placeholder = "#hex";
                     colorInp.value = normalizeHex(btn.color);
-                    colorInp.title = "Button color";
+                    colorInp.title = "Button colour (hex, e.g. #cf6f98)";
+                    colorInp.style.cssText = "width:52px;font-size:8px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
+                    colorWrap.appendChild(colorDot);
+                    colorWrap.appendChild(colorInp);
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-slot-del";
                     delBtn.textContent = "x";
                     delBtn.title = "Remove this slot";
                     topLine.appendChild(toggle);
                     topLine.appendChild(labelInp);
-                    topLine.appendChild(colorInp);
+                    topLine.appendChild(colorWrap);
                     topLine.appendChild(delBtn);
                     // Bottom line: style toggle (hidden for seq) | emote/seq input
                     const botLine = document.createElement("div");
@@ -7760,7 +7766,17 @@
                         btns[idx].label = labelInp.value.trim().slice(0, 6);
                     });
                     colorInp.addEventListener("input", () => {
-                        btns[idx].color = normalizeHex(colorInp.value);
+                        let v = colorInp.value.trim();
+                        if (!v.startsWith("#"))
+                            v = "#" + v;
+                        if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                            btns[idx].color = v;
+                            colorDot.style.background = v;
+                            colorInp.style.color = "#f7e6ee";
+                        }
+                        else {
+                            colorInp.style.color = "#cf3060";
+                        }
                     });
                     emoteInp.addEventListener("input", () => {
                         btns[idx].emote = emoteInp.value;
@@ -11703,9 +11719,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.7.9";
+    const MOD_VERSION = "0.8.0";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.8.0",
+            changes: [
+                "Colours tab: native OS colour pickers removed from restraint zone rows. Zones now use the custom picker — click a zone dot or Set without a colour selected to auto-open the picker above.",
+                "Action buttons: native colour picker replaced with a small preview dot + hex text input consistent with the rest of the addon.",
+            ],
+        },
         {
             version: "0.7.9",
             changes: [
