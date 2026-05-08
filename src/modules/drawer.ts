@@ -4835,6 +4835,7 @@ export class EBCDrawer {
                 : (initStep.color ?? "");
             let unequipGroup         = initStep.group ?? "";
             let emoteText            = initStep.text ?? "";
+            let chatFormat           = initStep.chatFormat ?? "";
 
             // Colour input reference for the capture button to update
             let colorInpRef: HTMLInputElement | null = null;
@@ -5023,13 +5024,36 @@ export class EBCDrawer {
                     fieldsEl.appendChild(textInp);
 
                 } else if (type === "chat") {
+                    const row = document.createElement("div");
+                    row.className = "ebc-scene-fields-row";
+
+                    const fmtSel = document.createElement("select");
+                    fmtSel.className = "ebc-scene-type-sel";
+                    fmtSel.style.cssText = "flex:0 0 auto;width:84px;";
+                    fmtSel.title = "Message format";
+                    ([
+                        { value: "",  label: "Plain"    },
+                        { value: "*", label: "* Emote"  },
+                        { value: "(", label: "( OOC"    },
+                    ] as { value: "" | "*" | "("; label: string }[]).forEach(o => {
+                        const opt = document.createElement("option");
+                        opt.value = o.value; opt.textContent = o.label;
+                        opt.selected = o.value === chatFormat;
+                        fmtSel.appendChild(opt);
+                    });
+                    fmtSel.addEventListener("change", () => { chatFormat = fmtSel.value as "" | "*" | "("; });
+
                     const textInp = Object.assign(document.createElement("input"), {
                         className: "ebc-form-input", type: "text",
-                        placeholder: "Chat message — use * for emotes, ( for OOC",
+                        placeholder: "message text...",
                         value: emoteText, maxLength: 1000,
                     }) as HTMLInputElement;
+                    textInp.style.flex = "1";
                     textInp.addEventListener("input", () => { emoteText = textInp.value; });
-                    fieldsEl.appendChild(textInp);
+
+                    row.appendChild(fmtSel);
+                    row.appendChild(textInp);
+                    fieldsEl.appendChild(row);
 
                 }
                 // wait: no extra fields — delay IS the step
@@ -5062,8 +5086,11 @@ export class EBCDrawer {
                         step.group = unequipGroup.trim();
                         break;
                     case "emote":
+                        step.text = emoteText.trim();
+                        break;
                     case "chat":
                         step.text = emoteText.trim();
+                        step.chatFormat = chatFormat;
                         break;
                 }
                 return step;

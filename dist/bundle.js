@@ -1136,7 +1136,12 @@
                     break;
                 case "chat":
                     if ((_c = step.text) === null || _c === void 0 ? void 0 : _c.trim()) {
-                        ServerSend("ChatRoomChat", { Type: "Chat", Content: step.text.trim() });
+                        let msg = step.text.trim();
+                        if (step.chatFormat === "*")
+                            msg = `*${msg}*`;
+                        else if (step.chatFormat === "(")
+                            msg = `(${msg})`;
+                        ServerSend("ChatRoomChat", { Type: "Chat", Content: msg });
                     }
                     break;
                 case "wait":
@@ -6537,7 +6542,7 @@
             };
             // Build a live step card — returns getStep() which always reads current field state
             const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete) => {
-                var _a, _b, _c, _d, _e, _f, _g;
+                var _a, _b, _c, _d, _e, _f, _g, _h;
                 const card = document.createElement("div");
                 card.className = "ebc-scene-step";
                 // Header: type select, delay input, move/delete buttons
@@ -6598,6 +6603,7 @@
                     : ((_e = initStep.color) !== null && _e !== void 0 ? _e : "");
                 let unequipGroup = (_f = initStep.group) !== null && _f !== void 0 ? _f : "";
                 let emoteText = (_g = initStep.text) !== null && _g !== void 0 ? _g : "";
+                let chatFormat = (_h = initStep.chatFormat) !== null && _h !== void 0 ? _h : "";
                 // Colour input reference for the capture button to update
                 let colorInpRef = null;
                 const renderFields = (type) => {
@@ -6784,13 +6790,34 @@
                         fieldsEl.appendChild(textInp);
                     }
                     else if (type === "chat") {
+                        const row = document.createElement("div");
+                        row.className = "ebc-scene-fields-row";
+                        const fmtSel = document.createElement("select");
+                        fmtSel.className = "ebc-scene-type-sel";
+                        fmtSel.style.cssText = "flex:0 0 auto;width:84px;";
+                        fmtSel.title = "Message format";
+                        [
+                            { value: "", label: "Plain" },
+                            { value: "*", label: "* Emote" },
+                            { value: "(", label: "( OOC" },
+                        ].forEach(o => {
+                            const opt = document.createElement("option");
+                            opt.value = o.value;
+                            opt.textContent = o.label;
+                            opt.selected = o.value === chatFormat;
+                            fmtSel.appendChild(opt);
+                        });
+                        fmtSel.addEventListener("change", () => { chatFormat = fmtSel.value; });
                         const textInp = Object.assign(document.createElement("input"), {
                             className: "ebc-form-input", type: "text",
-                            placeholder: "Chat message — use * for emotes, ( for OOC",
+                            placeholder: "message text...",
                             value: emoteText, maxLength: 1000,
                         });
+                        textInp.style.flex = "1";
                         textInp.addEventListener("input", () => { emoteText = textInp.value; });
-                        fieldsEl.appendChild(textInp);
+                        row.appendChild(fmtSel);
+                        row.appendChild(textInp);
+                        fieldsEl.appendChild(row);
                     }
                     // wait: no extra fields — delay IS the step
                 };
@@ -6819,8 +6846,11 @@
                             step.group = unequipGroup.trim();
                             break;
                         case "emote":
+                            step.text = emoteText.trim();
+                            break;
                         case "chat":
                             step.text = emoteText.trim();
+                            step.chatFormat = chatFormat;
                             break;
                     }
                     return step;

@@ -13,7 +13,8 @@ export interface SceneStep {
     group?: string;             // equip / unequip: item group name
     assetName?: string;         // equip: asset name
     color?: string | string[];  // equip: optional color(s)
-    text?: string;              // emote: action text
+    text?: string;              // emote / chat: message text
+    chatFormat?: "" | "*" | "("; // chat: wrap style — "" plain, "*" emote, "(" OOC
 }
 
 export interface Scene {
@@ -107,7 +108,10 @@ function executeStep(step: SceneStep): void {
                 break;
             case "chat":
                 if (step.text?.trim()) {
-                    ServerSend("ChatRoomChat", { Type: "Chat", Content: step.text.trim() });
+                    let msg = step.text.trim();
+                    if (step.chatFormat === "*") msg = `*${msg}*`;
+                    else if (step.chatFormat === "(") msg = `(${msg})`;
+                    ServerSend("ChatRoomChat", { Type: "Chat", Content: msg });
                 }
                 break;
             case "wait":
