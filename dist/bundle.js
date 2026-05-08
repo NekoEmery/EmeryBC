@@ -11169,14 +11169,19 @@
             barkBtn.addEventListener("mouseleave", () => { barkBtn.style.background = "#3a2060"; });
             barkBtn.addEventListener("mousedown", () => { barkBtn.style.transform = "scale(0.95)"; });
             barkBtn.addEventListener("mouseup", () => { barkBtn.style.transform = ""; });
+            const barkSounds = [
+                "Arf~", "Woof!", "Wuf~", "Bork!", "Arf arf!", "Woof woof~",
+                "Wuf wuf!", "Bork bork~", "Arf! Arf!", "Awoo~", "Yip!", "Yip yip~",
+            ];
             barkBtn.addEventListener("click", () => {
+                const bark = barkSounds[Math.floor(Math.random() * barkSounds.length)];
                 try {
-                    ServerSend("ChatRoomChat", { Type: "Chat", Content: "Arf~" });
+                    ServerSend("ChatRoomChat", { Type: "Chat", Content: bark });
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
                 // tiny flash feedback
                 barkBtn.style.background = "#7a40c8";
-                barkBtn.textContent = "🐶 arf!";
+                barkBtn.textContent = "🐶 " + bark;
                 window.setTimeout(() => {
                     barkBtn.style.background = "#3a2060";
                     barkBtn.textContent = "🐶 Bark!";
