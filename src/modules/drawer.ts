@@ -8220,19 +8220,21 @@ export class EBCDrawer {
         const refreshPresence = (): void => {
             while (presListEl.firstChild) presListEl.removeChild(presListEl.firstChild);
             const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Array<Record<string, unknown>> | undefined) ?? [];
-            const found: Array<{ name: string; id: number; version: string; isSelf: boolean }> = [];
+            const found: Array<{ gameName: string; nickname: string; id: number; version: string; isSelf: boolean }> = [];
 
             for (const c of room) {
                 const memberNum = c.MemberNumber as number | undefined;
                 const isSelf = memberNum === Player.MemberNumber;
+                const gameName = String(c.Name ?? "?");
+                const nickname = String((c.Nickname as string | undefined)?.trim() || gameName);
                 if (isSelf) {
-                    found.push({ name: String(c.Name ?? "You"), id: memberNum ?? 0, version: "self", isSelf: true });
+                    found.push({ gameName, nickname, id: memberNum ?? 0, version: "self", isSelf: true });
                     continue;
                 }
                 const shared = (c.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EmeryBC"] as Record<string, unknown> | undefined;
                 const presence = shared?.["presence"] as Record<string, unknown> | undefined;
                 if (presence?.["marker"] === "EBC") {
-                    found.push({ name: String(c.Name ?? "?"), id: memberNum ?? 0, version: String(presence["version"] ?? "?"), isSelf: false });
+                    found.push({ gameName, nickname, id: memberNum ?? 0, version: String(presence["version"] ?? "?"), isSelf: false });
                 }
             }
 
@@ -8248,20 +8250,39 @@ export class EBCDrawer {
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
 
-                const nameEl = document.createElement("span");
-                nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
-                nameEl.textContent = p.isSelf ? "You" : p.name;
+                // Name block: "Nickname - (GameName)" when they differ, else just the name
+                const nameWrap = document.createElement("span");
+                nameWrap.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;";
+
+                const nicknameEl = document.createElement("span");
+                nicknameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+
+                if (p.isSelf) {
+                    nicknameEl.textContent = p.nickname !== p.gameName ? p.nickname : p.gameName;
+                } else {
+                    nicknameEl.textContent = p.nickname !== p.gameName ? p.nickname : p.gameName;
+                }
+
+                nameWrap.appendChild(nicknameEl);
+
+                // Show "(GameName)" sub-line when nickname differs from game name
+                if (p.nickname !== p.gameName) {
+                    const gameNameEl = document.createElement("span");
+                    gameNameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    gameNameEl.textContent = "(" + p.gameName + ")";
+                    nameWrap.appendChild(gameNameEl);
+                }
 
                 const idEl = document.createElement("span");
-                idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+                idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
                 idEl.textContent = "#" + p.id;
 
                 const verEl = document.createElement("span");
-                verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;" +
+                verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;flex-shrink:0;" +
                     (p.isSelf ? "color:#7a5a6a;background:#1b0d17;border:1px solid #3a1928;" : "color:#cf6f98;background:#2a1421;border:1px solid #6b3048;");
                 verEl.textContent = p.isSelf ? "you" : ("v" + p.version);
 
-                row.appendChild(nameEl);
+                row.appendChild(nameWrap);
                 row.appendChild(idEl);
                 row.appendChild(verEl);
                 presListEl.appendChild(row);

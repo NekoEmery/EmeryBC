@@ -10680,14 +10680,16 @@
                 for (const c of room) {
                     const memberNum = c.MemberNumber;
                     const isSelf = memberNum === Player.MemberNumber;
+                    const gameName = String((_b = c.Name) !== null && _b !== void 0 ? _b : "?");
+                    const nickname = String(((_c = c.Nickname) === null || _c === void 0 ? void 0 : _c.trim()) || gameName);
                     if (isSelf) {
-                        found.push({ name: String((_b = c.Name) !== null && _b !== void 0 ? _b : "You"), id: memberNum !== null && memberNum !== void 0 ? memberNum : 0, version: "self", isSelf: true });
+                        found.push({ gameName, nickname, id: memberNum !== null && memberNum !== void 0 ? memberNum : 0, version: "self", isSelf: true });
                         continue;
                     }
-                    const shared = (_c = c.OnlineSharedSettings) === null || _c === void 0 ? void 0 : _c["EmeryBC"];
+                    const shared = (_d = c.OnlineSharedSettings) === null || _d === void 0 ? void 0 : _d["EmeryBC"];
                     const presence = shared === null || shared === void 0 ? void 0 : shared["presence"];
                     if ((presence === null || presence === void 0 ? void 0 : presence["marker"]) === "EBC") {
-                        found.push({ name: String((_d = c.Name) !== null && _d !== void 0 ? _d : "?"), id: memberNum !== null && memberNum !== void 0 ? memberNum : 0, version: String((_e = presence["version"]) !== null && _e !== void 0 ? _e : "?"), isSelf: false });
+                        found.push({ gameName, nickname, id: memberNum !== null && memberNum !== void 0 ? memberNum : 0, version: String((_e = presence["version"]) !== null && _e !== void 0 ? _e : "?"), isSelf: false });
                     }
                 }
                 if (found.length === 0) {
@@ -10700,17 +10702,33 @@
                 for (const p of found) {
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
-                    const nameEl = document.createElement("span");
-                    nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
-                    nameEl.textContent = p.isSelf ? "You" : p.name;
+                    // Name block: "Nickname - (GameName)" when they differ, else just the name
+                    const nameWrap = document.createElement("span");
+                    nameWrap.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;";
+                    const nicknameEl = document.createElement("span");
+                    nicknameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    if (p.isSelf) {
+                        nicknameEl.textContent = p.nickname !== p.gameName ? p.nickname : p.gameName;
+                    }
+                    else {
+                        nicknameEl.textContent = p.nickname !== p.gameName ? p.nickname : p.gameName;
+                    }
+                    nameWrap.appendChild(nicknameEl);
+                    // Show "(GameName)" sub-line when nickname differs from game name
+                    if (p.nickname !== p.gameName) {
+                        const gameNameEl = document.createElement("span");
+                        gameNameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        gameNameEl.textContent = "(" + p.gameName + ")";
+                        nameWrap.appendChild(gameNameEl);
+                    }
                     const idEl = document.createElement("span");
-                    idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+                    idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
                     idEl.textContent = "#" + p.id;
                     const verEl = document.createElement("span");
-                    verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;" +
+                    verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;flex-shrink:0;" +
                         (p.isSelf ? "color:#7a5a6a;background:#1b0d17;border:1px solid #3a1928;" : "color:#cf6f98;background:#2a1421;border:1px solid #6b3048;");
                     verEl.textContent = p.isSelf ? "you" : ("v" + p.version);
-                    row.appendChild(nameEl);
+                    row.appendChild(nameWrap);
                     row.appendChild(idEl);
                     row.appendChild(verEl);
                     presListEl.appendChild(row);
@@ -11922,9 +11940,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.8.7";
+    const MOD_VERSION = "0.8.8";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.8.8",
+            changes: [
+                "Dev tab EBC presence list: users now display as 'Nickname' with '(GameName)' shown underneath when the BC nickname differs from the character name.",
+            ],
+        },
         {
             version: "0.8.7",
             changes: [
