@@ -4266,6 +4266,170 @@
 }
 .ebc-color-swatch.sel { border-color: #fff; }
 
+/* -- Colour picker rework (Colours tab) -- */
+.ebc-mycolors-label {
+    font-family: 'Trebuchet MS', serif;
+    font-size: 9px;
+    font-weight: 700;
+    color: #7a5060;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+.ebc-cpicker-card {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    background: #0d060c;
+    border: 1px solid #3a1928;
+    border-radius: 7px;
+    margin-bottom: 7px;
+    flex-wrap: wrap;
+}
+.ebc-cpicker-wheel {
+    width: 36px;
+    height: 36px;
+    border: 2px solid #3a1928;
+    border-radius: 7px;
+    background: none;
+    cursor: pointer;
+    padding: 2px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+.ebc-cpicker-hex {
+    flex: 1;
+    min-width: 80px;
+    font-size: 11px !important;
+    font-family: 'Courier New', monospace !important;
+    letter-spacing: 0.5px;
+}
+.ebc-cpicker-btns {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.ebc-sel-bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: #130810;
+    border: 1px solid #2a1020;
+    margin-bottom: 8px;
+    min-height: 28px;
+}
+.ebc-sel-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+.ebc-sel-hex {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: #cf6f98;
+    flex: 1;
+    letter-spacing: 0.5px;
+}
+.ebc-swatch-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 8px;
+    min-height: 16px;
+}
+.ebc-cswatch {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: 2px solid transparent;
+    box-sizing: border-box;
+    transition: border-color 0.12s, transform 0.1s;
+}
+.ebc-cswatch:hover { transform: scale(1.1); }
+.ebc-cswatch.sel {
+    border-color: #fff;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.25);
+}
+.ebc-cswatch-rm {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #130810;
+    border: 1px solid #cf6f98;
+    color: #cf6f98;
+    font-size: 9px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+    z-index: 1;
+}
+/* -- Zone rows inside restraint expand panels -- */
+.ebc-zone-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 0;
+}
+.ebc-zone-picker {
+    width: 22px;
+    height: 22px;
+    border: 1px solid #3a1928;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    padding: 1px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+.ebc-zone-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.12);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+.ebc-zone-dot:hover { transform: scale(1.15); }
+.ebc-zone-hex {
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    color: #7a5060;
+    flex-shrink: 0;
+    width: 56px;
+    letter-spacing: 0.3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ebc-zone-label {
+    font-family: 'Trebuchet MS', serif;
+    font-size: 9px;
+    color: #9a7080;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ebc-zone-set {
+    padding: 1px 6px !important;
+    font-size: 8px !important;
+    flex-shrink: 0;
+}
+
 .ebc-friend-btn {
     background: none;
     border: 1px solid #3a1928;
@@ -5996,110 +6160,215 @@
         renderPalettes(body) {
             const label = document.createElement("div");
             label.className = "ebc-section-label";
-            label.style.cursor = "pointer";
-            label.style.userSelect = "none";
+            label.style.cssText += "cursor:pointer;user-select:none;";
             const container = document.createElement("div");
             container.style.marginBottom = "6px";
             let collapsed = true;
             let selectedColor = null;
-            const render = () => {
+            // Targeted updaters — assigned inside build(), called without full rebuild
+            let updateSelBar = () => { };
+            let updateSwatchGrid = () => { };
+            // Flash the selected-colour bar to prompt the user to pick a colour first
+            const flashSelBar = () => {
+                const el = container.querySelector(".ebc-sel-bar");
+                if (!el)
+                    return;
+                el.style.outline = "1px solid #cf6f98";
+                window.setTimeout(() => { el.style.outline = ""; }, 700);
+            };
+            const build = () => {
                 var _a, _b;
                 while (container.firstChild)
                     container.removeChild(container.firstChild);
                 if (collapsed)
                     return;
-                // ── My Colors ────────────────────────────────────────────────────
+                // ── MY COLOURS — picker card ──────────────────────────────────────
                 const myColLbl = document.createElement("div");
-                myColLbl.className = "ebc-import-hint";
-                myColLbl.style.cssText = "font-weight:600;margin-bottom:5px;";
-                myColLbl.textContent = "MY COLORS";
+                myColLbl.className = "ebc-mycolors-label";
+                myColLbl.textContent = "MY COLOURS";
                 container.appendChild(myColLbl);
-                // Swatch grid
-                const swatchGrid = document.createElement("div");
-                swatchGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;min-height:10px;";
-                const customColors = getCustomColors();
-                for (const c of customColors) {
-                    const sw = document.createElement("span");
-                    const isSel = selectedColor === c;
-                    sw.style.cssText = `position:relative;display:inline-flex;width:24px;height:24px;border-radius:5px;background:${c};cursor:pointer;box-sizing:border-box;border:2px solid ${isSel ? "#fff" : "transparent"};flex-shrink:0;box-shadow:${isSel ? `0 0 0 1px ${c}` : "none"};`;
-                    sw.title = c;
-                    sw.addEventListener("click", () => { selectedColor = c; render(); });
-                    // × on hover
-                    const rmBtn = document.createElement("span");
-                    rmBtn.textContent = "×";
-                    rmBtn.style.cssText = "position:absolute;top:-5px;right:-5px;background:#130810;color:#cf6f98;border-radius:50%;width:13px;height:13px;font-size:9px;display:none;align-items:center;justify-content:center;line-height:1;cursor:pointer;border:1px solid #cf6f98;z-index:1;";
-                    rmBtn.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        removeCustomColor(c);
-                        if (selectedColor === c)
-                            selectedColor = null;
-                        render();
-                    });
-                    sw.addEventListener("mouseenter", () => { rmBtn.style.display = "flex"; });
-                    sw.addEventListener("mouseleave", () => { rmBtn.style.display = "none"; });
-                    sw.appendChild(rmBtn);
-                    swatchGrid.appendChild(sw);
-                }
-                if (!customColors.length) {
-                    const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
-                    hint.textContent = "No saved colours yet — add one below";
-                    swatchGrid.appendChild(hint);
-                }
-                container.appendChild(swatchGrid);
-                // Add color row: picker + "Select" + "Save"
-                const addRow = document.createElement("div");
-                addRow.style.cssText = "display:flex;gap:5px;align-items:center;margin-bottom:6px;";
-                const colorPicker = document.createElement("input");
-                colorPicker.type = "color";
-                colorPicker.value = selectedColor !== null && selectedColor !== void 0 ? selectedColor : "#cf6f98";
-                colorPicker.style.cssText = "width:34px;height:26px;border:1px solid #3a1928;border-radius:4px;background:none;cursor:pointer;padding:1px;flex-shrink:0;";
-                const useBtn = document.createElement("button");
-                useBtn.className = "ebc-wear-btn";
-                useBtn.textContent = "Select";
-                useBtn.title = "Use this colour without saving it to your list";
-                useBtn.addEventListener("click", () => { selectedColor = colorPicker.value; render(); });
+                // Card: [colour wheel] [hex input] [Select] [+ Save]
+                const pickerCard = document.createElement("div");
+                pickerCard.className = "ebc-cpicker-card";
+                const nativePicker = document.createElement("input");
+                nativePicker.type = "color";
+                nativePicker.value = selectedColor !== null && selectedColor !== void 0 ? selectedColor : "#cf6f98";
+                nativePicker.className = "ebc-cpicker-wheel";
+                nativePicker.title = "Open colour wheel";
+                const hexInp = document.createElement("input");
+                hexInp.type = "text";
+                hexInp.className = "ebc-form-input ebc-cpicker-hex";
+                hexInp.maxLength = 7;
+                hexInp.placeholder = "#cf6f98";
+                hexInp.value = selectedColor !== null && selectedColor !== void 0 ? selectedColor : "";
+                hexInp.spellcheck = false;
+                // Wheel → hex (live while dragging)
+                nativePicker.addEventListener("input", () => {
+                    hexInp.value = nativePicker.value;
+                    hexInp.style.borderColor = "";
+                });
+                // Hex → wheel (validate on every keystroke)
+                const applyHex = () => {
+                    let v = hexInp.value.trim();
+                    if (!v) {
+                        hexInp.style.borderColor = "";
+                        return;
+                    }
+                    if (!v.startsWith("#"))
+                        v = "#" + v;
+                    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                        nativePicker.value = v;
+                        hexInp.value = v;
+                        hexInp.style.borderColor = "";
+                    }
+                    else {
+                        hexInp.style.borderColor = "#cf3060";
+                    }
+                };
+                hexInp.addEventListener("input", applyHex);
+                hexInp.addEventListener("change", applyHex);
+                // Enter = Select shortcut
+                hexInp.addEventListener("keydown", (e) => {
+                    if (e.key !== "Enter")
+                        return;
+                    applyHex();
+                    if (hexInp.style.borderColor !== "#cf3060") {
+                        selectedColor = nativePicker.value;
+                        updateSelBar();
+                        updateSwatchGrid();
+                        updateLabel();
+                    }
+                });
+                const pickerBtns = document.createElement("div");
+                pickerBtns.className = "ebc-cpicker-btns";
+                const selectBtn = document.createElement("button");
+                selectBtn.className = "ebc-wear-btn";
+                selectBtn.textContent = "Select";
+                selectBtn.title = "Use this colour (without saving)";
+                selectBtn.addEventListener("click", () => {
+                    applyHex();
+                    selectedColor = nativePicker.value;
+                    updateSelBar();
+                    updateSwatchGrid();
+                    updateLabel();
+                });
                 const saveColBtn = document.createElement("button");
                 saveColBtn.className = "ebc-wear-btn";
                 saveColBtn.textContent = "+ Save";
-                saveColBtn.title = "Save this colour to My Colors";
+                saveColBtn.title = "Save this colour to My Colours and select it";
                 saveColBtn.addEventListener("click", () => {
-                    addCustomColor(colorPicker.value);
-                    selectedColor = colorPicker.value;
-                    render();
+                    applyHex();
+                    const c = nativePicker.value;
+                    addCustomColor(c);
+                    selectedColor = c;
+                    updateSelBar();
+                    updateSwatchGrid();
+                    updateLabel();
+                    saveColBtn.textContent = "✓ Saved";
+                    window.setTimeout(() => { saveColBtn.textContent = "+ Save"; }, 1400);
                 });
-                addRow.appendChild(colorPicker);
-                addRow.appendChild(useBtn);
-                addRow.appendChild(saveColBtn);
-                container.appendChild(addRow);
-                // Selected color indicator bar
+                pickerBtns.appendChild(selectBtn);
+                pickerBtns.appendChild(saveColBtn);
+                pickerCard.appendChild(nativePicker);
+                pickerCard.appendChild(hexInp);
+                pickerCard.appendChild(pickerBtns);
+                container.appendChild(pickerCard);
+                // ── Selected colour bar ───────────────────────────────────────────
                 const selBar = document.createElement("div");
-                selBar.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;min-height:20px;padding:4px 6px;border-radius:5px;background:#130810;border:1px solid #2a1020;";
-                if (selectedColor) {
-                    const dot = document.createElement("span");
-                    dot.style.cssText = `display:inline-block;width:14px;height:14px;border-radius:3px;background:${selectedColor};flex-shrink:0;border:1px solid rgba(255,255,255,0.15);`;
-                    const txt = document.createElement("span");
-                    txt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;flex:1;";
-                    txt.textContent = `Selected: ${selectedColor}`;
-                    const clrBtn = document.createElement("button");
-                    clrBtn.textContent = "Clear";
-                    clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#5a3a4a;cursor:pointer;";
-                    clrBtn.addEventListener("click", () => { selectedColor = null; render(); });
-                    selBar.appendChild(dot);
-                    selBar.appendChild(txt);
-                    selBar.appendChild(clrBtn);
-                }
-                else {
-                    const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
-                    hint.textContent = "Pick a colour above, then click a restraint below to apply it";
-                    selBar.appendChild(hint);
-                }
+                selBar.className = "ebc-sel-bar";
+                const selDot = document.createElement("span");
+                selDot.className = "ebc-sel-dot";
+                const selHex = document.createElement("span");
+                selHex.className = "ebc-sel-hex";
+                const selHint = document.createElement("span");
+                selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;flex:1;";
+                selHint.textContent = "Pick a colour above, then tap a zone or All / Set";
+                const clrBtn = document.createElement("button");
+                clrBtn.textContent = "Clear";
+                clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#5a3a4a;cursor:pointer;flex-shrink:0;";
+                clrBtn.addEventListener("click", () => {
+                    selectedColor = null;
+                    nativePicker.value = "#cf6f98";
+                    hexInp.value = "";
+                    hexInp.style.borderColor = "";
+                    updateSelBar();
+                    updateSwatchGrid();
+                    updateLabel();
+                });
+                selBar.appendChild(selDot);
+                selBar.appendChild(selHex);
+                selBar.appendChild(selHint);
+                selBar.appendChild(clrBtn);
+                updateSelBar = () => {
+                    if (selectedColor) {
+                        selDot.style.background = selectedColor;
+                        selDot.style.display = "";
+                        selHex.textContent = selectedColor.toUpperCase();
+                        selHex.style.display = "";
+                        selHint.style.display = "none";
+                        clrBtn.style.display = "";
+                    }
+                    else {
+                        selDot.style.display = "none";
+                        selHex.style.display = "none";
+                        selHint.style.display = "";
+                        clrBtn.style.display = "none";
+                    }
+                };
+                updateSelBar();
                 container.appendChild(selBar);
+                // ── Saved swatches grid ───────────────────────────────────────────
+                const swatchGrid = document.createElement("div");
+                swatchGrid.className = "ebc-swatch-grid";
+                updateSwatchGrid = () => {
+                    while (swatchGrid.firstChild)
+                        swatchGrid.removeChild(swatchGrid.firstChild);
+                    const saved = getCustomColors();
+                    if (!saved.length) {
+                        const hint = document.createElement("span");
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
+                        hint.textContent = "No saved colours yet — use + Save above";
+                        swatchGrid.appendChild(hint);
+                        return;
+                    }
+                    for (const c of saved) {
+                        const sw = document.createElement("span");
+                        sw.className = "ebc-cswatch" + (selectedColor === c ? " sel" : "");
+                        sw.style.background = c;
+                        sw.title = c.toUpperCase();
+                        sw.addEventListener("click", () => {
+                            selectedColor = c;
+                            nativePicker.value = c;
+                            hexInp.value = c;
+                            hexInp.style.borderColor = "";
+                            updateSelBar();
+                            updateSwatchGrid();
+                        });
+                        const rmBtn = document.createElement("span");
+                        rmBtn.className = "ebc-cswatch-rm";
+                        rmBtn.textContent = "×";
+                        rmBtn.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            removeCustomColor(c);
+                            if (selectedColor === c) {
+                                selectedColor = null;
+                                updateSelBar();
+                            }
+                            updateSwatchGrid();
+                            updateLabel();
+                        });
+                        sw.addEventListener("mouseenter", () => { rmBtn.style.display = "flex"; });
+                        sw.addEventListener("mouseleave", () => { rmBtn.style.display = "none"; });
+                        sw.appendChild(rmBtn);
+                        swatchGrid.appendChild(sw);
+                    }
+                };
+                updateSwatchGrid();
+                container.appendChild(swatchGrid);
                 // ── Apply to restraint ────────────────────────────────────────────
                 const div1 = document.createElement("div");
                 div1.className = "ebc-divider";
-                div1.style.margin = "0 0 6px";
+                div1.style.margin = "2px 0 8px";
                 container.appendChild(div1);
                 const applyLbl = document.createElement("div");
                 applyLbl.className = "ebc-import-hint";
@@ -6126,24 +6395,24 @@
                     container.appendChild(none);
                 }
                 else {
+                    // renderPresets() is declared after this loop — forward-declare so
+                    // the saveBtn inside rebuildZones can reference it via closure.
+                    let renderPresets = () => { };
                     for (const w of worn) {
-                        // Outer wrapper (row + expandable zones panel)
                         const wWrap = document.createElement("div");
                         wWrap.style.cssText = "margin-bottom:3px;";
-                        // Header row — name + "All" apply + expand arrow
+                        // Header row: preview dots · name · All button · arrow
                         const wRow = document.createElement("div");
                         wRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;background:#130810;border:1px solid #2a1020;cursor:pointer;";
-                        // Color preview dots (current zone colors)
                         const previewDots = document.createElement("span");
                         previewDots.style.cssText = "display:inline-flex;gap:2px;flex-shrink:0;";
                         const refreshPreview = () => {
                             previewDots.innerHTML = "";
-                            const cols = getGroupColors(w.group);
-                            for (const c of cols.slice(0, 6)) {
+                            for (const c of getGroupColors(w.group).slice(0, 8)) {
                                 const d = document.createElement("span");
-                                const isDefault = !c || c === "Default";
-                                d.style.cssText = `display:inline-block;width:9px;height:9px;border-radius:2px;background:${isDefault ? "#3a2030" : c};border:1px solid rgba(255,255,255,0.12);flex-shrink:0;`;
-                                d.title = isDefault ? "Default" : c;
+                                const isD = !c || c === "Default";
+                                d.style.cssText = `display:inline-block;width:9px;height:9px;border-radius:2px;background:${isD ? "#3a2030" : c};border:1px solid rgba(255,255,255,0.12);flex-shrink:0;`;
+                                d.title = isD ? "Default" : c.toUpperCase();
                                 previewDots.appendChild(d);
                             }
                         };
@@ -6156,12 +6425,13 @@
                         allBtn.className = "ebc-wear-btn";
                         allBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
                         allBtn.textContent = "All";
-                        allBtn.disabled = !selectedColor;
-                        allBtn.title = selectedColor ? `Apply ${selectedColor} to all zones` : "Select a colour first";
+                        allBtn.title = "Apply selected colour to all zones";
                         allBtn.addEventListener("click", (e) => {
                             e.stopPropagation();
-                            if (!selectedColor)
+                            if (!selectedColor) {
+                                flashSelBar();
                                 return;
+                            }
                             applyColorToGroup(w.group, selectedColor);
                             refreshPreview();
                             if (zonesPanel.style.display !== "none")
@@ -6178,7 +6448,7 @@
                         wRow.appendChild(wArrow);
                         // Zones panel (expandable)
                         const zonesPanel = document.createElement("div");
-                        zonesPanel.style.cssText = "display:none;flex-direction:column;gap:3px;padding:5px 7px 6px;background:#0d060c;border:1px solid #2a1020;border-top:none;border-radius:0 0 5px 5px;";
+                        zonesPanel.style.cssText = "display:none;flex-direction:column;gap:2px;padding:5px 7px 6px;background:#0d060c;border:1px solid #2a1020;border-top:none;border-radius:0 0 5px 5px;";
                         const rebuildZones = () => {
                             var _a;
                             while (zonesPanel.firstChild)
@@ -6188,55 +6458,76 @@
                             for (let zi = 0; zi < colors.length; zi++) {
                                 const zc = colors[zi];
                                 const zn = (_a = zoneNames[zi]) !== null && _a !== void 0 ? _a : `Zone ${zi + 1}`;
+                                const isDefault = !zc || zc === "Default";
                                 const zRow = document.createElement("div");
-                                zRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-                                // Current zone color swatch (inline picker)
+                                zRow.className = "ebc-zone-row";
+                                // Inline colour wheel for this zone
                                 const zPicker = document.createElement("input");
                                 zPicker.type = "color";
-                                const isDefault = !zc || zc === "Default";
                                 zPicker.value = isDefault ? "#000000" : zc;
-                                zPicker.style.cssText = "width:22px;height:20px;border:1px solid #3a1928;border-radius:3px;background:none;cursor:pointer;padding:1px;flex-shrink:0;";
-                                zPicker.title = `Pick color for ${zn}`;
+                                zPicker.className = "ebc-zone-picker";
+                                zPicker.title = `Colour wheel for ${zn}`;
                                 zPicker.addEventListener("change", () => {
                                     applyColorZoneToGroup(w.group, zi, zPicker.value);
+                                    zDot.style.background = zPicker.value;
+                                    zHex.textContent = zPicker.value.toUpperCase();
+                                    zDot.title = zPicker.value.toUpperCase();
                                     refreshPreview();
                                 });
-                                const zSwatch = document.createElement("span");
-                                zSwatch.style.cssText = `display:inline-block;width:14px;height:14px;border-radius:3px;background:${isDefault ? "#3a2030" : zc};border:1px solid rgba(255,255,255,0.12);flex-shrink:0;cursor:pointer;`;
-                                zSwatch.title = isDefault ? "Default" : zc;
-                                zSwatch.addEventListener("click", () => {
-                                    // Clicking the swatch applies the selected color from MY COLORS
-                                    if (!selectedColor)
+                                // Colour dot — click to paste selected colour
+                                const zDot = document.createElement("span");
+                                zDot.className = "ebc-zone-dot";
+                                zDot.style.background = isDefault ? "#3a2030" : zc;
+                                zDot.title = isDefault ? "Default — click to apply selected" : `${(zc !== null && zc !== void 0 ? zc : "").toUpperCase()} — click to apply selected`;
+                                zDot.addEventListener("click", () => {
+                                    if (!selectedColor) {
+                                        flashSelBar();
                                         return;
+                                    }
                                     applyColorZoneToGroup(w.group, zi, selectedColor);
+                                    zPicker.value = selectedColor;
+                                    zDot.style.background = selectedColor;
+                                    zHex.textContent = selectedColor.toUpperCase();
+                                    zDot.title = selectedColor.toUpperCase();
                                     refreshPreview();
-                                    rebuildZones();
                                 });
+                                // Hex readout
+                                const zHex = document.createElement("span");
+                                zHex.className = "ebc-zone-hex";
+                                zHex.textContent = isDefault ? "Default" : (zc !== null && zc !== void 0 ? zc : "").toUpperCase();
+                                // Zone name
                                 const zLabel = document.createElement("span");
-                                zLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex:1;";
+                                zLabel.className = "ebc-zone-label";
                                 zLabel.textContent = zn;
+                                // Set button — applies selected colour from MY COLOURS
                                 const zSetBtn = document.createElement("button");
-                                zSetBtn.className = "ebc-wear-btn";
-                                zSetBtn.style.cssText += "padding:1px 6px;font-size:8px;flex-shrink:0;";
+                                zSetBtn.className = "ebc-wear-btn ebc-zone-set";
                                 zSetBtn.textContent = "Set";
-                                zSetBtn.disabled = !selectedColor;
-                                zSetBtn.title = selectedColor ? `Set ${zn} to ${selectedColor}` : "Select a colour first";
+                                zSetBtn.title = "Apply selected colour to this zone";
                                 zSetBtn.addEventListener("click", () => {
-                                    if (!selectedColor)
+                                    if (!selectedColor) {
+                                        flashSelBar();
                                         return;
+                                    }
                                     applyColorZoneToGroup(w.group, zi, selectedColor);
+                                    zPicker.value = selectedColor;
+                                    zDot.style.background = selectedColor;
+                                    zHex.textContent = selectedColor.toUpperCase();
+                                    zDot.title = selectedColor.toUpperCase();
                                     refreshPreview();
-                                    rebuildZones();
+                                    zSetBtn.textContent = "✓";
+                                    window.setTimeout(() => { zSetBtn.textContent = "Set"; }, 1000);
                                 });
                                 zRow.appendChild(zPicker);
-                                zRow.appendChild(zSwatch);
+                                zRow.appendChild(zDot);
+                                zRow.appendChild(zHex);
                                 zRow.appendChild(zLabel);
                                 zRow.appendChild(zSetBtn);
                                 zonesPanel.appendChild(zRow);
                             }
-                            // Save as preset row
+                            // Save as preset footer
                             const saveRow = document.createElement("div");
-                            saveRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;border-top:1px solid #2a1020;padding-top:5px;";
+                            saveRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:5px;border-top:1px solid #2a1020;padding-top:5px;";
                             const saveInp = document.createElement("input");
                             saveInp.type = "text";
                             saveInp.placeholder = "Preset name…";
@@ -6247,7 +6538,7 @@
                             saveBtn.className = "ebc-wear-btn";
                             saveBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
                             saveBtn.textContent = "+ Preset";
-                            saveBtn.title = "Save current zone colors as a named preset";
+                            saveBtn.title = "Save current zone colours as a named preset";
                             saveBtn.addEventListener("click", () => {
                                 const name = saveInp.value.trim();
                                 if (!name) {
@@ -6277,111 +6568,107 @@
                         wWrap.appendChild(zonesPanel);
                         container.appendChild(wWrap);
                     }
+                    // ── Restraint colour presets ──────────────────────────────────
+                    const div3 = document.createElement("div");
+                    div3.className = "ebc-divider";
+                    div3.style.margin = "8px 0 4px";
+                    container.appendChild(div3);
+                    const presetsLbl = document.createElement("div");
+                    presetsLbl.className = "ebc-import-hint";
+                    presetsLbl.style.cssText = "font-weight:600;margin-bottom:3px;";
+                    presetsLbl.textContent = "RESTRAINT PRESETS";
+                    container.appendChild(presetsLbl);
+                    const presetsHint = document.createElement("div");
+                    presetsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;margin-bottom:6px;";
+                    presetsHint.textContent = "Save presets using + Preset inside any restraint's zone panel, then apply them here.";
+                    container.appendChild(presetsHint);
+                    const presetsContainer = document.createElement("div");
+                    container.appendChild(presetsContainer);
+                    renderPresets = () => {
+                        while (presetsContainer.firstChild)
+                            presetsContainer.removeChild(presetsContainer.firstChild);
+                        const presets = getRestraintPresets();
+                        if (!presets.length) {
+                            const none = document.createElement("div");
+                            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
+                            none.textContent = "No presets saved yet.";
+                            presetsContainer.appendChild(none);
+                            return;
+                        }
+                        for (const preset of presets) {
+                            const pRow = document.createElement("div");
+                            pRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:3px;padding:4px 7px;border-radius:5px;background:#130810;border:1px solid #2a1020;";
+                            const swatches = document.createElement("span");
+                            swatches.style.cssText = "display:inline-flex;gap:2px;flex-shrink:0;";
+                            for (const c of preset.colors.slice(0, 8)) {
+                                const d = document.createElement("span");
+                                const isD = !c || c === "Default";
+                                d.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;background:${isD ? "#3a2030" : c};border:1px solid rgba(255,255,255,0.12);`;
+                                swatches.appendChild(d);
+                            }
+                            const nameInp = document.createElement("input");
+                            nameInp.value = preset.name;
+                            nameInp.maxLength = 30;
+                            nameInp.className = "ebc-form-input";
+                            nameInp.style.cssText = nameInp.style.cssText + ";font-size:9px;min-width:0;";
+                            nameInp.addEventListener("change", () => { renameRestraintPreset(preset.id, nameInp.value); });
+                            const applyToSel = document.createElement("select");
+                            applyToSel.className = "ebc-form-input";
+                            applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:9px;flex:none;width:auto;max-width:90px;";
+                            applyToSel.title = "Choose restraint to apply to";
+                            const phOpt = document.createElement("option");
+                            phOpt.value = "";
+                            phOpt.textContent = "— pick —";
+                            applyToSel.appendChild(phOpt);
+                            for (const w of worn) {
+                                const opt = document.createElement("option");
+                                opt.value = w.group;
+                                opt.textContent = w.name;
+                                applyToSel.appendChild(opt);
+                            }
+                            const applyBtn = document.createElement("button");
+                            applyBtn.className = "ebc-wear-btn";
+                            applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
+                            applyBtn.textContent = "Apply";
+                            applyBtn.addEventListener("click", () => {
+                                const group = applyToSel.value;
+                                if (!group) {
+                                    applyToSel.style.borderColor = "#cf6f98";
+                                    return;
+                                }
+                                applyToSel.style.borderColor = "";
+                                applyColorsToGroup(group, preset.colors);
+                                build(); // rebuild to refresh all zone previews
+                                applyBtn.textContent = "✓";
+                                window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1400);
+                            });
+                            let delPending = false;
+                            const delBtn = document.createElement("button");
+                            delBtn.className = "ebc-outfit-del";
+                            delBtn.textContent = "×";
+                            delBtn.addEventListener("click", () => {
+                                if (!delPending) {
+                                    delPending = true;
+                                    delBtn.classList.add("confirm");
+                                    delBtn.textContent = "Sure?";
+                                    window.setTimeout(() => { delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×"; }, 2500);
+                                }
+                                else {
+                                    deleteRestraintPreset(preset.id);
+                                    renderPresets();
+                                }
+                            });
+                            pRow.appendChild(swatches);
+                            pRow.appendChild(nameInp);
+                            pRow.appendChild(applyToSel);
+                            pRow.appendChild(applyBtn);
+                            pRow.appendChild(delBtn);
+                            presetsContainer.appendChild(pRow);
+                        }
+                    };
+                    renderPresets();
                 }
-                // ── Restraint colour presets ──────────────────────────────────────
-                const div3 = document.createElement("div");
-                div3.className = "ebc-divider";
-                div3.style.margin = "8px 0 4px";
-                container.appendChild(div3);
-                const presetsLbl = document.createElement("div");
-                presetsLbl.className = "ebc-import-hint";
-                presetsLbl.style.cssText = "font-weight:600;margin-bottom:5px;";
-                presetsLbl.textContent = "RESTRAINT PRESETS";
-                container.appendChild(presetsLbl);
-                const presetsHint = document.createElement("div");
-                presetsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;margin-bottom:6px;";
-                presetsHint.textContent = "Click a preset to apply its colors to a restraint. Save new presets using the + Preset button inside any restraint's zone panel above.";
-                container.appendChild(presetsHint);
-                const presetsContainer = document.createElement("div");
-                container.appendChild(presetsContainer);
-                const renderPresets = () => {
-                    while (presetsContainer.firstChild)
-                        presetsContainer.removeChild(presetsContainer.firstChild);
-                    const presets = getRestraintPresets();
-                    if (!presets.length) {
-                        const none = document.createElement("div");
-                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
-                        none.textContent = "No presets saved yet.";
-                        presetsContainer.appendChild(none);
-                        return;
-                    }
-                    for (const preset of presets) {
-                        const pRow = document.createElement("div");
-                        pRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:3px;padding:4px 7px;border-radius:5px;background:#130810;border:1px solid #2a1020;";
-                        // Color swatches preview
-                        const swatches = document.createElement("span");
-                        swatches.style.cssText = "display:inline-flex;gap:2px;flex-shrink:0;";
-                        for (const c of preset.colors.slice(0, 8)) {
-                            const d = document.createElement("span");
-                            const isDefault = !c || c === "Default";
-                            d.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;background:${isDefault ? "#3a2030" : c};border:1px solid rgba(255,255,255,0.12);`;
-                            swatches.appendChild(d);
-                        }
-                        // Name (editable)
-                        const nameInp = document.createElement("input");
-                        nameInp.value = preset.name;
-                        nameInp.maxLength = 30;
-                        nameInp.className = "ebc-form-input";
-                        nameInp.style.cssText = nameInp.style.cssText + ";font-size:9px;min-width:0;";
-                        nameInp.addEventListener("change", () => { renameRestraintPreset(preset.id, nameInp.value); });
-                        // Apply dropdown — pick which worn restraint to apply to
-                        const applyToSel = document.createElement("select");
-                        applyToSel.className = "ebc-form-input";
-                        applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:9px;flex:none;width:auto;max-width:100px;";
-                        applyToSel.title = "Choose restraint to apply to";
-                        const phOpt = document.createElement("option");
-                        phOpt.value = "";
-                        phOpt.textContent = "— pick —";
-                        applyToSel.appendChild(phOpt);
-                        for (const w of worn) {
-                            const opt = document.createElement("option");
-                            opt.value = w.group;
-                            opt.textContent = w.name;
-                            applyToSel.appendChild(opt);
-                        }
-                        const applyBtn = document.createElement("button");
-                        applyBtn.className = "ebc-wear-btn";
-                        applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
-                        applyBtn.textContent = "Apply";
-                        applyBtn.addEventListener("click", () => {
-                            const group = applyToSel.value;
-                            if (!group) {
-                                applyToSel.style.borderColor = "#cf6f98";
-                                return;
-                            }
-                            applyToSel.style.borderColor = "";
-                            applyColorsToGroup(group, preset.colors);
-                            render(); // full re-render to update previews
-                            applyBtn.textContent = "✓";
-                            window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1400);
-                        });
-                        // Delete button
-                        let delPending = false;
-                        const delBtn = document.createElement("button");
-                        delBtn.className = "ebc-outfit-del";
-                        delBtn.textContent = "×";
-                        delBtn.addEventListener("click", () => {
-                            if (!delPending) {
-                                delPending = true;
-                                delBtn.classList.add("confirm");
-                                delBtn.textContent = "Sure?";
-                                window.setTimeout(() => { delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×"; }, 2500);
-                            }
-                            else {
-                                deleteRestraintPreset(preset.id);
-                                renderPresets();
-                            }
-                        });
-                        pRow.appendChild(swatches);
-                        pRow.appendChild(nameInp);
-                        pRow.appendChild(applyToSel);
-                        pRow.appendChild(applyBtn);
-                        pRow.appendChild(delBtn);
-                        presetsContainer.appendChild(pRow);
-                    }
-                };
-                renderPresets();
-                // ── Saved palettes (collapsed, secondary) ─────────────────────────
+                // ── Saved palettes (collapsed toggle, secondary) ──────────────────
                 const div2 = document.createElement("div");
                 div2.className = "ebc-divider";
                 div2.style.margin = "10px 0 4px";
@@ -6507,9 +6794,9 @@
                 const cc = getCustomColors().length;
                 label.textContent = (collapsed ? "▶" : "▼") + ` COLOURS${cc > 0 ? ` (${cc} saved)` : ""}`;
             };
-            label.addEventListener("click", () => { collapsed = !collapsed; updateLabel(); render(); });
+            label.addEventListener("click", () => { collapsed = !collapsed; updateLabel(); build(); });
             updateLabel();
-            render();
+            build();
             body.appendChild(label);
             body.appendChild(container);
         }
@@ -11212,9 +11499,19 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.7.2";
+    const MOD_VERSION = "0.7.3";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.7.3",
+            changes: [
+                "Colours tab — full picker rework: colour wheel and hex code input are now side by side in a card and stay in sync bidirectionally. Type a hex code, press Enter or click Select to activate it.",
+                "Saved colours are now 28×28 swatches with a hover scale effect and a selection ring. Clicking a swatch loads it into the picker and selects it instantly.",
+                "Selected colour bar now shows the hex code in monospace with a colour preview dot. Clicking the dot inside a restraint zone applies the selected colour without needing the Set button.",
+                "Zone rows inside restraint panels now show the current hex code next to each zone's colour dot, and update live when you change colours via the inline wheel.",
+                "Set / All buttons no longer grey out — if no colour is selected they flash the selected-colour bar to guide you instead.",
+            ],
+        },
         {
             version: "0.7.2",
             changes: [
