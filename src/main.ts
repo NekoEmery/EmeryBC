@@ -13,10 +13,17 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.6.3";
+const MOD_VERSION = "0.6.4";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.6.4",
+        changes: [
+            "Friends list: click any friend row to expand a panel where you can set/clear their tag and pin them to the top of the list.",
+            "Pinned friends always appear first in the friend list with a 📌 indicator and a pink left border.",
+        ],
+    },
     {
         version: "0.6.3",
         changes: [

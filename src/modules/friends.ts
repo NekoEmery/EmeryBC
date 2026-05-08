@@ -114,6 +114,28 @@ export function getFriendStatus(memberNumber: number): FriendStatus {
     return "away";
 }
 
+// -- Pinned friends ------------------------------------------------------------
+
+export function getPinnedFriends(): number[] {
+    const v = getStore().pinnedFriends;
+    return Array.isArray(v) ? (v as number[]) : [];
+}
+
+export function isFriendPinned(memberNumber: number): boolean {
+    return getPinnedFriends().includes(memberNumber);
+}
+
+export function togglePinFriend(memberNumber: number): boolean {
+    const store = getStore();
+    const list = getPinnedFriends();
+    const idx = list.indexOf(memberNumber);
+    if (idx >= 0) list.splice(idx, 1);
+    else list.unshift(memberNumber);
+    store.pinnedFriends = list;
+    sync();
+    return idx < 0; // true = now pinned
+}
+
 // -- Tags ----------------------------------------------------------------------
 
 export function getFriendTags(): Record<string, string> {

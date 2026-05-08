@@ -1888,6 +1888,26 @@
             return "online";
         return "away";
     }
+    // -- Pinned friends ------------------------------------------------------------
+    function getPinnedFriends() {
+        const v = getStore$1().pinnedFriends;
+        return Array.isArray(v) ? v : [];
+    }
+    function isFriendPinned(memberNumber) {
+        return getPinnedFriends().includes(memberNumber);
+    }
+    function togglePinFriend(memberNumber) {
+        const store = getStore$1();
+        const list = getPinnedFriends();
+        const idx = list.indexOf(memberNumber);
+        if (idx >= 0)
+            list.splice(idx, 1);
+        else
+            list.unshift(memberNumber);
+        store.pinnedFriends = list;
+        sync();
+        return idx < 0; // true = now pinned
+    }
     // -- Tags ----------------------------------------------------------------------
     function getFriendTags() {
         const v = getStore$1().friendTags;
@@ -3702,16 +3722,33 @@
 }
 
 /* -- Friends section -- */
+.ebc-friend-wrap { margin-bottom: 3px; }
+
 .ebc-friend-row {
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 3px 4px;
+    padding: 4px 6px;
     border-radius: 5px;
-    margin-bottom: 2px;
     background: #130810;
+    cursor: pointer;
+    user-select: none;
 }
 .ebc-friend-row:hover { background: #1a0d15; }
+.ebc-friend-row.pinned { border-left: 2px solid #cf6f9855; padding-left: 4px; }
+.ebc-friend-row.expanded { border-radius: 5px 5px 0 0; }
+
+.ebc-friend-expand {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 8px;
+    background: #1a0c14;
+    border: 1px solid #2e1525;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+}
+.ebc-friend-expand.visible { display: flex; }
 
 .ebc-friend-dot {
     width: 8px;
@@ -8150,7 +8187,7 @@
         }
         // -- Notes tab -------------------------------------------------------------
         renderNotes() {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c, _d, _e, _f;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -8220,9 +8257,13 @@
                 lblF.appendChild(lblFCount);
                 body.appendChild(lblF);
                 const tags = getFriendTags();
-                // Sort: room first, online second, away last, then alphabetical
+                // Sort: pinned first, then room/online/away, then alphabetical
                 const statusOrder = (n) => ({ room: 0, online: 1, away: 2 }[getFriendStatus(n)]);
                 const sorted = [...friendList].sort((a, b) => {
+                    const pa = isFriendPinned(a) ? 0 : 1;
+                    const pb = isFriendPinned(b) ? 0 : 1;
+                    if (pa !== pb)
+                        return pa - pb;
                     const diff = statusOrder(a) - statusOrder(b);
                     if (diff !== 0)
                         return diff;
@@ -8232,81 +8273,39 @@
                     const status = getFriendStatus(num);
                     const name = resolveName(num);
                     const tag = (_d = tags[String(num)]) !== null && _d !== void 0 ? _d : "";
+                    const pinned = isFriendPinned(num);
+                    // Wrapper holds both the row and the expand panel
+                    const wrap = document.createElement("div");
+                    wrap.className = "ebc-friend-wrap";
+                    // ── Row ────────────────────────────────────────────────────
                     const row = document.createElement("div");
-                    row.className = "ebc-friend-row";
+                    row.className = "ebc-friend-row" + (pinned ? " pinned" : "");
                     const dot = document.createElement("div");
                     dot.className = "ebc-friend-dot " + status;
+                    // Pin indicator
+                    const pinDot = document.createElement("span");
+                    pinDot.textContent = "📌";
+                    pinDot.style.cssText = "font-size:9px;flex-shrink:0;line-height:1;" + (pinned ? "" : "display:none;");
                     const nameEl = document.createElement("span");
                     nameEl.className = "ebc-friend-name";
                     nameEl.textContent = name;
                     const numEl = document.createElement("span");
-                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;margin-left:3px;flex-shrink:0;";
+                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;flex-shrink:0;";
                     numEl.textContent = "#" + num;
-                    // Tag badge — click to edit inline
-                    const tagEl = document.createElement("span");
-                    tagEl.className = "ebc-friend-tag";
-                    tagEl.textContent = tag || "+tag";
-                    tagEl.style.opacity = tag ? "1" : "0.4";
-                    tagEl.title = "Click to edit tag";
-                    tagEl.addEventListener("click", () => {
-                        var _a;
-                        const cur = (_a = tags[String(num)]) !== null && _a !== void 0 ? _a : "";
-                        const input = document.createElement("input");
-                        input.type = "text";
-                        input.value = cur;
-                        input.maxLength = 30;
-                        input.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#e8b4c8;border:1px solid #cf6f98;border-radius:3px;padding:1px 4px;width:80px;outline:none;";
-                        tagEl.replaceWith(input);
-                        input.focus();
-                        const commit = () => {
-                            setFriendTag(num, input.value);
-                            tags[String(num)] = input.value.trim();
-                            tagEl.textContent = input.value.trim() || "+tag";
-                            tagEl.style.opacity = input.value.trim() ? "1" : "0.4";
-                            input.replaceWith(tagEl);
-                        };
-                        input.addEventListener("blur", commit);
-                        input.addEventListener("keydown", e => { if (e.key === "Enter") {
-                            e.preventDefault();
-                            commit();
-                        } });
-                    });
-                    const unread = (_e = this.beepUnread.get(num)) !== null && _e !== void 0 ? _e : 0;
-                    const beepBtn = document.createElement("button");
-                    beepBtn.className = "ebc-friend-btn";
-                    beepBtn.style.position = "relative";
-                    beepBtn.textContent = "💬";
-                    beepBtn.title = unread ? `${unread} unread message${unread > 1 ? "s" : ""}` : "Open beep chat";
-                    if (unread > 0) {
-                        const badge = document.createElement("span");
-                        badge.textContent = unread > 9 ? "9+" : String(unread);
-                        badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
-                        beepBtn.appendChild(badge);
-                    }
-                    beepBtn.addEventListener("click", () => {
-                        this.beepUnread.delete(num);
-                        this.openBeepWindow(num);
-                        // Re-render friends to remove the badge
-                        if (this.currentTab === "notes")
-                            try {
-                                this.renderNotes();
-                            }
-                            catch ( /* ignore */_a) { /* ignore */ }
-                    });
-                    row.appendChild(dot);
-                    row.appendChild(nameEl);
-                    row.appendChild(numEl);
-                    // Room info tag for online/in-room friends
+                    // Tag badge (display only — editing is in the expand panel)
+                    const tagBadge = document.createElement("span");
+                    tagBadge.className = "ebc-friend-tag";
+                    tagBadge.style.opacity = tag ? "1" : "0";
+                    tagBadge.textContent = tag;
+                    // Room info tag
                     const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
                     if (info) {
                         const isPrivate = info.roomPrivate;
                         const isLocked = info.roomLocked;
                         const isFull = info.roomFull;
                         const roomName = info.roomName;
-                        let icon = isLocked ? "🔐" : isPrivate ? "🔒" : "📢";
-                        let bg = "#1e0d1a";
-                        let color = "#9a6878";
-                        let border = "#3a1928";
+                        const icon = isLocked ? "🔐" : isPrivate ? "🔒" : "📢";
+                        let bg = "#1e0d1a", color = "#9a6878", border = "#3a1928";
                         if (isLocked) {
                             bg = "#1a100d";
                             color = "#c8905a";
@@ -8322,18 +8321,28 @@
                             color = "#60a898";
                             border = "#1e4038";
                         }
-                        const roomTag = document.createElement("span");
                         const label = roomName
                             ? (isFull ? "full · " : "") + roomName
                             : isLocked ? "locked room" : isPrivate ? "private room" : "online";
+                        const roomTag = document.createElement("span");
                         roomTag.textContent = icon + " " + label;
                         roomTag.title = roomName
                             ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
                             : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
                         roomTag.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
+                        row.appendChild(dot);
+                        row.appendChild(pinDot);
+                        row.appendChild(nameEl);
+                        row.appendChild(numEl);
                         row.appendChild(roomTag);
                     }
-                    // EBC version badge — check live room data first, fall back to session cache
+                    else {
+                        row.appendChild(dot);
+                        row.appendChild(pinDot);
+                        row.appendChild(nameEl);
+                        row.appendChild(numEl);
+                    }
+                    // EBC badge
                     const ebcVer = (() => {
                         try {
                             const room = window.ChatRoomCharacter;
@@ -8363,9 +8372,105 @@
                         ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
                         row.appendChild(ebcBadge);
                     }
-                    row.appendChild(tagEl);
+                    if (tag)
+                        row.appendChild(tagBadge);
+                    // Beep button — does NOT toggle expand
+                    const unread = (_e = this.beepUnread.get(num)) !== null && _e !== void 0 ? _e : 0;
+                    const beepBtn = document.createElement("button");
+                    beepBtn.className = "ebc-friend-btn";
+                    beepBtn.style.cssText = "position:relative;margin-left:auto;flex-shrink:0;";
+                    beepBtn.textContent = "💬";
+                    beepBtn.title = unread ? `${unread} unread` : "Open beep chat";
+                    if (unread > 0) {
+                        const badge = document.createElement("span");
+                        badge.textContent = unread > 9 ? "9+" : String(unread);
+                        badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
+                        beepBtn.appendChild(badge);
+                    }
+                    beepBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        this.beepUnread.delete(num);
+                        this.openBeepWindow(num);
+                        if (this.currentTab === "notes")
+                            try {
+                                this.renderNotes();
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                    });
                     row.appendChild(beepBtn);
-                    body.appendChild(row);
+                    // ── Expand panel ───────────────────────────────────────────
+                    const expand = document.createElement("div");
+                    expand.className = "ebc-friend-expand";
+                    // Tag row
+                    const tagRow = document.createElement("div");
+                    tagRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+                    const tagLbl = document.createElement("span");
+                    tagLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+                    tagLbl.textContent = "Tag";
+                    const tagInput = document.createElement("input");
+                    tagInput.type = "text";
+                    tagInput.value = (_f = tags[String(num)]) !== null && _f !== void 0 ? _f : "";
+                    tagInput.maxLength = 30;
+                    tagInput.placeholder = "add a tag…";
+                    tagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
+                    tagInput.addEventListener("focus", () => { tagInput.style.borderColor = "#cf6f98"; });
+                    tagInput.addEventListener("blur", () => { tagInput.style.borderColor = "#3a1928"; });
+                    const tagSaveBtn = document.createElement("button");
+                    tagSaveBtn.textContent = "Save";
+                    tagSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                    tagSaveBtn.addEventListener("click", () => {
+                        const v = tagInput.value.trim();
+                        setFriendTag(num, v);
+                        tags[String(num)] = v;
+                        tagBadge.textContent = v;
+                        tagBadge.style.opacity = v ? "1" : "0";
+                        if (v && !row.contains(tagBadge))
+                            row.insertBefore(tagBadge, beepBtn);
+                    });
+                    tagInput.addEventListener("keydown", e => { if (e.key === "Enter") {
+                        e.preventDefault();
+                        tagSaveBtn.click();
+                    } });
+                    tagRow.appendChild(tagLbl);
+                    tagRow.appendChild(tagInput);
+                    tagRow.appendChild(tagSaveBtn);
+                    // Actions row: pin + clear tag
+                    const actRow = document.createElement("div");
+                    actRow.style.cssText = "display:flex;gap:5px;";
+                    const pinBtn = document.createElement("button");
+                    const refreshPinBtn = () => {
+                        const p = isFriendPinned(num);
+                        pinBtn.textContent = p ? "📌 Unpin" : "📌 Pin to top";
+                        pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
+                        row.classList.toggle("pinned", p);
+                        pinDot.style.display = p ? "" : "none";
+                    };
+                    refreshPinBtn();
+                    pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
+                    const clearTagBtn = document.createElement("button");
+                    clearTagBtn.textContent = "✕ Clear tag";
+                    clearTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:transparent;color:#5a3a4a;";
+                    clearTagBtn.addEventListener("click", () => {
+                        tagInput.value = "";
+                        setFriendTag(num, "");
+                        tags[String(num)] = "";
+                        tagBadge.style.opacity = "0";
+                        tagBadge.textContent = "";
+                    });
+                    actRow.appendChild(pinBtn);
+                    actRow.appendChild(clearTagBtn);
+                    expand.appendChild(tagRow);
+                    expand.appendChild(actRow);
+                    // Toggle expand on row click
+                    row.addEventListener("click", () => {
+                        const open = expand.classList.toggle("visible");
+                        row.classList.toggle("expanded", open);
+                        if (open)
+                            setTimeout(() => tagInput.focus(), 50);
+                    });
+                    wrap.appendChild(row);
+                    wrap.appendChild(expand);
+                    body.appendChild(wrap);
                 }
             }
         }
@@ -9762,9 +9867,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.6.3";
+    const MOD_VERSION = "0.6.4";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.6.4",
+            changes: [
+                "Friends list: click any friend row to expand a panel where you can set/clear their tag and pin them to the top of the list.",
+                "Pinned friends always appear first in the friend list with a 📌 indicator and a pink left border.",
+            ],
+        },
         {
             version: "0.6.3",
             changes: [
