@@ -99,6 +99,7 @@ declare function CharacterRefresh(char: Character, push?: boolean, dirty?: boole
 declare function ChatRoomCharacterUpdate(char: Character): void;
 
 declare function ChatRoomLeave(): void;
+declare function CommonSetScreen(screen: string, subsceen: string): void;
 
 declare function InventoryWear(
     char: Character, itemName: string, groupName: string,
