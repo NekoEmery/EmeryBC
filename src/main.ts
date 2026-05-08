@@ -1,4 +1,4 @@
-﻿import { drawActionButtons, handleActionButtonClick } from "./modules/actionButtons";
+﻿import { drawActionButtons, handleActionButtonClick, getDisplayName } from "./modules/actionButtons";
 import { EBCDrawer } from "./modules/drawer";
 import { handleOutfitCommand } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.7.6";
+const MOD_VERSION = "0.7.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.7.7",
+        changes: [
+            "Emote shortcut: type *text in chat (e.g. *nods or * waves) and it sends as a BC Emote — rendered as *Your Name text* in chat, bypassing gag speech.",
+        ],
+    },
     {
         version: "0.7.6",
         changes: [
@@ -1266,6 +1272,22 @@ function init(): void {
         });
     } catch { /* ignore */ }
 
+    // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
+    // Typing *text (or * text) in the chat box sends a BC Emote message so it
+    // renders as *Name text* in chat without going through gag processing.
+    const handleEmoteShortcut = (raw: string): boolean => {
+        if (!raw.startsWith("*")) return false;
+        const body = raw.slice(1).replace(/^\s+/, "");
+        if (!body) return false; // bare * alone — ignore
+        try {
+            ServerSend("ChatRoomChat", {
+                Type: "Emote",
+                Content: getDisplayName() + " " + body,
+            });
+        } catch { /* ignore */ }
+        return true;
+    };
+
     // ── Direct capture-phase keydown — fires before BC touches anything ──────
     // This is the most reliable interceptor for safewords and chat commands.
     // It catches Enter on #InputChat in the capture phase, reads the raw value
@@ -1286,7 +1308,8 @@ function init(): void {
                 || handleOutfitCommand(raw)
                 || handlePoseComboCommand(raw)
                 || handleSceneCommand(raw)
-                || handleDomCommand(raw)) {
+                || handleDomCommand(raw)
+                || handleEmoteShortcut(raw)) {
                 (el as HTMLInputElement).value = "";
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -1307,6 +1330,7 @@ function init(): void {
                     || handlePoseComboCommand(input.value)
                     || handleSceneCommand(input.value)
                     || handleDomCommand(input.value)
+                    || handleEmoteShortcut(input.value)
                 )) {
                     input.value = "";
                     return;
@@ -1328,6 +1352,7 @@ function init(): void {
                 || handlePoseComboCommand(raw)
                 || handleSceneCommand(raw)
                 || handleDomCommand(raw)
+                || handleEmoteShortcut(raw)
             )) {
                 if (input) input.value = "";
                 return;

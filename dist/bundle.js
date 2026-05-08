@@ -11678,9 +11678,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.7.6";
+    const MOD_VERSION = "0.7.7";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.7.7",
+            changes: [
+                "Emote shortcut: type *text in chat (e.g. *nods or * waves) and it sends as a BC Emote — rendered as *Your Name text* in chat, bypassing gag speech.",
+            ],
+        },
         {
             version: "0.7.6",
             changes: [
@@ -12958,6 +12964,24 @@
             });
         }
         catch ( /* ignore */_a) { /* ignore */ }
+        // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
+        // Typing *text (or * text) in the chat box sends a BC Emote message so it
+        // renders as *Name text* in chat without going through gag processing.
+        const handleEmoteShortcut = (raw) => {
+            if (!raw.startsWith("*"))
+                return false;
+            const body = raw.slice(1).replace(/^\s+/, "");
+            if (!body)
+                return false; // bare * alone — ignore
+            try {
+                ServerSend("ChatRoomChat", {
+                    Type: "Emote",
+                    Content: getDisplayName() + " " + body,
+                });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return true;
+        };
         // ── Direct capture-phase keydown — fires before BC touches anything ──────
         // This is the most reliable interceptor for safewords and chat commands.
         // It catches Enter on #InputChat in the capture phase, reads the raw value
@@ -12980,7 +13004,8 @@
                     || handleOutfitCommand(raw)
                     || handlePoseComboCommand(raw)
                     || handleSceneCommand(raw)
-                    || handleDomCommand(raw)) {
+                    || handleDomCommand(raw)
+                    || handleEmoteShortcut(raw)) {
                     el.value = "";
                     e.preventDefault();
                     e.stopImmediatePropagation();
@@ -12999,7 +13024,8 @@
                         || handleOutfitCommand(input.value)
                         || handlePoseComboCommand(input.value)
                         || handleSceneCommand(input.value)
-                        || handleDomCommand(input.value))) {
+                        || handleDomCommand(input.value)
+                        || handleEmoteShortcut(input.value))) {
                         input.value = "";
                         return;
                     }
@@ -13019,7 +13045,8 @@
                     || handleOutfitCommand(raw)
                     || handlePoseComboCommand(raw)
                     || handleSceneCommand(raw)
-                    || handleDomCommand(raw))) {
+                    || handleDomCommand(raw)
+                    || handleEmoteShortcut(raw))) {
                     if (input)
                         input.value = "";
                     return;
