@@ -7840,17 +7840,21 @@
             const suppressIconEmoji = document.createElement("span");
             suppressIconEmoji.textContent = "💬";
             const suppressSlash = document.createElement("span");
-            suppressSlash.style.cssText = "position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);width:130%;height:2px;background:#ff5060;border-radius:1px;pointer-events:none;box-shadow:0 0 3px #ff506099;";
+            suppressSlash.style.cssText = "position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);width:140%;height:2.5px;background:#ff5060;border-radius:2px;pointer-events:none;box-shadow:0 0 4px #ff5060cc;";
             suppressIconWrap.appendChild(suppressIconEmoji);
             suppressIconWrap.appendChild(suppressSlash);
             suppressBtn.appendChild(suppressIconWrap);
+            suppressBtn.style.cssText = "background:#2a0e1e;border-radius:5px;cursor:pointer;line-height:1;padding:4px 8px;flex-shrink:0;font-size:15px;transition:background 0.12s,border-color 0.12s;";
             const refreshSuppressBtn = () => {
                 const suppressed = getSuppressNativeBeep();
                 suppressSlash.style.display = suppressed ? "block" : "none";
                 suppressBtn.title = suppressed
-                    ? "Beeps are hidden from BC's chat log — click to show them there too"
-                    : "Beeps are showing in BC's chat log — click to hide them";
-                suppressBtn.style.opacity = suppressed ? "0.55" : "1";
+                    ? "Beeps hidden from BC chat — click to show them there too"
+                    : "Beeps visible in BC chat — click to hide them";
+                suppressBtn.style.border = suppressed
+                    ? "1px solid #8a2030"
+                    : "1px solid #cf6f98";
+                suppressIconEmoji.style.filter = suppressed ? "none" : "brightness(1.3)";
             };
             refreshSuppressBtn();
             win._refreshSuppressBtn = refreshSuppressBtn;
