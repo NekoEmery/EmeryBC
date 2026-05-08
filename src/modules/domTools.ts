@@ -354,6 +354,68 @@ export function unlockAllTargetItems(targetIds?: Set<number>): Array<{ name: str
     });
 }
 
+// Returns every member currently in the room (excluding self).
+export function getRoomMembers(): Array<{ id: number; name: string }> {
+    try {
+        const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+        return room
+            .filter(c => c.MemberNumber !== Player.MemberNumber)
+            .map(c => ({
+                id: c.MemberNumber!,
+                name: (c as unknown as Record<string, unknown>).Nickname as string || c.Name || String(c.MemberNumber),
+            }));
+    } catch { return []; }
+}
+
+// Returns a snapshot of what a room member is wearing, split into restraints and locks.
+export function getRoomMemberItems(memberId: number): Array<{ group: string; name: string; locked: boolean }> {
+    try {
+        const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+        const char = room.find(c => c.MemberNumber === memberId);
+        if (!char) return [];
+        return char.Appearance.map((item: Item) => {
+            const prop = item.Property as Record<string, unknown> | undefined;
+            const locked = typeof prop?.LockedBy === "string" && prop.LockedBy !== "";
+            return { group: item.Asset.Group.Name, name: item.Asset.Name, locked };
+        });
+    } catch { return []; }
+}
+
+/**
+ * Full rescue — strips ALL locks and removes ALL restraints from a room member.
+ * Bypasses BC's lock checks entirely by writing directly to the character's
+ * Appearance array. Returns { found, locksCleared, restraintsRemoved }.
+ */
+export function rescueRoomMember(memberId: number): { found: boolean; locksCleared: number; restraintsRemoved: number } {
+    try {
+        const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+        const char = room.find(c => c.MemberNumber === memberId);
+        if (!char) return { found: false, locksCleared: 0, restraintsRemoved: 0 };
+
+        // 1. Strip all locks first (so nothing is "locked" when we remove)
+        let locksCleared = 0;
+        for (const item of char.Appearance) {
+            const prop = item.Property as Record<string, unknown> | undefined;
+            if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+                prop.LockedBy = "";
+                if ("Password" in prop) delete prop.Password;
+                if ("CombinationNumber" in prop) delete prop.CombinationNumber;
+                locksCleared++;
+            }
+        }
+
+        // 2. Strip all restraints — filter Appearance directly to bypass lock rules
+        const before = char.Appearance.length;
+        char.Appearance = char.Appearance.filter((item: Item) => !item.Asset.Group.IsRestraint);
+        const restraintsRemoved = before - char.Appearance.length;
+
+        if (locksCleared > 0 || restraintsRemoved > 0) {
+            syncChar(char);
+        }
+        return { found: true, locksCleared, restraintsRemoved };
+    } catch { return { found: false, locksCleared: 0, restraintsRemoved: 0 }; }
+}
+
 // Handle a chat command (e.g. /gag → apply the matching set).
 export function handleDomCommand(input: string): boolean {
     if (!isDomEnabled()) return false;

@@ -75,6 +75,9 @@ import {
     removeTargetItems,
     removeAllTargetRestraints,
     unlockAllTargetItems,
+    getRoomMembers,
+    getRoomMemberItems,
+    rescueRoomMember,
 } from "./domTools";
 
 // -- Shared UI helpers ---------------------------------------------------------
@@ -2208,7 +2211,7 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "buttons" | "anims" | "notes" | "thanks" | "dev" | "dom";
+type DrawerTab = "outfits" | "buttons" | "anims" | "notes" | "thanks" | "dev" | "dom" | "puppy";
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -2415,6 +2418,14 @@ export class EBCDrawer {
         domTabBtn.title = "DOM Tools";
         domTabBtn.style.display = "none"; // revealed in open() for creator only
 
+        // Puppy tab — Lucy only (member 230466)
+        const puppyTabBtn = document.createElement("button");
+        puppyTabBtn.className = "ebc-tab-btn";
+        puppyTabBtn.id = "ebc-tab-puppy";
+        puppyTabBtn.textContent = "🐾";
+        puppyTabBtn.title = "Puppy";
+        puppyTabBtn.style.display = "none"; // revealed in open() for Lucy only
+
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(buttonsTabBtn);
         tabBar.appendChild(posesTabBtn);
@@ -2422,6 +2433,7 @@ export class EBCDrawer {
         tabBar.appendChild(thanksTabBtn);
         tabBar.appendChild(devTabBtn2);
         tabBar.appendChild(domTabBtn);
+        tabBar.appendChild(puppyTabBtn);
 
         // Quick actions bar (always visible below tabs)
         const quickActions = document.createElement("div");
@@ -3316,6 +3328,7 @@ export class EBCDrawer {
             ["ebc-tab-thanks",  "thanks"],
             ["ebc-tab-dev",     "dev"],
             ["ebc-tab-dom",     "dom"],
+            ["ebc-tab-puppy",   "puppy"],
         ] as [string, DrawerTab][]) {
             const el = this.rootEl?.querySelector(`#${id}`);
             if (el) el.className = "ebc-tab-btn" + (tab === name ? " ebc-tab-active" : "");
@@ -3332,6 +3345,7 @@ export class EBCDrawer {
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
         else if (this.currentTab === "dom")      this.renderDomTools();
+        else if (this.currentTab === "puppy")    this.renderPuppy();
     }
 
     // -- Timer -----------------------------------------------------------------
@@ -8620,6 +8634,63 @@ export class EBCDrawer {
 
     // -- Special Thanks tab ----------------------------------------------------
 
+    private renderPuppy(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        // Header
+        const hdr = document.createElement("div");
+        hdr.style.cssText = "text-align:center;padding:14px 0 6px;";
+        const hdrTxt = document.createElement("div");
+        hdrTxt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:22px;letter-spacing:0.05em;color:#b8a0f7;";
+        hdrTxt.textContent = "🐾 Puppy";
+        const hdrSub = document.createElement("div");
+        hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a7ab0;margin-top:3px;";
+        hdrSub.textContent = "woof woof~";
+        hdr.appendChild(hdrTxt);
+        hdr.appendChild(hdrSub);
+        body.appendChild(hdr);
+
+        // Bark button
+        const barkBtn = document.createElement("button");
+        barkBtn.style.cssText = [
+            "display:block",
+            "width:80%",
+            "margin:18px auto 0",
+            "font-family:'Trebuchet MS',serif",
+            "font-size:16px",
+            "font-weight:bold",
+            "padding:12px 0",
+            "border-radius:10px",
+            "border:2px solid #9b7de0",
+            "background:#3a2060",
+            "color:#d8c8ff",
+            "cursor:pointer",
+            "transition:background 0.14s,transform 0.08s",
+            "letter-spacing:0.08em",
+        ].join(";");
+        barkBtn.textContent = "🐶 Bark!";
+        barkBtn.title = "Arf!";
+        barkBtn.addEventListener("mouseenter", () => { barkBtn.style.background = "#5a30a0"; });
+        barkBtn.addEventListener("mouseleave", () => { barkBtn.style.background = "#3a2060"; });
+        barkBtn.addEventListener("mousedown", () => { barkBtn.style.transform = "scale(0.95)"; });
+        barkBtn.addEventListener("mouseup",   () => { barkBtn.style.transform = ""; });
+        barkBtn.addEventListener("click", () => {
+            try {
+                ServerSend("ChatRoomChat", { Type: "Chat", Content: "arf" });
+            } catch { /* ignore */ }
+            // tiny flash feedback
+            barkBtn.style.background = "#7a40c8";
+            barkBtn.textContent = "🐶 arf!";
+            window.setTimeout(() => {
+                barkBtn.style.background = "#3a2060";
+                barkBtn.textContent = "🐶 Bark!";
+            }, 600);
+        });
+        body.appendChild(barkBtn);
+    }
+
     private renderThanks(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
@@ -8964,6 +9035,126 @@ export class EBCDrawer {
             addableWrap.appendChild(chipRow);
         };
         rebuildAddable();
+
+        // ── ⛑ Room Rescue ─────────────────────────────────────────────────────
+        const divRescue = document.createElement("div");
+        divRescue.className = "ebc-divider";
+        divRescue.style.margin = "10px 0 7px";
+        body.appendChild(divRescue);
+
+        const rescueLbl = document.createElement("div");
+        rescueLbl.className = "ebc-section-label";
+        rescueLbl.textContent = "⛑ Room Rescue";
+        body.appendChild(rescueLbl);
+
+        const rescueHint = document.createElement("div");
+        rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;margin-bottom:6px;line-height:1.4;";
+        rescueHint.textContent = "Strips all locks and restraints from any room member — bypasses all lock rules.";
+        body.appendChild(rescueHint);
+
+        // Person picker + Rescue button row
+        const rescueRow = document.createElement("div");
+        rescueRow.style.cssText = "display:flex;gap:5px;align-items:center;margin-bottom:4px;";
+
+        const rescueSel = document.createElement("select");
+        rescueSel.className = "ebc-form-input";
+        rescueSel.style.cssText = "flex:1;font-size:10px;";
+        const rescuePh = document.createElement("option");
+        rescuePh.value = ""; rescuePh.textContent = "— choose person —";
+        rescuePh.disabled = true; rescuePh.selected = true;
+        rescueSel.appendChild(rescuePh);
+
+        const populateRescueSel = (): void => {
+            while (rescueSel.firstChild) rescueSel.removeChild(rescueSel.firstChild);
+            rescueSel.appendChild(rescuePh);
+            const members = getRoomMembers();
+            for (const m of members) {
+                const opt = document.createElement("option");
+                opt.value = String(m.id);
+                opt.textContent = `${m.name} (#${m.id})`;
+                rescueSel.appendChild(opt);
+            }
+            if (members.length === 0) {
+                rescuePh.textContent = "— no one else in room —";
+            } else {
+                rescuePh.textContent = "— choose person —";
+            }
+        };
+        populateRescueSel();
+
+        const rescueRefreshBtn = document.createElement("button");
+        rescueRefreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+        rescueRefreshBtn.textContent = "↻";
+        rescueRefreshBtn.title = "Refresh room member list";
+        rescueRefreshBtn.addEventListener("click", () => { populateRescueSel(); rebuildRescueItems(); });
+
+        rescueRow.appendChild(rescueSel);
+        rescueRow.appendChild(rescueRefreshBtn);
+        body.appendChild(rescueRow);
+
+        // Item preview panel — shows what the selected person is wearing
+        const rescueItemsEl = document.createElement("div");
+        rescueItemsEl.style.cssText = "display:none;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;margin-bottom:5px;max-height:130px;overflow-y:auto;";
+        body.appendChild(rescueItemsEl);
+
+        const rescueStatus = document.createElement("div");
+        rescueStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;margin-bottom:4px;";
+        body.appendChild(rescueStatus);
+
+        const rebuildRescueItems = (): void => {
+            while (rescueItemsEl.firstChild) rescueItemsEl.removeChild(rescueItemsEl.firstChild);
+            const id = parseInt(rescueSel.value, 10);
+            if (!id) { rescueItemsEl.style.display = "none"; return; }
+            const items = getRoomMemberItems(id);
+            if (items.length === 0) {
+                rescueItemsEl.style.display = "none";
+                return;
+            }
+            rescueItemsEl.style.display = "flex";
+            for (const it of items) {
+                const row2 = document.createElement("div");
+                row2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 0;";
+                const lockIco = document.createElement("span");
+                lockIco.style.cssText = "font-size:9px;flex-shrink:0;";
+                lockIco.textContent = it.locked ? "🔒" : "  ";
+                const nm = document.createElement("span");
+                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                nm.textContent = it.name;
+                const grp = document.createElement("span");
+                grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
+                grp.textContent = it.group.replace("Item", "");
+                row2.appendChild(lockIco); row2.appendChild(nm); row2.appendChild(grp);
+                rescueItemsEl.appendChild(row2);
+            }
+        };
+
+        rescueSel.addEventListener("change", () => rebuildRescueItems());
+
+        const rescueBtn = document.createElement("button");
+        rescueBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 4px;border-radius:6px;border:1px solid #c0304a;background:#6b1428;color:#ffd0d8;cursor:pointer;transition:background 0.14s;margin-bottom:4px;";
+        rescueBtn.textContent = "⛑ Rescue";
+        rescueBtn.title = "Strip all locks + remove all restraints from selected person";
+        rescueBtn.addEventListener("mouseenter", () => { rescueBtn.style.background = "#8b1e38"; });
+        rescueBtn.addEventListener("mouseleave", () => { rescueBtn.style.background = "#6b1428"; });
+        rescueBtn.addEventListener("click", () => {
+            const id = parseInt(rescueSel.value, 10);
+            if (!id) { rescueStatus.textContent = "Pick someone first."; return; }
+            rescueBtn.disabled = true;
+            const result = rescueRoomMember(id);
+            if (!result.found) {
+                rescueStatus.textContent = "⚠ That person is no longer in the room.";
+            } else if (result.locksCleared === 0 && result.restraintsRemoved === 0) {
+                rescueStatus.textContent = "Nothing to remove — they're already free.";
+            } else {
+                rescueStatus.textContent = `✓ Done — cleared ${result.locksCleared} lock(s), removed ${result.restraintsRemoved} restraint(s).`;
+            }
+            window.setTimeout(() => {
+                rescueBtn.disabled = false;
+                rescueStatus.textContent = "";
+                rebuildRescueItems();
+            }, 3000);
+        });
+        body.appendChild(rescueBtn);
 
         // ── Release / Rescue ─────────────────────────────────────────────────
         const divRelease = document.createElement("div");
@@ -9518,6 +9709,9 @@ export class EBCDrawer {
         // Show the DOM tab only for the creator
         const domTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-dom");
         if (domTabEl) domTabEl.style.display = isDomEnabled() ? "" : "none";
+        // Show the Puppy tab only for Lucy (#230466)
+        const puppyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-puppy");
+        if (puppyTabEl) puppyTabEl.style.display = Player.MemberNumber === 230466 ? "" : "none";
         this.updateTimer();
         this.renderCurrentTab();
     }

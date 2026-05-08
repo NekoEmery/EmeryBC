@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.8.8";
+const MOD_VERSION = "0.8.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.8.9",
+        changes: [
+            "Dom tab: new ⛑ Room Rescue section — pick any person from a dropdown, preview their worn items and locks, then hit Rescue to strip everything. Bypasses all BC lock rules (direct Appearance filter). No target setup required.",
+            "🐾 Puppy tab added — only visible to Lucy (#230466). Has a Bark button that sends 'arf' in chat.",
+        ],
+    },
     {
         version: "0.8.8",
         changes: [
