@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.8.5";
+const MOD_VERSION = "0.8.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.8.6",
+        changes: [
+            "Safewords: each word (yellow & red) now has individual action toggles — Release restraints, Start grace, Announce in chat, Leave room. All on by default except 'Leave' for yellow.",
+            "Safeword UI redesigned into two colour-coded sections (yellow / red) with toggle buttons for each action.",
+        ],
+    },
     {
         version: "0.8.5",
         changes: [

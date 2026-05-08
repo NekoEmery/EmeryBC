@@ -2776,14 +2776,115 @@ export class EBCDrawer {
                 swInner.appendChild(row);
             };
 
-            makeTextRow("Yellow word:", cfg.yellowWord, "e.g. yellow", (v) => setSafewordConfig({ ...getSafewordConfig(), yellowWord: v }));
-            makeTextRow("Red word:", cfg.redWord, "e.g. red", (v) => setSafewordConfig({ ...getSafewordConfig(), redWord: v }));
+            // -- Per-word section builder --
+            const makeWordSection = (
+                accentColor: string,
+                wordLabel: string,
+                wordValue: string,
+                onWordSave: (v: string) => void,
+                actions: { label: string; active: boolean; onChange: (v: boolean) => void }[],
+                outfitLabel: string,
+                outfitId: string | null,
+                onOutfitPick: (id: string | null) => void,
+            ): void => {
+                const section = document.createElement("div");
+                section.style.cssText = `display:flex;flex-direction:column;gap:4px;border:1px solid ${accentColor}44;border-radius:6px;padding:5px 7px;`;
+
+                // Word row
+                const wordRow = document.createElement("div");
+                wordRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+                const wordLbl = document.createElement("span");
+                wordLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
+                wordLbl.textContent = wordLabel;
+                const wordInp = document.createElement("input");
+                wordInp.type = "text"; wordInp.maxLength = 40; wordInp.value = wordValue;
+                wordInp.className = "ebc-form-input"; wordInp.style.fontSize = "10px";
+                wordInp.addEventListener("blur", () => { if (wordInp.value.trim()) onWordSave(wordInp.value.trim()); else wordInp.value = wordValue; });
+                wordInp.addEventListener("keydown", (e) => { if (e.key === "Enter") wordInp.blur(); });
+                wordRow.appendChild(wordLbl);
+                wordRow.appendChild(wordInp);
+                section.appendChild(wordRow);
+
+                // Action toggles row
+                const actRow = document.createElement("div");
+                actRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding-left:66px;";
+                for (const act of actions) {
+                    const btn = document.createElement("button");
+                    btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${accentColor}66;transition:background 0.12s,color 0.12s;`;
+                    const setActStyle = (on: boolean): void => {
+                        btn.style.background = on ? accentColor + "44" : "transparent";
+                        btn.style.color       = on ? accentColor        : "#6a4858";
+                        btn.textContent       = (on ? "✓ " : "○ ") + act.label;
+                    };
+                    let state = act.active;
+                    setActStyle(state);
+                    btn.addEventListener("click", () => {
+                        state = !state;
+                        setActStyle(state);
+                        act.onChange(state);
+                    });
+                    actRow.appendChild(btn);
+                }
+                section.appendChild(actRow);
+
+                // Outfit row
+                const outfitRow = document.createElement("div");
+                outfitRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+                const outfitLbl = document.createElement("span");
+                outfitLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
+                outfitLbl.textContent = outfitLabel;
+                const sel = document.createElement("select");
+                sel.className = "ebc-form-input"; sel.style.fontSize = "10px";
+                const noneOpt = document.createElement("option");
+                noneOpt.value = ""; noneOpt.textContent = "— none —";
+                sel.appendChild(noneOpt);
+                try {
+                    for (const o of getOutfits()) {
+                        const opt = document.createElement("option");
+                        opt.value = o.id; opt.textContent = o.displayName;
+                        sel.appendChild(opt);
+                    }
+                } catch { /* ignore */ }
+                sel.value = outfitId ?? "";
+                sel.addEventListener("change", () => onOutfitPick(sel.value || null));
+                outfitRow.appendChild(outfitLbl);
+                outfitRow.appendChild(sel);
+                section.appendChild(outfitRow);
+
+                swInner.appendChild(section);
+            };
+
+            makeWordSection(
+                "#c8b840", "Yellow word:", cfg.yellowWord,
+                (v) => setSafewordConfig({ ...getSafewordConfig(), yellowWord: v }),
+                [
+                    { label: "Release",  active: cfg.yellowRelease,  onChange: (v) => setSafewordConfig({ ...getSafewordConfig(), yellowRelease: v }) },
+                    { label: "Grace",    active: cfg.yellowGrace,    onChange: (v) => setSafewordConfig({ ...getSafewordConfig(), yellowGrace: v }) },
+                    { label: "Announce", active: cfg.yellowAnnounce, onChange: (v) => setSafewordConfig({ ...getSafewordConfig(), yellowAnnounce: v }) },
+                    { label: "Leave",    active: cfg.yellowLeave,    onChange: (v) => setSafewordConfig({ ...getSafewordConfig(), yellowLeave: v }) },
+                ],
+                "Outfit:", cfg.yellowOutfitId,
+                (id) => setSafewordConfig({ ...getSafewordConfig(), yellowOutfitId: id }),
+            );
+
+            makeWordSection(
+                "#e06060", "Red word:", cfg.redWord,
+                (v) => setSafewordConfig({ ...getSafewordConfig(), redWord: v }),
+                [
+                    { label: "Release",  active: cfg.redRelease,  onChange: (v) => setSafewordConfig({ ...getSafewordConfig(), redRelease: v }) },
+                    { label: "Grace",    active: cfg.redGrace,    onChange: (v) => setSafewordConfig({ ...getSafewordConfig(), redGrace: v }) },
+                    { label: "Announce", active: cfg.redAnnounce, onChange: (v) => setSafewordConfig({ ...getSafewordConfig(), redAnnounce: v }) },
+                    { label: "Leave",    active: cfg.redLeave,    onChange: (v) => setSafewordConfig({ ...getSafewordConfig(), redLeave: v }) },
+                ],
+                "Outfit:", cfg.redOutfitId,
+                (id) => setSafewordConfig({ ...getSafewordConfig(), redOutfitId: id }),
+            );
 
             // -- Grace duration --
             const graceDurRow = document.createElement("div");
             graceDurRow.style.cssText = "display:flex;align-items:center;gap:6px;";
             const graceDurLbl = document.createElement("span");
-            graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:66px;text-align:right;";
+            graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:60px;text-align:right;";
             graceDurLbl.textContent = "Grace:";
             const graceDurInp = document.createElement("input");
             graceDurInp.type = "number"; graceDurInp.min = "0"; graceDurInp.max = "9999";
@@ -2803,41 +2904,10 @@ export class EBCDrawer {
             graceDurRow.appendChild(graceDurUnit);
             swInner.appendChild(graceDurRow);
 
-            // -- Outfit selectors (populated from live outfit list) --
-            const makeOutfitRow = (label: string, labelColor: string, currentId: string | null, onPick: (id: string | null) => void): void => {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:6px;";
-                const lbl = document.createElement("span");
-                lbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${labelColor};flex-shrink:0;width:66px;text-align:right;`;
-                lbl.textContent = label;
-                const sel = document.createElement("select");
-                sel.className = "ebc-form-input";
-                sel.style.fontSize = "10px";
-                const noneOpt = document.createElement("option");
-                noneOpt.value = ""; noneOpt.textContent = "— none —";
-                sel.appendChild(noneOpt);
-                try {
-                    for (const o of getOutfits()) {
-                        const opt = document.createElement("option");
-                        opt.value = o.id;
-                        opt.textContent = o.displayName;
-                        sel.appendChild(opt);
-                    }
-                } catch { /* ignore */ }
-                sel.value = currentId ?? "";
-                sel.addEventListener("change", () => onPick(sel.value || null));
-                row.appendChild(lbl);
-                row.appendChild(sel);
-                swInner.appendChild(row);
-            };
-
-            makeOutfitRow("Yellow outfit:", "#c8b840", cfg.yellowOutfitId, (id) => setSafewordConfig({ ...getSafewordConfig(), yellowOutfitId: id }));
-            makeOutfitRow("Red outfit:", "#e06060", cfg.redOutfitId, (id) => setSafewordConfig({ ...getSafewordConfig(), redOutfitId: id }));
-
             // -- Hint --
             const hint = document.createElement("div");
-            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;line-height:1.45;padding-top:2px;";
-            hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger. Yellow = release + grace. Red = release + grace + announce + leave room.";
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4858;line-height:1.45;padding-top:2px;";
+            hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger.";
             swInner.appendChild(hint);
         };
 

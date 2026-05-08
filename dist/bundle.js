@@ -2231,6 +2231,14 @@
         graceDurationMs: 300000, // 5 minutes
         yellowOutfitId: null,
         redOutfitId: null,
+        yellowRelease: true,
+        yellowGrace: true,
+        yellowAnnounce: true,
+        yellowLeave: false,
+        redRelease: true,
+        redGrace: true,
+        redAnnounce: true,
+        redLeave: true,
     };
     function getStore$1() {
         if (!Player.ExtensionSettings.EmeryBC)
@@ -2242,6 +2250,7 @@
         if (!raw || typeof raw !== "object" || Array.isArray(raw))
             return Object.assign({}, DEFAULTS);
         const r = raw;
+        const b = (key, def) => typeof r[key] === "boolean" ? r[key] : def;
         return {
             enabled: typeof r.enabled === "boolean" ? r.enabled : DEFAULTS.enabled,
             yellowWord: typeof r.yellowWord === "string" ? r.yellowWord : DEFAULTS.yellowWord,
@@ -2249,6 +2258,14 @@
             graceDurationMs: typeof r.graceDurationMs === "number" ? r.graceDurationMs : DEFAULTS.graceDurationMs,
             yellowOutfitId: typeof r.yellowOutfitId === "string" ? r.yellowOutfitId : DEFAULTS.yellowOutfitId,
             redOutfitId: typeof r.redOutfitId === "string" ? r.redOutfitId : DEFAULTS.redOutfitId,
+            yellowRelease: b("yellowRelease", DEFAULTS.yellowRelease),
+            yellowGrace: b("yellowGrace", DEFAULTS.yellowGrace),
+            yellowAnnounce: b("yellowAnnounce", DEFAULTS.yellowAnnounce),
+            yellowLeave: b("yellowLeave", DEFAULTS.yellowLeave),
+            redRelease: b("redRelease", DEFAULTS.redRelease),
+            redGrace: b("redGrace", DEFAULTS.redGrace),
+            redAnnounce: b("redAnnounce", DEFAULTS.redAnnounce),
+            redLeave: b("redLeave", DEFAULTS.redLeave),
         };
     }
     function setSafewordConfig(cfg) {
@@ -2346,22 +2363,27 @@
         const cfg = getSafewordConfig();
         if (!cfg.enabled)
             return;
-        releaseBindingRestraints();
-        startGrace(cfg.graceDurationMs);
-        try {
-            const graceDesc = cfg.graceDurationMs <= 0
-                ? "indefinitely"
-                : `for ${Math.round(cfg.graceDurationMs / 60000)} min`;
-            ServerSend("ChatRoomChat", {
-                Type: "Action",
-                Content: `${Player.Name} calls yellow — taking a moment to breathe. Please give them space (grace period active ${graceDesc}).`,
-                Dictionary: [
-                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                    { SourceCharacter: Player.MemberNumber },
-                ],
-            });
+        if (cfg.yellowRelease)
+            releaseBindingRestraints();
+        if (cfg.yellowGrace)
+            startGrace(cfg.graceDurationMs);
+        if (cfg.yellowAnnounce) {
+            try {
+                const graceDesc = cfg.graceDurationMs <= 0
+                    ? "indefinitely"
+                    : `for ${Math.round(cfg.graceDurationMs / 60000)} min`;
+                const gracePart = cfg.yellowGrace ? ` (grace period active ${graceDesc})` : "";
+                ServerSend("ChatRoomChat", {
+                    Type: "Action",
+                    Content: `${Player.Name} calls yellow — taking a moment to breathe. Please give them space${gracePart}.`,
+                    Dictionary: [
+                        { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                        { SourceCharacter: Player.MemberNumber },
+                    ],
+                });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
         }
-        catch ( /* ignore */_a) { /* ignore */ }
         // Apply outfit after a short delay so the restraint release syncs first
         if (cfg.yellowOutfitId) {
             const id = cfg.yellowOutfitId;
@@ -2374,24 +2396,41 @@
                 catch ( /* ignore */_a) { /* ignore */ }
             }, 150);
         }
+        if (cfg.yellowLeave) {
+            window.setTimeout(() => {
+                try {
+                    if (typeof CommonSetScreen === "function")
+                        CommonSetScreen("Online", "ChatSearch");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                try {
+                    ChatRoomLeave();
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            }, 800);
+        }
     }
     function triggerRed() {
         const cfg = getSafewordConfig();
         if (!cfg.enabled)
             return;
-        releaseBindingRestraints();
-        startGrace(cfg.graceDurationMs);
-        try {
-            ServerSend("ChatRoomChat", {
-                Type: "Action",
-                Content: `${Player.Name} calls red safeword — they are being escorted to safety. Please respect their exit.`,
-                Dictionary: [
-                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                    { SourceCharacter: Player.MemberNumber },
-                ],
-            });
+        if (cfg.redRelease)
+            releaseBindingRestraints();
+        if (cfg.redGrace)
+            startGrace(cfg.graceDurationMs);
+        if (cfg.redAnnounce) {
+            try {
+                ServerSend("ChatRoomChat", {
+                    Type: "Action",
+                    Content: `${Player.Name} calls red safeword — they are being escorted to safety. Please respect their exit.`,
+                    Dictionary: [
+                        { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                        { SourceCharacter: Player.MemberNumber },
+                    ],
+                });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
         }
-        catch ( /* ignore */_a) { /* ignore */ }
         // Apply outfit before leaving
         if (cfg.redOutfitId) {
             const id = cfg.redOutfitId;
@@ -2404,20 +2443,21 @@
                 catch ( /* ignore */_a) { /* ignore */ }
             }, 150);
         }
-        window.setTimeout(() => {
-            // Navigate away from the ChatRoom screen BEFORE ChatRoomLeave() clears
-            // the room state. Without this, mods that hook ChatRoomRun (e.g. CRABS)
-            // crash on the next render frame because ChatRoomCustomization is null.
-            try {
-                if (typeof CommonSetScreen === "function")
-                    CommonSetScreen("Online", "ChatSearch");
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            try {
-                ChatRoomLeave();
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
-        }, 800);
+        if (cfg.redLeave) {
+            window.setTimeout(() => {
+                // Navigate away BEFORE ChatRoomLeave() clears room state so hooks
+                // from other mods (e.g. CRABS) don't crash on the next render frame.
+                try {
+                    if (typeof CommonSetScreen === "function")
+                        CommonSetScreen("Online", "ChatSearch");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                try {
+                    ChatRoomLeave();
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            }, 800);
+        }
     }
     /**
      * Check the typed chat input against configured safewords.
@@ -5424,38 +5464,98 @@
                     graceRow.appendChild(cancelBtn);
                     swInner.appendChild(graceRow);
                 }
-                // -- Row helper: text input --
-                const makeTextRow = (label, value, placeholder, onSave) => {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:6px;";
-                    const lbl = document.createElement("span");
-                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:66px;text-align:right;";
-                    lbl.textContent = label;
-                    const inp = document.createElement("input");
-                    inp.type = "text";
-                    inp.maxLength = 40;
-                    inp.value = value;
-                    inp.placeholder = placeholder;
-                    inp.className = "ebc-form-input";
-                    inp.style.fontSize = "10px";
-                    inp.addEventListener("blur", () => { if (inp.value.trim())
-                        onSave(inp.value.trim());
+                // -- Per-word section builder --
+                const makeWordSection = (accentColor, wordLabel, wordValue, onWordSave, actions, outfitLabel, outfitId, onOutfitPick) => {
+                    const section = document.createElement("div");
+                    section.style.cssText = `display:flex;flex-direction:column;gap:4px;border:1px solid ${accentColor}44;border-radius:6px;padding:5px 7px;`;
+                    // Word row
+                    const wordRow = document.createElement("div");
+                    wordRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+                    const wordLbl = document.createElement("span");
+                    wordLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
+                    wordLbl.textContent = wordLabel;
+                    const wordInp = document.createElement("input");
+                    wordInp.type = "text";
+                    wordInp.maxLength = 40;
+                    wordInp.value = wordValue;
+                    wordInp.className = "ebc-form-input";
+                    wordInp.style.fontSize = "10px";
+                    wordInp.addEventListener("blur", () => { if (wordInp.value.trim())
+                        onWordSave(wordInp.value.trim());
                     else
-                        inp.value = value; });
-                    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") {
-                        inp.blur();
-                    } });
-                    row.appendChild(lbl);
-                    row.appendChild(inp);
-                    swInner.appendChild(row);
+                        wordInp.value = wordValue; });
+                    wordInp.addEventListener("keydown", (e) => { if (e.key === "Enter")
+                        wordInp.blur(); });
+                    wordRow.appendChild(wordLbl);
+                    wordRow.appendChild(wordInp);
+                    section.appendChild(wordRow);
+                    // Action toggles row
+                    const actRow = document.createElement("div");
+                    actRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding-left:66px;";
+                    for (const act of actions) {
+                        const btn = document.createElement("button");
+                        btn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 6px;border-radius:4px;cursor:pointer;border:1px solid ${accentColor}66;transition:background 0.12s,color 0.12s;`;
+                        const setActStyle = (on) => {
+                            btn.style.background = on ? accentColor + "44" : "transparent";
+                            btn.style.color = on ? accentColor : "#6a4858";
+                            btn.textContent = (on ? "✓ " : "○ ") + act.label;
+                        };
+                        let state = act.active;
+                        setActStyle(state);
+                        btn.addEventListener("click", () => {
+                            state = !state;
+                            setActStyle(state);
+                            act.onChange(state);
+                        });
+                        actRow.appendChild(btn);
+                    }
+                    section.appendChild(actRow);
+                    // Outfit row
+                    const outfitRow = document.createElement("div");
+                    outfitRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+                    const outfitLbl = document.createElement("span");
+                    outfitLbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${accentColor};flex-shrink:0;width:60px;text-align:right;`;
+                    outfitLbl.textContent = outfitLabel;
+                    const sel = document.createElement("select");
+                    sel.className = "ebc-form-input";
+                    sel.style.fontSize = "10px";
+                    const noneOpt = document.createElement("option");
+                    noneOpt.value = "";
+                    noneOpt.textContent = "— none —";
+                    sel.appendChild(noneOpt);
+                    try {
+                        for (const o of getOutfits()) {
+                            const opt = document.createElement("option");
+                            opt.value = o.id;
+                            opt.textContent = o.displayName;
+                            sel.appendChild(opt);
+                        }
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    sel.value = outfitId !== null && outfitId !== void 0 ? outfitId : "";
+                    sel.addEventListener("change", () => onOutfitPick(sel.value || null));
+                    outfitRow.appendChild(outfitLbl);
+                    outfitRow.appendChild(sel);
+                    section.appendChild(outfitRow);
+                    swInner.appendChild(section);
                 };
-                makeTextRow("Yellow word:", cfg.yellowWord, "e.g. yellow", (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { yellowWord: v })));
-                makeTextRow("Red word:", cfg.redWord, "e.g. red", (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { redWord: v })));
+                makeWordSection("#c8b840", "Yellow word:", cfg.yellowWord, (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { yellowWord: v })), [
+                    { label: "Release", active: cfg.yellowRelease, onChange: (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { yellowRelease: v })) },
+                    { label: "Grace", active: cfg.yellowGrace, onChange: (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { yellowGrace: v })) },
+                    { label: "Announce", active: cfg.yellowAnnounce, onChange: (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { yellowAnnounce: v })) },
+                    { label: "Leave", active: cfg.yellowLeave, onChange: (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { yellowLeave: v })) },
+                ], "Outfit:", cfg.yellowOutfitId, (id) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { yellowOutfitId: id })));
+                makeWordSection("#e06060", "Red word:", cfg.redWord, (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { redWord: v })), [
+                    { label: "Release", active: cfg.redRelease, onChange: (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { redRelease: v })) },
+                    { label: "Grace", active: cfg.redGrace, onChange: (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { redGrace: v })) },
+                    { label: "Announce", active: cfg.redAnnounce, onChange: (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { redAnnounce: v })) },
+                    { label: "Leave", active: cfg.redLeave, onChange: (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { redLeave: v })) },
+                ], "Outfit:", cfg.redOutfitId, (id) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { redOutfitId: id })));
                 // -- Grace duration --
                 const graceDurRow = document.createElement("div");
                 graceDurRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                 const graceDurLbl = document.createElement("span");
-                graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:66px;text-align:right;";
+                graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:60px;text-align:right;";
                 graceDurLbl.textContent = "Grace:";
                 const graceDurInp = document.createElement("input");
                 graceDurInp.type = "number";
@@ -5476,41 +5576,10 @@
                 graceDurRow.appendChild(graceDurInp);
                 graceDurRow.appendChild(graceDurUnit);
                 swInner.appendChild(graceDurRow);
-                // -- Outfit selectors (populated from live outfit list) --
-                const makeOutfitRow = (label, labelColor, currentId, onPick) => {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:6px;";
-                    const lbl = document.createElement("span");
-                    lbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${labelColor};flex-shrink:0;width:66px;text-align:right;`;
-                    lbl.textContent = label;
-                    const sel = document.createElement("select");
-                    sel.className = "ebc-form-input";
-                    sel.style.fontSize = "10px";
-                    const noneOpt = document.createElement("option");
-                    noneOpt.value = "";
-                    noneOpt.textContent = "— none —";
-                    sel.appendChild(noneOpt);
-                    try {
-                        for (const o of getOutfits()) {
-                            const opt = document.createElement("option");
-                            opt.value = o.id;
-                            opt.textContent = o.displayName;
-                            sel.appendChild(opt);
-                        }
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    sel.value = currentId !== null && currentId !== void 0 ? currentId : "";
-                    sel.addEventListener("change", () => onPick(sel.value || null));
-                    row.appendChild(lbl);
-                    row.appendChild(sel);
-                    swInner.appendChild(row);
-                };
-                makeOutfitRow("Yellow outfit:", "#c8b840", cfg.yellowOutfitId, (id) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { yellowOutfitId: id })));
-                makeOutfitRow("Red outfit:", "#e06060", cfg.redOutfitId, (id) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { redOutfitId: id })));
                 // -- Hint --
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;line-height:1.45;padding-top:2px;";
-                hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger. Yellow = release + grace. Red = release + grace + announce + leave room.";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4858;line-height:1.45;padding-top:2px;";
+                hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger.";
                 swInner.appendChild(hint);
             };
             // Toggle expand — rebuild inner content on every open
@@ -11781,9 +11850,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.8.5";
+    const MOD_VERSION = "0.8.6";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.8.6",
+            changes: [
+                "Safewords: each word (yellow & red) now has individual action toggles — Release restraints, Start grace, Announce in chat, Leave room. All on by default except 'Leave' for yellow.",
+                "Safeword UI redesigned into two colour-coded sections (yellow / red) with toggle buttons for each action.",
+            ],
+        },
         {
             version: "0.8.5",
             changes: [

@@ -14,6 +14,15 @@ export interface SafewordConfig {
     graceDurationMs: number;      // 0 = indefinite; otherwise milliseconds
     yellowOutfitId: string | null; // outfit to apply on yellow trigger (null = none)
     redOutfitId: string | null;    // outfit to apply on red trigger (null = none)
+    // Per-word action toggles
+    yellowRelease:  boolean;   // release binding restraints on yellow
+    yellowGrace:    boolean;   // start grace period on yellow
+    yellowAnnounce: boolean;   // send chat announcement on yellow
+    yellowLeave:    boolean;   // leave the room on yellow
+    redRelease:     boolean;   // release binding restraints on red
+    redGrace:       boolean;   // start grace period on red
+    redAnnounce:    boolean;   // send chat announcement on red
+    redLeave:       boolean;   // leave the room on red
 }
 
 const DEFAULTS: SafewordConfig = {
@@ -23,6 +32,14 @@ const DEFAULTS: SafewordConfig = {
     graceDurationMs: 300_000,  // 5 minutes
     yellowOutfitId: null,
     redOutfitId: null,
+    yellowRelease:  true,
+    yellowGrace:    true,
+    yellowAnnounce: true,
+    yellowLeave:    false,
+    redRelease:     true,
+    redGrace:       true,
+    redAnnounce:    true,
+    redLeave:       true,
 };
 
 function getStore(): Record<string, unknown> {
@@ -34,6 +51,8 @@ export function getSafewordConfig(): SafewordConfig {
     const raw = getStore().safeword;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULTS };
     const r = raw as Record<string, unknown>;
+    const b = (key: keyof SafewordConfig, def: boolean): boolean =>
+        typeof r[key] === "boolean" ? (r[key] as boolean) : def;
     return {
         enabled:         typeof r.enabled          === "boolean" ? r.enabled          : DEFAULTS.enabled,
         yellowWord:      typeof r.yellowWord        === "string"  ? r.yellowWord        : DEFAULTS.yellowWord,
@@ -41,6 +60,14 @@ export function getSafewordConfig(): SafewordConfig {
         graceDurationMs: typeof r.graceDurationMs   === "number"  ? r.graceDurationMs   : DEFAULTS.graceDurationMs,
         yellowOutfitId:  typeof r.yellowOutfitId    === "string"  ? r.yellowOutfitId    : DEFAULTS.yellowOutfitId,
         redOutfitId:     typeof r.redOutfitId       === "string"  ? r.redOutfitId       : DEFAULTS.redOutfitId,
+        yellowRelease:   b("yellowRelease",  DEFAULTS.yellowRelease),
+        yellowGrace:     b("yellowGrace",    DEFAULTS.yellowGrace),
+        yellowAnnounce:  b("yellowAnnounce", DEFAULTS.yellowAnnounce),
+        yellowLeave:     b("yellowLeave",    DEFAULTS.yellowLeave),
+        redRelease:      b("redRelease",     DEFAULTS.redRelease),
+        redGrace:        b("redGrace",       DEFAULTS.redGrace),
+        redAnnounce:     b("redAnnounce",    DEFAULTS.redAnnounce),
+        redLeave:        b("redLeave",       DEFAULTS.redLeave),
     };
 }
 
@@ -154,21 +181,24 @@ export function enforceGracePeriod(): void {
 export function triggerYellow(): void {
     const cfg = getSafewordConfig();
     if (!cfg.enabled) return;
-    releaseBindingRestraints();
-    startGrace(cfg.graceDurationMs);
-    try {
-        const graceDesc = cfg.graceDurationMs <= 0
-            ? "indefinitely"
-            : `for ${Math.round(cfg.graceDurationMs / 60_000)} min`;
-        ServerSend("ChatRoomChat", {
-            Type: "Action",
-            Content: `${Player.Name} calls yellow — taking a moment to breathe. Please give them space (grace period active ${graceDesc}).`,
-            Dictionary: [
-                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                { SourceCharacter: Player.MemberNumber },
-            ],
-        });
-    } catch { /* ignore */ }
+    if (cfg.yellowRelease)  releaseBindingRestraints();
+    if (cfg.yellowGrace)    startGrace(cfg.graceDurationMs);
+    if (cfg.yellowAnnounce) {
+        try {
+            const graceDesc = cfg.graceDurationMs <= 0
+                ? "indefinitely"
+                : `for ${Math.round(cfg.graceDurationMs / 60_000)} min`;
+            const gracePart = cfg.yellowGrace ? ` (grace period active ${graceDesc})` : "";
+            ServerSend("ChatRoomChat", {
+                Type: "Action",
+                Content: `${Player.Name} calls yellow — taking a moment to breathe. Please give them space${gracePart}.`,
+                Dictionary: [
+                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                    { SourceCharacter: Player.MemberNumber },
+                ],
+            });
+        } catch { /* ignore */ }
+    }
     // Apply outfit after a short delay so the restraint release syncs first
     if (cfg.yellowOutfitId) {
         const id = cfg.yellowOutfitId;
@@ -179,23 +209,31 @@ export function triggerYellow(): void {
             } catch { /* ignore */ }
         }, 150);
     }
+    if (cfg.yellowLeave) {
+        window.setTimeout(() => {
+            try { if (typeof CommonSetScreen === "function") CommonSetScreen("Online", "ChatSearch"); } catch { /* ignore */ }
+            try { ChatRoomLeave(); } catch { /* ignore */ }
+        }, 800);
+    }
 }
 
 export function triggerRed(): void {
     const cfg = getSafewordConfig();
     if (!cfg.enabled) return;
-    releaseBindingRestraints();
-    startGrace(cfg.graceDurationMs);
-    try {
-        ServerSend("ChatRoomChat", {
-            Type: "Action",
-            Content: `${Player.Name} calls red safeword — they are being escorted to safety. Please respect their exit.`,
-            Dictionary: [
-                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                { SourceCharacter: Player.MemberNumber },
-            ],
-        });
-    } catch { /* ignore */ }
+    if (cfg.redRelease)  releaseBindingRestraints();
+    if (cfg.redGrace)    startGrace(cfg.graceDurationMs);
+    if (cfg.redAnnounce) {
+        try {
+            ServerSend("ChatRoomChat", {
+                Type: "Action",
+                Content: `${Player.Name} calls red safeword — they are being escorted to safety. Please respect their exit.`,
+                Dictionary: [
+                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                    { SourceCharacter: Player.MemberNumber },
+                ],
+            });
+        } catch { /* ignore */ }
+    }
     // Apply outfit before leaving
     if (cfg.redOutfitId) {
         const id = cfg.redOutfitId;
@@ -206,13 +244,14 @@ export function triggerRed(): void {
             } catch { /* ignore */ }
         }, 150);
     }
-    window.setTimeout(() => {
-        // Navigate away from the ChatRoom screen BEFORE ChatRoomLeave() clears
-        // the room state. Without this, mods that hook ChatRoomRun (e.g. CRABS)
-        // crash on the next render frame because ChatRoomCustomization is null.
-        try { if (typeof CommonSetScreen === "function") CommonSetScreen("Online", "ChatSearch"); } catch { /* ignore */ }
-        try { ChatRoomLeave(); } catch { /* ignore */ }
-    }, 800);
+    if (cfg.redLeave) {
+        window.setTimeout(() => {
+            // Navigate away BEFORE ChatRoomLeave() clears room state so hooks
+            // from other mods (e.g. CRABS) don't crash on the next render frame.
+            try { if (typeof CommonSetScreen === "function") CommonSetScreen("Online", "ChatSearch"); } catch { /* ignore */ }
+            try { ChatRoomLeave(); } catch { /* ignore */ }
+        }, 800);
+    }
 }
 
 /**
