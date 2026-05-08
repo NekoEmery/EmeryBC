@@ -1961,6 +1961,60 @@ const VIP_MEMBERS: Record<number, { label: string; color: string }> = {
     230466: { label: "Lucy",     color: "#b8a0f7" },
 };
 
+// -- Pointer helper (mouse + touch) --------------------------------------------
+// Normalises MouseEvent / TouchEvent to a plain {clientX, clientY} so drag
+// handlers can support both desktop (mouse) and tablet (touch) with one path.
+
+function pointerCoords(e: Event): { clientX: number; clientY: number } {
+    if (typeof TouchEvent !== "undefined" && e instanceof TouchEvent) {
+        const t = e.touches[0] ?? e.changedTouches[0];
+        return { clientX: t?.clientX ?? 0, clientY: t?.clientY ?? 0 };
+    }
+    return { clientX: (e as MouseEvent).clientX, clientY: (e as MouseEvent).clientY };
+}
+
+// Attach drag start to both mousedown and touchstart on `el`.
+// `onDown` receives normalised coords and the raw event; returns false to cancel.
+function addPointerDown(
+    el: HTMLElement,
+    onDown: (pos: { clientX: number; clientY: number }, e: Event) => boolean | void,
+): void {
+    el.addEventListener("mousedown", (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        onDown(pointerCoords(e), e);
+    });
+    el.addEventListener("touchstart", (e: TouchEvent) => {
+        if (e.touches.length !== 1) return;
+        onDown(pointerCoords(e), e);
+    }, { passive: false });
+}
+
+// Add move+end listeners to document for both mouse and touch, returning a cleanup fn.
+function addPointerTracking(
+    onMove: (pos: { clientX: number; clientY: number }) => void,
+    onEnd:  (pos: { clientX: number; clientY: number }) => void,
+): () => void {
+    const moveH = (e: Event): void => {
+        if (e.cancelable) e.preventDefault();
+        onMove(pointerCoords(e));
+    };
+    const endH = (e: Event): void => {
+        onEnd(pointerCoords(e));
+        cleanup();
+    };
+    const cleanup = (): void => {
+        document.removeEventListener("mousemove", moveH);
+        document.removeEventListener("mouseup",   endH);
+        document.removeEventListener("touchmove", moveH);
+        document.removeEventListener("touchend",  endH);
+    };
+    document.addEventListener("mousemove", moveH);
+    document.addEventListener("mouseup",   endH);
+    document.addEventListener("touchmove", moveH, { passive: false });
+    document.addEventListener("touchend",  endH);
+    return cleanup;
+}
+
 // -- Class ---------------------------------------------------------------------
 
 type DrawerTab = "outfits" | "buttons" | "anims" | "notes" | "thanks" | "dev" | "dom";
@@ -2083,16 +2137,11 @@ export class EBCDrawer {
         // Header drag — moves the panel when in free-float mode.
         // In anchored mode it drags to detach the panel; after 5px movement the panel
         // enters free-float mode and follows the cursor from that point.
-        header.addEventListener("mousedown", (e: MouseEvent) => {
-            if (e.button !== 0) return;
+        addPointerDown(header, (start, e) => {
             // Don't interfere with button clicks inside the header
             if ((e.target as HTMLElement).closest("button")) return;
-
             e.preventDefault();
-            const startX = e.clientX;
-            const startY = e.clientY;
 
-            // Starting position of the panel
             const panelEl = slideContainer;
             const startRect = panelEl.getBoundingClientRect();
             let inFreeMode = this.panelPosition !== null;
@@ -2100,41 +2149,33 @@ export class EBCDrawer {
             let startPanelY = inFreeMode ? this.panelPosition!.y : startRect.top;
             let hasDragged = false;
 
-            const onMove = (ev: MouseEvent): void => {
-                const dx = ev.clientX - startX;
-                const dy = ev.clientY - startY;
-                if (!hasDragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-
-                if (!hasDragged) {
-                    hasDragged = true;
-                    // Enter free-float mode on first real movement
-                    if (!inFreeMode) {
-                        inFreeMode = true;
-                        startPanelX = startRect.left;
-                        startPanelY = startRect.top;
-                        this.enterFreeMode({ x: startPanelX, y: startPanelY });
+            addPointerTracking(
+                (pos) => {
+                    const dx = pos.clientX - start.clientX;
+                    const dy = pos.clientY - start.clientY;
+                    if (!hasDragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+                    if (!hasDragged) {
+                        hasDragged = true;
+                        if (!inFreeMode) {
+                            inFreeMode = true;
+                            startPanelX = startRect.left;
+                            startPanelY = startRect.top;
+                            this.enterFreeMode({ x: startPanelX, y: startPanelY });
+                        }
                     }
-                }
-
-                const newX = Math.max(0, Math.min(window.innerWidth - 50, startPanelX + dx));
-                const newY = Math.max(0, Math.min(window.innerHeight - 50, startPanelY + dy));
-                panelEl.style.left = `${newX}px`;
-                panelEl.style.top  = `${newY}px`;
-            };
-
-            const onUp = (): void => {
-                document.removeEventListener("mousemove", onMove);
-                document.removeEventListener("mouseup", onUp);
-                if (!hasDragged) return;
-                // Save final position
-                const x = parseInt(panelEl.style.left, 10);
-                const y = parseInt(panelEl.style.top,  10);
-                this.panelPosition = { x, y };
-                this.savePanelPosition({ x, y });
-            };
-
-            document.addEventListener("mousemove", onMove);
-            document.addEventListener("mouseup", onUp);
+                    const newX = Math.max(0, Math.min(window.innerWidth  - 50, startPanelX + dx));
+                    const newY = Math.max(0, Math.min(window.innerHeight - 50, startPanelY + dy));
+                    panelEl.style.left = `${newX}px`;
+                    panelEl.style.top  = `${newY}px`;
+                },
+                () => {
+                    if (!hasDragged) return;
+                    const x = parseInt(panelEl.style.left, 10);
+                    const y = parseInt(panelEl.style.top,  10);
+                    this.panelPosition = { x, y };
+                    this.savePanelPosition({ x, y });
+                },
+            );
         });
 
         // Tab bar
@@ -2464,67 +2505,41 @@ export class EBCDrawer {
         this.panelEl = slideContainer;
 
         // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
-        // We distinguish the two by tracking how far the mouse moved (5px dead-zone).
-        tab.addEventListener("mousedown", (e: MouseEvent) => {
-            if (e.button !== 0) return; // left-click only
+        // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
+        // Works with both mouse and touch input via addPointerDown / addPointerTracking.
+        addPointerDown(tab, (start, e) => {
             e.preventDefault();
-
             // Block CRABS poller from overwriting style.top while dragging.
-            // The poller uses absolute (chat-log-relative) coords; once the tab
-            // switches to position:fixed those coords are in the wrong system.
             this.tabDragging = true;
 
-            const startX = e.clientX;
-            const startY = e.clientY;
-            // Starting screen-space position of the tab
-            const tabRect    = tab.getBoundingClientRect();
-            const startTabX  = tabRect.left;
-            const startTabY  = tabRect.top;
-
+            const tabRect  = tab.getBoundingClientRect();
+            const startTabX = tabRect.left;
+            const startTabY = tabRect.top;
             let dragged = false;
 
-            const onMove = (ev: MouseEvent): void => {
-                const dx = ev.clientX - startX;
-                const dy = ev.clientY - startY;
-                if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return; // dead-zone
-                dragged = true;
-                tab.style.cursor = "grabbing";
-
-                // Switch to fixed positioning the moment the user starts dragging
-                if (tab.style.position !== "fixed") {
-                    tab.style.position = "fixed";
-                }
-
-                const newX = Math.max(0, Math.min(window.innerWidth  - 44, startTabX + dx));
-                const newY = Math.max(0, Math.min(window.innerHeight - 44, startTabY + dy));
-                tab.style.left = `${newX}px`;
-                tab.style.top  = `${newY}px`;
-            };
-
-            const onUp = (): void => {
-                document.removeEventListener("mousemove", onMove);
-                document.removeEventListener("mouseup", onUp);
-                tab.style.cursor = "";
-                this.tabDragging = false; // re-enable CRABS poller
-
-                if (!dragged) {
-                    // No significant movement — treat as a plain click
-                    this.toggle();
-                    return;
-                }
-
-                // Save new position as screen-space fixed coords
-                const pos = {
-                    x: parseInt(tab.style.left, 10),
-                    y: parseInt(tab.style.top,  10),
-                };
-                this.userTabOffset = pos;
-                this.lastCrabsBottom = -1; // force CRABS re-read next poll
-                this.saveTabOffset(pos);
-            };
-
-            document.addEventListener("mousemove", onMove);
-            document.addEventListener("mouseup", onUp);
+            addPointerTracking(
+                (pos) => {
+                    const dx = pos.clientX - start.clientX;
+                    const dy = pos.clientY - start.clientY;
+                    if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+                    dragged = true;
+                    tab.style.cursor = "grabbing";
+                    if (tab.style.position !== "fixed") tab.style.position = "fixed";
+                    const newX = Math.max(0, Math.min(window.innerWidth  - 44, startTabX + dx));
+                    const newY = Math.max(0, Math.min(window.innerHeight - 44, startTabY + dy));
+                    tab.style.left = `${newX}px`;
+                    tab.style.top  = `${newY}px`;
+                },
+                () => {
+                    tab.style.cursor = "";
+                    this.tabDragging = false;
+                    if (!dragged) { this.toggle(); return; }
+                    const pos = { x: parseInt(tab.style.left, 10), y: parseInt(tab.style.top, 10) };
+                    this.userTabOffset = pos;
+                    this.lastCrabsBottom = -1;
+                    this.saveTabOffset(pos);
+                },
+            );
         });
 
         // Right-click on tab resets to auto-position (follow CRABS / default)
@@ -6259,26 +6274,24 @@ export class EBCDrawer {
         header.appendChild(closeBtn);
         win.appendChild(header);
 
-        // Make header draggable — anchored by bottom so expanding grows upward
-        header.addEventListener("mousedown", (e: MouseEvent) => {
+        // Make header draggable — anchored by bottom so expanding grows upward.
+        // Works with both mouse and touch via addPointerDown / addPointerTracking.
+        addPointerDown(header, (start, e) => {
             if (e.target === closeBtn) return;
             e.preventDefault();
             const rect = win.getBoundingClientRect();
-            const ox = e.clientX - rect.left;
+            const ox = start.clientX - rect.left;
             const vh = window.innerHeight;
-            const oyFromBottom = rect.bottom - e.clientY;
-            const onMove = (ev: MouseEvent): void => {
-                win.style.left   = `${ev.clientX - ox}px`;
-                win.style.bottom = `${vh - ev.clientY - oyFromBottom}px`;
-                win.style.right  = "";
-                win.style.top    = "";
-            };
-            const onUp = (): void => {
-                document.removeEventListener("mousemove", onMove);
-                document.removeEventListener("mouseup", onUp);
-            };
-            document.addEventListener("mousemove", onMove);
-            document.addEventListener("mouseup", onUp);
+            const oyFromBottom = rect.bottom - start.clientY;
+            addPointerTracking(
+                (pos) => {
+                    win.style.left   = `${pos.clientX - ox}px`;
+                    win.style.bottom = `${vh - pos.clientY - oyFromBottom}px`;
+                    win.style.right  = "";
+                    win.style.top    = "";
+                },
+                () => { /* nothing needed on release */ },
+            );
         });
 
         // History

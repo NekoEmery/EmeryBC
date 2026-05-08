@@ -13,10 +13,16 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.6.8";
+const MOD_VERSION = "0.6.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.6.9",
+        changes: [
+            "Touch support: the drawer tab, panel, and all beep chat windows can now be dragged on tablet/touch screens — touchstart/touchmove/touchend wired alongside the existing mouse events.",
+        ],
+    },
     {
         version: "0.6.8",
         changes: [

@@ -4314,6 +4314,54 @@
         124264: { label: "Lara", color: "#f7b8d4" },
         230466: { label: "Lucy", color: "#b8a0f7" },
     };
+    // -- Pointer helper (mouse + touch) --------------------------------------------
+    // Normalises MouseEvent / TouchEvent to a plain {clientX, clientY} so drag
+    // handlers can support both desktop (mouse) and tablet (touch) with one path.
+    function pointerCoords(e) {
+        var _a, _b, _c;
+        if (typeof TouchEvent !== "undefined" && e instanceof TouchEvent) {
+            const t = (_a = e.touches[0]) !== null && _a !== void 0 ? _a : e.changedTouches[0];
+            return { clientX: (_b = t === null || t === void 0 ? void 0 : t.clientX) !== null && _b !== void 0 ? _b : 0, clientY: (_c = t === null || t === void 0 ? void 0 : t.clientY) !== null && _c !== void 0 ? _c : 0 };
+        }
+        return { clientX: e.clientX, clientY: e.clientY };
+    }
+    // Attach drag start to both mousedown and touchstart on `el`.
+    // `onDown` receives normalised coords and the raw event; returns false to cancel.
+    function addPointerDown(el, onDown) {
+        el.addEventListener("mousedown", (e) => {
+            if (e.button !== 0)
+                return;
+            onDown(pointerCoords(e), e);
+        });
+        el.addEventListener("touchstart", (e) => {
+            if (e.touches.length !== 1)
+                return;
+            onDown(pointerCoords(e), e);
+        }, { passive: false });
+    }
+    // Add move+end listeners to document for both mouse and touch, returning a cleanup fn.
+    function addPointerTracking(onMove, onEnd) {
+        const moveH = (e) => {
+            if (e.cancelable)
+                e.preventDefault();
+            onMove(pointerCoords(e));
+        };
+        const endH = (e) => {
+            onEnd(pointerCoords(e));
+            cleanup();
+        };
+        const cleanup = () => {
+            document.removeEventListener("mousemove", moveH);
+            document.removeEventListener("mouseup", endH);
+            document.removeEventListener("touchmove", moveH);
+            document.removeEventListener("touchend", endH);
+        };
+        document.addEventListener("mousemove", moveH);
+        document.addEventListener("mouseup", endH);
+        document.addEventListener("touchmove", moveH, { passive: false });
+        document.addEventListener("touchend", endH);
+        return cleanup;
+    }
     class EBCDrawer {
         constructor(version = "") {
             this.rootEl = null; // zero-width anchor (positioned)
@@ -4416,30 +4464,24 @@
             // Header drag — moves the panel when in free-float mode.
             // In anchored mode it drags to detach the panel; after 5px movement the panel
             // enters free-float mode and follows the cursor from that point.
-            header.addEventListener("mousedown", (e) => {
-                if (e.button !== 0)
-                    return;
+            addPointerDown(header, (start, e) => {
                 // Don't interfere with button clicks inside the header
                 if (e.target.closest("button"))
                     return;
                 e.preventDefault();
-                const startX = e.clientX;
-                const startY = e.clientY;
-                // Starting position of the panel
                 const panelEl = slideContainer;
                 const startRect = panelEl.getBoundingClientRect();
                 let inFreeMode = this.panelPosition !== null;
                 let startPanelX = inFreeMode ? this.panelPosition.x : startRect.left;
                 let startPanelY = inFreeMode ? this.panelPosition.y : startRect.top;
                 let hasDragged = false;
-                const onMove = (ev) => {
-                    const dx = ev.clientX - startX;
-                    const dy = ev.clientY - startY;
+                addPointerTracking((pos) => {
+                    const dx = pos.clientX - start.clientX;
+                    const dy = pos.clientY - start.clientY;
                     if (!hasDragged && Math.abs(dx) < 5 && Math.abs(dy) < 5)
                         return;
                     if (!hasDragged) {
                         hasDragged = true;
-                        // Enter free-float mode on first real movement
                         if (!inFreeMode) {
                             inFreeMode = true;
                             startPanelX = startRect.left;
@@ -4451,20 +4493,14 @@
                     const newY = Math.max(0, Math.min(window.innerHeight - 50, startPanelY + dy));
                     panelEl.style.left = `${newX}px`;
                     panelEl.style.top = `${newY}px`;
-                };
-                const onUp = () => {
-                    document.removeEventListener("mousemove", onMove);
-                    document.removeEventListener("mouseup", onUp);
+                }, () => {
                     if (!hasDragged)
                         return;
-                    // Save final position
                     const x = parseInt(panelEl.style.left, 10);
                     const y = parseInt(panelEl.style.top, 10);
                     this.panelPosition = { x, y };
                     this.savePanelPosition({ x, y });
-                };
-                document.addEventListener("mousemove", onMove);
-                document.addEventListener("mouseup", onUp);
+                });
             });
             // Tab bar
             const tabBar = document.createElement("div");
@@ -4771,59 +4807,41 @@
             this.rootEl = root;
             this.panelEl = slideContainer;
             // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
-            // We distinguish the two by tracking how far the mouse moved (5px dead-zone).
-            tab.addEventListener("mousedown", (e) => {
-                if (e.button !== 0)
-                    return; // left-click only
+            // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
+            // Works with both mouse and touch input via addPointerDown / addPointerTracking.
+            addPointerDown(tab, (start, e) => {
                 e.preventDefault();
                 // Block CRABS poller from overwriting style.top while dragging.
-                // The poller uses absolute (chat-log-relative) coords; once the tab
-                // switches to position:fixed those coords are in the wrong system.
                 this.tabDragging = true;
-                const startX = e.clientX;
-                const startY = e.clientY;
-                // Starting screen-space position of the tab
                 const tabRect = tab.getBoundingClientRect();
                 const startTabX = tabRect.left;
                 const startTabY = tabRect.top;
                 let dragged = false;
-                const onMove = (ev) => {
-                    const dx = ev.clientX - startX;
-                    const dy = ev.clientY - startY;
+                addPointerTracking((pos) => {
+                    const dx = pos.clientX - start.clientX;
+                    const dy = pos.clientY - start.clientY;
                     if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5)
-                        return; // dead-zone
+                        return;
                     dragged = true;
                     tab.style.cursor = "grabbing";
-                    // Switch to fixed positioning the moment the user starts dragging
-                    if (tab.style.position !== "fixed") {
+                    if (tab.style.position !== "fixed")
                         tab.style.position = "fixed";
-                    }
                     const newX = Math.max(0, Math.min(window.innerWidth - 44, startTabX + dx));
                     const newY = Math.max(0, Math.min(window.innerHeight - 44, startTabY + dy));
                     tab.style.left = `${newX}px`;
                     tab.style.top = `${newY}px`;
-                };
-                const onUp = () => {
-                    document.removeEventListener("mousemove", onMove);
-                    document.removeEventListener("mouseup", onUp);
+                }, () => {
                     tab.style.cursor = "";
-                    this.tabDragging = false; // re-enable CRABS poller
+                    this.tabDragging = false;
                     if (!dragged) {
-                        // No significant movement — treat as a plain click
                         this.toggle();
                         return;
                     }
-                    // Save new position as screen-space fixed coords
-                    const pos = {
-                        x: parseInt(tab.style.left, 10),
-                        y: parseInt(tab.style.top, 10),
-                    };
+                    const pos = { x: parseInt(tab.style.left, 10), y: parseInt(tab.style.top, 10) };
                     this.userTabOffset = pos;
-                    this.lastCrabsBottom = -1; // force CRABS re-read next poll
+                    this.lastCrabsBottom = -1;
                     this.saveTabOffset(pos);
-                };
-                document.addEventListener("mousemove", onMove);
-                document.addEventListener("mouseup", onUp);
+                });
             });
             // Right-click on tab resets to auto-position (follow CRABS / default)
             tab.addEventListener("contextmenu", (e) => {
@@ -8341,27 +8359,22 @@
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
-            // Make header draggable — anchored by bottom so expanding grows upward
-            header.addEventListener("mousedown", (e) => {
+            // Make header draggable — anchored by bottom so expanding grows upward.
+            // Works with both mouse and touch via addPointerDown / addPointerTracking.
+            addPointerDown(header, (start, e) => {
                 if (e.target === closeBtn)
                     return;
                 e.preventDefault();
                 const rect = win.getBoundingClientRect();
-                const ox = e.clientX - rect.left;
+                const ox = start.clientX - rect.left;
                 const vh = window.innerHeight;
-                const oyFromBottom = rect.bottom - e.clientY;
-                const onMove = (ev) => {
-                    win.style.left = `${ev.clientX - ox}px`;
-                    win.style.bottom = `${vh - ev.clientY - oyFromBottom}px`;
+                const oyFromBottom = rect.bottom - start.clientY;
+                addPointerTracking((pos) => {
+                    win.style.left = `${pos.clientX - ox}px`;
+                    win.style.bottom = `${vh - pos.clientY - oyFromBottom}px`;
                     win.style.right = "";
                     win.style.top = "";
-                };
-                const onUp = () => {
-                    document.removeEventListener("mousemove", onMove);
-                    document.removeEventListener("mouseup", onUp);
-                };
-                document.addEventListener("mousemove", onMove);
-                document.addEventListener("mouseup", onUp);
+                }, () => { });
             });
             // History
             const history = document.createElement("div");
@@ -10386,9 +10399,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.6.8";
+    const MOD_VERSION = "0.6.9";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.6.9",
+            changes: [
+                "Touch support: the drawer tab, panel, and all beep chat windows can now be dragged on tablet/touch screens — touchstart/touchmove/touchend wired alongside the existing mouse events.",
+            ],
+        },
         {
             version: "0.6.8",
             changes: [
