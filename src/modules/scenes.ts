@@ -4,7 +4,7 @@
 import { applyPoses } from "./poses";
 import { getDisplayName } from "./actionButtons";
 
-export type StepType = "pose" | "equip" | "unequip" | "emote" | "wait";
+export type StepType = "pose" | "equip" | "unequip" | "emote" | "chat" | "wait";
 
 export interface SceneStep {
     type: StepType;
@@ -103,6 +103,11 @@ function executeStep(step: SceneStep): void {
                             { SourceCharacter: Player.MemberNumber },
                         ],
                     });
+                }
+                break;
+            case "chat":
+                if (step.text?.trim()) {
+                    ServerSend("ChatRoomChat", { Type: "Chat", Content: step.text.trim() });
                 }
                 break;
             case "wait":

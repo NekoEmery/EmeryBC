@@ -1095,7 +1095,7 @@
         saveScenes(load().filter(s => s.id !== id));
     }
     function executeStep(step) {
-        var _a, _b;
+        var _a, _b, _c;
         try {
             switch (step.type) {
                 case "pose":
@@ -1134,11 +1134,16 @@
                         });
                     }
                     break;
+                case "chat":
+                    if ((_c = step.text) === null || _c === void 0 ? void 0 : _c.trim()) {
+                        ServerSend("ChatRoomChat", { Type: "Chat", Content: step.text.trim() });
+                    }
+                    break;
                 case "wait":
                     break; // delay alone is the effect
             }
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
     }
     function runScene(scene) {
         let elapsed = 0;
@@ -6482,9 +6487,9 @@
         renderScenes(body) {
             var _a, _b, _c, _d, _e;
             const STEP_TYPE_LABELS = {
-                pose: "Pose", equip: "Equip", unequip: "Unequip", emote: "Emote", wait: "Wait",
+                pose: "Pose", equip: "Equip", unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
             };
-            const ALL_STEP_TYPES = ["pose", "equip", "unequip", "emote", "wait"];
+            const ALL_STEP_TYPES = ["pose", "equip", "unequip", "emote", "chat", "wait"];
             const bodyPoses = (_b = (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses) !== null && _b !== void 0 ? _b : [];
             const armPoses = (_d = (_c = KNOWN_POSES.find(g => g.group === "Arms")) === null || _c === void 0 ? void 0 : _c.poses) !== null && _d !== void 0 ? _d : [];
             const getAllGroups = () => {
@@ -6807,6 +6812,15 @@
                         textInp.addEventListener("input", () => { emoteText = textInp.value; });
                         fieldsEl.appendChild(textInp);
                     }
+                    else if (type === "chat") {
+                        const textInp = Object.assign(document.createElement("input"), {
+                            className: "ebc-form-input", type: "text",
+                            placeholder: "Chat message — use * for emotes, ( for OOC",
+                            value: emoteText, maxLength: 1000,
+                        });
+                        textInp.addEventListener("input", () => { emoteText = textInp.value; });
+                        fieldsEl.appendChild(textInp);
+                    }
                     // wait: no extra fields — delay IS the step
                 };
                 let currentType = initStep.type;
@@ -6834,6 +6848,7 @@
                             step.group = unequipGroup.trim();
                             break;
                         case "emote":
+                        case "chat":
                             step.text = emoteText.trim();
                             break;
                     }
@@ -6902,7 +6917,7 @@
                 addBtn.addEventListener("click", () => {
                     syncFromEntries();
                     const defDelays = {
-                        pose: 500, equip: 800, unequip: 600, emote: 100, wait: 1000,
+                        pose: 500, equip: 800, unequip: 600, emote: 100, chat: 100, wait: 1000,
                     };
                     steps.push({ type: addTypeSel.value, delayMs: defDelays[addTypeSel.value] });
                     fullRebuild();

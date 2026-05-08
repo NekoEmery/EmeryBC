@@ -4702,9 +4702,9 @@ export class EBCDrawer {
 
     private renderScenes(body: HTMLElement): void {
         const STEP_TYPE_LABELS: Record<StepType, string> = {
-            pose: "Pose", equip: "Equip", unequip: "Unequip", emote: "Emote", wait: "Wait",
+            pose: "Pose", equip: "Equip", unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
         };
-        const ALL_STEP_TYPES: StepType[] = ["pose", "equip", "unequip", "emote", "wait"];
+        const ALL_STEP_TYPES: StepType[] = ["pose", "equip", "unequip", "emote", "chat", "wait"];
 
         const bodyPoses = KNOWN_POSES.find(g => g.group === "Body")?.poses ?? [];
         const armPoses  = KNOWN_POSES.find(g => g.group === "Arms")?.poses ?? [];
@@ -5034,6 +5034,15 @@ export class EBCDrawer {
                     textInp.addEventListener("input", () => { emoteText = textInp.value; });
                     fieldsEl.appendChild(textInp);
 
+                } else if (type === "chat") {
+                    const textInp = Object.assign(document.createElement("input"), {
+                        className: "ebc-form-input", type: "text",
+                        placeholder: "Chat message — use * for emotes, ( for OOC",
+                        value: emoteText, maxLength: 1000,
+                    }) as HTMLInputElement;
+                    textInp.addEventListener("input", () => { emoteText = textInp.value; });
+                    fieldsEl.appendChild(textInp);
+
                 }
                 // wait: no extra fields — delay IS the step
             };
@@ -5065,6 +5074,7 @@ export class EBCDrawer {
                         step.group = unequipGroup.trim();
                         break;
                     case "emote":
+                    case "chat":
                         step.text = emoteText.trim();
                         break;
                 }
@@ -5152,7 +5162,7 @@ export class EBCDrawer {
             addBtn.addEventListener("click", () => {
                 syncFromEntries();
                 const defDelays: Record<StepType, number> = {
-                    pose: 500, equip: 800, unequip: 600, emote: 100, wait: 1000,
+                    pose: 500, equip: 800, unequip: 600, emote: 100, chat: 100, wait: 1000,
                 };
                 steps.push({ type: addTypeSel.value as StepType, delayMs: defDelays[addTypeSel.value as StepType] });
                 fullRebuild();
