@@ -2242,6 +2242,7 @@
     }
     /**
      * Check the typed chat input against configured safewords.
+     * Matches the word alone OR with a trailing "!" (e.g. "red" or "red!").
      * Returns true if a safeword was matched (caller should clear the input and cancel send).
      */
     function checkSafeword(inputValue) {
@@ -2251,11 +2252,17 @@
         const trimmed = inputValue.trim().toLowerCase();
         if (!trimmed)
             return false;
-        if (cfg.yellowWord && trimmed === cfg.yellowWord.toLowerCase().trim()) {
+        const matches = (word) => {
+            const w = word.toLowerCase().trim();
+            if (!w)
+                return false;
+            return trimmed === w || trimmed === w + "!";
+        };
+        if (matches(cfg.yellowWord)) {
             triggerYellow();
             return true;
         }
-        if (cfg.redWord && trimmed === cfg.redWord.toLowerCase().trim()) {
+        if (matches(cfg.redWord)) {
             triggerRed();
             return true;
         }

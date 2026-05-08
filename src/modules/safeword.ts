@@ -172,6 +172,7 @@ export function triggerRed(): void {
 
 /**
  * Check the typed chat input against configured safewords.
+ * Matches the word alone OR with a trailing "!" (e.g. "red" or "red!").
  * Returns true if a safeword was matched (caller should clear the input and cancel send).
  */
 export function checkSafeword(inputValue: string): boolean {
@@ -179,13 +180,14 @@ export function checkSafeword(inputValue: string): boolean {
     if (!cfg.enabled) return false;
     const trimmed = inputValue.trim().toLowerCase();
     if (!trimmed) return false;
-    if (cfg.yellowWord && trimmed === cfg.yellowWord.toLowerCase().trim()) {
-        triggerYellow();
-        return true;
-    }
-    if (cfg.redWord && trimmed === cfg.redWord.toLowerCase().trim()) {
-        triggerRed();
-        return true;
-    }
+
+    const matches = (word: string): boolean => {
+        const w = word.toLowerCase().trim();
+        if (!w) return false;
+        return trimmed === w || trimmed === w + "!";
+    };
+
+    if (matches(cfg.yellowWord)) { triggerYellow(); return true; }
+    if (matches(cfg.redWord))    { triggerRed();    return true; }
     return false;
 }
