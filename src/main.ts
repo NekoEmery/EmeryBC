@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.8.6";
+const MOD_VERSION = "0.8.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.8.7",
+        changes: [
+            "Scene Equip steps: new State dropdown auto-populated from the item's available variants (e.g. Tight, Loose, Wrist). Shows '— no variants —' for items with no variants. 📷 capture button also reads the current state from the worn item.",
+            "UI: dim secondary text brightened throughout — hint text, labels, arrows, and section markers were near-invisible dark pink, now readable.",
+        ],
+    },
     {
         version: "0.8.6",
         changes: [

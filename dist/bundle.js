@@ -1586,6 +1586,15 @@
                         // InventoryAdd only adds to the wardrobe (never appears worn).
                         const color = step.color;
                         InventoryWear(Player, step.assetName, step.group, color, undefined, Player.MemberNumber);
+                        // Apply state/type (e.g. "Tight", "Wrist", "Double") if specified
+                        if (step.propertyType) {
+                            const worn = InventoryGet(Player, step.group);
+                            if (worn) {
+                                if (!worn.Property)
+                                    worn.Property = {};
+                                worn.Property.Type = step.propertyType;
+                            }
+                        }
                         // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
                         // see the newly-added restraint as "unknown" and immediately strip it.
                         snapshotPlayerRestraints();
@@ -5431,7 +5440,7 @@
                 refreshSwEnable();
             });
             const swArrow = document.createElement("span");
-            swArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1928;flex-shrink:0;";
+            swArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
             swArrow.textContent = "▼";
             swHdr.appendChild(swIcon);
             swHdr.appendChild(swLabel);
@@ -5578,7 +5587,7 @@
                 swInner.appendChild(graceDurRow);
                 // -- Hint --
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4858;line-height:1.45;padding-top:2px;";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
                 hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger.";
                 swInner.appendChild(hint);
             };
@@ -6526,7 +6535,7 @@
                 editPickerBtn.textContent = "🎨 Colour ▾";
                 const clrBtn = document.createElement("button");
                 clrBtn.textContent = "x";
-                clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#5a3a4a;cursor:pointer;flex-shrink:0;display:none;";
+                clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#8a6070;cursor:pointer;flex-shrink:0;display:none;";
                 clrBtn.title = "Clear selected colour";
                 clrBtn.addEventListener("click", () => {
                     selectedColor = null;
@@ -6603,7 +6612,7 @@
                 updateSelBar();
                 // ── Saved swatches (always visible) ───────────────────────────────
                 const swatchesLbl = document.createElement("div");
-                swatchesLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:600;color:#5a3a4a;letter-spacing:0.05em;margin:5px 0 3px;";
+                swatchesLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:600;color:#8a6070;letter-spacing:0.05em;margin:5px 0 3px;";
                 swatchesLbl.textContent = "SAVED COLOURS";
                 container.appendChild(swatchesLbl);
                 const swatchGrid = document.createElement("div");
@@ -6614,7 +6623,7 @@
                     const saved = getCustomColors();
                     if (!saved.length) {
                         const hint = document.createElement("span");
-                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
                         hint.textContent = "None saved yet — open the picker above";
                         swatchGrid.appendChild(hint);
                         return;
@@ -6726,7 +6735,7 @@
                             window.setTimeout(() => { allBtn.textContent = "All"; }, 1400);
                         });
                         const wArrow = document.createElement("span");
-                        wArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
+                        wArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
                         wArrow.textContent = "▼";
                         wRow.appendChild(previewDots);
                         wRow.appendChild(wName);
@@ -6851,7 +6860,7 @@
                     presetsLbl.textContent = "RESTRAINT PRESETS";
                     container.appendChild(presetsLbl);
                     const presetsHint = document.createElement("div");
-                    presetsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;margin-bottom:6px;";
+                    presetsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;margin-bottom:6px;";
                     presetsHint.textContent = "Save presets using + Preset inside any restraint's zone panel, then apply them here.";
                     container.appendChild(presetsHint);
                     const presetsContainer = document.createElement("div");
@@ -6862,7 +6871,7 @@
                         const presets = getRestraintPresets();
                         if (!presets.length) {
                             const none = document.createElement("div");
-                            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
+                            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
                             none.textContent = "No presets saved yet.";
                             presetsContainer.appendChild(none);
                             return;
@@ -8858,9 +8867,22 @@
                     return [];
                 }
             };
+            // Returns the AllowType list for an asset, or [] if the asset has no variants.
+            const getAssetTypes = (groupName, assetName) => {
+                try {
+                    const bcAsset = window.Asset;
+                    if (!Array.isArray(bcAsset))
+                        return [];
+                    const a = bcAsset.find(x => x.Group.Name === groupName && x.Name === assetName);
+                    return Array.isArray(a === null || a === void 0 ? void 0 : a.AllowType) ? a.AllowType : [];
+                }
+                catch (_a) {
+                    return [];
+                }
+            };
             // Build a live step card — returns getStep() which always reads current field state
             const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete, onDuplicate) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h;
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j;
                 const card = document.createElement("div");
                 card.className = "ebc-scene-step";
                 // Header: type select, delay input, move/delete buttons
@@ -8925,9 +8947,10 @@
                 let equipColorRaw = Array.isArray(initStep.color)
                     ? initStep.color.join(",")
                     : ((_e = initStep.color) !== null && _e !== void 0 ? _e : "");
-                let unequipGroup = (_f = initStep.group) !== null && _f !== void 0 ? _f : "";
-                let emoteText = (_g = initStep.text) !== null && _g !== void 0 ? _g : "";
-                let chatFormat = (_h = initStep.chatFormat) !== null && _h !== void 0 ? _h : "";
+                let equipPropertyType = (_f = initStep.propertyType) !== null && _f !== void 0 ? _f : "";
+                let unequipGroup = (_g = initStep.group) !== null && _g !== void 0 ? _g : "";
+                let emoteText = (_h = initStep.text) !== null && _h !== void 0 ? _h : "";
+                let chatFormat = (_j = initStep.chatFormat) !== null && _j !== void 0 ? _j : "";
                 // Colour input reference for the capture button to update
                 let colorInpRef = null;
                 const renderFields = (type) => {
@@ -9048,7 +9071,45 @@
                         captureBtn.textContent = "📷";
                         captureBtn.title = "Fill from currently worn item in selected slot";
                         captureBtn.style.cssText = "flex:0 0 auto;font-size:12px;padding:2px 6px;";
+                        // State/type dropdown — rebuilt when asset changes
+                        const stateRow = document.createElement("div");
+                        stateRow.className = "ebc-scene-fields-row";
+                        const stateSel = document.createElement("select");
+                        stateSel.className = "ebc-scene-type-sel";
+                        stateSel.style.cssText = "flex:1;width:auto;";
+                        stateSel.title = "State/type of the item (e.g. Tight, Loose, Wrist). Leave as default if the item has no variants.";
+                        const updateStateSel = () => {
+                            while (stateSel.firstChild)
+                                stateSel.removeChild(stateSel.firstChild);
+                            const types = getAssetTypes(groupSel.value, assetSel.value);
+                            const defOpt = document.createElement("option");
+                            defOpt.value = "";
+                            defOpt.textContent = types.length ? "— default state —" : "— no variants —";
+                            stateSel.appendChild(defOpt);
+                            for (const t of types) {
+                                const opt = document.createElement("option");
+                                opt.value = t;
+                                opt.textContent = t;
+                                opt.selected = t === equipPropertyType;
+                                stateSel.appendChild(opt);
+                            }
+                            if (!types.includes(equipPropertyType))
+                                equipPropertyType = "";
+                            stateSel.value = equipPropertyType;
+                            stateSel.disabled = types.length === 0;
+                            stateRow.style.display = "";
+                        };
+                        stateSel.addEventListener("change", () => { equipPropertyType = stateSel.value; });
+                        // Patch updateAssetSel to also refresh the state dropdown
+                        const origUpdateAssetSel = updateAssetSel;
+                        const updateAssetSelWithState = (v) => {
+                            origUpdateAssetSel(v);
+                            updateStateSel();
+                        };
+                        assetSel.addEventListener("change", () => updateStateSel());
+                        stateRow.appendChild(stateSel);
                         captureBtn.addEventListener("click", () => {
+                            var _a;
                             try {
                                 const g = groupSel.value;
                                 if (!g)
@@ -9057,20 +9118,29 @@
                                 if (!item)
                                     return;
                                 equipAsset = item.Asset.Name;
-                                updateAssetSel(equipAsset);
+                                updateAssetSelWithState(equipAsset);
                                 const c = item.Color;
                                 if (c !== undefined && colorInpRef) {
                                     const s = Array.isArray(c) ? c.join(",") : String(c);
                                     colorInpRef.value = s;
                                     equipColorRaw = s;
                                 }
+                                // Also capture current Property.Type
+                                const propType = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Type;
+                                if (typeof propType === "string") {
+                                    equipPropertyType = propType;
+                                    stateSel.value = propType;
+                                }
                             }
-                            catch ( /* ignore */_a) { /* ignore */ }
+                            catch ( /* ignore */_b) { /* ignore */ }
                         });
                         row1.appendChild(groupSel);
                         row1.appendChild(assetSel);
                         row1.appendChild(captureBtn);
                         fieldsEl.appendChild(row1);
+                        // Populate state dropdown now that group+asset are set
+                        updateStateSel();
+                        fieldsEl.appendChild(stateRow);
                         const colorInp = Object.assign(document.createElement("input"), {
                             className: "ebc-form-input", type: "text",
                             placeholder: "Color — optional, e.g. Default or #ff0000,Default",
@@ -9174,6 +9244,8 @@
                                 const parts = equipColorRaw.split(",").map(s => s.trim()).filter(Boolean);
                                 step.color = parts.length === 1 ? parts[0] : parts;
                             }
+                            if (equipPropertyType.trim())
+                                step.propertyType = equipPropertyType.trim();
                             break;
                         case "unequip":
                             step.group = unequipGroup.trim();
@@ -9786,7 +9858,7 @@
                 const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
                 if (entries.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "text-align:center;color:#5a3a4a;font-size:10px;padding:20px 0;";
+                    hint.style.cssText = "text-align:center;color:#8a6070;font-size:10px;padding:20px 0;";
                     hint.textContent = "No messages yet. Say hi!";
                     history.appendChild(hint);
                 }
@@ -10428,10 +10500,10 @@
                         offlineToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 2px;cursor:pointer;user-select:none;";
                         offlineToggle.innerHTML = "";
                         const arrow = document.createElement("span");
-                        arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
+                        arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
                         arrow.textContent = col ? "▶" : "▼";
                         const lbl = document.createElement("span");
-                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex:1;";
+                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex:1;";
                         lbl.textContent = `Offline (${offlineFriends.length})`;
                         offlineToggle.appendChild(arrow);
                         offlineToggle.appendChild(lbl);
@@ -11850,9 +11922,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.8.6";
+    const MOD_VERSION = "0.8.7";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.8.7",
+            changes: [
+                "Scene Equip steps: new State dropdown auto-populated from the item's available variants (e.g. Tight, Loose, Wrist). Shows '— no variants —' for items with no variants. 📷 capture button also reads the current state from the worn item.",
+                "UI: dim secondary text brightened throughout — hint text, labels, arrows, and section markers were near-invisible dark pink, now readable.",
+            ],
+        },
         {
             version: "0.8.6",
             changes: [

@@ -14,6 +14,7 @@ export interface SceneStep {
     group?: string;             // equip / unequip: item group name
     assetName?: string;         // equip: asset name
     color?: string | string[];  // equip: optional color(s)
+    propertyType?: string;      // equip: item Property.Type (e.g. "Tight", "Wrist", "Double")
     text?: string;              // emote / chat: message text
     chatFormat?: "" | "*" | "("; // chat: wrap style — "" plain, "*" emote, "(" OOC
 }
@@ -81,6 +82,14 @@ function executeStep(step: SceneStep): void {
                     // InventoryAdd only adds to the wardrobe (never appears worn).
                     const color = step.color as string | string[] | undefined;
                     InventoryWear(Player, step.assetName, step.group, color, undefined, Player.MemberNumber);
+                    // Apply state/type (e.g. "Tight", "Wrist", "Double") if specified
+                    if (step.propertyType) {
+                        const worn = InventoryGet(Player, step.group);
+                        if (worn) {
+                            if (!worn.Property) worn.Property = {};
+                            worn.Property.Type = step.propertyType;
+                        }
+                    }
                     // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
                     // see the newly-added restraint as "unknown" and immediately strip it.
                     snapshotPlayerRestraints();

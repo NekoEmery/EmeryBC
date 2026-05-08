@@ -2718,7 +2718,7 @@ export class EBCDrawer {
         });
 
         const swArrow = document.createElement("span");
-        swArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1928;flex-shrink:0;";
+        swArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
         swArrow.textContent = "▼";
 
         swHdr.appendChild(swIcon);
@@ -2906,7 +2906,7 @@ export class EBCDrawer {
 
             // -- Hint --
             const hint = document.createElement("div");
-            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4858;line-height:1.45;padding-top:2px;";
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
             hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger.";
             swInner.appendChild(hint);
         };
@@ -3851,7 +3851,7 @@ export class EBCDrawer {
 
             const clrBtn = document.createElement("button");
             clrBtn.textContent = "x";
-            clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#5a3a4a;cursor:pointer;flex-shrink:0;display:none;";
+            clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#8a6070;cursor:pointer;flex-shrink:0;display:none;";
             clrBtn.title = "Clear selected colour";
             clrBtn.addEventListener("click", () => {
                 selectedColor = null;
@@ -3934,7 +3934,7 @@ export class EBCDrawer {
 
             // ── Saved swatches (always visible) ───────────────────────────────
             const swatchesLbl = document.createElement("div");
-            swatchesLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:600;color:#5a3a4a;letter-spacing:0.05em;margin:5px 0 3px;";
+            swatchesLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:600;color:#8a6070;letter-spacing:0.05em;margin:5px 0 3px;";
             swatchesLbl.textContent = "SAVED COLOURS";
             container.appendChild(swatchesLbl);
 
@@ -3946,7 +3946,7 @@ export class EBCDrawer {
                 const saved = getCustomColors();
                 if (!saved.length) {
                     const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
                     hint.textContent = "None saved yet — open the picker above";
                     swatchGrid.appendChild(hint);
                     return;
@@ -4056,7 +4056,7 @@ export class EBCDrawer {
                     });
 
                     const wArrow = document.createElement("span");
-                    wArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
+                    wArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
                     wArrow.textContent = "▼";
 
                     wRow.appendChild(previewDots); wRow.appendChild(wName);
@@ -4176,7 +4176,7 @@ export class EBCDrawer {
                 container.appendChild(presetsLbl);
 
                 const presetsHint = document.createElement("div");
-                presetsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;margin-bottom:6px;";
+                presetsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;margin-bottom:6px;";
                 presetsHint.textContent = "Save presets using + Preset inside any restraint's zone panel, then apply them here.";
                 container.appendChild(presetsHint);
 
@@ -4188,7 +4188,7 @@ export class EBCDrawer {
                     const presets = getRestraintPresets();
                     if (!presets.length) {
                         const none = document.createElement("div");
-                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
+                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
                         none.textContent = "No presets saved yet.";
                         presetsContainer.appendChild(none);
                         return;
@@ -6285,6 +6285,17 @@ export class EBCDrawer {
             } catch { return []; }
         };
 
+        // Returns the AllowType list for an asset, or [] if the asset has no variants.
+        const getAssetTypes = (groupName: string, assetName: string): string[] => {
+            try {
+                const bcAsset = (window as unknown as Record<string, unknown>).Asset as
+                    Array<{ Group: { Name: string }; Name: string; AllowType?: string[] }> | undefined;
+                if (!Array.isArray(bcAsset)) return [];
+                const a = bcAsset.find(x => x.Group.Name === groupName && x.Name === assetName);
+                return Array.isArray(a?.AllowType) ? (a.AllowType as string[]) : [];
+            } catch { return []; }
+        };
+
         const getWornItems = (): Array<{ group: string; itemDesc: string }> => {
             try {
                 return Player.Appearance.map(item => ({
@@ -6376,6 +6387,7 @@ export class EBCDrawer {
             let equipColorRaw        = Array.isArray(initStep.color)
                 ? initStep.color.join(",")
                 : (initStep.color ?? "");
+            let equipPropertyType    = initStep.propertyType ?? "";
             let unequipGroup         = initStep.group ?? "";
             let emoteText            = initStep.text ?? "";
             let chatFormat           = initStep.chatFormat ?? "";
@@ -6504,6 +6516,42 @@ export class EBCDrawer {
                     captureBtn.textContent = "📷";
                     captureBtn.title = "Fill from currently worn item in selected slot";
                     captureBtn.style.cssText = "flex:0 0 auto;font-size:12px;padding:2px 6px;";
+                    // State/type dropdown — rebuilt when asset changes
+                    const stateRow = document.createElement("div");
+                    stateRow.className = "ebc-scene-fields-row";
+                    const stateSel = document.createElement("select");
+                    stateSel.className = "ebc-scene-type-sel";
+                    stateSel.style.cssText = "flex:1;width:auto;";
+                    stateSel.title = "State/type of the item (e.g. Tight, Loose, Wrist). Leave as default if the item has no variants.";
+                    const updateStateSel = (): void => {
+                        while (stateSel.firstChild) stateSel.removeChild(stateSel.firstChild);
+                        const types = getAssetTypes(groupSel.value, assetSel.value);
+                        const defOpt = document.createElement("option");
+                        defOpt.value = "";
+                        defOpt.textContent = types.length ? "— default state —" : "— no variants —";
+                        stateSel.appendChild(defOpt);
+                        for (const t of types) {
+                            const opt = document.createElement("option");
+                            opt.value = t; opt.textContent = t;
+                            opt.selected = t === equipPropertyType;
+                            stateSel.appendChild(opt);
+                        }
+                        if (!types.includes(equipPropertyType)) equipPropertyType = "";
+                        stateSel.value = equipPropertyType;
+                        stateSel.disabled = types.length === 0;
+                        stateRow.style.display = "";
+                    };
+                    stateSel.addEventListener("change", () => { equipPropertyType = stateSel.value; });
+
+                    // Patch updateAssetSel to also refresh the state dropdown
+                    const origUpdateAssetSel = updateAssetSel;
+                    const updateAssetSelWithState = (v: string): void => {
+                        origUpdateAssetSel(v);
+                        updateStateSel();
+                    };
+                    assetSel.addEventListener("change", () => updateStateSel());
+                    stateRow.appendChild(stateSel);
+
                     captureBtn.addEventListener("click", () => {
                         try {
                             const g = groupSel.value;
@@ -6511,12 +6559,18 @@ export class EBCDrawer {
                             const item = InventoryGet(Player, g);
                             if (!item) return;
                             equipAsset = item.Asset.Name;
-                            updateAssetSel(equipAsset);
+                            updateAssetSelWithState(equipAsset);
                             const c = (item as unknown as Record<string, unknown>).Color;
                             if (c !== undefined && colorInpRef) {
                                 const s = Array.isArray(c) ? (c as string[]).join(",") : String(c);
                                 colorInpRef.value = s;
                                 equipColorRaw = s;
+                            }
+                            // Also capture current Property.Type
+                            const propType = (item.Property as Record<string, unknown> | undefined)?.Type;
+                            if (typeof propType === "string") {
+                                equipPropertyType = propType;
+                                stateSel.value = propType;
                             }
                         } catch { /* ignore */ }
                     });
@@ -6525,6 +6579,10 @@ export class EBCDrawer {
                     row1.appendChild(assetSel);
                     row1.appendChild(captureBtn);
                     fieldsEl.appendChild(row1);
+
+                    // Populate state dropdown now that group+asset are set
+                    updateStateSel();
+                    fieldsEl.appendChild(stateRow);
 
                     const colorInp = Object.assign(document.createElement("input"), {
                         className: "ebc-form-input", type: "text",
@@ -6634,6 +6692,7 @@ export class EBCDrawer {
                             const parts = equipColorRaw.split(",").map(s => s.trim()).filter(Boolean);
                             step.color = parts.length === 1 ? parts[0] : parts;
                         }
+                        if (equipPropertyType.trim()) step.propertyType = equipPropertyType.trim();
                         break;
                     case "unequip":
                         step.group = unequipGroup.trim();
@@ -7306,7 +7365,7 @@ export class EBCDrawer {
             const self = Player.MemberNumber ?? 0;
             if (entries.length === 0) {
                 const hint = document.createElement("div");
-                hint.style.cssText = "text-align:center;color:#5a3a4a;font-size:10px;padding:20px 0;";
+                hint.style.cssText = "text-align:center;color:#8a6070;font-size:10px;padding:20px 0;";
                 hint.textContent = "No messages yet. Say hi!";
                 history.appendChild(hint);
             }
@@ -7969,10 +8028,10 @@ export class EBCDrawer {
                     offlineToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 2px;cursor:pointer;user-select:none;";
                     offlineToggle.innerHTML = "";
                     const arrow = document.createElement("span");
-                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
+                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
                     arrow.textContent = col ? "▶" : "▼";
                     const lbl = document.createElement("span");
-                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex:1;";
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex:1;";
                     lbl.textContent = `Offline (${offlineFriends.length})`;
                     offlineToggle.appendChild(arrow);
                     offlineToggle.appendChild(lbl);
