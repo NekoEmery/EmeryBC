@@ -5923,6 +5923,14 @@ export class EBCDrawer {
         title.className = "ebc-beep-win-title";
         title.textContent = resolveName(memberNumber);
 
+        // Called whenever online friend status refreshes (AccountQueryResult)
+        const updateStatus = (): void => {
+            const s = getFriendStatus(memberNumber);
+            dot.className = "ebc-friend-dot " + s;
+            title.textContent = resolveName(memberNumber);
+        };
+        (win as unknown as Record<string, unknown>)._updateStatus = updateStatus;
+
         // Unread dot (shown on minimized bar)
         const unreadDot = document.createElement("div");
         unreadDot.className = "ebc-beep-win-unread-dot";
@@ -6152,6 +6160,13 @@ export class EBCDrawer {
         if (!entry) return;
         const refresh = (entry.el as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
         refresh?.();
+    }
+
+    public updateAllBeepWindowStatuses(): void {
+        for (const { el } of this.beepWins.values()) {
+            const fn = (el as unknown as Record<string, unknown>)._updateStatus as (() => void) | undefined;
+            try { fn?.(); } catch { /* ignore */ }
+        }
     }
 
     public onIncomingBeep(fromNum: number): void {

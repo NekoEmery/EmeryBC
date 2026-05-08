@@ -7812,6 +7812,13 @@
             const title = document.createElement("span");
             title.className = "ebc-beep-win-title";
             title.textContent = resolveName(memberNumber);
+            // Called whenever online friend status refreshes (AccountQueryResult)
+            const updateStatus = () => {
+                const s = getFriendStatus(memberNumber);
+                dot.className = "ebc-friend-dot " + s;
+                title.textContent = resolveName(memberNumber);
+            };
+            win._updateStatus = updateStatus;
             // Unread dot (shown on minimized bar)
             const unreadDot = document.createElement("div");
             unreadDot.className = "ebc-beep-win-unread-dot";
@@ -8021,6 +8028,15 @@
                 return;
             const refresh = entry.el._refresh;
             refresh === null || refresh === void 0 ? void 0 : refresh();
+        }
+        updateAllBeepWindowStatuses() {
+            for (const { el } of this.beepWins.values()) {
+                const fn = el._updateStatus;
+                try {
+                    fn === null || fn === void 0 ? void 0 : fn();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
         }
         onIncomingBeep(fromNum) {
             var _a, _b;
@@ -10897,8 +10913,12 @@
                             cacheName(n, name);
                     }
                     updateOnlineFriends(results);
+                    try {
+                        drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_b) { /* ignore */ }
             });
         }
         catch ( /* ignore */_a) { /* ignore */ }

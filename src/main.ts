@@ -1158,6 +1158,7 @@ function init(): void {
                     if (n && name) cacheName(n, name);
                 }
                 updateOnlineFriends(results);
+                try { drawer?.updateAllBeepWindowStatuses(); } catch { /* ignore */ }
             } catch { /* ignore */ }
         });
     } catch { /* ignore */ }
