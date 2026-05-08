@@ -9040,16 +9040,18 @@
             };
             const getAssetExtInfo = (groupName, assetName) => {
                 var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+                // Always log first — before any early returns
+                console.log("[EmeryBC] getAssetExtInfo called:", groupName, assetName);
                 try {
-                    const bcAsset = window.Asset;
+                    const raw = window.Asset;
+                    console.log("[EmeryBC] window.Asset type:", typeof raw, Array.isArray(raw) ? "length=" + raw.length : raw);
+                    const bcAsset = raw;
                     if (!Array.isArray(bcAsset))
                         return { types: [], varHeight: null };
                     const a = bcAsset.find(x => { var _a; return ((_a = x.Group) === null || _a === void 0 ? void 0 : _a.Name) === groupName && x.Name === assetName; });
-                    console.log("[EmeryBC] looking up asset:", groupName, "/", assetName, "— found:", !!a);
+                    console.log("[EmeryBC] asset found:", !!a, a);
                     if (!a)
                         return { types: [], varHeight: null };
-                    // Log full asset object so we can see every property BC puts on it
-                    console.log("[EmeryBC] asset object:", a);
                     // ── Type variants ─────────────────────────────────────────────
                     let types = [];
                     const pickNames = (arr) => Array.isArray(arr)
@@ -9354,6 +9356,7 @@
                         heightWrap.appendChild(heightInp);
                         heightWrap.appendChild(heightRangeLbl);
                         const updateStateRow = () => {
+                            console.log("[EmeryBC] updateStateRow fired, group=", groupSel.value, "asset=", assetSel.value);
                             const info = getAssetExtInfo(groupSel.value, assetSel.value);
                             // Rebuild type dropdown
                             while (stateSel.firstChild)

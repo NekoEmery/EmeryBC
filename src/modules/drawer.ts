@@ -6315,17 +6315,17 @@ export class EBCDrawer {
         // and VariableHeight range if the item uses numeric height instead of a type string.
         type AssetExtInfo = { types: string[]; varHeight: { min: number; max: number } | null };
         const getAssetExtInfo = (groupName: string, assetName: string): AssetExtInfo => {
+            // Always log first — before any early returns
+            console.log("[EmeryBC] getAssetExtInfo called:", groupName, assetName);
             try {
-                const bcAsset = (window as unknown as Record<string, unknown>).Asset as
-                    Array<Record<string, unknown>> | undefined;
+                const raw = (window as unknown as Record<string, unknown>).Asset;
+                console.log("[EmeryBC] window.Asset type:", typeof raw, Array.isArray(raw) ? "length=" + (raw as unknown[]).length : raw);
+                const bcAsset = raw as Array<Record<string, unknown>> | undefined;
                 if (!Array.isArray(bcAsset)) return { types: [], varHeight: null };
                 const a = bcAsset.find(x =>
                     (x.Group as Record<string, unknown>)?.Name === groupName && x.Name === assetName);
-                console.log("[EmeryBC] looking up asset:", groupName, "/", assetName, "— found:", !!a);
+                console.log("[EmeryBC] asset found:", !!a, a);
                 if (!a) return { types: [], varHeight: null };
-
-                // Log full asset object so we can see every property BC puts on it
-                console.log("[EmeryBC] asset object:", a);
 
                 // ── Type variants ─────────────────────────────────────────────
                 let types: string[] = [];
@@ -6670,6 +6670,7 @@ export class EBCDrawer {
                     heightWrap.appendChild(heightRangeLbl);
 
                     const updateStateRow = (): void => {
+                        console.log("[EmeryBC] updateStateRow fired, group=", groupSel.value, "asset=", assetSel.value);
                         const info = getAssetExtInfo(groupSel.value, assetSel.value);
 
                         // Rebuild type dropdown
