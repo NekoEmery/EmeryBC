@@ -6254,9 +6254,15 @@ export class EBCDrawer {
 
     private renderScenes(body: HTMLElement): void {
         const STEP_TYPE_LABELS: Record<StepType, string> = {
-            pose: "Pose", equip: "Equip", unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
+            pose: "Pose",
+            equip: "Equip",                      // legacy — kept for backward compat
+            "equip-restraint": "Equip Restraint",
+            "equip-clothes":   "Equip Clothes",
+            unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
         };
-        const ALL_STEP_TYPES: StepType[] = ["pose", "equip", "unequip", "emote", "chat", "wait"];
+        // New steps use the split types; "equip" is injected into the dropdown only when
+        // an existing step was saved with the old type (see typeSelect construction below).
+        const ALL_STEP_TYPES: StepType[] = ["pose", "equip-restraint", "equip-clothes", "unequip", "emote", "chat", "wait"];
 
         const bodyPoses = KNOWN_POSES.find(g => g.group === "Body")?.poses ?? [];
         const armPoses  = KNOWN_POSES.find(g => g.group === "Arms")?.poses ?? [];
@@ -6265,10 +6271,10 @@ export class EBCDrawer {
         type GroupEntry = { name: string; desc: string };
         type AssetEntry = { name: string; desc: string };
 
-        const getAllGroups = (): GroupEntry[] => {
+        const getAllGroups = (filter?: "restraint" | "clothes"): GroupEntry[] => {
             try {
                 const bcAsset = (window as unknown as Record<string, unknown>).Asset as
-                    Array<{ Group: { Name: string; Description?: string; Family?: string } }> | undefined;
+                    Array<{ Group: { Name: string; Description?: string; Family?: string; IsRestraint?: boolean } }> | undefined;
                 if (!Array.isArray(bcAsset)) return [];
                 const family = (Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG";
                 const seen = new Set<string>();
@@ -6276,6 +6282,9 @@ export class EBCDrawer {
                 for (const a of bcAsset) {
                     const g = a.Group;
                     if ((g.Family === family || !g.Family) && !seen.has(g.Name)) {
+                        const isRestraint = g.IsRestraint === true;
+                        if (filter === "restraint" && !isRestraint) continue;
+                        if (filter === "clothes"   &&  isRestraint) continue;
                         seen.add(g.Name);
                         const desc = (g.Description as string | undefined)?.trim() || g.Name;
                         out.push({ name: g.Name, desc });
@@ -6389,7 +6398,12 @@ export class EBCDrawer {
 
             const typeSelect = document.createElement("select");
             typeSelect.className = "ebc-scene-type-sel";
-            for (const t of ALL_STEP_TYPES) {
+            // Build the type list; if this step was saved with the old "equip" type inject it
+            // so the dropdown shows the correct selection rather than defaulting to another type.
+            const stepTypes: StepType[] = initStep.type === "equip"
+                ? (["equip", ...ALL_STEP_TYPES] as StepType[])
+                : ALL_STEP_TYPES;
+            for (const t of stepTypes) {
                 const opt = document.createElement("option");
                 opt.value = t;
                 opt.textContent = STEP_TYPE_LABELS[t];
@@ -6518,8 +6532,11 @@ export class EBCDrawer {
                     makeAxisDropdown("Arms", armPoses, curArms, "arms");
                     fieldsEl.appendChild(row);
 
-                } else if (type === "equip") {
-                    const groups = getAllGroups();
+                } else if (type === "equip" || type === "equip-restraint" || type === "equip-clothes") {
+                    const grpFilter = type === "equip-restraint" ? "restraint"
+                                    : type === "equip-clothes"   ? "clothes"
+                                    : undefined;
+                    const groups = getAllGroups(grpFilter);
                     const row1 = document.createElement("div");
                     row1.className = "ebc-scene-fields-row";
 
@@ -6803,6 +6820,8 @@ export class EBCDrawer {
                         step.poses = posePoses.filter(Boolean);
                         break;
                     case "equip":
+                    case "equip-restraint":
+                    case "equip-clothes":
                         step.group = equipGroup.trim();
                         step.assetName = equipAsset.trim();
                         if (equipColorRaw.trim()) {
@@ -6912,7 +6931,8 @@ export class EBCDrawer {
             addBtn.addEventListener("click", () => {
                 syncFromEntries();
                 const defDelays: Record<StepType, number> = {
-                    pose: 500, equip: 800, unequip: 600, emote: 100, chat: 100, wait: 1000,
+                    pose: 500, equip: 800, "equip-restraint": 800, "equip-clothes": 800,
+                    unequip: 600, emote: 100, chat: 100, wait: 1000,
                 };
                 steps.push({ type: addTypeSel.value as StepType, delayMs: defDelays[addTypeSel.value as StepType] });
                 fullRebuild();

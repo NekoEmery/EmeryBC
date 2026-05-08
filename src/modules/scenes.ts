@@ -5,7 +5,7 @@ import { applyPoses } from "./poses";
 import { getDisplayName } from "./actionButtons";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 
-export type StepType = "pose" | "equip" | "unequip" | "emote" | "chat" | "wait";
+export type StepType = "pose" | "equip" | "equip-restraint" | "equip-clothes" | "unequip" | "emote" | "chat" | "wait";
 
 export interface SceneStep {
     type: StepType;
@@ -78,6 +78,8 @@ function executeStep(step: SceneStep): void {
                 applyPoses(step.poses ?? []);
                 break;
             case "equip":
+            case "equip-restraint":
+            case "equip-clothes":
                 if (step.group && step.assetName) {
                     // InventoryWear actually puts the item on the character;
                     // InventoryAdd only adds to the wardrobe (never appears worn).

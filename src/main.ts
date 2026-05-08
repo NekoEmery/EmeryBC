@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.9.2";
+const MOD_VERSION = "0.9.3";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.9.3",
+        changes: [
+            "Scenes: 'Equip' step is now split into 'Equip Restraint' (shows only restraint slots) and 'Equip Clothes' (shows only clothing/body slots). Old saved scenes with the generic 'Equip' type continue to work.",
+        ],
+    },
     {
         version: "0.9.2",
         changes: [
