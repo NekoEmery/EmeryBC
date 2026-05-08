@@ -2400,10 +2400,18 @@
             }, 150);
         }
         window.setTimeout(() => {
+            var _a, _b;
+            // Navigate away from the ChatRoom screen BEFORE ChatRoomLeave() clears
+            // the room state. Without this, mods that hook ChatRoomRun (e.g. CRABS)
+            // crash on the next render frame because ChatRoomCustomization is null.
+            try {
+                (_b = (_a = window).CommonSetScreen) === null || _b === void 0 ? void 0 : _b.call(_a, "Online", "ChatSearch");
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             try {
                 ChatRoomLeave();
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }, 800);
     }
     /**
@@ -11678,9 +11686,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.7.7";
+    const MOD_VERSION = "0.7.8";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.7.8",
+            changes: [
+                "Fix: Red safeword no longer crashes other mods (CRABS etc.) when leaving the room. BC's ChatRoomLeave() clears room state before switching screens, causing ChatRoomRun hooks in other mods to crash on the next frame. Now navigates to the lobby screen first so the render loop stops running ChatRoomRun before the state is cleared.",
+            ],
+        },
         {
             version: "0.7.7",
             changes: [
