@@ -416,6 +416,61 @@ export function rescueRoomMember(memberId: number): { found: boolean; locksClear
     } catch { return { found: false, locksCleared: 0, restraintsRemoved: 0 }; }
 }
 
+/**
+ * Clear locks (LockedBy / Password / CombinationNumber) on specific item groups
+ * for a room member.  Returns the number of items unlocked.
+ */
+export function clearLocksOnMember(memberId: number, groups: string[]): number {
+    try {
+        const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+        const char = room.find(c => c.MemberNumber === memberId);
+        if (!char) return 0;
+        const groupSet = new Set(groups);
+        let count = 0;
+        for (const item of char.Appearance) {
+            if (!groupSet.has(item.Asset.Group.Name)) continue;
+            const prop = item.Property as Record<string, unknown> | undefined;
+            if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+                prop.LockedBy = "";
+                if ("Password" in prop) delete prop.Password;
+                if ("CombinationNumber" in prop) delete prop.CombinationNumber;
+                count++;
+            }
+        }
+        if (count > 0) syncChar(char);
+        return count;
+    } catch { return 0; }
+}
+
+/**
+ * Remove specific item groups from a room member's Appearance, bypassing all
+ * BC lock rules (locks on the targeted items are cleared first).
+ * Returns the number of items removed.
+ */
+export function removeItemsFromMember(memberId: number, groups: string[]): number {
+    try {
+        const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+        const char = room.find(c => c.MemberNumber === memberId);
+        if (!char) return 0;
+        const groupSet = new Set(groups);
+        // Clear locks on targeted items first so the filter below can remove them
+        for (const item of char.Appearance) {
+            if (!groupSet.has(item.Asset.Group.Name)) continue;
+            const prop = item.Property as Record<string, unknown> | undefined;
+            if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+                prop.LockedBy = "";
+                if ("Password" in prop) delete prop.Password;
+                if ("CombinationNumber" in prop) delete prop.CombinationNumber;
+            }
+        }
+        const before = char.Appearance.length;
+        char.Appearance = char.Appearance.filter((item: Item) => !groupSet.has(item.Asset.Group.Name));
+        const removed = before - char.Appearance.length;
+        if (removed > 0) syncChar(char);
+        return removed;
+    } catch { return 0; }
+}
+
 // Handle a chat command (e.g. /gag → apply the matching set).
 export function handleDomCommand(input: string): boolean {
     if (!isDomEnabled()) return false;

@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.9.0";
+const MOD_VERSION = "0.9.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.9.1",
+        changes: [
+            "Room Rescue: item list now shows checkboxes. 🔓 Unlock Selected clears locks without removing items. 🗑 Remove Selected removes only checked items. ⛑ Remove All still strips everything at once. Select-all checkbox at the top.",
+        ],
+    },
     {
         version: "0.9.0",
         changes: [

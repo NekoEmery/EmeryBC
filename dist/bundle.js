@@ -2911,6 +2911,77 @@
             return { found: false, locksCleared: 0, restraintsRemoved: 0 };
         }
     }
+    /**
+     * Clear locks (LockedBy / Password / CombinationNumber) on specific item groups
+     * for a room member.  Returns the number of items unlocked.
+     */
+    function clearLocksOnMember(memberId, groups) {
+        var _a;
+        try {
+            const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+            const char = room.find(c => c.MemberNumber === memberId);
+            if (!char)
+                return 0;
+            const groupSet = new Set(groups);
+            let count = 0;
+            for (const item of char.Appearance) {
+                if (!groupSet.has(item.Asset.Group.Name))
+                    continue;
+                const prop = item.Property;
+                if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+                    prop.LockedBy = "";
+                    if ("Password" in prop)
+                        delete prop.Password;
+                    if ("CombinationNumber" in prop)
+                        delete prop.CombinationNumber;
+                    count++;
+                }
+            }
+            if (count > 0)
+                syncChar(char);
+            return count;
+        }
+        catch (_b) {
+            return 0;
+        }
+    }
+    /**
+     * Remove specific item groups from a room member's Appearance, bypassing all
+     * BC lock rules (locks on the targeted items are cleared first).
+     * Returns the number of items removed.
+     */
+    function removeItemsFromMember(memberId, groups) {
+        var _a;
+        try {
+            const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+            const char = room.find(c => c.MemberNumber === memberId);
+            if (!char)
+                return 0;
+            const groupSet = new Set(groups);
+            // Clear locks on targeted items first so the filter below can remove them
+            for (const item of char.Appearance) {
+                if (!groupSet.has(item.Asset.Group.Name))
+                    continue;
+                const prop = item.Property;
+                if (prop && typeof prop.LockedBy === "string" && prop.LockedBy !== "") {
+                    prop.LockedBy = "";
+                    if ("Password" in prop)
+                        delete prop.Password;
+                    if ("CombinationNumber" in prop)
+                        delete prop.CombinationNumber;
+                }
+            }
+            const before = char.Appearance.length;
+            char.Appearance = char.Appearance.filter((item) => !groupSet.has(item.Asset.Group.Name));
+            const removed = before - char.Appearance.length;
+            if (removed > 0)
+                syncChar(char);
+            return removed;
+        }
+        catch (_b) {
+            return 0;
+        }
+    }
     // Handle a chat command (e.g. /gag → apply the matching set).
     function handleDomCommand(input) {
         if (!isDomEnabled())
@@ -11674,32 +11745,95 @@
             rescueRow.appendChild(rescueSel);
             rescueRow.appendChild(rescueRefreshBtn);
             rescuePanel.appendChild(rescueRow);
-            // Item preview — shows what the selected person is wearing
+            // ── Rescue: item list with checkboxes ─────────────────────────────────
+            const rescueSelected = new Set();
+            // Select-all row (hidden until items loaded)
+            const selAllRow = document.createElement("div");
+            selAllRow.style.cssText = "display:none;align-items:center;gap:6px;padding:2px 6px 4px;border-bottom:1px solid #3a1928;margin-bottom:2px;";
+            const selAllChk = document.createElement("input");
+            selAllChk.type = "checkbox";
+            selAllChk.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+            const selAllLbl = document.createElement("span");
+            selAllLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+            selAllLbl.textContent = "Select / deselect all";
+            selAllRow.appendChild(selAllChk);
+            selAllRow.appendChild(selAllLbl);
+            // Scrollable item list
             const rescueItemsEl = document.createElement("div");
-            rescueItemsEl.style.cssText = "display:none;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;max-height:130px;overflow-y:auto;";
-            rescuePanel.appendChild(rescueItemsEl);
+            rescueItemsEl.style.cssText = "display:none;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;max-height:150px;overflow-y:auto;";
+            // 🔓 Unlock Selected button
+            const unlockSelBtn = document.createElement("button");
+            unlockSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a3a2a;background:#3a1e0e;color:#f0c080;cursor:pointer;transition:background 0.14s;opacity:0.45;";
+            unlockSelBtn.textContent = "🔓 Unlock Selected";
+            unlockSelBtn.title = "Clear locks on selected items only (does not remove them)";
+            unlockSelBtn.disabled = true;
+            // 🗑 Remove Selected button
+            const removeSelBtn = document.createElement("button");
+            removeSelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:6px 4px;border-radius:6px;border:1px solid #5a2030;background:#3a0e18;color:#ffc0cc;cursor:pointer;transition:background 0.14s;opacity:0.45;";
+            removeSelBtn.textContent = "🗑 Remove Selected";
+            removeSelBtn.title = "Remove selected items from this person (clears locks first)";
+            removeSelBtn.disabled = true;
+            // Action row
+            const actBtnRow = document.createElement("div");
+            actBtnRow.style.cssText = "display:flex;gap:5px;";
+            actBtnRow.appendChild(unlockSelBtn);
+            actBtnRow.appendChild(removeSelBtn);
+            // Remove All button
+            const rescueBtn = document.createElement("button");
+            rescueBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 4px;border-radius:6px;border:1px solid #c0304a;background:#6b1428;color:#ffd0d8;cursor:pointer;transition:background 0.14s;";
+            rescueBtn.textContent = "⛑ Remove All";
+            rescueBtn.title = "Strip all locks + remove all restraints from selected person";
+            // Status line
             const rescueStatus = document.createElement("div");
             rescueStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
-            rescuePanel.appendChild(rescueStatus);
+            // ── Helpers ────────────────────────────────────────────────────────────
+            const updateActionBtns = () => {
+                const has = rescueSelected.size > 0;
+                unlockSelBtn.disabled = !has;
+                removeSelBtn.disabled = !has;
+                unlockSelBtn.style.opacity = has ? "1" : "0.45";
+                removeSelBtn.style.opacity = has ? "1" : "0.45";
+            };
             const rebuildRescueItems = () => {
                 while (rescueItemsEl.firstChild)
                     rescueItemsEl.removeChild(rescueItemsEl.firstChild);
+                rescueSelected.clear();
+                selAllRow.style.display = "none";
+                rescueItemsEl.style.display = "none";
+                selAllChk.checked = false;
+                selAllChk.indeterminate = false;
                 const id = parseInt(rescueSel.value, 10);
                 if (!id) {
-                    rescueItemsEl.style.display = "none";
+                    updateActionBtns();
                     return;
                 }
                 const items = getRoomMemberItems(id);
                 if (items.length === 0) {
-                    rescueItemsEl.style.display = "none";
+                    updateActionBtns();
                     return;
                 }
                 rescueItemsEl.style.display = "flex";
+                selAllRow.style.display = "flex";
                 for (const it of items) {
                     const row2 = document.createElement("div");
-                    row2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 0;";
+                    row2.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;";
+                    const chk = document.createElement("input");
+                    chk.type = "checkbox";
+                    chk.dataset.group = it.group;
+                    chk.style.cssText = "cursor:pointer;flex-shrink:0;accent-color:#cf6f98;";
+                    chk.addEventListener("change", () => {
+                        if (chk.checked)
+                            rescueSelected.add(it.group);
+                        else
+                            rescueSelected.delete(it.group);
+                        const allChks = Array.from(rescueItemsEl.querySelectorAll("input[type=checkbox]"));
+                        const n = allChks.filter(c => c.checked).length;
+                        selAllChk.indeterminate = n > 0 && n < allChks.length;
+                        selAllChk.checked = n === allChks.length;
+                        updateActionBtns();
+                    });
                     const lockIco = document.createElement("span");
-                    lockIco.style.cssText = "font-size:9px;flex-shrink:0;width:14px;text-align:center;";
+                    lockIco.style.cssText = "font-size:9px;flex-shrink:0;width:13px;text-align:center;";
                     lockIco.textContent = it.locked ? "🔒" : "";
                     const nm = document.createElement("span");
                     nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
@@ -11707,17 +11841,53 @@
                     const grp = document.createElement("span");
                     grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex-shrink:0;";
                     grp.textContent = it.group.replace("Item", "");
+                    row2.appendChild(chk);
                     row2.appendChild(lockIco);
                     row2.appendChild(nm);
                     row2.appendChild(grp);
                     rescueItemsEl.appendChild(row2);
                 }
+                updateActionBtns();
             };
+            // Select-all toggle
+            selAllChk.addEventListener("change", () => {
+                const allChks = Array.from(rescueItemsEl.querySelectorAll("input[type=checkbox]"));
+                allChks.forEach(c => {
+                    c.checked = selAllChk.checked;
+                    if (selAllChk.checked)
+                        rescueSelected.add(c.dataset.group);
+                    else
+                        rescueSelected.delete(c.dataset.group);
+                });
+                selAllChk.indeterminate = false;
+                updateActionBtns();
+            });
             rescueSel.addEventListener("change", () => rebuildRescueItems());
-            const rescueBtn = document.createElement("button");
-            rescueBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 4px;border-radius:6px;border:1px solid #c0304a;background:#6b1428;color:#ffd0d8;cursor:pointer;transition:background 0.14s;";
-            rescueBtn.textContent = "⛑ Rescue";
-            rescueBtn.title = "Strip all locks + remove all restraints from selected person";
+            // Unlock Selected
+            unlockSelBtn.addEventListener("mouseenter", () => { if (!unlockSelBtn.disabled)
+                unlockSelBtn.style.background = "#5a2e1a"; });
+            unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#3a1e0e"; });
+            unlockSelBtn.addEventListener("click", () => {
+                const id = parseInt(rescueSel.value, 10);
+                if (!id || rescueSelected.size === 0)
+                    return;
+                const count = clearLocksOnMember(id, Array.from(rescueSelected));
+                rescueStatus.textContent = count > 0 ? `🔓 Cleared ${count} lock(s).` : "No locks found on selected items.";
+                window.setTimeout(() => { rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
+            });
+            // Remove Selected
+            removeSelBtn.addEventListener("mouseenter", () => { if (!removeSelBtn.disabled)
+                removeSelBtn.style.background = "#5a1a28"; });
+            removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a0e18"; });
+            removeSelBtn.addEventListener("click", () => {
+                const id = parseInt(rescueSel.value, 10);
+                if (!id || rescueSelected.size === 0)
+                    return;
+                const count = removeItemsFromMember(id, Array.from(rescueSelected));
+                rescueStatus.textContent = count > 0 ? `✓ Removed ${count} item(s).` : "Nothing removed.";
+                window.setTimeout(() => { rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
+            });
+            // Remove All
             rescueBtn.addEventListener("mouseenter", () => { rescueBtn.style.background = "#8b1e38"; });
             rescueBtn.addEventListener("mouseleave", () => { rescueBtn.style.background = "#6b1428"; });
             rescueBtn.addEventListener("click", () => {
@@ -11737,13 +11907,14 @@
                 else {
                     rescueStatus.textContent = `✓ Done — cleared ${result.locksCleared} lock(s), removed ${result.restraintsRemoved} restraint(s).`;
                 }
-                window.setTimeout(() => {
-                    rescueBtn.disabled = false;
-                    rescueStatus.textContent = "";
-                    rebuildRescueItems();
-                }, 3000);
+                window.setTimeout(() => { rescueBtn.disabled = false; rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
             });
+            // Append to panel in order
+            rescuePanel.appendChild(selAllRow);
+            rescuePanel.appendChild(rescueItemsEl);
+            rescuePanel.appendChild(actBtnRow);
             rescuePanel.appendChild(rescueBtn);
+            rescuePanel.appendChild(rescueStatus);
             // ── Release / Rescue ─────────────────────────────────────────────────
             const divRelease = document.createElement("div");
             divRelease.className = "ebc-divider";
@@ -12322,9 +12493,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.9.0";
+    const MOD_VERSION = "0.9.1";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.9.1",
+            changes: [
+                "Room Rescue: item list now shows checkboxes. 🔓 Unlock Selected clears locks without removing items. 🗑 Remove Selected removes only checked items. ⛑ Remove All still strips everything at once. Select-all checkbox at the top.",
+            ],
+        },
         {
             version: "0.9.0",
             changes: [
