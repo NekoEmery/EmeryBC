@@ -5788,6 +5788,7 @@
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
             domTabBtn.addEventListener("click", () => this.switchTab("dom"));
+            puppyTabBtn.addEventListener("click", () => this.switchTab("puppy"));
             document.addEventListener("keydown", (e) => {
                 if (e.key === "Escape" && this.isOpen)
                     this.close();
