@@ -4766,6 +4766,7 @@ export class EBCDrawer {
             onMoveUp: (() => void) | null,
             onMoveDown: (() => void) | null,
             onDelete: () => void,
+            onDuplicate: () => void,
         ): { el: HTMLElement; getStep: () => SceneStep } => {
             const card = document.createElement("div");
             card.className = "ebc-scene-step";
@@ -4808,6 +4809,12 @@ export class EBCDrawer {
             downBtn.disabled = onMoveDown === null;
             if (onMoveDown) downBtn.addEventListener("click", onMoveDown);
 
+            const dupBtn = document.createElement("button");
+            dupBtn.className = "ebc-step-move";
+            dupBtn.textContent = "⧉";
+            dupBtn.title = "Duplicate step";
+            dupBtn.addEventListener("click", onDuplicate);
+
             const delBtn = document.createElement("button");
             delBtn.className = "ebc-step-del";
             delBtn.textContent = "×";
@@ -4818,6 +4825,7 @@ export class EBCDrawer {
             header.appendChild(msLbl);
             header.appendChild(upBtn);
             header.appendChild(downBtn);
+            header.appendChild(dupBtn);
             header.appendChild(delBtn);
             card.appendChild(header);
 
@@ -5157,6 +5165,11 @@ export class EBCDrawer {
                         () => {
                             syncFromEntries();
                             steps.splice(idx, 1);
+                            fullRebuild();
+                        },
+                        () => {
+                            syncFromEntries();
+                            steps.splice(idx + 1, 0, { ...steps[idx] });
                             fullRebuild();
                         },
                     );

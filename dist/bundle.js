@@ -6541,7 +6541,7 @@
                 }
             };
             // Build a live step card — returns getStep() which always reads current field state
-            const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete) => {
+            const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete, onDuplicate) => {
                 var _a, _b, _c, _d, _e, _f, _g, _h;
                 const card = document.createElement("div");
                 card.className = "ebc-scene-step";
@@ -6579,6 +6579,11 @@
                 downBtn.disabled = onMoveDown === null;
                 if (onMoveDown)
                     downBtn.addEventListener("click", onMoveDown);
+                const dupBtn = document.createElement("button");
+                dupBtn.className = "ebc-step-move";
+                dupBtn.textContent = "⧉";
+                dupBtn.title = "Duplicate step";
+                dupBtn.addEventListener("click", onDuplicate);
                 const delBtn = document.createElement("button");
                 delBtn.className = "ebc-step-del";
                 delBtn.textContent = "×";
@@ -6588,6 +6593,7 @@
                 header.appendChild(msLbl);
                 header.appendChild(upBtn);
                 header.appendChild(downBtn);
+                header.appendChild(dupBtn);
                 header.appendChild(delBtn);
                 card.appendChild(header);
                 // Fields area — rebuilt when type changes
@@ -6902,6 +6908,10 @@
                         } : null, () => {
                             syncFromEntries();
                             steps.splice(idx, 1);
+                            fullRebuild();
+                        }, () => {
+                            syncFromEntries();
+                            steps.splice(idx + 1, 0, Object.assign({}, steps[idx]));
                             fullRebuild();
                         });
                         entries.push(entry);
