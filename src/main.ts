@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.8.9";
+const MOD_VERSION = "0.9.0";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.9.0",
+        changes: [
+            "🐾 Puppy tab: Bark button now picks from a pool of 16 built-in sounds (Arf~, Woof!, Wuf~, Ruff!, Wroof~, Bork!, Awoo~, Yip!, and more). Custom sounds can be added and removed — persisted to server settings.",
+        ],
+    },
     {
         version: "0.8.9",
         changes: [

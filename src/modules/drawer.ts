@@ -8653,6 +8653,26 @@ export class EBCDrawer {
         hdr.appendChild(hdrSub);
         body.appendChild(hdr);
 
+        // -- Bark sounds storage helpers --
+        const BUILTIN_BARKS = [
+            "Arf~", "Woof!", "Wuf~", "Ruff!", "Wroof~", "Bork!", "Bork bork~",
+            "Arf arf!", "Woof woof~", "Wuf wuf!", "Arf! Arf!", "Awoo~",
+            "Yip!", "Yip yip~", "Ruff ruff!", "Wroof wroof~",
+        ];
+        const getPuppyStore = (): Record<string, unknown> => {
+            if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+        };
+        const getCustomBarks = (): string[] => {
+            const raw = getPuppyStore().customBarks;
+            return Array.isArray(raw) ? (raw as string[]) : [];
+        };
+        const saveCustomBarks = (barks: string[]): void => {
+            getPuppyStore().customBarks = barks;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        };
+        const getAllBarks = (): string[] => [...BUILTIN_BARKS, ...getCustomBarks()];
+
         // Bark button
         const barkBtn = document.createElement("button");
         barkBtn.style.cssText = [
@@ -8672,29 +8692,91 @@ export class EBCDrawer {
             "letter-spacing:0.08em",
         ].join(";");
         barkBtn.textContent = "🐶 Bark!";
-        barkBtn.title = "Arf!";
         barkBtn.addEventListener("mouseenter", () => { barkBtn.style.background = "#5a30a0"; });
         barkBtn.addEventListener("mouseleave", () => { barkBtn.style.background = "#3a2060"; });
         barkBtn.addEventListener("mousedown", () => { barkBtn.style.transform = "scale(0.95)"; });
         barkBtn.addEventListener("mouseup",   () => { barkBtn.style.transform = ""; });
-        const barkSounds = [
-            "Arf~", "Woof!", "Wuf~", "Bork!", "Arf arf!", "Woof woof~",
-            "Wuf wuf!", "Bork bork~", "Arf! Arf!", "Awoo~", "Yip!", "Yip yip~",
-        ];
         barkBtn.addEventListener("click", () => {
-            const bark = barkSounds[Math.floor(Math.random() * barkSounds.length)];
-            try {
-                ServerSend("ChatRoomChat", { Type: "Chat", Content: bark });
-            } catch { /* ignore */ }
-            // tiny flash feedback
+            const pool = getAllBarks();
+            const bark = pool[Math.floor(Math.random() * pool.length)];
+            try { ServerSend("ChatRoomChat", { Type: "Chat", Content: bark }); } catch { /* ignore */ }
             barkBtn.style.background = "#7a40c8";
             barkBtn.textContent = "🐶 " + bark;
             window.setTimeout(() => {
                 barkBtn.style.background = "#3a2060";
                 barkBtn.textContent = "🐶 Bark!";
-            }, 600);
+            }, 700);
         });
         body.appendChild(barkBtn);
+
+        // -- Custom barks section --
+        const customLbl = document.createElement("div");
+        customLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a7ab0;text-transform:uppercase;letter-spacing:0.05em;margin:18px 8px 5px;";
+        customLbl.textContent = "Custom Sounds";
+        body.appendChild(customLbl);
+
+        const customList = document.createElement("div");
+        customList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin:0 8px;";
+        body.appendChild(customList);
+
+        const rebuildCustomList = (): void => {
+            while (customList.firstChild) customList.removeChild(customList.firstChild);
+            const barks = getCustomBarks();
+            if (barks.length === 0) {
+                const none = document.createElement("div");
+                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a5880;padding:2px 0;";
+                none.textContent = "No custom sounds yet.";
+                customList.appendChild(none);
+                return;
+            }
+            for (let i = 0; i < barks.length; i++) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(58,32,96,0.4);border:1px solid #5a3a90;border-radius:5px;padding:3px 7px;";
+                const txt = document.createElement("span");
+                txt.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#d8c8ff;";
+                txt.textContent = barks[i];
+                const del = document.createElement("button");
+                del.textContent = "×";
+                del.title = "Remove";
+                del.style.cssText = "background:none;border:none;cursor:pointer;color:#9b7de0;font-size:13px;line-height:1;padding:0;flex-shrink:0;";
+                del.addEventListener("click", () => {
+                    const updated = getCustomBarks().filter((_, j) => j !== i);
+                    saveCustomBarks(updated);
+                    rebuildCustomList();
+                });
+                row.appendChild(txt);
+                row.appendChild(del);
+                customList.appendChild(row);
+            }
+        };
+        rebuildCustomList();
+
+        // Add new custom sound
+        const addRow = document.createElement("div");
+        addRow.style.cssText = "display:flex;gap:5px;margin:6px 8px 0;";
+        const addInp = document.createElement("input");
+        addInp.type = "text";
+        addInp.maxLength = 60;
+        addInp.placeholder = "e.g. Woof woof~";
+        addInp.className = "ebc-form-input";
+        addInp.style.cssText = "flex:1;font-size:10px;";
+        const addBtn = document.createElement("button");
+        addBtn.textContent = "+ Add";
+        addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
+        addBtn.addEventListener("mouseenter", () => { addBtn.style.background = "#5a30a0"; });
+        addBtn.addEventListener("mouseleave", () => { addBtn.style.background = "#3a2060"; });
+        const doAdd = (): void => {
+            const val = addInp.value.trim();
+            if (!val) return;
+            saveCustomBarks([...getCustomBarks(), val]);
+            addInp.value = "";
+            rebuildCustomList();
+        };
+        addBtn.addEventListener("click", doAdd);
+        addInp.addEventListener("keydown", (e) => { if (e.key === "Enter") doAdd(); });
+        addRow.appendChild(addInp);
+        addRow.appendChild(addBtn);
+        body.appendChild(addRow);
     }
 
     private renderThanks(): void {
