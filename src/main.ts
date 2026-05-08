@@ -10,13 +10,20 @@ import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestraine
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, updateOnlineFriends } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.6.0";
+const MOD_VERSION = "0.6.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.6.1",
+        changes: [
+            "Friends: EBC users now show a pink 'EBC vX.X.X' badge next to their name — populated the first time you share a room with them.",
+            "Credits: added Sybil #80.",
+        ],
+    },
     {
         version: "0.6.0",
         changes: [
@@ -1007,13 +1014,22 @@ function init(): void {
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
-        // Cache names for everyone currently in the room so friend names are
-        // readable even when they're not online the next time you open Friends.
+        // Cache names and EBC presence for everyone currently in the room.
         try {
             const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
-                Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined;
+                Array<{ MemberNumber?: number; Nickname?: string; Name?: string; OnlineSharedSettings?: Record<string, unknown> }> | undefined;
             if (chars) for (const c of chars) {
-                if (c.MemberNumber) cacheName(c.MemberNumber, c.Nickname?.trim() || c.Name || String(c.MemberNumber));
+                if (!c.MemberNumber) continue;
+                cacheName(c.MemberNumber, c.Nickname?.trim() || c.Name || String(c.MemberNumber));
+                const shared = c.OnlineSharedSettings?.[MOD_NAME];
+                if (shared && typeof shared === "object") {
+                    const p = (shared as Record<string, unknown>).presence;
+                    if (p && typeof p === "object") {
+                        const v = (p as Record<string, unknown>).version;
+                        if ((p as Record<string, unknown>).marker === "EBC" && typeof v === "string")
+                            cacheEBCVersion(c.MemberNumber, v);
+                    }
+                }
             }
         } catch { /* ignore */ }
         return result;

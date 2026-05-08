@@ -1847,6 +1847,15 @@
     // Set of member numbers BC reports as online (updated via AccountQueryResult hook)
     const onlineSet = new Set();
     const onlineInfo = new Map();
+    // Session cache: EBC version for members we've shared a room with this session
+    const ebcVersionCache = new Map();
+    function cacheEBCVersion(memberNumber, version) {
+        ebcVersionCache.set(memberNumber, version);
+    }
+    function getEBCVersion(memberNumber) {
+        var _a;
+        return (_a = ebcVersionCache.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
+    }
     function updateOnlineFriends(entries) {
         onlineSet.clear();
         onlineInfo.clear();
@@ -8151,6 +8160,15 @@
                         roomTag.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
                         row.appendChild(roomTag);
                     }
+                    // EBC version badge — only shown if we've seen them run EBC this session
+                    const ebcVer = getEBCVersion(num);
+                    if (ebcVer) {
+                        const ebcBadge = document.createElement("span");
+                        ebcBadge.textContent = "EBC " + ebcVer;
+                        ebcBadge.title = "Uses EmeryBC v" + ebcVer;
+                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
+                        row.appendChild(ebcBadge);
+                    }
                     row.appendChild(tagEl);
                     row.appendChild(beepBtn);
                     body.appendChild(row);
@@ -8688,6 +8706,13 @@
                     memberId: 230466,
                     reason: "Stayed up nearly 19 hours with me while this came to life, sharing ideas and keeping the energy going the whole way through.",
                     heart: "💜",
+                },
+                {
+                    emoji: "✨",
+                    name: "Sybil",
+                    memberId: 80,
+                    reason: "Brilliant ideas, patient testing, and a genuinely kind presence — Sybil has shaped this addon in more ways than one, and her beautiful contributions to the club make it a richer place for everyone. Big thanks~",
+                    heart: "💛",
                 },
             ];
             for (const p of people) {
@@ -9543,9 +9568,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.6.0";
+    const MOD_VERSION = "0.6.1";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.6.1",
+            changes: [
+                "Friends: EBC users now show a pink 'EBC vX.X.X' badge next to their name — populated the first time you share a room with them.",
+                "Credits: added Sybil #80.",
+            ],
+        },
         {
             version: "0.6.0",
             changes: [
@@ -10509,39 +10541,48 @@
             return result;
         });
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
-            var _a;
+            var _a, _b;
             const result = next(args);
             try {
                 syncPresenceMarker();
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             try {
                 showRoomLoadNotice();
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             try {
                 timerOnRoomEnter();
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             try {
                 drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             try {
                 snapshotPlayerRestraints();
             }
-            catch ( /* ignore */_f) { /* ignore */ }
-            // Cache names for everyone currently in the room so friend names are
-            // readable even when they're not online the next time you open Friends.
+            catch ( /* ignore */_g) { /* ignore */ }
+            // Cache names and EBC presence for everyone currently in the room.
             try {
                 const chars = window.ChatRoomCharacter;
                 if (chars)
                     for (const c of chars) {
-                        if (c.MemberNumber)
-                            cacheName(c.MemberNumber, ((_a = c.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || c.Name || String(c.MemberNumber));
+                        if (!c.MemberNumber)
+                            continue;
+                        cacheName(c.MemberNumber, ((_a = c.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || c.Name || String(c.MemberNumber));
+                        const shared = (_b = c.OnlineSharedSettings) === null || _b === void 0 ? void 0 : _b[MOD_NAME];
+                        if (shared && typeof shared === "object") {
+                            const p = shared.presence;
+                            if (p && typeof p === "object") {
+                                const v = p.version;
+                                if (p.marker === "EBC" && typeof v === "string")
+                                    cacheEBCVersion(c.MemberNumber, v);
+                            }
+                        }
                     }
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_h) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote

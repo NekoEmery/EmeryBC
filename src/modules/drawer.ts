@@ -56,7 +56,7 @@ import {
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { getFriendList, getFriendStatus, getFriendTags, setFriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTags, setFriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import {
     isDomEnabled,
@@ -6283,6 +6283,16 @@ export class EBCDrawer {
                     row.appendChild(roomTag);
                 }
 
+                // EBC version badge — only shown if we've seen them run EBC this session
+                const ebcVer = getEBCVersion(num);
+                if (ebcVer) {
+                    const ebcBadge = document.createElement("span");
+                    ebcBadge.textContent = "EBC " + ebcVer;
+                    ebcBadge.title = "Uses EmeryBC v" + ebcVer;
+                    ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
+                    row.appendChild(ebcBadge);
+                }
+
                 row.appendChild(tagEl);
                 row.appendChild(beepBtn);
                 body.appendChild(row);
@@ -6868,6 +6878,13 @@ export class EBCDrawer {
                 memberId: 230466,
                 reason: "Stayed up nearly 19 hours with me while this came to life, sharing ideas and keeping the energy going the whole way through.",
                 heart: "💜",
+            },
+            {
+                emoji: "✨",
+                name: "Sybil",
+                memberId: 80,
+                reason: "Brilliant ideas, patient testing, and a genuinely kind presence — Sybil has shaped this addon in more ways than one, and her beautiful contributions to the club make it a richer place for everyone. Big thanks~",
+                heart: "💛",
             },
         ];
 

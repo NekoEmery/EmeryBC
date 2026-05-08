@@ -69,6 +69,17 @@ export interface FriendOnlineInfo {
 const onlineSet = new Set<number>();
 const onlineInfo = new Map<number, FriendOnlineInfo>();
 
+// Session cache: EBC version for members we've shared a room with this session
+const ebcVersionCache = new Map<number, string>();
+
+export function cacheEBCVersion(memberNumber: number, version: string): void {
+    ebcVersionCache.set(memberNumber, version);
+}
+
+export function getEBCVersion(memberNumber: number): string | null {
+    return ebcVersionCache.get(memberNumber) ?? null;
+}
+
 export function updateOnlineFriends(entries: Array<Record<string, unknown>>): void {
     onlineSet.clear();
     onlineInfo.clear();
