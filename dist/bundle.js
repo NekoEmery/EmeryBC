@@ -2431,13 +2431,73 @@
     position: absolute;
     top: 6px;
     right: 6px;
-    width: 9px;
-    height: 9px;
+    width: 10px;
+    height: 10px;
     background: #cf6f98;
     border-radius: 50%;
     border: 1.5px solid #130810;
-    box-shadow: 0 0 5px #cf6f98;
+    box-shadow: 0 0 6px #cf6f98;
     pointer-events: none;
+    animation: ebc-dot-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ebc-dot-pulse {
+    0%, 100% { box-shadow: 0 0 4px #cf6f98; transform: scale(1); }
+    50%       { box-shadow: 0 0 10px #e890b8, 0 0 18px #cf6f9855; transform: scale(1.25); }
+}
+
+/* Toast notification */
+.ebc-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    min-width: 220px;
+    max-width: 300px;
+    background: #130810;
+    border: 1.5px solid #cf6f98;
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.85), 0 0 12px rgba(207,111,152,0.25);
+    font-family: "Trebuchet MS", serif;
+    z-index: 1000000;
+    overflow: hidden;
+    cursor: pointer;
+    animation: ebc-toast-in 0.22s ease-out;
+    transition: opacity 0.3s, transform 0.3s;
+}
+.ebc-toast.ebc-toast-out {
+    opacity: 0;
+    transform: translateX(30px);
+}
+@keyframes ebc-toast-in {
+    from { opacity: 0; transform: translateX(30px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.ebc-toast-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 12px 5px;
+    background: #1e0d1a;
+    border-bottom: 1px solid #3a1928;
+}
+.ebc-toast-icon { font-size: 13px; flex-shrink: 0; }
+.ebc-toast-name {
+    flex: 1;
+    font-size: 11px;
+    font-weight: bold;
+    color: #cf6f98;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ebc-toast-body {
+    padding: 6px 12px 9px;
+    font-size: 10px;
+    color: #d0a8b8;
+    line-height: 1.45;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* When panel is closed, slide the tab right so only ~10px overlaps the BC
@@ -7985,6 +8045,56 @@
                         dot.classList.add("visible");
                 }
             }
+            // Toast popup — always shown so the user notices the new message
+            this.showBeepToast(fromNum);
+        }
+        showBeepToast(fromNum) {
+            try {
+                const msgs = getConversation(fromNum);
+                const last = msgs[msgs.length - 1];
+                const preview = last ? last.message.replace(/^> .+\n/, "").slice(0, 80) : "";
+                const name = resolveName(fromNum);
+                const toast = document.createElement("div");
+                toast.className = "ebc-toast";
+                const header = document.createElement("div");
+                header.className = "ebc-toast-header";
+                const icon = document.createElement("span");
+                icon.className = "ebc-toast-icon";
+                icon.textContent = "💬";
+                const nameEl = document.createElement("span");
+                nameEl.className = "ebc-toast-name";
+                nameEl.textContent = name;
+                header.appendChild(icon);
+                header.appendChild(nameEl);
+                const body = document.createElement("div");
+                body.className = "ebc-toast-body";
+                body.textContent = preview || "…";
+                toast.appendChild(header);
+                toast.appendChild(body);
+                toast.addEventListener("click", () => {
+                    this.openBeepWindow(fromNum);
+                    dismiss();
+                });
+                document.body.appendChild(toast);
+                // Stack toasts if multiple arrive — offset each one upward
+                const existing = document.querySelectorAll(".ebc-toast");
+                let offset = 0;
+                existing.forEach(t => { if (t !== toast)
+                    offset += (t.offsetHeight || 72) + 8; });
+                if (offset > 0)
+                    toast.style.bottom = `${24 + offset}px`;
+                let gone = false;
+                const dismiss = () => {
+                    if (gone)
+                        return;
+                    gone = true;
+                    toast.classList.add("ebc-toast-out");
+                    setTimeout(() => toast.remove(), 320);
+                };
+                const timer = setTimeout(dismiss, 5000);
+                toast.addEventListener("click", () => clearTimeout(timer), { once: true });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
         }
         // -- Notes tab -------------------------------------------------------------
         renderNotes() {
