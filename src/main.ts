@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.9.1";
+const MOD_VERSION = "0.9.2";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.9.2",
+        changes: [
+            "Scenes equip: VariableHeight items (e.g. ceiling chains) now show a numeric height input instead of a type dropdown. The 📷 capture button reads Property.HeightModifier automatically. Height is applied via Property.HeightModifier at playback.",
+            "Scenes equip: type variant lookup now checks Extended.Options and Extended.Typed.Options in addition to AllowType, fixing items that use the newer BC Extended API and previously showed '— no variants —'.",
+        ],
+    },
     {
         version: "0.9.1",
         changes: [

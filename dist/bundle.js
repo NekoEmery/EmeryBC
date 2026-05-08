@@ -1587,12 +1587,15 @@
                         const color = step.color;
                         InventoryWear(Player, step.assetName, step.group, color, undefined, Player.MemberNumber);
                         // Apply state/type (e.g. "Tight", "Wrist", "Double") if specified
-                        if (step.propertyType) {
+                        if (step.propertyType || step.heightModifier !== undefined) {
                             const worn = InventoryGet(Player, step.group);
                             if (worn) {
                                 if (!worn.Property)
                                     worn.Property = {};
-                                worn.Property.Type = step.propertyType;
+                                if (step.propertyType)
+                                    worn.Property.Type = step.propertyType;
+                                if (step.heightModifier !== undefined)
+                                    worn.Property.HeightModifier = step.heightModifier;
                             }
                         }
                         // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
@@ -9022,17 +9025,56 @@
                     return [];
                 }
             };
-            // Returns the AllowType list for an asset, or [] if the asset has no variants.
-            const getAssetTypes = (groupName, assetName) => {
+            const getAssetExtInfo = (groupName, assetName) => {
+                var _a, _b, _c;
                 try {
                     const bcAsset = window.Asset;
                     if (!Array.isArray(bcAsset))
-                        return [];
-                    const a = bcAsset.find(x => x.Group.Name === groupName && x.Name === assetName);
-                    return Array.isArray(a === null || a === void 0 ? void 0 : a.AllowType) ? a.AllowType : [];
+                        return { types: [], varHeight: null };
+                    const a = bcAsset.find(x => { var _a; return ((_a = x.Group) === null || _a === void 0 ? void 0 : _a.Name) === groupName && x.Name === assetName; });
+                    if (!a)
+                        return { types: [], varHeight: null };
+                    // ── Type variants ─────────────────────────────────────────────
+                    let types = [];
+                    // 1. Legacy AllowType array
+                    if (Array.isArray(a.AllowType) && a.AllowType.length > 0)
+                        types = a.AllowType;
+                    // 2. Extended Typed — BC uses several structures depending on version
+                    if (types.length === 0) {
+                        const ext = a.Extended;
+                        if (ext) {
+                            // Direct Options[] on Extended (some versions)
+                            if (Array.isArray(ext.Options))
+                                types = ext.Options
+                                    .map(o => o.Name).filter((n) => typeof n === "string");
+                            // Typed sub-object with Options[] (R90+ Extended Typed)
+                            if (types.length === 0) {
+                                const typed = ext.Typed;
+                                if (typed && Array.isArray(typed.Options))
+                                    types = typed.Options
+                                        .map(o => o.Name).filter((n) => typeof n === "string");
+                            }
+                            // DrawImages: keys are type names (another older pattern)
+                            if (types.length === 0 && ext.DrawImages && typeof ext.DrawImages === "object")
+                                types = Object.keys(ext.DrawImages).filter(k => k !== "");
+                        }
+                    }
+                    // ── Variable Height ────────────────────────────────────────────
+                    let varHeight = null;
+                    // Check several known paths where BC may store this config
+                    const ext = a.Extended;
+                    const vhSrc = (_c = (_b = (_a = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _a !== void 0 ? _a : ext === null || ext === void 0 ? void 0 : ext.variableHeight) !== null && _b !== void 0 ? _b : a.VariableHeight) !== null && _c !== void 0 ? _c : a.VariableHeightConfig;
+                    if (vhSrc && typeof vhSrc === "object") {
+                        const vh = vhSrc;
+                        varHeight = {
+                            max: typeof vh.MaxHeight === "number" ? vh.MaxHeight : 100,
+                            min: typeof vh.MinHeight === "number" ? vh.MinHeight : 0,
+                        };
+                    }
+                    return { types, varHeight };
                 }
-                catch (_a) {
-                    return [];
+                catch (_d) {
+                    return { types: [], varHeight: null };
                 }
             };
             // Build a live step card — returns getStep() which always reads current field state
@@ -9103,6 +9145,7 @@
                     ? initStep.color.join(",")
                     : ((_e = initStep.color) !== null && _e !== void 0 ? _e : "");
                 let equipPropertyType = (_f = initStep.propertyType) !== null && _f !== void 0 ? _f : "";
+                let equipHeightModifier = initStep.heightModifier;
                 let unequipGroup = (_g = initStep.group) !== null && _g !== void 0 ? _g : "";
                 let emoteText = (_h = initStep.text) !== null && _h !== void 0 ? _h : "";
                 let chatFormat = (_j = initStep.chatFormat) !== null && _j !== void 0 ? _j : "";
@@ -9226,45 +9269,81 @@
                         captureBtn.textContent = "📷";
                         captureBtn.title = "Fill from currently worn item in selected slot";
                         captureBtn.style.cssText = "flex:0 0 auto;font-size:12px;padding:2px 6px;";
-                        // State/type dropdown — rebuilt when asset changes
+                        // ── State row — shows either a type dropdown OR a height input
+                        //    depending on what the selected asset supports
                         const stateRow = document.createElement("div");
                         stateRow.className = "ebc-scene-fields-row";
+                        // Type dropdown (Typed assets)
                         const stateSel = document.createElement("select");
                         stateSel.className = "ebc-scene-type-sel";
                         stateSel.style.cssText = "flex:1;width:auto;";
-                        stateSel.title = "State/type of the item (e.g. Tight, Loose, Wrist). Leave as default if the item has no variants.";
-                        const updateStateSel = () => {
+                        stateSel.title = "State/type of the item (e.g. Tight, Loose, Wrist)";
+                        // Height modifier input (VariableHeight assets)
+                        const heightWrap = document.createElement("div");
+                        heightWrap.style.cssText = "display:none;flex:1;align-items:center;gap:4px;";
+                        const heightLbl = document.createElement("span");
+                        heightLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex-shrink:0;";
+                        heightLbl.textContent = "Height:";
+                        const heightInp = document.createElement("input");
+                        heightInp.type = "number";
+                        heightInp.className = "ebc-scene-delay";
+                        heightInp.style.cssText = "flex:1;width:50px;";
+                        heightInp.title = "HeightModifier value for this item (see current value via 📷)";
+                        heightInp.value = equipHeightModifier !== undefined ? String(equipHeightModifier) : "0";
+                        heightInp.addEventListener("input", () => {
+                            const n = Number(heightInp.value);
+                            equipHeightModifier = isNaN(n) ? undefined : n;
+                        });
+                        const heightRangeLbl = document.createElement("span");
+                        heightRangeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+                        heightWrap.appendChild(heightLbl);
+                        heightWrap.appendChild(heightInp);
+                        heightWrap.appendChild(heightRangeLbl);
+                        const updateStateRow = () => {
+                            const info = getAssetExtInfo(groupSel.value, assetSel.value);
+                            // Rebuild type dropdown
                             while (stateSel.firstChild)
                                 stateSel.removeChild(stateSel.firstChild);
-                            const types = getAssetTypes(groupSel.value, assetSel.value);
                             const defOpt = document.createElement("option");
                             defOpt.value = "";
-                            defOpt.textContent = types.length ? "— default state —" : "— no variants —";
+                            defOpt.textContent = info.types.length ? "— default state —" : "— no variants —";
                             stateSel.appendChild(defOpt);
-                            for (const t of types) {
+                            for (const t of info.types) {
                                 const opt = document.createElement("option");
                                 opt.value = t;
                                 opt.textContent = t;
                                 opt.selected = t === equipPropertyType;
                                 stateSel.appendChild(opt);
                             }
-                            if (!types.includes(equipPropertyType))
+                            if (!info.types.includes(equipPropertyType))
                                 equipPropertyType = "";
                             stateSel.value = equipPropertyType;
-                            stateSel.disabled = types.length === 0;
-                            stateRow.style.display = "";
+                            stateSel.disabled = info.types.length === 0;
+                            // Update height input range label + bounds
+                            if (info.varHeight) {
+                                heightInp.min = String(info.varHeight.min);
+                                heightInp.max = String(info.varHeight.max);
+                                heightRangeLbl.textContent = `(${info.varHeight.min}–${info.varHeight.max})`;
+                                if (equipHeightModifier === undefined)
+                                    equipHeightModifier = Math.round((info.varHeight.min + info.varHeight.max) / 2);
+                                heightInp.value = String(equipHeightModifier);
+                            }
+                            // Show type dropdown when types exist, height input when varHeight,
+                            // keep type dropdown (disabled) as fallback for "no variants"
+                            stateSel.style.display = info.varHeight ? "none" : "";
+                            heightWrap.style.display = info.varHeight ? "flex" : "none";
                         };
                         stateSel.addEventListener("change", () => { equipPropertyType = stateSel.value; });
-                        // Patch updateAssetSel to also refresh the state dropdown
+                        stateRow.appendChild(stateSel);
+                        stateRow.appendChild(heightWrap);
+                        // Patch updateAssetSel to also refresh the state row
                         const origUpdateAssetSel = updateAssetSel;
                         const updateAssetSelWithState = (v) => {
                             origUpdateAssetSel(v);
-                            updateStateSel();
+                            updateStateRow();
                         };
-                        assetSel.addEventListener("change", () => updateStateSel());
-                        stateRow.appendChild(stateSel);
+                        assetSel.addEventListener("change", () => updateStateRow());
                         captureBtn.addEventListener("click", () => {
-                            var _a;
                             try {
                                 const g = groupSel.value;
                                 if (!g)
@@ -9280,21 +9359,26 @@
                                     colorInpRef.value = s;
                                     equipColorRaw = s;
                                 }
-                                // Also capture current Property.Type
-                                const propType = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Type;
-                                if (typeof propType === "string") {
-                                    equipPropertyType = propType;
-                                    stateSel.value = propType;
+                                const prop = item.Property;
+                                // Capture Property.Type
+                                if (typeof (prop === null || prop === void 0 ? void 0 : prop.Type) === "string") {
+                                    equipPropertyType = prop.Type;
+                                    stateSel.value = equipPropertyType;
+                                }
+                                // Capture Property.HeightModifier
+                                if (typeof (prop === null || prop === void 0 ? void 0 : prop.HeightModifier) === "number") {
+                                    equipHeightModifier = prop.HeightModifier;
+                                    heightInp.value = String(equipHeightModifier);
                                 }
                             }
-                            catch ( /* ignore */_b) { /* ignore */ }
+                            catch ( /* ignore */_a) { /* ignore */ }
                         });
                         row1.appendChild(groupSel);
                         row1.appendChild(assetSel);
                         row1.appendChild(captureBtn);
                         fieldsEl.appendChild(row1);
-                        // Populate state dropdown now that group+asset are set
-                        updateStateSel();
+                        // Populate state row now that group+asset are set
+                        updateStateRow();
                         fieldsEl.appendChild(stateRow);
                         const colorInp = Object.assign(document.createElement("input"), {
                             className: "ebc-form-input", type: "text",
@@ -9401,6 +9485,8 @@
                             }
                             if (equipPropertyType.trim())
                                 step.propertyType = equipPropertyType.trim();
+                            if (equipHeightModifier !== undefined)
+                                step.heightModifier = equipHeightModifier;
                             break;
                         case "unequip":
                             step.group = unequipGroup.trim();
@@ -12493,9 +12579,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.9.1";
+    const MOD_VERSION = "0.9.2";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.9.2",
+            changes: [
+                "Scenes equip: VariableHeight items (e.g. ceiling chains) now show a numeric height input instead of a type dropdown. The 📷 capture button reads Property.HeightModifier automatically. Height is applied via Property.HeightModifier at playback.",
+                "Scenes equip: type variant lookup now checks Extended.Options and Extended.Typed.Options in addition to AllowType, fixing items that use the newer BC Extended API and previously showed '— no variants —'.",
+            ],
+        },
         {
             version: "0.9.1",
             changes: [

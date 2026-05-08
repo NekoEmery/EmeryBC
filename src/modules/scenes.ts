@@ -15,6 +15,7 @@ export interface SceneStep {
     assetName?: string;         // equip: asset name
     color?: string | string[];  // equip: optional color(s)
     propertyType?: string;      // equip: item Property.Type (e.g. "Tight", "Wrist", "Double")
+    heightModifier?: number;    // equip: item Property.HeightModifier for VariableHeight items
     text?: string;              // emote / chat: message text
     chatFormat?: "" | "*" | "("; // chat: wrap style — "" plain, "*" emote, "(" OOC
 }
@@ -83,11 +84,14 @@ function executeStep(step: SceneStep): void {
                     const color = step.color as string | string[] | undefined;
                     InventoryWear(Player, step.assetName, step.group, color, undefined, Player.MemberNumber);
                     // Apply state/type (e.g. "Tight", "Wrist", "Double") if specified
-                    if (step.propertyType) {
+                    if (step.propertyType || step.heightModifier !== undefined) {
                         const worn = InventoryGet(Player, step.group);
                         if (worn) {
                             if (!worn.Property) worn.Property = {};
-                            worn.Property.Type = step.propertyType;
+                            if (step.propertyType)
+                                worn.Property.Type = step.propertyType;
+                            if (step.heightModifier !== undefined)
+                                (worn.Property as Record<string, unknown>).HeightModifier = step.heightModifier;
                         }
                     }
                     // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
