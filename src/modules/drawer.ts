@@ -4992,38 +4992,26 @@ export class EBCDrawer {
                     fieldsEl.appendChild(colorInp);
 
                 } else if (type === "unequip") {
-                    const worn = getWornItems();
-                    const itemSel = document.createElement("select");
-                    itemSel.className = "ebc-scene-type-sel";
-                    itemSel.style.cssText = "width:100%;max-width:100%;";
-                    itemSel.title = "Item to remove";
-                    if (worn.length === 0) {
-                        const opt = document.createElement("option");
-                        opt.value = ""; opt.textContent = "Nothing currently worn";
-                        itemSel.appendChild(opt);
-                    } else {
-                        let found = false;
-                        for (const w of worn) {
-                            const opt = document.createElement("option");
-                            opt.value = w.group;
-                            opt.textContent = w.itemDesc;
-                            opt.selected = w.group === unequipGroup;
-                            if (w.group === unequipGroup) found = true;
-                            itemSel.appendChild(opt);
-                        }
-                        if (!found && unequipGroup) {
-                            const opt = document.createElement("option");
-                            opt.value = unequipGroup;
-                            opt.textContent = `${unequipGroup} (not worn)`;
-                            opt.selected = true;
-                            itemSel.insertBefore(opt, itemSel.firstChild);
-                        } else if (!found) {
-                            itemSel.selectedIndex = 0;
-                            unequipGroup = worn[0]?.group ?? "";
-                        }
+                    const groups = getAllGroups();
+                    const slotSel = document.createElement("select");
+                    slotSel.className = "ebc-scene-type-sel";
+                    slotSel.style.cssText = "width:100%;max-width:100%;";
+                    slotSel.title = "Slot to clear — removes whatever is worn there when the scene plays";
+                    {
+                        const ph = document.createElement("option");
+                        ph.value = ""; ph.textContent = "— pick slot —";
+                        ph.disabled = true; ph.selected = !unequipGroup;
+                        slotSel.appendChild(ph);
                     }
-                    itemSel.addEventListener("change", () => { unequipGroup = itemSel.value; });
-                    fieldsEl.appendChild(itemSel);
+                    for (const g of groups) {
+                        const opt = document.createElement("option");
+                        opt.value = g.name;
+                        opt.textContent = g.desc;
+                        opt.selected = g.name === unequipGroup;
+                        slotSel.appendChild(opt);
+                    }
+                    slotSel.addEventListener("change", () => { unequipGroup = slotSel.value; });
+                    fieldsEl.appendChild(slotSel);
 
                 } else if (type === "emote") {
                     const textInp = Object.assign(document.createElement("input"), {

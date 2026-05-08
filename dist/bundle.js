@@ -6535,21 +6535,6 @@
                     return [];
                 }
             };
-            const getWornItems = () => {
-                try {
-                    return Player.Appearance.map(item => {
-                        var _a;
-                        return ({
-                            group: item.Asset.Group.Name,
-                            itemDesc: ((_a = item.Asset.Description) === null || _a === void 0 ? void 0 : _a.trim())
-                                || item.Asset.Name,
-                        });
-                    }).sort((a, b) => a.itemDesc.localeCompare(b.itemDesc));
-                }
-                catch (_a) {
-                    return [];
-                }
-            };
             // Build a live step card — returns getStep() which always reads current field state
             const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete) => {
                 var _a, _b, _c, _d, _e, _f, _g;
@@ -6616,7 +6601,7 @@
                 // Colour input reference for the capture button to update
                 let colorInpRef = null;
                 const renderFields = (type) => {
-                    var _a, _b, _c, _d;
+                    var _a, _b;
                     while (fieldsEl.firstChild)
                         fieldsEl.removeChild(fieldsEl.firstChild);
                     if (type === "pose") {
@@ -6766,42 +6751,28 @@
                         fieldsEl.appendChild(colorInp);
                     }
                     else if (type === "unequip") {
-                        const worn = getWornItems();
-                        const itemSel = document.createElement("select");
-                        itemSel.className = "ebc-scene-type-sel";
-                        itemSel.style.cssText = "width:100%;max-width:100%;";
-                        itemSel.title = "Item to remove";
-                        if (worn.length === 0) {
+                        const groups = getAllGroups();
+                        const slotSel = document.createElement("select");
+                        slotSel.className = "ebc-scene-type-sel";
+                        slotSel.style.cssText = "width:100%;max-width:100%;";
+                        slotSel.title = "Slot to clear — removes whatever is worn there when the scene plays";
+                        {
+                            const ph = document.createElement("option");
+                            ph.value = "";
+                            ph.textContent = "— pick slot —";
+                            ph.disabled = true;
+                            ph.selected = !unequipGroup;
+                            slotSel.appendChild(ph);
+                        }
+                        for (const g of groups) {
                             const opt = document.createElement("option");
-                            opt.value = "";
-                            opt.textContent = "Nothing currently worn";
-                            itemSel.appendChild(opt);
+                            opt.value = g.name;
+                            opt.textContent = g.desc;
+                            opt.selected = g.name === unequipGroup;
+                            slotSel.appendChild(opt);
                         }
-                        else {
-                            let found = false;
-                            for (const w of worn) {
-                                const opt = document.createElement("option");
-                                opt.value = w.group;
-                                opt.textContent = w.itemDesc;
-                                opt.selected = w.group === unequipGroup;
-                                if (w.group === unequipGroup)
-                                    found = true;
-                                itemSel.appendChild(opt);
-                            }
-                            if (!found && unequipGroup) {
-                                const opt = document.createElement("option");
-                                opt.value = unequipGroup;
-                                opt.textContent = `${unequipGroup} (not worn)`;
-                                opt.selected = true;
-                                itemSel.insertBefore(opt, itemSel.firstChild);
-                            }
-                            else if (!found) {
-                                itemSel.selectedIndex = 0;
-                                unequipGroup = (_d = (_c = worn[0]) === null || _c === void 0 ? void 0 : _c.group) !== null && _d !== void 0 ? _d : "";
-                            }
-                        }
-                        itemSel.addEventListener("change", () => { unequipGroup = itemSel.value; });
-                        fieldsEl.appendChild(itemSel);
+                        slotSel.addEventListener("change", () => { unequipGroup = slotSel.value; });
+                        fieldsEl.appendChild(slotSel);
                     }
                     else if (type === "emote") {
                         const textInp = Object.assign(document.createElement("input"), {
