@@ -2,6 +2,7 @@
 import { EBCDrawer } from "./modules/drawer";
 import { handleOutfitCommand } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
+import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge } from "./modules/settings";
@@ -11,10 +12,16 @@ import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.4.8";
+const MOD_VERSION = "0.4.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.4.9",
+        changes: [
+            "New: Scene sequencer in the ANIMS tab — chain pose changes, item equips/unequips, emotes and waits into timed sequences with optional chat commands.",
+        ],
+    },
     {
         version: "0.4.8",
         changes: [
@@ -961,7 +968,7 @@ function init(): void {
         try {
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = document.getElementById("InputChat") as HTMLInputElement | null;
-                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleDomCommand(input.value))) {
+                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
                     input.value = "";
                     return;
                 }
@@ -975,7 +982,7 @@ function init(): void {
     modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
         try {
             const input = document.getElementById("InputChat") as HTMLInputElement | null;
-            if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleDomCommand(input.value))) {
+            if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
                 input.value = "";
                 return;
             }

@@ -23,17 +23,17 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$5() {
+    function getStore$6() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getButtons() {
-        const stored = getStore$5().actionButtons;
+        const stored = getStore$6().actionButtons;
         return Array.isArray(stored) ? stored : DEFAULT_BUTTONS;
     }
     function getSlotCount() {
-        const store = getStore$5();
+        const store = getStore$6();
         const n = store.actionSlotCount;
         if (typeof n === "number")
             return Math.min(ABSOLUTE_MAX, Math.max(1, n));
@@ -41,7 +41,7 @@
         return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$5();
+        const store = getStore$6();
         store.actionButtons = buttons;
         store.actionSlotCount = slotCount;
         ServerPlayerExtensionSettingsSync("EmeryBC");
@@ -578,7 +578,7 @@
             return null;
         }
         const outfit = {
-            id: uid$3(),
+            id: uid$4(),
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
@@ -690,12 +690,12 @@
         let suffix = 2;
         while (existing.some(o => o.command === finalCmd))
             finalCmd = baseCmd + suffix++;
-        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$3(), command: finalCmd }));
+        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$4(), command: finalCmd }));
         saveOutfits([...existing, outfit]);
         localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
     }
-    function uid$3() {
+    function uid$4() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getSchedules() {
@@ -707,7 +707,7 @@
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function addSchedule(outfitId, time) {
-        const schedule = { id: uid$3(), outfitId, time, enabled: true };
+        const schedule = { id: uid$4(), outfitId, time, enabled: true };
         saveSchedules([...getSchedules(), schedule]);
         return schedule;
     }
@@ -799,7 +799,7 @@
             finalCmd = baseCmd + sfx++;
         const includesRestraints = mode !== "outfit";
         const outfit = sanitizeOutfit({
-            id: uid$3(),
+            id: uid$4(),
             command: finalCmd,
             displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
@@ -815,30 +815,30 @@
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function getStore$4() {
+    function getStore$5() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
-    function load$1() {
-        const list = getStore$4().palettes;
+    function load$2() {
+        const list = getStore$5().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getStore$4().palettes = list;
+        getStore$5().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function uid$2() {
+    function uid$3() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getAllPalettes() {
-        return load$1();
+        return load$2();
     }
     function getPalettesByType(type) {
-        return load$1().filter(p => p.type === type);
+        return load$2().filter(p => p.type === type);
     }
     // Snapshot current appearance colors as a new named palette (all slots).
     function captureCurrentPalette(name) {
@@ -848,8 +848,8 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$2(), name: name.trim() || "Palette", type: "outfit", colorMap };
-        save([...load$1(), palette]);
+        const palette = { id: uid$3(), name: name.trim() || "Palette", type: "outfit", colorMap };
+        save([...load$2(), palette]);
         return palette;
     }
     // Snapshot only the colors of active restraint items as a named palette.
@@ -860,8 +860,8 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$2(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
-        save([...load$1(), palette]);
+        const palette = { id: uid$3(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
+        save([...load$2(), palette]);
         return palette;
     }
     // Locks that block color edits — owner/exclusive/high-security tiers.
@@ -884,7 +884,7 @@
     // the palette are updated; everything else is left as-is.
     // For restraint palettes, items with owner/exclusive/high-security locks are skipped.
     function applyPalette(id) {
-        const palette = load$1().find(p => p.id === id);
+        const palette = load$2().find(p => p.id === id);
         if (!palette)
             return false;
         for (const item of Player.Appearance) {
@@ -904,10 +904,10 @@
         return true;
     }
     function deletePalette(id) {
-        save(load$1().filter(p => p.id !== id));
+        save(load$2().filter(p => p.id !== id));
     }
     function renamePalette(id, name) {
-        const list = load$1();
+        const list = load$2();
         const p = list.find(x => x.id === id);
         if (p && name.trim()) {
             p.name = name.trim();
@@ -976,35 +976,35 @@
         }
     }
     // -- Combo storage -------------------------------------------------------
-    function getStore$3() {
+    function getStore$4() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
-    function uid$1() { return Math.random().toString(36).slice(2, 9); }
-    function load() {
-        const list = getStore$3().poseCombos;
+    function uid$2() { return Math.random().toString(36).slice(2, 9); }
+    function load$1() {
+        const list = getStore$4().poseCombos;
         return Array.isArray(list) ? list : [];
     }
     function saveCombos(list) {
-        getStore$3().poseCombos = list;
+        getStore$4().poseCombos = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function getPoseCombos() { return load(); }
+    function getPoseCombos() { return load$1(); }
     function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
         const combo = {
-            id: uid$1(),
+            id: uid$2(),
             name: name.trim() || "Combo",
             poses: poses.filter(Boolean),
             stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
             command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
             announceText: announceText.trim() || undefined,
         };
-        saveCombos([...load(), combo]);
+        saveCombos([...load$1(), combo]);
         return combo;
     }
     function updateCombo(id, name, poses, command = "", announceText = "", stepDelayMs = 420) {
-        const list = load();
+        const list = load$1();
         const combo = list.find(c => c.id === id);
         if (!combo)
             return;
@@ -1016,7 +1016,7 @@
         saveCombos(list);
     }
     function deleteCombo(id) {
-        saveCombos(load().filter(c => c.id !== id));
+        saveCombos(load$1().filter(c => c.id !== id));
     }
     // Apply a combo (animation + announce text). Used by both the chat command handler
     // and the ▶ apply button in the drawer so announce always fires either way.
@@ -1047,10 +1047,116 @@
         if (!trimmed.startsWith("/"))
             return false;
         const command = trimmed.slice(1).toLowerCase();
-        const combo = load().find(c => c.command && c.command.toLowerCase() === command);
+        const combo = load$1().find(c => c.command && c.command.toLowerCase() === command);
         if (!combo)
             return false;
         applyCombo(combo);
+        return true;
+    }
+
+    // Scene sequencer — chain pose changes, item equips/unequips, emotes and
+    // waits into a named sequence that plays back step by step with per-step timing.
+    function getStore$3() {
+        if (!Player.ExtensionSettings.EmeryBC)
+            Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function uid$1() { return Math.random().toString(36).slice(2, 9); }
+    function load() {
+        const raw = getStore$3().scenes;
+        return Array.isArray(raw) ? raw : [];
+    }
+    function saveScenes(list) {
+        getStore$3().scenes = list;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function getScenes() { return load(); }
+    function createScene(name, steps, command = "") {
+        const scene = {
+            id: uid$1(),
+            name: name.trim() || "Scene",
+            steps,
+            command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
+        };
+        saveScenes([...load(), scene]);
+        return scene;
+    }
+    function updateScene(id, name, steps, command = "") {
+        const list = load();
+        const scene = list.find(s => s.id === id);
+        if (!scene)
+            return;
+        scene.name = name.trim() || scene.name;
+        scene.steps = steps;
+        scene.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
+        saveScenes(list);
+    }
+    function deleteScene(id) {
+        saveScenes(load().filter(s => s.id !== id));
+    }
+    function executeStep(step) {
+        var _a, _b;
+        try {
+            switch (step.type) {
+                case "pose":
+                    applyPoses((_a = step.poses) !== null && _a !== void 0 ? _a : []);
+                    break;
+                case "equip":
+                    if (step.group && step.assetName) {
+                        InventoryAdd(Player, step.assetName, step.group, false);
+                        if (step.color !== undefined) {
+                            const item = InventoryGet(Player, step.group);
+                            if (item)
+                                item.Color = step.color;
+                        }
+                        CharacterRefresh(Player, false);
+                        ChatRoomCharacterUpdate(Player);
+                        ServerPlayerAppearanceSync();
+                    }
+                    break;
+                case "unequip":
+                    if (step.group) {
+                        InventoryRemove(Player, step.group, false);
+                        CharacterRefresh(Player, false);
+                        ChatRoomCharacterUpdate(Player);
+                        ServerPlayerAppearanceSync();
+                    }
+                    break;
+                case "emote":
+                    if ((_b = step.text) === null || _b === void 0 ? void 0 : _b.trim()) {
+                        ServerSend("ChatRoomChat", {
+                            Type: "Action",
+                            Content: getDisplayName() + " " + step.text.trim(),
+                            Dictionary: [
+                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                                { SourceCharacter: Player.MemberNumber },
+                            ],
+                        });
+                    }
+                    break;
+                case "wait":
+                    break; // delay alone is the effect
+            }
+        }
+        catch ( /* ignore */_c) { /* ignore */ }
+    }
+    function runScene(scene) {
+        let elapsed = 0;
+        for (const step of scene.steps) {
+            elapsed += step.delayMs;
+            const s = step;
+            window.setTimeout(() => executeStep(s), elapsed);
+        }
+    }
+    function handleSceneCommand(inputValue) {
+        const trimmed = inputValue.trim();
+        if (!trimmed.startsWith("/"))
+            return false;
+        const command = trimmed.slice(1).toLowerCase();
+        const scene = load().find(s => s.command && s.command.toLowerCase() === command);
+        if (!scene)
+            return false;
+        runScene(scene);
         return true;
     }
 
@@ -3256,6 +3362,68 @@
     font-family: "Trebuchet MS", serif;
     min-width: 44px;
     text-align: right;
+}
+
+/* -- Scene step cards -- */
+.ebc-scene-step {
+    background: #1a0d15;
+    border: 1px solid #3a1928;
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ebc-scene-step-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ebc-scene-type-sel {
+    flex: 0 0 auto;
+    width: 76px;
+    padding: 2px 4px;
+    font-size: 11px;
+    background: #130810;
+    border: 1px solid #5a2840;
+    border-radius: 4px;
+    color: #e8d0d8;
+    font-family: "Trebuchet MS", serif;
+    cursor: pointer;
+}
+
+.ebc-scene-delay {
+    width: 54px;
+    padding: 2px 4px;
+    font-size: 11px;
+    text-align: right;
+    background: #130810;
+    border: 1px solid #5a2840;
+    border-radius: 4px;
+    color: #e8d0d8;
+    font-family: "Trebuchet MS", serif;
+}
+
+.ebc-scene-ms-lbl {
+    font-size: 10px;
+    color: #9a6878;
+    flex-shrink: 0;
+}
+
+.ebc-scene-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ebc-scene-fields-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
 }
 
 /* -- Free-float panel mode -- */
@@ -6308,6 +6476,562 @@
                     window.setTimeout(() => newComboToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
                 }
             });
+            // ── SCENES ────────────────────────────────────────────────────────────
+            this.renderScenes(body);
+        }
+        renderScenes(body) {
+            var _a, _b, _c, _d, _e;
+            const STEP_TYPE_LABELS = {
+                pose: "Pose", equip: "Equip", unequip: "Unequip", emote: "Emote", wait: "Wait",
+            };
+            const ALL_STEP_TYPES = ["pose", "equip", "unequip", "emote", "wait"];
+            const bodyPoses = (_b = (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses) !== null && _b !== void 0 ? _b : [];
+            const armPoses = (_d = (_c = KNOWN_POSES.find(g => g.group === "Arms")) === null || _c === void 0 ? void 0 : _c.poses) !== null && _d !== void 0 ? _d : [];
+            // Build a live step card — returns getStep() which always reads current field state
+            const buildStepCard = (initStep, onMoveUp, onMoveDown, onDelete) => {
+                var _a, _b, _c, _d, _e, _f, _g;
+                const card = document.createElement("div");
+                card.className = "ebc-scene-step";
+                // Header: type select, delay input, move/delete buttons
+                const header = document.createElement("div");
+                header.className = "ebc-scene-step-header";
+                const typeSelect = document.createElement("select");
+                typeSelect.className = "ebc-scene-type-sel";
+                for (const t of ALL_STEP_TYPES) {
+                    const opt = document.createElement("option");
+                    opt.value = t;
+                    opt.textContent = STEP_TYPE_LABELS[t];
+                    opt.selected = t === initStep.type;
+                    typeSelect.appendChild(opt);
+                }
+                const delayInp = document.createElement("input");
+                delayInp.type = "number";
+                delayInp.className = "ebc-scene-delay";
+                delayInp.min = "0";
+                delayInp.max = "30000";
+                delayInp.value = String(initStep.delayMs);
+                delayInp.title = "Milliseconds to wait before this step fires";
+                const msLbl = document.createElement("span");
+                msLbl.className = "ebc-scene-ms-lbl";
+                msLbl.textContent = "ms delay";
+                const upBtn = document.createElement("button");
+                upBtn.className = "ebc-step-move";
+                upBtn.textContent = "↑";
+                upBtn.disabled = onMoveUp === null;
+                if (onMoveUp)
+                    upBtn.addEventListener("click", onMoveUp);
+                const downBtn = document.createElement("button");
+                downBtn.className = "ebc-step-move";
+                downBtn.textContent = "↓";
+                downBtn.disabled = onMoveDown === null;
+                if (onMoveDown)
+                    downBtn.addEventListener("click", onMoveDown);
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-step-del";
+                delBtn.textContent = "×";
+                delBtn.addEventListener("click", onDelete);
+                header.appendChild(typeSelect);
+                header.appendChild(delayInp);
+                header.appendChild(msLbl);
+                header.appendChild(upBtn);
+                header.appendChild(downBtn);
+                header.appendChild(delBtn);
+                card.appendChild(header);
+                // Fields area — rebuilt when type changes
+                const fieldsEl = document.createElement("div");
+                fieldsEl.className = "ebc-scene-fields";
+                card.appendChild(fieldsEl);
+                // Per-type mutable state (seeded from initStep)
+                let posePoses = (_b = (_a = initStep.poses) === null || _a === void 0 ? void 0 : _a.slice()) !== null && _b !== void 0 ? _b : [];
+                let equipGroup = (_c = initStep.group) !== null && _c !== void 0 ? _c : "";
+                let equipAsset = (_d = initStep.assetName) !== null && _d !== void 0 ? _d : "";
+                let equipColorRaw = Array.isArray(initStep.color)
+                    ? initStep.color.join(",")
+                    : ((_e = initStep.color) !== null && _e !== void 0 ? _e : "");
+                let unequipGroup = (_f = initStep.group) !== null && _f !== void 0 ? _f : "";
+                let emoteText = (_g = initStep.text) !== null && _g !== void 0 ? _g : "";
+                // Colour input reference for the capture button to update
+                let colorInpRef = null;
+                const renderFields = (type) => {
+                    var _a, _b;
+                    while (fieldsEl.firstChild)
+                        fieldsEl.removeChild(fieldsEl.firstChild);
+                    if (type === "pose") {
+                        const row = document.createElement("div");
+                        row.className = "ebc-scene-fields-row";
+                        const makeAxisDropdown = (label, poses, currentKey, dataAttr) => {
+                            const wrap = document.createElement("div");
+                            wrap.style.cssText = "display:flex;align-items:center;gap:4px;";
+                            const lbl = document.createElement("span");
+                            lbl.style.cssText = "font-size:10px;color:#9a6878;";
+                            lbl.textContent = label + ":";
+                            const sel = document.createElement("select");
+                            sel.className = "ebc-scene-type-sel";
+                            sel.style.width = "90px";
+                            sel.dataset.axis = dataAttr;
+                            // "None" option for arms axis
+                            if (dataAttr === "arms") {
+                                const none = document.createElement("option");
+                                none.value = "";
+                                none.textContent = "None";
+                                none.selected = currentKey === "";
+                                sel.appendChild(none);
+                            }
+                            for (const p of poses) {
+                                if (dataAttr === "body" || p.key !== "") {
+                                    const opt = document.createElement("option");
+                                    opt.value = p.key;
+                                    opt.textContent = p.label;
+                                    opt.selected = p.key === currentKey;
+                                    sel.appendChild(opt);
+                                }
+                            }
+                            sel.addEventListener("change", () => {
+                                var _a, _b, _c, _d;
+                                const bKey = (_b = (_a = fieldsEl.querySelector("[data-axis='body']")) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "";
+                                const aKey = (_d = (_c = fieldsEl.querySelector("[data-axis='arms']")) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : "";
+                                posePoses = [bKey, aKey].filter(Boolean);
+                            });
+                            wrap.appendChild(lbl);
+                            wrap.appendChild(sel);
+                            row.appendChild(wrap);
+                            return sel;
+                        };
+                        const curBody = (_a = posePoses.find(k => bodyPoses.some(p => p.key === k))) !== null && _a !== void 0 ? _a : "";
+                        const curArms = (_b = posePoses.find(k => armPoses.some(p => p.key === k && p.key !== ""))) !== null && _b !== void 0 ? _b : "";
+                        makeAxisDropdown("Body", bodyPoses, curBody, "body");
+                        makeAxisDropdown("Arms", armPoses, curArms, "arms");
+                        fieldsEl.appendChild(row);
+                    }
+                    else if (type === "equip") {
+                        const row1 = document.createElement("div");
+                        row1.className = "ebc-scene-fields-row";
+                        const groupInp = Object.assign(document.createElement("input"), {
+                            className: "ebc-form-input", type: "text",
+                            placeholder: "Group (e.g. Cloth)", value: equipGroup, maxLength: 40,
+                        });
+                        groupInp.style.flex = "1";
+                        groupInp.addEventListener("input", () => { equipGroup = groupInp.value; });
+                        const assetInp = Object.assign(document.createElement("input"), {
+                            className: "ebc-form-input", type: "text",
+                            placeholder: "Asset name", value: equipAsset, maxLength: 60,
+                        });
+                        assetInp.style.flex = "1";
+                        assetInp.addEventListener("input", () => { equipAsset = assetInp.value; });
+                        const captureBtn = document.createElement("button");
+                        captureBtn.className = "ebc-update-btn";
+                        captureBtn.textContent = "📷 Capture";
+                        captureBtn.title = "Fill fields from currently worn item in the typed group";
+                        captureBtn.style.cssText = "flex:0 0 auto;font-size:10px;padding:2px 6px;";
+                        captureBtn.addEventListener("click", () => {
+                            try {
+                                const g = groupInp.value.trim();
+                                if (!g) {
+                                    groupInp.style.borderColor = "#cf6f98";
+                                    return;
+                                }
+                                const item = InventoryGet(Player, g);
+                                if (!item) {
+                                    assetInp.placeholder = "Nothing worn in that group";
+                                    return;
+                                }
+                                assetInp.value = item.Asset.Name;
+                                equipAsset = item.Asset.Name;
+                                const c = item.Color;
+                                if (c !== undefined && colorInpRef) {
+                                    const s = Array.isArray(c) ? c.join(",") : String(c);
+                                    colorInpRef.value = s;
+                                    equipColorRaw = s;
+                                }
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                        });
+                        row1.appendChild(groupInp);
+                        row1.appendChild(assetInp);
+                        row1.appendChild(captureBtn);
+                        fieldsEl.appendChild(row1);
+                        const colorInp = Object.assign(document.createElement("input"), {
+                            className: "ebc-form-input", type: "text",
+                            placeholder: "Color — optional, e.g. Default or #ff0000,Default",
+                            value: equipColorRaw, maxLength: 200,
+                        });
+                        colorInp.addEventListener("input", () => { equipColorRaw = colorInp.value; });
+                        colorInpRef = colorInp;
+                        fieldsEl.appendChild(colorInp);
+                    }
+                    else if (type === "unequip") {
+                        const groupInp = Object.assign(document.createElement("input"), {
+                            className: "ebc-form-input", type: "text",
+                            placeholder: "Group (e.g. Cloth)", value: unequipGroup, maxLength: 40,
+                        });
+                        groupInp.addEventListener("input", () => { unequipGroup = groupInp.value; });
+                        fieldsEl.appendChild(groupInp);
+                    }
+                    else if (type === "emote") {
+                        const textInp = Object.assign(document.createElement("input"), {
+                            className: "ebc-form-input", type: "text",
+                            placeholder: "Action text (e.g. slowly removes her shirt...)",
+                            value: emoteText, maxLength: 200,
+                        });
+                        textInp.addEventListener("input", () => { emoteText = textInp.value; });
+                        fieldsEl.appendChild(textInp);
+                    }
+                    // wait: no extra fields — delay IS the step
+                };
+                let currentType = initStep.type;
+                renderFields(currentType);
+                typeSelect.addEventListener("change", () => {
+                    currentType = typeSelect.value;
+                    renderFields(currentType);
+                });
+                const getStep = () => {
+                    const delay = Math.max(0, Math.min(30000, Number(delayInp.value) || 0));
+                    const step = { type: currentType, delayMs: delay };
+                    switch (currentType) {
+                        case "pose":
+                            step.poses = posePoses.filter(Boolean);
+                            break;
+                        case "equip":
+                            step.group = equipGroup.trim();
+                            step.assetName = equipAsset.trim();
+                            if (equipColorRaw.trim()) {
+                                const parts = equipColorRaw.split(",").map(s => s.trim()).filter(Boolean);
+                                step.color = parts.length === 1 ? parts[0] : parts;
+                            }
+                            break;
+                        case "unequip":
+                            step.group = unequipGroup.trim();
+                            break;
+                        case "emote":
+                            step.text = emoteText.trim();
+                            break;
+                    }
+                    return step;
+                };
+                return { el: card, getStep };
+            };
+            // Build a full step list editor — returns getSteps()
+            const buildSceneEditor = (parent, initSteps) => {
+                const steps = initSteps.map(s => (Object.assign({}, s)));
+                const entries = [];
+                const stepsContainer = document.createElement("div");
+                parent.appendChild(stepsContainer);
+                const syncFromEntries = () => {
+                    for (let i = 0; i < entries.length; i++) {
+                        steps[i] = entries[i].getStep();
+                    }
+                };
+                const fullRebuild = () => {
+                    entries.length = 0;
+                    while (stepsContainer.firstChild)
+                        stepsContainer.removeChild(stepsContainer.firstChild);
+                    if (steps.length === 0) {
+                        const empty = document.createElement("div");
+                        empty.className = "ebc-import-hint";
+                        empty.style.cssText = "text-align:center;padding:5px 0 3px;";
+                        empty.textContent = "No steps yet — add one below.";
+                        stepsContainer.appendChild(empty);
+                        return;
+                    }
+                    for (let i = 0; i < steps.length; i++) {
+                        const idx = i;
+                        const entry = buildStepCard(steps[i], idx > 0 ? () => {
+                            syncFromEntries();
+                            [steps[idx - 1], steps[idx]] = [steps[idx], steps[idx - 1]];
+                            fullRebuild();
+                        } : null, idx < steps.length - 1 ? () => {
+                            syncFromEntries();
+                            [steps[idx], steps[idx + 1]] = [steps[idx + 1], steps[idx]];
+                            fullRebuild();
+                        } : null, () => {
+                            syncFromEntries();
+                            steps.splice(idx, 1);
+                            fullRebuild();
+                        });
+                        entries.push(entry);
+                        stepsContainer.appendChild(entry.el);
+                    }
+                };
+                fullRebuild();
+                // Add step row
+                const addRow = document.createElement("div");
+                addRow.style.cssText = "display:flex;gap:5px;margin-top:4px;align-items:center;";
+                const addTypeSel = document.createElement("select");
+                addTypeSel.className = "ebc-scene-type-sel";
+                addTypeSel.style.width = "80px";
+                for (const t of ALL_STEP_TYPES) {
+                    const opt = document.createElement("option");
+                    opt.value = t;
+                    opt.textContent = STEP_TYPE_LABELS[t];
+                    addTypeSel.appendChild(opt);
+                }
+                const addBtn = document.createElement("button");
+                addBtn.className = "ebc-update-btn";
+                addBtn.textContent = "+ Add Step";
+                addBtn.addEventListener("click", () => {
+                    syncFromEntries();
+                    const defDelays = {
+                        pose: 500, equip: 800, unequip: 600, emote: 100, wait: 1000,
+                    };
+                    steps.push({ type: addTypeSel.value, delayMs: defDelays[addTypeSel.value] });
+                    fullRebuild();
+                    window.setTimeout(() => { var _a; return (_a = stepsContainer.lastElementChild) === null || _a === void 0 ? void 0 : _a.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 30);
+                });
+                addRow.appendChild(addTypeSel);
+                addRow.appendChild(addBtn);
+                parent.appendChild(addRow);
+                return { getSteps: () => entries.map(e => e.getStep()) };
+            };
+            // ── Scene list ─────────────────────────────────────────────────────────
+            const sceneDivider = document.createElement("div");
+            sceneDivider.className = "ebc-divider";
+            body.appendChild(sceneDivider);
+            const scenesLbl = document.createElement("div");
+            scenesLbl.className = "ebc-section-label";
+            scenesLbl.textContent = "SCENES";
+            body.appendChild(scenesLbl);
+            const scenesHint = document.createElement("div");
+            scenesHint.className = "ebc-import-hint";
+            scenesHint.style.marginBottom = "6px";
+            scenesHint.textContent = "Chain poses, item changes, emotes and pauses into a timed sequence.";
+            body.appendChild(scenesHint);
+            const scenes = getScenes();
+            if (scenes.length === 0) {
+                const none = document.createElement("div");
+                none.className = "ebc-empty";
+                none.style.padding = "4px 0 6px";
+                none.textContent = "No scenes yet — create one below.";
+                body.appendChild(none);
+            }
+            for (const scene of scenes) {
+                const wrapper = document.createElement("div");
+                wrapper.style.marginBottom = "3px";
+                const row = document.createElement("div");
+                row.className = "ebc-combo-row";
+                row.style.cssText += ";border-radius:6px;margin-bottom:0;";
+                const nameEl = document.createElement("span");
+                nameEl.className = "ebc-combo-name";
+                nameEl.textContent = scene.name;
+                if (scene.command)
+                    nameEl.title = `/${scene.command}`;
+                const stepCountEl = document.createElement("span");
+                stepCountEl.className = "ebc-combo-poses";
+                stepCountEl.textContent = `${scene.steps.length} step${scene.steps.length !== 1 ? "s" : ""}`;
+                if (scene.command) {
+                    const badge = document.createElement("span");
+                    badge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
+                    badge.textContent = `/${scene.command}`;
+                    stepCountEl.appendChild(badge);
+                }
+                const playBtn = document.createElement("button");
+                playBtn.className = "ebc-wear-btn";
+                playBtn.textContent = "▶";
+                playBtn.title = "Play this scene";
+                playBtn.style.padding = "3px 8px";
+                playBtn.addEventListener("click", () => {
+                    playBtn.disabled = true;
+                    playBtn.textContent = "…";
+                    runScene(scene);
+                    const totalMs = scene.steps.reduce((s, st) => s + st.delayMs, 0) + 500;
+                    window.setTimeout(() => {
+                        playBtn.disabled = false;
+                        playBtn.textContent = "▶";
+                        this.renderPoses();
+                    }, totalMs);
+                });
+                const editBtn = document.createElement("button");
+                editBtn.className = "ebc-edit-btn";
+                editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+                editBtn.title = "Edit scene";
+                let delPending = false;
+                let delTimer = null;
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-outfit-del";
+                delBtn.textContent = "×";
+                delBtn.title = "Delete scene";
+                delBtn.addEventListener("click", () => {
+                    if (!delPending) {
+                        delPending = true;
+                        delBtn.classList.add("confirm");
+                        delBtn.textContent = "Sure?";
+                        delTimer = window.setTimeout(() => {
+                            delPending = false;
+                            delBtn.classList.remove("confirm");
+                            delBtn.textContent = "×";
+                        }, 2500);
+                    }
+                    else {
+                        if (delTimer)
+                            window.clearTimeout(delTimer);
+                        deleteScene(scene.id);
+                        this.renderPoses();
+                    }
+                });
+                row.appendChild(nameEl);
+                row.appendChild(stepCountEl);
+                row.appendChild(playBtn);
+                row.appendChild(editBtn);
+                row.appendChild(delBtn);
+                // Inline editor
+                const editor = document.createElement("div");
+                editor.className = "ebc-combo-editor";
+                const eNameRow = document.createElement("div");
+                eNameRow.className = "ebc-form-row";
+                const eNameLbl = document.createElement("span");
+                eNameLbl.className = "ebc-form-label";
+                eNameLbl.textContent = "Name";
+                const eNameInp = Object.assign(document.createElement("input"), {
+                    className: "ebc-form-input", type: "text", value: scene.name, maxLength: 40,
+                });
+                eNameInp.style.flex = "1";
+                eNameRow.appendChild(eNameLbl);
+                eNameRow.appendChild(eNameInp);
+                editor.appendChild(eNameRow);
+                const eCmdRow = document.createElement("div");
+                eCmdRow.className = "ebc-form-row";
+                const eCmdLbl = document.createElement("span");
+                eCmdLbl.className = "ebc-form-label";
+                eCmdLbl.textContent = "Command";
+                const eCmdPrefix = document.createElement("span");
+                eCmdPrefix.style.cssText = "color:#cf6f98;font-weight:600;margin-right:2px;";
+                eCmdPrefix.textContent = "/";
+                const eCmdInp = Object.assign(document.createElement("input"), {
+                    className: "ebc-form-input", type: "text",
+                    value: (_e = scene.command) !== null && _e !== void 0 ? _e : "", placeholder: "optional", maxLength: 30,
+                });
+                eCmdInp.style.flex = "1";
+                const eCmdWrap = document.createElement("div");
+                eCmdWrap.style.cssText = "display:flex;align-items:center;flex:1;";
+                eCmdWrap.appendChild(eCmdPrefix);
+                eCmdWrap.appendChild(eCmdInp);
+                eCmdRow.appendChild(eCmdLbl);
+                eCmdRow.appendChild(eCmdWrap);
+                editor.appendChild(eCmdRow);
+                const topSaveBar = document.createElement("div");
+                topSaveBar.className = "ebc-editor-save-bar";
+                const topSaveBtn = document.createElement("button");
+                topSaveBtn.className = "ebc-update-btn";
+                topSaveBtn.textContent = "✓ Save Changes";
+                topSaveBtn.style.cssText = "flex:1;font-size:11px;";
+                topSaveBar.appendChild(topSaveBtn);
+                editor.appendChild(topSaveBar);
+                const stepsLbl = document.createElement("div");
+                stepsLbl.className = "ebc-import-hint";
+                stepsLbl.textContent = "Steps:";
+                editor.appendChild(stepsLbl);
+                const { getSteps } = buildSceneEditor(editor, scene.steps);
+                topSaveBtn.addEventListener("click", () => {
+                    updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
+                    this.renderPoses();
+                });
+                const botSaveBar = document.createElement("div");
+                botSaveBar.className = "ebc-editor-save-bar";
+                botSaveBar.style.marginTop = "2px";
+                const botSaveBtn = document.createElement("button");
+                botSaveBtn.className = "ebc-create-btn";
+                botSaveBtn.textContent = "Save Changes";
+                botSaveBtn.addEventListener("click", () => {
+                    updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
+                    this.renderPoses();
+                });
+                botSaveBar.appendChild(botSaveBtn);
+                editor.appendChild(botSaveBar);
+                editBtn.addEventListener("click", () => {
+                    const open = editor.classList.contains("open");
+                    editor.classList.toggle("open", !open);
+                    editBtn.classList.toggle("open", !open);
+                    row.style.borderRadius = open ? "6px" : "6px 6px 0 0";
+                    if (!open)
+                        window.setTimeout(() => row.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+                });
+                wrapper.appendChild(row);
+                wrapper.appendChild(editor);
+                body.appendChild(wrapper);
+            }
+            // ── New scene form ─────────────────────────────────────────────────────
+            const sceneDivider2 = document.createElement("div");
+            sceneDivider2.className = "ebc-divider";
+            body.appendChild(sceneDivider2);
+            const newSceneToggle = document.createElement("button");
+            newSceneToggle.className = "ebc-new-outfit-btn";
+            newSceneToggle.textContent = "+ New Scene";
+            body.appendChild(newSceneToggle);
+            const newSceneForm = document.createElement("div");
+            newSceneForm.className = "ebc-new-form";
+            body.appendChild(newSceneForm);
+            const nsNameRow = document.createElement("div");
+            nsNameRow.className = "ebc-form-row";
+            const nsNameLbl = document.createElement("span");
+            nsNameLbl.className = "ebc-form-label";
+            nsNameLbl.textContent = "Name";
+            const nsNameInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "e.g. Striptease", maxLength: 40,
+            });
+            nsNameInp.style.flex = "1";
+            nsNameRow.appendChild(nsNameLbl);
+            nsNameRow.appendChild(nsNameInp);
+            newSceneForm.appendChild(nsNameRow);
+            const nsCmdRow = document.createElement("div");
+            nsCmdRow.className = "ebc-form-row";
+            const nsCmdLbl = document.createElement("span");
+            nsCmdLbl.className = "ebc-form-label";
+            nsCmdLbl.textContent = "Command";
+            const nsCmdPrefix = document.createElement("span");
+            nsCmdPrefix.style.cssText = "color:#cf6f98;font-weight:600;margin-right:2px;";
+            nsCmdPrefix.textContent = "/";
+            const nsCmdInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "optional", maxLength: 30,
+            });
+            nsCmdInp.style.flex = "1";
+            const nsCmdWrap = document.createElement("div");
+            nsCmdWrap.style.cssText = "display:flex;align-items:center;flex:1;";
+            nsCmdWrap.appendChild(nsCmdPrefix);
+            nsCmdWrap.appendChild(nsCmdInp);
+            nsCmdRow.appendChild(nsCmdLbl);
+            nsCmdRow.appendChild(nsCmdWrap);
+            newSceneForm.appendChild(nsCmdRow);
+            const nsTopSaveBar = document.createElement("div");
+            nsTopSaveBar.className = "ebc-editor-save-bar";
+            const nsTopSaveBtn = document.createElement("button");
+            nsTopSaveBtn.className = "ebc-update-btn";
+            nsTopSaveBtn.textContent = "✓ Save Scene";
+            nsTopSaveBtn.style.cssText = "flex:1;font-size:11px;";
+            nsTopSaveBar.appendChild(nsTopSaveBtn);
+            newSceneForm.appendChild(nsTopSaveBar);
+            const nsStepsLbl = document.createElement("div");
+            nsStepsLbl.className = "ebc-import-hint";
+            nsStepsLbl.style.marginTop = "3px";
+            nsStepsLbl.textContent = "Steps:";
+            newSceneForm.appendChild(nsStepsLbl);
+            const { getSteps: nsGetSteps } = buildSceneEditor(newSceneForm, []);
+            const doSaveScene = () => {
+                const name = nsNameInp.value.trim();
+                if (!name) {
+                    nsNameInp.style.borderColor = "#cf6f98";
+                    return;
+                }
+                createScene(name, nsGetSteps(), nsCmdInp.value);
+                this.renderPoses();
+            };
+            nsTopSaveBtn.addEventListener("click", doSaveScene);
+            const nsBotSaveBar = document.createElement("div");
+            nsBotSaveBar.className = "ebc-editor-save-bar";
+            nsBotSaveBar.style.marginTop = "2px";
+            const nsBotSaveBtn = document.createElement("button");
+            nsBotSaveBtn.className = "ebc-create-btn";
+            nsBotSaveBtn.textContent = "Save Scene";
+            nsBotSaveBtn.addEventListener("click", doSaveScene);
+            nsBotSaveBar.appendChild(nsBotSaveBtn);
+            newSceneForm.appendChild(nsBotSaveBar);
+            newSceneToggle.addEventListener("click", () => {
+                const open = newSceneForm.style.display !== "none";
+                newSceneForm.style.display = open ? "none" : "flex";
+                newSceneToggle.textContent = open ? "+ New Scene" : "- Cancel";
+                if (!open) {
+                    nsNameInp.focus();
+                    window.setTimeout(() => newSceneToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+                }
+            });
         }
         // -- Notes tab -------------------------------------------------------------
         renderNotes() {
@@ -7749,9 +8473,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.4.8";
+    const MOD_VERSION = "0.4.9";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.4.9",
+            changes: [
+                "New: Scene sequencer in the ANIMS tab — chain pose changes, item equips/unequips, emotes and waits into timed sequences with optional chat commands.",
+            ],
+        },
         {
             version: "0.4.8",
             changes: [
@@ -8700,7 +9430,7 @@
             try {
                 if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                     const input = document.getElementById("InputChat");
-                    if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleDomCommand(input.value))) {
+                    if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
                         input.value = "";
                         return;
                     }
@@ -8714,7 +9444,7 @@
         modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
             try {
                 const input = document.getElementById("InputChat");
-                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleDomCommand(input.value))) {
+                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
                     input.value = "";
                     return;
                 }

@@ -32,6 +32,7 @@ import {
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
+import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
 import {
@@ -1294,6 +1295,68 @@ const CSS = `
     font-family: "Trebuchet MS", serif;
     min-width: 44px;
     text-align: right;
+}
+
+/* -- Scene step cards -- */
+.ebc-scene-step {
+    background: #1a0d15;
+    border: 1px solid #3a1928;
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ebc-scene-step-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ebc-scene-type-sel {
+    flex: 0 0 auto;
+    width: 76px;
+    padding: 2px 4px;
+    font-size: 11px;
+    background: #130810;
+    border: 1px solid #5a2840;
+    border-radius: 4px;
+    color: #e8d0d8;
+    font-family: "Trebuchet MS", serif;
+    cursor: pointer;
+}
+
+.ebc-scene-delay {
+    width: 54px;
+    padding: 2px 4px;
+    font-size: 11px;
+    text-align: right;
+    background: #130810;
+    border: 1px solid #5a2840;
+    border-radius: 4px;
+    color: #e8d0d8;
+    font-family: "Trebuchet MS", serif;
+}
+
+.ebc-scene-ms-lbl {
+    font-size: 10px;
+    color: #9a6878;
+    flex-shrink: 0;
+}
+
+.ebc-scene-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ebc-scene-fields-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
 }
 
 /* -- Free-float panel mode -- */
@@ -4630,6 +4693,633 @@ export class EBCDrawer {
             if (!open) {
                 (ncNameInp as HTMLInputElement).focus();
                 window.setTimeout(() => newComboToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+            }
+        });
+
+        // ── SCENES ────────────────────────────────────────────────────────────
+        this.renderScenes(body);
+    }
+
+    private renderScenes(body: HTMLElement): void {
+        const STEP_TYPE_LABELS: Record<StepType, string> = {
+            pose: "Pose", equip: "Equip", unequip: "Unequip", emote: "Emote", wait: "Wait",
+        };
+        const ALL_STEP_TYPES: StepType[] = ["pose", "equip", "unequip", "emote", "wait"];
+
+        const bodyPoses = KNOWN_POSES.find(g => g.group === "Body")?.poses ?? [];
+        const armPoses  = KNOWN_POSES.find(g => g.group === "Arms")?.poses ?? [];
+
+        // Build a live step card — returns getStep() which always reads current field state
+        const buildStepCard = (
+            initStep: SceneStep,
+            onMoveUp: (() => void) | null,
+            onMoveDown: (() => void) | null,
+            onDelete: () => void,
+        ): { el: HTMLElement; getStep: () => SceneStep } => {
+            const card = document.createElement("div");
+            card.className = "ebc-scene-step";
+
+            // Header: type select, delay input, move/delete buttons
+            const header = document.createElement("div");
+            header.className = "ebc-scene-step-header";
+
+            const typeSelect = document.createElement("select");
+            typeSelect.className = "ebc-scene-type-sel";
+            for (const t of ALL_STEP_TYPES) {
+                const opt = document.createElement("option");
+                opt.value = t;
+                opt.textContent = STEP_TYPE_LABELS[t];
+                opt.selected = t === initStep.type;
+                typeSelect.appendChild(opt);
+            }
+
+            const delayInp = document.createElement("input");
+            delayInp.type = "number";
+            delayInp.className = "ebc-scene-delay";
+            delayInp.min = "0";
+            delayInp.max = "30000";
+            delayInp.value = String(initStep.delayMs);
+            delayInp.title = "Milliseconds to wait before this step fires";
+
+            const msLbl = document.createElement("span");
+            msLbl.className = "ebc-scene-ms-lbl";
+            msLbl.textContent = "ms delay";
+
+            const upBtn = document.createElement("button");
+            upBtn.className = "ebc-step-move";
+            upBtn.textContent = "↑";
+            upBtn.disabled = onMoveUp === null;
+            if (onMoveUp) upBtn.addEventListener("click", onMoveUp);
+
+            const downBtn = document.createElement("button");
+            downBtn.className = "ebc-step-move";
+            downBtn.textContent = "↓";
+            downBtn.disabled = onMoveDown === null;
+            if (onMoveDown) downBtn.addEventListener("click", onMoveDown);
+
+            const delBtn = document.createElement("button");
+            delBtn.className = "ebc-step-del";
+            delBtn.textContent = "×";
+            delBtn.addEventListener("click", onDelete);
+
+            header.appendChild(typeSelect);
+            header.appendChild(delayInp);
+            header.appendChild(msLbl);
+            header.appendChild(upBtn);
+            header.appendChild(downBtn);
+            header.appendChild(delBtn);
+            card.appendChild(header);
+
+            // Fields area — rebuilt when type changes
+            const fieldsEl = document.createElement("div");
+            fieldsEl.className = "ebc-scene-fields";
+            card.appendChild(fieldsEl);
+
+            // Per-type mutable state (seeded from initStep)
+            let posePoses: string[]  = initStep.poses?.slice() ?? [];
+            let equipGroup           = initStep.group ?? "";
+            let equipAsset           = initStep.assetName ?? "";
+            let equipColorRaw        = Array.isArray(initStep.color)
+                ? initStep.color.join(",")
+                : (initStep.color ?? "");
+            let unequipGroup         = initStep.group ?? "";
+            let emoteText            = initStep.text ?? "";
+
+            // Colour input reference for the capture button to update
+            let colorInpRef: HTMLInputElement | null = null;
+
+            const renderFields = (type: StepType): void => {
+                while (fieldsEl.firstChild) fieldsEl.removeChild(fieldsEl.firstChild);
+
+                if (type === "pose") {
+                    const row = document.createElement("div");
+                    row.className = "ebc-scene-fields-row";
+
+                    const makeAxisDropdown = (
+                        label: string,
+                        poses: { key: string; label: string }[],
+                        currentKey: string,
+                        dataAttr: string,
+                    ): HTMLSelectElement => {
+                        const wrap = document.createElement("div");
+                        wrap.style.cssText = "display:flex;align-items:center;gap:4px;";
+                        const lbl = document.createElement("span");
+                        lbl.style.cssText = "font-size:10px;color:#9a6878;";
+                        lbl.textContent = label + ":";
+                        const sel = document.createElement("select");
+                        sel.className = "ebc-scene-type-sel";
+                        sel.style.width = "90px";
+                        sel.dataset.axis = dataAttr;
+                        // "None" option for arms axis
+                        if (dataAttr === "arms") {
+                            const none = document.createElement("option");
+                            none.value = "";
+                            none.textContent = "None";
+                            none.selected = currentKey === "";
+                            sel.appendChild(none);
+                        }
+                        for (const p of poses) {
+                            if (dataAttr === "body" || p.key !== "") {
+                                const opt = document.createElement("option");
+                                opt.value = p.key;
+                                opt.textContent = p.label;
+                                opt.selected = p.key === currentKey;
+                                sel.appendChild(opt);
+                            }
+                        }
+                        sel.addEventListener("change", () => {
+                            const bKey = (fieldsEl.querySelector("[data-axis='body']") as HTMLSelectElement | null)?.value ?? "";
+                            const aKey = (fieldsEl.querySelector("[data-axis='arms']") as HTMLSelectElement | null)?.value ?? "";
+                            posePoses = [bKey, aKey].filter(Boolean);
+                        });
+                        wrap.appendChild(lbl);
+                        wrap.appendChild(sel);
+                        row.appendChild(wrap);
+                        return sel;
+                    };
+
+                    const curBody = posePoses.find(k => bodyPoses.some(p => p.key === k)) ?? "";
+                    const curArms = posePoses.find(k => armPoses.some(p => p.key === k && p.key !== "")) ?? "";
+                    makeAxisDropdown("Body", bodyPoses, curBody, "body");
+                    makeAxisDropdown("Arms", armPoses, curArms, "arms");
+                    fieldsEl.appendChild(row);
+
+                } else if (type === "equip") {
+                    const row1 = document.createElement("div");
+                    row1.className = "ebc-scene-fields-row";
+
+                    const groupInp = Object.assign(document.createElement("input"), {
+                        className: "ebc-form-input", type: "text",
+                        placeholder: "Group (e.g. Cloth)", value: equipGroup, maxLength: 40,
+                    }) as HTMLInputElement;
+                    groupInp.style.flex = "1";
+                    groupInp.addEventListener("input", () => { equipGroup = groupInp.value; });
+
+                    const assetInp = Object.assign(document.createElement("input"), {
+                        className: "ebc-form-input", type: "text",
+                        placeholder: "Asset name", value: equipAsset, maxLength: 60,
+                    }) as HTMLInputElement;
+                    assetInp.style.flex = "1";
+                    assetInp.addEventListener("input", () => { equipAsset = assetInp.value; });
+
+                    const captureBtn = document.createElement("button");
+                    captureBtn.className = "ebc-update-btn";
+                    captureBtn.textContent = "📷 Capture";
+                    captureBtn.title = "Fill fields from currently worn item in the typed group";
+                    captureBtn.style.cssText = "flex:0 0 auto;font-size:10px;padding:2px 6px;";
+                    captureBtn.addEventListener("click", () => {
+                        try {
+                            const g = groupInp.value.trim();
+                            if (!g) { groupInp.style.borderColor = "#cf6f98"; return; }
+                            const item = InventoryGet(Player, g);
+                            if (!item) { assetInp.placeholder = "Nothing worn in that group"; return; }
+                            assetInp.value = item.Asset.Name;
+                            equipAsset = item.Asset.Name;
+                            const c = (item as unknown as Record<string, unknown>).Color;
+                            if (c !== undefined && colorInpRef) {
+                                const s = Array.isArray(c) ? (c as string[]).join(",") : String(c);
+                                colorInpRef.value = s;
+                                equipColorRaw = s;
+                            }
+                        } catch { /* ignore */ }
+                    });
+
+                    row1.appendChild(groupInp);
+                    row1.appendChild(assetInp);
+                    row1.appendChild(captureBtn);
+                    fieldsEl.appendChild(row1);
+
+                    const colorInp = Object.assign(document.createElement("input"), {
+                        className: "ebc-form-input", type: "text",
+                        placeholder: "Color — optional, e.g. Default or #ff0000,Default",
+                        value: equipColorRaw, maxLength: 200,
+                    }) as HTMLInputElement;
+                    colorInp.addEventListener("input", () => { equipColorRaw = colorInp.value; });
+                    colorInpRef = colorInp;
+                    fieldsEl.appendChild(colorInp);
+
+                } else if (type === "unequip") {
+                    const groupInp = Object.assign(document.createElement("input"), {
+                        className: "ebc-form-input", type: "text",
+                        placeholder: "Group (e.g. Cloth)", value: unequipGroup, maxLength: 40,
+                    }) as HTMLInputElement;
+                    groupInp.addEventListener("input", () => { unequipGroup = groupInp.value; });
+                    fieldsEl.appendChild(groupInp);
+
+                } else if (type === "emote") {
+                    const textInp = Object.assign(document.createElement("input"), {
+                        className: "ebc-form-input", type: "text",
+                        placeholder: "Action text (e.g. slowly removes her shirt...)",
+                        value: emoteText, maxLength: 200,
+                    }) as HTMLInputElement;
+                    textInp.addEventListener("input", () => { emoteText = textInp.value; });
+                    fieldsEl.appendChild(textInp);
+
+                }
+                // wait: no extra fields — delay IS the step
+            };
+
+            let currentType = initStep.type;
+            renderFields(currentType);
+
+            typeSelect.addEventListener("change", () => {
+                currentType = typeSelect.value as StepType;
+                renderFields(currentType);
+            });
+
+            const getStep = (): SceneStep => {
+                const delay = Math.max(0, Math.min(30000, Number(delayInp.value) || 0));
+                const step: SceneStep = { type: currentType, delayMs: delay };
+                switch (currentType) {
+                    case "pose":
+                        step.poses = posePoses.filter(Boolean);
+                        break;
+                    case "equip":
+                        step.group = equipGroup.trim();
+                        step.assetName = equipAsset.trim();
+                        if (equipColorRaw.trim()) {
+                            const parts = equipColorRaw.split(",").map(s => s.trim()).filter(Boolean);
+                            step.color = parts.length === 1 ? parts[0] : parts;
+                        }
+                        break;
+                    case "unequip":
+                        step.group = unequipGroup.trim();
+                        break;
+                    case "emote":
+                        step.text = emoteText.trim();
+                        break;
+                }
+                return step;
+            };
+
+            return { el: card, getStep };
+        };
+
+        // Build a full step list editor — returns getSteps()
+        const buildSceneEditor = (
+            parent: HTMLElement,
+            initSteps: SceneStep[],
+        ): { getSteps: () => SceneStep[] } => {
+            const steps: SceneStep[] = initSteps.map(s => ({ ...s }));
+            type Entry = { el: HTMLElement; getStep: () => SceneStep };
+            const entries: Entry[] = [];
+
+            const stepsContainer = document.createElement("div");
+            parent.appendChild(stepsContainer);
+
+            const syncFromEntries = (): void => {
+                for (let i = 0; i < entries.length; i++) {
+                    steps[i] = entries[i].getStep();
+                }
+            };
+
+            const fullRebuild = (): void => {
+                entries.length = 0;
+                while (stepsContainer.firstChild) stepsContainer.removeChild(stepsContainer.firstChild);
+
+                if (steps.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.className = "ebc-import-hint";
+                    empty.style.cssText = "text-align:center;padding:5px 0 3px;";
+                    empty.textContent = "No steps yet — add one below.";
+                    stepsContainer.appendChild(empty);
+                    return;
+                }
+
+                for (let i = 0; i < steps.length; i++) {
+                    const idx = i;
+                    const entry = buildStepCard(
+                        steps[i],
+                        idx > 0 ? () => {
+                            syncFromEntries();
+                            [steps[idx - 1], steps[idx]] = [steps[idx], steps[idx - 1]];
+                            fullRebuild();
+                        } : null,
+                        idx < steps.length - 1 ? () => {
+                            syncFromEntries();
+                            [steps[idx], steps[idx + 1]] = [steps[idx + 1], steps[idx]];
+                            fullRebuild();
+                        } : null,
+                        () => {
+                            syncFromEntries();
+                            steps.splice(idx, 1);
+                            fullRebuild();
+                        },
+                    );
+                    entries.push(entry);
+                    stepsContainer.appendChild(entry.el);
+                }
+            };
+
+            fullRebuild();
+
+            // Add step row
+            const addRow = document.createElement("div");
+            addRow.style.cssText = "display:flex;gap:5px;margin-top:4px;align-items:center;";
+
+            const addTypeSel = document.createElement("select");
+            addTypeSel.className = "ebc-scene-type-sel";
+            addTypeSel.style.width = "80px";
+            for (const t of ALL_STEP_TYPES) {
+                const opt = document.createElement("option");
+                opt.value = t;
+                opt.textContent = STEP_TYPE_LABELS[t];
+                addTypeSel.appendChild(opt);
+            }
+
+            const addBtn = document.createElement("button");
+            addBtn.className = "ebc-update-btn";
+            addBtn.textContent = "+ Add Step";
+            addBtn.addEventListener("click", () => {
+                syncFromEntries();
+                const defDelays: Record<StepType, number> = {
+                    pose: 500, equip: 800, unequip: 600, emote: 100, wait: 1000,
+                };
+                steps.push({ type: addTypeSel.value as StepType, delayMs: defDelays[addTypeSel.value as StepType] });
+                fullRebuild();
+                window.setTimeout(() => stepsContainer.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 30);
+            });
+
+            addRow.appendChild(addTypeSel);
+            addRow.appendChild(addBtn);
+            parent.appendChild(addRow);
+
+            return { getSteps: () => entries.map(e => e.getStep()) };
+        };
+
+        // ── Scene list ─────────────────────────────────────────────────────────
+
+        const sceneDivider = document.createElement("div");
+        sceneDivider.className = "ebc-divider";
+        body.appendChild(sceneDivider);
+
+        const scenesLbl = document.createElement("div");
+        scenesLbl.className = "ebc-section-label";
+        scenesLbl.textContent = "SCENES";
+        body.appendChild(scenesLbl);
+
+        const scenesHint = document.createElement("div");
+        scenesHint.className = "ebc-import-hint";
+        scenesHint.style.marginBottom = "6px";
+        scenesHint.textContent = "Chain poses, item changes, emotes and pauses into a timed sequence.";
+        body.appendChild(scenesHint);
+
+        const scenes = getScenes();
+        if (scenes.length === 0) {
+            const none = document.createElement("div");
+            none.className = "ebc-empty";
+            none.style.padding = "4px 0 6px";
+            none.textContent = "No scenes yet — create one below.";
+            body.appendChild(none);
+        }
+
+        for (const scene of scenes) {
+            const wrapper = document.createElement("div");
+            wrapper.style.marginBottom = "3px";
+
+            const row = document.createElement("div");
+            row.className = "ebc-combo-row";
+            row.style.cssText += ";border-radius:6px;margin-bottom:0;";
+
+            const nameEl = document.createElement("span");
+            nameEl.className = "ebc-combo-name";
+            nameEl.textContent = scene.name;
+            if (scene.command) nameEl.title = `/${scene.command}`;
+
+            const stepCountEl = document.createElement("span");
+            stepCountEl.className = "ebc-combo-poses";
+            stepCountEl.textContent = `${scene.steps.length} step${scene.steps.length !== 1 ? "s" : ""}`;
+            if (scene.command) {
+                const badge = document.createElement("span");
+                badge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
+                badge.textContent = `/${scene.command}`;
+                stepCountEl.appendChild(badge);
+            }
+
+            const playBtn = document.createElement("button");
+            playBtn.className = "ebc-wear-btn";
+            playBtn.textContent = "▶";
+            playBtn.title = "Play this scene";
+            playBtn.style.padding = "3px 8px";
+            playBtn.addEventListener("click", () => {
+                playBtn.disabled = true;
+                playBtn.textContent = "…";
+                runScene(scene);
+                const totalMs = scene.steps.reduce((s, st) => s + st.delayMs, 0) + 500;
+                window.setTimeout(() => {
+                    playBtn.disabled = false;
+                    playBtn.textContent = "▶";
+                    this.renderPoses();
+                }, totalMs);
+            });
+
+            const editBtn = document.createElement("button");
+            editBtn.className = "ebc-edit-btn";
+            editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+            editBtn.title = "Edit scene";
+
+            let delPending = false;
+            let delTimer: ReturnType<typeof window.setTimeout> | null = null;
+            const delBtn = document.createElement("button");
+            delBtn.className = "ebc-outfit-del";
+            delBtn.textContent = "×";
+            delBtn.title = "Delete scene";
+            delBtn.addEventListener("click", () => {
+                if (!delPending) {
+                    delPending = true;
+                    delBtn.classList.add("confirm");
+                    delBtn.textContent = "Sure?";
+                    delTimer = window.setTimeout(() => {
+                        delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×";
+                    }, 2500);
+                } else {
+                    if (delTimer) window.clearTimeout(delTimer);
+                    deleteScene(scene.id);
+                    this.renderPoses();
+                }
+            });
+
+            row.appendChild(nameEl);
+            row.appendChild(stepCountEl);
+            row.appendChild(playBtn);
+            row.appendChild(editBtn);
+            row.appendChild(delBtn);
+
+            // Inline editor
+            const editor = document.createElement("div");
+            editor.className = "ebc-combo-editor";
+
+            const eNameRow = document.createElement("div");
+            eNameRow.className = "ebc-form-row";
+            const eNameLbl = document.createElement("span");
+            eNameLbl.className = "ebc-form-label";
+            eNameLbl.textContent = "Name";
+            const eNameInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", value: scene.name, maxLength: 40,
+            }) as HTMLInputElement;
+            eNameInp.style.flex = "1";
+            eNameRow.appendChild(eNameLbl);
+            eNameRow.appendChild(eNameInp);
+            editor.appendChild(eNameRow);
+
+            const eCmdRow = document.createElement("div");
+            eCmdRow.className = "ebc-form-row";
+            const eCmdLbl = document.createElement("span");
+            eCmdLbl.className = "ebc-form-label";
+            eCmdLbl.textContent = "Command";
+            const eCmdPrefix = document.createElement("span");
+            eCmdPrefix.style.cssText = "color:#cf6f98;font-weight:600;margin-right:2px;";
+            eCmdPrefix.textContent = "/";
+            const eCmdInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text",
+                value: scene.command ?? "", placeholder: "optional", maxLength: 30,
+            }) as HTMLInputElement;
+            eCmdInp.style.flex = "1";
+            const eCmdWrap = document.createElement("div");
+            eCmdWrap.style.cssText = "display:flex;align-items:center;flex:1;";
+            eCmdWrap.appendChild(eCmdPrefix);
+            eCmdWrap.appendChild(eCmdInp);
+            eCmdRow.appendChild(eCmdLbl);
+            eCmdRow.appendChild(eCmdWrap);
+            editor.appendChild(eCmdRow);
+
+            const topSaveBar = document.createElement("div");
+            topSaveBar.className = "ebc-editor-save-bar";
+            const topSaveBtn = document.createElement("button");
+            topSaveBtn.className = "ebc-update-btn";
+            topSaveBtn.textContent = "✓ Save Changes";
+            topSaveBtn.style.cssText = "flex:1;font-size:11px;";
+            topSaveBar.appendChild(topSaveBtn);
+            editor.appendChild(topSaveBar);
+
+            const stepsLbl = document.createElement("div");
+            stepsLbl.className = "ebc-import-hint";
+            stepsLbl.textContent = "Steps:";
+            editor.appendChild(stepsLbl);
+
+            const { getSteps } = buildSceneEditor(editor, scene.steps);
+
+            topSaveBtn.addEventListener("click", () => {
+                updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
+                this.renderPoses();
+            });
+
+            const botSaveBar = document.createElement("div");
+            botSaveBar.className = "ebc-editor-save-bar";
+            botSaveBar.style.marginTop = "2px";
+            const botSaveBtn = document.createElement("button");
+            botSaveBtn.className = "ebc-create-btn";
+            botSaveBtn.textContent = "Save Changes";
+            botSaveBtn.addEventListener("click", () => {
+                updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
+                this.renderPoses();
+            });
+            botSaveBar.appendChild(botSaveBtn);
+            editor.appendChild(botSaveBar);
+
+            editBtn.addEventListener("click", () => {
+                const open = editor.classList.contains("open");
+                editor.classList.toggle("open", !open);
+                editBtn.classList.toggle("open", !open);
+                row.style.borderRadius = open ? "6px" : "6px 6px 0 0";
+                if (!open) window.setTimeout(() => row.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+            });
+
+            wrapper.appendChild(row);
+            wrapper.appendChild(editor);
+            body.appendChild(wrapper);
+        }
+
+        // ── New scene form ─────────────────────────────────────────────────────
+        const sceneDivider2 = document.createElement("div");
+        sceneDivider2.className = "ebc-divider";
+        body.appendChild(sceneDivider2);
+
+        const newSceneToggle = document.createElement("button");
+        newSceneToggle.className = "ebc-new-outfit-btn";
+        newSceneToggle.textContent = "+ New Scene";
+        body.appendChild(newSceneToggle);
+
+        const newSceneForm = document.createElement("div");
+        newSceneForm.className = "ebc-new-form";
+        body.appendChild(newSceneForm);
+
+        const nsNameRow = document.createElement("div");
+        nsNameRow.className = "ebc-form-row";
+        const nsNameLbl = document.createElement("span");
+        nsNameLbl.className = "ebc-form-label";
+        nsNameLbl.textContent = "Name";
+        const nsNameInp = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "e.g. Striptease", maxLength: 40,
+        }) as HTMLInputElement;
+        nsNameInp.style.flex = "1";
+        nsNameRow.appendChild(nsNameLbl);
+        nsNameRow.appendChild(nsNameInp);
+        newSceneForm.appendChild(nsNameRow);
+
+        const nsCmdRow = document.createElement("div");
+        nsCmdRow.className = "ebc-form-row";
+        const nsCmdLbl = document.createElement("span");
+        nsCmdLbl.className = "ebc-form-label";
+        nsCmdLbl.textContent = "Command";
+        const nsCmdPrefix = document.createElement("span");
+        nsCmdPrefix.style.cssText = "color:#cf6f98;font-weight:600;margin-right:2px;";
+        nsCmdPrefix.textContent = "/";
+        const nsCmdInp = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "optional", maxLength: 30,
+        }) as HTMLInputElement;
+        nsCmdInp.style.flex = "1";
+        const nsCmdWrap = document.createElement("div");
+        nsCmdWrap.style.cssText = "display:flex;align-items:center;flex:1;";
+        nsCmdWrap.appendChild(nsCmdPrefix);
+        nsCmdWrap.appendChild(nsCmdInp);
+        nsCmdRow.appendChild(nsCmdLbl);
+        nsCmdRow.appendChild(nsCmdWrap);
+        newSceneForm.appendChild(nsCmdRow);
+
+        const nsTopSaveBar = document.createElement("div");
+        nsTopSaveBar.className = "ebc-editor-save-bar";
+        const nsTopSaveBtn = document.createElement("button");
+        nsTopSaveBtn.className = "ebc-update-btn";
+        nsTopSaveBtn.textContent = "✓ Save Scene";
+        nsTopSaveBtn.style.cssText = "flex:1;font-size:11px;";
+        nsTopSaveBar.appendChild(nsTopSaveBtn);
+        newSceneForm.appendChild(nsTopSaveBar);
+
+        const nsStepsLbl = document.createElement("div");
+        nsStepsLbl.className = "ebc-import-hint";
+        nsStepsLbl.style.marginTop = "3px";
+        nsStepsLbl.textContent = "Steps:";
+        newSceneForm.appendChild(nsStepsLbl);
+
+        const { getSteps: nsGetSteps } = buildSceneEditor(newSceneForm, []);
+
+        const doSaveScene = (): void => {
+            const name = nsNameInp.value.trim();
+            if (!name) { nsNameInp.style.borderColor = "#cf6f98"; return; }
+            createScene(name, nsGetSteps(), nsCmdInp.value);
+            this.renderPoses();
+        };
+
+        nsTopSaveBtn.addEventListener("click", doSaveScene);
+
+        const nsBotSaveBar = document.createElement("div");
+        nsBotSaveBar.className = "ebc-editor-save-bar";
+        nsBotSaveBar.style.marginTop = "2px";
+        const nsBotSaveBtn = document.createElement("button");
+        nsBotSaveBtn.className = "ebc-create-btn";
+        nsBotSaveBtn.textContent = "Save Scene";
+        nsBotSaveBtn.addEventListener("click", doSaveScene);
+        nsBotSaveBar.appendChild(nsBotSaveBtn);
+        newSceneForm.appendChild(nsBotSaveBar);
+
+        newSceneToggle.addEventListener("click", () => {
+            const open = newSceneForm.style.display !== "none";
+            newSceneForm.style.display = open ? "none" : "flex";
+            newSceneToggle.textContent = open ? "+ New Scene" : "- Cancel";
+            if (!open) {
+                nsNameInp.focus();
+                window.setTimeout(() => newSceneToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
             }
         });
     }

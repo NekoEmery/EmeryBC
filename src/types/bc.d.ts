@@ -104,6 +104,7 @@ declare function InventoryWear(
 ): void;
 
 declare function InventoryRemove(char: Character, groupName: string, push?: boolean): void;
+declare function InventoryAdd(char: Character, assetName: string, groupName: string, push?: boolean): void;
 declare function InventoryGet(char: Character, groupName: string): Item | null;
 declare function AssetGet(family: string, group: string, name: string): Asset | null;
 
