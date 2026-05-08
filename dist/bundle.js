@@ -3726,6 +3726,68 @@
 }
 #ebc-beep-win-send:hover { background: #cf6f98; color: #fff; }
 
+#ebc-beep-reply-bar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: #2a0e1e;
+    border-top: 1px solid #4a2035;
+    border-left: 3px solid #cf6f98;
+    padding: 4px 8px;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #c88aa8;
+    flex-shrink: 0;
+}
+#ebc-beep-reply-bar span {
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+#ebc-beep-reply-cancel {
+    background: none;
+    border: none;
+    color: #7a5a6a;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+#ebc-beep-reply-cancel:hover { color: #cf6f98; }
+
+.ebc-beep-quote {
+    border-left: 2px solid #cf6f9880;
+    padding: 2px 5px;
+    margin-bottom: 3px;
+    font-size: 9px;
+    color: #8a5a78;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.ebc-beep-img {
+    max-width: 100%;
+    max-height: 160px;
+    border-radius: 4px;
+    margin-top: 3px;
+    display: block;
+    cursor: pointer;
+}
+.ebc-beep-reply-btn {
+    background: none;
+    border: none;
+    color: #5a3a4a;
+    cursor: pointer;
+    font-size: 9px;
+    padding: 1px 3px;
+    border-radius: 3px;
+    margin-top: 2px;
+    align-self: flex-end;
+}
+.ebc-beep-reply-btn:hover { color: #cf6f98; background: #2a0e1e; }
+
 /* -- Free-float panel mode -- */
 #emerybc-panel.ebc-free-mode {
     position: fixed !important;
@@ -7555,8 +7617,21 @@
             const history = document.createElement("div");
             history.id = "ebc-beep-win-history";
             win.appendChild(history);
+            // Reply state
+            let replyText = "";
+            const clearReply = () => {
+                replyText = "";
+                replyBar.style.display = "none";
+            };
+            const setReply = (text) => {
+                replyText = text;
+                replyBarSpan.textContent = text;
+                replyBar.style.display = "flex";
+                input.focus();
+            };
+            const IMAGE_RE = /https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(\?\S*)?/i;
             const renderHistory = () => {
-                var _a;
+                var _a, _b;
                 while (history.firstChild)
                     history.removeChild(history.firstChild);
                 const entries = getConversation(memberNumber);
@@ -7571,22 +7646,68 @@
                     const isSent = e.from === self;
                     const wrap = document.createElement("div");
                     wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
+                    const bubble = document.createElement("div");
+                    bubble.className = "ebc-beep-msg " + (isSent ? "sent" : "received");
                     const ts = document.createElement("div");
                     ts.className = "ebc-beep-ts";
                     const d = new Date(e.ts);
                     ts.textContent = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-                    const bubble = document.createElement("div");
-                    bubble.className = "ebc-beep-msg " + (isSent ? "sent" : "received");
                     bubble.appendChild(ts);
+                    // Parse message — may start with "> quote\n" reply prefix
+                    let msgBody = e.message;
+                    if (e.message.startsWith("> ") && e.message.includes("\n")) {
+                        const nl = e.message.indexOf("\n");
+                        const quoteEl = document.createElement("div");
+                        quoteEl.className = "ebc-beep-quote";
+                        quoteEl.textContent = e.message.slice(2, nl);
+                        bubble.appendChild(quoteEl);
+                        msgBody = e.message.slice(nl + 1);
+                    }
+                    // Text content
                     const text = document.createElement("div");
-                    text.textContent = e.message;
+                    text.textContent = msgBody;
                     bubble.appendChild(text);
+                    // Image embed — detect image URL in the message body
+                    const imgUrl = (_b = IMAGE_RE.exec(msgBody)) === null || _b === void 0 ? void 0 : _b[0];
+                    if (imgUrl) {
+                        const img = document.createElement("img");
+                        img.className = "ebc-beep-img";
+                        img.src = imgUrl;
+                        img.alt = "image";
+                        img.addEventListener("click", () => window.open(imgUrl, "_blank"));
+                        img.addEventListener("error", () => { img.style.display = "none"; });
+                        bubble.appendChild(img);
+                    }
                     wrap.appendChild(bubble);
+                    // Reply button — only show on received messages
+                    if (!isSent) {
+                        const replyBtn = document.createElement("button");
+                        replyBtn.className = "ebc-beep-reply-btn";
+                        replyBtn.textContent = "↩ reply";
+                        replyBtn.addEventListener("click", () => setReply(msgBody.slice(0, 80)));
+                        wrap.appendChild(replyBtn);
+                    }
                     history.appendChild(wrap);
                 }
                 history.scrollTop = history.scrollHeight;
             };
             renderHistory();
+            // Reply bar (shown above footer when replying)
+            const replyBar = document.createElement("div");
+            replyBar.id = "ebc-beep-reply-bar";
+            replyBar.style.display = "none";
+            const replyBarLabel = document.createElement("span");
+            replyBarLabel.style.cssText = "color:#cf6f98;font-weight:bold;flex-shrink:0;";
+            replyBarLabel.textContent = "↩";
+            const replyBarSpan = document.createElement("span");
+            const replyCancel = document.createElement("button");
+            replyCancel.id = "ebc-beep-reply-cancel";
+            replyCancel.textContent = "×";
+            replyCancel.addEventListener("click", clearReply);
+            replyBar.appendChild(replyBarLabel);
+            replyBar.appendChild(replyBarSpan);
+            replyBar.appendChild(replyCancel);
+            win.appendChild(replyBar);
             // Footer
             const footer = document.createElement("div");
             footer.id = "ebc-beep-win-footer";
@@ -7602,7 +7723,9 @@
                 const msg = input.value.trim();
                 if (!msg)
                     return;
-                sendBeep(memberNumber, msg);
+                const full = replyText ? `> ${replyText}\n${msg}` : msg;
+                clearReply();
+                sendBeep(memberNumber, full);
                 input.value = "";
                 renderHistory();
             };
@@ -7703,21 +7826,6 @@
                 lblF.className = "ebc-section-label";
                 lblF.textContent = "Friends";
                 body.appendChild(lblF);
-                // "Beep All In Room" button
-                const inRoomFriends = friendList.filter(n => getFriendStatus(n) === "room");
-                const beepAllBtn = document.createElement("button");
-                beepAllBtn.className = "ebc-friend-btn";
-                beepAllBtn.style.cssText = "width:100%;margin-bottom:6px;padding:4px 8px;";
-                beepAllBtn.textContent = `Beep All In Room (${inRoomFriends.length})`;
-                beepAllBtn.disabled = inRoomFriends.length === 0;
-                beepAllBtn.addEventListener("click", () => {
-                    const msg = prompt("Message to send to all friends in room:");
-                    if (!(msg === null || msg === void 0 ? void 0 : msg.trim()))
-                        return;
-                    for (const num of inRoomFriends)
-                        sendBeep(num, msg.trim());
-                });
-                body.appendChild(beepAllBtn);
                 const tags = getFriendTags();
                 // Sort: room first, then alphabetical by name
                 const sorted = [...friendList].sort((a, b) => {
@@ -9187,9 +9295,17 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.5.2";
+    const MOD_VERSION = "0.5.3";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.5.3",
+            changes: [
+                "Beep chat: reply system — click '↩ reply' on any received message to quote it; reply bar shows above the input and can be dismissed with ×.",
+                "Beep chat: image auto-embed — image URLs (png/jpg/gif/webp/svg) render as inline thumbnails; click to open full size.",
+                "Removed 'Beep All In Room' button.",
+            ],
+        },
         {
             version: "0.5.2",
             changes: [

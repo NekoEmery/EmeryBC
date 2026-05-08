@@ -13,10 +13,18 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.2";
+const MOD_VERSION = "0.5.3";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.5.3",
+        changes: [
+            "Beep chat: reply system — click '↩ reply' on any received message to quote it; reply bar shows above the input and can be dismissed with ×.",
+            "Beep chat: image auto-embed — image URLs (png/jpg/gif/webp/svg) render as inline thumbnails; click to open full size.",
+            "Removed 'Beep All In Room' button.",
+        ],
+    },
     {
         version: "0.5.2",
         changes: [
