@@ -6033,9 +6033,17 @@ export class EBCDrawer {
             divF.className = "ebc-divider";
             body.appendChild(divF);
 
+            const onlineCount = friendList.filter(n => getFriendStatus(n) === "room").length;
             const lblF = document.createElement("div");
             lblF.className = "ebc-section-label";
-            lblF.textContent = "Friends";
+            lblF.style.cssText = "display:flex;align-items:center;gap:6px;";
+            const lblFText = document.createElement("span");
+            lblFText.textContent = "Friends";
+            const lblFCount = document.createElement("span");
+            lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;";
+            lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
+            lblF.appendChild(lblFText);
+            lblF.appendChild(lblFCount);
             body.appendChild(lblF);
 
             const tags = getFriendTags();
