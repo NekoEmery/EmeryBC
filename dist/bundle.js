@@ -2,13 +2,29 @@
     'use strict';
 
     const UI = {
+        backdrop: "#12070d",
+        panel: "#1b0d17",
+        panelInner: "#24111d",
         panelEdge: "#4c2537",
+        panelGlow: "#311320",
+        card: "#2a1421",
+        cardAlt: "#331827",
         cardMuted: "#190b13",
+        text: "#f7e6ee",
         textMuted: "#cbaab7",
+        textSoft: "#967281",
         accent: "#cf6f98",
         accentDeep: "#91405f",
         accentSoft: "#5b2439",
-        gold: "#c9ab72"};
+        gold: "#c9ab72",
+        success: "#79a885",
+        successDeep: "#284132",
+        danger: "#cb798c",
+        dangerDeep: "#552332",
+        buttonMuted: "#432232",
+        buttonDisabled: "#2b1520",
+        swatchBorder: "#f8dce8",
+    };
 
     // Action buttons drawn in the chatroom sidebar below BCAR's buttons.
     const DEFAULT_BUTTONS = [
@@ -12684,9 +12700,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.9.7";
+    const MOD_VERSION = "0.9.8";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.9.8",
+            changes: [
+                "Added /ebc ameter command — toggles the arousal/lust meter on and off. Turning it off sets Active to Inactive; turning it back on restores your previous level (Manual, Hybrid, Automatic, etc.). Aliases: /ebc arousal, /ebc lust.",
+            ],
+        },
         {
             version: "0.9.7",
             changes: [
@@ -13726,6 +13748,31 @@
             }
         }
     }
+    // Last non-Inactive arousal level, so toggling off → on restores it.
+    // Defaults to "Manual" if the setting was already Inactive at load time.
+    let lastArousalActive = "Manual";
+    function toggleArometerCommand() {
+        try {
+            const arousal = Player.ArousalSettings;
+            if (!arousal) {
+                appendLocalLogLine("[EmeryBC] Arousal settings unavailable.", UI.danger);
+                return;
+            }
+            const current = arousal.Active;
+            if (current && current !== "Inactive")
+                lastArousalActive = current;
+            const next = (current === "Inactive") ? lastArousalActive : "Inactive";
+            arousal.Active = next;
+            const updater = window.ServerAccountUpdate;
+            updater === null || updater === void 0 ? void 0 : updater.QueueData({ ArousalSettings: arousal });
+            const label = next === "Inactive" ? "OFF" : `ON (${next})`;
+            appendLocalLogLine(`[EmeryBC] Arousal meter: ${label}`, UI.gold);
+        }
+        catch (err) {
+            appendLocalLogLine("[EmeryBC] Failed to toggle arousal meter.", UI.danger);
+            console.warn("[EmeryBC] toggleArometerCommand error:", err);
+        }
+    }
     function handleMetaCommand(inputValue) {
         var _a;
         const trimmed = inputValue.trim();
@@ -13751,7 +13798,11 @@
             unlockItems();
             return true;
         }
-        appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock", UI.gold);
+        if (["ameter", "arousal", "lust"].includes(subcommand)) {
+            toggleArometerCommand();
+            return true;
+        }
+        appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter", UI.gold);
         return true;
     }
     function getSharedPresence(character) {
@@ -13858,6 +13909,14 @@
     }
     function init() {
         const modAPI = bcModSDK.registerMod({ name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION }, { allowReplace: true });
+        // Seed the arousal restore-target with whatever the player has set right now
+        try {
+            const arousal = Player.ArousalSettings;
+            const active = arousal === null || arousal === void 0 ? void 0 : arousal.Active;
+            if (active && active !== "Inactive")
+                lastArousalActive = active;
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
         // Canvas sidebar action buttons
         modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
             next(args);
@@ -14097,7 +14156,7 @@
                 catch ( /* ignore */_c) { /* ignore */ }
             });
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
         // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
         // Typing *text (or * text) in the chat box sends a BC Emote message so it
         // renders as *Name text* in chat without going through gag processing.
@@ -14192,7 +14251,7 @@
         try {
             syncPresenceMarker();
         }
-        catch (_b) {
+        catch (_c) {
             // Ignore early sync failures.
         }
         console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);

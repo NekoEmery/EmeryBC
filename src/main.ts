@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.9.7";
+const MOD_VERSION = "0.9.8";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.9.8",
+        changes: [
+            "Added /ebc ameter command — toggles the arousal/lust meter on and off. Turning it off sets Active to Inactive; turning it back on restores your previous level (Manual, Hybrid, Automatic, etc.). Aliases: /ebc arousal, /ebc lust.",
+        ],
+    },
     {
         version: "0.9.7",
         changes: [
@@ -1061,6 +1067,38 @@ function showChangelog(): void {
     }
 }
 
+// Last non-Inactive arousal level, so toggling off → on restores it.
+// Defaults to "Manual" if the setting was already Inactive at load time.
+let lastArousalActive = "Manual";
+
+function toggleArometerCommand(): void {
+    try {
+        const arousal = (Player as unknown as Record<string, unknown>).ArousalSettings as
+            Record<string, unknown> | undefined;
+        if (!arousal) {
+            appendLocalLogLine("[EmeryBC] Arousal settings unavailable.", UI.danger);
+            return;
+        }
+        const current = arousal.Active as string | undefined;
+        if (current && current !== "Inactive") lastArousalActive = current;
+
+        const next = (current === "Inactive") ? lastArousalActive : "Inactive";
+        arousal.Active = next;
+
+        // Sync to server the same way the Preference screen does
+        type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
+        const updater = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
+            AccountUpdater | undefined;
+        updater?.QueueData({ ArousalSettings: arousal });
+
+        const label = next === "Inactive" ? "OFF" : `ON (${next})`;
+        appendLocalLogLine(`[EmeryBC] Arousal meter: ${label}`, UI.gold);
+    } catch (err) {
+        appendLocalLogLine("[EmeryBC] Failed to toggle arousal meter.", UI.danger);
+        console.warn("[EmeryBC] toggleArometerCommand error:", err);
+    }
+}
+
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;
@@ -1089,7 +1127,12 @@ function handleMetaCommand(inputValue: string): boolean {
         return true;
     }
 
-    appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock", UI.gold);
+    if (["ameter", "arousal", "lust"].includes(subcommand)) {
+        toggleArometerCommand();
+        return true;
+    }
+
+    appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter", UI.gold);
     return true;
 }
 
@@ -1217,6 +1260,14 @@ function init(): void {
         { name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION },
         { allowReplace: true }
     );
+
+    // Seed the arousal restore-target with whatever the player has set right now
+    try {
+        const arousal = (Player as unknown as Record<string, unknown>).ArousalSettings as
+            Record<string, unknown> | undefined;
+        const active = arousal?.Active as string | undefined;
+        if (active && active !== "Inactive") lastArousalActive = active;
+    } catch { /* ignore */ }
 
     // Canvas sidebar action buttons
     modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
