@@ -9039,44 +9039,14 @@
                 }
             };
             const getAssetExtInfo = (groupName, assetName) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
-                // Always log first — before any early returns
-                console.log("[EmeryBC] getAssetExtInfo called:", groupName, assetName);
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j;
                 try {
-                    const raw = window.Asset;
-                    console.log("[EmeryBC] window.Asset type:", typeof raw, Array.isArray(raw) ? "length=" + raw.length : raw);
-                    const bcAsset = raw;
+                    const bcAsset = window.Asset;
                     if (!Array.isArray(bcAsset))
                         return { types: [], varHeight: null };
                     const a = bcAsset.find(x => { var _a; return ((_a = x.Group) === null || _a === void 0 ? void 0 : _a.Name) === groupName && x.Name === assetName; });
-                    console.log("[EmeryBC] asset found:", !!a);
                     if (!a)
                         return { types: [], varHeight: null };
-                    // Probe the side-channel globals BC R91+ uses to store typed options
-                    const w = window;
-                    const bcFamily = (_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
-                    const probeKeys = [
-                        `${bcFamily}${groupName}${assetName}`, // e.g. Female3DCGItemArmsCeilingShackles
-                        assetName, // bare name
-                        `${groupName}${assetName}`, // GroupName+AssetName
-                    ];
-                    const probeGlobals = ["TypedItemData", "TypedItemConfigs", "AssetExtendedItems", "ExtendedItemConfig", "AssetConfig"];
-                    for (const pk of probeKeys) {
-                        const direct = w[pk];
-                        if (direct)
-                            console.log(`[EmeryBC] window["${pk}"]:`, direct);
-                    }
-                    for (const pg of probeGlobals) {
-                        const g = w[pg];
-                        if (g) {
-                            // Try nested paths
-                            const v = ((_d = (_b = g[assetName]) !== null && _b !== void 0 ? _b : (_c = g[groupName]) === null || _c === void 0 ? void 0 : _c[assetName]) !== null && _d !== void 0 ? _d : (_e = g[bcFamily]) === null || _e === void 0 ? void 0 : _e[groupName]);
-                            console.log(`[EmeryBC] ${pg}["${assetName}"] =`, v !== null && v !== void 0 ? v : "(not found)");
-                        }
-                        else {
-                            console.log(`[EmeryBC] window.${pg} =`, g);
-                        }
-                    }
                     // ── Type variants ─────────────────────────────────────────────
                     let types = [];
                     const pickNames = (arr) => Array.isArray(arr)
@@ -9096,7 +9066,7 @@
                                 types = pickNames(cfg.Options);
                             // Config.ArchetypeConfig.Options[]
                             if (types.length === 0)
-                                types = pickNames((_f = cfg.ArchetypeConfig) === null || _f === void 0 ? void 0 : _f.Options);
+                                types = pickNames((_a = cfg.ArchetypeConfig) === null || _a === void 0 ? void 0 : _a.Options);
                         }
                     }
                     // 3. Extended Typed — various structures across BC versions
@@ -9108,10 +9078,10 @@
                                 types = pickNames(ext.Options);
                             // Extended.Typed.Options
                             if (types.length === 0)
-                                types = pickNames((_g = ext.Typed) === null || _g === void 0 ? void 0 : _g.Options);
+                                types = pickNames((_b = ext.Typed) === null || _b === void 0 ? void 0 : _b.Options);
                             // Extended.Config.Options
                             if (types.length === 0)
-                                types = pickNames((_h = ext.Config) === null || _h === void 0 ? void 0 : _h.Options);
+                                types = pickNames((_c = ext.Config) === null || _c === void 0 ? void 0 : _c.Options);
                             // DrawImages keys (older pattern)
                             if (types.length === 0 && ext.DrawImages && typeof ext.DrawImages === "object")
                                 types = Object.keys(ext.DrawImages).filter(k => k !== "");
@@ -9120,6 +9090,29 @@
                     // 4. Top-level Options[] (some older assets)
                     if (types.length === 0)
                         types = pickNames(a.Options);
+                    // 5. Layer.AllowTypes — BC R91+ stores typed variants per-layer.
+                    //    Collect all unique type names across every layer on the asset.
+                    //    This works even when the options list isn't exposed on the asset object itself.
+                    if (types.length === 0) {
+                        const layers = a.Layer;
+                        if (Array.isArray(layers)) {
+                            const typeSet = new Set();
+                            for (const layer of layers) {
+                                // BC uses AllowTypes, AllowType, or CopyLayerColor depending on version
+                                for (const key of ["AllowTypes", "AllowType", "Types", "ShowFor"]) {
+                                    const val = layer[key];
+                                    if (Array.isArray(val)) {
+                                        for (const t of val) {
+                                            if (typeof t === "string" && t !== "")
+                                                typeSet.add(t);
+                                        }
+                                    }
+                                }
+                            }
+                            if (typeSet.size > 0)
+                                types = Array.from(typeSet);
+                        }
+                    }
                     // ── Variable Height ────────────────────────────────────────────
                     let varHeight = null;
                     const tryVH = (src) => {
@@ -9135,18 +9128,16 @@
                     // R91+ Archetype = "variableheight" / "VariableHeight"
                     const archetype = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
                     if (archetype === "variableheight") {
-                        varHeight = (_l = (_j = tryVH(a.Config)) !== null && _j !== void 0 ? _j : tryVH((_k = a.Config) === null || _k === void 0 ? void 0 : _k.ArchetypeConfig)) !== null && _l !== void 0 ? _l : { min: 0, max: 100 };
+                        varHeight = (_f = (_d = tryVH(a.Config)) !== null && _d !== void 0 ? _d : tryVH((_e = a.Config) === null || _e === void 0 ? void 0 : _e.ArchetypeConfig)) !== null && _f !== void 0 ? _f : { min: 0, max: 100 };
                     }
                     // Older paths
                     if (!varHeight) {
                         const ext = a.Extended;
-                        varHeight = (_p = (_o = tryVH((_m = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _m !== void 0 ? _m : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _o !== void 0 ? _o : tryVH(a.VariableHeight)) !== null && _p !== void 0 ? _p : tryVH(a.VariableHeightConfig);
+                        varHeight = (_j = (_h = tryVH((_g = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _g !== void 0 ? _g : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeight)) !== null && _j !== void 0 ? _j : tryVH(a.VariableHeightConfig);
                     }
-                    console.log("[EmeryBC] result — types:", types, "varHeight:", varHeight);
                     return { types, varHeight };
                 }
-                catch (err) {
-                    console.log("[EmeryBC] getAssetExtInfo error:", err);
+                catch (_k) {
                     return { types: [], varHeight: null };
                 }
             };
@@ -9381,7 +9372,6 @@
                         heightWrap.appendChild(heightInp);
                         heightWrap.appendChild(heightRangeLbl);
                         const updateStateRow = () => {
-                            console.log("[EmeryBC] updateStateRow fired, group=", groupSel.value, "asset=", assetSel.value);
                             const info = getAssetExtInfo(groupSel.value, assetSel.value);
                             // Rebuild type dropdown
                             while (stateSel.firstChild)
@@ -12664,9 +12654,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.9.3";
+    const MOD_VERSION = "0.9.4";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.9.4",
+            changes: [
+                "Scenes equip: type variants now extracted from asset Layer.AllowTypes when BC R91+ stores options in module-level closures rather than on the asset object. Fixes items like Ceiling Shackles showing '— no variants —'.",
+            ],
+        },
         {
             version: "0.9.3",
             changes: [

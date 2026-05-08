@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.9.3";
+const MOD_VERSION = "0.9.4";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.9.4",
+        changes: [
+            "Scenes equip: type variants now extracted from asset Layer.AllowTypes when BC R91+ stores options in module-level closures rather than on the asset object. Fixes items like Ceiling Shackles showing '— no variants —'.",
+        ],
+    },
     {
         version: "0.9.3",
         changes: [

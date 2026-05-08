@@ -6315,42 +6315,13 @@ export class EBCDrawer {
         // and VariableHeight range if the item uses numeric height instead of a type string.
         type AssetExtInfo = { types: string[]; varHeight: { min: number; max: number } | null };
         const getAssetExtInfo = (groupName: string, assetName: string): AssetExtInfo => {
-            // Always log first — before any early returns
-            console.log("[EmeryBC] getAssetExtInfo called:", groupName, assetName);
             try {
-                const raw = (window as unknown as Record<string, unknown>).Asset;
-                console.log("[EmeryBC] window.Asset type:", typeof raw, Array.isArray(raw) ? "length=" + (raw as unknown[]).length : raw);
-                const bcAsset = raw as Array<Record<string, unknown>> | undefined;
+                const bcAsset = (window as unknown as Record<string, unknown>).Asset as
+                    Array<Record<string, unknown>> | undefined;
                 if (!Array.isArray(bcAsset)) return { types: [], varHeight: null };
                 const a = bcAsset.find(x =>
                     (x.Group as Record<string, unknown>)?.Name === groupName && x.Name === assetName);
-                console.log("[EmeryBC] asset found:", !!a);
                 if (!a) return { types: [], varHeight: null };
-
-                // Probe the side-channel globals BC R91+ uses to store typed options
-                const w = window as unknown as Record<string, unknown>;
-                const bcFamily = ((Player as unknown as Record<string, unknown>).AssetFamily as string | undefined) ?? "Female3DCG";
-                const probeKeys = [
-                    `${bcFamily}${groupName}${assetName}`,        // e.g. Female3DCGItemArmsCeilingShackles
-                    assetName,                                     // bare name
-                    `${groupName}${assetName}`,                    // GroupName+AssetName
-                ];
-                const probeGlobals = ["TypedItemData","TypedItemConfigs","AssetExtendedItems","ExtendedItemConfig","AssetConfig"];
-                for (const pk of probeKeys) {
-                    const direct = w[pk];
-                    if (direct) console.log(`[EmeryBC] window["${pk}"]:`, direct);
-                }
-                for (const pg of probeGlobals) {
-                    const g = w[pg] as Record<string, unknown> | undefined;
-                    if (g) {
-                        // Try nested paths
-                        const v = (g[assetName] ?? (g[groupName] as Record<string,unknown> | undefined)?.[assetName]
-                            ?? (g[bcFamily] as Record<string,unknown> | undefined)?.[groupName]);
-                        console.log(`[EmeryBC] ${pg}["${assetName}"] =`, v ?? "(not found)");
-                    } else {
-                        console.log(`[EmeryBC] window.${pg} =`, g);
-                    }
-                }
 
                 // ── Type variants ─────────────────────────────────────────────
                 let types: string[] = [];
@@ -6396,6 +6367,28 @@ export class EBCDrawer {
                 // 4. Top-level Options[] (some older assets)
                 if (types.length === 0) types = pickNames(a.Options);
 
+                // 5. Layer.AllowTypes — BC R91+ stores typed variants per-layer.
+                //    Collect all unique type names across every layer on the asset.
+                //    This works even when the options list isn't exposed on the asset object itself.
+                if (types.length === 0) {
+                    const layers = a.Layer as Array<Record<string, unknown>> | undefined;
+                    if (Array.isArray(layers)) {
+                        const typeSet = new Set<string>();
+                        for (const layer of layers) {
+                            // BC uses AllowTypes, AllowType, or CopyLayerColor depending on version
+                            for (const key of ["AllowTypes", "AllowType", "Types", "ShowFor"]) {
+                                const val = layer[key];
+                                if (Array.isArray(val)) {
+                                    for (const t of val) {
+                                        if (typeof t === "string" && t !== "") typeSet.add(t);
+                                    }
+                                }
+                            }
+                        }
+                        if (typeSet.size > 0) types = Array.from(typeSet);
+                    }
+                }
+
                 // ── Variable Height ────────────────────────────────────────────
                 let varHeight: { min: number; max: number } | null = null;
 
@@ -6424,9 +6417,8 @@ export class EBCDrawer {
                         ?? tryVH(a.VariableHeightConfig);
                 }
 
-                console.log("[EmeryBC] result — types:", types, "varHeight:", varHeight);
                 return { types, varHeight };
-            } catch (err) { console.log("[EmeryBC] getAssetExtInfo error:", err); return { types: [], varHeight: null }; }
+            } catch { return { types: [], varHeight: null }; }
         };
         // Thin wrappers kept for the state-dropdown call site
         const getAssetTypes = (g: string, a: string): string[] => getAssetExtInfo(g, a).types;
@@ -6695,7 +6687,6 @@ export class EBCDrawer {
                     heightWrap.appendChild(heightRangeLbl);
 
                     const updateStateRow = (): void => {
-                        console.log("[EmeryBC] updateStateRow fired, group=", groupSel.value, "asset=", assetSel.value);
                         const info = getAssetExtInfo(groupSel.value, assetSel.value);
 
                         // Rebuild type dropdown
