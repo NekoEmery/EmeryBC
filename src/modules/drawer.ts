@@ -4709,6 +4709,57 @@ export class EBCDrawer {
         const bodyPoses = KNOWN_POSES.find(g => g.group === "Body")?.poses ?? [];
         const armPoses  = KNOWN_POSES.find(g => g.group === "Arms")?.poses ?? [];
 
+        // -- Asset browser helpers ---------------------------------------------
+        type GroupEntry = { name: string; desc: string };
+        type AssetEntry = { name: string; desc: string };
+
+        const getAllGroups = (): GroupEntry[] => {
+            try {
+                const bcAsset = (window as unknown as Record<string, unknown>).Asset as
+                    Array<{ Group: { Name: string; Description?: string; Family?: string } }> | undefined;
+                if (!Array.isArray(bcAsset)) return [];
+                const family = (Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG";
+                const seen = new Set<string>();
+                const out: GroupEntry[] = [];
+                for (const a of bcAsset) {
+                    const g = a.Group;
+                    if ((g.Family === family || !g.Family) && !seen.has(g.Name)) {
+                        seen.add(g.Name);
+                        const desc = (g.Description as string | undefined)?.trim() || g.Name;
+                        out.push({ name: g.Name, desc });
+                    }
+                }
+                return out.sort((a, b) => a.desc.localeCompare(b.desc));
+            } catch { return []; }
+        };
+
+        const getGroupAssets = (groupName: string): AssetEntry[] => {
+            try {
+                const bcAsset = (window as unknown as Record<string, unknown>).Asset as
+                    Array<{ Group: { Name: string; Family?: string }; Name: string; Description?: string }> | undefined;
+                if (!Array.isArray(bcAsset)) return [];
+                const family = (Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG";
+                const out: AssetEntry[] = [];
+                for (const a of bcAsset) {
+                    if (a.Group.Name === groupName && (a.Group.Family === family || !a.Group.Family)) {
+                        const desc = (a.Description as string | undefined)?.trim() || a.Name;
+                        out.push({ name: a.Name, desc });
+                    }
+                }
+                return out.sort((a, b) => a.desc.localeCompare(b.desc));
+            } catch { return []; }
+        };
+
+        const getWornItems = (): Array<{ group: string; itemDesc: string }> => {
+            try {
+                return Player.Appearance.map(item => ({
+                    group: item.Asset.Group.Name,
+                    itemDesc: ((item.Asset as unknown as Record<string, unknown>).Description as string | undefined)?.trim()
+                        || item.Asset.Name,
+                })).sort((a, b) => a.itemDesc.localeCompare(b.itemDesc));
+            } catch { return []; }
+        };
+
         // Build a live step card — returns getStep() which always reads current field state
         const buildStepCard = (
             initStep: SceneStep,
@@ -4845,36 +4896,78 @@ export class EBCDrawer {
                     fieldsEl.appendChild(row);
 
                 } else if (type === "equip") {
+                    const groups = getAllGroups();
                     const row1 = document.createElement("div");
                     row1.className = "ebc-scene-fields-row";
 
-                    const groupInp = Object.assign(document.createElement("input"), {
-                        className: "ebc-form-input", type: "text",
-                        placeholder: "Group (e.g. Cloth)", value: equipGroup, maxLength: 40,
-                    }) as HTMLInputElement;
-                    groupInp.style.flex = "1";
-                    groupInp.addEventListener("input", () => { equipGroup = groupInp.value; });
+                    // Asset dropdown (created first so updateAssetSel can reference it)
+                    const assetSel = document.createElement("select");
+                    assetSel.className = "ebc-scene-type-sel";
+                    assetSel.style.cssText = "flex:1;width:auto;max-width:120px;";
+                    assetSel.title = "Item to equip";
+                    assetSel.addEventListener("change", () => { equipAsset = assetSel.value; });
 
-                    const assetInp = Object.assign(document.createElement("input"), {
-                        className: "ebc-form-input", type: "text",
-                        placeholder: "Asset name", value: equipAsset, maxLength: 60,
-                    }) as HTMLInputElement;
-                    assetInp.style.flex = "1";
-                    assetInp.addEventListener("input", () => { equipAsset = assetInp.value; });
+                    const updateAssetSel = (preserveValue: string): void => {
+                        while (assetSel.firstChild) assetSel.removeChild(assetSel.firstChild);
+                        const assets = getGroupAssets(groupSel.value);
+                        if (assets.length === 0) {
+                            const opt = document.createElement("option");
+                            opt.value = "";
+                            opt.textContent = groupSel.value ? "— no items —" : "— pick slot first —";
+                            assetSel.appendChild(opt);
+                            equipAsset = "";
+                            return;
+                        }
+                        let found = false;
+                        for (const a of assets) {
+                            const opt = document.createElement("option");
+                            opt.value = a.name;
+                            opt.textContent = a.desc;
+                            opt.selected = a.name === preserveValue;
+                            if (a.name === preserveValue) found = true;
+                            assetSel.appendChild(opt);
+                        }
+                        if (!found) { assetSel.selectedIndex = 0; }
+                        equipAsset = assetSel.value;
+                    };
+
+                    // Group dropdown
+                    const groupSel = document.createElement("select");
+                    groupSel.className = "ebc-scene-type-sel";
+                    groupSel.style.cssText = "flex:1;width:auto;max-width:130px;";
+                    groupSel.title = "Item slot";
+                    {
+                        const ph = document.createElement("option");
+                        ph.value = ""; ph.textContent = "— pick slot —";
+                        ph.disabled = true; ph.selected = !equipGroup;
+                        groupSel.appendChild(ph);
+                    }
+                    for (const g of groups) {
+                        const opt = document.createElement("option");
+                        opt.value = g.name;
+                        opt.textContent = g.desc;
+                        opt.selected = g.name === equipGroup;
+                        groupSel.appendChild(opt);
+                    }
+                    groupSel.addEventListener("change", () => {
+                        equipGroup = groupSel.value;
+                        updateAssetSel(equipAsset);
+                    });
+                    updateAssetSel(equipAsset); // populate initial asset list
 
                     const captureBtn = document.createElement("button");
                     captureBtn.className = "ebc-update-btn";
-                    captureBtn.textContent = "📷 Capture";
-                    captureBtn.title = "Fill fields from currently worn item in the typed group";
-                    captureBtn.style.cssText = "flex:0 0 auto;font-size:10px;padding:2px 6px;";
+                    captureBtn.textContent = "📷";
+                    captureBtn.title = "Fill from currently worn item in selected slot";
+                    captureBtn.style.cssText = "flex:0 0 auto;font-size:12px;padding:2px 6px;";
                     captureBtn.addEventListener("click", () => {
                         try {
-                            const g = groupInp.value.trim();
-                            if (!g) { groupInp.style.borderColor = "#cf6f98"; return; }
+                            const g = groupSel.value;
+                            if (!g) return;
                             const item = InventoryGet(Player, g);
-                            if (!item) { assetInp.placeholder = "Nothing worn in that group"; return; }
-                            assetInp.value = item.Asset.Name;
+                            if (!item) return;
                             equipAsset = item.Asset.Name;
+                            updateAssetSel(equipAsset);
                             const c = (item as unknown as Record<string, unknown>).Color;
                             if (c !== undefined && colorInpRef) {
                                 const s = Array.isArray(c) ? (c as string[]).join(",") : String(c);
@@ -4884,8 +4977,8 @@ export class EBCDrawer {
                         } catch { /* ignore */ }
                     });
 
-                    row1.appendChild(groupInp);
-                    row1.appendChild(assetInp);
+                    row1.appendChild(groupSel);
+                    row1.appendChild(assetSel);
                     row1.appendChild(captureBtn);
                     fieldsEl.appendChild(row1);
 
@@ -4899,12 +4992,38 @@ export class EBCDrawer {
                     fieldsEl.appendChild(colorInp);
 
                 } else if (type === "unequip") {
-                    const groupInp = Object.assign(document.createElement("input"), {
-                        className: "ebc-form-input", type: "text",
-                        placeholder: "Group (e.g. Cloth)", value: unequipGroup, maxLength: 40,
-                    }) as HTMLInputElement;
-                    groupInp.addEventListener("input", () => { unequipGroup = groupInp.value; });
-                    fieldsEl.appendChild(groupInp);
+                    const worn = getWornItems();
+                    const itemSel = document.createElement("select");
+                    itemSel.className = "ebc-scene-type-sel";
+                    itemSel.style.cssText = "width:100%;max-width:100%;";
+                    itemSel.title = "Item to remove";
+                    if (worn.length === 0) {
+                        const opt = document.createElement("option");
+                        opt.value = ""; opt.textContent = "Nothing currently worn";
+                        itemSel.appendChild(opt);
+                    } else {
+                        let found = false;
+                        for (const w of worn) {
+                            const opt = document.createElement("option");
+                            opt.value = w.group;
+                            opt.textContent = w.itemDesc;
+                            opt.selected = w.group === unequipGroup;
+                            if (w.group === unequipGroup) found = true;
+                            itemSel.appendChild(opt);
+                        }
+                        if (!found && unequipGroup) {
+                            const opt = document.createElement("option");
+                            opt.value = unequipGroup;
+                            opt.textContent = `${unequipGroup} (not worn)`;
+                            opt.selected = true;
+                            itemSel.insertBefore(opt, itemSel.firstChild);
+                        } else if (!found) {
+                            itemSel.selectedIndex = 0;
+                            unequipGroup = worn[0]?.group ?? "";
+                        }
+                    }
+                    itemSel.addEventListener("change", () => { unequipGroup = itemSel.value; });
+                    fieldsEl.appendChild(itemSel);
 
                 } else if (type === "emote") {
                     const textInp = Object.assign(document.createElement("input"), {
