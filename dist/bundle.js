@@ -2400,18 +2400,18 @@
             }, 150);
         }
         window.setTimeout(() => {
-            var _a, _b;
             // Navigate away from the ChatRoom screen BEFORE ChatRoomLeave() clears
             // the room state. Without this, mods that hook ChatRoomRun (e.g. CRABS)
             // crash on the next render frame because ChatRoomCustomization is null.
             try {
-                (_b = (_a = window).CommonSetScreen) === null || _b === void 0 ? void 0 : _b.call(_a, "Online", "ChatSearch");
+                if (typeof CommonSetScreen === "function")
+                    CommonSetScreen("Online", "ChatSearch");
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_a) { /* ignore */ }
             try {
                 ChatRoomLeave();
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
         }, 800);
     }
     /**

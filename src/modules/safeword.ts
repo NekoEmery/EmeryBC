@@ -197,7 +197,7 @@ export function triggerRed(): void {
         // Navigate away from the ChatRoom screen BEFORE ChatRoomLeave() clears
         // the room state. Without this, mods that hook ChatRoomRun (e.g. CRABS)
         // crash on the next render frame because ChatRoomCustomization is null.
-        try { (window as unknown as Record<string, unknown>).CommonSetScreen?.("Online", "ChatSearch"); } catch { /* ignore */ }
+        try { if (typeof CommonSetScreen === "function") CommonSetScreen("Online", "ChatSearch"); } catch { /* ignore */ }
         try { ChatRoomLeave(); } catch { /* ignore */ }
     }, 800);
 }
