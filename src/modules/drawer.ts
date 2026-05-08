@@ -4508,14 +4508,16 @@ export class EBCDrawer {
             const json = exportOutfitById(o.id);
             if (!json) return;
             const showFallback = (): void => {
-                // Can't write clipboard — show in a temporary tooltip-style input
-                const tmp = document.createElement("input");
-                tmp.value = json;
-                tmp.style.cssText = "position:fixed;top:-9999px;";
-                document.body.appendChild(tmp);
-                tmp.select();
-                document.execCommand("copy");
-                document.body.removeChild(tmp);
+                // Can't write clipboard — fall back to legacy execCommand
+                try {
+                    const tmp = document.createElement("input");
+                    tmp.value = json;
+                    tmp.style.cssText = "position:fixed;top:-9999px;";
+                    document.body.appendChild(tmp);
+                    tmp.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(tmp);
+                } catch { /* execCommand deprecated; ignore */ }
                 eExportBtn.textContent = "Copied!";
                 window.setTimeout(() => { eExportBtn.textContent = "↑ Copy to Clipboard"; }, 1500);
             };
@@ -4525,7 +4527,8 @@ export class EBCDrawer {
                         eExportBtn.textContent = "Copied!";
                         window.setTimeout(() => { eExportBtn.textContent = "↑ Copy to Clipboard"; }, 1500);
                     })
-                    .catch(showFallback);
+                    .catch(showFallback)
+                    .catch(() => { /* ignore */ });
             } else {
                 showFallback();
             }
@@ -5354,7 +5357,7 @@ export class EBCDrawer {
                 navigator.clipboard.writeText(payload).then(() => {
                     exportBtn.textContent = "Copied!";
                     window.setTimeout(() => { exportBtn.textContent = "↑ Export"; }, 1500);
-                }).catch(showInPanel);
+                }).catch(showInPanel).catch(() => { /* ignore */ });
             } else {
                 showInPanel();
             }
@@ -6712,17 +6715,19 @@ export class EBCDrawer {
                     window.setTimeout(() => { exportBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>'; }, 1500);
                 };
                 const fallback = (): void => {
-                    const tmp = document.createElement("textarea");
-                    tmp.value = json;
-                    tmp.style.cssText = "position:fixed;top:-9999px;";
-                    document.body.appendChild(tmp);
-                    tmp.select();
-                    document.execCommand("copy");
-                    document.body.removeChild(tmp);
+                    try {
+                        const tmp = document.createElement("textarea");
+                        tmp.value = json;
+                        tmp.style.cssText = "position:fixed;top:-9999px;";
+                        document.body.appendChild(tmp);
+                        tmp.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(tmp);
+                    } catch { /* execCommand deprecated; ignore */ }
                     copied();
                 };
                 if (navigator.clipboard?.writeText) {
-                    navigator.clipboard.writeText(json).then(copied).catch(fallback);
+                    navigator.clipboard.writeText(json).then(copied).catch(fallback).catch(() => { /* ignore */ });
                 } else { fallback(); }
             });
 
