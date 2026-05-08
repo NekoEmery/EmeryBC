@@ -1586,6 +1586,28 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Suppress native beep notification ----------------------------------------
+    // When on (default), plain beeps handled by our IM don't also show in BC's
+    // main chat log. Game beeps (friend requests etc.) always pass through.
+    function getSuppressNativeBeep() {
+        var _a;
+        try {
+            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setSuppressNativeBeep(value) {
+        try {
+            const store = getStore$2();
+            if (!store)
+                return;
+            store.suppressNativeBeep = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Beep mute -----------------------------------------------------------------
     function getBeepMuted() {
         var _a;
@@ -7988,10 +8010,30 @@
                 const lblFText = document.createElement("span");
                 lblFText.textContent = "Friends";
                 const lblFCount = document.createElement("span");
-                lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;";
+                lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;flex:1;";
                 lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
+                const suppressBtn = document.createElement("button");
+                const refreshSuppressBtn = () => {
+                    const on = getSuppressNativeBeep();
+                    suppressBtn.textContent = on ? "💬 hide in chat" : "💬 show in chat";
+                    suppressBtn.title = on ? "Beep messages are hidden from BC's main chat — click to show them" : "Beep messages show in BC's main chat — click to hide them";
+                    suppressBtn.style.cssText = [
+                        "font-family:'Trebuchet MS',serif",
+                        "font-size:8px",
+                        "padding:1px 5px",
+                        "border-radius:4px",
+                        "cursor:pointer",
+                        "flex-shrink:0",
+                        "border:1px solid " + (on ? "#3a1928" : "#cf6f98"),
+                        "background:transparent",
+                        "color:" + (on ? "#5a3a4a" : "#cf6f98"),
+                    ].join(";");
+                };
+                refreshSuppressBtn();
+                suppressBtn.addEventListener("click", () => { setSuppressNativeBeep(!getSuppressNativeBeep()); refreshSuppressBtn(); });
                 lblF.appendChild(lblFText);
                 lblF.appendChild(lblFCount);
+                lblF.appendChild(suppressBtn);
                 body.appendChild(lblF);
                 const tags = getFriendTags();
                 // Sort: room first, online second, away last, then alphabetical
@@ -9462,9 +9504,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.5.6";
+    const MOD_VERSION = "0.5.7";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.5.7",
+            changes: [
+                "Beep messages no longer spam BC's main chat log (suppressed by default). Toggle '💬 hide/show in chat' button in the Friends section header to restore the native notification.",
+            ],
+        },
         {
             version: "0.5.6",
             changes: [
@@ -10508,15 +10556,15 @@
         // Only handle plain beeps (BeepType === "" or undefined) — skip game/friend-request beeps.
         tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
             var _a;
-            const result = next(args);
             try {
                 const [beep] = args;
+                // Non-chat beeps (friend requests, etc.) always pass through unchanged.
                 if (beep.BeepType)
-                    return result; // skip non-chat beeps
+                    return next(args);
                 const fromNum = typeof beep.MemberNumber === "number" ? beep.MemberNumber : 0;
                 const msg = typeof beep.Message === "string" ? beep.Message : "";
                 if (!fromNum || !msg)
-                    return result;
+                    return next(args);
                 const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
                 if (name)
                     cacheName(fromNum, name);
@@ -10531,9 +10579,12 @@
                     drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                 }
                 catch ( /* ignore */_c) { /* ignore */ }
+                // Suppress BC's native chat-log notification when our IM handles it.
+                if (getSuppressNativeBeep())
+                    return;
             }
             catch ( /* ignore */_d) { /* ignore */ }
-            return result;
+            return next(args);
         });
         // Cache friend names whenever BC notifies us a friend came online.
         // FriendListBeep is a real BC global called with {MemberNumber, MemberName, ...}.

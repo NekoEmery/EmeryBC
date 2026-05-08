@@ -112,6 +112,23 @@ export function setAntiRestraintConfirm(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Suppress native beep notification ----------------------------------------
+// When on (default), plain beeps handled by our IM don't also show in BC's
+// main chat log. Game beeps (friend requests etc.) always pass through.
+
+export function getSuppressNativeBeep(): boolean {
+    try { return getStore()?.suppressNativeBeep !== false; } catch { return true; }
+}
+
+export function setSuppressNativeBeep(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.suppressNativeBeep = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}
+
 // -- Beep mute -----------------------------------------------------------------
 
 export function getBeepMuted(): boolean {

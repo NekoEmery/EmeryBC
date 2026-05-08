@@ -54,7 +54,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getFriendList, getFriendStatus, getFriendTags, setFriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
@@ -6167,10 +6167,32 @@ export class EBCDrawer {
             const lblFText = document.createElement("span");
             lblFText.textContent = "Friends";
             const lblFCount = document.createElement("span");
-            lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;";
+            lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;flex:1;";
             lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
+
+            const suppressBtn = document.createElement("button");
+            const refreshSuppressBtn = (): void => {
+                const on = getSuppressNativeBeep();
+                suppressBtn.textContent = on ? "💬 hide in chat" : "💬 show in chat";
+                suppressBtn.title = on ? "Beep messages are hidden from BC's main chat — click to show them" : "Beep messages show in BC's main chat — click to hide them";
+                suppressBtn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:8px",
+                    "padding:1px 5px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "border:1px solid " + (on ? "#3a1928" : "#cf6f98"),
+                    "background:transparent",
+                    "color:" + (on ? "#5a3a4a" : "#cf6f98"),
+                ].join(";");
+            };
+            refreshSuppressBtn();
+            suppressBtn.addEventListener("click", () => { setSuppressNativeBeep(!getSuppressNativeBeep()); refreshSuppressBtn(); });
+
             lblF.appendChild(lblFText);
             lblF.appendChild(lblFCount);
+            lblF.appendChild(suppressBtn);
             body.appendChild(lblF);
 
             const tags = getFriendTags();

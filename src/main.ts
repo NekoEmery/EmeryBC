@@ -5,7 +5,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getBeepMuted } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer } from "./modules/antiRestraint";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
@@ -13,10 +13,16 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.6";
+const MOD_VERSION = "0.5.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.5.7",
+        changes: [
+            "Beep messages no longer spam BC's main chat log (suppressed by default). Toggle '💬 hide/show in chat' button in the Friends section header to restore the native notification.",
+        ],
+    },
     {
         version: "0.5.6",
         changes: [
@@ -1054,20 +1060,22 @@ function init(): void {
     // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
     // Only handle plain beeps (BeepType === "" or undefined) — skip game/friend-request beeps.
     tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
-        const result = next(args);
         try {
             const [beep] = args as [Record<string, unknown>];
-            if (beep.BeepType) return result; // skip non-chat beeps
+            // Non-chat beeps (friend requests, etc.) always pass through unchanged.
+            if (beep.BeepType) return next(args);
             const fromNum = typeof beep.MemberNumber === "number" ? beep.MemberNumber : 0;
             const msg = typeof beep.Message === "string" ? beep.Message : "";
-            if (!fromNum || !msg) return result;
+            if (!fromNum || !msg) return next(args);
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
             if (name) cacheName(fromNum, name);
             addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
             if (!getBeepMuted()) { try { playBeepSound(); } catch { /* ignore */ } }
             try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
+            // Suppress BC's native chat-log notification when our IM handles it.
+            if (getSuppressNativeBeep()) return;
         } catch { /* ignore */ }
-        return result;
+        return next(args);
     });
 
 
