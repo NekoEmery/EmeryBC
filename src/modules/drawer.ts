@@ -1979,6 +1979,8 @@ export class EBCDrawer {
     private refreshConfirmToggle: (() => void) | null = null;
     private beepWins = new Map<number, { el: HTMLElement; minimized: boolean }>();
     private beepUnread = new Map<number, number>();
+    private friendsSectionEl: HTMLElement | null = null;
+    private friendPollTick = 0;
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
@@ -2749,11 +2751,21 @@ export class EBCDrawer {
         this.lastCrabsBottom = crabsRect.bottom;
     }
 
+    // Called every 200ms by the CRABS poller — piggyback a 30s friend-list poll.
+    private tickFriendPoll(): void {
+        if (this.currentTab !== "notes") { this.friendPollTick = 0; return; }
+        this.friendPollTick++;
+        if (this.friendPollTick >= 150) { // 150 × 200ms = 30 s
+            this.friendPollTick = 0;
+            try { ServerSend("AccountQuery", { Query: "OnlineFriends" }); } catch { /* ignore */ }
+        }
+    }
+
     // Poll CRABS's tab position while in a chat room so we stay in sync even
     // if CRABS repositions itself after our ResizeObserver already fired.
     private startCrabsPoller(): void {
         if (this.crabsPoller !== null) return;
-        this.crabsPoller = window.setInterval(() => this.updateCrabsPosition(), 200);
+        this.crabsPoller = window.setInterval(() => { this.updateCrabsPosition(); this.tickFriendPoll(); }, 200);
     }
 
     private stopCrabsPoller(): void {
@@ -2825,7 +2837,12 @@ export class EBCDrawer {
 
     private switchTab(tab: DrawerTab): void {
         this.stopDevLogPoller();
+        if (tab !== "notes") this.friendsSectionEl = null;
         this.currentTab = tab;
+        if (tab === "notes") {
+            this.friendPollTick = 0;
+            try { ServerSend("AccountQuery", { Query: "OnlineFriends" }); } catch { /* ignore */ }
+        }
 
         for (const [id, name] of [
             ["ebc-tab-outfits", "outfits"],
@@ -6571,6 +6588,20 @@ export class EBCDrawer {
         }
 
         // ── Friends ──────────────────────────────────────────────────────────
+        const friendsSection = document.createElement("div");
+        this.friendsSectionEl = friendsSection;
+        body.appendChild(friendsSection);
+        this.renderFriendRows(friendsSection);
+    }
+
+    public refreshFriendList(): void {
+        if (this.currentTab !== "notes" || !this.friendsSectionEl) return;
+        this.renderFriendRows(this.friendsSectionEl);
+    }
+
+    private renderFriendRows(body: HTMLElement): void {
+        while (body.firstChild) body.removeChild(body.firstChild);
+
         const friendList = getFriendList();
         if (friendList.length > 0) {
             const divF = document.createElement("div");

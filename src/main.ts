@@ -13,10 +13,16 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.6.7";
+const MOD_VERSION = "0.6.8";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.6.8",
+        changes: [
+            "Friends list updates live: refreshes automatically when BC reports online-status changes, when room membership changes, and every 30 s while the tab is open. Also fires an immediate query when you switch to the tab.",
+        ],
+    },
     {
         version: "0.6.7",
         changes: [
@@ -1054,6 +1060,7 @@ function init(): void {
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
+        try { drawer?.refreshFriendList();  } catch { /* ignore */ }
         // Cache names and EBC presence for everyone currently in the room.
         try {
             const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
@@ -1187,6 +1194,7 @@ function init(): void {
                 }
                 updateOnlineFriends(results);
                 try { drawer?.updateAllBeepWindowStatuses(); } catch { /* ignore */ }
+                try { drawer?.refreshFriendList(); } catch { /* ignore */ }
             } catch { /* ignore */ }
         });
     } catch { /* ignore */ }

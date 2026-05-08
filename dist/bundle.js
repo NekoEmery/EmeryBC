@@ -4327,6 +4327,8 @@
             this.refreshConfirmToggle = null;
             this.beepWins = new Map();
             this.beepUnread = new Map();
+            this.friendsSectionEl = null;
+            this.friendPollTick = 0;
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
             this.crabsPoller = null;
@@ -5047,12 +5049,27 @@
             tabEl.style.top = `${tabTop}px`;
             this.lastCrabsBottom = crabsRect.bottom;
         }
+        // Called every 200ms by the CRABS poller — piggyback a 30s friend-list poll.
+        tickFriendPoll() {
+            if (this.currentTab !== "notes") {
+                this.friendPollTick = 0;
+                return;
+            }
+            this.friendPollTick++;
+            if (this.friendPollTick >= 150) { // 150 × 200ms = 30 s
+                this.friendPollTick = 0;
+                try {
+                    ServerSend("AccountQuery", { Query: "OnlineFriends" });
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
+        }
         // Poll CRABS's tab position while in a chat room so we stay in sync even
         // if CRABS repositions itself after our ResizeObserver already fired.
         startCrabsPoller() {
             if (this.crabsPoller !== null)
                 return;
-            this.crabsPoller = window.setInterval(() => this.updateCrabsPosition(), 200);
+            this.crabsPoller = window.setInterval(() => { this.updateCrabsPosition(); this.tickFriendPoll(); }, 200);
         }
         stopCrabsPoller() {
             if (this.crabsPoller === null)
@@ -5122,7 +5139,16 @@
         switchTab(tab) {
             var _a;
             this.stopDevLogPoller();
+            if (tab !== "notes")
+                this.friendsSectionEl = null;
             this.currentTab = tab;
+            if (tab === "notes") {
+                this.friendPollTick = 0;
+                try {
+                    ServerSend("AccountQuery", { Query: "OnlineFriends" });
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            }
             for (const [id, name] of [
                 ["ebc-tab-outfits", "outfits"],
                 ["ebc-tab-buttons", "buttons"],
@@ -8564,7 +8590,7 @@
         }
         // -- Notes tab -------------------------------------------------------------
         renderNotes() {
-            var _a, _b, _c, _d;
+            var _a, _b, _c;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -8616,6 +8642,20 @@
                 body.appendChild(empty);
             }
             // ── Friends ──────────────────────────────────────────────────────────
+            const friendsSection = document.createElement("div");
+            this.friendsSectionEl = friendsSection;
+            body.appendChild(friendsSection);
+            this.renderFriendRows(friendsSection);
+        }
+        refreshFriendList() {
+            if (this.currentTab !== "notes" || !this.friendsSectionEl)
+                return;
+            this.renderFriendRows(this.friendsSectionEl);
+        }
+        renderFriendRows(body) {
+            var _a;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
             const friendList = getFriendList();
             if (friendList.length > 0) {
                 const divF = document.createElement("div");
@@ -8800,7 +8840,7 @@
                     if (getFriendTagList(num).length > 0)
                         row.appendChild(tagArea);
                     // Beep button — does NOT toggle expand
-                    const unread = (_d = this.beepUnread.get(num)) !== null && _d !== void 0 ? _d : 0;
+                    const unread = (_a = this.beepUnread.get(num)) !== null && _a !== void 0 ? _a : 0;
                     const beepBtn = document.createElement("button");
                     beepBtn.className = "ebc-friend-btn";
                     beepBtn.style.cssText = "position:relative;margin-left:auto;flex-shrink:0;";
@@ -10346,9 +10386,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.6.7";
+    const MOD_VERSION = "0.6.8";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.6.8",
+            changes: [
+                "Friends list updates live: refreshes automatically when BC reports online-status changes, when room membership changes, and every 30 s while the tab is open. Also fires an immediate query when you switch to the tab.",
+            ],
+        },
         {
             version: "0.6.7",
             changes: [
@@ -11381,6 +11427,10 @@
                 snapshotPlayerRestraints();
             }
             catch ( /* ignore */_g) { /* ignore */ }
+            try {
+                drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+            }
+            catch ( /* ignore */_h) { /* ignore */ }
             // Cache names and EBC presence for everyone currently in the room.
             try {
                 const chars = window.ChatRoomCharacter;
@@ -11400,7 +11450,7 @@
                         }
                     }
             }
-            catch ( /* ignore */_h) { /* ignore */ }
+            catch ( /* ignore */_j) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
@@ -11542,8 +11592,12 @@
                         drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
+                    try {
+                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
                 }
-                catch ( /* ignore */_b) { /* ignore */ }
+                catch ( /* ignore */_c) { /* ignore */ }
             });
         }
         catch ( /* ignore */_a) { /* ignore */ }
