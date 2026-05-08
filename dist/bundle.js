@@ -9043,10 +9043,10 @@
                 try {
                     const bcAsset = window.Asset;
                     if (!Array.isArray(bcAsset))
-                        return { types: [], varHeight: null };
+                        return { types: [], varHeight: null, isTyped: false };
                     const a = bcAsset.find(x => { var _a; return ((_a = x.Group) === null || _a === void 0 ? void 0 : _a.Name) === groupName && x.Name === assetName; });
                     if (!a)
-                        return { types: [], varHeight: null };
+                        return { types: [], varHeight: null, isTyped: false };
                     // ── Type variants ─────────────────────────────────────────────
                     let types = [];
                     const pickNames = (arr) => Array.isArray(arr)
@@ -9135,10 +9135,12 @@
                         const ext = a.Extended;
                         varHeight = (_j = (_h = tryVH((_g = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _g !== void 0 ? _g : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _h !== void 0 ? _h : tryVH(a.VariableHeight)) !== null && _j !== void 0 ? _j : tryVH(a.VariableHeightConfig);
                     }
-                    return { types, varHeight };
+                    const archStr = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
+                    const isTyped = archStr === "typed" || (Array.isArray(a.AllowType) && a.AllowType.length > 0);
+                    return { types, varHeight, isTyped };
                 }
                 catch (_k) {
-                    return { types: [], varHeight: null };
+                    return { types: [], varHeight: null, isTyped: false };
                 }
             };
             // Build a live step card — returns getStep() which always reads current field state
@@ -9371,35 +9373,15 @@
                         heightWrap.appendChild(heightLbl);
                         heightWrap.appendChild(heightInp);
                         heightWrap.appendChild(heightRangeLbl);
-                        // One-time scan: find which window global holds CeilingShackles options
-                        (() => {
-                            const w = window;
-                            for (const k1 of Object.keys(w)) {
-                                try {
-                                    const v1 = w[k1];
-                                    if (!v1 || typeof v1 !== "object" || Array.isArray(v1))
-                                        continue;
-                                    const o1 = v1;
-                                    if ("CeilingShackles" in o1) {
-                                        console.log(`[EBC] window.${k1}.CeilingShackles =`, o1["CeilingShackles"]);
-                                        continue;
-                                    }
-                                    for (const k2 of Object.keys(o1)) {
-                                        try {
-                                            const v2 = o1[k2];
-                                            if (!v2 || typeof v2 !== "object" || Array.isArray(v2))
-                                                continue;
-                                            const o2 = v2;
-                                            if ("CeilingShackles" in o2)
-                                                console.log(`[EBC] window.${k1}.${k2}.CeilingShackles =`, o2["CeilingShackles"]);
-                                        }
-                                        catch ( /* skip */_a) { /* skip */ }
-                                    }
-                                }
-                                catch ( /* skip */_b) { /* skip */ }
-                            }
-                            console.log("[EBC] scan done");
-                        })();
+                        // Free-text type input — shown for typed items when options can't be auto-detected.
+                        // User sets the desired type in BC's own UI first, then hits 📷 to capture it.
+                        const typeTextInp = document.createElement("input");
+                        typeTextInp.className = "ebc-form-input";
+                        typeTextInp.style.cssText = "display:none;flex:1;";
+                        typeTextInp.placeholder = "Type name (use 📷 to capture from worn item)";
+                        typeTextInp.title = "Equip the item in BC, set the desired state, then hit 📷 to fill this automatically";
+                        typeTextInp.value = equipPropertyType;
+                        typeTextInp.addEventListener("input", () => { equipPropertyType = typeTextInp.value.trim(); });
                         const updateStateRow = () => {
                             const info = getAssetExtInfo(groupSel.value, assetSel.value);
                             // Rebuild type dropdown
@@ -9420,7 +9402,7 @@
                                 equipPropertyType = "";
                             stateSel.value = equipPropertyType;
                             stateSel.disabled = info.types.length === 0;
-                            // Update height input range label + bounds
+                            // Update height range
                             if (info.varHeight) {
                                 heightInp.min = String(info.varHeight.min);
                                 heightInp.max = String(info.varHeight.max);
@@ -9429,14 +9411,20 @@
                                     equipHeightModifier = Math.round((info.varHeight.min + info.varHeight.max) / 2);
                                 heightInp.value = String(equipHeightModifier);
                             }
-                            // Show type dropdown when types exist, height input when varHeight,
-                            // keep type dropdown (disabled) as fallback for "no variants"
-                            stateSel.style.display = info.varHeight ? "none" : "";
-                            heightWrap.style.display = info.varHeight ? "flex" : "none";
+                            // Priority: varHeight > dropdown with options > text fallback for typed > disabled
+                            const showHeight = !!info.varHeight;
+                            const showDropdown = !showHeight && info.types.length > 0;
+                            const showText = !showHeight && !showDropdown && info.isTyped;
+                            stateSel.style.display = showHeight || showText ? "none" : "";
+                            heightWrap.style.display = showHeight ? "flex" : "none";
+                            typeTextInp.style.display = showText ? "" : "none";
+                            if (showText)
+                                typeTextInp.value = equipPropertyType;
                         };
                         stateSel.addEventListener("change", () => { equipPropertyType = stateSel.value; });
                         stateRow.appendChild(stateSel);
                         stateRow.appendChild(heightWrap);
+                        stateRow.appendChild(typeTextInp);
                         // Patch updateAssetSel to also refresh the state row
                         const origUpdateAssetSel = updateAssetSel;
                         const updateAssetSelWithState = (v) => {
@@ -9465,6 +9453,7 @@
                                 if (typeof (prop === null || prop === void 0 ? void 0 : prop.Type) === "string") {
                                     equipPropertyType = prop.Type;
                                     stateSel.value = equipPropertyType;
+                                    typeTextInp.value = equipPropertyType;
                                 }
                                 // Capture Property.HeightModifier
                                 if (typeof (prop === null || prop === void 0 ? void 0 : prop.HeightModifier) === "number") {
@@ -12683,9 +12672,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.9.4";
+    const MOD_VERSION = "0.9.5";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.9.5",
+            changes: [
+                "Scenes equip: typed items where BC hides options in module closures (e.g. Ceiling Shackles) now show a free-text type input instead of a disabled '— no variants —'. Equip the item in BC, set the state you want, then hit 📷 — it auto-fills the type name. Works for all restraints.",
+            ],
+        },
         {
             version: "0.9.4",
             changes: [

@@ -6313,15 +6313,15 @@ export class EBCDrawer {
 
         // Returns extended info for an asset: AllowType variants (checking all known BC structures)
         // and VariableHeight range if the item uses numeric height instead of a type string.
-        type AssetExtInfo = { types: string[]; varHeight: { min: number; max: number } | null };
+        type AssetExtInfo = { types: string[]; varHeight: { min: number; max: number } | null; isTyped: boolean };
         const getAssetExtInfo = (groupName: string, assetName: string): AssetExtInfo => {
             try {
                 const bcAsset = (window as unknown as Record<string, unknown>).Asset as
                     Array<Record<string, unknown>> | undefined;
-                if (!Array.isArray(bcAsset)) return { types: [], varHeight: null };
+                if (!Array.isArray(bcAsset)) return { types: [], varHeight: null, isTyped: false };
                 const a = bcAsset.find(x =>
                     (x.Group as Record<string, unknown>)?.Name === groupName && x.Name === assetName);
-                if (!a) return { types: [], varHeight: null };
+                if (!a) return { types: [], varHeight: null, isTyped: false };
 
                 // ── Type variants ─────────────────────────────────────────────
                 let types: string[] = [];
@@ -6417,10 +6417,11 @@ export class EBCDrawer {
                         ?? tryVH(a.VariableHeightConfig);
                 }
 
-                return { types, varHeight };
-            } catch { return { types: [], varHeight: null }; }
+                const archStr = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
+                const isTyped = archStr === "typed" || (Array.isArray(a.AllowType) && (a.AllowType as unknown[]).length > 0);
+                return { types, varHeight, isTyped };
+            } catch { return { types: [], varHeight: null, isTyped: false }; }
         };
-        // Thin wrappers kept for the state-dropdown call site
         const getAssetTypes = (g: string, a: string): string[] => getAssetExtInfo(g, a).types;
 
         const getWornItems = (): Array<{ group: string; itemDesc: string }> => {
@@ -6686,27 +6687,15 @@ export class EBCDrawer {
                     heightWrap.appendChild(heightInp);
                     heightWrap.appendChild(heightRangeLbl);
 
-                    // One-time scan: find which window global holds CeilingShackles options
-                    (() => {
-                        const w = window as unknown as Record<string, unknown>;
-                        for (const k1 of Object.keys(w)) {
-                            try {
-                                const v1 = w[k1];
-                                if (!v1 || typeof v1 !== "object" || Array.isArray(v1)) continue;
-                                const o1 = v1 as Record<string, unknown>;
-                                if ("CeilingShackles" in o1) { console.log(`[EBC] window.${k1}.CeilingShackles =`, o1["CeilingShackles"]); continue; }
-                                for (const k2 of Object.keys(o1)) {
-                                    try {
-                                        const v2 = o1[k2];
-                                        if (!v2 || typeof v2 !== "object" || Array.isArray(v2)) continue;
-                                        const o2 = v2 as Record<string, unknown>;
-                                        if ("CeilingShackles" in o2) console.log(`[EBC] window.${k1}.${k2}.CeilingShackles =`, o2["CeilingShackles"]);
-                                    } catch { /* skip */ }
-                                }
-                            } catch { /* skip */ }
-                        }
-                        console.log("[EBC] scan done");
-                    })();
+                    // Free-text type input — shown for typed items when options can't be auto-detected.
+                    // User sets the desired type in BC's own UI first, then hits 📷 to capture it.
+                    const typeTextInp = document.createElement("input");
+                    typeTextInp.className = "ebc-form-input";
+                    typeTextInp.style.cssText = "display:none;flex:1;";
+                    typeTextInp.placeholder = "Type name (use 📷 to capture from worn item)";
+                    typeTextInp.title = "Equip the item in BC, set the desired state, then hit 📷 to fill this automatically";
+                    typeTextInp.value = equipPropertyType;
+                    typeTextInp.addEventListener("input", () => { equipPropertyType = typeTextInp.value.trim(); });
 
                     const updateStateRow = (): void => {
                         const info = getAssetExtInfo(groupSel.value, assetSel.value);
@@ -6727,7 +6716,7 @@ export class EBCDrawer {
                         stateSel.value = equipPropertyType;
                         stateSel.disabled = info.types.length === 0;
 
-                        // Update height input range label + bounds
+                        // Update height range
                         if (info.varHeight) {
                             heightInp.min = String(info.varHeight.min);
                             heightInp.max = String(info.varHeight.max);
@@ -6737,15 +6726,22 @@ export class EBCDrawer {
                             heightInp.value = String(equipHeightModifier);
                         }
 
-                        // Show type dropdown when types exist, height input when varHeight,
-                        // keep type dropdown (disabled) as fallback for "no variants"
-                        stateSel.style.display = info.varHeight ? "none" : "";
-                        heightWrap.style.display = info.varHeight ? "flex" : "none";
+                        // Priority: varHeight > dropdown with options > text fallback for typed > disabled
+                        const showHeight = !!info.varHeight;
+                        const showDropdown = !showHeight && info.types.length > 0;
+                        const showText = !showHeight && !showDropdown && info.isTyped;
+
+                        stateSel.style.display   = showHeight || showText ? "none" : "";
+                        heightWrap.style.display  = showHeight ? "flex" : "none";
+                        typeTextInp.style.display = showText   ? ""     : "none";
+
+                        if (showText) typeTextInp.value = equipPropertyType;
                     };
 
                     stateSel.addEventListener("change", () => { equipPropertyType = stateSel.value; });
                     stateRow.appendChild(stateSel);
                     stateRow.appendChild(heightWrap);
+                    stateRow.appendChild(typeTextInp);
 
                     // Patch updateAssetSel to also refresh the state row
                     const origUpdateAssetSel = updateAssetSel;
@@ -6774,6 +6770,7 @@ export class EBCDrawer {
                             if (typeof prop?.Type === "string") {
                                 equipPropertyType = prop.Type as string;
                                 stateSel.value = equipPropertyType;
+                                typeTextInp.value = equipPropertyType;
                             }
                             // Capture Property.HeightModifier
                             if (typeof prop?.HeightModifier === "number") {
