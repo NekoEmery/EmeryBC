@@ -30,7 +30,7 @@ import {
     toggleSchedule,
     checkAndApplySchedules,
 } from "./outfitManager";
-import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup } from "./palettes";
+import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
@@ -2037,6 +2037,7 @@ export class EBCDrawer {
     private friendsSectionEl: HTMLElement | null = null;
     private friendPollTick = 0;
     private friendRefreshDebounce: ReturnType<typeof window.setTimeout> | null = null;
+    private offlineFriendsCollapsed = true;
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
@@ -3502,34 +3503,268 @@ export class EBCDrawer {
                 container.appendChild(none);
             } else {
                 for (const w of worn) {
+                    // Outer wrapper (row + expandable zones panel)
+                    const wWrap = document.createElement("div");
+                    wWrap.style.cssText = "margin-bottom:3px;";
+
+                    // Header row — name + "All" apply + expand arrow
                     const wRow = document.createElement("div");
-                    wRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:3px;padding:4px 7px;border-radius:5px;background:#130810;border:1px solid #2a1020;";
-                    if (selectedColor) {
-                        const cDot = document.createElement("span");
-                        cDot.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:3px;background:${selectedColor};flex-shrink:0;`;
-                        wRow.appendChild(cDot);
-                    }
+                    wRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;background:#130810;border:1px solid #2a1020;cursor:pointer;";
+
+                    // Color preview dots (current zone colors)
+                    const previewDots = document.createElement("span");
+                    previewDots.style.cssText = "display:inline-flex;gap:2px;flex-shrink:0;";
+                    const refreshPreview = (): void => {
+                        previewDots.innerHTML = "";
+                        const cols = getGroupColors(w.group);
+                        for (const c of cols.slice(0, 6)) {
+                            const d = document.createElement("span");
+                            const isDefault = !c || c === "Default";
+                            d.style.cssText = `display:inline-block;width:9px;height:9px;border-radius:2px;background:${isDefault ? "#3a2030" : c};border:1px solid rgba(255,255,255,0.12);flex-shrink:0;`;
+                            d.title = isDefault ? "Default" : c;
+                            previewDots.appendChild(d);
+                        }
+                    };
+                    refreshPreview();
+
                     const wName = document.createElement("span");
                     wName.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c0a0b0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                     wName.textContent = w.name;
                     wName.title = w.name;
-                    wRow.appendChild(wName);
-                    const applyBtn = document.createElement("button");
-                    applyBtn.className = "ebc-wear-btn";
-                    applyBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
-                    applyBtn.textContent = "Apply";
-                    applyBtn.disabled = !selectedColor;
-                    applyBtn.title = selectedColor ? `Apply ${selectedColor}` : "Select a colour first";
-                    applyBtn.addEventListener("click", () => {
+
+                    const allBtn = document.createElement("button");
+                    allBtn.className = "ebc-wear-btn";
+                    allBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
+                    allBtn.textContent = "All";
+                    allBtn.disabled = !selectedColor;
+                    allBtn.title = selectedColor ? `Apply ${selectedColor} to all zones` : "Select a colour first";
+                    allBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
                         if (!selectedColor) return;
                         applyColorToGroup(w.group, selectedColor);
-                        applyBtn.textContent = "✓";
-                        window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1500);
+                        refreshPreview();
+                        if (zonesPanel.style.display !== "none") rebuildZones();
+                        allBtn.textContent = "✓";
+                        window.setTimeout(() => { allBtn.textContent = "All"; }, 1400);
                     });
-                    wRow.appendChild(applyBtn);
-                    container.appendChild(wRow);
+
+                    const wArrow = document.createElement("span");
+                    wArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
+                    wArrow.textContent = "▼";
+
+                    wRow.appendChild(previewDots);
+                    wRow.appendChild(wName);
+                    wRow.appendChild(allBtn);
+                    wRow.appendChild(wArrow);
+
+                    // Zones panel (expandable)
+                    const zonesPanel = document.createElement("div");
+                    zonesPanel.style.cssText = "display:none;flex-direction:column;gap:3px;padding:5px 7px 6px;background:#0d060c;border:1px solid #2a1020;border-top:none;border-radius:0 0 5px 5px;";
+
+                    const rebuildZones = (): void => {
+                        while (zonesPanel.firstChild) zonesPanel.removeChild(zonesPanel.firstChild);
+                        const colors    = getGroupColors(w.group);
+                        const zoneNames = getGroupZoneNames(w.group);
+
+                        for (let zi = 0; zi < colors.length; zi++) {
+                            const zc = colors[zi];
+                            const zn = zoneNames[zi] ?? `Zone ${zi + 1}`;
+                            const zRow = document.createElement("div");
+                            zRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+
+                            // Current zone color swatch (inline picker)
+                            const zPicker = document.createElement("input");
+                            zPicker.type = "color";
+                            const isDefault = !zc || zc === "Default";
+                            zPicker.value = isDefault ? "#000000" : zc;
+                            zPicker.style.cssText = "width:22px;height:20px;border:1px solid #3a1928;border-radius:3px;background:none;cursor:pointer;padding:1px;flex-shrink:0;";
+                            zPicker.title = `Pick color for ${zn}`;
+                            zPicker.addEventListener("change", () => {
+                                applyColorZoneToGroup(w.group, zi, zPicker.value);
+                                refreshPreview();
+                            });
+
+                            const zSwatch = document.createElement("span");
+                            zSwatch.style.cssText = `display:inline-block;width:14px;height:14px;border-radius:3px;background:${isDefault ? "#3a2030" : zc};border:1px solid rgba(255,255,255,0.12);flex-shrink:0;cursor:pointer;`;
+                            zSwatch.title = isDefault ? "Default" : zc;
+                            zSwatch.addEventListener("click", () => {
+                                // Clicking the swatch applies the selected color from MY COLORS
+                                if (!selectedColor) return;
+                                applyColorZoneToGroup(w.group, zi, selectedColor);
+                                refreshPreview();
+                                rebuildZones();
+                            });
+
+                            const zLabel = document.createElement("span");
+                            zLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex:1;";
+                            zLabel.textContent = zn;
+
+                            const zSetBtn = document.createElement("button");
+                            zSetBtn.className = "ebc-wear-btn";
+                            zSetBtn.style.cssText += "padding:1px 6px;font-size:8px;flex-shrink:0;";
+                            zSetBtn.textContent = "Set";
+                            zSetBtn.disabled = !selectedColor;
+                            zSetBtn.title = selectedColor ? `Set ${zn} to ${selectedColor}` : "Select a colour first";
+                            zSetBtn.addEventListener("click", () => {
+                                if (!selectedColor) return;
+                                applyColorZoneToGroup(w.group, zi, selectedColor);
+                                refreshPreview();
+                                rebuildZones();
+                            });
+
+                            zRow.appendChild(zPicker);
+                            zRow.appendChild(zSwatch);
+                            zRow.appendChild(zLabel);
+                            zRow.appendChild(zSetBtn);
+                            zonesPanel.appendChild(zRow);
+                        }
+
+                        // Save as preset row
+                        const saveRow = document.createElement("div");
+                        saveRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;border-top:1px solid #2a1020;padding-top:5px;";
+                        const saveInp = document.createElement("input");
+                        saveInp.type = "text";
+                        saveInp.placeholder = "Preset name…";
+                        saveInp.maxLength = 30;
+                        saveInp.className = "ebc-form-input";
+                        saveInp.style.fontSize = "9px";
+                        const saveBtn = document.createElement("button");
+                        saveBtn.className = "ebc-wear-btn";
+                        saveBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
+                        saveBtn.textContent = "+ Preset";
+                        saveBtn.title = "Save current zone colors as a named preset";
+                        saveBtn.addEventListener("click", () => {
+                            const name = saveInp.value.trim();
+                            if (!name) { saveInp.style.borderColor = "#cf6f98"; return; }
+                            saveInp.style.borderColor = "";
+                            saveRestraintPreset(name, getGroupColors(w.group));
+                            saveInp.value = "";
+                            renderPresets();
+                            saveBtn.textContent = "✓ Saved";
+                            window.setTimeout(() => { saveBtn.textContent = "+ Preset"; }, 1400);
+                        });
+                        saveRow.appendChild(saveInp);
+                        saveRow.appendChild(saveBtn);
+                        zonesPanel.appendChild(saveRow);
+                    };
+
+                    wRow.addEventListener("click", () => {
+                        const open = zonesPanel.style.display !== "flex";
+                        zonesPanel.style.display = open ? "flex" : "none";
+                        wArrow.textContent = open ? "▲" : "▼";
+                        wRow.style.borderRadius = open ? "5px 5px 0 0" : "5px";
+                        if (open) rebuildZones();
+                    });
+
+                    wWrap.appendChild(wRow);
+                    wWrap.appendChild(zonesPanel);
+                    container.appendChild(wWrap);
                 }
             }
+
+            // ── Restraint colour presets ──────────────────────────────────────
+            const div3 = document.createElement("div");
+            div3.className = "ebc-divider"; div3.style.margin = "8px 0 4px";
+            container.appendChild(div3);
+
+            const presetsLbl = document.createElement("div");
+            presetsLbl.className = "ebc-import-hint";
+            presetsLbl.style.cssText = "font-weight:600;margin-bottom:5px;";
+            presetsLbl.textContent = "RESTRAINT PRESETS";
+            container.appendChild(presetsLbl);
+
+            const presetsHint = document.createElement("div");
+            presetsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;margin-bottom:6px;";
+            presetsHint.textContent = "Click a preset to apply its colors to a restraint. Save new presets using the + Preset button inside any restraint's zone panel above.";
+            container.appendChild(presetsHint);
+
+            const presetsContainer = document.createElement("div");
+            container.appendChild(presetsContainer);
+
+            const renderPresets = (): void => {
+                while (presetsContainer.firstChild) presetsContainer.removeChild(presetsContainer.firstChild);
+                const presets = getRestraintPresets();
+                if (!presets.length) {
+                    const none = document.createElement("div");
+                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
+                    none.textContent = "No presets saved yet.";
+                    presetsContainer.appendChild(none);
+                    return;
+                }
+                for (const preset of presets) {
+                    const pRow = document.createElement("div");
+                    pRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:3px;padding:4px 7px;border-radius:5px;background:#130810;border:1px solid #2a1020;";
+
+                    // Color swatches preview
+                    const swatches = document.createElement("span");
+                    swatches.style.cssText = "display:inline-flex;gap:2px;flex-shrink:0;";
+                    for (const c of preset.colors.slice(0, 8)) {
+                        const d = document.createElement("span");
+                        const isDefault = !c || c === "Default";
+                        d.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;background:${isDefault ? "#3a2030" : c};border:1px solid rgba(255,255,255,0.12);`;
+                        swatches.appendChild(d);
+                    }
+
+                    // Name (editable)
+                    const nameInp = document.createElement("input");
+                    nameInp.value = preset.name;
+                    nameInp.maxLength = 30;
+                    nameInp.className = "ebc-form-input";
+                    nameInp.style.cssText = nameInp.style.cssText + ";font-size:9px;min-width:0;";
+                    nameInp.addEventListener("change", () => { renameRestraintPreset(preset.id, nameInp.value); });
+
+                    // Apply dropdown — pick which worn restraint to apply to
+                    const applyToSel = document.createElement("select");
+                    applyToSel.className = "ebc-form-input";
+                    applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:9px;flex:none;width:auto;max-width:100px;";
+                    applyToSel.title = "Choose restraint to apply to";
+                    const phOpt = document.createElement("option");
+                    phOpt.value = ""; phOpt.textContent = "— pick —";
+                    applyToSel.appendChild(phOpt);
+                    for (const w of worn) {
+                        const opt = document.createElement("option");
+                        opt.value = w.group; opt.textContent = w.name;
+                        applyToSel.appendChild(opt);
+                    }
+
+                    const applyBtn = document.createElement("button");
+                    applyBtn.className = "ebc-wear-btn";
+                    applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
+                    applyBtn.textContent = "Apply";
+                    applyBtn.addEventListener("click", () => {
+                        const group = applyToSel.value;
+                        if (!group) { applyToSel.style.borderColor = "#cf6f98"; return; }
+                        applyToSel.style.borderColor = "";
+                        applyColorsToGroup(group, preset.colors);
+                        render(); // full re-render to update previews
+                        applyBtn.textContent = "✓";
+                        window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1400);
+                    });
+
+                    // Delete button
+                    let delPending = false;
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "ebc-outfit-del";
+                    delBtn.textContent = "×";
+                    delBtn.addEventListener("click", () => {
+                        if (!delPending) {
+                            delPending = true; delBtn.classList.add("confirm"); delBtn.textContent = "Sure?";
+                            window.setTimeout(() => { delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×"; }, 2500);
+                        } else {
+                            deleteRestraintPreset(preset.id);
+                            renderPresets();
+                        }
+                    });
+
+                    pRow.appendChild(swatches);
+                    pRow.appendChild(nameInp);
+                    pRow.appendChild(applyToSel);
+                    pRow.appendChild(applyBtn);
+                    pRow.appendChild(delBtn);
+                    presetsContainer.appendChild(pRow);
+                }
+            };
+            renderPresets();
 
             // ── Saved palettes (collapsed, secondary) ─────────────────────────
             const div2 = document.createElement("div");
@@ -6818,6 +7053,7 @@ export class EBCDrawer {
             body.appendChild(divF);
 
             const onlineCount = friendList.filter(n => getFriendStatus(n) !== "away").length;
+            const offlineCount = friendList.length - onlineCount;
             const lblF = document.createElement("div");
             lblF.className = "ebc-section-label";
             lblF.style.cssText = "display:flex;align-items:center;gap:6px;";
@@ -6845,11 +7081,18 @@ export class EBCDrawer {
                 return resolveName(a).localeCompare(resolveName(b));
             });
 
+            // Split into always-visible (pinned or online/room) and offline
+            const activeFriends  = sorted.filter(n => isFriendPinned(n) || getFriendStatus(n) !== "away");
+            const offlineFriends = sorted.filter(n => !isFriendPinned(n) && getFriendStatus(n) === "away");
+
             // Shared tooltip element (reused across all rows)
             let activeTooltip: HTMLElement | null = null;
             const hideTooltip = (): void => { activeTooltip?.remove(); activeTooltip = null; };
 
-            for (const num of sorted) {
+            // Container for offline friends (shown/hidden by toggle)
+            const offlineContainer = document.createElement("div");
+
+            const buildFriendRow = (num: number, container: HTMLElement): void => {
                 const status = getFriendStatus(num);
                 const name   = resolveName(num);
                 const pinned = isFriendPinned(num);
@@ -7147,7 +7390,45 @@ export class EBCDrawer {
 
                 wrap.appendChild(row);
                 wrap.appendChild(expand);
-                body.appendChild(wrap);
+                container.appendChild(wrap);
+            };
+
+            // Render active friends
+            for (const num of activeFriends) buildFriendRow(num, body);
+
+            // Offline toggle header + collapsible section
+            if (offlineFriends.length > 0) {
+                const offlineToggle = document.createElement("div");
+                const updateOfflineToggle = (): void => {
+                    const col = this.offlineFriendsCollapsed;
+                    offlineToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 2px;cursor:pointer;user-select:none;";
+                    offlineToggle.innerHTML = "";
+                    const arrow = document.createElement("span");
+                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
+                    arrow.textContent = col ? "▶" : "▼";
+                    const lbl = document.createElement("span");
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex:1;";
+                    lbl.textContent = `Offline (${offlineFriends.length})`;
+                    offlineToggle.appendChild(arrow);
+                    offlineToggle.appendChild(lbl);
+                    offlineContainer.style.display = col ? "none" : "block";
+                };
+                updateOfflineToggle();
+                offlineToggle.addEventListener("click", () => {
+                    this.offlineFriendsCollapsed = !this.offlineFriendsCollapsed;
+                    updateOfflineToggle();
+                    // Build offline rows lazily on first expand
+                    if (!this.offlineFriendsCollapsed && !offlineContainer.firstChild) {
+                        for (const num of offlineFriends) buildFriendRow(num, offlineContainer);
+                    }
+                });
+                body.appendChild(offlineToggle);
+                body.appendChild(offlineContainer);
+
+                // If already expanded from before, populate immediately
+                if (!this.offlineFriendsCollapsed) {
+                    for (const num of offlineFriends) buildFriendRow(num, offlineContainer);
+                }
             }
         }
     }

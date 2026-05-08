@@ -150,3 +150,104 @@ export function applyColorToGroup(groupName: string, color: string): boolean {
     } catch { /* ignore */ }
     return true;
 }
+
+// Apply a color to a specific zone index of a worn restraint group.
+export function applyColorZoneToGroup(groupName: string, zoneIndex: number, color: string): boolean {
+    const item = InventoryGet(Player, groupName);
+    if (!item) return false;
+    let colors: string[];
+    if (Array.isArray(item.Color)) {
+        colors = [...item.Color as string[]];
+    } else {
+        colors = [item.Color as string ?? "Default"];
+    }
+    if (zoneIndex < 0 || zoneIndex >= colors.length) return false;
+    colors[zoneIndex] = color;
+    (item as unknown as Record<string, unknown>).Color = colors;
+    try {
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+    } catch { /* ignore */ }
+    return true;
+}
+
+// Apply a full colors array to a worn restraint group (for preset apply).
+// Handles zone-count mismatches gracefully.
+export function applyColorsToGroup(groupName: string, colors: string[]): boolean {
+    const item = InventoryGet(Player, groupName);
+    if (!item) return false;
+    if (Array.isArray(item.Color)) {
+        const zoneCount = (item.Color as string[]).length;
+        const applied: string[] = [];
+        for (let i = 0; i < zoneCount; i++) {
+            applied.push(colors[i] ?? colors[colors.length - 1] ?? "Default");
+        }
+        (item as unknown as Record<string, unknown>).Color = applied;
+    } else {
+        (item as unknown as Record<string, unknown>).Color = colors[0] ?? "Default";
+    }
+    try {
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+    } catch { /* ignore */ }
+    return true;
+}
+
+// Return the current color array for a worn item (normalised to string[]).
+export function getGroupColors(groupName: string): string[] {
+    const item = InventoryGet(Player, groupName);
+    if (!item) return [];
+    if (Array.isArray(item.Color)) return [...item.Color as string[]];
+    return [item.Color as string ?? "Default"];
+}
+
+// Return zone names for a worn item by reading Asset.Layer[].Name.
+export function getGroupZoneNames(groupName: string): string[] {
+    const item = InventoryGet(Player, groupName);
+    if (!item) return [];
+    const colors = Array.isArray(item.Color) ? item.Color as string[] : [item.Color as string ?? "Default"];
+    const assetRaw = item.Asset as unknown as Record<string, unknown>;
+    const layers = Array.isArray(assetRaw.Layer) ? assetRaw.Layer as Array<Record<string, unknown>> : [];
+    return colors.map((_, i) => {
+        const layer = layers[i];
+        if (!layer) return `Zone ${i + 1}`;
+        const name = (layer.Name as string | undefined)?.trim();
+        return name || `Zone ${i + 1}`;
+    });
+}
+
+// -- Restraint color presets ---------------------------------------------------
+
+export interface RestraintColorPreset {
+    id: string;
+    name: string;
+    colors: string[]; // per-zone values ("Default" or hex)
+}
+
+function saveRestraintPresets(list: RestraintColorPreset[]): void {
+    getStore().restraintPresets = list;
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+export function getRestraintPresets(): RestraintColorPreset[] {
+    const v = getStore().restraintPresets;
+    return Array.isArray(v) ? (v as RestraintColorPreset[]) : [];
+}
+
+export function saveRestraintPreset(name: string, colors: string[]): RestraintColorPreset {
+    const p: RestraintColorPreset = { id: uid(), name: name.trim() || "Preset", colors: [...colors] };
+    saveRestraintPresets([...getRestraintPresets(), p]);
+    return p;
+}
+
+export function deleteRestraintPreset(id: string): void {
+    saveRestraintPresets(getRestraintPresets().filter(p => p.id !== id));
+}
+
+export function renameRestraintPreset(id: string, name: string): void {
+    const list = getRestraintPresets();
+    const p = list.find(x => x.id === id);
+    if (p && name.trim()) { p.name = name.trim(); saveRestraintPresets(list); }
+}
