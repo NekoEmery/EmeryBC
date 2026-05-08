@@ -11511,11 +11511,11 @@
                 addableWrap.appendChild(chipRow);
             };
             rebuildAddable();
-            // ── ⛑ Room Rescue (collapsible) ────────────────────────────────────────
+            // ── ⛑ Room Rescue (collapsible, appended at the very end) ──────────────
             const divRescue = document.createElement("div");
             divRescue.className = "ebc-divider";
             divRescue.style.margin = "10px 0 0";
-            body.appendChild(divRescue);
+            // (appended at the bottom of renderDomTools)
             // Clickable header row
             const rescueHdr = document.createElement("div");
             rescueHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;user-select:none;border-radius:6px;transition:background 0.12s;";
@@ -11533,11 +11533,10 @@
             rescueHdr.appendChild(rescueHdrIcon);
             rescueHdr.appendChild(rescueHdrLbl);
             rescueHdr.appendChild(rescueArrow);
-            body.appendChild(rescueHdr);
+            // (appended at the bottom of renderDomTools)
             // Collapsible content panel
             const rescuePanel = document.createElement("div");
             rescuePanel.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 8px 8px;";
-            body.appendChild(rescuePanel);
             let rescuePanelOpen = false;
             rescueHdr.addEventListener("click", () => {
                 rescuePanelOpen = !rescuePanelOpen;
@@ -12147,6 +12146,10 @@
                 rebuildSets();
                 body.scrollTop = body.scrollHeight;
             });
+            // ── ⛑ Room Rescue — always at the very bottom ─────────────────────────
+            body.appendChild(divRescue);
+            body.appendChild(rescueHdr);
+            body.appendChild(rescuePanel);
         }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
