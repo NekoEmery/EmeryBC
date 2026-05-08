@@ -11726,9 +11726,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.8.2";
+    const MOD_VERSION = "0.8.3";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.8.3",
+            changes: [
+                "Fix: Typing '*text' in chat no longer produces '*Emery Emery text*'. BC's Type:Emote auto-prepends the sender's name — we were also including it in Content. Now sends only the body text.",
+            ],
+        },
         {
             version: "0.8.2",
             changes: [
@@ -13059,7 +13065,7 @@
             try {
                 ServerSend("ChatRoomChat", {
                     Type: "Emote",
-                    Content: getDisplayName() + " " + body,
+                    Content: body, // BC auto-prepends sender name for Type:"Emote"
                 });
             }
             catch ( /* ignore */_a) { /* ignore */ }
