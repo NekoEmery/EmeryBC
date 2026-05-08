@@ -56,7 +56,7 @@ import {
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -1570,7 +1570,7 @@ const CSS = `
 }
 .ebc-color-swatch.sel { border-color: #fff; }
 
-/* -- Colour picker rework (Colours tab) -- */
+/* -- Custom HSV colour picker (Colours tab) -- */
 .ebc-mycolors-label {
     font-family: 'Trebuchet MS', serif;
     font-size: 9px;
@@ -1580,65 +1580,91 @@ const CSS = `
     text-transform: uppercase;
     margin-bottom: 5px;
 }
-.ebc-cpicker-card {
+/* picker outer shell */
+.ebc-cpicker {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px;
+    flex-direction: column;
+    gap: 8px;
     background: #0d060c;
     border: 1px solid #3a1928;
-    border-radius: 7px;
+    border-radius: 8px;
+    padding: 9px;
     margin-bottom: 7px;
-    flex-wrap: wrap;
+    user-select: none;
 }
-.ebc-cpicker-wheel {
-    width: 36px;
-    height: 36px;
-    border: 2px solid #3a1928;
-    border-radius: 7px;
-    background: none;
-    cursor: pointer;
-    padding: 2px;
+/* SV gradient box */
+.ebc-cpicker-sv {
+    position: relative;
+    width: 100%;
+    height: 130px;
+    border-radius: 6px;
+    cursor: crosshair;
+    overflow: hidden;
     flex-shrink: 0;
-    box-sizing: border-box;
+    touch-action: none;
+}
+.ebc-cpicker-sv-hue,
+.ebc-cpicker-sv-white,
+.ebc-cpicker-sv-black { position: absolute; inset: 0; }
+.ebc-cpicker-sv-white { background: linear-gradient(to right, #fff, transparent); }
+.ebc-cpicker-sv-black { background: linear-gradient(to bottom, transparent, #000); }
+/* SV drag cursor */
+.ebc-cpicker-sv-dot {
+    position: absolute;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1.5px rgba(0,0,0,0.55), 0 1px 5px rgba(0,0,0,0.6);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+/* Hue slider */
+.ebc-cpicker-hue {
+    position: relative;
+    width: 100%;
+    height: 14px;
+    border-radius: 7px;
+    background: linear-gradient(to right,
+        #f00, #ff0 16.66%, #0f0 33.33%, #0ff 50%, #00f 66.66%, #f0f 83.33%, #f00);
+    cursor: pointer;
+    flex-shrink: 0;
+    touch-action: none;
+}
+/* Hue thumb */
+.ebc-cpicker-hue-thumb {
+    position: absolute;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2.5px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.5);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+/* Bottom row: preview + hex + save */
+.ebc-cpicker-btm {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.ebc-cpicker-preview {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.15);
+    display: block;
 }
 .ebc-cpicker-hex {
     flex: 1;
-    min-width: 80px;
+    min-width: 0;
     font-size: 11px !important;
     font-family: 'Courier New', monospace !important;
     letter-spacing: 0.5px;
 }
-.ebc-cpicker-btns {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
-}
-.ebc-sel-bar {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 5px 8px;
-    border-radius: 6px;
-    background: #130810;
-    border: 1px solid #2a1020;
-    margin-bottom: 8px;
-    min-height: 28px;
-}
-.ebc-sel-dot {
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    flex-shrink: 0;
-    border: 1px solid rgba(255,255,255,0.15);
-}
-.ebc-sel-hex {
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    color: #cf6f98;
-    flex: 1;
-    letter-spacing: 0.5px;
-}
+/* Saved swatches grid */
 .ebc-swatch-grid {
     display: flex;
     flex-wrap: wrap;
@@ -3533,6 +3559,167 @@ export class EBCDrawer {
 
     // -- Color palettes --------------------------------------------------------
 
+    private buildColorPickerWidget(initialHex: string, onChange: (hex: string) => void): HTMLElement {
+        const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+        const hsvToRgb = (h: number, s: number, v: number): [number, number, number] => {
+            const f = (n: number) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+            return [Math.round(f(5) * 255), Math.round(f(3) * 255), Math.round(f(1) * 255)];
+        };
+        const rgbToHex = (r: number, g: number, b: number) =>
+            "#" + [r, g, b].map(x => clamp(x, 0, 255).toString(16).padStart(2, "0")).join("");
+        const hexToRgb = (hex: string): [number, number, number] | null => {
+            const m = hex.replace(/^#/, "").match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+            return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null;
+        };
+        const rgbToHsv = (r: number, g: number, b: number): [number, number, number] => {
+            const rf = r / 255, gf = g / 255, bf = b / 255;
+            const max = Math.max(rf, gf, bf), min = Math.min(rf, gf, bf), d = max - min;
+            let h = 0;
+            if (d > 0) {
+                if (max === rf)      h = ((gf - bf) / d + 6) % 6;
+                else if (max === gf) h = (bf - rf) / d + 2;
+                else                 h = (rf - gf) / d + 4;
+                h *= 60;
+            }
+            return [h, max > 0 ? d / max : 0, max];
+        };
+
+        let H = 0, S = 0, V = 1;
+        const initRgb = hexToRgb(initialHex) ?? [207, 111, 152];
+        [H, S, V] = rgbToHsv(initRgb[0], initRgb[1], initRgb[2]);
+
+        const wrap = document.createElement("div");
+        wrap.className = "ebc-cpicker";
+
+        // SV gradient box
+        const svBox   = document.createElement("div"); svBox.className   = "ebc-cpicker-sv";
+        const svHue   = document.createElement("div"); svHue.className   = "ebc-cpicker-sv-hue";
+        const svWhite = document.createElement("div"); svWhite.className = "ebc-cpicker-sv-white";
+        const svBlack = document.createElement("div"); svBlack.className = "ebc-cpicker-sv-black";
+        const svDot   = document.createElement("div"); svDot.className   = "ebc-cpicker-sv-dot";
+        svBox.appendChild(svHue); svBox.appendChild(svWhite);
+        svBox.appendChild(svBlack); svBox.appendChild(svDot);
+
+        // Hue slider
+        const hueBar   = document.createElement("div"); hueBar.className   = "ebc-cpicker-hue";
+        const hueThumb = document.createElement("div"); hueThumb.className = "ebc-cpicker-hue-thumb";
+        hueBar.appendChild(hueThumb);
+
+        // Bottom row: preview square + hex input
+        const btm     = document.createElement("div");   btm.className    = "ebc-cpicker-btm";
+        const preview = document.createElement("div");   preview.className = "ebc-cpicker-preview";
+        const hexInp  = document.createElement("input"); hexInp.className  = "ebc-cpicker-hex";
+        hexInp.type = "text"; hexInp.maxLength = 7; hexInp.spellcheck = false;
+        hexInp.placeholder = "#cf6f98";
+        btm.appendChild(preview); btm.appendChild(hexInp);
+
+        wrap.appendChild(svBox); wrap.appendChild(hueBar); wrap.appendChild(btm);
+
+        // Render helper — updates all visual elements from H/S/V state.
+        // silent=true skips the onChange callback (used for initial render).
+        const render = (silent = false): void => {
+            const [hr, hg, hb] = hsvToRgb(H, 1, 1);
+            svHue.style.background = `rgb(${hr},${hg},${hb})`;
+            svDot.style.left = `calc(${clamp(S * 100, 0, 100)}% - 6.5px)`;
+            svDot.style.top  = `calc(${clamp((1 - V) * 100, 0, 100)}% - 6.5px)`;
+            hueThumb.style.left = `calc(${clamp(H / 360 * 100, 0, 100)}% - 9px)`;
+            const [r, g, b] = hsvToRgb(H, S, V);
+            const hex = rgbToHex(r, g, b);
+            preview.style.background = hex;
+            hexInp.value = hex;
+            if (!silent) onChange(hex);
+        };
+
+        // Drag — SV box
+        const moveSv = (cx: number, cy: number): void => {
+            const rect = svBox.getBoundingClientRect();
+            S = clamp((cx - rect.left) / rect.width,  0, 1);
+            V = clamp(1 - (cy - rect.top) / rect.height, 0, 1);
+            render();
+        };
+        let svDrag = false;
+        const svMM  = (e: MouseEvent) => { if (svDrag) moveSv(e.clientX, e.clientY); };
+        const svMU  = () => { svDrag = false; };
+        const svTM  = (e: TouchEvent) => { if (svDrag && e.touches[0]) { e.preventDefault(); moveSv(e.touches[0].clientX, e.touches[0].clientY); } };
+        const svTE  = () => { svDrag = false; };
+        document.addEventListener("mousemove", svMM);
+        document.addEventListener("mouseup",   svMU);
+        document.addEventListener("touchmove", svTM, { passive: false });
+        document.addEventListener("touchend",  svTE);
+        svBox.addEventListener("mousedown",  (e) => { svDrag = true; moveSv(e.clientX, e.clientY); });
+        svBox.addEventListener("touchstart", (e) => { svDrag = true; if (e.touches[0]) { e.preventDefault(); moveSv(e.touches[0].clientX, e.touches[0].clientY); } }, { passive: false });
+
+        // Drag — hue bar
+        const moveHue = (cx: number): void => {
+            const rect = hueBar.getBoundingClientRect();
+            H = clamp((cx - rect.left) / rect.width, 0, 1) * 360;
+            render();
+        };
+        let hueDrag = false;
+        const hueMM = (e: MouseEvent) => { if (hueDrag) moveHue(e.clientX); };
+        const hueMU = () => { hueDrag = false; };
+        const hueTM = (e: TouchEvent) => { if (hueDrag && e.touches[0]) { e.preventDefault(); moveHue(e.touches[0].clientX); } };
+        const hueTE = () => { hueDrag = false; };
+        document.addEventListener("mousemove", hueMM);
+        document.addEventListener("mouseup",   hueMU);
+        document.addEventListener("touchmove", hueTM, { passive: false });
+        document.addEventListener("touchend",  hueTE);
+        hueBar.addEventListener("mousedown",  (e) => { hueDrag = true; moveHue(e.clientX); });
+        hueBar.addEventListener("touchstart", (e) => { hueDrag = true; if (e.touches[0]) { e.preventDefault(); moveHue(e.touches[0].clientX); } }, { passive: false });
+
+        // Hex input — validate on every keystroke
+        hexInp.addEventListener("input", () => {
+            let v = hexInp.value.trim();
+            if (!v.startsWith("#")) v = "#" + v;
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                const rgb = hexToRgb(v);
+                if (rgb) {
+                    [H, S, V] = rgbToHsv(rgb[0], rgb[1], rgb[2]);
+                    const [hr, hg, hb] = hsvToRgb(H, 1, 1);
+                    svHue.style.background = `rgb(${hr},${hg},${hb})`;
+                    svDot.style.left  = `calc(${clamp(S * 100, 0, 100)}% - 6.5px)`;
+                    svDot.style.top   = `calc(${clamp((1 - V) * 100, 0, 100)}% - 6.5px)`;
+                    hueThumb.style.left = `calc(${clamp(H / 360 * 100, 0, 100)}% - 9px)`;
+                    preview.style.background = v;
+                    hexInp.style.color = "";
+                    onChange(v);
+                }
+            } else {
+                hexInp.style.color = "#cf3060";
+            }
+        });
+        hexInp.addEventListener("blur", () => {
+            // Reset to current valid value on blur if invalid
+            if (!/^#[0-9a-fA-F]{6}$/.test(hexInp.value)) {
+                const [r, g, b] = hsvToRgb(H, S, V);
+                hexInp.value = rgbToHex(r, g, b);
+                hexInp.style.color = "";
+            }
+        });
+
+        // Expose cleanup + external set on the element
+        (wrap as unknown as Record<string, unknown>)._cleanup = (): void => {
+            document.removeEventListener("mousemove", svMM);
+            document.removeEventListener("mouseup",   svMU);
+            document.removeEventListener("touchmove", svTM);
+            document.removeEventListener("touchend",  svTE);
+            document.removeEventListener("mousemove", hueMM);
+            document.removeEventListener("mouseup",   hueMU);
+            document.removeEventListener("touchmove", hueTM);
+            document.removeEventListener("touchend",  hueTE);
+        };
+        (wrap as unknown as Record<string, unknown>)._setValue = (hex: string): void => {
+            const rgb = hexToRgb(hex);
+            if (!rgb) return;
+            [H, S, V] = rgbToHsv(rgb[0], rgb[1], rgb[2]);
+            hexInp.style.color = "";
+            render(true); // silent — don't re-fire onChange
+        };
+
+        render(true); // initial paint
+        return wrap;
+    }
+
     private renderPalettes(body: HTMLElement): void {
         const label = document.createElement("div");
         label.className = "ebc-section-label";
@@ -3548,6 +3735,10 @@ export class EBCDrawer {
         let updateSelBar:    () => void = () => {};
         let updateSwatchGrid: () => void = () => {};
 
+        // Custom picker handles — refreshed each time build() creates a new widget
+        let pickerCleanup: (() => void) | null = null;
+        let setPickerHex:  ((hex: string) => void) | null = null;
+
         // Flash the selected-colour bar to prompt the user to pick a colour first
         const flashSelBar = (): void => {
             const el = container.querySelector<HTMLElement>(".ebc-sel-bar");
@@ -3557,103 +3748,43 @@ export class EBCDrawer {
         };
 
         const build = (): void => {
+            // Detach document-level drag listeners from previous picker instance
+            pickerCleanup?.(); pickerCleanup = null; setPickerHex = null;
             while (container.firstChild) container.removeChild(container.firstChild);
             if (collapsed) return;
 
-            // ── MY COLOURS — picker card ──────────────────────────────────────
+            // ── MY COLOURS — custom HSV picker ───────────────────────────────
             const myColLbl = document.createElement("div");
             myColLbl.className = "ebc-mycolors-label";
             myColLbl.textContent = "MY COLOURS";
             container.appendChild(myColLbl);
 
-            // Card: [colour wheel] [hex input] [Select] [+ Save]
-            const pickerCard = document.createElement("div");
-            pickerCard.className = "ebc-cpicker-card";
-
-            const nativePicker = document.createElement("input");
-            nativePicker.type = "color";
-            nativePicker.value = selectedColor ?? "#cf6f98";
-            nativePicker.className = "ebc-cpicker-wheel";
-            nativePicker.title = "Open colour wheel";
-
-            const hexInp = document.createElement("input");
-            hexInp.type = "text";
-            hexInp.className = "ebc-form-input ebc-cpicker-hex";
-            hexInp.maxLength = 7;
-            hexInp.placeholder = "#cf6f98";
-            hexInp.value = selectedColor ?? "";
-            hexInp.spellcheck = false;
-
-            // Wheel → hex (live while dragging)
-            nativePicker.addEventListener("input", () => {
-                hexInp.value = nativePicker.value;
-                hexInp.style.borderColor = "";
-            });
-
-            // Hex → wheel (validate on every keystroke)
-            const applyHex = (): void => {
-                let v = hexInp.value.trim();
-                if (!v) { hexInp.style.borderColor = ""; return; }
-                if (!v.startsWith("#")) v = "#" + v;
-                if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-                    nativePicker.value = v;
-                    hexInp.value = v;
-                    hexInp.style.borderColor = "";
-                } else {
-                    hexInp.style.borderColor = "#cf3060";
-                }
-            };
-            hexInp.addEventListener("input", applyHex);
-            hexInp.addEventListener("change", applyHex);
-            // Enter = Select shortcut
-            hexInp.addEventListener("keydown", (e) => {
-                if (e.key !== "Enter") return;
-                applyHex();
-                if (hexInp.style.borderColor !== "#cf3060") {
-                    selectedColor = nativePicker.value;
-                    updateSelBar();
-                    updateSwatchGrid();
-                    updateLabel();
-                }
-            });
-
-            const pickerBtns = document.createElement("div");
-            pickerBtns.className = "ebc-cpicker-btns";
-
-            const selectBtn = document.createElement("button");
-            selectBtn.className = "ebc-wear-btn";
-            selectBtn.textContent = "Select";
-            selectBtn.title = "Use this colour (without saving)";
-            selectBtn.addEventListener("click", () => {
-                applyHex();
-                selectedColor = nativePicker.value;
+            // Build the custom picker; onChange fires on every drag/hex input
+            const pickerWidget = this.buildColorPickerWidget(selectedColor ?? "#cf6f98", (hex) => {
+                selectedColor = hex;
                 updateSelBar();
                 updateSwatchGrid();
-                updateLabel();
             });
+            const w = pickerWidget as unknown as Record<string, unknown>;
+            pickerCleanup = w._cleanup as () => void;
+            setPickerHex  = w._setValue as (hex: string) => void;
+            container.appendChild(pickerWidget);
 
+            // Save current picker colour to My Colours
             const saveColBtn = document.createElement("button");
             saveColBtn.className = "ebc-wear-btn";
-            saveColBtn.textContent = "+ Save";
-            saveColBtn.title = "Save this colour to My Colours and select it";
+            saveColBtn.style.cssText = "margin-top:5px;width:100%;";
+            saveColBtn.textContent = "+ Save to My Colours";
+            saveColBtn.title = "Save current colour to My Colours";
             saveColBtn.addEventListener("click", () => {
-                applyHex();
-                const c = nativePicker.value;
-                addCustomColor(c);
-                selectedColor = c;
-                updateSelBar();
+                if (!selectedColor) return;
+                addCustomColor(selectedColor);
                 updateSwatchGrid();
                 updateLabel();
                 saveColBtn.textContent = "✓ Saved";
-                window.setTimeout(() => { saveColBtn.textContent = "+ Save"; }, 1400);
+                window.setTimeout(() => { saveColBtn.textContent = "+ Save to My Colours"; }, 1400);
             });
-
-            pickerBtns.appendChild(selectBtn);
-            pickerBtns.appendChild(saveColBtn);
-            pickerCard.appendChild(nativePicker);
-            pickerCard.appendChild(hexInp);
-            pickerCard.appendChild(pickerBtns);
-            container.appendChild(pickerCard);
+            container.appendChild(saveColBtn);
 
             // ── Selected colour bar ───────────────────────────────────────────
             const selBar = document.createElement("div");
@@ -3669,9 +3800,7 @@ export class EBCDrawer {
             clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#5a3a4a;cursor:pointer;flex-shrink:0;";
             clrBtn.addEventListener("click", () => {
                 selectedColor = null;
-                nativePicker.value = "#cf6f98";
-                hexInp.value = "";
-                hexInp.style.borderColor = "";
+                setPickerHex?.("#cf6f98");
                 updateSelBar();
                 updateSwatchGrid();
                 updateLabel();
@@ -3720,9 +3849,7 @@ export class EBCDrawer {
                     sw.title = c.toUpperCase();
                     sw.addEventListener("click", () => {
                         selectedColor = c;
-                        nativePicker.value = c;
-                        hexInp.value = c;
-                        hexInp.style.borderColor = "";
+                        setPickerHex?.(c);
                         updateSelBar();
                         updateSwatchGrid();
                     });
@@ -7041,15 +7168,17 @@ export class EBCDrawer {
                 ts.textContent = `${d.getHours().toString().padStart(2,"0")}:${d.getMinutes().toString().padStart(2,"0")}`;
                 bubble.appendChild(ts);
 
+                // Strip embedded JSON metadata appended by other mods (WCE, FBC, etc.)
+                const cleanMsg = stripBeepMetadata(e.message);
                 // Parse message — may start with "> quote\n" reply prefix
-                let msgBody = e.message;
-                if (e.message.startsWith("> ") && e.message.includes("\n")) {
-                    const nl = e.message.indexOf("\n");
+                let msgBody = cleanMsg;
+                if (cleanMsg.startsWith("> ") && cleanMsg.includes("\n")) {
+                    const nl = cleanMsg.indexOf("\n");
                     const quoteEl = document.createElement("div");
                     quoteEl.className = "ebc-beep-quote";
-                    quoteEl.textContent = e.message.slice(2, nl);
+                    quoteEl.textContent = cleanMsg.slice(2, nl);
                     bubble.appendChild(quoteEl);
-                    msgBody = e.message.slice(nl + 1);
+                    msgBody = cleanMsg.slice(nl + 1);
                 }
 
                 // Text content

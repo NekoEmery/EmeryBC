@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.7.4";
+const MOD_VERSION = "0.7.5";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.7.5",
+        changes: [
+            "Colours tab — replaced native OS colour wheel with a fully custom HSV picker styled to match the addon theme. Includes a saturation/value gradient box, rainbow hue slider, live hex input, and a colour preview square.",
+            "Fix: Beep messages from other mods (WCE, FBC) that append JSON metadata blobs are now stripped automatically so only the plain message text is shown.",
+        ],
+    },
     {
         version: "0.7.4",
         changes: [

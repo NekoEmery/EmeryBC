@@ -2,6 +2,24 @@
 // All data stored in Player.ExtensionSettings.EmeryBC and synced to server
 // so it's available across devices on next login.
 
+/**
+ * Some BC mods (WCE, FBC, etc.) append a JSON metadata blob to beep messages,
+ * e.g. "hiya {"messageType":"Message","messageColor":"#EFB0E2"}".
+ * Strip any trailing valid JSON object so we display only the plain text.
+ */
+export function stripBeepMetadata(msg: string): string {
+    const idx = msg.lastIndexOf("{");
+    if (idx <= 0) return msg;
+    try {
+        const tail = msg.slice(idx).trim();
+        const parsed = JSON.parse(tail);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            return msg.slice(0, idx).trim();
+        }
+    } catch { /* not valid JSON — leave as-is */ }
+    return msg;
+}
+
 export interface BeepEntry {
     from: number;       // sender member number
     to: number;         // recipient member number
