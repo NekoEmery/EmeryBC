@@ -1589,6 +1589,15 @@
     function deleteScene(id) {
         saveScenes(load().filter(s => s.id !== id));
     }
+    /** Call a BC function, silencing both synchronous throws and async rejections from mod hooks. */
+    function callBC$1(fn) {
+        try {
+            const r = fn();
+            if (r && typeof r.catch === "function")
+                r.catch(() => { });
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     function executeStep(step) {
         var _a, _b, _c;
         try {
@@ -1633,17 +1642,17 @@
                         // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
                         // see the newly-added restraint as "unknown" and immediately strip it.
                         snapshotPlayerRestraints();
-                        CharacterRefresh(Player, false);
-                        ChatRoomCharacterUpdate(Player);
-                        ServerPlayerAppearanceSync();
+                        callBC$1(() => CharacterRefresh(Player, false));
+                        callBC$1(() => ChatRoomCharacterUpdate(Player));
+                        callBC$1(() => ServerPlayerAppearanceSync());
                     }
                     break;
                 case "unequip":
                     if (step.group) {
                         InventoryRemove(Player, step.group, false);
-                        CharacterRefresh(Player, false);
-                        ChatRoomCharacterUpdate(Player);
-                        ServerPlayerAppearanceSync();
+                        callBC$1(() => CharacterRefresh(Player, false));
+                        callBC$1(() => ChatRoomCharacterUpdate(Player));
+                        callBC$1(() => ServerPlayerAppearanceSync());
                     }
                     break;
                 case "emote":
@@ -2351,6 +2360,22 @@
     const NECK_GROUPS = new Set([
         "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
     ]);
+    /**
+     * Call a BC function, swallowing both synchronous throws AND async rejections.
+     *
+     * In BC R127+ any function can be hooked by a mod with an async wrapper.
+     * If that async wrapper rejects, the caller gets an unhandled Promise rejection
+     * because normal try/catch only covers synchronous throws.
+     * Wrapping with this helper catches both paths.
+     */
+    function callBC(fn) {
+        try {
+            const r = fn();
+            if (r && typeof r.catch === "function")
+                r.catch(() => { });
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     function releaseBindingRestraints() {
         const removeGroups = new Set(Player.Appearance
             .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
@@ -2363,12 +2388,9 @@
         // Update the anti-restraint snapshot so it treats the now-empty slots as
         // the new baseline and doesn't try to fight the removal.
         snapshotPlayerRestraints();
-        try {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
     }
     // Guard flag to prevent re-entrant calls during grace enforcement.
     let enforcing = false;
@@ -2391,12 +2413,9 @@
         try {
             Player.Appearance = Player.Appearance.filter((i) => !removeGroups.has(i.Asset.Group.Name));
             snapshotPlayerRestraints();
-            try {
-                CharacterRefresh(Player, false);
-                ChatRoomCharacterUpdate(Player);
-                ServerPlayerAppearanceSync();
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
+            callBC(() => CharacterRefresh(Player, false));
+            callBC(() => ChatRoomCharacterUpdate(Player));
+            callBC(() => ServerPlayerAppearanceSync());
         }
         finally {
             enforcing = false;
@@ -2442,16 +2461,10 @@
         }
         if (cfg.yellowLeave) {
             window.setTimeout(() => {
-                // CommonSetScreen is async in BC R127 — attach .catch() so the returned
-                // Promise doesn't become an unhandled rejection if BC throws inside it.
-                try {
-                    Promise.resolve(CommonSetScreen("Online", "ChatSearch")).catch(() => { });
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                try {
-                    ChatRoomLeave();
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
+                // Both CommonSetScreen (async in BC R127) and ChatRoomLeave (potentially
+                // hooked async by other mods) must have their Promise returns silenced.
+                callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                callBC(() => ChatRoomLeave());
             }, 800);
         }
     }
@@ -2492,16 +2505,9 @@
             window.setTimeout(() => {
                 // Navigate away BEFORE ChatRoomLeave() clears room state so hooks
                 // from other mods (e.g. CRABS) don't crash on the next render frame.
-                // CommonSetScreen is async in BC R127 — attach .catch() so the returned
-                // Promise doesn't become an unhandled rejection if BC throws inside it.
-                try {
-                    Promise.resolve(CommonSetScreen("Online", "ChatSearch")).catch(() => { });
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                try {
-                    ChatRoomLeave();
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
+                // Both calls use callBC() to handle async rejections from mod hooks.
+                callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                callBC(() => ChatRoomLeave());
             }, 800);
         }
     }
@@ -12700,9 +12706,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.9.8";
+    const MOD_VERSION = "0.9.9";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.9.9",
+            changes: [
+                "Fix persistent unhandled-rejection error on red/yellow safeword: added callBC() helper that silences async rejections from mod-hooked BC functions (CharacterRefresh, ChatRoomCharacterUpdate, ServerPlayerAppearanceSync, ChatRoomLeave, CommonSetScreen). Any mod that wraps these with async hooks can no longer produce visible promise rejection errors through EmeryBC's safeword or scene execution.",
+            ],
+        },
         {
             version: "0.9.8",
             changes: [

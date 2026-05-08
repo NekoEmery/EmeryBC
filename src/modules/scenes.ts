@@ -71,6 +71,15 @@ export function deleteScene(id: string): void {
     saveScenes(load().filter(s => s.id !== id));
 }
 
+/** Call a BC function, silencing both synchronous throws and async rejections from mod hooks. */
+function callBC(fn: () => unknown): void {
+    try {
+        const r = fn();
+        if (r && typeof (r as Promise<unknown>).catch === "function")
+            (r as Promise<unknown>).catch(() => {});
+    } catch { /* ignore */ }
+}
+
 function executeStep(step: SceneStep): void {
     try {
         switch (step.type) {
@@ -114,17 +123,17 @@ function executeStep(step: SceneStep): void {
                     // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
                     // see the newly-added restraint as "unknown" and immediately strip it.
                     snapshotPlayerRestraints();
-                    CharacterRefresh(Player, false);
-                    ChatRoomCharacterUpdate(Player);
-                    ServerPlayerAppearanceSync();
+                    callBC(() => CharacterRefresh(Player, false));
+                    callBC(() => ChatRoomCharacterUpdate(Player));
+                    callBC(() => ServerPlayerAppearanceSync());
                 }
                 break;
             case "unequip":
                 if (step.group) {
                     InventoryRemove(Player, step.group, false);
-                    CharacterRefresh(Player, false);
-                    ChatRoomCharacterUpdate(Player);
-                    ServerPlayerAppearanceSync();
+                    callBC(() => CharacterRefresh(Player, false));
+                    callBC(() => ChatRoomCharacterUpdate(Player));
+                    callBC(() => ServerPlayerAppearanceSync());
                 }
                 break;
             case "emote":

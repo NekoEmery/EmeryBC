@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.9.8";
+const MOD_VERSION = "0.9.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.9.9",
+        changes: [
+            "Fix persistent unhandled-rejection error on red/yellow safeword: added callBC() helper that silences async rejections from mod-hooked BC functions (CharacterRefresh, ChatRoomCharacterUpdate, ServerPlayerAppearanceSync, ChatRoomLeave, CommonSetScreen). Any mod that wraps these with async hooks can no longer produce visible promise rejection errors through EmeryBC's safeword or scene execution.",
+        ],
+    },
     {
         version: "0.9.8",
         changes: [
