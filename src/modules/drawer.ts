@@ -2477,6 +2477,196 @@ export class EBCDrawer {
         badgeRow.appendChild(badgeLbl);
         badgeRow.appendChild(badgeToggle);
 
+        // Safeword permanent row (always visible, any tab)
+        const safewordRow = document.createElement("div");
+        safewordRow.style.cssText = "display:flex;flex-direction:column;flex-shrink:0;border-top:1px solid #2a1421;background:rgba(12,4,10,0.6);";
+
+        // Header row — one line, always visible
+        const swHdr = document.createElement("div");
+        swHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;cursor:pointer;user-select:none;";
+
+        const swIcon = document.createElement("span");
+        swIcon.textContent = "🛑";
+        swIcon.style.cssText = "font-size:10px;flex-shrink:0;";
+
+        const swLabel = document.createElement("span");
+        swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.05em;flex:1;color:#5a3a4a;";
+        swLabel.textContent = "SAFEWORDS";
+
+        // Grace active indicator (hidden unless grace is running)
+        const swGraceTag = document.createElement("span");
+        swGraceTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:3px;background:#3a0e1e;color:#cf6f98;border:1px solid #6b2040;flex-shrink:0;display:none;";
+        swGraceTag.textContent = "Grace active";
+
+        const swEnableBtn = document.createElement("button");
+        const refreshSwEnable = (): void => {
+            const on = getSafewordConfig().enabled;
+            swEnableBtn.textContent = on ? "ON" : "OFF";
+            swEnableBtn.style.cssText = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:9px",
+                "font-weight:bold",
+                "padding:1px 7px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "flex-shrink:0",
+                "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                "background:" + (on ? "#4a1f30" : "#100508"),
+                "color:" + (on ? "#f7e6ee" : "#4c2537"),
+            ].join(";");
+            swLabel.style.color = on ? "#cf6f98" : "#5a3a4a";
+        };
+        try { refreshSwEnable(); } catch { /* ignore */ }
+
+        swEnableBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setSafewordConfig({ ...getSafewordConfig(), enabled: !getSafewordConfig().enabled });
+            refreshSwEnable();
+        });
+
+        const swArrow = document.createElement("span");
+        swArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#3a1928;flex-shrink:0;";
+        swArrow.textContent = "▼";
+
+        swHdr.appendChild(swIcon);
+        swHdr.appendChild(swLabel);
+        swHdr.appendChild(swGraceTag);
+        swHdr.appendChild(swEnableBtn);
+        swHdr.appendChild(swArrow);
+        safewordRow.appendChild(swHdr);
+
+        // Collapsible settings panel
+        const swInner = document.createElement("div");
+        swInner.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 7px 7px;";
+
+        // Grace period indicator + cancel
+        const swGraceRow = document.createElement("div");
+        swGraceRow.style.cssText = "display:none;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
+        const swGraceLbl = document.createElement("span");
+        swGraceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;flex:1;";
+        const swGraceCancelBtn = document.createElement("button");
+        swGraceCancelBtn.textContent = "End grace";
+        swGraceCancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+        swGraceRow.appendChild(swGraceLbl);
+        swGraceRow.appendChild(swGraceCancelBtn);
+        swInner.appendChild(swGraceRow);
+
+        const updateSwGrace = (): void => {
+            if (!isGraceActive()) {
+                swGraceRow.style.display = "none";
+                swGraceTag.style.display = "none";
+                swLabel.textContent = "SAFEWORDS";
+                return;
+            }
+            const rem = getGraceRemaining();
+            if (rem === null) { swGraceRow.style.display = "none"; swGraceTag.style.display = "none"; return; }
+            swGraceRow.style.display = "flex";
+            swGraceTag.style.display = "";
+            swLabel.textContent = "SAFEWORDS";
+            swGraceLbl.textContent = rem === Infinity
+                ? "🛡 Grace active (indefinite)"
+                : `🛡 Grace active — ${Math.ceil((rem as number) / 60_000)} min remaining`;
+        };
+        swGraceCancelBtn.addEventListener("click", () => { endGrace(); updateSwGrace(); });
+
+        // Word input helper
+        const makeSwWordRow = (label: string, getter: () => string, setter: (v: string) => void): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;width:44px;";
+            lbl.textContent = label;
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.maxLength = 40;
+            inp.value = getter();
+            inp.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
+            inp.addEventListener("focus", () => { inp.style.borderColor = "#cf6f98"; });
+            inp.addEventListener("blur",  () => { inp.style.borderColor = "#3a1928"; if (inp.value.trim()) setter(inp.value.trim()); inp.value = getter(); });
+            row.appendChild(lbl);
+            row.appendChild(inp);
+            swInner.appendChild(row);
+        };
+
+        try {
+            makeSwWordRow("Yellow:", () => getSafewordConfig().yellowWord, (v) => setSafewordConfig({ ...getSafewordConfig(), yellowWord: v }));
+            makeSwWordRow("Red:", () => getSafewordConfig().redWord, (v) => setSafewordConfig({ ...getSafewordConfig(), redWord: v }));
+        } catch { /* ignore */ }
+
+        // Grace duration row
+        const swGraceDurRow = document.createElement("div");
+        swGraceDurRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+        const swGraceDurLbl = document.createElement("span");
+        swGraceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;width:44px;";
+        swGraceDurLbl.textContent = "Grace:";
+        const swGraceDurInp = document.createElement("input");
+        swGraceDurInp.type = "number"; swGraceDurInp.min = "0"; swGraceDurInp.max = "9999";
+        swGraceDurInp.style.cssText = "width:48px;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 5px;outline:none;";
+        swGraceDurInp.addEventListener("focus", () => { swGraceDurInp.style.borderColor = "#cf6f98"; });
+        swGraceDurInp.addEventListener("blur",  () => { swGraceDurInp.style.borderColor = "#3a1928"; });
+        swGraceDurInp.addEventListener("change", () => {
+            const mins = Math.max(0, parseInt(swGraceDurInp.value, 10) || 0);
+            setSafewordConfig({ ...getSafewordConfig(), graceDurationMs: mins * 60_000 });
+            swGraceDurInp.value = String(mins);
+        });
+        try { swGraceDurInp.value = String(Math.round(getSafewordConfig().graceDurationMs / 60_000)); } catch { swGraceDurInp.value = "5"; }
+        const swGraceDurUnit = document.createElement("span");
+        swGraceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+        swGraceDurUnit.textContent = "min (0 = indefinite)";
+        swGraceDurRow.appendChild(swGraceDurLbl);
+        swGraceDurRow.appendChild(swGraceDurInp);
+        swGraceDurRow.appendChild(swGraceDurUnit);
+        swInner.appendChild(swGraceDurRow);
+
+        // Outfit selectors
+        const makeSwOutfitRow = (
+            label: string,
+            labelColor: string,
+            getOutfitId: () => string | null,
+            setOutfitId: (id: string | null) => void,
+        ): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${labelColor};flex-shrink:0;width:44px;`;
+            lbl.textContent = label;
+            const sel = document.createElement("select");
+            sel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 5px;outline:none;cursor:pointer;min-width:0;";
+            const noneOpt = document.createElement("option");
+            noneOpt.value = ""; noneOpt.textContent = "— none —";
+            sel.appendChild(noneOpt);
+            try {
+                for (const o of getOutfits()) {
+                    const opt = document.createElement("option");
+                    opt.value = o.id; opt.textContent = o.displayName;
+                    sel.appendChild(opt);
+                }
+                sel.value = getOutfitId() ?? "";
+            } catch { /* ignore */ }
+            sel.addEventListener("change", () => setOutfitId(sel.value || null));
+            row.appendChild(lbl); row.appendChild(sel);
+            swInner.appendChild(row);
+        };
+
+        makeSwOutfitRow("Y outfit:", "#c8b840", () => getSafewordConfig().yellowOutfitId, (id) => setSafewordConfig({ ...getSafewordConfig(), yellowOutfitId: id }));
+        makeSwOutfitRow("R outfit:", "#e06060", () => getSafewordConfig().redOutfitId, (id) => setSafewordConfig({ ...getSafewordConfig(), redOutfitId: id }));
+
+        // Hint
+        const swHint = document.createElement("div");
+        swHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;line-height:1.45;";
+        swHint.textContent = "Type word alone (or word!) in chat + Enter. Yellow = release + grace. Red = release + grace + announce + leave room.";
+        swInner.appendChild(swHint);
+
+        // Toggle expand
+        swHdr.addEventListener("click", () => {
+            const open = swInner.style.display !== "flex";
+            swInner.style.display = open ? "flex" : "none";
+            swArrow.textContent = open ? "▲" : "▼";
+            if (open) { try { updateSwGrace(); } catch { /* ignore */ } }
+        });
+
+        safewordRow.appendChild(swInner);
+
         // Body
         const body = document.createElement("div");
         body.className = "ebc-body";
@@ -2497,6 +2687,7 @@ export class EBCDrawer {
         panel.appendChild(quickActions);
         panel.appendChild(selfPickPanel);
         panel.appendChild(badgeRow);
+        panel.appendChild(safewordRow);
         panel.appendChild(body);
         panel.appendChild(footer);
         slideContainer.appendChild(panel);
@@ -6135,223 +6326,6 @@ export class EBCDrawer {
                 impError.textContent = err instanceof Error ? err.message : "Invalid format.";
             }
         });
-
-        // ── Safeword settings ─────────────────────────────────────────────────
-        this.renderSafewordSection(body);
-    }
-
-    private renderSafewordSection(body: HTMLElement): void {
-        const div = document.createElement("div");
-        div.style.cssText = "display:flex;flex-direction:column;gap:0;flex-shrink:0;";
-
-        const divider = document.createElement("div");
-        divider.className = "ebc-divider";
-        div.appendChild(divider);
-
-        // Header row (collapsible toggle)
-        const cfg = getSafewordConfig();
-        const graceActive = isGraceActive();
-        const hdr = document.createElement("div");
-        hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 2px 4px;cursor:pointer;user-select:none;";
-
-        const hdrIcon = document.createElement("span");
-        hdrIcon.textContent = "🛑";
-        hdrIcon.style.cssText = "font-size:11px;flex-shrink:0;";
-
-        const hdrLabel = document.createElement("span");
-        hdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.06em;flex:1;" +
-            (graceActive ? "color:#cf6f98;" : "color:#7a5a6a;");
-        hdrLabel.textContent = graceActive ? "SAFEWORDS (grace active)" : "SAFEWORDS";
-
-        const hdrToggleEnabled = document.createElement("button");
-        const refreshEnabledToggle = (): void => {
-            const on = getSafewordConfig().enabled;
-            hdrToggleEnabled.textContent = on ? "ON" : "OFF";
-            hdrToggleEnabled.style.cssText = [
-                "font-family:'Trebuchet MS',serif",
-                "font-size:9px",
-                "font-weight:bold",
-                "padding:1px 8px",
-                "border-radius:4px",
-                "cursor:pointer",
-                "flex-shrink:0",
-                "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
-                "background:" + (on ? "#4a1f30" : "#100508"),
-                "color:" + (on ? "#f7e6ee" : "#4c2537"),
-            ].join(";");
-        };
-        refreshEnabledToggle();
-        hdrToggleEnabled.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const c = getSafewordConfig();
-            setSafewordConfig({ ...c, enabled: !c.enabled });
-            refreshEnabledToggle();
-        });
-
-        const hdrArrow = document.createElement("span");
-        hdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
-        hdrArrow.textContent = "▼";
-
-        hdr.appendChild(hdrIcon);
-        hdr.appendChild(hdrLabel);
-        hdr.appendChild(hdrToggleEnabled);
-        hdr.appendChild(hdrArrow);
-        div.appendChild(hdr);
-
-        // Collapsible body
-        const inner = document.createElement("div");
-        inner.style.cssText = "display:none;flex-direction:column;gap:6px;padding:4px 2px 6px;";
-
-        // Grace period active indicator + cancel button
-        const graceRow = document.createElement("div");
-        graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;" +
-            (graceActive ? "" : "display:none;");
-        const graceLbl = document.createElement("span");
-        graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;flex:1;";
-        const updateGraceLbl = (): void => {
-            if (!isGraceActive()) { graceRow.style.display = "none"; return; }
-            graceRow.style.display = "flex";
-            const rem = getGraceRemaining();
-            if (rem === null) { graceRow.style.display = "none"; return; }
-            graceLbl.textContent = rem === Infinity
-                ? "🛡 Grace period active (indefinite)"
-                : `🛡 Grace period active — ${Math.ceil(rem / 60_000)} min remaining`;
-        };
-        updateGraceLbl();
-        const graceCancelBtn = document.createElement("button");
-        graceCancelBtn.textContent = "End grace";
-        graceCancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
-        graceCancelBtn.addEventListener("click", () => {
-            endGrace();
-            updateGraceLbl();
-        });
-        graceRow.appendChild(graceLbl);
-        graceRow.appendChild(graceCancelBtn);
-        inner.appendChild(graceRow);
-
-        // Helper to build a word input row
-        const makeWordRow = (label: string, getter: () => string, setter: (v: string) => void): void => {
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;align-items:center;gap:6px;";
-            const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;width:44px;";
-            lbl.textContent = label;
-            const inp = document.createElement("input");
-            inp.type = "text";
-            inp.maxLength = 40;
-            inp.value = getter();
-            inp.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
-            inp.addEventListener("focus", () => { inp.style.borderColor = "#cf6f98"; });
-            inp.addEventListener("blur",  () => {
-                inp.style.borderColor = "#3a1928";
-                const c = getSafewordConfig();
-                setter(inp.value.trim() || getter());
-                inp.value = getSafewordConfig().yellowWord; // re-read after set
-                // Re-read the correct field
-                inp.value = getter();
-            });
-            inp.addEventListener("change", () => {
-                if (inp.value.trim()) {
-                    setter(inp.value.trim());
-                    inp.value = getter();
-                }
-            });
-            row.appendChild(lbl);
-            row.appendChild(inp);
-            inner.appendChild(row);
-        };
-
-        makeWordRow("Yellow:", () => getSafewordConfig().yellowWord, (v) => setSafewordConfig({ ...getSafewordConfig(), yellowWord: v }));
-        makeWordRow("Red:", () => getSafewordConfig().redWord, (v) => setSafewordConfig({ ...getSafewordConfig(), redWord: v }));
-
-        // Grace duration row
-        const graceSetRow = document.createElement("div");
-        graceSetRow.style.cssText = "display:flex;align-items:center;gap:6px;";
-        const graceDurLbl = document.createElement("span");
-        graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
-        graceDurLbl.textContent = "Grace:";
-        const graceDurInp = document.createElement("input");
-        graceDurInp.type = "number";
-        graceDurInp.min = "0";
-        graceDurInp.max = "9999";
-        graceDurInp.style.cssText = "width:52px;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;";
-        graceDurInp.value = String(Math.round(getSafewordConfig().graceDurationMs / 60_000));
-        graceDurInp.addEventListener("focus", () => { graceDurInp.style.borderColor = "#cf6f98"; });
-        graceDurInp.addEventListener("blur",  () => { graceDurInp.style.borderColor = "#3a1928"; });
-        graceDurInp.addEventListener("change", () => {
-            const mins = Math.max(0, parseInt(graceDurInp.value, 10) || 0);
-            setSafewordConfig({ ...getSafewordConfig(), graceDurationMs: mins * 60_000 });
-            graceDurInp.value = String(mins);
-        });
-        const graceDurUnit = document.createElement("span");
-        graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-        graceDurUnit.textContent = "min (0 = indefinite)";
-        graceSetRow.appendChild(graceDurLbl);
-        graceSetRow.appendChild(graceDurInp);
-        graceSetRow.appendChild(graceDurUnit);
-        inner.appendChild(graceSetRow);
-
-        // Outfit selectors — pick an outfit to auto-apply on yellow / red
-        const makeOutfitRow = (
-            label: string,
-            colorClass: string,
-            getOutfitId: () => string | null,
-            setOutfitId: (id: string | null) => void,
-        ): void => {
-            const outfits = getOutfits();
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;align-items:center;gap:6px;";
-            const lbl = document.createElement("span");
-            lbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${colorClass};flex-shrink:0;width:44px;`;
-            lbl.textContent = label;
-            const sel = document.createElement("select");
-            sel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 5px;outline:none;cursor:pointer;min-width:0;";
-            // None option
-            const noneOpt = document.createElement("option");
-            noneOpt.value = "";
-            noneOpt.textContent = "— none —";
-            sel.appendChild(noneOpt);
-            for (const o of outfits) {
-                const opt = document.createElement("option");
-                opt.value = o.id;
-                opt.textContent = o.displayName;
-                sel.appendChild(opt);
-            }
-            sel.value = getOutfitId() ?? "";
-            sel.addEventListener("change", () => {
-                setOutfitId(sel.value || null);
-            });
-            row.appendChild(lbl);
-            row.appendChild(sel);
-            inner.appendChild(row);
-        };
-
-        makeOutfitRow(
-            "Y outfit:", "#c8b840",
-            () => getSafewordConfig().yellowOutfitId,
-            (id) => setSafewordConfig({ ...getSafewordConfig(), yellowOutfitId: id }),
-        );
-        makeOutfitRow(
-            "R outfit:", "#e06060",
-            () => getSafewordConfig().redOutfitId,
-            (id) => setSafewordConfig({ ...getSafewordConfig(), redOutfitId: id }),
-        );
-
-        // Description hint
-        const hint = document.createElement("div");
-        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;line-height:1.45;padding:0 1px;";
-        hint.textContent = "Type the Yellow or Red word alone in chat and press Enter to trigger. Yellow releases restraints + starts grace. Red also announces and leaves the room. Outfit is applied right after.";
-        inner.appendChild(hint);
-
-        hdr.addEventListener("click", () => {
-            const open = inner.style.display !== "flex";
-            inner.style.display = open ? "flex" : "none";
-            hdrArrow.textContent = open ? "▲" : "▼";
-            if (open) updateGraceLbl();
-        });
-
-        div.appendChild(inner);
-        body.appendChild(div);
     }
 
     // -- Beep window -----------------------------------------------------------
