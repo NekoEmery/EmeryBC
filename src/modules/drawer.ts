@@ -58,6 +58,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBa
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
+import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
     getDomConfig,
@@ -2035,6 +2036,7 @@ export class EBCDrawer {
     private beepUnread = new Map<number, number>();
     private friendsSectionEl: HTMLElement | null = null;
     private friendPollTick = 0;
+    private friendRefreshDebounce: ReturnType<typeof window.setTimeout> | null = null;
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
@@ -6133,6 +6135,177 @@ export class EBCDrawer {
                 impError.textContent = err instanceof Error ? err.message : "Invalid format.";
             }
         });
+
+        // ── Safeword settings ─────────────────────────────────────────────────
+        this.renderSafewordSection(body);
+    }
+
+    private renderSafewordSection(body: HTMLElement): void {
+        const div = document.createElement("div");
+        div.style.cssText = "display:flex;flex-direction:column;gap:0;flex-shrink:0;";
+
+        const divider = document.createElement("div");
+        divider.className = "ebc-divider";
+        div.appendChild(divider);
+
+        // Header row (collapsible toggle)
+        const cfg = getSafewordConfig();
+        const graceActive = isGraceActive();
+        const hdr = document.createElement("div");
+        hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 2px 4px;cursor:pointer;user-select:none;";
+
+        const hdrIcon = document.createElement("span");
+        hdrIcon.textContent = "🛑";
+        hdrIcon.style.cssText = "font-size:11px;flex-shrink:0;";
+
+        const hdrLabel = document.createElement("span");
+        hdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.06em;flex:1;" +
+            (graceActive ? "color:#cf6f98;" : "color:#7a5a6a;");
+        hdrLabel.textContent = graceActive ? "SAFEWORDS (grace active)" : "SAFEWORDS";
+
+        const hdrToggleEnabled = document.createElement("button");
+        const refreshEnabledToggle = (): void => {
+            const on = getSafewordConfig().enabled;
+            hdrToggleEnabled.textContent = on ? "ON" : "OFF";
+            hdrToggleEnabled.style.cssText = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:9px",
+                "font-weight:bold",
+                "padding:1px 8px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "flex-shrink:0",
+                "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                "background:" + (on ? "#4a1f30" : "#100508"),
+                "color:" + (on ? "#f7e6ee" : "#4c2537"),
+            ].join(";");
+        };
+        refreshEnabledToggle();
+        hdrToggleEnabled.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const c = getSafewordConfig();
+            setSafewordConfig({ ...c, enabled: !c.enabled });
+            refreshEnabledToggle();
+        });
+
+        const hdrArrow = document.createElement("span");
+        hdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
+        hdrArrow.textContent = "▼";
+
+        hdr.appendChild(hdrIcon);
+        hdr.appendChild(hdrLabel);
+        hdr.appendChild(hdrToggleEnabled);
+        hdr.appendChild(hdrArrow);
+        div.appendChild(hdr);
+
+        // Collapsible body
+        const inner = document.createElement("div");
+        inner.style.cssText = "display:none;flex-direction:column;gap:6px;padding:4px 2px 6px;";
+
+        // Grace period active indicator + cancel button
+        const graceRow = document.createElement("div");
+        graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;" +
+            (graceActive ? "" : "display:none;");
+        const graceLbl = document.createElement("span");
+        graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;flex:1;";
+        const updateGraceLbl = (): void => {
+            if (!isGraceActive()) { graceRow.style.display = "none"; return; }
+            graceRow.style.display = "flex";
+            const rem = getGraceRemaining();
+            if (rem === null) { graceRow.style.display = "none"; return; }
+            graceLbl.textContent = rem === Infinity
+                ? "🛡 Grace period active (indefinite)"
+                : `🛡 Grace period active — ${Math.ceil(rem / 60_000)} min remaining`;
+        };
+        updateGraceLbl();
+        const graceCancelBtn = document.createElement("button");
+        graceCancelBtn.textContent = "End grace";
+        graceCancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+        graceCancelBtn.addEventListener("click", () => {
+            endGrace();
+            updateGraceLbl();
+        });
+        graceRow.appendChild(graceLbl);
+        graceRow.appendChild(graceCancelBtn);
+        inner.appendChild(graceRow);
+
+        // Helper to build a word input row
+        const makeWordRow = (label: string, getter: () => string, setter: (v: string) => void): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;width:44px;";
+            lbl.textContent = label;
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.maxLength = 40;
+            inp.value = getter();
+            inp.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
+            inp.addEventListener("focus", () => { inp.style.borderColor = "#cf6f98"; });
+            inp.addEventListener("blur",  () => {
+                inp.style.borderColor = "#3a1928";
+                const c = getSafewordConfig();
+                setter(inp.value.trim() || getter());
+                inp.value = getSafewordConfig().yellowWord; // re-read after set
+                // Re-read the correct field
+                inp.value = getter();
+            });
+            inp.addEventListener("change", () => {
+                if (inp.value.trim()) {
+                    setter(inp.value.trim());
+                    inp.value = getter();
+                }
+            });
+            row.appendChild(lbl);
+            row.appendChild(inp);
+            inner.appendChild(row);
+        };
+
+        makeWordRow("Yellow:", () => getSafewordConfig().yellowWord, (v) => setSafewordConfig({ ...getSafewordConfig(), yellowWord: v }));
+        makeWordRow("Red:", () => getSafewordConfig().redWord, (v) => setSafewordConfig({ ...getSafewordConfig(), redWord: v }));
+
+        // Grace duration row
+        const graceSetRow = document.createElement("div");
+        graceSetRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+        const graceDurLbl = document.createElement("span");
+        graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+        graceDurLbl.textContent = "Grace:";
+        const graceDurInp = document.createElement("input");
+        graceDurInp.type = "number";
+        graceDurInp.min = "0";
+        graceDurInp.max = "9999";
+        graceDurInp.style.cssText = "width:52px;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;";
+        graceDurInp.value = String(Math.round(getSafewordConfig().graceDurationMs / 60_000));
+        graceDurInp.addEventListener("focus", () => { graceDurInp.style.borderColor = "#cf6f98"; });
+        graceDurInp.addEventListener("blur",  () => { graceDurInp.style.borderColor = "#3a1928"; });
+        graceDurInp.addEventListener("change", () => {
+            const mins = Math.max(0, parseInt(graceDurInp.value, 10) || 0);
+            setSafewordConfig({ ...getSafewordConfig(), graceDurationMs: mins * 60_000 });
+            graceDurInp.value = String(mins);
+        });
+        const graceDurUnit = document.createElement("span");
+        graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+        graceDurUnit.textContent = "min (0 = indefinite)";
+        graceSetRow.appendChild(graceDurLbl);
+        graceSetRow.appendChild(graceDurInp);
+        graceSetRow.appendChild(graceDurUnit);
+        inner.appendChild(graceSetRow);
+
+        // Description hint
+        const hint = document.createElement("div");
+        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;line-height:1.45;padding:0 1px;";
+        hint.textContent = "Type the Yellow or Red word alone in chat and press Enter to trigger. Yellow releases restraints + starts grace. Red also announces and leaves the room.";
+        inner.appendChild(hint);
+
+        hdr.addEventListener("click", () => {
+            const open = inner.style.display !== "flex";
+            inner.style.display = open ? "flex" : "none";
+            hdrArrow.textContent = open ? "▲" : "▼";
+            if (open) updateGraceLbl();
+        });
+
+        div.appendChild(inner);
+        body.appendChild(div);
     }
 
     // -- Beep window -----------------------------------------------------------
@@ -6253,7 +6426,7 @@ export class EBCDrawer {
                 unreadDot.classList.remove("visible");
                 this.beepUnread.delete(memberNumber);
                 this.refreshTabDot();
-                if (this.currentTab === "notes") try { this.renderNotes(); } catch { /* ignore */ }
+                try { this.refreshFriendList(); } catch { /* ignore */ }
             }
         });
 
@@ -6604,12 +6777,22 @@ export class EBCDrawer {
         const friendsSection = document.createElement("div");
         this.friendsSectionEl = friendsSection;
         body.appendChild(friendsSection);
-        this.renderFriendRows(friendsSection);
+        // Defer heavy list build to next animation frame so the tab paints first.
+        window.requestAnimationFrame(() => {
+            if (this.friendsSectionEl === friendsSection) this.renderFriendRows(friendsSection);
+        });
     }
 
     public refreshFriendList(): void {
         if (this.currentTab !== "notes" || !this.friendsSectionEl) return;
-        this.renderFriendRows(this.friendsSectionEl);
+        if (this.friendRefreshDebounce !== null) window.clearTimeout(this.friendRefreshDebounce);
+        const target = this.friendsSectionEl;
+        this.friendRefreshDebounce = window.setTimeout(() => {
+            this.friendRefreshDebounce = null;
+            if (this.currentTab === "notes" && this.friendsSectionEl === target) {
+                this.renderFriendRows(target);
+            }
+        }, 80);
     }
 
     private renderFriendRows(body: HTMLElement): void {
@@ -6812,133 +6995,141 @@ export class EBCDrawer {
                     e.stopPropagation();
                     this.beepUnread.delete(num);
                     this.openBeepWindow(num);
-                    if (this.currentTab === "notes") try { this.renderNotes(); } catch { /* ignore */ }
+                    try { this.refreshFriendList(); } catch { /* ignore */ }
                 });
                 row.appendChild(beepBtn);
 
-                // ── Expand panel ───────────────────────────────────────────
+                // ── Expand panel (lazy — DOM built on first click) ─────────
                 const expand = document.createElement("div");
                 expand.className = "ebc-friend-expand";
 
-                // -- Tags section --
-                const tagsLbl = document.createElement("div");
-                tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
-                tagsLbl.textContent = "Tags";
-                expand.appendChild(tagsLbl);
+                let expandBuilt = false;
+                let newTagInputRef: HTMLInputElement | null = null;
 
-                // Chips container (existing tags)
-                const chipsEl = document.createElement("div");
-                chipsEl.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;min-height:6px;";
-                expand.appendChild(chipsEl);
+                const buildExpandPanel = (): void => {
+                    if (expandBuilt) return;
+                    expandBuilt = true;
 
-                const rebuildChips = (): void => {
-                    chipsEl.innerHTML = "";
-                    const tl = getFriendTagList(num);
-                    for (let i = 0; i < tl.length; i++) {
-                        const t = tl[i];
-                        const chip = document.createElement("span");
-                        chip.className = "ebc-etag-chip";
-                        chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                    // Tags label
+                    const tagsLbl = document.createElement("div");
+                    tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
+                    tagsLbl.textContent = "Tags";
+                    expand.appendChild(tagsLbl);
 
-                        const dot2 = document.createElement("span");
-                        dot2.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${t.color};flex-shrink:0;`;
-                        const txt = document.createElement("span");
-                        txt.textContent = t.text;
-                        const rmBtn = document.createElement("button");
-                        rmBtn.className = "ebc-etag-chip-remove";
-                        rmBtn.textContent = "✕";
-                        rmBtn.style.color = t.color;
-                        rmBtn.addEventListener("click", () => {
-                            const updated = getFriendTagList(num).filter((_, j) => j !== i);
-                            setFriendTagList(num, updated);
-                            rebuildChips();
-                            renderTagArea();
-                            if (updated.length > 0) { if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn); }
-                            else tagArea.remove();
-                        });
+                    // Chips container
+                    const chipsEl = document.createElement("div");
+                    chipsEl.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;min-height:6px;";
+                    expand.appendChild(chipsEl);
 
-                        chip.appendChild(dot2);
-                        chip.appendChild(txt);
-                        chip.appendChild(rmBtn);
-                        chipsEl.appendChild(chip);
-                    }
-                };
-                rebuildChips();
-
-                // Add-tag row
-                const addRow = document.createElement("div");
-                addRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
-                const newTagInput = document.createElement("input");
-                newTagInput.type = "text";
-                newTagInput.maxLength = 30;
-                newTagInput.placeholder = "new tag…";
-                newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
-                newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
-                newTagInput.addEventListener("blur",  () => { newTagInput.style.borderColor = "#3a1928"; });
-
-                const addTagBtn = document.createElement("button");
-                addTagBtn.textContent = "+ Add";
-                addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
-
-                addRow.appendChild(newTagInput);
-                addRow.appendChild(addTagBtn);
-                expand.appendChild(addRow);
-
-                // Color swatches row
-                const swatchRow = document.createElement("div");
-                swatchRow.style.cssText = "display:flex;gap:5px;align-items:center;flex-wrap:wrap;";
-                let selectedColor = TAG_COLORS[0];
-                const swatches: HTMLElement[] = [];
-                for (const c of TAG_COLORS) {
-                    const sw = document.createElement("span");
-                    sw.className = "ebc-color-swatch" + (c === selectedColor ? " sel" : "");
-                    sw.style.background = c;
-                    sw.title = c;
-                    sw.addEventListener("click", () => {
-                        selectedColor = c;
-                        swatches.forEach(s => s.classList.remove("sel"));
-                        sw.classList.add("sel");
-                    });
-                    swatches.push(sw);
-                    swatchRow.appendChild(sw);
-                }
-                expand.appendChild(swatchRow);
-
-                const doAddTag = (): void => {
-                    const text = newTagInput.value.trim();
-                    if (!text) { newTagInput.style.borderColor = "#cf6f98"; return; }
-                    const updated: FriendTag[] = [...getFriendTagList(num), { text, color: selectedColor }];
-                    setFriendTagList(num, updated);
-                    newTagInput.value = "";
-                    newTagInput.style.borderColor = "#3a1928";
+                    const rebuildChips = (): void => {
+                        chipsEl.innerHTML = "";
+                        const tl = getFriendTagList(num);
+                        for (let i = 0; i < tl.length; i++) {
+                            const t = tl[i];
+                            const chip = document.createElement("span");
+                            chip.className = "ebc-etag-chip";
+                            chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                            const dot2 = document.createElement("span");
+                            dot2.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${t.color};flex-shrink:0;`;
+                            const txt = document.createElement("span");
+                            txt.textContent = t.text;
+                            const rmBtn = document.createElement("button");
+                            rmBtn.className = "ebc-etag-chip-remove";
+                            rmBtn.textContent = "✕";
+                            rmBtn.style.color = t.color;
+                            rmBtn.addEventListener("click", () => {
+                                const updated = getFriendTagList(num).filter((_, j) => j !== i);
+                                setFriendTagList(num, updated);
+                                rebuildChips();
+                                renderTagArea();
+                                if (updated.length > 0) { if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn); }
+                                else tagArea.remove();
+                            });
+                            chip.appendChild(dot2);
+                            chip.appendChild(txt);
+                            chip.appendChild(rmBtn);
+                            chipsEl.appendChild(chip);
+                        }
+                    };
                     rebuildChips();
-                    renderTagArea();
-                    if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn);
-                };
-                addTagBtn.addEventListener("click", doAddTag);
-                newTagInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); doAddTag(); } });
 
-                // -- Pin button --
-                const actRow = document.createElement("div");
-                actRow.style.cssText = "display:flex;gap:5px;margin-top:2px;";
-                const pinBtn = document.createElement("button");
-                const refreshPinBtn = (): void => {
-                    const p = isFriendPinned(num);
-                    pinBtn.textContent = p ? "📌 Unpin" : "📌 Pin to top";
-                    pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
-                    row.classList.toggle("pinned", p);
-                    pinDot.style.display = p ? "" : "none";
-                };
-                refreshPinBtn();
-                pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
-                actRow.appendChild(pinBtn);
-                expand.appendChild(actRow);
+                    // Add-tag row
+                    const addRow = document.createElement("div");
+                    addRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
+                    const newTagInput = document.createElement("input");
+                    newTagInputRef = newTagInput;
+                    newTagInput.type = "text";
+                    newTagInput.maxLength = 30;
+                    newTagInput.placeholder = "new tag…";
+                    newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
+                    newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
+                    newTagInput.addEventListener("blur",  () => { newTagInput.style.borderColor = "#3a1928"; });
 
-                // Toggle expand on row click
+                    const addTagBtn = document.createElement("button");
+                    addTagBtn.textContent = "+ Add";
+                    addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+
+                    addRow.appendChild(newTagInput);
+                    addRow.appendChild(addTagBtn);
+                    expand.appendChild(addRow);
+
+                    // Color swatches row
+                    const swatchRow = document.createElement("div");
+                    swatchRow.style.cssText = "display:flex;gap:5px;align-items:center;flex-wrap:wrap;";
+                    let selectedColor = TAG_COLORS[0];
+                    const swatches: HTMLElement[] = [];
+                    for (const c of TAG_COLORS) {
+                        const sw = document.createElement("span");
+                        sw.className = "ebc-color-swatch" + (c === selectedColor ? " sel" : "");
+                        sw.style.background = c;
+                        sw.title = c;
+                        sw.addEventListener("click", () => {
+                            selectedColor = c;
+                            swatches.forEach(s => s.classList.remove("sel"));
+                            sw.classList.add("sel");
+                        });
+                        swatches.push(sw);
+                        swatchRow.appendChild(sw);
+                    }
+                    expand.appendChild(swatchRow);
+
+                    const doAddTag = (): void => {
+                        const text = newTagInput.value.trim();
+                        if (!text) { newTagInput.style.borderColor = "#cf6f98"; return; }
+                        const updated: FriendTag[] = [...getFriendTagList(num), { text, color: selectedColor }];
+                        setFriendTagList(num, updated);
+                        newTagInput.value = "";
+                        newTagInput.style.borderColor = "#3a1928";
+                        rebuildChips();
+                        renderTagArea();
+                        if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn);
+                    };
+                    addTagBtn.addEventListener("click", doAddTag);
+                    newTagInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); doAddTag(); } });
+
+                    // Pin button
+                    const actRow = document.createElement("div");
+                    actRow.style.cssText = "display:flex;gap:5px;margin-top:2px;";
+                    const pinBtn = document.createElement("button");
+                    const refreshPinBtn = (): void => {
+                        const p = isFriendPinned(num);
+                        pinBtn.textContent = p ? "📌 Unpin" : "📌 Pin to top";
+                        pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
+                        row.classList.toggle("pinned", p);
+                        pinDot.style.display = p ? "" : "none";
+                    };
+                    refreshPinBtn();
+                    pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
+                    actRow.appendChild(pinBtn);
+                    expand.appendChild(actRow);
+                };
+
+                // Toggle expand on row click — build panel on first open
                 row.addEventListener("click", () => {
+                    buildExpandPanel();
                     const open = expand.classList.toggle("visible");
                     row.classList.toggle("expanded", open);
-                    if (open) setTimeout(() => newTagInput.focus(), 50);
+                    if (open) window.setTimeout(() => newTagInputRef?.focus(), 50);
                 });
 
                 wrap.appendChild(row);

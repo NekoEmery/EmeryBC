@@ -98,6 +98,8 @@ declare function ServerAppearanceBundle(appearance: Item[]): unknown;
 declare function CharacterRefresh(char: Character, push?: boolean, dirty?: boolean): void;
 declare function ChatRoomCharacterUpdate(char: Character): void;
 
+declare function ChatRoomLeave(): void;
+
 declare function InventoryWear(
     char: Character, itemName: string, groupName: string,
     color?: string | string[], difficulty?: number,

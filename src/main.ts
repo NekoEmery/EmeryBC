@@ -11,12 +11,20 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from "./modules/friends";
+import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.6.9";
+const MOD_VERSION = "0.7.0";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.7.0",
+        changes: [
+            "Users tab loads instantly — friend rows now render asynchronously (requestAnimationFrame) and tag/pin panels are built lazily on first click instead of all at once.",
+            "Safeword system: set a Yellow and Red safeword in the Outfits tab. Yellow releases binding restraints and starts a configurable grace period (no new restraints). Red does the same, announces your exit, and leaves the room after a short pause.",
+        ],
+    },
     {
         version: "0.6.9",
         changes: [
@@ -1121,12 +1129,16 @@ function init(): void {
         return result;
     });
 
-    // Anti-restraint: detect new restraints on the player after any refresh
+    // Anti-restraint + grace period: detect new restraints on the player after any refresh
     tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
         const result = next(args);
         try {
             const [C] = args as [Character];
-            if (C === Player) antiRestraintOnPlayerRefresh();
+            if (C === Player) {
+                checkGraceExpiry();
+                enforceGracePeriod();
+                antiRestraintOnPlayerRefresh();
+            }
         } catch { /* ignore */ }
         return result;
     });
@@ -1209,7 +1221,7 @@ function init(): void {
         try {
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                 const input = document.getElementById("InputChat") as HTMLInputElement | null;
-                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
+                if (input && (checkSafeword(input.value) || handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
                     input.value = "";
                     return;
                 }
@@ -1223,7 +1235,7 @@ function init(): void {
     modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
         try {
             const input = document.getElementById("InputChat") as HTMLInputElement | null;
-            if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
+            if (input && (checkSafeword(input.value) || handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
                 input.value = "";
                 return;
             }

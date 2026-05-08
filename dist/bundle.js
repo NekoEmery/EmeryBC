@@ -23,17 +23,17 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$7() {
+    function getStore$8() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getButtons() {
-        const stored = getStore$7().actionButtons;
+        const stored = getStore$8().actionButtons;
         return Array.isArray(stored) ? stored : DEFAULT_BUTTONS;
     }
     function getSlotCount() {
-        const store = getStore$7();
+        const store = getStore$8();
         const n = store.actionSlotCount;
         if (typeof n === "number")
             return Math.min(ABSOLUTE_MAX, Math.max(1, n));
@@ -41,7 +41,7 @@
         return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$7();
+        const store = getStore$8();
         store.actionButtons = buttons;
         store.actionSlotCount = slotCount;
         ServerPlayerExtensionSettingsSync("EmeryBC");
@@ -815,20 +815,20 @@
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function getStore$6() {
+    function getStore$7() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function load$2() {
-        const list = getStore$6().palettes;
+        const list = getStore$7().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getStore$6().palettes = list;
+        getStore$7().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function uid$3() {
@@ -914,11 +914,11 @@
     // -- Custom color swatches --------------------------------------------------
     // A flat list of user-saved hex colors for the direct picker workflow.
     function saveCustomColors(list) {
-        getStore$6().customColors = list;
+        getStore$7().customColors = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getCustomColors() {
-        const v = getStore$6().customColors;
+        const v = getStore$7().customColors;
         return Array.isArray(v) ? v : [];
     }
     function addCustomColor(hex) {
@@ -1008,18 +1008,18 @@
         }
     }
     // -- Combo storage -------------------------------------------------------
-    function getStore$5() {
+    function getStore$6() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function uid$2() { return Math.random().toString(36).slice(2, 9); }
     function load$1() {
-        const list = getStore$5().poseCombos;
+        const list = getStore$6().poseCombos;
         return Array.isArray(list) ? list : [];
     }
     function saveCombos(list) {
-        getStore$5().poseCombos = list;
+        getStore$6().poseCombos = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getPoseCombos() { return load$1(); }
@@ -1088,18 +1088,18 @@
 
     // Scene sequencer — chain pose changes, item equips/unequips, emotes and
     // waits into a named sequence that plays back step by step with per-step timing.
-    function getStore$4() {
+    function getStore$5() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function uid$1() { return Math.random().toString(36).slice(2, 9); }
     function load() {
-        const raw = getStore$4().scenes;
+        const raw = getStore$5().scenes;
         return Array.isArray(raw) ? raw : [];
     }
     function saveScenes(list) {
-        getStore$4().scenes = list;
+        getStore$5().scenes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getScenes() { return load(); }
@@ -1239,7 +1239,7 @@
     // offline sessions and page reloads.
     // Collar/leash/neck items are tracked per-slot but do NOT count toward the
     // overall "Bound" timer — wearing a collar alone should not say you are bound.
-    const NECK_GROUPS = new Set(["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"]);
+    const NECK_GROUPS$1 = new Set(["ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints"]);
     // Session start: fixed at module load time — "how long have I been online"
     const SESSION_START = Date.now();
     let roomEnterTime = null;
@@ -1299,7 +1299,7 @@
                 .filter(i => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
                 .map(i => i.Asset.Group.Name));
             // Overall bound timer — neck/collar groups excluded
-            const isBound = [...currentGroups].some(g => !NECK_GROUPS.has(g));
+            const isBound = [...currentGroups].some(g => !NECK_GROUPS$1.has(g));
             if (isBound) {
                 if (restraintStartTime === null)
                     restraintStartTime = Date.now();
@@ -1355,13 +1355,13 @@
     }
 
     // Private character notes — stored locally in Player.ExtensionSettings, never shared.
-    function getStore$3() {
+    function getStore$4() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function getNotes() {
-        const raw = getStore$3().characterNotes;
+        const raw = getStore$4().characterNotes;
         return (raw && typeof raw === "object" && !Array.isArray(raw))
             ? raw
             : {};
@@ -1375,7 +1375,7 @@
         else {
             delete notes[key];
         }
-        getStore$3().characterNotes = notes;
+        getStore$4().characterNotes = notes;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
 
@@ -1520,7 +1520,7 @@
     }
 
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
-    function getStore$2() {
+    function getStore$3() {
         try {
             if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
                 return null;
@@ -1539,7 +1539,7 @@
     function getBadgeEnabled() {
         var _a;
         try {
-            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
+            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
         }
         catch (_b) {
             return true; // safe default
@@ -1547,7 +1547,7 @@
     }
     function setBadgeEnabled(value) {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             if (!store)
                 return;
             store.badgeEnabled = value;
@@ -1561,7 +1561,7 @@
     function getShowVersionBadge() {
         var _a;
         try {
-            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
+            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
         }
         catch (_b) {
             return false;
@@ -1569,7 +1569,7 @@
     }
     function setShowVersionBadge(value) {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             if (!store)
                 return;
             store.showVersionBadge = value;
@@ -1583,7 +1583,7 @@
     function getAntiRestraintEnabled() {
         var _a;
         try {
-            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
+            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
         }
         catch (_b) {
             return false;
@@ -1591,7 +1591,7 @@
     }
     function setAntiRestraintEnabled(value) {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             if (!store)
                 return;
             store.antiRestraint = value;
@@ -1605,7 +1605,7 @@
     function getAntiRestraintWhitelist() {
         var _a;
         try {
-            const list = (_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
+            const list = (_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
             return Array.isArray(list) ? list : [];
         }
         catch (_b) {
@@ -1614,7 +1614,7 @@
     }
     function setAntiRestraintWhitelist(groups) {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             if (!store)
                 return;
             store.antiRestraintWhitelist = groups;
@@ -1636,7 +1636,7 @@
     function getAntiRestraintConfirm() {
         var _a;
         try {
-            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
+            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
         }
         catch (_b) {
             return false;
@@ -1644,7 +1644,7 @@
     }
     function setAntiRestraintConfirm(value) {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             if (!store)
                 return;
             store.antiRestraintConfirm = value;
@@ -1658,7 +1658,7 @@
     function getSuppressNativeBeep() {
         var _a;
         try {
-            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
+            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
         }
         catch (_b) {
             return true;
@@ -1666,7 +1666,7 @@
     }
     function setSuppressNativeBeep(value) {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             if (!store)
                 return;
             store.suppressNativeBeep = value;
@@ -1678,7 +1678,7 @@
     function getBeepMuted() {
         var _a;
         try {
-            return ((_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
+            return ((_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
         }
         catch (_b) {
             return false;
@@ -1686,7 +1686,7 @@
     }
     function setBeepMuted(value) {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             if (!store)
                 return;
             store.beepMuted = value;
@@ -1866,7 +1866,7 @@
     // Friends system — tags, beep history, name cache.
     // All data stored in Player.ExtensionSettings.EmeryBC and synced to server
     // so it's available across devices on next login.
-    function getStore$1() {
+    function getStore$2() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
@@ -1876,11 +1876,11 @@
     }
     // -- Name cache ----------------------------------------------------------------
     function getCachedNames() {
-        const v = getStore$1().friendNames;
+        const v = getStore$2().friendNames;
         return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
     }
     function cacheName(memberNumber, name) {
-        const store = getStore$1();
+        const store = getStore$2();
         if (!store.friendNames || typeof store.friendNames !== "object")
             store.friendNames = {};
         store.friendNames[String(memberNumber)] = name;
@@ -1956,14 +1956,14 @@
     }
     // -- Pinned friends ------------------------------------------------------------
     function getPinnedFriends() {
-        const v = getStore$1().pinnedFriends;
+        const v = getStore$2().pinnedFriends;
         return Array.isArray(v) ? v : [];
     }
     function isFriendPinned(memberNumber) {
         return getPinnedFriends().includes(memberNumber);
     }
     function togglePinFriend(memberNumber) {
-        const store = getStore$1();
+        const store = getStore$2();
         const list = getPinnedFriends();
         const idx = list.indexOf(memberNumber);
         if (idx >= 0)
@@ -1982,14 +1982,14 @@
         return [];
     }
     function getFriendTagList(memberNumber) {
-        const store = getStore$1();
+        const store = getStore$2();
         const raw = store.friendTags;
         if (!raw || typeof raw !== "object" || Array.isArray(raw))
             return [];
         return migrateTagValue(raw[String(memberNumber)]);
     }
     function setFriendTagList(memberNumber, tagList) {
-        const store = getStore$1();
+        const store = getStore$2();
         if (!store.friendTags || typeof store.friendTags !== "object")
             store.friendTags = {};
         const tags = store.friendTags;
@@ -2002,11 +2002,11 @@
     // -- Beep history --------------------------------------------------------------
     const MAX_ENTRIES$1 = 300;
     function getBeepHistory() {
-        const v = getStore$1().beepHistory;
+        const v = getStore$2().beepHistory;
         return Array.isArray(v) ? v : [];
     }
     function addBeepEntry(entry) {
-        const store = getStore$1();
+        const store = getStore$2();
         const history = getBeepHistory();
         history.push(entry);
         if (history.length > MAX_ENTRIES$1)
@@ -2074,6 +2074,192 @@
         });
         if (_log.length > MAX_ENTRIES)
             _log.shift();
+    }
+
+    // Safeword system — two-word safety protocol.
+    // Yellow: releases binding restraints + starts grace period (no new restraints for N ms).
+    // Red:    same as yellow + announces departure + leaves the room after 800 ms.
+    //
+    // Grace period enforcement is hooked into CharacterRefresh in main.ts.
+    const DEFAULTS = {
+        enabled: false,
+        yellowWord: "yellow",
+        redWord: "red",
+        graceDurationMs: 300000, // 5 minutes
+    };
+    function getStore$1() {
+        if (!Player.ExtensionSettings.EmeryBC)
+            Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function getSafewordConfig() {
+        const raw = getStore$1().safeword;
+        if (!raw || typeof raw !== "object" || Array.isArray(raw))
+            return Object.assign({}, DEFAULTS);
+        const r = raw;
+        return {
+            enabled: typeof r.enabled === "boolean" ? r.enabled : DEFAULTS.enabled,
+            yellowWord: typeof r.yellowWord === "string" ? r.yellowWord : DEFAULTS.yellowWord,
+            redWord: typeof r.redWord === "string" ? r.redWord : DEFAULTS.redWord,
+            graceDurationMs: typeof r.graceDurationMs === "number" ? r.graceDurationMs : DEFAULTS.graceDurationMs,
+        };
+    }
+    function setSafewordConfig(cfg) {
+        getStore$1().safeword = cfg;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    // -- Grace period state (in-memory; resets on page reload) --------------------
+    // null = inactive; Infinity = indefinite; number = unix-ms expiry timestamp
+    let gracePeriodEnd = null;
+    function isGraceActive() {
+        if (gracePeriodEnd === null)
+            return false;
+        if (gracePeriodEnd === Infinity)
+            return true;
+        return Date.now() < gracePeriodEnd;
+    }
+    /** Returns ms remaining, or Infinity if indefinite, or null if not active. */
+    function getGraceRemaining() {
+        if (gracePeriodEnd === null)
+            return null;
+        if (gracePeriodEnd === Infinity)
+            return Infinity;
+        const rem = gracePeriodEnd - Date.now();
+        return rem > 0 ? rem : null;
+    }
+    function startGrace(durationMs) {
+        gracePeriodEnd = durationMs <= 0 ? Infinity : Date.now() + durationMs;
+    }
+    function endGrace() {
+        gracePeriodEnd = null;
+    }
+    function checkGraceExpiry() {
+        if (gracePeriodEnd !== null && gracePeriodEnd !== Infinity && Date.now() >= gracePeriodEnd) {
+            gracePeriodEnd = null;
+        }
+    }
+    // -- Restraint helpers ---------------------------------------------------------
+    // Groups that are never removed by the safeword (collars / neck items)
+    const NECK_GROUPS = new Set([
+        "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
+    ]);
+    function releaseBindingRestraints() {
+        const toRemove = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint && !NECK_GROUPS.has(i.Asset.Group.Name));
+        for (const item of toRemove) {
+            try {
+                InventoryRemove(Player, item.Asset.Group.Name, false);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        if (toRemove.length > 0) {
+            try {
+                CharacterRefresh(Player, false);
+                ChatRoomCharacterUpdate(Player);
+                ServerPlayerAppearanceSync();
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+    }
+    // Guard flag to prevent re-entrant calls during grace enforcement.
+    let enforcing = false;
+    /**
+     * Called on every CharacterRefresh for the player.
+     * If grace is active, strips any binding restraints that were just added.
+     */
+    function enforceGracePeriod() {
+        if (enforcing)
+            return;
+        checkGraceExpiry();
+        if (!isGraceActive())
+            return;
+        const toRemove = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint && !NECK_GROUPS.has(i.Asset.Group.Name));
+        if (toRemove.length === 0)
+            return;
+        enforcing = true;
+        try {
+            for (const item of toRemove) {
+                try {
+                    InventoryRemove(Player, item.Asset.Group.Name, false);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }
+            try {
+                CharacterRefresh(Player, false);
+                ChatRoomCharacterUpdate(Player);
+                ServerPlayerAppearanceSync();
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        finally {
+            enforcing = false;
+        }
+    }
+    // -- Trigger functions ---------------------------------------------------------
+    function triggerYellow() {
+        const cfg = getSafewordConfig();
+        if (!cfg.enabled)
+            return;
+        releaseBindingRestraints();
+        startGrace(cfg.graceDurationMs);
+        try {
+            const graceDesc = cfg.graceDurationMs <= 0
+                ? "indefinitely"
+                : `for ${Math.round(cfg.graceDurationMs / 60000)} min`;
+            ServerSend("ChatRoomChat", {
+                Type: "Action",
+                Content: `${Player.Name} calls yellow — taking a moment to breathe. Please give them space (grace period active ${graceDesc}).`,
+                Dictionary: [
+                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                    { SourceCharacter: Player.MemberNumber },
+                ],
+            });
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function triggerRed() {
+        const cfg = getSafewordConfig();
+        if (!cfg.enabled)
+            return;
+        releaseBindingRestraints();
+        startGrace(cfg.graceDurationMs);
+        try {
+            ServerSend("ChatRoomChat", {
+                Type: "Action",
+                Content: `${Player.Name} calls red safeword — they are being escorted to safety. Please respect their exit.`,
+                Dictionary: [
+                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                    { SourceCharacter: Player.MemberNumber },
+                ],
+            });
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        window.setTimeout(() => {
+            try {
+                ChatRoomLeave();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 800);
+    }
+    /**
+     * Check the typed chat input against configured safewords.
+     * Returns true if a safeword was matched (caller should clear the input and cancel send).
+     */
+    function checkSafeword(inputValue) {
+        const cfg = getSafewordConfig();
+        if (!cfg.enabled)
+            return false;
+        const trimmed = inputValue.trim().toLowerCase();
+        if (!trimmed)
+            return false;
+        if (cfg.yellowWord && trimmed === cfg.yellowWord.toLowerCase().trim()) {
+            triggerYellow();
+            return true;
+        }
+        if (cfg.redWord && trimmed === cfg.redWord.toLowerCase().trim()) {
+            triggerRed();
+            return true;
+        }
+        return false;
     }
 
     // Creator-only DOM tools — visible exclusively to member #130267.
@@ -4377,6 +4563,7 @@
             this.beepUnread = new Map();
             this.friendsSectionEl = null;
             this.friendPollTick = 0;
+            this.friendRefreshDebounce = null;
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
             this.crabsPoller = null;
@@ -8223,6 +8410,167 @@
                     impError.textContent = err instanceof Error ? err.message : "Invalid format.";
                 }
             });
+            // ── Safeword settings ─────────────────────────────────────────────────
+            this.renderSafewordSection(body);
+        }
+        renderSafewordSection(body) {
+            const div = document.createElement("div");
+            div.style.cssText = "display:flex;flex-direction:column;gap:0;flex-shrink:0;";
+            const divider = document.createElement("div");
+            divider.className = "ebc-divider";
+            div.appendChild(divider);
+            // Header row (collapsible toggle)
+            getSafewordConfig();
+            const graceActive = isGraceActive();
+            const hdr = document.createElement("div");
+            hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 2px 4px;cursor:pointer;user-select:none;";
+            const hdrIcon = document.createElement("span");
+            hdrIcon.textContent = "🛑";
+            hdrIcon.style.cssText = "font-size:11px;flex-shrink:0;";
+            const hdrLabel = document.createElement("span");
+            hdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.06em;flex:1;" +
+                (graceActive ? "color:#cf6f98;" : "color:#7a5a6a;");
+            hdrLabel.textContent = graceActive ? "SAFEWORDS (grace active)" : "SAFEWORDS";
+            const hdrToggleEnabled = document.createElement("button");
+            const refreshEnabledToggle = () => {
+                const on = getSafewordConfig().enabled;
+                hdrToggleEnabled.textContent = on ? "ON" : "OFF";
+                hdrToggleEnabled.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:9px",
+                    "font-weight:bold",
+                    "padding:1px 8px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                    "background:" + (on ? "#4a1f30" : "#100508"),
+                    "color:" + (on ? "#f7e6ee" : "#4c2537"),
+                ].join(";");
+            };
+            refreshEnabledToggle();
+            hdrToggleEnabled.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const c = getSafewordConfig();
+                setSafewordConfig(Object.assign(Object.assign({}, c), { enabled: !c.enabled }));
+                refreshEnabledToggle();
+            });
+            const hdrArrow = document.createElement("span");
+            hdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;flex-shrink:0;";
+            hdrArrow.textContent = "▼";
+            hdr.appendChild(hdrIcon);
+            hdr.appendChild(hdrLabel);
+            hdr.appendChild(hdrToggleEnabled);
+            hdr.appendChild(hdrArrow);
+            div.appendChild(hdr);
+            // Collapsible body
+            const inner = document.createElement("div");
+            inner.style.cssText = "display:none;flex-direction:column;gap:6px;padding:4px 2px 6px;";
+            // Grace period active indicator + cancel button
+            const graceRow = document.createElement("div");
+            graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;" +
+                (graceActive ? "" : "display:none;");
+            const graceLbl = document.createElement("span");
+            graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;flex:1;";
+            const updateGraceLbl = () => {
+                if (!isGraceActive()) {
+                    graceRow.style.display = "none";
+                    return;
+                }
+                graceRow.style.display = "flex";
+                const rem = getGraceRemaining();
+                if (rem === null) {
+                    graceRow.style.display = "none";
+                    return;
+                }
+                graceLbl.textContent = rem === Infinity
+                    ? "🛡 Grace period active (indefinite)"
+                    : `🛡 Grace period active — ${Math.ceil(rem / 60000)} min remaining`;
+            };
+            updateGraceLbl();
+            const graceCancelBtn = document.createElement("button");
+            graceCancelBtn.textContent = "End grace";
+            graceCancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+            graceCancelBtn.addEventListener("click", () => {
+                endGrace();
+                updateGraceLbl();
+            });
+            graceRow.appendChild(graceLbl);
+            graceRow.appendChild(graceCancelBtn);
+            inner.appendChild(graceRow);
+            // Helper to build a word input row
+            const makeWordRow = (label, getter, setter) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;width:44px;";
+                lbl.textContent = label;
+                const inp = document.createElement("input");
+                inp.type = "text";
+                inp.maxLength = 40;
+                inp.value = getter();
+                inp.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
+                inp.addEventListener("focus", () => { inp.style.borderColor = "#cf6f98"; });
+                inp.addEventListener("blur", () => {
+                    inp.style.borderColor = "#3a1928";
+                    getSafewordConfig();
+                    setter(inp.value.trim() || getter());
+                    inp.value = getSafewordConfig().yellowWord; // re-read after set
+                    // Re-read the correct field
+                    inp.value = getter();
+                });
+                inp.addEventListener("change", () => {
+                    if (inp.value.trim()) {
+                        setter(inp.value.trim());
+                        inp.value = getter();
+                    }
+                });
+                row.appendChild(lbl);
+                row.appendChild(inp);
+                inner.appendChild(row);
+            };
+            makeWordRow("Yellow:", () => getSafewordConfig().yellowWord, (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { yellowWord: v })));
+            makeWordRow("Red:", () => getSafewordConfig().redWord, (v) => setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { redWord: v })));
+            // Grace duration row
+            const graceSetRow = document.createElement("div");
+            graceSetRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+            const graceDurLbl = document.createElement("span");
+            graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+            graceDurLbl.textContent = "Grace:";
+            const graceDurInp = document.createElement("input");
+            graceDurInp.type = "number";
+            graceDurInp.min = "0";
+            graceDurInp.max = "9999";
+            graceDurInp.style.cssText = "width:52px;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;";
+            graceDurInp.value = String(Math.round(getSafewordConfig().graceDurationMs / 60000));
+            graceDurInp.addEventListener("focus", () => { graceDurInp.style.borderColor = "#cf6f98"; });
+            graceDurInp.addEventListener("blur", () => { graceDurInp.style.borderColor = "#3a1928"; });
+            graceDurInp.addEventListener("change", () => {
+                const mins = Math.max(0, parseInt(graceDurInp.value, 10) || 0);
+                setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { graceDurationMs: mins * 60000 }));
+                graceDurInp.value = String(mins);
+            });
+            const graceDurUnit = document.createElement("span");
+            graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+            graceDurUnit.textContent = "min (0 = indefinite)";
+            graceSetRow.appendChild(graceDurLbl);
+            graceSetRow.appendChild(graceDurInp);
+            graceSetRow.appendChild(graceDurUnit);
+            inner.appendChild(graceSetRow);
+            // Description hint
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;line-height:1.45;padding:0 1px;";
+            hint.textContent = "Type the Yellow or Red word alone in chat and press Enter to trigger. Yellow releases restraints + starts grace. Red also announces and leaves the room.";
+            inner.appendChild(hint);
+            hdr.addEventListener("click", () => {
+                const open = inner.style.display !== "flex";
+                inner.style.display = open ? "flex" : "none";
+                hdrArrow.textContent = open ? "▲" : "▼";
+                if (open)
+                    updateGraceLbl();
+            });
+            div.appendChild(inner);
+            body.appendChild(div);
         }
         // -- Beep window -----------------------------------------------------------
         refreshTabDot() {
@@ -8337,11 +8685,10 @@
                     unreadDot.classList.remove("visible");
                     this.beepUnread.delete(memberNumber);
                     this.refreshTabDot();
-                    if (this.currentTab === "notes")
-                        try {
-                            this.renderNotes();
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
+                    try {
+                        this.refreshFriendList();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                 }
             });
             const closeBtn = document.createElement("button");
@@ -8658,12 +9005,24 @@
             const friendsSection = document.createElement("div");
             this.friendsSectionEl = friendsSection;
             body.appendChild(friendsSection);
-            this.renderFriendRows(friendsSection);
+            // Defer heavy list build to next animation frame so the tab paints first.
+            window.requestAnimationFrame(() => {
+                if (this.friendsSectionEl === friendsSection)
+                    this.renderFriendRows(friendsSection);
+            });
         }
         refreshFriendList() {
             if (this.currentTab !== "notes" || !this.friendsSectionEl)
                 return;
-            this.renderFriendRows(this.friendsSectionEl);
+            if (this.friendRefreshDebounce !== null)
+                window.clearTimeout(this.friendRefreshDebounce);
+            const target = this.friendsSectionEl;
+            this.friendRefreshDebounce = window.setTimeout(() => {
+                this.friendRefreshDebounce = null;
+                if (this.currentTab === "notes" && this.friendsSectionEl === target) {
+                    this.renderFriendRows(target);
+                }
+            }, 80);
         }
         renderFriendRows(body) {
             var _a;
@@ -8869,136 +9228,144 @@
                         e.stopPropagation();
                         this.beepUnread.delete(num);
                         this.openBeepWindow(num);
-                        if (this.currentTab === "notes")
-                            try {
-                                this.renderNotes();
-                            }
-                            catch ( /* ignore */_a) { /* ignore */ }
+                        try {
+                            this.refreshFriendList();
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
                     });
                     row.appendChild(beepBtn);
-                    // ── Expand panel ───────────────────────────────────────────
+                    // ── Expand panel (lazy — DOM built on first click) ─────────
                     const expand = document.createElement("div");
                     expand.className = "ebc-friend-expand";
-                    // -- Tags section --
-                    const tagsLbl = document.createElement("div");
-                    tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
-                    tagsLbl.textContent = "Tags";
-                    expand.appendChild(tagsLbl);
-                    // Chips container (existing tags)
-                    const chipsEl = document.createElement("div");
-                    chipsEl.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;min-height:6px;";
-                    expand.appendChild(chipsEl);
-                    const rebuildChips = () => {
-                        chipsEl.innerHTML = "";
-                        const tl = getFriendTagList(num);
-                        for (let i = 0; i < tl.length; i++) {
-                            const t = tl[i];
-                            const chip = document.createElement("span");
-                            chip.className = "ebc-etag-chip";
-                            chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
-                            const dot2 = document.createElement("span");
-                            dot2.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${t.color};flex-shrink:0;`;
-                            const txt = document.createElement("span");
-                            txt.textContent = t.text;
-                            const rmBtn = document.createElement("button");
-                            rmBtn.className = "ebc-etag-chip-remove";
-                            rmBtn.textContent = "✕";
-                            rmBtn.style.color = t.color;
-                            rmBtn.addEventListener("click", () => {
-                                const updated = getFriendTagList(num).filter((_, j) => j !== i);
-                                setFriendTagList(num, updated);
-                                rebuildChips();
-                                renderTagArea();
-                                if (updated.length > 0) {
-                                    if (!row.contains(tagArea))
-                                        row.insertBefore(tagArea, beepBtn);
-                                }
-                                else
-                                    tagArea.remove();
-                            });
-                            chip.appendChild(dot2);
-                            chip.appendChild(txt);
-                            chip.appendChild(rmBtn);
-                            chipsEl.appendChild(chip);
-                        }
-                    };
-                    rebuildChips();
-                    // Add-tag row
-                    const addRow = document.createElement("div");
-                    addRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
-                    const newTagInput = document.createElement("input");
-                    newTagInput.type = "text";
-                    newTagInput.maxLength = 30;
-                    newTagInput.placeholder = "new tag…";
-                    newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
-                    newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
-                    newTagInput.addEventListener("blur", () => { newTagInput.style.borderColor = "#3a1928"; });
-                    const addTagBtn = document.createElement("button");
-                    addTagBtn.textContent = "+ Add";
-                    addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
-                    addRow.appendChild(newTagInput);
-                    addRow.appendChild(addTagBtn);
-                    expand.appendChild(addRow);
-                    // Color swatches row
-                    const swatchRow = document.createElement("div");
-                    swatchRow.style.cssText = "display:flex;gap:5px;align-items:center;flex-wrap:wrap;";
-                    let selectedColor = TAG_COLORS[0];
-                    const swatches = [];
-                    for (const c of TAG_COLORS) {
-                        const sw = document.createElement("span");
-                        sw.className = "ebc-color-swatch" + (c === selectedColor ? " sel" : "");
-                        sw.style.background = c;
-                        sw.title = c;
-                        sw.addEventListener("click", () => {
-                            selectedColor = c;
-                            swatches.forEach(s => s.classList.remove("sel"));
-                            sw.classList.add("sel");
-                        });
-                        swatches.push(sw);
-                        swatchRow.appendChild(sw);
-                    }
-                    expand.appendChild(swatchRow);
-                    const doAddTag = () => {
-                        const text = newTagInput.value.trim();
-                        if (!text) {
-                            newTagInput.style.borderColor = "#cf6f98";
+                    let expandBuilt = false;
+                    let newTagInputRef = null;
+                    const buildExpandPanel = () => {
+                        if (expandBuilt)
                             return;
-                        }
-                        const updated = [...getFriendTagList(num), { text, color: selectedColor }];
-                        setFriendTagList(num, updated);
-                        newTagInput.value = "";
-                        newTagInput.style.borderColor = "#3a1928";
+                        expandBuilt = true;
+                        // Tags label
+                        const tagsLbl = document.createElement("div");
+                        tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
+                        tagsLbl.textContent = "Tags";
+                        expand.appendChild(tagsLbl);
+                        // Chips container
+                        const chipsEl = document.createElement("div");
+                        chipsEl.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;min-height:6px;";
+                        expand.appendChild(chipsEl);
+                        const rebuildChips = () => {
+                            chipsEl.innerHTML = "";
+                            const tl = getFriendTagList(num);
+                            for (let i = 0; i < tl.length; i++) {
+                                const t = tl[i];
+                                const chip = document.createElement("span");
+                                chip.className = "ebc-etag-chip";
+                                chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                                const dot2 = document.createElement("span");
+                                dot2.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${t.color};flex-shrink:0;`;
+                                const txt = document.createElement("span");
+                                txt.textContent = t.text;
+                                const rmBtn = document.createElement("button");
+                                rmBtn.className = "ebc-etag-chip-remove";
+                                rmBtn.textContent = "✕";
+                                rmBtn.style.color = t.color;
+                                rmBtn.addEventListener("click", () => {
+                                    const updated = getFriendTagList(num).filter((_, j) => j !== i);
+                                    setFriendTagList(num, updated);
+                                    rebuildChips();
+                                    renderTagArea();
+                                    if (updated.length > 0) {
+                                        if (!row.contains(tagArea))
+                                            row.insertBefore(tagArea, beepBtn);
+                                    }
+                                    else
+                                        tagArea.remove();
+                                });
+                                chip.appendChild(dot2);
+                                chip.appendChild(txt);
+                                chip.appendChild(rmBtn);
+                                chipsEl.appendChild(chip);
+                            }
+                        };
                         rebuildChips();
-                        renderTagArea();
-                        if (!row.contains(tagArea))
-                            row.insertBefore(tagArea, beepBtn);
+                        // Add-tag row
+                        const addRow = document.createElement("div");
+                        addRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
+                        const newTagInput = document.createElement("input");
+                        newTagInputRef = newTagInput;
+                        newTagInput.type = "text";
+                        newTagInput.maxLength = 30;
+                        newTagInput.placeholder = "new tag…";
+                        newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
+                        newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
+                        newTagInput.addEventListener("blur", () => { newTagInput.style.borderColor = "#3a1928"; });
+                        const addTagBtn = document.createElement("button");
+                        addTagBtn.textContent = "+ Add";
+                        addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                        addRow.appendChild(newTagInput);
+                        addRow.appendChild(addTagBtn);
+                        expand.appendChild(addRow);
+                        // Color swatches row
+                        const swatchRow = document.createElement("div");
+                        swatchRow.style.cssText = "display:flex;gap:5px;align-items:center;flex-wrap:wrap;";
+                        let selectedColor = TAG_COLORS[0];
+                        const swatches = [];
+                        for (const c of TAG_COLORS) {
+                            const sw = document.createElement("span");
+                            sw.className = "ebc-color-swatch" + (c === selectedColor ? " sel" : "");
+                            sw.style.background = c;
+                            sw.title = c;
+                            sw.addEventListener("click", () => {
+                                selectedColor = c;
+                                swatches.forEach(s => s.classList.remove("sel"));
+                                sw.classList.add("sel");
+                            });
+                            swatches.push(sw);
+                            swatchRow.appendChild(sw);
+                        }
+                        expand.appendChild(swatchRow);
+                        const doAddTag = () => {
+                            const text = newTagInput.value.trim();
+                            if (!text) {
+                                newTagInput.style.borderColor = "#cf6f98";
+                                return;
+                            }
+                            const updated = [...getFriendTagList(num), { text, color: selectedColor }];
+                            setFriendTagList(num, updated);
+                            newTagInput.value = "";
+                            newTagInput.style.borderColor = "#3a1928";
+                            rebuildChips();
+                            renderTagArea();
+                            if (!row.contains(tagArea))
+                                row.insertBefore(tagArea, beepBtn);
+                        };
+                        addTagBtn.addEventListener("click", doAddTag);
+                        newTagInput.addEventListener("keydown", e => { if (e.key === "Enter") {
+                            e.preventDefault();
+                            doAddTag();
+                        } });
+                        // Pin button
+                        const actRow = document.createElement("div");
+                        actRow.style.cssText = "display:flex;gap:5px;margin-top:2px;";
+                        const pinBtn = document.createElement("button");
+                        const refreshPinBtn = () => {
+                            const p = isFriendPinned(num);
+                            pinBtn.textContent = p ? "📌 Unpin" : "📌 Pin to top";
+                            pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
+                            row.classList.toggle("pinned", p);
+                            pinDot.style.display = p ? "" : "none";
+                        };
+                        refreshPinBtn();
+                        pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
+                        actRow.appendChild(pinBtn);
+                        expand.appendChild(actRow);
                     };
-                    addTagBtn.addEventListener("click", doAddTag);
-                    newTagInput.addEventListener("keydown", e => { if (e.key === "Enter") {
-                        e.preventDefault();
-                        doAddTag();
-                    } });
-                    // -- Pin button --
-                    const actRow = document.createElement("div");
-                    actRow.style.cssText = "display:flex;gap:5px;margin-top:2px;";
-                    const pinBtn = document.createElement("button");
-                    const refreshPinBtn = () => {
-                        const p = isFriendPinned(num);
-                        pinBtn.textContent = p ? "📌 Unpin" : "📌 Pin to top";
-                        pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
-                        row.classList.toggle("pinned", p);
-                        pinDot.style.display = p ? "" : "none";
-                    };
-                    refreshPinBtn();
-                    pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
-                    actRow.appendChild(pinBtn);
-                    expand.appendChild(actRow);
-                    // Toggle expand on row click
+                    // Toggle expand on row click — build panel on first open
                     row.addEventListener("click", () => {
+                        buildExpandPanel();
                         const open = expand.classList.toggle("visible");
                         row.classList.toggle("expanded", open);
                         if (open)
-                            setTimeout(() => newTagInput.focus(), 50);
+                            window.setTimeout(() => newTagInputRef === null || newTagInputRef === void 0 ? void 0 : newTagInputRef.focus(), 50);
                     });
                     wrap.appendChild(row);
                     wrap.appendChild(expand);
@@ -10399,9 +10766,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.6.9";
+    const MOD_VERSION = "0.7.0";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.7.0",
+            changes: [
+                "Users tab loads instantly — friend rows now render asynchronously (requestAnimationFrame) and tag/pin panels are built lazily on first click instead of all at once.",
+                "Safeword system: set a Yellow and Red safeword in the Outfits tab. Yellow releases binding restraints and starts a configurable grace period (no new restraints). Red does the same, announces your exit, and leaves the room after a short pause.",
+            ],
+        },
         {
             version: "0.6.9",
             changes: [
@@ -11507,13 +11881,16 @@
             catch ( /* ignore */_a) { /* ignore */ }
             return result;
         });
-        // Anti-restraint: detect new restraints on the player after any refresh
+        // Anti-restraint + grace period: detect new restraints on the player after any refresh
         tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
             const result = next(args);
             try {
                 const [C] = args;
-                if (C === Player)
+                if (C === Player) {
+                    checkGraceExpiry();
+                    enforceGracePeriod();
                     antiRestraintOnPlayerRefresh();
+                }
             }
             catch ( /* ignore */_a) { /* ignore */ }
             return result;
@@ -11624,7 +12001,7 @@
             try {
                 if (typeof KeyPress !== "undefined" && KeyPress === 13) {
                     const input = document.getElementById("InputChat");
-                    if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
+                    if (input && (checkSafeword(input.value) || handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
                         input.value = "";
                         return;
                     }
@@ -11638,7 +12015,7 @@
         modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
             try {
                 const input = document.getElementById("InputChat");
-                if (input && (handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
+                if (input && (checkSafeword(input.value) || handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
                     input.value = "";
                     return;
                 }
