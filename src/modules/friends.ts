@@ -123,7 +123,7 @@ export function getConversation(memberNumber: number): BeepEntry[] {
 
 export function sendBeep(memberNumber: number, message: string): void {
     try {
-        ServerSend("Beep", { MemberNumber: memberNumber, Message: message });
+        ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message });
     } catch { /* ignore */ }
     addBeepEntry({
         from: Player.MemberNumber ?? 0,

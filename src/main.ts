@@ -13,10 +13,18 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.4";
+const MOD_VERSION = "0.5.5";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.5.5",
+        changes: [
+            "Fix: incoming beeps now hooked via ServerAccountBeep (the real BC function name, confirmed from WCE source).",
+            "Fix: outgoing beeps now use ServerSend('AccountBeep') instead of 'Beep' — messages were not being delivered.",
+            "Fix: AccountQueryResult handled via ServerSocket.on (socket event, not a patchable global).",
+        ],
+    },
     {
         version: "0.5.4",
         changes: [
@@ -1034,27 +1042,25 @@ function init(): void {
         return next(args);
     });
 
-    // Record incoming beeps via socket listener (AccountBeep is a socket event,
-    // not a patchable global, so ModSDK hooks won't find it).
-    try {
-        const socket = (window as unknown as Record<string, unknown>).ServerSocket as
-            { on(event: string, cb: (data: unknown) => void): void } | undefined;
-        const handleIncomingBeep = (raw: unknown): void => {
-            try {
-                const data = raw as Record<string, unknown>;
-                const fromNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
-                const msg = typeof data.Message === "string" ? data.Message : "";
-                if (!fromNum || !msg) return;
-                // Cache the sender's name if the server included it
-                const name = typeof data.MemberName === "string" ? data.MemberName : null;
-                if (name) { try { cacheName(fromNum, name); } catch { /* ignore */ } }
-                addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-                try { playBeepSound(); } catch { /* ignore */ }
-                try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
-            } catch { /* ignore */ }
-        };
-        socket?.on("AccountBeep", handleIncomingBeep);
-    } catch { /* ignore */ }
+    // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
+    // Only handle plain beeps (BeepType === "" or undefined) — skip game/friend-request beeps.
+    tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
+        const result = next(args);
+        try {
+            const [beep] = args as [Record<string, unknown>];
+            if (beep.BeepType) return result; // skip non-chat beeps
+            const fromNum = typeof beep.MemberNumber === "number" ? beep.MemberNumber : 0;
+            const msg = typeof beep.Message === "string" ? beep.Message : "";
+            if (!fromNum || !msg) return result;
+            const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
+            if (name) cacheName(fromNum, name);
+            addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
+            try { playBeepSound(); } catch { /* ignore */ }
+            try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
+        } catch { /* ignore */ }
+        return result;
+    });
+
 
     // Cache friend names whenever BC notifies us a friend came online.
     // FriendListBeep is a real BC global called with {MemberNumber, MemberName, ...}.
