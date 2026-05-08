@@ -2535,134 +2535,127 @@ export class EBCDrawer {
         swHdr.appendChild(swArrow);
         safewordRow.appendChild(swHdr);
 
-        // Collapsible settings panel
+        // Collapsible settings panel — rebuilt on every open so values + outfit list are always fresh
         const swInner = document.createElement("div");
-        swInner.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 7px 7px;";
+        swInner.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 7px 8px;";
 
-        // Grace period indicator + cancel
-        const swGraceRow = document.createElement("div");
-        swGraceRow.style.cssText = "display:none;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
-        const swGraceLbl = document.createElement("span");
-        swGraceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;flex:1;";
-        const swGraceCancelBtn = document.createElement("button");
-        swGraceCancelBtn.textContent = "End grace";
-        swGraceCancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
-        swGraceRow.appendChild(swGraceLbl);
-        swGraceRow.appendChild(swGraceCancelBtn);
-        swInner.appendChild(swGraceRow);
+        const buildSwInner = (): void => {
+            while (swInner.firstChild) swInner.removeChild(swInner.firstChild);
+            const cfg = getSafewordConfig();
 
-        const updateSwGrace = (): void => {
-            if (!isGraceActive()) {
-                swGraceRow.style.display = "none";
-                swGraceTag.style.display = "none";
-                swLabel.textContent = "SAFEWORDS";
-                return;
+            // -- Grace active row --
+            if (isGraceActive()) {
+                const graceRow = document.createElement("div");
+                graceRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;background:#2a0e1e;border:1px solid #6b2040;border-radius:5px;";
+                const graceLbl = document.createElement("span");
+                graceLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;flex:1;";
+                const rem = getGraceRemaining();
+                graceLbl.textContent = rem === Infinity
+                    ? "🛡 Grace active (indefinite)"
+                    : `🛡 Grace active — ${Math.ceil((rem as number) / 60_000)} min remaining`;
+                const cancelBtn = document.createElement("button");
+                cancelBtn.textContent = "End grace";
+                cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+                cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
+                graceRow.appendChild(graceLbl);
+                graceRow.appendChild(cancelBtn);
+                swInner.appendChild(graceRow);
             }
-            const rem = getGraceRemaining();
-            if (rem === null) { swGraceRow.style.display = "none"; swGraceTag.style.display = "none"; return; }
-            swGraceRow.style.display = "flex";
-            swGraceTag.style.display = "";
-            swLabel.textContent = "SAFEWORDS";
-            swGraceLbl.textContent = rem === Infinity
-                ? "🛡 Grace active (indefinite)"
-                : `🛡 Grace active — ${Math.ceil((rem as number) / 60_000)} min remaining`;
-        };
-        swGraceCancelBtn.addEventListener("click", () => { endGrace(); updateSwGrace(); });
 
-        // Word input helper
-        const makeSwWordRow = (label: string, getter: () => string, setter: (v: string) => void): void => {
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;align-items:center;gap:6px;";
-            const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;width:44px;";
-            lbl.textContent = label;
-            const inp = document.createElement("input");
-            inp.type = "text";
-            inp.maxLength = 40;
-            inp.value = getter();
-            inp.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
-            inp.addEventListener("focus", () => { inp.style.borderColor = "#cf6f98"; });
-            inp.addEventListener("blur",  () => { inp.style.borderColor = "#3a1928"; if (inp.value.trim()) setter(inp.value.trim()); inp.value = getter(); });
-            row.appendChild(lbl);
-            row.appendChild(inp);
-            swInner.appendChild(row);
-        };
+            // -- Row helper: text input --
+            const makeTextRow = (label: string, value: string, placeholder: string, onSave: (v: string) => void): void => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:66px;text-align:right;";
+                lbl.textContent = label;
+                const inp = document.createElement("input");
+                inp.type = "text";
+                inp.maxLength = 40;
+                inp.value = value;
+                inp.placeholder = placeholder;
+                inp.className = "ebc-form-input";
+                inp.style.fontSize = "10px";
+                inp.addEventListener("blur", () => { if (inp.value.trim()) onSave(inp.value.trim()); else inp.value = value; });
+                inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { inp.blur(); } });
+                row.appendChild(lbl);
+                row.appendChild(inp);
+                swInner.appendChild(row);
+            };
 
-        try {
-            makeSwWordRow("Yellow:", () => getSafewordConfig().yellowWord, (v) => setSafewordConfig({ ...getSafewordConfig(), yellowWord: v }));
-            makeSwWordRow("Red:", () => getSafewordConfig().redWord, (v) => setSafewordConfig({ ...getSafewordConfig(), redWord: v }));
-        } catch { /* ignore */ }
+            makeTextRow("Yellow word:", cfg.yellowWord, "e.g. yellow", (v) => setSafewordConfig({ ...getSafewordConfig(), yellowWord: v }));
+            makeTextRow("Red word:", cfg.redWord, "e.g. red", (v) => setSafewordConfig({ ...getSafewordConfig(), redWord: v }));
 
-        // Grace duration row
-        const swGraceDurRow = document.createElement("div");
-        swGraceDurRow.style.cssText = "display:flex;align-items:center;gap:6px;";
-        const swGraceDurLbl = document.createElement("span");
-        swGraceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;width:44px;";
-        swGraceDurLbl.textContent = "Grace:";
-        const swGraceDurInp = document.createElement("input");
-        swGraceDurInp.type = "number"; swGraceDurInp.min = "0"; swGraceDurInp.max = "9999";
-        swGraceDurInp.style.cssText = "width:48px;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 5px;outline:none;";
-        swGraceDurInp.addEventListener("focus", () => { swGraceDurInp.style.borderColor = "#cf6f98"; });
-        swGraceDurInp.addEventListener("blur",  () => { swGraceDurInp.style.borderColor = "#3a1928"; });
-        swGraceDurInp.addEventListener("change", () => {
-            const mins = Math.max(0, parseInt(swGraceDurInp.value, 10) || 0);
-            setSafewordConfig({ ...getSafewordConfig(), graceDurationMs: mins * 60_000 });
-            swGraceDurInp.value = String(mins);
-        });
-        try { swGraceDurInp.value = String(Math.round(getSafewordConfig().graceDurationMs / 60_000)); } catch { swGraceDurInp.value = "5"; }
-        const swGraceDurUnit = document.createElement("span");
-        swGraceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-        swGraceDurUnit.textContent = "min (0 = indefinite)";
-        swGraceDurRow.appendChild(swGraceDurLbl);
-        swGraceDurRow.appendChild(swGraceDurInp);
-        swGraceDurRow.appendChild(swGraceDurUnit);
-        swInner.appendChild(swGraceDurRow);
+            // -- Grace duration --
+            const graceDurRow = document.createElement("div");
+            graceDurRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+            const graceDurLbl = document.createElement("span");
+            graceDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;flex-shrink:0;width:66px;text-align:right;";
+            graceDurLbl.textContent = "Grace:";
+            const graceDurInp = document.createElement("input");
+            graceDurInp.type = "number"; graceDurInp.min = "0"; graceDurInp.max = "9999";
+            graceDurInp.value = String(Math.round(cfg.graceDurationMs / 60_000));
+            graceDurInp.className = "ebc-form-input";
+            graceDurInp.style.cssText = graceDurInp.style.cssText + ";width:48px;flex:none;font-size:10px;";
+            graceDurInp.addEventListener("change", () => {
+                const mins = Math.max(0, parseInt(graceDurInp.value, 10) || 0);
+                setSafewordConfig({ ...getSafewordConfig(), graceDurationMs: mins * 60_000 });
+                graceDurInp.value = String(mins);
+            });
+            const graceDurUnit = document.createElement("span");
+            graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+            graceDurUnit.textContent = "min  (0 = indefinite)";
+            graceDurRow.appendChild(graceDurLbl);
+            graceDurRow.appendChild(graceDurInp);
+            graceDurRow.appendChild(graceDurUnit);
+            swInner.appendChild(graceDurRow);
 
-        // Outfit selectors
-        const makeSwOutfitRow = (
-            label: string,
-            labelColor: string,
-            getOutfitId: () => string | null,
-            setOutfitId: (id: string | null) => void,
-        ): void => {
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;align-items:center;gap:6px;";
-            const lbl = document.createElement("span");
-            lbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${labelColor};flex-shrink:0;width:44px;`;
-            lbl.textContent = label;
-            const sel = document.createElement("select");
-            sel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 5px;outline:none;cursor:pointer;min-width:0;";
-            const noneOpt = document.createElement("option");
-            noneOpt.value = ""; noneOpt.textContent = "— none —";
-            sel.appendChild(noneOpt);
-            try {
-                for (const o of getOutfits()) {
-                    const opt = document.createElement("option");
-                    opt.value = o.id; opt.textContent = o.displayName;
-                    sel.appendChild(opt);
-                }
-                sel.value = getOutfitId() ?? "";
-            } catch { /* ignore */ }
-            sel.addEventListener("change", () => setOutfitId(sel.value || null));
-            row.appendChild(lbl); row.appendChild(sel);
-            swInner.appendChild(row);
+            // -- Outfit selectors (populated from live outfit list) --
+            const makeOutfitRow = (label: string, labelColor: string, currentId: string | null, onPick: (id: string | null) => void): void => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;color:${labelColor};flex-shrink:0;width:66px;text-align:right;`;
+                lbl.textContent = label;
+                const sel = document.createElement("select");
+                sel.className = "ebc-form-input";
+                sel.style.fontSize = "10px";
+                const noneOpt = document.createElement("option");
+                noneOpt.value = ""; noneOpt.textContent = "— none —";
+                sel.appendChild(noneOpt);
+                try {
+                    for (const o of getOutfits()) {
+                        const opt = document.createElement("option");
+                        opt.value = o.id;
+                        opt.textContent = o.displayName;
+                        sel.appendChild(opt);
+                    }
+                } catch { /* ignore */ }
+                sel.value = currentId ?? "";
+                sel.addEventListener("change", () => onPick(sel.value || null));
+                row.appendChild(lbl);
+                row.appendChild(sel);
+                swInner.appendChild(row);
+            };
+
+            makeOutfitRow("Yellow outfit:", "#c8b840", cfg.yellowOutfitId, (id) => setSafewordConfig({ ...getSafewordConfig(), yellowOutfitId: id }));
+            makeOutfitRow("Red outfit:", "#e06060", cfg.redOutfitId, (id) => setSafewordConfig({ ...getSafewordConfig(), redOutfitId: id }));
+
+            // -- Hint --
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;line-height:1.45;padding-top:2px;";
+            hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger. Yellow = release + grace. Red = release + grace + announce + leave room.";
+            swInner.appendChild(hint);
         };
 
-        makeSwOutfitRow("Y outfit:", "#c8b840", () => getSafewordConfig().yellowOutfitId, (id) => setSafewordConfig({ ...getSafewordConfig(), yellowOutfitId: id }));
-        makeSwOutfitRow("R outfit:", "#e06060", () => getSafewordConfig().redOutfitId, (id) => setSafewordConfig({ ...getSafewordConfig(), redOutfitId: id }));
-
-        // Hint
-        const swHint = document.createElement("div");
-        swHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;line-height:1.45;";
-        swHint.textContent = "Type word alone (or word!) in chat + Enter. Yellow = release + grace. Red = release + grace + announce + leave room.";
-        swInner.appendChild(swHint);
-
-        // Toggle expand
+        // Toggle expand — rebuild inner content on every open
         swHdr.addEventListener("click", () => {
             const open = swInner.style.display !== "flex";
             swInner.style.display = open ? "flex" : "none";
             swArrow.textContent = open ? "▲" : "▼";
-            if (open) { try { updateSwGrace(); } catch { /* ignore */ } }
+            if (open) { try { buildSwInner(); } catch { /* ignore */ } }
+            // Update grace tag on header
+            swGraceTag.style.display = isGraceActive() ? "" : "none";
         });
 
         safewordRow.appendChild(swInner);
