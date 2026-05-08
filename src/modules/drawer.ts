@@ -9036,25 +9036,57 @@ export class EBCDrawer {
         };
         rebuildAddable();
 
-        // ── ⛑ Room Rescue ─────────────────────────────────────────────────────
+        // ── ⛑ Room Rescue (collapsible) ────────────────────────────────────────
         const divRescue = document.createElement("div");
         divRescue.className = "ebc-divider";
-        divRescue.style.margin = "10px 0 7px";
+        divRescue.style.margin = "10px 0 0";
         body.appendChild(divRescue);
 
-        const rescueLbl = document.createElement("div");
-        rescueLbl.className = "ebc-section-label";
-        rescueLbl.textContent = "⛑ Room Rescue";
-        body.appendChild(rescueLbl);
+        // Clickable header row
+        const rescueHdr = document.createElement("div");
+        rescueHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;user-select:none;border-radius:6px;transition:background 0.12s;";
+        rescueHdr.addEventListener("mouseenter", () => { rescueHdr.style.background = "rgba(42,20,33,0.5)"; });
+        rescueHdr.addEventListener("mouseleave", () => { rescueHdr.style.background = ""; });
 
+        const rescueHdrIcon = document.createElement("span");
+        rescueHdrIcon.textContent = "⛑";
+        rescueHdrIcon.style.cssText = "font-size:11px;flex-shrink:0;";
+
+        const rescueHdrLbl = document.createElement("span");
+        rescueHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.05em;color:#cf6f98;flex:1;";
+        rescueHdrLbl.textContent = "ROOM RESCUE";
+
+        const rescueArrow = document.createElement("span");
+        rescueArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+        rescueArrow.textContent = "▼";
+
+        rescueHdr.appendChild(rescueHdrIcon);
+        rescueHdr.appendChild(rescueHdrLbl);
+        rescueHdr.appendChild(rescueArrow);
+        body.appendChild(rescueHdr);
+
+        // Collapsible content panel
+        const rescuePanel = document.createElement("div");
+        rescuePanel.style.cssText = "display:none;flex-direction:column;gap:5px;padding:4px 8px 8px;";
+        body.appendChild(rescuePanel);
+
+        let rescuePanelOpen = false;
+        rescueHdr.addEventListener("click", () => {
+            rescuePanelOpen = !rescuePanelOpen;
+            rescuePanel.style.display = rescuePanelOpen ? "flex" : "none";
+            rescueArrow.textContent = rescuePanelOpen ? "▲" : "▼";
+            if (rescuePanelOpen) { populateRescueSel(); rebuildRescueItems(); }
+        });
+
+        // Hint
         const rescueHint = document.createElement("div");
-        rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;margin-bottom:6px;line-height:1.4;";
+        rescueHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.4;";
         rescueHint.textContent = "Strips all locks and restraints from any room member — bypasses all lock rules.";
-        body.appendChild(rescueHint);
+        rescuePanel.appendChild(rescueHint);
 
-        // Person picker + Rescue button row
+        // Person picker row
         const rescueRow = document.createElement("div");
-        rescueRow.style.cssText = "display:flex;gap:5px;align-items:center;margin-bottom:4px;";
+        rescueRow.style.cssText = "display:flex;gap:5px;align-items:center;";
 
         const rescueSel = document.createElement("select");
         rescueSel.className = "ebc-form-input";
@@ -9074,13 +9106,8 @@ export class EBCDrawer {
                 opt.textContent = `${m.name} (#${m.id})`;
                 rescueSel.appendChild(opt);
             }
-            if (members.length === 0) {
-                rescuePh.textContent = "— no one else in room —";
-            } else {
-                rescuePh.textContent = "— choose person —";
-            }
+            rescuePh.textContent = members.length === 0 ? "— no one else in room —" : "— choose person —";
         };
-        populateRescueSel();
 
         const rescueRefreshBtn = document.createElement("button");
         rescueRefreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 7px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
@@ -9090,33 +9117,30 @@ export class EBCDrawer {
 
         rescueRow.appendChild(rescueSel);
         rescueRow.appendChild(rescueRefreshBtn);
-        body.appendChild(rescueRow);
+        rescuePanel.appendChild(rescueRow);
 
-        // Item preview panel — shows what the selected person is wearing
+        // Item preview — shows what the selected person is wearing
         const rescueItemsEl = document.createElement("div");
-        rescueItemsEl.style.cssText = "display:none;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;margin-bottom:5px;max-height:130px;overflow-y:auto;";
-        body.appendChild(rescueItemsEl);
+        rescueItemsEl.style.cssText = "display:none;flex-direction:column;gap:1px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;border-radius:6px;padding:5px 7px;max-height:130px;overflow-y:auto;";
+        rescuePanel.appendChild(rescueItemsEl);
 
         const rescueStatus = document.createElement("div");
-        rescueStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;margin-bottom:4px;";
-        body.appendChild(rescueStatus);
+        rescueStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
+        rescuePanel.appendChild(rescueStatus);
 
         const rebuildRescueItems = (): void => {
             while (rescueItemsEl.firstChild) rescueItemsEl.removeChild(rescueItemsEl.firstChild);
             const id = parseInt(rescueSel.value, 10);
             if (!id) { rescueItemsEl.style.display = "none"; return; }
             const items = getRoomMemberItems(id);
-            if (items.length === 0) {
-                rescueItemsEl.style.display = "none";
-                return;
-            }
+            if (items.length === 0) { rescueItemsEl.style.display = "none"; return; }
             rescueItemsEl.style.display = "flex";
             for (const it of items) {
                 const row2 = document.createElement("div");
                 row2.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 0;";
                 const lockIco = document.createElement("span");
-                lockIco.style.cssText = "font-size:9px;flex-shrink:0;";
-                lockIco.textContent = it.locked ? "🔒" : "  ";
+                lockIco.style.cssText = "font-size:9px;flex-shrink:0;width:14px;text-align:center;";
+                lockIco.textContent = it.locked ? "🔒" : "";
                 const nm = document.createElement("span");
                 nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                 nm.textContent = it.name;
@@ -9131,7 +9155,7 @@ export class EBCDrawer {
         rescueSel.addEventListener("change", () => rebuildRescueItems());
 
         const rescueBtn = document.createElement("button");
-        rescueBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 4px;border-radius:6px;border:1px solid #c0304a;background:#6b1428;color:#ffd0d8;cursor:pointer;transition:background 0.14s;margin-bottom:4px;";
+        rescueBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 4px;border-radius:6px;border:1px solid #c0304a;background:#6b1428;color:#ffd0d8;cursor:pointer;transition:background 0.14s;";
         rescueBtn.textContent = "⛑ Rescue";
         rescueBtn.title = "Strip all locks + remove all restraints from selected person";
         rescueBtn.addEventListener("mouseenter", () => { rescueBtn.style.background = "#8b1e38"; });
@@ -9154,7 +9178,7 @@ export class EBCDrawer {
                 rebuildRescueItems();
             }, 3000);
         });
-        body.appendChild(rescueBtn);
+        rescuePanel.appendChild(rescueBtn);
 
         // ── Release / Rescue ─────────────────────────────────────────────────
         const divRelease = document.createElement("div");
