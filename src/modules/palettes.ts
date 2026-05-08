@@ -112,3 +112,41 @@ export function renamePalette(id: string, name: string): void {
     const p = list.find(x => x.id === id);
     if (p && name.trim()) { p.name = name.trim(); save(list); }
 }
+
+// -- Custom color swatches --------------------------------------------------
+// A flat list of user-saved hex colors for the direct picker workflow.
+
+function saveCustomColors(list: string[]): void {
+    getStore().customColors = list;
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+export function getCustomColors(): string[] {
+    const v = getStore().customColors;
+    return Array.isArray(v) ? v as string[] : [];
+}
+
+export function addCustomColor(hex: string): void {
+    const list = getCustomColors();
+    if (!list.includes(hex)) saveCustomColors([...list, hex]);
+}
+
+export function removeCustomColor(hex: string): void {
+    saveCustomColors(getCustomColors().filter(c => c !== hex));
+}
+
+// Apply a single hex colour to every colour zone of a worn restraint group.
+export function applyColorToGroup(groupName: string, color: string): boolean {
+    const item = InventoryGet(Player, groupName);
+    if (!item) return false;
+    const existing = item.Color;
+    (item as unknown as Record<string, unknown>).Color = Array.isArray(existing)
+        ? (existing as string[]).map(() => color)
+        : color;
+    try {
+        CharacterRefresh(Player, false);
+        ChatRoomCharacterUpdate(Player);
+        ServerPlayerAppearanceSync();
+    } catch { /* ignore */ }
+    return true;
+}

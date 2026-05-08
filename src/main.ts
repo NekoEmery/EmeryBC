@@ -13,10 +13,17 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.6.6";
+const MOD_VERSION = "0.6.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.6.7",
+        changes: [
+            "Colours rework: build a personal swatch list, select a colour, then click any worn restraint to apply it directly. Existing saved-palette capture/apply is still available collapsed below.",
+            "Beep chat: sender/receiver names are now larger, bold, and colour-coded (pink = you, blue = them) so they stand out clearly.",
+        ],
+    },
     {
         version: "0.6.6",
         changes: [
