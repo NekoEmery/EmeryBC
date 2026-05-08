@@ -114,20 +114,19 @@ function executeStep(step: SceneStep): void {
                 if (step.text?.trim()) {
                     const txt = step.text.trim();
                     if (step.chatFormat === "*") {
-                        // Emote-style action — same format as nod/giggle buttons
+                        // Emote — displayed as *Name text* in BC chat (not garbled by gags)
                         ServerSend("ChatRoomChat", {
-                            Type: "Action",
+                            Type: "Emote",
                             Content: getDisplayName() + " " + txt,
-                            Dictionary: [
-                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-                                { SourceCharacter: Player.MemberNumber },
-                            ],
                         });
                     } else if (step.chatFormat === "(") {
-                        // OOC — plain chat with parentheses
-                        ServerSend("ChatRoomChat", { Type: "Chat", Content: `(${txt})` });
+                        // OOC — send as Emote with parens so it bypasses gag speech garbling
+                        ServerSend("ChatRoomChat", {
+                            Type: "Emote",
+                            Content: "(" + txt + ")",
+                        });
                     } else {
-                        // Plain speech
+                        // Plain speech — goes through normal chat (gag effects apply)
                         ServerSend("ChatRoomChat", { Type: "Chat", Content: txt });
                     }
                 }

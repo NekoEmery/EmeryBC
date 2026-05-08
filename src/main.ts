@@ -14,10 +14,18 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.7.3";
+const MOD_VERSION = "0.7.4";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.7.4",
+        changes: [
+            "Fix: Scene chat step '* *' format now sends as Type:Emote so it renders as *Name text* in BC chat instead of (Name text). The emote style is not affected by gag speech.",
+            "Fix: Scene chat step '( )' OOC format now also sends as Type:Emote so the OOC text bypasses gag speech garbling.",
+            "Fix: Safewords now use a direct capture-phase keydown listener that fires before BC's keyboard handler — catches the raw typed text before any gag processing. Works reliably even when gagged.",
+        ],
+    },
     {
         version: "0.7.3",
         changes: [
@@ -1244,31 +1252,73 @@ function init(): void {
         });
     } catch { /* ignore */ }
 
+    // ── Direct capture-phase keydown — fires before BC touches anything ──────
+    // This is the most reliable interceptor for safewords and chat commands.
+    // It catches Enter on #InputChat in the capture phase, reads the raw value
+    // (before gag processing), and cancels propagation if a word matches.
+    // Works for normal chat AND gag speech (we see the original typed text).
+    const getChatInput = (): HTMLInputElement | null =>
+        document.getElementById("InputChat") as HTMLInputElement | null;
+
+    const onChatKeydownCapture = (e: KeyboardEvent): void => {
+        try {
+            if (e.key !== "Enter" && e.keyCode !== 13) return;
+            const el = (e.target ?? document.activeElement) as HTMLElement | null;
+            if (!el || (el as HTMLInputElement).id !== "InputChat") return;
+            const raw = (el as HTMLInputElement).value;
+            if (!raw.trim()) return;
+            if (checkSafeword(raw)
+                || handleMetaCommand(raw)
+                || handleOutfitCommand(raw)
+                || handlePoseComboCommand(raw)
+                || handleSceneCommand(raw)
+                || handleDomCommand(raw)) {
+                (el as HTMLInputElement).value = "";
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+        } catch { /* ignore */ }
+    };
+    document.addEventListener("keydown", onChatKeydownCapture, true);
+
+    // ── ModSDK hooks — belt-and-suspenders fallback ───────────────────────────
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
         try {
             if (typeof KeyPress !== "undefined" && KeyPress === 13) {
-                const input = document.getElementById("InputChat") as HTMLInputElement | null;
-                if (input && (checkSafeword(input.value) || handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
+                const input = getChatInput();
+                if (input?.value.trim() && (
+                    checkSafeword(input.value)
+                    || handleMetaCommand(input.value)
+                    || handleOutfitCommand(input.value)
+                    || handlePoseComboCommand(input.value)
+                    || handleSceneCommand(input.value)
+                    || handleDomCommand(input.value)
+                )) {
                     input.value = "";
                     return;
                 }
             }
-        } catch {
-            // Ignore keydown failures.
-        }
+        } catch { /* ignore */ }
         return next(args);
     });
 
     modAPI.hookFunction("ChatRoomSendChat", 10, (args, next) => {
         try {
-            const input = document.getElementById("InputChat") as HTMLInputElement | null;
-            if (input && (checkSafeword(input.value) || handleMetaCommand(input.value) || handleOutfitCommand(input.value) || handlePoseComboCommand(input.value) || handleSceneCommand(input.value) || handleDomCommand(input.value))) {
-                input.value = "";
+            const input = getChatInput();
+            // args[0] may be the processed (possibly gag-garbled) text — prefer input.value (raw)
+            const raw = input?.value ?? (typeof args[0] === "string" ? args[0] : "");
+            if (raw.trim() && (
+                checkSafeword(raw)
+                || handleMetaCommand(raw)
+                || handleOutfitCommand(raw)
+                || handlePoseComboCommand(raw)
+                || handleSceneCommand(raw)
+                || handleDomCommand(raw)
+            )) {
+                if (input) input.value = "";
                 return;
             }
-        } catch {
-            // Ignore command failures.
-        }
+        } catch { /* ignore */ }
         return next(args);
     });
 
