@@ -1069,28 +1069,26 @@ function init(): void {
     });
 
     // Track which friends BC considers online (not just in our room).
-    // BC periodically queries OnlineFriends and calls AccountQueryResult with the list.
-    tryHookFunction(modAPI, "AccountQueryResult", 1, (args, next) => {
-        try {
-            const [data] = args as [Record<string, unknown>];
-            if (data.Query === "OnlineFriends") {
+    // AccountQueryResult is a socket event, not a patchable global.
+    try {
+        const socket2 = (window as unknown as Record<string, unknown>).ServerSocket as
+            { on(event: string, cb: (data: unknown) => void): void } | undefined;
+        socket2?.on("AccountQueryResult", (raw: unknown) => {
+            try {
+                const data = raw as Record<string, unknown>;
+                if (data.Query !== "OnlineFriends") return;
                 const results = data.Result as Array<Record<string, unknown>> | undefined;
-                if (Array.isArray(results)) {
-                    const nums: number[] = [];
-                    for (const r of results) {
-                        const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
-                        const name = typeof r.MemberName === "string" ? r.MemberName : null;
-                        if (n) {
-                            nums.push(n);
-                            if (name) cacheName(n, name);
-                        }
-                    }
-                    updateOnlineFriends(nums);
+                if (!Array.isArray(results)) return;
+                const nums: number[] = [];
+                for (const r of results) {
+                    const n = typeof r.MemberNumber === "number" ? r.MemberNumber : 0;
+                    const name = typeof r.MemberName === "string" ? r.MemberName : null;
+                    if (n) { nums.push(n); if (name) cacheName(n, name); }
                 }
-            }
-        } catch { /* ignore */ }
-        return next(args);
-    });
+                updateOnlineFriends(nums);
+            } catch { /* ignore */ }
+        });
+    } catch { /* ignore */ }
 
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
         try {
