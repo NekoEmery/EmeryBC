@@ -11171,7 +11171,7 @@
             barkBtn.addEventListener("mouseup", () => { barkBtn.style.transform = ""; });
             barkBtn.addEventListener("click", () => {
                 try {
-                    ServerSend("ChatRoomChat", { Type: "Chat", Content: "arf" });
+                    ServerSend("ChatRoomChat", { Type: "Chat", Content: "Arf~" });
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
                 // tiny flash feedback

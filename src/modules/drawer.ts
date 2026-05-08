@@ -8679,7 +8679,7 @@ export class EBCDrawer {
         barkBtn.addEventListener("mouseup",   () => { barkBtn.style.transform = ""; });
         barkBtn.addEventListener("click", () => {
             try {
-                ServerSend("ChatRoomChat", { Type: "Chat", Content: "arf" });
+                ServerSend("ChatRoomChat", { Type: "Chat", Content: "Arf~" });
             } catch { /* ignore */ }
             // tiny flash feedback
             barkBtn.style.background = "#7a40c8";
