@@ -10,13 +10,22 @@ import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestraine
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry } from "./modules/friends";
+import { addBeepEntry, cacheName } from "./modules/friends";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.5.1";
+const MOD_VERSION = "0.5.2";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.5.2",
+        changes: [
+            "Fix: Confirm before escaping toggle now re-reads saved state when entering a room, so it no longer resets to OFF on every script reload.",
+            "Fix: Friend names now populated from FriendListBeep hook and ChatRoomSync — friends you've been in a room with will show their name instead of their ID.",
+            "Fix: Incoming beep names cached from AccountBeep socket payload (MemberName field).",
+            "Fix: Unread badge on the 💬 button — red dot with count appears for any friend who messaged you while the window was closed.",
+        ],
+    },
     {
         version: "0.5.1",
         changes: [
@@ -919,6 +928,15 @@ function init(): void {
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
+        // Cache names for everyone currently in the room so friend names are
+        // readable even when they're not online the next time you open Friends.
+        try {
+            const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined;
+            if (chars) for (const c of chars) {
+                if (c.MemberNumber) cacheName(c.MemberNumber, c.Nickname?.trim() || c.Name || String(c.MemberNumber));
+            }
+        } catch { /* ignore */ }
         return result;
     });
 
@@ -987,18 +1005,33 @@ function init(): void {
     try {
         const socket = (window as unknown as Record<string, unknown>).ServerSocket as
             { on(event: string, cb: (data: unknown) => void): void } | undefined;
-        socket?.on("AccountBeep", (raw: unknown) => {
+        const handleIncomingBeep = (raw: unknown): void => {
             try {
                 const data = raw as Record<string, unknown>;
                 const fromNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
                 const msg = typeof data.Message === "string" ? data.Message : "";
-                if (fromNum && msg) {
-                    addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-                    try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
-                }
+                if (!fromNum || !msg) return;
+                // Cache the sender's name if the server included it
+                const name = typeof data.MemberName === "string" ? data.MemberName : null;
+                if (name) { try { cacheName(fromNum, name); } catch { /* ignore */ } }
+                addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
+                try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
             } catch { /* ignore */ }
-        });
+        };
+        socket?.on("AccountBeep", handleIncomingBeep);
     } catch { /* ignore */ }
+
+    // Cache friend names whenever BC notifies us a friend came online.
+    // FriendListBeep is a real BC global called with {MemberNumber, MemberName, ...}.
+    tryHookFunction(modAPI, "FriendListBeep", 1, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            const num = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+            const name = typeof data.MemberName === "string" ? data.MemberName : null;
+            if (num && name) cacheName(num, name);
+        } catch { /* ignore */ }
+        return next(args);
+    });
 
     modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
         try {

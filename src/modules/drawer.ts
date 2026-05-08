@@ -1723,8 +1723,10 @@ export class EBCDrawer {
     private positioned = false;
     private version = "";
     private refreshBadgeRow: (() => void) | null = null;
+    private refreshConfirmToggle: (() => void) | null = null;
     private beepWinEl: HTMLElement | null = null;
     private beepWinMember = 0;
+    private beepUnread = new Map<number, number>();
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
@@ -1981,6 +1983,7 @@ export class EBCDrawer {
             ].join(";");
         };
         refreshQaConfirm();
+        this.refreshConfirmToggle = refreshQaConfirm;
         qaConfirmToggle.addEventListener("click", () => {
             setAntiRestraintConfirm(!getAntiRestraintConfirm());
             refreshQaConfirm();
@@ -2531,6 +2534,10 @@ export class EBCDrawer {
         // Keep EBC tab locked below CRABS regardless of who repositions first.
         this.startCrabsPoller();
         this.startTimerPoller();
+
+        // Re-read persisted settings — BC may restore ExtensionSettings after the
+        // drawer is first built, so we refresh any toggles that depend on them.
+        try { this.refreshConfirmToggle?.(); } catch { /* ignore */ }
     }
 
     // -- Tab switching ---------------------------------------------------------
@@ -5686,6 +5693,7 @@ export class EBCDrawer {
         }
         this.beepWinEl?.remove();
         this.beepWinMember = memberNumber;
+        this.beepUnread.delete(memberNumber);
 
         const win = document.createElement("div");
         win.id = "ebc-beep-win";
@@ -5813,6 +5821,19 @@ export class EBCDrawer {
         if (!this.beepWinEl || this.beepWinMember !== memberNumber) return;
         const refresh = (this.beepWinEl as unknown as Record<string, unknown>)._refresh as (() => void) | undefined;
         refresh?.();
+    }
+
+    public onIncomingBeep(fromNum: number): void {
+        // If the window is open for this sender, just refresh it; otherwise
+        // increment unread and re-render the friends section so the badge shows.
+        if (this.beepWinEl && this.beepWinMember === fromNum) {
+            this.refreshBeepWindow(fromNum);
+        } else {
+            this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
+            if (this.currentTab === "notes") {
+                try { this.renderNotes(); } catch { /* ignore */ }
+            }
+        }
     }
 
     // -- Notes tab -------------------------------------------------------------
@@ -5953,11 +5974,24 @@ export class EBCDrawer {
                     input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); commit(); } });
                 });
 
+                const unread = this.beepUnread.get(num) ?? 0;
                 const beepBtn = document.createElement("button");
                 beepBtn.className = "ebc-friend-btn";
+                beepBtn.style.position = "relative";
                 beepBtn.textContent = "💬";
-                beepBtn.title = "Open beep chat";
-                beepBtn.addEventListener("click", () => this.openBeepWindow(num));
+                beepBtn.title = unread ? `${unread} unread message${unread > 1 ? "s" : ""}` : "Open beep chat";
+                if (unread > 0) {
+                    const badge = document.createElement("span");
+                    badge.textContent = unread > 9 ? "9+" : String(unread);
+                    badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
+                    beepBtn.appendChild(badge);
+                }
+                beepBtn.addEventListener("click", () => {
+                    this.beepUnread.delete(num);
+                    this.openBeepWindow(num);
+                    // Re-render friends to remove the badge
+                    if (this.currentTab === "notes") try { this.renderNotes(); } catch { /* ignore */ }
+                });
 
                 row.appendChild(dot);
                 row.appendChild(nameEl);

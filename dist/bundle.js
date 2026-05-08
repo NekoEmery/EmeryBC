@@ -3899,8 +3899,10 @@
             this.positioned = false;
             this.version = "";
             this.refreshBadgeRow = null;
+            this.refreshConfirmToggle = null;
             this.beepWinEl = null;
             this.beepWinMember = 0;
+            this.beepUnread = new Map();
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
             this.crabsPoller = null;
@@ -4122,6 +4124,7 @@
                 ].join(";");
             };
             refreshQaConfirm();
+            this.refreshConfirmToggle = refreshQaConfirm;
             qaConfirmToggle.addEventListener("click", () => {
                 setAntiRestraintConfirm(!getAntiRestraintConfirm());
                 refreshQaConfirm();
@@ -4615,7 +4618,7 @@
         }
         // -- Visibility ------------------------------------------------------------
         updateVisibility() {
-            var _a;
+            var _a, _b;
             if (!this.rootEl || !this.panelEl)
                 return;
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
@@ -4656,6 +4659,12 @@
             // Keep EBC tab locked below CRABS regardless of who repositions first.
             this.startCrabsPoller();
             this.startTimerPoller();
+            // Re-read persisted settings — BC may restore ExtensionSettings after the
+            // drawer is first built, so we refresh any toggles that depend on them.
+            try {
+                (_b = this.refreshConfirmToggle) === null || _b === void 0 ? void 0 : _b.call(this);
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
         }
         // -- Tab switching ---------------------------------------------------------
         stopDevLogPoller() {
@@ -7501,6 +7510,7 @@
             }
             (_b = this.beepWinEl) === null || _b === void 0 ? void 0 : _b.remove();
             this.beepWinMember = memberNumber;
+            this.beepUnread.delete(memberNumber);
             const win = document.createElement("div");
             win.id = "ebc-beep-win";
             this.beepWinEl = win;
@@ -7613,9 +7623,26 @@
             const refresh = this.beepWinEl._refresh;
             refresh === null || refresh === void 0 ? void 0 : refresh();
         }
+        onIncomingBeep(fromNum) {
+            var _a;
+            // If the window is open for this sender, just refresh it; otherwise
+            // increment unread and re-render the friends section so the badge shows.
+            if (this.beepWinEl && this.beepWinMember === fromNum) {
+                this.refreshBeepWindow(fromNum);
+            }
+            else {
+                this.beepUnread.set(fromNum, ((_a = this.beepUnread.get(fromNum)) !== null && _a !== void 0 ? _a : 0) + 1);
+                if (this.currentTab === "notes") {
+                    try {
+                        this.renderNotes();
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                }
+            }
+        }
         // -- Notes tab -------------------------------------------------------------
         renderNotes() {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -7743,11 +7770,28 @@
                             commit();
                         } });
                     });
+                    const unread = (_e = this.beepUnread.get(num)) !== null && _e !== void 0 ? _e : 0;
                     const beepBtn = document.createElement("button");
                     beepBtn.className = "ebc-friend-btn";
+                    beepBtn.style.position = "relative";
                     beepBtn.textContent = "💬";
-                    beepBtn.title = "Open beep chat";
-                    beepBtn.addEventListener("click", () => this.openBeepWindow(num));
+                    beepBtn.title = unread ? `${unread} unread message${unread > 1 ? "s" : ""}` : "Open beep chat";
+                    if (unread > 0) {
+                        const badge = document.createElement("span");
+                        badge.textContent = unread > 9 ? "9+" : String(unread);
+                        badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
+                        beepBtn.appendChild(badge);
+                    }
+                    beepBtn.addEventListener("click", () => {
+                        this.beepUnread.delete(num);
+                        this.openBeepWindow(num);
+                        // Re-render friends to remove the badge
+                        if (this.currentTab === "notes")
+                            try {
+                                this.renderNotes();
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                    });
                     row.appendChild(dot);
                     row.appendChild(nameEl);
                     row.appendChild(numEl);
@@ -9143,9 +9187,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "0.5.1";
+    const MOD_VERSION = "0.5.2";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "0.5.2",
+            changes: [
+                "Fix: Confirm before escaping toggle now re-reads saved state when entering a room, so it no longer resets to OFF on every script reload.",
+                "Fix: Friend names now populated from FriendListBeep hook and ChatRoomSync — friends you've been in a room with will show their name instead of their ID.",
+                "Fix: Incoming beep names cached from AccountBeep socket payload (MemberName field).",
+                "Fix: Unread badge on the 💬 button — red dot with count appears for any friend who messaged you while the window was closed.",
+            ],
+        },
         {
             version: "0.5.1",
             changes: [
@@ -10021,27 +10074,39 @@
             return result;
         });
         modAPI.hookFunction("ChatRoomSync", 3, (args, next) => {
+            var _a;
             const result = next(args);
             try {
                 syncPresenceMarker();
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
             try {
                 showRoomLoadNotice();
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             try {
                 timerOnRoomEnter();
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             try {
                 drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             try {
                 snapshotPlayerRestraints();
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
+            // Cache names for everyone currently in the room so friend names are
+            // readable even when they're not online the next time you open Friends.
+            try {
+                const chars = window.ChatRoomCharacter;
+                if (chars)
+                    for (const c of chars) {
+                        if (c.MemberNumber)
+                            cacheName(c.MemberNumber, ((_a = c.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || c.Name || String(c.MemberNumber));
+                    }
+            }
+            catch ( /* ignore */_g) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
@@ -10117,24 +10182,46 @@
         // not a patchable global, so ModSDK hooks won't find it).
         try {
             const socket = window.ServerSocket;
-            socket === null || socket === void 0 ? void 0 : socket.on("AccountBeep", (raw) => {
+            const handleIncomingBeep = (raw) => {
                 var _a;
                 try {
                     const data = raw;
                     const fromNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
                     const msg = typeof data.Message === "string" ? data.Message : "";
-                    if (fromNum && msg) {
-                        addBeepEntry({ from: fromNum, to: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, message: msg, ts: Date.now() });
+                    if (!fromNum || !msg)
+                        return;
+                    // Cache the sender's name if the server included it
+                    const name = typeof data.MemberName === "string" ? data.MemberName : null;
+                    if (name) {
                         try {
-                            drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
+                            cacheName(fromNum, name);
                         }
                         catch ( /* ignore */_b) { /* ignore */ }
                     }
+                    addBeepEntry({ from: fromNum, to: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, message: msg, ts: Date.now() });
+                    try {
+                        drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
-            });
+                catch ( /* ignore */_d) { /* ignore */ }
+            };
+            socket === null || socket === void 0 ? void 0 : socket.on("AccountBeep", handleIncomingBeep);
         }
         catch ( /* ignore */_a) { /* ignore */ }
+        // Cache friend names whenever BC notifies us a friend came online.
+        // FriendListBeep is a real BC global called with {MemberNumber, MemberName, ...}.
+        tryHookFunction(modAPI, "FriendListBeep", 1, (args, next) => {
+            try {
+                const [data] = args;
+                const num = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+                const name = typeof data.MemberName === "string" ? data.MemberName : null;
+                if (num && name)
+                    cacheName(num, name);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return next(args);
+        });
         modAPI.hookFunction("ChatRoomKeyDown", 10, (args, next) => {
             try {
                 if (typeof KeyPress !== "undefined" && KeyPress === 13) {
