@@ -2691,27 +2691,25 @@ export class EBCDrawer {
 
         const swEnableBtn = document.createElement("button");
         const refreshSwEnable = (): void => {
-            const on = getSafewordConfig().enabled;
-            swEnableBtn.textContent = on ? "● ENABLED" : "○ DISABLED";
-            swEnableBtn.style.cssText = [
-                "font-family:'Trebuchet MS',serif",
-                "font-size:9px",
-                "font-weight:bold",
-                "padding:3px 10px",
-                "border-radius:6px",
-                "cursor:pointer",
-                "flex-shrink:0",
-                "letter-spacing:0.04em",
-                on
-                    ? "border:1px solid #cf6f98;background:#4a1030;color:#f7cce0;"
-                    : "border:1px solid #a03050;background:#2a0515;color:#e05070;",
-            ].join(";");
-            swLabel.style.color = on ? "#cf6f98" : "#c04060";
-            safewordRow.style.background = on
-                ? "rgba(12,4,10,0.6)"
-                : "rgba(40,5,15,0.75)";
+            // Guard: Player.ExtensionSettings may not be ready on first paint
+            let on = true;
+            try { on = getSafewordConfig().enabled; } catch { /* default ON */ }
+
+            swEnableBtn.textContent = on ? "ON" : "OFF";
+            swEnableBtn.style.fontFamily  = "'Trebuchet MS',serif";
+            swEnableBtn.style.fontSize    = "10px";
+            swEnableBtn.style.fontWeight  = "bold";
+            swEnableBtn.style.padding     = "3px 12px";
+            swEnableBtn.style.borderRadius = "5px";
+            swEnableBtn.style.cursor      = "pointer";
+            swEnableBtn.style.flexShrink  = "0";
+            swEnableBtn.style.border      = on ? "1px solid #cf6f98" : "1px solid #a03050";
+            swEnableBtn.style.background  = on ? "#4a1030"           : "#2a0515";
+            swEnableBtn.style.color       = on ? "#f7cce0"           : "#e05070";
+            swLabel.style.color           = on ? "#cf6f98"           : "#c04060";
+            safewordRow.style.background  = on ? "rgba(12,4,10,0.6)" : "rgba(40,5,15,0.75)";
         };
-        try { refreshSwEnable(); } catch { /* ignore */ }
+        refreshSwEnable();
 
         swEnableBtn.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -3757,13 +3755,51 @@ export class EBCDrawer {
             while (container.firstChild) container.removeChild(container.firstChild);
             if (collapsed) return;
 
-            // ── MY COLOURS — custom HSV picker ───────────────────────────────
+            // ── MY COLOURS ───────────────────────────────────────────────────
             const myColLbl = document.createElement("div");
             myColLbl.className = "ebc-mycolors-label";
             myColLbl.textContent = "MY COLOURS";
             container.appendChild(myColLbl);
 
-            // Build the custom picker; onChange fires on every drag/hex input
+            // ── Compact always-visible selected-colour bar ────────────────────
+            // Shows current colour + hex, with Edit/Close toggle and Clear button.
+            const selBar = document.createElement("div");
+            selBar.className = "ebc-sel-bar";
+
+            const selDot = document.createElement("span"); selDot.className = "ebc-sel-dot";
+            const selHex = document.createElement("span"); selHex.className = "ebc-sel-hex";
+            const selHint = document.createElement("span");
+            selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;flex:1;";
+            selHint.textContent = "No colour selected";
+
+            const editPickerBtn = document.createElement("button");
+            editPickerBtn.className = "ebc-wear-btn";
+            editPickerBtn.style.cssText = "font-size:8px;padding:1px 7px;flex-shrink:0;";
+            editPickerBtn.textContent = "Edit v";
+
+            const clrBtn = document.createElement("button");
+            clrBtn.textContent = "x";
+            clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#5a3a4a;cursor:pointer;flex-shrink:0;display:none;";
+            clrBtn.title = "Clear selected colour";
+            clrBtn.addEventListener("click", () => {
+                selectedColor = null;
+                setPickerHex?.("#cf6f98");
+                updateSelBar();
+                updateSwatchGrid();
+                updateLabel();
+            });
+
+            selBar.appendChild(selDot);
+            selBar.appendChild(selHex);
+            selBar.appendChild(selHint);
+            selBar.appendChild(editPickerBtn);
+            selBar.appendChild(clrBtn);
+            container.appendChild(selBar);
+
+            // ── Collapsible picker panel (closed by default) ──────────────────
+            const pickerPanel = document.createElement("div");
+            pickerPanel.style.cssText = "display:none;flex-direction:column;gap:5px;padding:5px 0 3px;";
+
             const pickerWidget = this.buildColorPickerWidget(selectedColor ?? "#cf6f98", (hex) => {
                 selectedColor = hex;
                 updateSelBar();
@@ -3772,12 +3808,11 @@ export class EBCDrawer {
             const w = pickerWidget as unknown as Record<string, unknown>;
             pickerCleanup = w._cleanup as () => void;
             setPickerHex  = w._setValue as (hex: string) => void;
-            container.appendChild(pickerWidget);
+            pickerPanel.appendChild(pickerWidget);
 
-            // Save current picker colour to My Colours
             const saveColBtn = document.createElement("button");
             saveColBtn.className = "ebc-wear-btn";
-            saveColBtn.style.cssText = "margin-top:5px;width:100%;";
+            saveColBtn.style.cssText = "width:100%;margin-top:2px;";
             saveColBtn.textContent = "+ Save to My Colours";
             saveColBtn.title = "Save current colour to My Colours";
             saveColBtn.addEventListener("click", () => {
@@ -3785,34 +3820,19 @@ export class EBCDrawer {
                 addCustomColor(selectedColor);
                 updateSwatchGrid();
                 updateLabel();
-                saveColBtn.textContent = "✓ Saved";
+                saveColBtn.textContent = "Saved!";
                 window.setTimeout(() => { saveColBtn.textContent = "+ Save to My Colours"; }, 1400);
             });
-            container.appendChild(saveColBtn);
+            pickerPanel.appendChild(saveColBtn);
+            container.appendChild(pickerPanel);
 
-            // ── Selected colour bar ───────────────────────────────────────────
-            const selBar = document.createElement("div");
-            selBar.className = "ebc-sel-bar";
-
-            const selDot  = document.createElement("span"); selDot.className  = "ebc-sel-dot";
-            const selHex  = document.createElement("span"); selHex.className  = "ebc-sel-hex";
-            const selHint = document.createElement("span");
-            selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;flex:1;";
-            selHint.textContent = "Pick a colour above, then tap a zone or All / Set";
-            const clrBtn = document.createElement("button");
-            clrBtn.textContent = "Clear";
-            clrBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#5a3a4a;cursor:pointer;flex-shrink:0;";
-            clrBtn.addEventListener("click", () => {
-                selectedColor = null;
-                setPickerHex?.("#cf6f98");
-                updateSelBar();
-                updateSwatchGrid();
-                updateLabel();
+            // Toggle picker open/closed
+            let pickerOpen = false;
+            editPickerBtn.addEventListener("click", () => {
+                pickerOpen = !pickerOpen;
+                pickerPanel.style.display = pickerOpen ? "flex" : "none";
+                editPickerBtn.textContent = pickerOpen ? "Close ^" : "Edit v";
             });
-            selBar.appendChild(selDot);
-            selBar.appendChild(selHex);
-            selBar.appendChild(selHint);
-            selBar.appendChild(clrBtn);
 
             updateSelBar = (): void => {
                 if (selectedColor) {
@@ -3830,9 +3850,13 @@ export class EBCDrawer {
                 }
             };
             updateSelBar();
-            container.appendChild(selBar);
 
-            // ── Saved swatches grid ───────────────────────────────────────────
+            // ── Saved swatches (always visible) ───────────────────────────────
+            const swatchesLbl = document.createElement("div");
+            swatchesLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:600;color:#5a3a4a;letter-spacing:0.05em;margin:5px 0 3px;";
+            swatchesLbl.textContent = "SAVED COLOURS";
+            container.appendChild(swatchesLbl);
+
             const swatchGrid = document.createElement("div");
             swatchGrid.className = "ebc-swatch-grid";
 
@@ -3842,7 +3866,7 @@ export class EBCDrawer {
                 if (!saved.length) {
                     const hint = document.createElement("span");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4a2a3a;";
-                    hint.textContent = "No saved colours yet — use + Save above";
+                    hint.textContent = "None saved yet — open the picker above";
                     swatchGrid.appendChild(hint);
                     return;
                 }
@@ -3859,7 +3883,7 @@ export class EBCDrawer {
                     });
                     const rmBtn = document.createElement("span");
                     rmBtn.className = "ebc-cswatch-rm";
-                    rmBtn.textContent = "×";
+                    rmBtn.textContent = "x";
                     rmBtn.addEventListener("click", (e) => {
                         e.stopPropagation();
                         removeCustomColor(c);

@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "0.7.8";
+const MOD_VERSION = "0.7.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "0.7.9",
+        changes: [
+            "Fix: Safeword ON/OFF toggle no longer shows as an unstyled white square. The style was silently dropped when Player data wasn't fully ready on first paint — now uses individual style properties with a safe fallback.",
+            "Colours tab: picker is now collapsible (closed by default). Saved swatches are always visible. Click 'Edit' to open the picker, 'Close' to hide it again.",
+        ],
+    },
     {
         version: "0.7.8",
         changes: [
