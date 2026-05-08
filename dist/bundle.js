@@ -9039,7 +9039,7 @@
                 }
             };
             const getAssetExtInfo = (groupName, assetName) => {
-                var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
                 // Always log first — before any early returns
                 console.log("[EmeryBC] getAssetExtInfo called:", groupName, assetName);
                 try {
@@ -9054,8 +9054,9 @@
                         return { types: [], varHeight: null };
                     // Probe the side-channel globals BC R91+ uses to store typed options
                     const w = window;
+                    const bcFamily = (_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
                     const probeKeys = [
-                        `${family}${groupName}${assetName}`, // e.g. Female3DCGItemArmsCeilingShackles
+                        `${bcFamily}${groupName}${assetName}`, // e.g. Female3DCGItemArmsCeilingShackles
                         assetName, // bare name
                         `${groupName}${assetName}`, // GroupName+AssetName
                     ];
@@ -9069,7 +9070,7 @@
                         const g = w[pg];
                         if (g) {
                             // Try nested paths
-                            const v = ((_c = (_a = g[assetName]) !== null && _a !== void 0 ? _a : (_b = g[groupName]) === null || _b === void 0 ? void 0 : _b[assetName]) !== null && _c !== void 0 ? _c : (_d = g[family]) === null || _d === void 0 ? void 0 : _d[groupName]);
+                            const v = ((_d = (_b = g[assetName]) !== null && _b !== void 0 ? _b : (_c = g[groupName]) === null || _c === void 0 ? void 0 : _c[assetName]) !== null && _d !== void 0 ? _d : (_e = g[bcFamily]) === null || _e === void 0 ? void 0 : _e[groupName]);
                             console.log(`[EmeryBC] ${pg}["${assetName}"] =`, v !== null && v !== void 0 ? v : "(not found)");
                         }
                         else {
@@ -9095,7 +9096,7 @@
                                 types = pickNames(cfg.Options);
                             // Config.ArchetypeConfig.Options[]
                             if (types.length === 0)
-                                types = pickNames((_e = cfg.ArchetypeConfig) === null || _e === void 0 ? void 0 : _e.Options);
+                                types = pickNames((_f = cfg.ArchetypeConfig) === null || _f === void 0 ? void 0 : _f.Options);
                         }
                     }
                     // 3. Extended Typed — various structures across BC versions
@@ -9107,10 +9108,10 @@
                                 types = pickNames(ext.Options);
                             // Extended.Typed.Options
                             if (types.length === 0)
-                                types = pickNames((_f = ext.Typed) === null || _f === void 0 ? void 0 : _f.Options);
+                                types = pickNames((_g = ext.Typed) === null || _g === void 0 ? void 0 : _g.Options);
                             // Extended.Config.Options
                             if (types.length === 0)
-                                types = pickNames((_g = ext.Config) === null || _g === void 0 ? void 0 : _g.Options);
+                                types = pickNames((_h = ext.Config) === null || _h === void 0 ? void 0 : _h.Options);
                             // DrawImages keys (older pattern)
                             if (types.length === 0 && ext.DrawImages && typeof ext.DrawImages === "object")
                                 types = Object.keys(ext.DrawImages).filter(k => k !== "");
@@ -9134,12 +9135,12 @@
                     // R91+ Archetype = "variableheight" / "VariableHeight"
                     const archetype = (typeof a.Archetype === "string" ? a.Archetype : "").toLowerCase();
                     if (archetype === "variableheight") {
-                        varHeight = (_k = (_h = tryVH(a.Config)) !== null && _h !== void 0 ? _h : tryVH((_j = a.Config) === null || _j === void 0 ? void 0 : _j.ArchetypeConfig)) !== null && _k !== void 0 ? _k : { min: 0, max: 100 };
+                        varHeight = (_l = (_j = tryVH(a.Config)) !== null && _j !== void 0 ? _j : tryVH((_k = a.Config) === null || _k === void 0 ? void 0 : _k.ArchetypeConfig)) !== null && _l !== void 0 ? _l : { min: 0, max: 100 };
                     }
                     // Older paths
                     if (!varHeight) {
                         const ext = a.Extended;
-                        varHeight = (_o = (_m = tryVH((_l = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _l !== void 0 ? _l : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _m !== void 0 ? _m : tryVH(a.VariableHeight)) !== null && _o !== void 0 ? _o : tryVH(a.VariableHeightConfig);
+                        varHeight = (_p = (_o = tryVH((_m = ext === null || ext === void 0 ? void 0 : ext.VariableHeight) !== null && _m !== void 0 ? _m : ext === null || ext === void 0 ? void 0 : ext.variableHeight)) !== null && _o !== void 0 ? _o : tryVH(a.VariableHeight)) !== null && _p !== void 0 ? _p : tryVH(a.VariableHeightConfig);
                     }
                     console.log("[EmeryBC] result — types:", types, "varHeight:", varHeight);
                     return { types, varHeight };

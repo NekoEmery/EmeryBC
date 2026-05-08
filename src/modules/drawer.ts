@@ -6329,8 +6329,9 @@ export class EBCDrawer {
 
                 // Probe the side-channel globals BC R91+ uses to store typed options
                 const w = window as unknown as Record<string, unknown>;
+                const bcFamily = ((Player as unknown as Record<string, unknown>).AssetFamily as string | undefined) ?? "Female3DCG";
                 const probeKeys = [
-                    `${family}${groupName}${assetName}`,          // e.g. Female3DCGItemArmsCeilingShackles
+                    `${bcFamily}${groupName}${assetName}`,        // e.g. Female3DCGItemArmsCeilingShackles
                     assetName,                                     // bare name
                     `${groupName}${assetName}`,                    // GroupName+AssetName
                 ];
@@ -6344,7 +6345,7 @@ export class EBCDrawer {
                     if (g) {
                         // Try nested paths
                         const v = (g[assetName] ?? (g[groupName] as Record<string,unknown> | undefined)?.[assetName]
-                            ?? (g[family] as Record<string,unknown> | undefined)?.[groupName]);
+                            ?? (g[bcFamily] as Record<string,unknown> | undefined)?.[groupName]);
                         console.log(`[EmeryBC] ${pg}["${assetName}"] =`, v ?? "(not found)");
                     } else {
                         console.log(`[EmeryBC] window.${pg} =`, g);
