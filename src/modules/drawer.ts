@@ -1842,6 +1842,8 @@ export class EBCDrawer {
     private timerPoller: ReturnType<typeof window.setInterval> | null = null;
     // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
     private userTabOffset: { x: number; y: number } | null = null;
+    // Set to true once we've confirmed no saved position exists, so we stop polling storage.
+    private tabOffsetChecked = false;
     private tabDragging = false; // true while mouse is held on tab — blocks CRABS poller
     private domSelectedTargets = new Set<number>();
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
@@ -2383,6 +2385,7 @@ export class EBCDrawer {
         tab.addEventListener("contextmenu", (e: MouseEvent) => {
             e.preventDefault();
             this.userTabOffset = null;
+            this.tabOffsetChecked = true; // no need to re-poll — user explicitly reset
             this.lastCrabsBottom = -1;
             // Clear inline fixed-position overrides so CSS absolute layout takes over
             tab.style.position = "";
@@ -2565,10 +2568,28 @@ export class EBCDrawer {
     // Safe to call at any frequency — writes the DOM only when the value changes.
     private updateCrabsPosition(): void {
         if (!this.rootEl || !this.positioned) return;
-        if (this.userTabOffset !== null) return; // user has pinned a position — don't override
-        if (this.tabDragging) return;            // don't interfere with an active drag
+        if (this.tabDragging) return; // don't interfere with an active drag
         const tabEl = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
         if (!tabEl) return;
+
+        // Once a saved position is confirmed or absent, skip polling storage.
+        if (this.userTabOffset !== null) return; // user has pinned a position — don't override
+
+        // Keep retrying storage until we either load a value or confirm none exists.
+        // ExtensionSettings is restored from the server asynchronously after ChatRoomSync,
+        // so the first few polls may see an empty store even if a position was saved.
+        if (!this.tabOffsetChecked) {
+            const saved = this.loadTabOffset();
+            if (saved !== null) {
+                this.userTabOffset = saved;
+                this.applyTabOffset(tabEl, saved);
+                return;
+            }
+            // Only stop polling once ExtensionSettings has fully loaded (EmeryBC key exists)
+            try {
+                if (Player.ExtensionSettings.EmeryBC !== undefined) this.tabOffsetChecked = true;
+            } catch { /* ignore */ }
+        }
 
         const crabsTab = document.getElementById("drawer-tab");
         if (!crabsTab) return; // CRABS absent — CSS default (top:58px) stays
@@ -2612,6 +2633,7 @@ export class EBCDrawer {
             if (tabEl2) tabEl2.classList.add("ebc-tab-closed");
             this.positioned = false;
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
+            this.tabOffsetChecked = false; // re-check on next room enter in case settings changed
             this.resizeObserver?.disconnect();
             this.resizeObserver = null;
             this.stopCrabsPoller();
