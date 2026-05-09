@@ -750,6 +750,22 @@ const CSS = `
 .ebc-slot-del:hover   { background: #3a1017; color: #cf6f98; border-color: #7a4a5e; }
 .ebc-slot-del.confirm { background: #3a1017; color: #ff6b6b; border-color: #7a2020; font-size: 9px; }
 
+.ebc-slot-move {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    background: transparent;
+    border: 1px solid #4c2537;
+    border-radius: 4px;
+    color: #7a5060;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    transition: background 0.14s, color 0.12s, border-color 0.12s;
+}
+.ebc-slot-move:hover:not(:disabled) { background: #2a1020; color: #cf6f98; border-color: #7a4a5e; }
+.ebc-slot-move:disabled { opacity: 0.25; cursor: default; }
+
 .ebc-slot-style {
     flex-shrink: 0;
     width: 32px;
@@ -6086,9 +6102,24 @@ export class EBCDrawer {
                 delBtn.textContent = "x";
                 delBtn.title = "Remove this slot";
 
+                // ▲ / ▼ reorder buttons
+                const moveUpBtn = document.createElement("button");
+                moveUpBtn.className = "ebc-slot-move";
+                moveUpBtn.textContent = "▲";
+                moveUpBtn.title = "Move up";
+                moveUpBtn.disabled = i === 0;
+
+                const moveDownBtn = document.createElement("button");
+                moveDownBtn.className = "ebc-slot-move";
+                moveDownBtn.textContent = "▼";
+                moveDownBtn.title = "Move down";
+                moveDownBtn.disabled = i === slotCount - 1;
+
                 topLine.appendChild(toggle);
                 topLine.appendChild(labelInp);
                 topLine.appendChild(colorWrap);
+                topLine.appendChild(moveUpBtn);
+                topLine.appendChild(moveDownBtn);
                 topLine.appendChild(delBtn);
 
                 // Bottom line: style toggle (hidden for seq) | emote/seq input
@@ -6139,6 +6170,20 @@ export class EBCDrawer {
 
                 // -- Events (capture i) --
                 const idx = i;
+
+                moveUpBtn.addEventListener("click", () => {
+                    if (idx === 0) return;
+                    [btns[idx - 1], btns[idx]] = [btns[idx], btns[idx - 1]];
+                    renderSlots();
+                    updateFooterState();
+                });
+
+                moveDownBtn.addEventListener("click", () => {
+                    if (idx >= slotCount - 1) return;
+                    [btns[idx], btns[idx + 1]] = [btns[idx + 1], btns[idx]];
+                    renderSlots();
+                    updateFooterState();
+                });
 
                 toggle.addEventListener("click", () => {
                     btns[idx].enabled = !btns[idx].enabled;

@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.0";
+const MOD_VERSION = "1.3.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.1",
+        changes: [
+            "Buttons tab: ▲/▼ reorder buttons on every slot row — move any button up or down in the list.",
+        ],
+    },
     {
         version: "1.3.0",
         changes: [
