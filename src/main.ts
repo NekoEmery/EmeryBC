@@ -1,6 +1,6 @@
 ﻿import { drawActionButtons, handleActionButtonClick } from "./modules/actionButtons";
 import { EBCDrawer } from "./modules/drawer";
-import { handleOutfitCommand } from "./modules/outfitManager";
+import { handleOutfitCommand, handleRestraintCommand } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
@@ -14,7 +14,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.1.5";
+const MOD_VERSION = "1.2.0";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -1659,6 +1659,7 @@ function init(): void {
             if (!raw.trim()) return;
             if (checkSafeword(raw)
                 || handleMetaCommand(raw)
+                || handleRestraintCommand(raw)
                 || handleOutfitCommand(raw)
                 || handlePoseComboCommand(raw)
                 || handleSceneCommand(raw)
@@ -1680,6 +1681,7 @@ function init(): void {
                 if (input?.value.trim() && (
                     checkSafeword(input.value)
                     || handleMetaCommand(input.value)
+                    || handleRestraintCommand(input.value)
                     || handleOutfitCommand(input.value)
                     || handlePoseComboCommand(input.value)
                     || handleSceneCommand(input.value)
@@ -1702,6 +1704,7 @@ function init(): void {
             if (raw.trim() && (
                 checkSafeword(raw)
                 || handleMetaCommand(raw)
+                || handleRestraintCommand(raw)
                 || handleOutfitCommand(raw)
                 || handlePoseComboCommand(raw)
                 || handleSceneCommand(raw)

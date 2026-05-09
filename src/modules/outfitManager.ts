@@ -604,6 +604,186 @@ export type BCImportMode = "restraints" | "outfit" | "both";
 // mode: "restraints" = restraint slots only (⛓)
 //       "outfit"     = non-restraint clothing/body slots only
 //       "both"       = entire appearance
+// -- Restraint Sets -----------------------------------------------------------
+let cachedRestraints: ConfiguredOutfit[] | null = null;
+
+function loadRestraintsFromSettings(): ConfiguredOutfit[] {
+    const list = getAddon().restraints;
+    const restraints = Array.isArray(list) ? (list as ConfiguredOutfit[]).map(sanitizeOutfit) : [];
+    cachedRestraints = restraints;
+    return restraints;
+}
+
+export function getRestraints(): ConfiguredOutfit[] {
+    return cachedRestraints ?? loadRestraintsFromSettings();
+}
+
+function saveRestraints(list: ConfiguredOutfit[]): void {
+    const sanitized = list.map(sanitizeOutfit);
+    cachedRestraints = sanitized;
+    getAddon().restraints = sanitized;
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+function captureRestraints(): SerializedItem[] {
+    return Player.Appearance
+        .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name))
+        .map(item => sanitizeItem({
+            Group: item.Asset.Group.Name,
+            Name: item.Asset.Name,
+            Color: item.Color,
+            Difficulty: item.Difficulty,
+            Property: item.Property,
+            Craft: item.Craft,
+        }));
+}
+
+export function applyRestraintSet(restraint: ConfiguredOutfit): void {
+    if (outfitApplyPending) {
+        localNotice("An outfit swap is already in progress.", "#ffb7c7");
+        return;
+    }
+    outfitApplyPending = true;
+
+    const restraintGroups = new Set(restraint.items.map(i => i.Group));
+    const nextAppearance: Item[] = [];
+
+    // Preserve all current non-restraint items (clothing, body, etc.)
+    for (const currentItem of Player.Appearance) {
+        const group = currentItem.Asset.Group.Name;
+        if (RESTRAINT_GROUPS.has(group)) continue;
+        const cloned = cloneAppearanceItem(currentItem);
+        if (cloned) nextAppearance.push(cloned);
+    }
+
+    // Preserve any current restraints NOT being replaced by this set
+    for (const currentItem of Player.Appearance) {
+        const group = currentItem.Asset.Group.Name;
+        if (!RESTRAINT_GROUPS.has(group) || restraintGroups.has(group)) continue;
+        const cloned = cloneAppearanceItem(currentItem);
+        if (cloned) nextAppearance.push(cloned);
+    }
+
+    // Apply the saved restraint items
+    for (const saved of restraint.items) {
+        const built = buildAppearanceItem(saved);
+        if (built) nextAppearance.push(built);
+    }
+
+    Player.Appearance = nextAppearance;
+    sanitizeLiveAppearance();
+    sendRoomAppearanceUpdate();
+    scheduleAppearanceRefresh();
+
+    window.setTimeout(() => {
+        try {
+            if (restraint.announceText.trim()) {
+                ServerSend("ChatRoomChat", {
+                    Type: "Action",
+                    Content: getDisplayName() + " " + restraint.announceText.trim(),
+                    Dictionary: [
+                        { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                        { SourceCharacter: Player.MemberNumber },
+                    ],
+                });
+            }
+        } finally {
+            outfitApplyPending = false;
+        }
+    }, 80);
+
+    localNotice(`Applied restraint set "${restraint.displayName}" (/${restraint.command})`);
+}
+
+export function createRestraintFromCurrent(
+    command: string,
+    displayName: string,
+    announceText: string,
+): ConfiguredOutfit | null {
+    const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+    if (!cmd || !displayName.trim()) return null;
+    if (getOutfits().some(o => o.command === cmd) || getRestraints().some(r => r.command === cmd)) {
+        localNotice(`Command "/${cmd}" is already in use.`, "#ffb7c7");
+        return null;
+    }
+    const restraint: ConfiguredOutfit = {
+        id: uid(),
+        command: cmd,
+        displayName: displayName.trim(),
+        announceText: announceText.trim(),
+        nickname: null,
+        tagIds: [],
+        includeRestraints: true,
+        preserveRestraints: false,
+        preserveClothing: true,
+        items: captureRestraints(),
+    };
+    saveRestraints([...getRestraints(), restraint]);
+    localNotice(`Created restraint set "${restraint.displayName}" (/${restraint.command}).`);
+    return restraint;
+}
+
+export function saveCurrentAppearanceToRestraint(id: string): boolean {
+    const restraints = getRestraints();
+    const restraint = restraints.find(r => r.id === id);
+    if (!restraint) return false;
+    restraint.items = captureRestraints();
+    saveRestraints(restraints);
+    localNotice(`Saved current restraints to "${restraint.displayName}".`);
+    return true;
+}
+
+export function deleteRestraint(id: string): void {
+    saveRestraints(getRestraints().filter(r => r.id !== id));
+}
+
+export function editRestraint(
+    id: string,
+    command: string,
+    displayName: string,
+    announceText: string,
+): boolean {
+    const restraints = getRestraints();
+    const restraint = restraints.find(r => r.id === id);
+    if (!restraint) return false;
+    const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+    if (!cmd || !displayName.trim()) return false;
+    if (getOutfits().some(o => o.command === cmd) || restraints.some(r => r.id !== id && r.command === cmd)) {
+        localNotice(`Command "/${cmd}" is already in use.`, "#ffb7c7");
+        return false;
+    }
+    restraint.command = cmd;
+    restraint.displayName = displayName.trim();
+    restraint.announceText = announceText.trim();
+    saveRestraints(restraints);
+    localNotice(`Updated restraint set "${restraint.displayName}" (/${restraint.command}).`);
+    return true;
+}
+
+export function moveRestraint(id: string, direction: "up" | "down"): void {
+    const restraints = getRestraints();
+    const idx = restraints.findIndex(r => r.id === id);
+    if (idx < 0) return;
+    const newIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= restraints.length) return;
+    [restraints[idx], restraints[newIdx]] = [restraints[newIdx], restraints[idx]];
+    saveRestraints(restraints);
+}
+
+export function handleRestraintCommand(inputValue: string): boolean {
+    const trimmed = inputValue.trim();
+    if (!trimmed.startsWith("/")) return false;
+    const command = trimmed.slice(1).toLowerCase();
+    const restraint = getRestraints().find(r => r.command.toLowerCase() === command);
+    if (!restraint) return false;
+    if (!restraint.items.length) {
+        localNotice(`Restraint set "/${restraint.command}" has no saved items yet.`, "#ffb7c7");
+        return true;
+    }
+    applyRestraintSet(restraint);
+    return true;
+}
+
 export function importOutfitFromBCCode(
     code: string,
     displayName: string,

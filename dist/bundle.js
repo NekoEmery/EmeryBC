@@ -828,6 +828,172 @@
     // mode: "restraints" = restraint slots only (⛓)
     //       "outfit"     = non-restraint clothing/body slots only
     //       "both"       = entire appearance
+    // -- Restraint Sets -----------------------------------------------------------
+    let cachedRestraints = null;
+    function loadRestraintsFromSettings() {
+        const list = getAddon$1().restraints;
+        const restraints = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
+        cachedRestraints = restraints;
+        return restraints;
+    }
+    function getRestraints() {
+        return cachedRestraints !== null && cachedRestraints !== void 0 ? cachedRestraints : loadRestraintsFromSettings();
+    }
+    function saveRestraints(list) {
+        const sanitized = list.map(sanitizeOutfit);
+        cachedRestraints = sanitized;
+        getAddon$1().restraints = sanitized;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function captureRestraints() {
+        return Player.Appearance
+            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name))
+            .map(item => sanitizeItem({
+            Group: item.Asset.Group.Name,
+            Name: item.Asset.Name,
+            Color: item.Color,
+            Difficulty: item.Difficulty,
+            Property: item.Property,
+            Craft: item.Craft,
+        }));
+    }
+    function applyRestraintSet(restraint) {
+        if (outfitApplyPending) {
+            localNotice$1("An outfit swap is already in progress.", "#ffb7c7");
+            return;
+        }
+        outfitApplyPending = true;
+        const restraintGroups = new Set(restraint.items.map(i => i.Group));
+        const nextAppearance = [];
+        // Preserve all current non-restraint items (clothing, body, etc.)
+        for (const currentItem of Player.Appearance) {
+            const group = currentItem.Asset.Group.Name;
+            if (RESTRAINT_GROUPS.has(group))
+                continue;
+            const cloned = cloneAppearanceItem(currentItem);
+            if (cloned)
+                nextAppearance.push(cloned);
+        }
+        // Preserve any current restraints NOT being replaced by this set
+        for (const currentItem of Player.Appearance) {
+            const group = currentItem.Asset.Group.Name;
+            if (!RESTRAINT_GROUPS.has(group) || restraintGroups.has(group))
+                continue;
+            const cloned = cloneAppearanceItem(currentItem);
+            if (cloned)
+                nextAppearance.push(cloned);
+        }
+        // Apply the saved restraint items
+        for (const saved of restraint.items) {
+            const built = buildAppearanceItem(saved);
+            if (built)
+                nextAppearance.push(built);
+        }
+        Player.Appearance = nextAppearance;
+        sanitizeLiveAppearance();
+        sendRoomAppearanceUpdate();
+        scheduleAppearanceRefresh();
+        window.setTimeout(() => {
+            try {
+                if (restraint.announceText.trim()) {
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: getDisplayName() + " " + restraint.announceText.trim(),
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+            }
+            finally {
+                outfitApplyPending = false;
+            }
+        }, 80);
+        localNotice$1(`Applied restraint set "${restraint.displayName}" (/${restraint.command})`);
+    }
+    function createRestraintFromCurrent(command, displayName, announceText) {
+        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+        if (!cmd || !displayName.trim())
+            return null;
+        if (getOutfits().some(o => o.command === cmd) || getRestraints().some(r => r.command === cmd)) {
+            localNotice$1(`Command "/${cmd}" is already in use.`, "#ffb7c7");
+            return null;
+        }
+        const restraint = {
+            id: uid$4(),
+            command: cmd,
+            displayName: displayName.trim(),
+            announceText: announceText.trim(),
+            nickname: null,
+            tagIds: [],
+            includeRestraints: true,
+            preserveRestraints: false,
+            preserveClothing: true,
+            items: captureRestraints(),
+        };
+        saveRestraints([...getRestraints(), restraint]);
+        localNotice$1(`Created restraint set "${restraint.displayName}" (/${restraint.command}).`);
+        return restraint;
+    }
+    function saveCurrentAppearanceToRestraint(id) {
+        const restraints = getRestraints();
+        const restraint = restraints.find(r => r.id === id);
+        if (!restraint)
+            return false;
+        restraint.items = captureRestraints();
+        saveRestraints(restraints);
+        localNotice$1(`Saved current restraints to "${restraint.displayName}".`);
+        return true;
+    }
+    function deleteRestraint(id) {
+        saveRestraints(getRestraints().filter(r => r.id !== id));
+    }
+    function editRestraint(id, command, displayName, announceText) {
+        const restraints = getRestraints();
+        const restraint = restraints.find(r => r.id === id);
+        if (!restraint)
+            return false;
+        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+        if (!cmd || !displayName.trim())
+            return false;
+        if (getOutfits().some(o => o.command === cmd) || restraints.some(r => r.id !== id && r.command === cmd)) {
+            localNotice$1(`Command "/${cmd}" is already in use.`, "#ffb7c7");
+            return false;
+        }
+        restraint.command = cmd;
+        restraint.displayName = displayName.trim();
+        restraint.announceText = announceText.trim();
+        saveRestraints(restraints);
+        localNotice$1(`Updated restraint set "${restraint.displayName}" (/${restraint.command}).`);
+        return true;
+    }
+    function moveRestraint(id, direction) {
+        const restraints = getRestraints();
+        const idx = restraints.findIndex(r => r.id === id);
+        if (idx < 0)
+            return;
+        const newIdx = direction === "up" ? idx - 1 : idx + 1;
+        if (newIdx < 0 || newIdx >= restraints.length)
+            return;
+        [restraints[idx], restraints[newIdx]] = [restraints[newIdx], restraints[idx]];
+        saveRestraints(restraints);
+    }
+    function handleRestraintCommand(inputValue) {
+        const trimmed = inputValue.trim();
+        if (!trimmed.startsWith("/"))
+            return false;
+        const command = trimmed.slice(1).toLowerCase();
+        const restraint = getRestraints().find(r => r.command.toLowerCase() === command);
+        if (!restraint)
+            return false;
+        if (!restraint.items.length) {
+            localNotice$1(`Restraint set "/${restraint.command}" has no saved items yet.`, "#ffb7c7");
+            return true;
+        }
+        applyRestraintSet(restraint);
+        return true;
+    }
     function importOutfitFromBCCode(code, displayName, command, mode = "restraints") {
         const LZ = window.LZString;
         if (!(LZ === null || LZ === void 0 ? void 0 : LZ.decompressFromBase64))
@@ -6561,13 +6727,39 @@
             tagMgmtDiv.appendChild(tagMgmtBody);
             body.appendChild(tagMgmtDiv);
             const outfits = getOutfits();
+            // ── Collapsible "Saved Outfits" header ───────────────────────────────────
+            let outfitsCollapsed = false;
+            try {
+                outfitsCollapsed = localStorage.getItem("EBC_outfitsCollapsed") === "1";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            const outfitsHeaderRow = document.createElement("div");
+            outfitsHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const outfitLbl = document.createElement("div");
             outfitLbl.className = "ebc-section-label";
+            outfitLbl.style.margin = "0";
             outfitLbl.textContent = "Saved Outfits";
-            body.appendChild(outfitLbl);
+            const outfitsChevron = document.createElement("span");
+            outfitsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            outfitsChevron.textContent = outfitsCollapsed ? "▲" : "▼";
+            outfitsHeaderRow.appendChild(outfitLbl);
+            outfitsHeaderRow.appendChild(outfitsChevron);
+            body.appendChild(outfitsHeaderRow);
+            const outfitsBody = document.createElement("div");
+            outfitsBody.style.display = outfitsCollapsed ? "none" : "block";
+            const toggleOutfitsCollapsed = () => {
+                outfitsCollapsed = !outfitsCollapsed;
+                outfitsBody.style.display = outfitsCollapsed ? "none" : "block";
+                outfitsChevron.textContent = outfitsCollapsed ? "▲" : "▼";
+                try {
+                    localStorage.setItem("EBC_outfitsCollapsed", outfitsCollapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            outfitsHeaderRow.addEventListener("click", toggleOutfitsCollapsed);
             if (outfits.length > 0) {
                 for (const o of outfits) {
-                    body.appendChild(this.buildOutfitRow(o, body));
+                    outfitsBody.appendChild(this.buildOutfitRow(o, outfitsBody));
                 }
             }
             else {
@@ -6580,10 +6772,12 @@
                 hint.textContent = "Use the form below to create one.";
                 empty.appendChild(br);
                 empty.appendChild(hint);
-                body.appendChild(empty);
+                outfitsBody.appendChild(empty);
             }
+            body.appendChild(outfitsBody);
             this.buildNewOutfitSection(body);
             this.buildScheduleSection(body);
+            this.buildRestraintSection(body);
         }
         // -- Outfit Schedule section ------------------------------------------------
         buildScheduleSection(body) {
@@ -8149,6 +8343,288 @@
                     impError.textContent = err instanceof Error ? err.message : "Invalid format.";
                 }
             });
+        }
+        // -- Saved Restraints section ----------------------------------------------
+        buildRestraintSection(body) {
+            const divEl = document.createElement("div");
+            divEl.className = "ebc-divider";
+            body.appendChild(divEl);
+            // Collapsible header
+            let restraintsCollapsed = false;
+            try {
+                restraintsCollapsed = localStorage.getItem("EBC_restraintsCollapsed") === "1";
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            const headerRow = document.createElement("div");
+            headerRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
+            const lbl = document.createElement("div");
+            lbl.className = "ebc-section-label";
+            lbl.style.margin = "0";
+            lbl.textContent = "⛓ Saved Restraints";
+            const chevron = document.createElement("span");
+            chevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            chevron.textContent = restraintsCollapsed ? "▲" : "▼";
+            headerRow.appendChild(lbl);
+            headerRow.appendChild(chevron);
+            body.appendChild(headerRow);
+            const sectionBody = document.createElement("div");
+            sectionBody.style.display = restraintsCollapsed ? "none" : "block";
+            const toggleCollapsed = () => {
+                restraintsCollapsed = !restraintsCollapsed;
+                sectionBody.style.display = restraintsCollapsed ? "none" : "block";
+                chevron.textContent = restraintsCollapsed ? "▲" : "▼";
+                try {
+                    localStorage.setItem("EBC_restraintsCollapsed", restraintsCollapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            headerRow.addEventListener("click", toggleCollapsed);
+            const renderRestraintList = () => {
+                while (sectionBody.firstChild)
+                    sectionBody.removeChild(sectionBody.firstChild);
+                const restraints = getRestraints();
+                if (restraints.length > 0) {
+                    for (const r of restraints) {
+                        sectionBody.appendChild(this.buildRestraintRow(r, sectionBody, renderRestraintList));
+                    }
+                }
+                else {
+                    const empty = document.createElement("div");
+                    empty.className = "ebc-empty";
+                    empty.textContent = "No restraint sets saved yet.";
+                    const br = document.createElement("br");
+                    const hint = document.createElement("span");
+                    hint.style.color = "#4c2537";
+                    hint.textContent = "Use the form below to create one.";
+                    empty.appendChild(br);
+                    empty.appendChild(hint);
+                    sectionBody.appendChild(empty);
+                }
+                // New restraint form
+                const formDivider = document.createElement("div");
+                formDivider.className = "ebc-divider";
+                sectionBody.appendChild(formDivider);
+                const newBtn = document.createElement("button");
+                newBtn.className = "ebc-new-outfit-btn";
+                newBtn.textContent = "+ New Restraint Set from Current";
+                sectionBody.appendChild(newBtn);
+                const form = document.createElement("div");
+                form.className = "ebc-new-form";
+                sectionBody.appendChild(form);
+                const makeRow = (labelText, input) => {
+                    const row = document.createElement("div");
+                    row.className = "ebc-form-row";
+                    const lbl2 = document.createElement("span");
+                    lbl2.className = "ebc-form-label";
+                    lbl2.textContent = labelText;
+                    row.appendChild(lbl2);
+                    row.appendChild(input);
+                    return row;
+                };
+                const cmdInput = Object.assign(document.createElement("input"), {
+                    className: "ebc-form-input", type: "text", placeholder: "e.g. hogtied", maxLength: 20,
+                });
+                const nameInput = Object.assign(document.createElement("input"), {
+                    className: "ebc-form-input", type: "text", placeholder: "e.g. Hogtied", maxLength: 40,
+                });
+                const announceInput = Object.assign(document.createElement("input"), {
+                    className: "ebc-form-input", type: "text", placeholder: "e.g. is put in a hogtie", maxLength: 120,
+                });
+                form.appendChild(makeRow("Command", cmdInput));
+                form.appendChild(makeRow("Name", nameInput));
+                form.appendChild(makeRow("Announce", announceInput));
+                const createBtn = document.createElement("button");
+                createBtn.className = "ebc-create-btn";
+                createBtn.textContent = "Save as New Restraint Set";
+                form.appendChild(createBtn);
+                newBtn.addEventListener("click", () => {
+                    const open = form.style.display !== "none";
+                    form.style.display = open ? "none" : "flex";
+                    newBtn.textContent = open ? "+ New Restraint Set from Current" : "- Cancel";
+                    if (!open)
+                        cmdInput.focus();
+                });
+                createBtn.addEventListener("click", () => {
+                    cmdInput.style.borderColor = cmdInput.value.trim() ? "" : "#cf6f98";
+                    nameInput.style.borderColor = nameInput.value.trim() ? "" : "#cf6f98";
+                    if (!cmdInput.value.trim() || !nameInput.value.trim())
+                        return;
+                    createBtn.disabled = true;
+                    createBtn.textContent = "Saving...";
+                    const result = createRestraintFromCurrent(cmdInput.value, nameInput.value, announceInput.value);
+                    if (result) {
+                        form.style.display = "none";
+                        newBtn.textContent = "+ New Restraint Set from Current";
+                        renderRestraintList();
+                    }
+                    else {
+                        createBtn.disabled = false;
+                        createBtn.textContent = "Save as New Restraint Set";
+                    }
+                });
+            };
+            renderRestraintList();
+            body.appendChild(sectionBody);
+        }
+        buildRestraintRow(r, container, rerender) {
+            const wrapper = document.createElement("div");
+            wrapper.style.marginBottom = "4px";
+            const row = document.createElement("div");
+            row.className = "ebc-outfit-row";
+            row.style.marginBottom = "0";
+            row.style.borderRadius = "7px 7px 7px 7px";
+            const info = document.createElement("div");
+            info.className = "ebc-outfit-info";
+            const nameEl = document.createElement("span");
+            nameEl.className = "ebc-outfit-name";
+            nameEl.textContent = r.displayName;
+            const cmdEl = document.createElement("span");
+            cmdEl.className = "ebc-outfit-cmd";
+            cmdEl.textContent = "/" + r.command;
+            info.appendChild(nameEl);
+            info.appendChild(cmdEl);
+            const restraintsList = getRestraints();
+            const thisIdx = restraintsList.findIndex(x => x.id === r.id);
+            const reorderCol = document.createElement("div");
+            reorderCol.className = "ebc-reorder-col";
+            const upBtn = document.createElement("button");
+            upBtn.className = "ebc-reorder-btn";
+            upBtn.textContent = "▲";
+            upBtn.title = "Move up";
+            upBtn.disabled = thisIdx <= 0;
+            upBtn.addEventListener("click", () => { moveRestraint(r.id, "up"); rerender(); });
+            const downBtn = document.createElement("button");
+            downBtn.className = "ebc-reorder-btn";
+            downBtn.textContent = "▼";
+            downBtn.title = "Move down";
+            downBtn.disabled = thisIdx >= restraintsList.length - 1;
+            downBtn.addEventListener("click", () => { moveRestraint(r.id, "down"); rerender(); });
+            reorderCol.appendChild(upBtn);
+            reorderCol.appendChild(downBtn);
+            const updateBtn = document.createElement("button");
+            updateBtn.className = "ebc-update-btn";
+            updateBtn.textContent = "Update";
+            updateBtn.title = "Save current restraints to this set";
+            const applyBtn = document.createElement("button");
+            applyBtn.className = "ebc-wear-btn";
+            applyBtn.textContent = "Apply";
+            const PENCIL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+            const editBtn = document.createElement("button");
+            editBtn.className = "ebc-edit-btn";
+            editBtn.innerHTML = PENCIL_SVG;
+            editBtn.title = "Edit name, command, announce";
+            const delBtn = document.createElement("button");
+            delBtn.className = "ebc-outfit-del";
+            delBtn.textContent = "×";
+            delBtn.title = "Delete this restraint set";
+            row.appendChild(reorderCol);
+            row.appendChild(info);
+            row.appendChild(editBtn);
+            row.appendChild(updateBtn);
+            row.appendChild(applyBtn);
+            row.appendChild(delBtn);
+            // Edit panel
+            const editPanel = document.createElement("div");
+            editPanel.className = "ebc-edit-panel";
+            const makeEditRow = (labelText, input) => {
+                const eRow = document.createElement("div");
+                eRow.className = "ebc-form-row";
+                const eLbl = document.createElement("span");
+                eLbl.className = "ebc-form-label";
+                eLbl.textContent = labelText;
+                eRow.appendChild(eLbl);
+                eRow.appendChild(input);
+                return eRow;
+            };
+            const eCmdInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", value: r.command, maxLength: 20,
+            });
+            const eNameInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", value: r.displayName, maxLength: 40,
+            });
+            const eAnnounceInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", value: r.announceText, maxLength: 120,
+            });
+            editPanel.appendChild(makeEditRow("Command", eCmdInput));
+            editPanel.appendChild(makeEditRow("Name", eNameInput));
+            editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
+            const eSaveBtn = document.createElement("button");
+            eSaveBtn.className = "ebc-create-btn";
+            eSaveBtn.textContent = "Save Changes";
+            editPanel.appendChild(eSaveBtn);
+            wrapper.appendChild(row);
+            wrapper.appendChild(editPanel);
+            const closeEditPanel = () => {
+                editPanel.classList.remove("open");
+                editBtn.classList.remove("open");
+                row.style.borderRadius = "7px";
+            };
+            const setAllDisabled = (v) => {
+                container.querySelectorAll(".ebc-wear-btn, .ebc-update-btn").forEach(b => { b.disabled = v; });
+            };
+            applyBtn.addEventListener("click", () => {
+                const fresh = getRestraints().find(x => x.id === r.id);
+                if (!fresh)
+                    return;
+                setAllDisabled(true);
+                applyRestraintSet(fresh);
+                window.setTimeout(() => setAllDisabled(false), 500);
+            });
+            updateBtn.addEventListener("click", () => {
+                setAllDisabled(true);
+                const ok = saveCurrentAppearanceToRestraint(r.id);
+                if (!ok) {
+                    setAllDisabled(false);
+                    return;
+                }
+                updateBtn.textContent = "Saved!";
+                window.setTimeout(() => {
+                    updateBtn.textContent = "Update";
+                    setAllDisabled(false);
+                }, 1200);
+            });
+            editBtn.addEventListener("click", () => {
+                const willOpen = !editPanel.classList.contains("open");
+                closeEditPanel();
+                if (willOpen) {
+                    editPanel.classList.add("open");
+                    editBtn.classList.add("open");
+                    row.style.borderRadius = "7px 7px 0 0";
+                    eCmdInput.focus();
+                }
+            });
+            eSaveBtn.addEventListener("click", () => {
+                eCmdInput.style.borderColor = eCmdInput.value.trim() ? "" : "#cf6f98";
+                eNameInput.style.borderColor = eNameInput.value.trim() ? "" : "#cf6f98";
+                if (!eCmdInput.value.trim() || !eNameInput.value.trim())
+                    return;
+                const ok = editRestraint(r.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value);
+                if (ok)
+                    rerender();
+            });
+            let delPending = false;
+            let delTimer = null;
+            delBtn.addEventListener("click", () => {
+                if (!delPending) {
+                    delPending = true;
+                    delBtn.classList.add("confirm");
+                    delBtn.textContent = "Sure?";
+                    delBtn.title = "Click again to confirm deletion";
+                    delTimer = window.setTimeout(() => {
+                        delPending = false;
+                        delBtn.classList.remove("confirm");
+                        delBtn.textContent = "×";
+                        delBtn.title = "Delete this restraint set";
+                    }, 2500);
+                }
+                else {
+                    if (delTimer !== null)
+                        window.clearTimeout(delTimer);
+                    deleteRestraint(r.id);
+                    rerender();
+                }
+            });
+            return wrapper;
         }
         // -- Boop friends ----------------------------------------------------------
         boopFriendsInRoom() {
@@ -13159,7 +13635,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.1.5";
+    const MOD_VERSION = "1.2.0";
     let noticeShown = false;
     const CHANGELOG = [
         {
@@ -14832,6 +15308,7 @@
                     return;
                 if (checkSafeword(raw)
                     || handleMetaCommand(raw)
+                    || handleRestraintCommand(raw)
                     || handleOutfitCommand(raw)
                     || handlePoseComboCommand(raw)
                     || handleSceneCommand(raw)
@@ -14852,6 +15329,7 @@
                     const input = getChatInput();
                     if ((input === null || input === void 0 ? void 0 : input.value.trim()) && (checkSafeword(input.value)
                         || handleMetaCommand(input.value)
+                        || handleRestraintCommand(input.value)
                         || handleOutfitCommand(input.value)
                         || handlePoseComboCommand(input.value)
                         || handleSceneCommand(input.value)
@@ -14873,6 +15351,7 @@
                 const raw = (_a = input === null || input === void 0 ? void 0 : input.value) !== null && _a !== void 0 ? _a : (typeof args[0] === "string" ? args[0] : "");
                 if (raw.trim() && (checkSafeword(raw)
                     || handleMetaCommand(raw)
+                    || handleRestraintCommand(raw)
                     || handleOutfitCommand(raw)
                     || handlePoseComboCommand(raw)
                     || handleSceneCommand(raw)
