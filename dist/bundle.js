@@ -6776,8 +6776,8 @@
             }
             body.appendChild(outfitsBody);
             this.buildNewOutfitSection(body);
-            this.buildScheduleSection(body);
             this.buildRestraintSection(body);
+            this.buildScheduleSection(body);
         }
         // -- Outfit Schedule section ------------------------------------------------
         buildScheduleSection(body) {
@@ -13635,7 +13635,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.0";
+    const MOD_VERSION = "1.2.1";
     let noticeShown = false;
     const CHANGELOG = [
         {

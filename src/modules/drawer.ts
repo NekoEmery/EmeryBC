@@ -3684,8 +3684,8 @@ export class EBCDrawer {
         body.appendChild(outfitsBody);
 
         this.buildNewOutfitSection(body);
-        this.buildScheduleSection(body);
         this.buildRestraintSection(body);
+        this.buildScheduleSection(body);
     }
 
     // -- Outfit Schedule section ------------------------------------------------
