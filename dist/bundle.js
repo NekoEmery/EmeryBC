@@ -6513,11 +6513,12 @@
             // Restore any beep windows that were hidden while outside the chat room
             for (const { el } of this.beepWins.values())
                 el.style.display = "";
-            // Re-open any windows that were open in a previous session (survived relog)
+            // Re-open any windows that were open in a previous session (survived relog),
+            // starting them minimized so they don't flood the screen on login.
             for (const num of EBCDrawer.getOpenBeepWindows()) {
                 if (!this.beepWins.has(num)) {
                     try {
-                        this.openBeepWindow(num);
+                        this.openBeepWindow(num, true);
                     }
                     catch ( /* ignore */_c) { /* ignore */ }
                 }
@@ -11159,7 +11160,7 @@
                 dot.remove();
             }
         }
-        openBeepWindow(memberNumber) {
+        openBeepWindow(memberNumber, startMinimized = false) {
             var _a;
             // If window already open for this member, refresh history and focus
             const existing = this.beepWins.get(memberNumber);
@@ -11178,7 +11179,9 @@
             win.className = "ebc-beep-win";
             win.style.bottom = `${80 + offset}px`;
             win.style.right = `${340 + offset}px`;
-            this.beepWins.set(memberNumber, { el: win, minimized: false });
+            this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
+            if (startMinimized)
+                win.classList.add("minimized");
             // Header
             const header = document.createElement("div");
             header.className = "ebc-beep-win-header";
@@ -11241,8 +11244,8 @@
             });
             const minimizeBtn = document.createElement("button");
             minimizeBtn.className = "ebc-beep-win-hbtn";
-            minimizeBtn.textContent = "–";
-            minimizeBtn.title = "Minimize";
+            minimizeBtn.textContent = startMinimized ? "▲" : "–";
+            minimizeBtn.title = startMinimized ? "Restore" : "Minimize";
             minimizeBtn.addEventListener("click", () => {
                 const entry = this.beepWins.get(memberNumber);
                 if (!entry)
@@ -13897,9 +13900,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.8";
+    const MOD_VERSION = "1.2.9";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.2.9",
+            changes: [
+                "Beep windows: restored windows on relog now start collapsed (minimized) instead of fully open, so they don't flood the screen on login.",
+            ],
+        },
         {
             version: "1.2.8",
             changes: [

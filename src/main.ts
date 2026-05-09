@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.2.8";
+const MOD_VERSION = "1.2.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.2.9",
+        changes: [
+            "Beep windows: restored windows on relog now start collapsed (minimized) instead of fully open, so they don't flood the screen on login.",
+        ],
+    },
     {
         version: "1.2.8",
         changes: [

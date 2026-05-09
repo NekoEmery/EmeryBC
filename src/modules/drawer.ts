@@ -3396,10 +3396,11 @@ export class EBCDrawer {
         // Restore any beep windows that were hidden while outside the chat room
         for (const { el } of this.beepWins.values()) el.style.display = "";
 
-        // Re-open any windows that were open in a previous session (survived relog)
+        // Re-open any windows that were open in a previous session (survived relog),
+        // starting them minimized so they don't flood the screen on login.
         for (const num of EBCDrawer.getOpenBeepWindows()) {
             if (!this.beepWins.has(num)) {
-                try { this.openBeepWindow(num); } catch { /* ignore */ }
+                try { this.openBeepWindow(num, true); } catch { /* ignore */ }
             }
         }
 
@@ -8284,7 +8285,7 @@ export class EBCDrawer {
         }
     }
 
-    public openBeepWindow(memberNumber: number): void {
+    public openBeepWindow(memberNumber: number, startMinimized = false): void {
         // If window already open for this member, refresh history and focus
         const existing = this.beepWins.get(memberNumber);
         if (existing) {
@@ -8305,7 +8306,8 @@ export class EBCDrawer {
         win.className = "ebc-beep-win";
         win.style.bottom = `${80 + offset}px`;
         win.style.right  = `${340 + offset}px`;
-        this.beepWins.set(memberNumber, { el: win, minimized: false });
+        this.beepWins.set(memberNumber, { el: win, minimized: startMinimized });
+        if (startMinimized) win.classList.add("minimized");
 
         // Header
         const header = document.createElement("div");
@@ -8373,8 +8375,8 @@ export class EBCDrawer {
 
         const minimizeBtn = document.createElement("button");
         minimizeBtn.className = "ebc-beep-win-hbtn";
-        minimizeBtn.textContent = "–";
-        minimizeBtn.title = "Minimize";
+        minimizeBtn.textContent = startMinimized ? "▲" : "–";
+        minimizeBtn.title = startMinimized ? "Restore" : "Minimize";
         minimizeBtn.addEventListener("click", () => {
             const entry = this.beepWins.get(memberNumber);
             if (!entry) return;
