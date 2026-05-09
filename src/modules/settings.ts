@@ -129,6 +129,24 @@ export function setSuppressNativeBeep(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Update notifications ------------------------------------------------------
+// When enabled (default), a local chat notice appears if a room member is
+// running a newer version of EBC, prompting the user to relog. The user can
+// silence it permanently with /ebc updates off.
+
+export function getUpdateNotify(): boolean {
+    try { return getStore()?.updateNotify !== false; } catch { return true; }
+}
+
+export function setUpdateNotify(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.updateNotify = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}
+
 // -- Beep mute -----------------------------------------------------------------
 
 export function getBeepMuted(): boolean {

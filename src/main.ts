@@ -5,7 +5,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer } from "./modules/antiRestraint";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.0.6";
+const MOD_VERSION = "1.0.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.0.7",
+        changes: [
+            "Update notifications: if someone in the room is running a newer version of EBC you get a local chat notice prompting you to relog. Silence permanently with /ebc updates off, re-enable with /ebc updates on. On by default.",
+        ],
+    },
     {
         version: "1.0.6",
         changes: [
@@ -1182,8 +1188,52 @@ function handleMetaCommand(inputValue: string): boolean {
         return true;
     }
 
-    appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter", UI.gold);
+    if (subcommand === "updates") {
+        const arg = (parts[2] || "").toLowerCase();
+        if (arg === "off") {
+            setUpdateNotify(false);
+            appendLocalLogLine("[EBC] Update notifications disabled. Type /ebc updates on to re-enable.", UI.textMuted);
+        } else if (arg === "on") {
+            setUpdateNotify(true);
+            appendLocalLogLine("[EBC] Update notifications enabled.", UI.gold);
+        } else {
+            const state = getUpdateNotify() ? "ON" : "OFF";
+            appendLocalLogLine(`[EBC] Update notifications are currently ${state}. Use /ebc updates on or /ebc updates off.`, UI.gold);
+        }
+        return true;
+    }
+
+    appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc updates on/off", UI.gold);
     return true;
+}
+
+// -- Update notification -------------------------------------------------------
+
+/** Returns true if version string `a` is strictly newer than `b`. */
+function isNewerVersion(a: string, b: string): boolean {
+    const parse = (v: string): number[] => v.split(".").map(n => parseInt(n, 10) || 0);
+    const [aMaj, aMin, aPat] = parse(a);
+    const [bMaj, bMin, bPat] = parse(b);
+    if (aMaj !== bMaj) return aMaj > bMaj;
+    if (aMin !== bMin) return aMin > bMin;
+    return aPat > bPat;
+}
+
+// Tracks which newer versions we've already shown a notice for this session
+// so we don't spam the log every time a room sync fires.
+const _notifiedUpdateVersions = new Set<string>();
+
+function checkForUpdateFromVersion(seenVersion: string): void {
+    try {
+        if (!getUpdateNotify()) return;
+        if (!isNewerVersion(seenVersion, MOD_VERSION)) return;
+        if (_notifiedUpdateVersions.has(seenVersion)) return;
+        _notifiedUpdateVersions.add(seenVersion);
+
+        appendLocalLogLine(`[EBC] 🔔 Update available — v${seenVersion} spotted in the room.`, UI.gold);
+        appendLocalLogLine(`[EBC]    Relog to get the latest version of EBC.`, UI.gold);
+        appendLocalLogLine(`[EBC]    To silence these: type  /ebc updates off  in chat.`, UI.textMuted);
+    } catch { /* ignore */ }
 }
 
 interface EmeryPresence {
@@ -1371,8 +1421,10 @@ function init(): void {
                     const p = (shared as Record<string, unknown>).presence;
                     if (p && typeof p === "object") {
                         const v = (p as Record<string, unknown>).version;
-                        if ((p as Record<string, unknown>).marker === "EBC" && typeof v === "string")
+                        if ((p as Record<string, unknown>).marker === "EBC" && typeof v === "string") {
                             cacheEBCVersion(c.MemberNumber, v);
+                            checkForUpdateFromVersion(v);
+                        }
                     }
                 }
             }
@@ -1408,6 +1460,25 @@ function init(): void {
             if (typeof targetNum === "number" && targetNum === Player.MemberNumber &&
                 typeof sourceNum === "number" && sourceNum !== Player.MemberNumber) {
                 recordRestrainer(sourceNum);
+            }
+        } catch { /* ignore */ }
+        return result;
+    });
+
+    // Detect EBC version on mid-session character joins (not covered by ChatRoomSync)
+    tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
+        const result = next(args);
+        try {
+            const [data] = args as [Record<string, unknown>];
+            const shared = (data as Record<string, unknown>)[MOD_NAME] as Record<string, unknown> | undefined
+                ?? (data?.Character as Record<string, unknown> | undefined)?.[MOD_NAME] as Record<string, unknown> | undefined;
+            if (shared && typeof shared === "object") {
+                const p = (shared as Record<string, unknown>).presence;
+                if (p && typeof p === "object") {
+                    const v = (p as Record<string, unknown>).version;
+                    if ((p as Record<string, unknown>).marker === "EBC" && typeof v === "string")
+                        checkForUpdateFromVersion(v);
+                }
             }
         } catch { /* ignore */ }
         return result;

@@ -1428,6 +1428,29 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Update notifications ------------------------------------------------------
+    // When enabled (default), a local chat notice appears if a room member is
+    // running a newer version of EBC, prompting the user to relog. The user can
+    // silence it permanently with /ebc updates off.
+    function getUpdateNotify() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.updateNotify) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setUpdateNotify(value) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.updateNotify = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Beep mute -----------------------------------------------------------------
     function getBeepMuted() {
         var _a;
@@ -13061,9 +13084,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.0.6";
+    const MOD_VERSION = "1.0.7";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.0.7",
+            changes: [
+                "Update notifications: if someone in the room is running a newer version of EBC you get a local chat notice prompting you to relog. Silence permanently with /ebc updates off, re-enable with /ebc updates on. On by default.",
+            ],
+        },
         {
             version: "1.0.6",
             changes: [
@@ -14213,8 +14242,54 @@
             toggleArometerCommand();
             return true;
         }
-        appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter", UI.gold);
+        if (subcommand === "updates") {
+            const arg = (parts[2] || "").toLowerCase();
+            if (arg === "off") {
+                setUpdateNotify(false);
+                appendLocalLogLine("[EBC] Update notifications disabled. Type /ebc updates on to re-enable.", UI.textMuted);
+            }
+            else if (arg === "on") {
+                setUpdateNotify(true);
+                appendLocalLogLine("[EBC] Update notifications enabled.", UI.gold);
+            }
+            else {
+                const state = getUpdateNotify() ? "ON" : "OFF";
+                appendLocalLogLine(`[EBC] Update notifications are currently ${state}. Use /ebc updates on or /ebc updates off.`, UI.gold);
+            }
+            return true;
+        }
+        appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc updates on/off", UI.gold);
         return true;
+    }
+    // -- Update notification -------------------------------------------------------
+    /** Returns true if version string `a` is strictly newer than `b`. */
+    function isNewerVersion(a, b) {
+        const parse = (v) => v.split(".").map(n => parseInt(n, 10) || 0);
+        const [aMaj, aMin, aPat] = parse(a);
+        const [bMaj, bMin, bPat] = parse(b);
+        if (aMaj !== bMaj)
+            return aMaj > bMaj;
+        if (aMin !== bMin)
+            return aMin > bMin;
+        return aPat > bPat;
+    }
+    // Tracks which newer versions we've already shown a notice for this session
+    // so we don't spam the log every time a room sync fires.
+    const _notifiedUpdateVersions = new Set();
+    function checkForUpdateFromVersion(seenVersion) {
+        try {
+            if (!getUpdateNotify())
+                return;
+            if (!isNewerVersion(seenVersion, MOD_VERSION))
+                return;
+            if (_notifiedUpdateVersions.has(seenVersion))
+                return;
+            _notifiedUpdateVersions.add(seenVersion);
+            appendLocalLogLine(`[EBC] 🔔 Update available — v${seenVersion} spotted in the room.`, UI.gold);
+            appendLocalLogLine(`[EBC]    Relog to get the latest version of EBC.`, UI.gold);
+            appendLocalLogLine(`[EBC]    To silence these: type  /ebc updates off  in chat.`, UI.textMuted);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     function getSharedPresence(character) {
         var _a, _b;
@@ -14408,8 +14483,10 @@
                             const p = shared.presence;
                             if (p && typeof p === "object") {
                                 const v = p.version;
-                                if (p.marker === "EBC" && typeof v === "string")
+                                if (p.marker === "EBC" && typeof v === "string") {
                                     cacheEBCVersion(c.MemberNumber, v);
+                                    checkForUpdateFromVersion(v);
+                                }
                             }
                         }
                     }
@@ -14450,6 +14527,25 @@
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
+            return result;
+        });
+        // Detect EBC version on mid-session character joins (not covered by ChatRoomSync)
+        tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
+            var _a, _b;
+            const result = next(args);
+            try {
+                const [data] = args;
+                const shared = (_a = data[MOD_NAME]) !== null && _a !== void 0 ? _a : (_b = data === null || data === void 0 ? void 0 : data.Character) === null || _b === void 0 ? void 0 : _b[MOD_NAME];
+                if (shared && typeof shared === "object") {
+                    const p = shared.presence;
+                    if (p && typeof p === "object") {
+                        const v = p.version;
+                        if (p.marker === "EBC" && typeof v === "string")
+                            checkForUpdateFromVersion(v);
+                    }
+                }
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             return result;
         });
         // Anti-restraint + grace period: detect new restraints on the player after any refresh
