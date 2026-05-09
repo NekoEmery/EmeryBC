@@ -35,6 +35,8 @@ export const RESTRAINT_GROUPS = new Set([
     "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
     "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
     "ItemTorso", "ItemTorso2", "ItemBody",
+    "ItemDevices",  // cages, kennels, lockers, X-crosses, wooden boxes
+    "ItemAddon",    // ceiling ropes, ceiling chains
     "ItemEars", "ItemNose", "ItemMisc",
 ]);
 

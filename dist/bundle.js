@@ -329,6 +329,8 @@
         "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
         "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
         "ItemTorso", "ItemTorso2", "ItemBody",
+        "ItemDevices", // cages, kennels, lockers, X-crosses, wooden boxes
+        "ItemAddon", // ceiling ropes, ceiling chains
         "ItemEars", "ItemNose", "ItemMisc",
     ]);
     const MAX_SERIALIZE_DEPTH = 12;
@@ -13837,7 +13839,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.4";
+    const MOD_VERSION = "1.2.5";
     let noticeShown = false;
     const CHANGELOG = [
         {
