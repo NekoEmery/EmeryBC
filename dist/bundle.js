@@ -13097,7 +13097,7 @@
         {
             version: "1.0.7",
             changes: [
-                "Update notifications: if someone in the room is running a newer version of EBC you get a local chat notice prompting you to relog. Silence permanently with /ebc updates off, re-enable with /ebc updates on. On by default.",
+                "Update notifications: EBC checks GitHub for a newer version 30s after load then every hour. Shows a local notice with the new version number and a page-refresh prompt. Silence permanently with /ebc updates off, re-enable with /ebc updates on. On by default.",
             ],
         },
         {
@@ -14318,34 +14318,61 @@
         return true;
     }
     // -- Update notification -------------------------------------------------------
-    /** Returns true if version string `a` is strictly newer than `b`. */
-    function isNewerVersion(a, b) {
-        const parse = (v) => v.split(".").map(n => parseInt(n, 10) || 0);
-        const [aMaj, aMin, aPat] = parse(a);
-        const [bMaj, bMin, bPat] = parse(b);
-        if (aMaj !== bMaj)
-            return aMaj > bMaj;
-        if (aMin !== bMin)
-            return aMin > bMin;
-        return aPat > bPat;
+    // Fetches package.json from GitHub after a short delay, then every hour.
+    // Uses localStorage to avoid re-notifying for a version the user has already seen.
+    const EBC_PACKAGE_URL = "https://raw.githubusercontent.com/NekoEmery/EmeryBC/refs/heads/master/package.json";
+    const EBC_UPDATE_STORAGE_KEY = "EBC_NotifiedVersion";
+    function isNewerVersion(remote, local) {
+        var _a, _b;
+        const parse = (v) => v.replace(/[^0-9.]/g, "").split(".").map(n => parseInt(n, 10) || 0);
+        const r = parse(remote);
+        const l = parse(local);
+        for (let i = 0; i < Math.max(r.length, l.length); i++) {
+            const rv = (_a = r[i]) !== null && _a !== void 0 ? _a : 0, lv = (_b = l[i]) !== null && _b !== void 0 ? _b : 0;
+            if (rv > lv)
+                return true;
+            if (rv < lv)
+                return false;
+        }
+        return false;
     }
-    // Tracks which newer versions we've already shown a notice for this session
-    // so we don't spam the log every time a room sync fires.
-    const _notifiedUpdateVersions = new Set();
-    function checkForUpdateFromVersion(seenVersion) {
+    async function checkForUpdateFromGitHub() {
         try {
             if (!getUpdateNotify())
                 return;
-            if (!isNewerVersion(seenVersion, MOD_VERSION))
+            const res = await fetch(`${EBC_PACKAGE_URL}?t=${Date.now()}`);
+            if (!res.ok)
                 return;
-            if (_notifiedUpdateVersions.has(seenVersion))
+            const data = await res.json();
+            const remote = typeof data.version === "string" ? data.version : null;
+            if (!remote)
                 return;
-            _notifiedUpdateVersions.add(seenVersion);
-            appendLocalLogLine(`[EBC] 🔔 Update available — v${seenVersion} spotted in the room.`, UI.gold);
-            appendLocalLogLine(`[EBC]    Relog to get the latest version of EBC.`, UI.gold);
-            appendLocalLogLine(`[EBC]    To silence these: type  /ebc updates off  in chat.`, UI.textMuted);
+            if (!isNewerVersion(remote, MOD_VERSION)) {
+                // Already up to date — clear any stale localStorage entry
+                try {
+                    localStorage.removeItem(EBC_UPDATE_STORAGE_KEY);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                return;
+            }
+            // Only notify once per remote version
+            try {
+                if (localStorage.getItem(EBC_UPDATE_STORAGE_KEY) === remote)
+                    return;
+                localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote);
+            }
+            catch ( /* localStorage unavailable — notify anyway */_b) { /* localStorage unavailable — notify anyway */ }
+            appendLocalLogLine(`[EBC] 🔔 Update available — v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
+            appendLocalLogLine(`[EBC]    Refresh the page to get the latest version.`, UI.gold);
+            appendLocalLogLine(`[EBC]    To silence these: /ebc updates off`, UI.textMuted);
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* network error — ignore silently */_c) { /* network error — ignore silently */ }
+    }
+    function startUpdateChecker() {
+        // First check after 30s so the game is fully loaded before we hit the network
+        window.setTimeout(() => { checkForUpdateFromGitHub().catch(() => { }); }, 30000);
+        // Then every hour
+        window.setInterval(() => { checkForUpdateFromGitHub().catch(() => { }); }, 3600000);
     }
     function getSharedPresence(character) {
         var _a, _b;
@@ -14539,10 +14566,8 @@
                             const p = shared.presence;
                             if (p && typeof p === "object") {
                                 const v = p.version;
-                                if (p.marker === "EBC" && typeof v === "string") {
+                                if (p.marker === "EBC" && typeof v === "string")
                                     cacheEBCVersion(c.MemberNumber, v);
-                                    checkForUpdateFromVersion(v);
-                                }
                             }
                         }
                     }
@@ -14583,25 +14608,6 @@
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
-            return result;
-        });
-        // Detect EBC version on mid-session character joins (not covered by ChatRoomSync)
-        tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
-            var _a, _b;
-            const result = next(args);
-            try {
-                const [data] = args;
-                const shared = (_a = data[MOD_NAME]) !== null && _a !== void 0 ? _a : (_b = data === null || data === void 0 ? void 0 : data.Character) === null || _b === void 0 ? void 0 : _b[MOD_NAME];
-                if (shared && typeof shared === "object") {
-                    const p = shared.presence;
-                    if (p && typeof p === "object") {
-                        const v = p.version;
-                        if (p.marker === "EBC" && typeof v === "string")
-                            checkForUpdateFromVersion(v);
-                    }
-                }
-            }
-            catch ( /* ignore */_c) { /* ignore */ }
             return result;
         });
         // Anti-restraint + grace period: detect new restraints on the player after any refresh
@@ -14817,6 +14823,7 @@
         catch (_c) {
             // Ignore early sync failures.
         }
+        startUpdateChecker();
         console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
     }
     const readyInterval = setInterval(() => {
