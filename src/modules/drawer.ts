@@ -9301,10 +9301,21 @@ export class EBCDrawer {
 
         const intro = document.createElement("div");
         intro.className = "ebc-thanks-intro";
-        intro.textContent = "People who made EmeryBC possible.";
+        intro.textContent = "People who made EBC possible. ";
+        const introSub = document.createElement("span");
+        introSub.style.cssText = "font-size:9px;color:#6a4a5e;font-family:'Trebuchet MS',serif;";
+        introSub.textContent = "EmeryBC";
+        intro.appendChild(introSub);
         body.appendChild(intro);
 
         const people = [
+            {
+                emoji: "🌺",
+                name: "Emery",
+                memberId: 130267,
+                reason: "Creator of EBC — every line of code, every feature, every late night pushing updates. This whole thing is hers.",
+                heart: "🎀",
+            },
             {
                 emoji: "🎀",
                 name: "Sin",
