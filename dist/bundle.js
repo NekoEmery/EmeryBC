@@ -5243,12 +5243,20 @@
 `;
     // -- VIP members (highlighted in Notes tab when present in the room) -----------
     const VIP_MEMBERS = {
-        130267: { label: "creator", color: "#e8d07a" }, // Emery
-        143776: { label: "Sin", color: "#cf6f98" },
-        124264: { label: "Lara", color: "#f7b8d4" },
-        230466: { label: "Lucy", color: "#b8a0f7" },
-        80: { label: "Sybil", color: "#f7d4a0" },
+        130267: { label: "creator", color: "#f77ec0", gradient: ["#f77ec0", "#40d8c8"] }, // Emery  — pink → turquoise
+        143776: { label: "Sin", color: "#ff9dd0", gradient: ["#ff9dd0", "#d4407a"] }, // Sin    — light pink → hot pink
+        124264: { label: "Lara", color: "#d898f0", gradient: ["#d898f0", "#8840d0"] }, // Lara   — lilac → deep purple
+        230466: { label: "Lucy", color: "#70e0d8", gradient: ["#70e0d8", "#2098a8"] }, // Lucy   — light teal → dark teal
+        80: { label: "Sybil", color: "#98e8a8", gradient: ["#98e8a8", "#30a870"] }, // Sybil  — mint → forest green
     };
+    /** Apply a left-to-right gradient as text fill colour to an element. */
+    function applyGradientText(el, from, to) {
+        el.style.background = `linear-gradient(90deg, ${from}, ${to})`;
+        el.style.webkitBackgroundClip = "text";
+        el.style.backgroundClip = "text";
+        el.style.webkitTextFillColor = "transparent";
+        el.style.color = "transparent";
+    }
     // -- Pointer helper (mouse + touch) --------------------------------------------
     // Normalises MouseEvent / TouchEvent to a plain {clientX, clientY} so drag
     // handlers can support both desktop (mouse) and tablet (touch) with one path.
@@ -10949,6 +10957,9 @@
                     const nameEl = document.createElement("span");
                     nameEl.className = "ebc-friend-name";
                     nameEl.textContent = name;
+                    const vipFriend = VIP_MEMBERS[num];
+                    if (vipFriend)
+                        applyGradientText(nameEl, vipFriend.gradient[0], vipFriend.gradient[1]);
                     const numEl = document.createElement("span");
                     numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;flex-shrink:0;";
                     numEl.textContent = "#" + num;
@@ -11296,8 +11307,8 @@
             const container = document.createElement("div");
             container.className = "ebc-notes-person";
             if (vip) {
-                container.style.borderColor = vip.color;
-                container.style.boxShadow = `0 0 6px ${vip.color}40`;
+                container.style.borderColor = vip.gradient[0];
+                container.style.boxShadow = `0 0 6px ${vip.gradient[0]}40`;
             }
             const header = document.createElement("div");
             header.className = "ebc-notes-person-header";
@@ -11307,7 +11318,7 @@
             name.className = "ebc-notes-person-name";
             name.textContent = displayName;
             if (vip) {
-                name.style.color = vip.color;
+                applyGradientText(name, vip.gradient[0], vip.gradient[1]);
             }
             const num = document.createElement("span");
             num.className = "ebc-notes-member-num";
@@ -11319,7 +11330,7 @@
                 const badge = document.createElement("span");
                 badge.textContent = "★";
                 badge.title = vip.label;
-                badge.style.cssText = `font-size:10px;color:${vip.color};flex-shrink:0;margin-right:2px;`;
+                badge.style.cssText = `font-size:10px;color:${vip.gradient[0]};flex-shrink:0;margin-right:2px;`;
                 header.appendChild(badge);
             }
             header.appendChild(num);
@@ -11993,6 +12004,9 @@
                 const namEl = document.createElement("span");
                 namEl.className = "ebc-thanks-name";
                 namEl.textContent = p.name;
+                const vipCredit = VIP_MEMBERS[p.memberId];
+                if (vipCredit)
+                    applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
                 const idEl2 = document.createElement("span");
                 idEl2.style.cssText = "font-size:9px;color:#7a5a6a;font-family:'Trebuchet MS',serif;flex-shrink:0;";
                 idEl2.textContent = "#" + p.memberId;
@@ -13085,7 +13099,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.0.9";
+    const MOD_VERSION = "1.1.0";
     let noticeShown = false;
     const CHANGELOG = [
         {
