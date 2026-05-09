@@ -3355,8 +3355,13 @@ export class EBCDrawer {
             this.resizeObserver = null;
             this.stopCrabsPoller();
             this.stopTimerPoller();
+            // Hide beep windows while outside the chat room — they'll be restored on return
+            for (const { el } of this.beepWins.values()) el.style.display = "none";
             return;
         }
+
+        // Restore any beep windows that were hidden while outside the chat room
+        for (const { el } of this.beepWins.values()) el.style.display = "";
 
         // Try to position; if the chat log isn't laid out yet, retry next frame
         const synced = this.syncToChat();
@@ -10513,6 +10518,8 @@ export class EBCDrawer {
         this.resizeObserver?.disconnect();
         this.stopCrabsPoller();
         this.stopTimerPoller();
+        for (const { el } of this.beepWins.values()) { try { el.remove(); } catch { /* ignore */ } }
+        this.beepWins.clear();
         this.rootEl?.remove();
         this.rootEl  = null;
         this.panelEl = null;

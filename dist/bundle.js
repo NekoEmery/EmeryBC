@@ -6299,8 +6299,14 @@
                 this.resizeObserver = null;
                 this.stopCrabsPoller();
                 this.stopTimerPoller();
+                // Hide beep windows while outside the chat room — they'll be restored on return
+                for (const { el } of this.beepWins.values())
+                    el.style.display = "none";
                 return;
             }
+            // Restore any beep windows that were hidden while outside the chat room
+            for (const { el } of this.beepWins.values())
+                el.style.display = "";
             // Try to position; if the chat log isn't laid out yet, retry next frame
             const synced = this.syncToChat();
             if (synced) {
@@ -13134,6 +13140,13 @@
             (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
             this.stopCrabsPoller();
             this.stopTimerPoller();
+            for (const { el } of this.beepWins.values()) {
+                try {
+                    el.remove();
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+            }
+            this.beepWins.clear();
             (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.remove();
             this.rootEl = null;
             this.panelEl = null;
@@ -13146,7 +13159,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.1.4";
+    const MOD_VERSION = "1.1.5";
     let noticeShown = false;
     const CHANGELOG = [
         {
