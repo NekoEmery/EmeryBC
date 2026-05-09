@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.2.9";
+const MOD_VERSION = "1.3.0";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.0",
+        changes: [
+            "User Notes: removed 'You' and 'In This Room' auto-populated sections — only explicitly saved notes are shown now.",
+        ],
+    },
     {
         version: "1.2.9",
         changes: [

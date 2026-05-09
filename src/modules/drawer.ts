@@ -8718,7 +8718,6 @@ export class EBCDrawer {
         while (body.firstChild) body.removeChild(body.firstChild);
 
         const notes = getNotes();
-        const roomChars: Character[] = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
 
         // ── Collapsible "User Notes" header ──────────────────────────────────
         let userNotesCollapsed = true;
@@ -8751,50 +8750,16 @@ export class EBCDrawer {
         };
         userNotesHeaderRow.addEventListener("click", toggleUserNotesCollapsed);
 
-        // ── You ──────────────────────────────────────────────────────────────
-        const selfLbl = document.createElement("div");
-        selfLbl.className = "ebc-section-label";
-        selfLbl.textContent = "You";
-        userNotesBody.appendChild(selfLbl);
-        userNotesBody.appendChild(this.buildNoteRow(Player.MemberNumber!, this.charDisplayName(Player as unknown as Character), "", true));
-
-        // ── In This Room ─────────────────────────────────────────────────────
-        const roomOthers = roomChars.filter(c => c.MemberNumber !== Player.MemberNumber);
-        if (roomOthers.length > 0) {
-            const div = document.createElement("div");
-            div.className = "ebc-divider";
-            userNotesBody.appendChild(div);
-            const lbl = document.createElement("div");
-            lbl.className = "ebc-section-label";
-            lbl.textContent = "In This Room";
-            userNotesBody.appendChild(lbl);
-            for (const char of roomOthers) {
-                const displayName = this.charDisplayName(char);
-                const existing = notes[String(char.MemberNumber)];
-                userNotesBody.appendChild(this.buildNoteRow(char.MemberNumber!, displayName, existing?.note ?? ""));
-            }
-        }
-
-        // ── Saved (offline) ──────────────────────────────────────────────────
-        const roomNums = new Set(roomChars.map(c => String(c.MemberNumber)));
-        const offlineEntries = Object.entries(notes).filter(([k]) => !roomNums.has(k));
-        if (offlineEntries.length > 0) {
-            const div = document.createElement("div");
-            div.className = "ebc-divider";
-            userNotesBody.appendChild(div);
-            const lbl = document.createElement("div");
-            lbl.className = "ebc-section-label";
-            lbl.textContent = "Saved";
-            userNotesBody.appendChild(lbl);
-            for (const [key, data] of offlineEntries) {
+        // ── Saved notes only ─────────────────────────────────────────────────
+        const savedEntries = Object.entries(notes);
+        if (savedEntries.length > 0) {
+            for (const [key, data] of savedEntries) {
                 userNotesBody.appendChild(this.buildNoteRow(parseInt(key), data.name, data.note));
             }
-        }
-
-        if (roomOthers.length === 0 && offlineEntries.length === 0) {
+        } else {
             const empty = document.createElement("div");
             empty.className = "ebc-empty";
-            empty.innerHTML = "No other players in this room yet.";
+            empty.textContent = "No saved notes yet.";
             userNotesBody.appendChild(empty);
         }
 

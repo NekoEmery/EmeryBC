@@ -11556,20 +11556,19 @@
         }
         // -- Notes tab -------------------------------------------------------------
         renderNotes() {
-            var _a, _b, _c;
+            var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const notes = getNotes();
-            const roomChars = (_b = window.ChatRoomCharacter) !== null && _b !== void 0 ? _b : [];
             // ── Collapsible "User Notes" header ──────────────────────────────────
             let userNotesCollapsed = true;
             try {
                 userNotesCollapsed = localStorage.getItem("EBC_userNotesCollapsed") !== "0";
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
             const userNotesHeaderRow = document.createElement("div");
             userNotesHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const userNotesLbl = document.createElement("div");
@@ -11594,47 +11593,17 @@
                 catch ( /* ignore */_a) { /* ignore */ }
             };
             userNotesHeaderRow.addEventListener("click", toggleUserNotesCollapsed);
-            // ── You ──────────────────────────────────────────────────────────────
-            const selfLbl = document.createElement("div");
-            selfLbl.className = "ebc-section-label";
-            selfLbl.textContent = "You";
-            userNotesBody.appendChild(selfLbl);
-            userNotesBody.appendChild(this.buildNoteRow(Player.MemberNumber, this.charDisplayName(Player), "", true));
-            // ── In This Room ─────────────────────────────────────────────────────
-            const roomOthers = roomChars.filter(c => c.MemberNumber !== Player.MemberNumber);
-            if (roomOthers.length > 0) {
-                const div = document.createElement("div");
-                div.className = "ebc-divider";
-                userNotesBody.appendChild(div);
-                const lbl = document.createElement("div");
-                lbl.className = "ebc-section-label";
-                lbl.textContent = "In This Room";
-                userNotesBody.appendChild(lbl);
-                for (const char of roomOthers) {
-                    const displayName = this.charDisplayName(char);
-                    const existing = notes[String(char.MemberNumber)];
-                    userNotesBody.appendChild(this.buildNoteRow(char.MemberNumber, displayName, (_c = existing === null || existing === void 0 ? void 0 : existing.note) !== null && _c !== void 0 ? _c : ""));
-                }
-            }
-            // ── Saved (offline) ──────────────────────────────────────────────────
-            const roomNums = new Set(roomChars.map(c => String(c.MemberNumber)));
-            const offlineEntries = Object.entries(notes).filter(([k]) => !roomNums.has(k));
-            if (offlineEntries.length > 0) {
-                const div = document.createElement("div");
-                div.className = "ebc-divider";
-                userNotesBody.appendChild(div);
-                const lbl = document.createElement("div");
-                lbl.className = "ebc-section-label";
-                lbl.textContent = "Saved";
-                userNotesBody.appendChild(lbl);
-                for (const [key, data] of offlineEntries) {
+            // ── Saved notes only ─────────────────────────────────────────────────
+            const savedEntries = Object.entries(notes);
+            if (savedEntries.length > 0) {
+                for (const [key, data] of savedEntries) {
                     userNotesBody.appendChild(this.buildNoteRow(parseInt(key), data.name, data.note));
                 }
             }
-            if (roomOthers.length === 0 && offlineEntries.length === 0) {
+            else {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
-                empty.innerHTML = "No other players in this room yet.";
+                empty.textContent = "No saved notes yet.";
                 userNotesBody.appendChild(empty);
             }
             body.appendChild(userNotesBody);
@@ -13900,9 +13869,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.9";
+    const MOD_VERSION = "1.3.0";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.0",
+            changes: [
+                "User Notes: removed 'You' and 'In This Room' auto-populated sections — only explicitly saved notes are shown now.",
+            ],
+        },
         {
             version: "1.2.9",
             changes: [
