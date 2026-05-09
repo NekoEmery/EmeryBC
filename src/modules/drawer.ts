@@ -5750,6 +5750,21 @@ export class EBCDrawer {
 
     // -- Boop friends ----------------------------------------------------------
 
+    // Sends BC's native "Boop Nose" activity (Pet on ItemNose) to a single target.
+    // This is the exact same event as clicking a character and selecting Boop Nose —
+    // targets with reaction mods (BCX, LSCG, etc.) will respond accordingly.
+    private boopOne(target: Character): void {
+        try {
+            const win = window as unknown as Record<string, unknown>;
+            const ActivityRun = win.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, itemActivity: { Activity: unknown; Item: null }) => void) | undefined;
+            const AssetGetActivity = win.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
+            if (!ActivityRun || !AssetGetActivity) return;
+            const petActivity = AssetGetActivity("Female3DCG", "Pet");
+            if (!petActivity) return;
+            ActivityRun(Player, target, { Name: "ItemNose" }, { Activity: petActivity, Item: null });
+        } catch { /* ignore */ }
+    }
+
     private boopFriendsInRoom(): number {
         try {
             const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
@@ -5765,36 +5780,8 @@ export class EBCDrawer {
             let booped = 0;
             for (const friend of friends) {
                 const delay = booped * 1800;
-                const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
-                const targetName: string =
-                    (typeof nickFn === "function"
-                        ? (nickFn as (c: Character) => string)(friend)
-                        : null)
-                    ?? (friend as unknown as Record<string, unknown>).Nickname as string | undefined
-                    ?? friend.Name
-                    ?? "someone";
-                const senderName: string =
-                    (typeof nickFn === "function"
-                        ? (nickFn as (c: Character) => string)(Player)
-                        : null)
-                    ?? Player.Name;
-                // "Boop" is not a native BC activity so Type:"Activity" produces
-                // "MISSING ACTIVITY DESCRIPTION" errors. Use Type:"Action" with the
-                // standard BC possessive format — displays as (Emery boops Lucy's nose.)
-                // and text-based addon reaction rules (LSCG, BCX, etc.) can match it.
-                const text = `${senderName} boops ${targetName}'s nose.`;
-                window.setTimeout(() => {
-                    try {
-                        ServerSend("ChatRoomChat", {
-                            Type: "Action",
-                            Content: text,
-                            Dictionary: [
-                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-                                { SourceCharacter: Player.MemberNumber },
-                            ],
-                        });
-                    } catch { /* ignore */ }
-                }, delay);
+                const target = friend; // capture for closure
+                window.setTimeout(() => { try { this.boopOne(target); } catch { /* ignore */ } }, delay);
                 booped++;
             }
             return booped;

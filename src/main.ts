@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.2.6";
+const MOD_VERSION = "1.2.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.2.7",
+        changes: [
+            "Timer bar fix: opening wardrobe, preferences, or any other in-room menu no longer resets the Room and Bound timers. Timers now only reset when actually leaving the chatroom.",
+            "Boop: 'Boop all friends in room' now uses BC's native Boop Nose activity (Pet on ItemNose) — targets with reaction mods (BCX, LSCG, etc.) will respond with their nose boop reactions.",
+        ],
+    },
     {
         version: "1.2.6",
         changes: [
@@ -1553,14 +1560,19 @@ function init(): void {
         return result;
     });
 
-    // Keep drawer visibility in sync whenever the BC screen changes
+    // Keep drawer visibility in sync whenever the BC screen changes.
+    // Do NOT reset room timers here — transient screens (wardrobe, preferences, etc.)
+    // temporarily leave ChatRoom but the player hasn't actually left the room.
     tryHookFunction(modAPI, "CommonSetScreen", 3, (args, next) => {
         const result = next(args);
-        try {
-            const screen = typeof CurrentScreen !== "undefined" ? CurrentScreen : "";
-            if (screen !== "ChatRoom") timerOnRoomLeave();
-        } catch { /* ignore */ }
         try { drawer?.updateVisibility(); } catch { /* ignore */ }
+        return result;
+    });
+
+    // Only reset room timers when the player actually leaves the chatroom.
+    tryHookFunction(modAPI, "ChatRoomLeave", 3, (args, next) => {
+        const result = next(args);
+        try { timerOnRoomLeave(); } catch { /* ignore */ }
         return result;
     });
 

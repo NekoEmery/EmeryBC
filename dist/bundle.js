@@ -8800,8 +8800,25 @@
             return wrapper;
         }
         // -- Boop friends ----------------------------------------------------------
+        // Sends BC's native "Boop Nose" activity (Pet on ItemNose) to a single target.
+        // This is the exact same event as clicking a character and selecting Boop Nose —
+        // targets with reaction mods (BCX, LSCG, etc.) will respond accordingly.
+        boopOne(target) {
+            try {
+                const win = window;
+                const ActivityRun = win.ActivityRun;
+                const AssetGetActivity = win.AssetGetActivity;
+                if (!ActivityRun || !AssetGetActivity)
+                    return;
+                const petActivity = AssetGetActivity("Female3DCG", "Pet");
+                if (!petActivity)
+                    return;
+                ActivityRun(Player, target, { Name: "ItemNose" }, { Activity: petActivity, Item: null });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
         boopFriendsInRoom() {
-            var _a, _b, _c, _d, _e;
+            var _a;
             try {
                 const friendList = Player.FriendList;
                 if (!Array.isArray(friendList) || friendList.length === 0)
@@ -8814,36 +8831,16 @@
                 let booped = 0;
                 for (const friend of friends) {
                     const delay = booped * 1800;
-                    const nickFn = window.CharacterNickname;
-                    const targetName = (_d = (_c = (_b = (typeof nickFn === "function"
-                        ? nickFn(friend)
-                        : null)) !== null && _b !== void 0 ? _b : friend.Nickname) !== null && _c !== void 0 ? _c : friend.Name) !== null && _d !== void 0 ? _d : "someone";
-                    const senderName = (_e = (typeof nickFn === "function"
-                        ? nickFn(Player)
-                        : null)) !== null && _e !== void 0 ? _e : Player.Name;
-                    // "Boop" is not a native BC activity so Type:"Activity" produces
-                    // "MISSING ACTIVITY DESCRIPTION" errors. Use Type:"Action" with the
-                    // standard BC possessive format — displays as (Emery boops Lucy's nose.)
-                    // and text-based addon reaction rules (LSCG, BCX, etc.) can match it.
-                    const text = `${senderName} boops ${targetName}'s nose.`;
-                    window.setTimeout(() => {
-                        try {
-                            ServerSend("ChatRoomChat", {
-                                Type: "Action",
-                                Content: text,
-                                Dictionary: [
-                                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-                                    { SourceCharacter: Player.MemberNumber },
-                                ],
-                            });
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                    }, delay);
+                    const target = friend; // capture for closure
+                    window.setTimeout(() => { try {
+                        this.boopOne(target);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ } }, delay);
                     booped++;
                 }
                 return booped;
             }
-            catch (_f) {
+            catch (_b) {
                 return 0;
             }
         }
@@ -13860,9 +13857,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.6";
+    const MOD_VERSION = "1.2.7";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.2.7",
+            changes: [
+                "Timer bar fix: opening wardrobe, preferences, or any other in-room menu no longer resets the Room and Bound timers. Timers now only reset when actually leaving the chatroom.",
+                "Boop: 'Boop all friends in room' now uses BC's native Boop Nose activity (Pet on ItemNose) — targets with reaction mods (BCX, LSCG, etc.) will respond with their nose boop reactions.",
+            ],
+        },
         {
             version: "1.2.6",
             changes: [
@@ -15394,19 +15398,24 @@
             catch ( /* ignore */_a) { /* ignore */ }
             return result;
         });
-        // Keep drawer visibility in sync whenever the BC screen changes
+        // Keep drawer visibility in sync whenever the BC screen changes.
+        // Do NOT reset room timers here — transient screens (wardrobe, preferences, etc.)
+        // temporarily leave ChatRoom but the player hasn't actually left the room.
         tryHookFunction(modAPI, "CommonSetScreen", 3, (args, next) => {
             const result = next(args);
             try {
-                const screen = typeof CurrentScreen !== "undefined" ? CurrentScreen : "";
-                if (screen !== "ChatRoom")
-                    timerOnRoomLeave();
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            try {
                 drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return result;
+        });
+        // Only reset room timers when the player actually leaves the chatroom.
+        tryHookFunction(modAPI, "ChatRoomLeave", 3, (args, next) => {
+            const result = next(args);
+            try {
+                timerOnRoomLeave();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
