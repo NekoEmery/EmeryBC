@@ -11240,7 +11240,20 @@
             header.appendChild(minimizeBtn);
             header.appendChild(closeBtn);
             win.appendChild(header);
+            // Restore saved position from localStorage, or fall back to default offset
+            const savedPosKey = `EBC_beepPos_${memberNumber}`;
+            try {
+                const saved = localStorage.getItem(savedPosKey);
+                if (saved) {
+                    const { left, bottom } = JSON.parse(saved);
+                    win.style.left = `${left}px`;
+                    win.style.bottom = `${bottom}px`;
+                    win.style.right = "";
+                }
+            }
+            catch ( /* ignore — use default offset position */_b) { /* ignore — use default offset position */ }
             // Make header draggable — anchored by bottom so expanding grows upward.
+            // Saves position to localStorage on drag release so it persists across relogins.
             // Works with both mouse and touch via addPointerDown / addPointerTracking.
             addPointerDown(header, (start, e) => {
                 if (e.target === closeBtn)
@@ -11255,7 +11268,15 @@
                     win.style.bottom = `${vh - pos.clientY - oyFromBottom}px`;
                     win.style.right = "";
                     win.style.top = "";
-                }, () => { });
+                }, () => {
+                    // Save final position so it's restored next time this window opens
+                    try {
+                        const left = parseFloat(win.style.left) || 0;
+                        const bottom = parseFloat(win.style.bottom) || 80;
+                        localStorage.setItem(savedPosKey, JSON.stringify({ left, bottom }));
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                });
             });
             // History
             const history = document.createElement("div");
@@ -13839,9 +13860,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.5";
+    const MOD_VERSION = "1.2.6";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.2.6",
+            changes: [
+                "Beep windows: drag position is now saved to localStorage per contact and restored the next time that window is opened (survives relogs and room changes).",
+            ],
+        },
         {
             version: "1.0.8",
             changes: [

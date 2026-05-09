@@ -8387,7 +8387,20 @@ export class EBCDrawer {
         header.appendChild(closeBtn);
         win.appendChild(header);
 
+        // Restore saved position from localStorage, or fall back to default offset
+        const savedPosKey = `EBC_beepPos_${memberNumber}`;
+        try {
+            const saved = localStorage.getItem(savedPosKey);
+            if (saved) {
+                const { left, bottom } = JSON.parse(saved) as { left: number; bottom: number };
+                win.style.left   = `${left}px`;
+                win.style.bottom = `${bottom}px`;
+                win.style.right  = "";
+            }
+        } catch { /* ignore — use default offset position */ }
+
         // Make header draggable — anchored by bottom so expanding grows upward.
+        // Saves position to localStorage on drag release so it persists across relogins.
         // Works with both mouse and touch via addPointerDown / addPointerTracking.
         addPointerDown(header, (start, e) => {
             if (e.target === closeBtn) return;
@@ -8403,7 +8416,14 @@ export class EBCDrawer {
                     win.style.right  = "";
                     win.style.top    = "";
                 },
-                () => { /* nothing needed on release */ },
+                () => {
+                    // Save final position so it's restored next time this window opens
+                    try {
+                        const left   = parseFloat(win.style.left)   || 0;
+                        const bottom = parseFloat(win.style.bottom) || 80;
+                        localStorage.setItem(savedPosKey, JSON.stringify({ left, bottom }));
+                    } catch { /* ignore */ }
+                },
             );
         });
 

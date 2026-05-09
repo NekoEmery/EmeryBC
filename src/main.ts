@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.2.5";
+const MOD_VERSION = "1.2.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.2.6",
+        changes: [
+            "Beep windows: drag position is now saved to localStorage per contact and restored the next time that window is opened (survives relogs and room changes).",
+        ],
+    },
     {
         version: "1.0.8",
         changes: [
