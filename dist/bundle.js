@@ -349,6 +349,14 @@
     function getOutfits() {
         return cachedOutfits !== null && cachedOutfits !== void 0 ? cachedOutfits : loadOutfitsFromSettings();
     }
+    function getDefaultNickname() {
+        const raw = getAddon$1().defaultNickname;
+        return typeof raw === "string" ? raw : "";
+    }
+    function setDefaultNickname(nick) {
+        getAddon$1().defaultNickname = nick.trim();
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
     function saveOutfits(list) {
         const sanitized = list.map(sanitizeOutfit);
         cachedOutfits = sanitized;
@@ -550,14 +558,14 @@
         sanitizeLiveAppearance();
         sendRoomAppearanceUpdate();
         scheduleAppearanceRefresh();
-        // Apply nickname change if set
-        if (outfit.nickname) {
+        // Apply nickname — outfit-specific takes priority, falls back to default
+        const nickToApply = outfit.nickname || getDefaultNickname();
+        if (nickToApply) {
             try {
-                const nick = outfit.nickname;
-                Player.Nickname = nick;
+                Player.Nickname = nickToApply;
                 const updater = window.ServerAccountUpdate;
                 if (updater === null || updater === void 0 ? void 0 : updater.QueueData)
-                    updater.QueueData({ Nickname: nick });
+                    updater.QueueData({ Nickname: nickToApply });
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -6279,6 +6287,32 @@
                 body.removeChild(body.firstChild);
             this.renderRestraintInfo(body);
             this.renderPalettes(body);
+            // ── Default nickname ─────────────────────────────────────────────────────
+            const nickRow = document.createElement("div");
+            nickRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
+            const nickLbl = document.createElement("span");
+            nickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
+            nickLbl.textContent = "Default nickname";
+            const nickInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input",
+                type: "text",
+                value: getDefaultNickname(),
+                placeholder: "Your usual nickname",
+                maxLength: 40,
+            });
+            nickInp.style.flex = "1";
+            const nickSaveBtn = document.createElement("button");
+            nickSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+            nickSaveBtn.textContent = "Save";
+            nickSaveBtn.addEventListener("click", () => {
+                setDefaultNickname(nickInp.value);
+                nickSaveBtn.textContent = "✓";
+                window.setTimeout(() => { nickSaveBtn.textContent = "Save"; }, 1200);
+            });
+            nickRow.appendChild(nickLbl);
+            nickRow.appendChild(nickInp);
+            nickRow.appendChild(nickSaveBtn);
+            body.appendChild(nickRow);
             const outfits = getOutfits();
             const outfitLbl = document.createElement("div");
             outfitLbl.className = "ebc-section-label";
@@ -12741,9 +12775,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "1.0.3";
+    const MOD_VERSION = "1.0.4";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.0.4",
+            changes: [
+                "Outfits: Default nickname field at the top of the outfits tab — outfits with no specific nickname fall back to this instead of leaving the nickname unchanged.",
+            ],
+        },
         {
             version: "1.0.3",
             changes: [

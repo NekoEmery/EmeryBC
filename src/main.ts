@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "1.0.3";
+const MOD_VERSION = "1.0.4";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.0.4",
+        changes: [
+            "Outfits: Default nickname field at the top of the outfits tab — outfits with no specific nickname fall back to this instead of leaving the nickname unchanged.",
+        ],
+    },
     {
         version: "1.0.3",
         changes: [

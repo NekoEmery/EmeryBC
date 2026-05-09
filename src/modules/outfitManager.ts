@@ -53,6 +53,16 @@ export function getOutfits(): ConfiguredOutfit[] {
     return cachedOutfits ?? loadOutfitsFromSettings();
 }
 
+export function getDefaultNickname(): string {
+    const raw = getAddon().defaultNickname;
+    return typeof raw === "string" ? raw : "";
+}
+
+export function setDefaultNickname(nick: string): void {
+    getAddon().defaultNickname = nick.trim();
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
 function saveOutfits(list: ConfiguredOutfit[]): void {
     const sanitized = list.map(sanitizeOutfit);
     cachedOutfits = sanitized;
@@ -266,14 +276,14 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
     sendRoomAppearanceUpdate();
     scheduleAppearanceRefresh();
 
-    // Apply nickname change if set
-    if (outfit.nickname) {
+    // Apply nickname — outfit-specific takes priority, falls back to default
+    const nickToApply = outfit.nickname || getDefaultNickname();
+    if (nickToApply) {
         try {
-            const nick = outfit.nickname;
-            (Player as unknown as Record<string, unknown>).Nickname = nick;
+            (Player as unknown as Record<string, unknown>).Nickname = nickToApply;
             type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
             const updater = (window as unknown as Record<string, unknown>).ServerAccountUpdate as AccountUpdater | undefined;
-            if (updater?.QueueData) updater.QueueData({ Nickname: nick });
+            if (updater?.QueueData) updater.QueueData({ Nickname: nickToApply });
         } catch { /* ignore */ }
     }
 

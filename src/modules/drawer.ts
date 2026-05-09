@@ -29,6 +29,8 @@ import {
     removeSchedule,
     toggleSchedule,
     checkAndApplySchedules,
+    getDefaultNickname,
+    setDefaultNickname,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -3386,6 +3388,37 @@ export class EBCDrawer {
 
         this.renderRestraintInfo(body);
         this.renderPalettes(body);
+
+        // ── Default nickname ─────────────────────────────────────────────────────
+        const nickRow = document.createElement("div");
+        nickRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
+
+        const nickLbl = document.createElement("span");
+        nickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
+        nickLbl.textContent = "Default nickname";
+
+        const nickInp = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input",
+            type: "text",
+            value: getDefaultNickname(),
+            placeholder: "Your usual nickname",
+            maxLength: 40,
+        });
+        nickInp.style.flex = "1";
+
+        const nickSaveBtn = document.createElement("button");
+        nickSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+        nickSaveBtn.textContent = "Save";
+        nickSaveBtn.addEventListener("click", () => {
+            setDefaultNickname(nickInp.value);
+            nickSaveBtn.textContent = "✓";
+            window.setTimeout(() => { nickSaveBtn.textContent = "Save"; }, 1200);
+        });
+
+        nickRow.appendChild(nickLbl);
+        nickRow.appendChild(nickInp);
+        nickRow.appendChild(nickSaveBtn);
+        body.appendChild(nickRow);
 
         const outfits = getOutfits();
 
