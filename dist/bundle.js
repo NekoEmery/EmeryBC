@@ -83,14 +83,14 @@
     }
     // --- Sequence runner ----------------------------------------------------------
     // Sequence steps are pipe-separated (|). Each step is one of:
-    //   PoseName   – set BC pose (e.g. "HandsUp", "Yoked")
-    //   _          – clear all active poses back to neutral
-    //   !text      – send as (Name text) action message
-    //   *text      – send as * Name text * emote message
+    //   PoseName   â€“ set BC pose (e.g. "HandsUp", "Yoked")
+    //   _          â€“ clear all active poses back to neutral
+    //   !text      â€“ send as (Name text) action message
+    //   *text      â€“ send as * Name text * emote message
     // Steps run 500 ms apart. Original poses are restored when done.
     let seqRunning = false;
     // Sends the current ActivePose to the room without triggering a full re-render on each step.
-    // appearanceBundle should be pre-built once before the sequence starts and reused — sending
+    // appearanceBundle should be pre-built once before the sequence starts and reused â€” sending
     // a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
     // time, which looks like flickering/glitching.
     function sendPoseUpdate(appearanceBundle) {
@@ -110,7 +110,7 @@
     }
     function syncPoseToRoom() {
         // Used for one-shot pose syncs (outside of sequences).
-        // Capture desired pose BEFORE CharacterRefresh — BC may re-apply item-forced poses
+        // Capture desired pose BEFORE CharacterRefresh â€” BC may re-apply item-forced poses
         // during refresh and override what we just set.
         const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
             ? Player.ActivePose
@@ -153,17 +153,17 @@
         // Parse each step: strip @NNN suffix for per-step delay, keep content.
         const steps = rawSteps.map(r => parseStep(r, defaultStepMs));
         seqRunning = true;
-        // null means "no pose / neutral" in BC — store as null so we restore correctly.
+        // null means "no pose / neutral" in BC â€” store as null so we restore correctly.
         const originalPoses = (Player.ActivePose && Player.ActivePose.length > 0)
             ? [...Player.ActivePose]
             : null;
-        // Build appearance bundle ONCE — reusing it avoids re-render flicker on other clients.
+        // Build appearance bundle ONCE â€” reusing it avoids re-render flicker on other clients.
         const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
         let idx = 0;
         const next = () => {
             try {
                 if (idx >= steps.length) {
-                    // Sequence done — restore original pose, do a full sync + local refresh.
+                    // Sequence done â€” restore original pose, do a full sync + local refresh.
                     Player.ActivePose = originalPoses;
                     syncPoseToRoom();
                     seqRunning = false;
@@ -195,7 +195,7 @@
     // --- Label-based animation triggers ------------------------------------------
     // If a button's label matches one of these (case-insensitive), the matching
     // animation plays automatically alongside the normal message. Completely hidden
-    // from the user — the emote field is just normal text.
+    // from the user â€” the emote field is just normal text.
     function isArmRestrained() {
         // Only ItemArms covers actual binding restraints (armbinders, straitjackets, etc.).
         // ItemHands covers paws/mittens/gloves which don't lock arm movement, so we skip it.
@@ -215,14 +215,14 @@
             "padding:2px 8px",
             "margin:1px 0",
         ].join(";");
-        div.textContent = "[EmeryBC] " + msg;
+        div.textContent = "[EBC] " + msg;
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
     }
     // Returns true if the animation ran (or will run), false if it was blocked.
     function runCheerAnimation() {
         if (isArmRestrained()) {
-            localNotice$2("Your arms are restrained — can't cheer right now!");
+            localNotice$2("Your arms are restrained â€” can't cheer right now!");
             return false;
         }
         // Yoked (arms out) -> OverTheHead (arms fully above head) -> repeat -> neutral
@@ -233,7 +233,7 @@
         ["CHEER", runCheerAnimation],
         ["CHEERS", runCheerAnimation],
     ]);
-    // Returns false if an animation was attempted but blocked — caller should suppress the chat message.
+    // Returns false if an animation was attempted but blocked â€” caller should suppress the chat message.
     // Returns true if the animation ran fine, or if there is no animation for this label.
     function triggerLabelAnimation(label) {
         const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
@@ -259,7 +259,7 @@
         // Action style: (Name text)
         // BC can't find the key in Interface.csv so it prepends "MISSING TEXT IN "Interface.csv": ".
         // We include the player's name directly in Content, then use the poison tag to strip the prefix,
-        // leaving only the zero-width char + text so it renders as  (​Name text).
+        // leaving only the zero-width char + text so it renders as  (â€‹Name text).
         ServerSend("ChatRoomChat", {
             Type: "Action",
             Content: getDisplayName() + " " + text,
@@ -313,7 +313,7 @@
             const y = BTN_START_Y + i * BTN_SIZE;
             if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
                 MouseY >= y && MouseY <= y + BTN_SIZE) {
-                // Check animation first — if it's blocked, suppress the chat message too.
+                // Check animation first â€” if it's blocked, suppress the chat message too.
                 const animOk = triggerLabelAnimation(btn.label);
                 if (animOk)
                     sendAction(btn.emote, (_a = btn.style) !== null && _a !== void 0 ? _a : "action");
@@ -675,7 +675,7 @@
             "padding:2px 8px",
             "margin:1px 0",
         ].join(";");
-        div.textContent = `[EmeryBC] ${msg}`;
+        div.textContent = `[EBC] ${msg}`;
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
     }
@@ -1946,7 +1946,7 @@
             "padding:2px 8px",
             "margin:1px 0",
         ].join(";");
-        div.textContent = "[EmeryBC] " + msg;
+        div.textContent = "[EBC] " + msg;
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
     }
@@ -5241,7 +5241,7 @@
             // Tab button - child of root, OUTSIDE the sliding panel so it never moves.
             const tab = document.createElement("div");
             tab.id = "ebc-tab";
-            tab.title = "EmeryBC";
+            tab.title = "EBC";
             tab.innerHTML = TAB_ICON;
             // Panel starts closed — clip the tab so it doesn't block the BC canvas.
             tab.classList.add("ebc-tab-closed");
@@ -5258,7 +5258,16 @@
             header.className = "ebc-header";
             const title = document.createElement("span");
             title.className = "ebc-title";
-            title.textContent = "EmeryBC" + (this.version ? " v" + this.version : "");
+            title.style.display = "flex";
+            title.style.alignItems = "baseline";
+            title.style.gap = "5px";
+            const titleMain = document.createElement("span");
+            titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+            const titleSub = document.createElement("span");
+            titleSub.textContent = "EmeryBC";
+            titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
+            title.appendChild(titleMain);
+            title.appendChild(titleSub);
             const headerBtns = document.createElement("div");
             headerBtns.className = "ebc-header-btns";
             const refreshBtn = document.createElement("button");
@@ -5833,7 +5842,7 @@
             // Footer: version + credit line + live timer
             const footer = document.createElement("div");
             footer.className = "ebc-footer";
-            footer.textContent = `EmeryBC v${this.version} · UI inspired by CRABS by Sin`;
+            footer.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
             const timerEl = document.createElement("div");
             timerEl.className = "ebc-timer";
             footer.appendChild(timerEl);
@@ -12774,10 +12783,16 @@
     }
     EBCDrawer._instance = null;
 
-    const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "1.0.4";
+    const MOD_NAME = "EBC";
+    const MOD_VERSION = "1.0.5";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.0.5",
+            changes: [
+                "Rebranded display name to EBC with 'EmeryBC' shown as small subtext in the drawer header. All log prefixes, footer, and load message now say EBC. Internal mod ID and storage keys unchanged.",
+            ],
+        },
         {
             version: "1.0.4",
             changes: [
@@ -13849,12 +13864,12 @@
         log.scrollTop = log.scrollHeight;
     }
     function showVersionInfo() {
-        appendLocalLogLine(`[EmeryBC] Version ${MOD_VERSION}`, UI.gold);
+        appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
     }
     function showChangelog() {
-        appendLocalLogLine(`[EmeryBC] Version ${MOD_VERSION}`, UI.gold);
+        appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
         for (const entry of CHANGELOG) {
-            appendLocalLogLine(`[EmeryBC] v${entry.version}`, UI.textMuted);
+            appendLocalLogLine(`[EBC] v${entry.version}`, UI.textMuted);
             for (const change of entry.changes) {
                 appendLocalLogLine(`- ${change}`, UI.accent);
             }
@@ -13867,7 +13882,7 @@
         try {
             const arousal = Player.ArousalSettings;
             if (!arousal) {
-                appendLocalLogLine("[EmeryBC] Arousal settings unavailable.", UI.danger);
+                appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger);
                 return;
             }
             const current = arousal.Active;
@@ -13878,11 +13893,11 @@
             const updater = window.ServerAccountUpdate;
             updater === null || updater === void 0 ? void 0 : updater.QueueData({ ArousalSettings: arousal });
             const label = next === "Inactive" ? "OFF" : `ON (${next})`;
-            appendLocalLogLine(`[EmeryBC] Arousal meter: ${label}`, UI.gold);
+            appendLocalLogLine(`[EBC] Arousal meter: ${label}`, UI.gold);
         }
         catch (err) {
-            appendLocalLogLine("[EmeryBC] Failed to toggle arousal meter.", UI.danger);
-            console.warn("[EmeryBC] toggleArometerCommand error:", err);
+            appendLocalLogLine("[EBC] Failed to toggle arousal meter.", UI.danger);
+            console.warn("[EBC] toggleArometerCommand error:", err);
         }
     }
     function handleMetaCommand(inputValue) {
@@ -13914,7 +13929,7 @@
             toggleArometerCommand();
             return true;
         }
-        appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter", UI.gold);
+        appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter", UI.gold);
         return true;
     }
     function getSharedPresence(character) {
@@ -14009,7 +14024,7 @@
         if (noticeShown)
             return;
         noticeShown = true;
-        appendLocalLogLine(`- EmeryBC v${MOD_VERSION} loaded successfully.`);
+        appendLocalLogLine(`- EBC v${MOD_VERSION} loaded successfully.`);
     }
     function tryHookFunction(modAPI, funcName, priority, hook) {
         try {
@@ -14057,7 +14072,7 @@
             catch ( /* ignore */_a) { /* ignore */ } }, 400);
         }
         catch (err) {
-            console.warn("[EmeryBC] Drawer failed to initialise:", err);
+            console.warn("[EBC] Drawer failed to initialise:", err);
         }
         tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
             const result = next(args);

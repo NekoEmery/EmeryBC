@@ -1,4 +1,4 @@
-// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
+﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
 
 export type ActionStyle = "action" | "emote" | "seq";
@@ -73,16 +73,16 @@ export function getDisplayName(): string {
 
 // --- Sequence runner ----------------------------------------------------------
 // Sequence steps are pipe-separated (|). Each step is one of:
-//   PoseName   – set BC pose (e.g. "HandsUp", "Yoked")
-//   _          – clear all active poses back to neutral
-//   !text      – send as (Name text) action message
-//   *text      – send as * Name text * emote message
+//   PoseName   â€“ set BC pose (e.g. "HandsUp", "Yoked")
+//   _          â€“ clear all active poses back to neutral
+//   !text      â€“ send as (Name text) action message
+//   *text      â€“ send as * Name text * emote message
 // Steps run 500 ms apart. Original poses are restored when done.
 
 let seqRunning = false;
 
 // Sends the current ActivePose to the room without triggering a full re-render on each step.
-// appearanceBundle should be pre-built once before the sequence starts and reused — sending
+// appearanceBundle should be pre-built once before the sequence starts and reused â€” sending
 // a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
 // time, which looks like flickering/glitching.
 function sendPoseUpdate(appearanceBundle: ReturnType<typeof ServerAppearanceBundle>): void {
@@ -102,7 +102,7 @@ function sendPoseUpdate(appearanceBundle: ReturnType<typeof ServerAppearanceBund
 
 function syncPoseToRoom(): void {
     // Used for one-shot pose syncs (outside of sequences).
-    // Capture desired pose BEFORE CharacterRefresh — BC may re-apply item-forced poses
+    // Capture desired pose BEFORE CharacterRefresh â€” BC may re-apply item-forced poses
     // during refresh and override what we just set.
     const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
         ? Player.ActivePose
@@ -143,18 +143,18 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
     const steps = rawSteps.map(r => parseStep(r, defaultStepMs));
 
     seqRunning = true;
-    // null means "no pose / neutral" in BC — store as null so we restore correctly.
+    // null means "no pose / neutral" in BC â€” store as null so we restore correctly.
     const originalPoses: string[] | null = (Player.ActivePose && Player.ActivePose.length > 0)
         ? [...Player.ActivePose]
         : null;
-    // Build appearance bundle ONCE — reusing it avoids re-render flicker on other clients.
+    // Build appearance bundle ONCE â€” reusing it avoids re-render flicker on other clients.
     const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
     let idx = 0;
 
     const next = (): void => {
         try {
             if (idx >= steps.length) {
-                // Sequence done — restore original pose, do a full sync + local refresh.
+                // Sequence done â€” restore original pose, do a full sync + local refresh.
                 Player.ActivePose = originalPoses;
                 syncPoseToRoom();
                 seqRunning = false;
@@ -187,7 +187,7 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
 // --- Label-based animation triggers ------------------------------------------
 // If a button's label matches one of these (case-insensitive), the matching
 // animation plays automatically alongside the normal message. Completely hidden
-// from the user — the emote field is just normal text.
+// from the user â€” the emote field is just normal text.
 
 function isArmRestrained(): boolean {
     // Only ItemArms covers actual binding restraints (armbinders, straitjackets, etc.).
@@ -208,7 +208,7 @@ function localNotice(msg: string): void {
         "padding:2px 8px",
         "margin:1px 0",
     ].join(";");
-    div.textContent = "[EmeryBC] " + msg;
+    div.textContent = "[EBC] " + msg;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
 }
@@ -216,7 +216,7 @@ function localNotice(msg: string): void {
 // Returns true if the animation ran (or will run), false if it was blocked.
 function runCheerAnimation(): boolean {
     if (isArmRestrained()) {
-        localNotice("Your arms are restrained — can't cheer right now!");
+        localNotice("Your arms are restrained â€” can't cheer right now!");
         return false;
     }
     // Yoked (arms out) -> OverTheHead (arms fully above head) -> repeat -> neutral
@@ -229,7 +229,7 @@ const LABEL_ANIMATIONS: Map<string, () => boolean> = new Map([
     ["CHEERS", runCheerAnimation],
 ]);
 
-// Returns false if an animation was attempted but blocked — caller should suppress the chat message.
+// Returns false if an animation was attempted but blocked â€” caller should suppress the chat message.
 // Returns true if the animation ran fine, or if there is no animation for this label.
 function triggerLabelAnimation(label: string): boolean {
     const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
@@ -255,7 +255,7 @@ export function sendAction(emote: string, style: ActionStyle = "action"): void {
     // Action style: (Name text)
     // BC can't find the key in Interface.csv so it prepends "MISSING TEXT IN "Interface.csv": ".
     // We include the player's name directly in Content, then use the poison tag to strip the prefix,
-    // leaving only the zero-width char + text so it renders as  (​Name text).
+    // leaving only the zero-width char + text so it renders as  (â€‹Name text).
     ServerSend("ChatRoomChat", {
         Type: "Action",
         Content: getDisplayName() + " " + text,
@@ -318,7 +318,7 @@ export function handleActionButtonClick(): boolean {
         const y = BTN_START_Y + i * BTN_SIZE;
         if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
             MouseY >= y    && MouseY <= y + BTN_SIZE) {
-            // Check animation first — if it's blocked, suppress the chat message too.
+            // Check animation first â€” if it's blocked, suppress the chat message too.
             const animOk = triggerLabelAnimation(btn.label);
             if (animOk) sendAction(btn.emote, btn.style ?? "action");
             return true;

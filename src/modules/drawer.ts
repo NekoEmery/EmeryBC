@@ -2278,7 +2278,7 @@ export class EBCDrawer {
         // Tab button - child of root, OUTSIDE the sliding panel so it never moves.
         const tab = document.createElement("div");
         tab.id = "ebc-tab";
-        tab.title = "EmeryBC";
+        tab.title = "EBC";
         tab.innerHTML = TAB_ICON;
         // Panel starts closed — clip the tab so it doesn't block the BC canvas.
         tab.classList.add("ebc-tab-closed");
@@ -2299,7 +2299,19 @@ export class EBCDrawer {
 
         const title = document.createElement("span");
         title.className = "ebc-title";
-        title.textContent = "EmeryBC" + (this.version ? " v" + this.version : "");
+        title.style.display = "flex";
+        title.style.alignItems = "baseline";
+        title.style.gap = "5px";
+
+        const titleMain = document.createElement("span");
+        titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+
+        const titleSub = document.createElement("span");
+        titleSub.textContent = "EmeryBC";
+        titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
+
+        title.appendChild(titleMain);
+        title.appendChild(titleSub);
 
         const headerBtns = document.createElement("div");
         headerBtns.className = "ebc-header-btns";
@@ -2947,7 +2959,7 @@ export class EBCDrawer {
         // Footer: version + credit line + live timer
         const footer = document.createElement("div");
         footer.className = "ebc-footer";
-        footer.textContent = `EmeryBC v${this.version} · UI inspired by CRABS by Sin`;
+        footer.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
 
         const timerEl = document.createElement("div");
         timerEl.className = "ebc-timer";

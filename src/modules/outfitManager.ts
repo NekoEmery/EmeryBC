@@ -404,7 +404,7 @@ function localNotice(msg: string, color = UI.accent): void {
         "padding:2px 8px",
         "margin:1px 0",
     ].join(";");
-    div.textContent = `[EmeryBC] ${msg}`;
+    div.textContent = `[EBC] ${msg}`;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
 }

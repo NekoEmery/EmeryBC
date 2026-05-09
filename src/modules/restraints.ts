@@ -1,4 +1,4 @@
-// Shared restraint/lock removal logic used by both /ebc commands and the drawer.
+﻿// Shared restraint/lock removal logic used by both /ebc commands and the drawer.
 
 import { UI } from "./ui";
 
@@ -22,7 +22,7 @@ function localNotice(msg: string, color = UI.accent): void {
         "padding:2px 8px",
         "margin:1px 0",
     ].join(";");
-    div.textContent = "[EmeryBC] " + msg;
+    div.textContent = "[EBC] " + msg;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
 }

@@ -13,11 +13,17 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from "./modules/friends";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
-const MOD_NAME = "EmeryBC";
-const MOD_VERSION = "1.0.4";
+const MOD_NAME = "EBC";
+const MOD_VERSION = "1.0.5";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.0.5",
+        changes: [
+            "Rebranded display name to EBC with 'EmeryBC' shown as small subtext in the drawer header. All log prefixes, footer, and load message now say EBC. Internal mod ID and storage keys unchanged.",
+        ],
+    },
     {
         version: "1.0.4",
         changes: [
@@ -1091,13 +1097,13 @@ function appendLocalLogLine(text: string, color = UI.accent): void {
 }
 
 function showVersionInfo(): void {
-    appendLocalLogLine(`[EmeryBC] Version ${MOD_VERSION}`, UI.gold);
+    appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
 }
 
 function showChangelog(): void {
-    appendLocalLogLine(`[EmeryBC] Version ${MOD_VERSION}`, UI.gold);
+    appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
     for (const entry of CHANGELOG) {
-        appendLocalLogLine(`[EmeryBC] v${entry.version}`, UI.textMuted);
+        appendLocalLogLine(`[EBC] v${entry.version}`, UI.textMuted);
         for (const change of entry.changes) {
             appendLocalLogLine(`- ${change}`, UI.accent);
         }
@@ -1113,7 +1119,7 @@ function toggleArometerCommand(): void {
         const arousal = (Player as unknown as Record<string, unknown>).ArousalSettings as
             Record<string, unknown> | undefined;
         if (!arousal) {
-            appendLocalLogLine("[EmeryBC] Arousal settings unavailable.", UI.danger);
+            appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger);
             return;
         }
         const current = arousal.Active as string | undefined;
@@ -1129,10 +1135,10 @@ function toggleArometerCommand(): void {
         updater?.QueueData({ ArousalSettings: arousal });
 
         const label = next === "Inactive" ? "OFF" : `ON (${next})`;
-        appendLocalLogLine(`[EmeryBC] Arousal meter: ${label}`, UI.gold);
+        appendLocalLogLine(`[EBC] Arousal meter: ${label}`, UI.gold);
     } catch (err) {
-        appendLocalLogLine("[EmeryBC] Failed to toggle arousal meter.", UI.danger);
-        console.warn("[EmeryBC] toggleArometerCommand error:", err);
+        appendLocalLogLine("[EBC] Failed to toggle arousal meter.", UI.danger);
+        console.warn("[EBC] toggleArometerCommand error:", err);
     }
 }
 
@@ -1169,7 +1175,7 @@ function handleMetaCommand(inputValue: string): boolean {
         return true;
     }
 
-    appendLocalLogLine("[EmeryBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter", UI.gold);
+    appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter", UI.gold);
     return true;
 }
 
@@ -1276,7 +1282,7 @@ function drawPresenceMarker(args: unknown[]): void {
 function showRoomLoadNotice(): void {
     if (noticeShown) return;
     noticeShown = true;
-    appendLocalLogLine(`- EmeryBC v${MOD_VERSION} loaded successfully.`);
+    appendLocalLogLine(`- EBC v${MOD_VERSION} loaded successfully.`);
 }
 
 function tryHookFunction(
@@ -1325,7 +1331,7 @@ function init(): void {
         // player is already in a chat room (ChatRoomSync won't fire again).
         window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);
     } catch (err) {
-        console.warn("[EmeryBC] Drawer failed to initialise:", err);
+        console.warn("[EBC] Drawer failed to initialise:", err);
     }
 
     tryHookFunction(modAPI, "DrawCharacter", 3, (args, next) => {
