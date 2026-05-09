@@ -760,6 +760,14 @@ export function editRestraint(
     return true;
 }
 
+export function setRestraintTagIds(id: string, tagIds: string[]): void {
+    const restraints = getRestraints();
+    const restraint = restraints.find(r => r.id === id);
+    if (!restraint) return;
+    restraint.tagIds = tagIds;
+    saveRestraints(restraints);
+}
+
 export function moveRestraint(id: string, direction: "up" | "down"): void {
     const restraints = getRestraints();
     const idx = restraints.findIndex(r => r.id === id);

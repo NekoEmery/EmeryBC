@@ -968,6 +968,14 @@
         localNotice$1(`Updated restraint set "${restraint.displayName}" (/${restraint.command}).`);
         return true;
     }
+    function setRestraintTagIds(id, tagIds) {
+        const restraints = getRestraints();
+        const restraint = restraints.find(r => r.id === id);
+        if (!restraint)
+            return;
+        restraint.tagIds = tagIds;
+        saveRestraints(restraints);
+    }
     function moveRestraint(id, direction) {
         const restraints = getRestraints();
         const idx = restraints.findIndex(r => r.id === id);
@@ -6774,8 +6782,8 @@
                 empty.appendChild(hint);
                 outfitsBody.appendChild(empty);
             }
+            this.buildNewOutfitSection(outfitsBody);
             body.appendChild(outfitsBody);
-            this.buildNewOutfitSection(body);
             this.buildRestraintSection(body);
             this.buildScheduleSection(body);
         }
@@ -8130,17 +8138,17 @@
             });
             return wrapper;
         }
-        buildNewOutfitSection(body) {
+        buildNewOutfitSection(target) {
             const div = document.createElement("div");
             div.className = "ebc-divider";
-            body.appendChild(div);
+            target.appendChild(div);
             const newBtn = document.createElement("button");
             newBtn.className = "ebc-new-outfit-btn";
             newBtn.textContent = "+ New Outfit from Current Look";
-            body.appendChild(newBtn);
+            target.appendChild(newBtn);
             const form = document.createElement("div");
             form.className = "ebc-new-form";
-            body.appendChild(form);
+            target.appendChild(form);
             const makeRow = (labelText, input) => {
                 const row = document.createElement("div");
                 row.className = "ebc-form-row";
@@ -8225,14 +8233,14 @@
             // -- Import outfit section --
             const impDiv = document.createElement("div");
             impDiv.className = "ebc-divider";
-            body.appendChild(impDiv);
+            target.appendChild(impDiv);
             const impToggleBtn = document.createElement("button");
             impToggleBtn.className = "ebc-new-outfit-btn";
             impToggleBtn.textContent = "↓ Import Outfit";
-            body.appendChild(impToggleBtn);
+            target.appendChild(impToggleBtn);
             const impPanel = document.createElement("div");
             impPanel.className = "ebc-import-panel";
-            body.appendChild(impPanel);
+            target.appendChild(impPanel);
             const impHint = document.createElement("div");
             impHint.className = "ebc-import-hint";
             impHint.textContent = "Paste EBC outfit JSON or a BC outfit code:";
@@ -8400,6 +8408,94 @@
                     empty.appendChild(hint);
                     sectionBody.appendChild(empty);
                 }
+                // Import restraint set section
+                const impRDivider = document.createElement("div");
+                impRDivider.className = "ebc-divider";
+                sectionBody.appendChild(impRDivider);
+                const impRToggleBtn = document.createElement("button");
+                impRToggleBtn.className = "ebc-new-outfit-btn";
+                impRToggleBtn.textContent = "↓ Import Restraint Set";
+                sectionBody.appendChild(impRToggleBtn);
+                const impRPanel = document.createElement("div");
+                impRPanel.className = "ebc-import-panel";
+                sectionBody.appendChild(impRPanel);
+                const impRHint = document.createElement("div");
+                impRHint.className = "ebc-import-hint";
+                impRHint.textContent = "Paste a BC outfit code (restraints will be extracted):";
+                impRPanel.appendChild(impRHint);
+                const impRTextarea = document.createElement("textarea");
+                impRTextarea.className = "ebc-notes-textarea";
+                impRTextarea.placeholder = "BC code: NobwRAcgh...";
+                impRTextarea.rows = 3;
+                impRPanel.appendChild(impRTextarea);
+                const impRFields = document.createElement("div");
+                impRFields.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:4px;";
+                const impRNameInput = Object.assign(document.createElement("input"), {
+                    className: "ebc-form-input", type: "text", placeholder: "Restraint set name (e.g. Hogtied)",
+                });
+                const impRCmdInput = Object.assign(document.createElement("input"), {
+                    className: "ebc-form-input", type: "text", placeholder: "Command (e.g. hogtied)",
+                    maxLength: 20,
+                });
+                const mkImpRRow = (label, el) => {
+                    const row2 = document.createElement("div");
+                    row2.style.cssText = "display:flex;align-items:center;gap:6px;";
+                    const lbl3 = Object.assign(document.createElement("span"), {
+                        className: "ebc-form-label", textContent: label,
+                    });
+                    lbl3.style.minWidth = "58px";
+                    row2.appendChild(lbl3);
+                    row2.appendChild(el);
+                    return row2;
+                };
+                impRFields.appendChild(mkImpRRow("Name", impRNameInput));
+                impRFields.appendChild(mkImpRRow("Command", impRCmdInput));
+                impRPanel.appendChild(impRFields);
+                const impRError = document.createElement("div");
+                impRError.className = "ebc-import-error";
+                impRPanel.appendChild(impRError);
+                const impRActionRow = document.createElement("div");
+                impRActionRow.style.cssText = "display:flex;gap:5px;";
+                const impRLoadBtn = document.createElement("button");
+                impRLoadBtn.className = "ebc-create-btn";
+                impRLoadBtn.style.marginTop = "0";
+                impRLoadBtn.textContent = "Import";
+                const impRCancelBtn = document.createElement("button");
+                impRCancelBtn.className = "ebc-btn-footer-btn";
+                impRCancelBtn.textContent = "Cancel";
+                impRActionRow.appendChild(impRLoadBtn);
+                impRActionRow.appendChild(impRCancelBtn);
+                impRPanel.appendChild(impRActionRow);
+                const closeImpRPanel = () => {
+                    impRPanel.classList.remove("open");
+                    impRToggleBtn.textContent = "↓ Import Restraint Set";
+                    impRTextarea.value = "";
+                    impRError.textContent = "";
+                    impRNameInput.value = "";
+                    impRCmdInput.value = "";
+                };
+                impRToggleBtn.addEventListener("click", () => {
+                    const open = impRPanel.classList.contains("open");
+                    impRPanel.classList.toggle("open", !open);
+                    impRToggleBtn.textContent = open ? "↓ Import Restraint Set" : "- Cancel Import";
+                    if (!open) {
+                        impRTextarea.value = "";
+                        impRError.textContent = "";
+                        impRTextarea.focus();
+                    }
+                });
+                impRCancelBtn.addEventListener("click", closeImpRPanel);
+                impRLoadBtn.addEventListener("click", () => {
+                    impRError.textContent = "";
+                    try {
+                        importOutfitFromBCCode(impRTextarea.value.trim(), impRNameInput.value.trim() || "Imported Restraints", impRCmdInput.value.trim() || "imported", "restraints");
+                        closeImpRPanel();
+                        renderRestraintList();
+                    }
+                    catch (err) {
+                        impRError.textContent = err instanceof Error ? err.message : "Invalid format.";
+                    }
+                });
                 // New restraint form
                 const formDivider = document.createElement("div");
                 formDivider.className = "ebc-divider";
@@ -8492,6 +8588,27 @@
                 emptyHint.textContent = "⚠ no items — click Update while wearing restraints";
                 info.appendChild(emptyHint);
             }
+            // Tag chips display
+            const tagsRow = document.createElement("div");
+            tagsRow.className = "ebc-outfit-tags";
+            const renderTagChips = () => {
+                var _a;
+                while (tagsRow.firstChild)
+                    tagsRow.removeChild(tagsRow.firstChild);
+                const allTags = getOutfitTags();
+                const restraintTagIds = new Set((_a = r.tagIds) !== null && _a !== void 0 ? _a : []);
+                for (const tag of allTags) {
+                    if (!restraintTagIds.has(tag.id))
+                        continue;
+                    const chip = document.createElement("span");
+                    chip.className = "ebc-tag-chip";
+                    chip.style.background = tag.color;
+                    chip.textContent = tag.name;
+                    tagsRow.appendChild(chip);
+                }
+            };
+            renderTagChips();
+            info.appendChild(tagsRow);
             const restraintsList = getRestraints();
             const thisIdx = restraintsList.findIndex(x => x.id === r.id);
             const reorderCol = document.createElement("div");
@@ -8557,6 +8674,50 @@
             editPanel.appendChild(makeEditRow("Command", eCmdInput));
             editPanel.appendChild(makeEditRow("Name", eNameInput));
             editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
+            // Tag assignment
+            const eTagsLbl = document.createElement("div");
+            eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin:6px 0 3px;";
+            eTagsLbl.textContent = "Tags";
+            const eTagsGrid = document.createElement("div");
+            eTagsGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
+            const renderEditTags = () => {
+                var _a;
+                while (eTagsGrid.firstChild)
+                    eTagsGrid.removeChild(eTagsGrid.firstChild);
+                const allTags = getOutfitTags();
+                if (allTags.length === 0) {
+                    const hint = document.createElement("span");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#553142;";
+                    hint.textContent = "No tags yet — create some in the Tags section above.";
+                    eTagsGrid.appendChild(hint);
+                    return;
+                }
+                const currentTagIds = new Set((_a = r.tagIds) !== null && _a !== void 0 ? _a : []);
+                for (const tag of allTags) {
+                    const btn = document.createElement("button");
+                    btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
+                    btn.textContent = tag.name;
+                    const active = currentTagIds.has(tag.id);
+                    btn.style.opacity = active ? "1" : "0.35";
+                    btn.style.border = active ? `2px solid #fff` : "2px solid transparent";
+                    btn.addEventListener("click", () => {
+                        var _a;
+                        const ids = new Set((_a = r.tagIds) !== null && _a !== void 0 ? _a : []);
+                        if (ids.has(tag.id))
+                            ids.delete(tag.id);
+                        else
+                            ids.add(tag.id);
+                        r.tagIds = [...ids];
+                        setRestraintTagIds(r.id, r.tagIds);
+                        renderTagChips();
+                        renderEditTags();
+                    });
+                    eTagsGrid.appendChild(btn);
+                }
+            };
+            renderEditTags();
+            editPanel.appendChild(eTagsLbl);
+            editPanel.appendChild(eTagsGrid);
             const eSaveBtn = document.createElement("button");
             eSaveBtn.className = "ebc-create-btn";
             eSaveBtn.textContent = "Save Changes";
@@ -11339,26 +11500,56 @@
                 body.removeChild(body.firstChild);
             const notes = getNotes();
             const roomChars = (_b = window.ChatRoomCharacter) !== null && _b !== void 0 ? _b : [];
+            // ── Collapsible "User Notes" header ──────────────────────────────────
+            let userNotesCollapsed = true;
+            try {
+                userNotesCollapsed = localStorage.getItem("EBC_userNotesCollapsed") !== "0";
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+            const userNotesHeaderRow = document.createElement("div");
+            userNotesHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
+            const userNotesLbl = document.createElement("div");
+            userNotesLbl.className = "ebc-section-label";
+            userNotesLbl.style.margin = "0";
+            userNotesLbl.textContent = "User Notes";
+            const userNotesChevron = document.createElement("span");
+            userNotesChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            userNotesChevron.textContent = userNotesCollapsed ? "▲" : "▼";
+            userNotesHeaderRow.appendChild(userNotesLbl);
+            userNotesHeaderRow.appendChild(userNotesChevron);
+            body.appendChild(userNotesHeaderRow);
+            const userNotesBody = document.createElement("div");
+            userNotesBody.style.display = userNotesCollapsed ? "none" : "block";
+            const toggleUserNotesCollapsed = () => {
+                userNotesCollapsed = !userNotesCollapsed;
+                userNotesBody.style.display = userNotesCollapsed ? "none" : "block";
+                userNotesChevron.textContent = userNotesCollapsed ? "▲" : "▼";
+                try {
+                    localStorage.setItem("EBC_userNotesCollapsed", userNotesCollapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            userNotesHeaderRow.addEventListener("click", toggleUserNotesCollapsed);
             // ── You ──────────────────────────────────────────────────────────────
             const selfLbl = document.createElement("div");
             selfLbl.className = "ebc-section-label";
             selfLbl.textContent = "You";
-            body.appendChild(selfLbl);
-            body.appendChild(this.buildNoteRow(Player.MemberNumber, this.charDisplayName(Player), "", true));
+            userNotesBody.appendChild(selfLbl);
+            userNotesBody.appendChild(this.buildNoteRow(Player.MemberNumber, this.charDisplayName(Player), "", true));
             // ── In This Room ─────────────────────────────────────────────────────
             const roomOthers = roomChars.filter(c => c.MemberNumber !== Player.MemberNumber);
             if (roomOthers.length > 0) {
                 const div = document.createElement("div");
                 div.className = "ebc-divider";
-                body.appendChild(div);
+                userNotesBody.appendChild(div);
                 const lbl = document.createElement("div");
                 lbl.className = "ebc-section-label";
                 lbl.textContent = "In This Room";
-                body.appendChild(lbl);
+                userNotesBody.appendChild(lbl);
                 for (const char of roomOthers) {
                     const displayName = this.charDisplayName(char);
                     const existing = notes[String(char.MemberNumber)];
-                    body.appendChild(this.buildNoteRow(char.MemberNumber, displayName, (_c = existing === null || existing === void 0 ? void 0 : existing.note) !== null && _c !== void 0 ? _c : ""));
+                    userNotesBody.appendChild(this.buildNoteRow(char.MemberNumber, displayName, (_c = existing === null || existing === void 0 ? void 0 : existing.note) !== null && _c !== void 0 ? _c : ""));
                 }
             }
             // ── Saved (offline) ──────────────────────────────────────────────────
@@ -11367,21 +11558,22 @@
             if (offlineEntries.length > 0) {
                 const div = document.createElement("div");
                 div.className = "ebc-divider";
-                body.appendChild(div);
+                userNotesBody.appendChild(div);
                 const lbl = document.createElement("div");
                 lbl.className = "ebc-section-label";
                 lbl.textContent = "Saved";
-                body.appendChild(lbl);
+                userNotesBody.appendChild(lbl);
                 for (const [key, data] of offlineEntries) {
-                    body.appendChild(this.buildNoteRow(parseInt(key), data.name, data.note));
+                    userNotesBody.appendChild(this.buildNoteRow(parseInt(key), data.name, data.note));
                 }
             }
             if (roomOthers.length === 0 && offlineEntries.length === 0) {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
                 empty.innerHTML = "No other players in this room yet.";
-                body.appendChild(empty);
+                userNotesBody.appendChild(empty);
             }
+            body.appendChild(userNotesBody);
             // ── Friends ──────────────────────────────────────────────────────────
             const friendsSection = document.createElement("div");
             this.friendsSectionEl = friendsSection;
@@ -13644,7 +13836,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.2";
+    const MOD_VERSION = "1.2.3";
     let noticeShown = false;
     const CHANGELOG = [
         {
