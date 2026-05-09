@@ -3242,6 +3242,12 @@
     50%       { box-shadow: 0 0 10px #e890b8, 0 0 18px #cf6f9855; transform: scale(1.25); }
 }
 
+@keyframes ebc-gradient-flow {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
 /* Toast notification */
 .ebc-toast {
     position: fixed;
@@ -5249,13 +5255,15 @@
         230466: { label: "Lucy", color: "#70e0d8", gradient: ["#70e0d8", "#2098a8"] }, // Lucy   — light teal → dark teal
         80: { label: "Sybil", color: "#98e8a8", gradient: ["#98e8a8", "#30a870"] }, // Sybil  — mint → forest green
     };
-    /** Apply a left-to-right gradient as text fill colour to an element. */
+    /** Apply an animated flowing gradient as text fill colour to an element. */
     function applyGradientText(el, from, to) {
-        el.style.background = `linear-gradient(90deg, ${from}, ${to})`;
+        el.style.background = `linear-gradient(90deg, ${from}, ${to}, ${from})`;
+        el.style.backgroundSize = "200% auto";
         el.style.webkitBackgroundClip = "text";
         el.style.backgroundClip = "text";
         el.style.webkitTextFillColor = "transparent";
         el.style.color = "transparent";
+        el.style.animation = "ebc-gradient-flow 4s ease infinite";
     }
     // -- Pointer helper (mouse + touch) --------------------------------------------
     // Normalises MouseEvent / TouchEvent to a plain {clientX, clientY} so drag
@@ -10443,6 +10451,17 @@
             if (hasUnread && !dot) {
                 dot = document.createElement("div");
                 dot.id = "ebc-tab-unread-dot";
+                dot.title = "Click to dismiss";
+                dot.style.cursor = "pointer";
+                dot.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    this.beepUnread.clear();
+                    this.refreshTabDot();
+                    try {
+                        this.refreshFriendList();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                });
                 tab.style.position = "relative";
                 tab.appendChild(dot);
             }
@@ -10915,6 +10934,23 @@
                 lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
                 lblF.appendChild(lblFText);
                 lblF.appendChild(lblFCount);
+                if (this.beepUnread.size > 0) {
+                    const markReadBtn = document.createElement("button");
+                    markReadBtn.textContent = "✓ Mark all read";
+                    markReadBtn.title = "Dismiss all unread beep notifications";
+                    markReadBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                    markReadBtn.addEventListener("mouseenter", () => { markReadBtn.style.color = "#cf6f98"; markReadBtn.style.borderColor = "#cf6f98"; });
+                    markReadBtn.addEventListener("mouseleave", () => { markReadBtn.style.color = "#7a5a6a"; markReadBtn.style.borderColor = "#3a1928"; });
+                    markReadBtn.addEventListener("click", () => {
+                        this.beepUnread.clear();
+                        this.refreshTabDot();
+                        try {
+                            this.renderFriendRows(body);
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                    });
+                    lblF.appendChild(markReadBtn);
+                }
                 body.appendChild(lblF);
                 // Preset tag colours
                 const TAG_COLORS = ["#cf6f98", "#e06060", "#e09040", "#c8b840", "#5aaa70", "#40a0b8", "#7060d0", "#a060c0"];
@@ -13110,7 +13146,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.1.2";
+    const MOD_VERSION = "1.1.3";
     let noticeShown = false;
     const CHANGELOG = [
         {
@@ -14664,7 +14700,7 @@
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
         // Only handle plain beeps (BeepType === "" or undefined) — skip game/friend-request beeps.
         tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
-            var _a;
+            var _a, _b;
             try {
                 const [beep] = args;
                 // Non-chat beeps (friend requests, etc.) always pass through unchanged.
@@ -14677,22 +14713,28 @@
                 const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
                 if (name)
                     cacheName(fromNum, name);
-                addBeepEntry({ from: fromNum, to: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, message: msg, ts: Date.now() });
+                // Only intercept beeps from BC friends into the EBC IM system.
+                // Beeps from non-friends (addon bots, update notifications, etc.) fall
+                // through to BC's native chat-log notification so they're still visible.
+                const friendList = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
+                if (!friendList.includes(fromNum))
+                    return next(args);
+                addBeepEntry({ from: fromNum, to: (_b = Player.MemberNumber) !== null && _b !== void 0 ? _b : 0, message: msg, ts: Date.now() });
                 if (!getBeepMuted()) {
                     try {
                         playBeepSound();
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
+                    catch ( /* ignore */_c) { /* ignore */ }
                 }
                 try {
                     drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
+                catch ( /* ignore */_d) { /* ignore */ }
                 // Suppress BC's native chat-log notification when our IM handles it.
                 if (getSuppressNativeBeep())
                     return;
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             return next(args);
         });
         // Cache friend names whenever BC notifies us a friend came online.

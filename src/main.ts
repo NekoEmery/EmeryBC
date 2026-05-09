@@ -14,7 +14,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.1.2";
+const MOD_VERSION = "1.1.3";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -1576,6 +1576,11 @@ function init(): void {
             if (!fromNum || !msg) return next(args);
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
             if (name) cacheName(fromNum, name);
+            // Only intercept beeps from BC friends into the EBC IM system.
+            // Beeps from non-friends (addon bots, update notifications, etc.) fall
+            // through to BC's native chat-log notification so they're still visible.
+            const friendList = (Player.FriendList as number[] | undefined) ?? [];
+            if (!friendList.includes(fromNum)) return next(args);
             addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
             if (!getBeepMuted()) { try { playBeepSound(); } catch { /* ignore */ } }
             try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }

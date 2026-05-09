@@ -200,6 +200,12 @@ const CSS = `
     50%       { box-shadow: 0 0 10px #e890b8, 0 0 18px #cf6f9855; transform: scale(1.25); }
 }
 
+@keyframes ebc-gradient-flow {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
 /* Toast notification */
 .ebc-toast {
     position: fixed;
@@ -2210,13 +2216,15 @@ const VIP_MEMBERS: Record<number, { label: string; color: string; gradient: [str
         80: { label: "Sybil",   color: "#98e8a8", gradient: ["#98e8a8", "#30a870"] },  // Sybil  — mint → forest green
 };
 
-/** Apply a left-to-right gradient as text fill colour to an element. */
+/** Apply an animated flowing gradient as text fill colour to an element. */
 function applyGradientText(el: HTMLElement, from: string, to: string): void {
-    el.style.background = `linear-gradient(90deg, ${from}, ${to})`;
+    el.style.background = `linear-gradient(90deg, ${from}, ${to}, ${from})`;
+    el.style.backgroundSize = "200% auto";
     el.style.webkitBackgroundClip = "text";
     el.style.backgroundClip = "text";
     el.style.webkitTextFillColor = "transparent";
     el.style.color = "transparent";
+    el.style.animation = "ebc-gradient-flow 4s ease infinite";
 }
 
 // -- Pointer helper (mouse + touch) --------------------------------------------
@@ -7707,6 +7715,14 @@ export class EBCDrawer {
         if (hasUnread && !dot) {
             dot = document.createElement("div");
             dot.id = "ebc-tab-unread-dot";
+            dot.title = "Click to dismiss";
+            dot.style.cursor = "pointer";
+            dot.addEventListener("click", (e) => {
+                e.stopPropagation();
+                this.beepUnread.clear();
+                this.refreshTabDot();
+                try { this.refreshFriendList(); } catch { /* ignore */ }
+            });
             tab.style.position = "relative";
             tab.appendChild(dot);
         } else if (!hasUnread && dot) {
@@ -8217,6 +8233,22 @@ export class EBCDrawer {
 
             lblF.appendChild(lblFText);
             lblF.appendChild(lblFCount);
+
+            if (this.beepUnread.size > 0) {
+                const markReadBtn = document.createElement("button");
+                markReadBtn.textContent = "✓ Mark all read";
+                markReadBtn.title = "Dismiss all unread beep notifications";
+                markReadBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                markReadBtn.addEventListener("mouseenter", () => { markReadBtn.style.color = "#cf6f98"; markReadBtn.style.borderColor = "#cf6f98"; });
+                markReadBtn.addEventListener("mouseleave", () => { markReadBtn.style.color = "#7a5a6a"; markReadBtn.style.borderColor = "#3a1928"; });
+                markReadBtn.addEventListener("click", () => {
+                    this.beepUnread.clear();
+                    this.refreshTabDot();
+                    try { this.renderFriendRows(body); } catch { /* ignore */ }
+                });
+                lblF.appendChild(markReadBtn);
+            }
+
             body.appendChild(lblF);
 
             // Preset tag colours
