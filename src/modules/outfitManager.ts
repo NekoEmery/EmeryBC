@@ -34,7 +34,8 @@ export const RESTRAINT_GROUPS = new Set([
     "ItemMouth", "ItemMouthAccessory", "ItemHead", "ItemHood",
     "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
     "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
-    "ItemTorso", "ItemTorso2", "ItemEars", "ItemNose", "ItemMisc",
+    "ItemTorso", "ItemTorso2", "ItemBody",
+    "ItemEars", "ItemNose", "ItemMisc",
 ]);
 
 const MAX_SERIALIZE_DEPTH = 12;

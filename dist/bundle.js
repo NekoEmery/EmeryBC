@@ -328,7 +328,8 @@
         "ItemMouth", "ItemMouthAccessory", "ItemHead", "ItemHood",
         "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
         "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
-        "ItemTorso", "ItemTorso2", "ItemEars", "ItemNose", "ItemMisc",
+        "ItemTorso", "ItemTorso2", "ItemBody",
+        "ItemEars", "ItemNose", "ItemMisc",
     ]);
     const MAX_SERIALIZE_DEPTH = 12;
     let outfitApplyPending = false;
@@ -13836,7 +13837,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.3";
+    const MOD_VERSION = "1.2.4";
     let noticeShown = false;
     const CHANGELOG = [
         {
