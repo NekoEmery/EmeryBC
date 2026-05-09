@@ -14243,11 +14243,9 @@
             `🎨  Outfits — save complete looks, wear them with a / command, schedule by time, tag by colour, reorder freely.`,
             `🎭  Scenes — build timed sequences of poses, equips and emotes that play back automatically.`,
             `🛡  Safeword — yellow / red words trigger instant release, grace period and optional room exit.`,
-            `⛓  Dom Tools — apply saved restraint sets to multiple targets at once with a room announce.`,
             `💬  Beep IM — private in-game DMs with history, timestamps and read receipts.`,
             `🐾  Poses — one-click pose combos. Save your favourite combinations.`,
             `🔔  Update alerts, colour palettes, anti-restraint, arousal meter toggle & more.`,
-            `— Ask ${name} for the script link, or look up EBC / EmeryBC at bondage.club ♡`,
         ];
         const dict = [
             { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
