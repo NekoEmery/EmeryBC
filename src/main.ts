@@ -1164,7 +1164,7 @@ function toggleArometerCommand(): void {
 // -- Feature showcase command --------------------------------------------------
 // Only credited members (by MemberNumber) may broadcast this to the room.
 
-const CREDITED_MEMBERS = new Set([130267, 143776, 124264, 230466]);
+const CREDITED_MEMBERS = new Set([130267, 143776, 124264, 230466, 80]);
 
 function sendFeatureShowcase(): void {
     if (!CREDITED_MEMBERS.has(Player.MemberNumber ?? -1)) {

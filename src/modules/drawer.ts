@@ -2207,6 +2207,7 @@ const VIP_MEMBERS: Record<number, { label: string; color: string }> = {
     143776: { label: "Sin",      color: "#cf6f98" },
     124264: { label: "Lara",     color: "#f7b8d4" },
     230466: { label: "Lucy",     color: "#b8a0f7" },
+        80: { label: "Sybil",    color: "#f7d4a0" },
 };
 
 // -- Pointer helper (mouse + touch) --------------------------------------------

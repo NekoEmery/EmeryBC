@@ -5247,6 +5247,7 @@
         143776: { label: "Sin", color: "#cf6f98" },
         124264: { label: "Lara", color: "#f7b8d4" },
         230466: { label: "Lucy", color: "#b8a0f7" },
+        80: { label: "Sybil", color: "#f7d4a0" },
     };
     // -- Pointer helper (mouse + touch) --------------------------------------------
     // Normalises MouseEvent / TouchEvent to a plain {clientX, clientY} so drag
@@ -14221,7 +14222,7 @@
     }
     // -- Feature showcase command --------------------------------------------------
     // Only credited members (by MemberNumber) may broadcast this to the room.
-    const CREDITED_MEMBERS = new Set([130267, 143776, 124264, 230466]);
+    const CREDITED_MEMBERS = new Set([130267, 143776, 124264, 230466, 80]);
     function sendFeatureShowcase() {
         var _a, _b;
         if (!CREDITED_MEMBERS.has((_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : -1)) {
