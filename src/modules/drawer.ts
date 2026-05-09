@@ -31,6 +31,13 @@ import {
     checkAndApplySchedules,
     getDefaultNickname,
     setDefaultNickname,
+    getOutfitTags,
+    createOutfitTag,
+    deleteOutfitTag,
+    updateOutfitTag,
+    setOutfitTagIds,
+    moveOutfit,
+    type OutfitTag,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -1713,6 +1720,49 @@ const CSS = `
     line-height: 1;
     z-index: 1;
 }
+/* -- Outfit tags -- */
+.ebc-outfit-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 3px;
+}
+.ebc-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-family: 'Trebuchet MS', serif;
+    font-size: 8px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    flex-shrink: 0;
+    white-space: nowrap;
+    cursor: default;
+    user-select: none;
+}
+/* reorder ▲▼ column */
+.ebc-reorder-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+    justify-content: center;
+}
+.ebc-reorder-btn {
+    background: transparent;
+    border: 1px solid #3a1928;
+    border-radius: 3px;
+    color: #7a5060;
+    cursor: pointer;
+    font-size: 9px;
+    line-height: 1;
+    padding: 1px 5px;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.ebc-reorder-btn:hover { background: #2a1421; color: #cf6f98; border-color: #cf6f98; }
+.ebc-reorder-btn:disabled { opacity: 0.2; cursor: default; pointer-events: none; }
 /* -- Zone rows inside restraint expand panels -- */
 .ebc-zone-row {
     display: flex;
@@ -3432,6 +3482,124 @@ export class EBCDrawer {
         nickRow.appendChild(nickSaveBtn);
         body.appendChild(nickRow);
 
+        // ── Tag management ───────────────────────────────────────────────────────────
+        const tagMgmtDiv = document.createElement("div");
+        tagMgmtDiv.style.marginBottom = "8px";
+
+        let tagMgmtOpen = false;
+        const tagToggleBtn = document.createElement("button");
+        tagToggleBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #3a1928;border-radius:5px;color:#7a5060;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-bottom:3px;text-align:left;padding-left:8px;";
+        const allTagsNow = getOutfitTags();
+        tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` Tags (${allTagsNow.length} saved)`;
+
+        const tagMgmtBody = document.createElement("div");
+        tagMgmtBody.style.display = "none";
+
+        const renderTagMgmt = (): void => {
+            while (tagMgmtBody.firstChild) tagMgmtBody.removeChild(tagMgmtBody.firstChild);
+            const tags = getOutfitTags();
+            tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` Tags (${tags.length} saved)`;
+
+            // Existing tags list
+            for (const tag of tags) {
+                const trow = document.createElement("div");
+                trow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
+
+                const swatch = document.createElement("span");
+                swatch.style.cssText = `display:inline-block;width:12px;height:12px;border-radius:3px;background:${tag.color};flex-shrink:0;border:1px solid rgba(255,255,255,0.15);`;
+
+                const nameSpan = document.createElement("span");
+                nameSpan.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                nameSpan.textContent = tag.name;
+
+                // Inline color edit
+                const colorInp = document.createElement("input");
+                colorInp.type = "color";
+                colorInp.value = tag.color;
+                colorInp.style.cssText = "width:22px;height:22px;padding:0;border:none;background:transparent;cursor:pointer;flex-shrink:0;";
+                colorInp.title = "Change color";
+                colorInp.addEventListener("input", () => {
+                    updateOutfitTag(tag.id, tag.name, colorInp.value);
+                    tag.color = colorInp.value;
+                    swatch.style.background = colorInp.value;
+                });
+
+                const delTagBtn = document.createElement("button");
+                delTagBtn.style.cssText = "background:transparent;border:1px solid #3a1928;border-radius:3px;color:#7a5060;cursor:pointer;font-size:9px;padding:1px 5px;flex-shrink:0;";
+                delTagBtn.textContent = "×";
+                delTagBtn.title = "Delete tag";
+                let delConfirm = false;
+                delTagBtn.addEventListener("click", () => {
+                    if (!delConfirm) {
+                        delConfirm = true;
+                        delTagBtn.textContent = "Sure?";
+                        delTagBtn.style.color = "#cf6f98";
+                        window.setTimeout(() => { delConfirm = false; delTagBtn.textContent = "×"; delTagBtn.style.color = "#7a5060"; }, 2500);
+                    } else {
+                        deleteOutfitTag(tag.id);
+                        this.renderOutfits();
+                    }
+                });
+
+                trow.appendChild(swatch);
+                trow.appendChild(nameSpan);
+                trow.appendChild(colorInp);
+                trow.appendChild(delTagBtn);
+                tagMgmtBody.appendChild(trow);
+            }
+
+            if (tags.length === 0) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#553142;padding:2px 0 4px;";
+                hint.textContent = "No tags yet.";
+                tagMgmtBody.appendChild(hint);
+            }
+
+            // New tag form
+            const newTagRow = document.createElement("div");
+            newTagRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-top:4px;";
+
+            const newTagInp = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input",
+                type: "text",
+                placeholder: "Tag name",
+                maxLength: 20,
+            });
+            newTagInp.style.flex = "1";
+
+            const newTagColor = document.createElement("input");
+            newTagColor.type = "color";
+            newTagColor.value = "#cf6f98";
+            newTagColor.style.cssText = "width:28px;height:28px;padding:0;border:none;background:transparent;cursor:pointer;flex-shrink:0;";
+            newTagColor.title = "Pick tag color";
+
+            const addTagBtn = document.createElement("button");
+            addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+            addTagBtn.textContent = "+ Add";
+            addTagBtn.addEventListener("click", () => {
+                if (!newTagInp.value.trim()) return;
+                createOutfitTag(newTagInp.value, newTagColor.value);
+                newTagInp.value = "";
+                renderTagMgmt();
+            });
+            newTagInp.addEventListener("keydown", (e) => { if (e.key === "Enter") addTagBtn.click(); });
+
+            newTagRow.appendChild(newTagInp);
+            newTagRow.appendChild(newTagColor);
+            newTagRow.appendChild(addTagBtn);
+            tagMgmtBody.appendChild(newTagRow);
+        };
+
+        tagToggleBtn.addEventListener("click", () => {
+            tagMgmtOpen = !tagMgmtOpen;
+            tagMgmtBody.style.display = tagMgmtOpen ? "block" : "none";
+            renderTagMgmt();
+        });
+
+        tagMgmtDiv.appendChild(tagToggleBtn);
+        tagMgmtDiv.appendChild(tagMgmtBody);
+        body.appendChild(tagMgmtDiv);
+
         const outfits = getOutfits();
 
         const outfitLbl = document.createElement("div");
@@ -4442,6 +4610,25 @@ export class EBCDrawer {
         info.appendChild(cmdEl);
         info.appendChild(flagsRow);
 
+        // Tag chips display
+        const tagsRow = document.createElement("div");
+        tagsRow.className = "ebc-outfit-tags";
+        const renderTagChips = (): void => {
+            while (tagsRow.firstChild) tagsRow.removeChild(tagsRow.firstChild);
+            const allTags = getOutfitTags();
+            const outfitTagIds = new Set(o.tagIds ?? []);
+            for (const tag of allTags) {
+                if (!outfitTagIds.has(tag.id)) continue;
+                const chip = document.createElement("span");
+                chip.className = "ebc-tag-chip";
+                chip.style.background = tag.color;
+                chip.textContent = tag.name;
+                tagsRow.appendChild(chip);
+            }
+        };
+        renderTagChips();
+        info.appendChild(tagsRow);
+
         const updateBtn = document.createElement("button");
         updateBtn.className = "ebc-update-btn";
         updateBtn.textContent = "Update";
@@ -4467,6 +4654,26 @@ export class EBCDrawer {
         delBtn.textContent = "×";
         delBtn.title = "Delete this outfit";
 
+        // Reorder column
+        const outfitsList = getOutfits();
+        const thisIdx = outfitsList.findIndex(x => x.id === o.id);
+        const reorderCol = document.createElement("div");
+        reorderCol.className = "ebc-reorder-col";
+        const upBtn = document.createElement("button");
+        upBtn.className = "ebc-reorder-btn";
+        upBtn.textContent = "▲";
+        upBtn.title = "Move up";
+        upBtn.disabled = thisIdx <= 0;
+        upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.renderOutfits(); });
+        const downBtn = document.createElement("button");
+        downBtn.className = "ebc-reorder-btn";
+        downBtn.textContent = "▼";
+        downBtn.title = "Move down";
+        downBtn.disabled = thisIdx >= outfitsList.length - 1;
+        downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.renderOutfits(); });
+        reorderCol.appendChild(upBtn);
+        reorderCol.appendChild(downBtn);
+        row.appendChild(reorderCol);
         row.appendChild(info);
         row.appendChild(diffBtn);
         row.appendChild(editBtn);
@@ -4517,6 +4724,49 @@ export class EBCDrawer {
         editPanel.appendChild(makeEditRow("Name", eNameInput));
         editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
         editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
+
+        // Tag assignment
+        const eTagsLbl = document.createElement("div");
+        eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin:6px 0 3px;";
+        eTagsLbl.textContent = "Tags";
+
+        const eTagsGrid = document.createElement("div");
+        eTagsGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
+
+        const renderEditTags = (): void => {
+            while (eTagsGrid.firstChild) eTagsGrid.removeChild(eTagsGrid.firstChild);
+            const allTags = getOutfitTags();
+            if (allTags.length === 0) {
+                const hint = document.createElement("span");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#553142;";
+                hint.textContent = "No tags yet — create some in the Tags section below.";
+                eTagsGrid.appendChild(hint);
+                return;
+            }
+            const currentTagIds = new Set(o.tagIds ?? []);
+            for (const tag of allTags) {
+                const btn = document.createElement("button");
+                btn.style.cssText = `padding:2px 8px;border-radius:10px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:700;cursor:pointer;transition:opacity 0.12s,box-shadow 0.12s;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);border:2px solid transparent;background:${tag.color};`;
+                btn.textContent = tag.name;
+                const active = currentTagIds.has(tag.id);
+                btn.style.opacity = active ? "1" : "0.35";
+                btn.style.border = active ? `2px solid #fff` : "2px solid transparent";
+                btn.addEventListener("click", () => {
+                    const ids = new Set(o.tagIds ?? []);
+                    if (ids.has(tag.id)) ids.delete(tag.id);
+                    else ids.add(tag.id);
+                    o.tagIds = [...ids];
+                    setOutfitTagIds(o.id, o.tagIds);
+                    renderTagChips();
+                    renderEditTags();
+                });
+                eTagsGrid.appendChild(btn);
+            }
+        };
+        renderEditTags();
+
+        editPanel.appendChild(eTagsLbl);
+        editPanel.appendChild(eTagsGrid);
 
         const eInclRow = document.createElement("label");
         eInclRow.className = "ebc-form-check-row";

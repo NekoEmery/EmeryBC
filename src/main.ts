@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.0.5";
+const MOD_VERSION = "1.0.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.0.6",
+        changes: [
+            "Outfits: ▲/▼ reorder buttons on every outfit row to move outfits up and down in the list.",
+            "Outfits: Tag system — create named colour-coded tags, assign them to outfits via toggle chips in the edit panel. Tags show as coloured chips on each outfit row. Manage tags (add, recolour, delete) via the collapsible Tags section at the top of the outfits tab.",
+        ],
+    },
     {
         version: "1.0.5",
         changes: [

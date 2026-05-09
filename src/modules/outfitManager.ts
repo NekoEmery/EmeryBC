@@ -10,12 +10,19 @@ export interface SerializedItem {
     Craft: CraftingItem | undefined;
 }
 
+export interface OutfitTag {
+    id: string;
+    name: string;
+    color: string; // chip background color, e.g. "#cf6f98"
+}
+
 export interface ConfiguredOutfit {
     id: string;
     command: string;
     displayName: string;
     announceText: string;
     nickname: string | null;     // optional nickname to set when outfit is worn (null = no change)
+    tagIds: string[];
     includeRestraints: boolean;
     preserveRestraints: boolean; // keep existing restraints when applying (default: true)
     preserveClothing: boolean;   // keep existing clothing (non-restraint) when applying (default: false)
@@ -149,6 +156,7 @@ function sanitizeOutfit(outfit: ConfiguredOutfit): ConfiguredOutfit {
         displayName: outfit.displayName,
         announceText: outfit.announceText,
         nickname: typeof outfit.nickname === "string" ? outfit.nickname.trim() || null : null,
+        tagIds: Array.isArray(outfit.tagIds) ? outfit.tagIds.filter((t: unknown) => typeof t === "string") : [],
         includeRestraints: !!outfit.includeRestraints,
         // Default true (preserve) for existing outfits that don't have this field yet
         preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
@@ -345,6 +353,7 @@ export function createOutfitFromCurrent(
         displayName: displayName.trim(),
         announceText: announceText.trim(),
         nickname: nickname.trim() || null,
+        tagIds: [],
         includeRestraints,
         preserveRestraints,
         preserveClothing,
@@ -370,6 +379,54 @@ export function setOutfitPreserveClothing(id: string, value: boolean): void {
     const outfit = outfits.find(o => o.id === id);
     if (!outfit) return;
     outfit.preserveClothing = value;
+    saveOutfits(outfits);
+}
+
+export function getOutfitTags(): OutfitTag[] {
+    const raw = getAddon().outfitTags;
+    return Array.isArray(raw) ? (raw as OutfitTag[]) : [];
+}
+
+function saveOutfitTags(tags: OutfitTag[]): void {
+    getAddon().outfitTags = tags;
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+export function createOutfitTag(name: string, color: string): OutfitTag {
+    const tag: OutfitTag = { id: uid(), name: name.trim() || "Tag", color: color || "#cf6f98" };
+    saveOutfitTags([...getOutfitTags(), tag]);
+    return tag;
+}
+
+export function deleteOutfitTag(tagId: string): void {
+    saveOutfitTags(getOutfitTags().filter(t => t.id !== tagId));
+    // Remove from all outfits
+    const outfits = getOutfits().map(o => ({ ...o, tagIds: (o.tagIds ?? []).filter(id => id !== tagId) }));
+    saveOutfits(outfits);
+}
+
+export function updateOutfitTag(tagId: string, name: string, color: string): void {
+    const tags = getOutfitTags().map(t =>
+        t.id === tagId ? { ...t, name: name.trim() || t.name, color: color || t.color } : t
+    );
+    saveOutfitTags(tags);
+}
+
+export function setOutfitTagIds(outfitId: string, tagIds: string[]): void {
+    const outfits = getOutfits();
+    const outfit = outfits.find(o => o.id === outfitId);
+    if (!outfit) return;
+    outfit.tagIds = tagIds;
+    saveOutfits(outfits);
+}
+
+export function moveOutfit(id: string, direction: "up" | "down"): void {
+    const outfits = getOutfits();
+    const idx = outfits.findIndex(o => o.id === id);
+    if (idx < 0) return;
+    const newIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= outfits.length) return;
+    [outfits[idx], outfits[newIdx]] = [outfits[newIdx], outfits[idx]];
     saveOutfits(outfits);
 }
 
@@ -600,6 +657,7 @@ export function importOutfitFromBCCode(
         displayName:       displayName.trim() || "Imported Outfit",
         announceText:      "",
         nickname:          null,
+        tagIds:            [],
         includeRestraints: includesRestraints,
         preserveRestraints: mode === "outfit",      // outfit-only: keep existing restraints
         preserveClothing:   mode === "restraints",  // restraints-only: keep existing clothing
