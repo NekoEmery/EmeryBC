@@ -12006,7 +12006,7 @@
                     emoji: "🌺",
                     name: "Emery",
                     memberId: 130267,
-                    reason: "Creator of EBC — every line of code, every feature, every late night pushing updates. This whole thing is hers.",
+                    reason: "Built this little thing out of love for the club. Still adding to it, still breaking it, still fixing it~",
                     heart: "🎀",
                 },
                 {
@@ -13146,7 +13146,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.1.3";
+    const MOD_VERSION = "1.1.4";
     let noticeShown = false;
     const CHANGELOG = [
         {

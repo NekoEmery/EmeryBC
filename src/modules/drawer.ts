@@ -9345,7 +9345,7 @@ export class EBCDrawer {
                 emoji: "🌺",
                 name: "Emery",
                 memberId: 130267,
-                reason: "Creator of EBC — every line of code, every feature, every late night pushing updates. This whole thing is hers.",
+                reason: "Built this little thing out of love for the club. Still adding to it, still breaking it, still fixing it~",
                 heart: "🎀",
             },
             {
