@@ -8437,6 +8437,9 @@
                 createBtn.className = "ebc-create-btn";
                 createBtn.textContent = "Save as New Restraint Set";
                 form.appendChild(createBtn);
+                // Start hidden via inline style (CSS default is display:none but inline style
+                // starts as "" which the toggle check misreads — set it explicitly)
+                form.style.display = "none";
                 newBtn.addEventListener("click", () => {
                     const open = form.style.display !== "none";
                     form.style.display = open ? "none" : "flex";
@@ -8483,6 +8486,12 @@
             cmdEl.textContent = "/" + r.command;
             info.appendChild(nameEl);
             info.appendChild(cmdEl);
+            if (r.items.length === 0) {
+                const emptyHint = document.createElement("span");
+                emptyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#cf6f98;font-style:italic;";
+                emptyHint.textContent = "⚠ no items — click Update while wearing restraints";
+                info.appendChild(emptyHint);
+            }
             const restraintsList = getRestraints();
             const thisIdx = restraintsList.findIndex(x => x.id === r.id);
             const reorderCol = document.createElement("div");
@@ -13635,7 +13644,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.1";
+    const MOD_VERSION = "1.2.2";
     let noticeShown = false;
     const CHANGELOG = [
         {
