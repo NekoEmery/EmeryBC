@@ -5490,7 +5490,36 @@
         document.addEventListener("touchend", endH);
         return cleanup;
     }
+    const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
     class EBCDrawer {
+        // -- Persist open beep windows across sessions -----------------------------
+        static getOpenBeepWindows() {
+            try {
+                const raw = localStorage.getItem(EBC_OPEN_BEEP_WINS_KEY);
+                if (!raw)
+                    return [];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            }
+            catch (_a) {
+                return [];
+            }
+        }
+        static addOpenBeepWindow(num) {
+            try {
+                const set = new Set(EBCDrawer.getOpenBeepWindows());
+                set.add(num);
+                localStorage.setItem(EBC_OPEN_BEEP_WINS_KEY, JSON.stringify([...set]));
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        static removeOpenBeepWindow(num) {
+            try {
+                const list = EBCDrawer.getOpenBeepWindows().filter(n => n !== num);
+                localStorage.setItem(EBC_OPEN_BEEP_WINS_KEY, JSON.stringify(list));
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
         constructor(version = "") {
             this.rootEl = null; // zero-width anchor (positioned)
             this.panelEl = null; // sliding panel (transforms)
@@ -6484,6 +6513,15 @@
             // Restore any beep windows that were hidden while outside the chat room
             for (const { el } of this.beepWins.values())
                 el.style.display = "";
+            // Re-open any windows that were open in a previous session (survived relog)
+            for (const num of EBCDrawer.getOpenBeepWindows()) {
+                if (!this.beepWins.has(num)) {
+                    try {
+                        this.openBeepWindow(num);
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
+                }
+            }
             // Try to position; if the chat log isn't laid out yet, retry next frame
             const synced = this.syncToChat();
             if (synced) {
@@ -6511,7 +6549,7 @@
             try {
                 (_b = this.refreshConfirmToggle) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         // -- Tab switching ---------------------------------------------------------
         stopDevLogPoller() {
@@ -11133,6 +11171,7 @@
             }
             this.beepUnread.delete(memberNumber);
             this.refreshTabDot();
+            EBCDrawer.addOpenBeepWindow(memberNumber);
             // Offset each new window slightly so they don't all stack at the same position
             const offset = this.beepWins.size * 28;
             const win = document.createElement("div");
@@ -11228,6 +11267,7 @@
             closeBtn.addEventListener("click", () => {
                 win.remove();
                 this.beepWins.delete(memberNumber);
+                EBCDrawer.removeOpenBeepWindow(memberNumber);
             });
             header.appendChild(dot);
             header.appendChild(title);
@@ -13857,9 +13897,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.2.7";
+    const MOD_VERSION = "1.2.8";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.2.8",
+            changes: [
+                "Beep windows: open windows are now saved to localStorage and automatically restored on relog — they reappear in the same position where you left them.",
+            ],
+        },
         {
             version: "1.2.7",
             changes: [

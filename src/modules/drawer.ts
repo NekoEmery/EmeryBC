@@ -2293,8 +2293,33 @@ function addPointerTracking(
 
 type DrawerTab = "outfits" | "buttons" | "anims" | "notes" | "thanks" | "dev" | "dom" | "puppy";
 
+const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
+
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
+
+    // -- Persist open beep windows across sessions -----------------------------
+    static getOpenBeepWindows(): number[] {
+        try {
+            const raw = localStorage.getItem(EBC_OPEN_BEEP_WINS_KEY);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? (parsed as number[]) : [];
+        } catch { return []; }
+    }
+    static addOpenBeepWindow(num: number): void {
+        try {
+            const set = new Set(EBCDrawer.getOpenBeepWindows());
+            set.add(num);
+            localStorage.setItem(EBC_OPEN_BEEP_WINS_KEY, JSON.stringify([...set]));
+        } catch { /* ignore */ }
+    }
+    static removeOpenBeepWindow(num: number): void {
+        try {
+            const list = EBCDrawer.getOpenBeepWindows().filter(n => n !== num);
+            localStorage.setItem(EBC_OPEN_BEEP_WINS_KEY, JSON.stringify(list));
+        } catch { /* ignore */ }
+    }
 
     private rootEl: HTMLElement | null = null;   // zero-width anchor (positioned)
     private panelEl: HTMLElement | null = null;  // sliding panel (transforms)
@@ -3370,6 +3395,13 @@ export class EBCDrawer {
 
         // Restore any beep windows that were hidden while outside the chat room
         for (const { el } of this.beepWins.values()) el.style.display = "";
+
+        // Re-open any windows that were open in a previous session (survived relog)
+        for (const num of EBCDrawer.getOpenBeepWindows()) {
+            if (!this.beepWins.has(num)) {
+                try { this.openBeepWindow(num); } catch { /* ignore */ }
+            }
+        }
 
         // Try to position; if the chat log isn't laid out yet, retry next frame
         const synced = this.syncToChat();
@@ -8264,6 +8296,7 @@ export class EBCDrawer {
 
         this.beepUnread.delete(memberNumber);
         this.refreshTabDot();
+        EBCDrawer.addOpenBeepWindow(memberNumber);
 
         // Offset each new window slightly so they don't all stack at the same position
         const offset = this.beepWins.size * 28;
@@ -8363,6 +8396,7 @@ export class EBCDrawer {
         closeBtn.addEventListener("click", () => {
             win.remove();
             this.beepWins.delete(memberNumber);
+            EBCDrawer.removeOpenBeepWindow(memberNumber);
         });
 
         header.appendChild(dot);

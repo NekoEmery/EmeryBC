@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.2.7";
+const MOD_VERSION = "1.2.8";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.2.8",
+        changes: [
+            "Beep windows: open windows are now saved to localStorage and automatically restored on relog — they reappear in the same position where you left them.",
+        ],
+    },
     {
         version: "1.2.7",
         changes: [
