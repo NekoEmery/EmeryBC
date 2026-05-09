@@ -14,7 +14,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.1.0";
+const MOD_VERSION = "1.1.1";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -1195,6 +1195,13 @@ function handleMetaCommand(inputValue: string): boolean {
         return true;
     }
 
+    if (["update", "checkupdate", "check"].includes(subcommand)) {
+        checkUpdateManual().catch(() => {
+            appendLocalLogLine("[EBC] Update check failed.", UI.danger);
+        });
+        return true;
+    }
+
     if (subcommand === "updates") {
         const arg = (parts[2] || "").toLowerCase();
         if (arg === "off") {
@@ -1210,7 +1217,7 @@ function handleMetaCommand(inputValue: string): boolean {
         return true;
     }
 
-    appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc updates on/off", UI.gold);
+    appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off", UI.gold);
     return true;
 }
 
@@ -1259,6 +1266,37 @@ async function checkForUpdateFromGitHub(): Promise<void> {
         appendLocalLogLine(`[EBC]    Refresh the page to get the latest version.`, UI.gold);
         appendLocalLogLine(`[EBC]    To silence these: /ebc updates off`, UI.textMuted);
     } catch { /* network error — ignore silently */ }
+}
+
+// Manual check triggered by /ebc update — always fetches, ignores notify toggle and dedup.
+async function checkUpdateManual(): Promise<void> {
+    appendLocalLogLine(`[EBC] Checking for updates…`, UI.textMuted);
+    try {
+        const res = await fetch(`${EBC_PACKAGE_URL}?t=${Date.now()}`);
+        if (!res.ok) {
+            appendLocalLogLine(`[EBC] Could not reach GitHub to check for updates.`, UI.danger);
+            return;
+        }
+        const data = await res.json() as Record<string, unknown>;
+        const remote = typeof data.version === "string" ? data.version : null;
+        if (!remote) {
+            appendLocalLogLine(`[EBC] Received an unexpected response from GitHub.`, UI.danger);
+            return;
+        }
+
+        if (!isNewerVersion(remote, MOD_VERSION)) {
+            appendLocalLogLine(`[EBC] ✔ You're on the latest version (v${MOD_VERSION}).`, UI.gold);
+            return;
+        }
+
+        // Update available — show same message as the automatic check
+        try { localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote); } catch { /* ignore */ }
+        appendLocalLogLine(`[EBC] 🔔 Update available — v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
+        appendLocalLogLine(`[EBC]    Refresh the page to get the latest version.`, UI.gold);
+        appendLocalLogLine(`[EBC]    To silence automatic notifications: /ebc updates off`, UI.textMuted);
+    } catch {
+        appendLocalLogLine(`[EBC] Network error while checking for updates.`, UI.danger);
+    }
 }
 
 function startUpdateChecker(): void {
