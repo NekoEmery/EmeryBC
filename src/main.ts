@@ -14,7 +14,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from ".
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.0.8";
+const MOD_VERSION = "1.0.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
@@ -1161,55 +1161,6 @@ function toggleArometerCommand(): void {
     }
 }
 
-// -- Feature showcase command --------------------------------------------------
-// Only credited members (by MemberNumber) may broadcast this to the room.
-
-const CREDITED_MEMBERS = new Set([130267, 143776, 124264, 230466, 80]);
-
-function sendFeatureShowcase(): void {
-    if (!CREDITED_MEMBERS.has(Player.MemberNumber ?? -1)) {
-        appendLocalLogLine("[EBC] You're not on the credited list for this command.", UI.danger);
-        return;
-    }
-    // Must be in a chat room
-    try {
-        if (typeof CurrentScreen !== "undefined" && CurrentScreen !== "ChatRoom") {
-            appendLocalLogLine("[EBC] /ebc features only works inside a chat room.", UI.textMuted);
-            return;
-        }
-    } catch { /* ignore */ }
-
-    const name = ((Player as unknown as Record<string, unknown>).Nickname as string | undefined)?.trim() || Player.Name;
-
-    const lines = [
-        `✨ ${name} is running EBC (EmeryBC) — here's what it does:`,
-        `🎨  Outfits — save complete looks, wear them with a / command, schedule by time, tag by colour, reorder freely.`,
-        `🎭  Scenes — build timed sequences of poses, equips and emotes that play back automatically.`,
-        `🛡  Safeword — yellow / red words trigger instant release, grace period and optional room exit.`,
-        `💬  Beep IM — private in-game DMs with history, timestamps and read receipts.`,
-        `🐾  Poses — one-click pose combos. Save your favourite combinations.`,
-        `🔔  Update alerts, colour palettes, anti-restraint, arousal meter toggle & more.`,
-    ];
-
-    const dict = [
-        { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-        { SourceCharacter: Player.MemberNumber },
-    ];
-
-    lines.forEach((line, i) => {
-        window.setTimeout(() => {
-            try {
-                ServerSend("ChatRoomChat", {
-                    Type: "Emote",
-                    Content: line,
-                    Dictionary: dict,
-                });
-            } catch { /* ignore */ }
-        }, i * 180);
-    });
-
-    appendLocalLogLine("[EBC] Feature list sent to room.", UI.gold);
-}
 
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
@@ -1244,11 +1195,6 @@ function handleMetaCommand(inputValue: string): boolean {
         return true;
     }
 
-    if (["features", "feature", "about", "info"].includes(subcommand)) {
-        sendFeatureShowcase();
-        return true;
-    }
-
     if (subcommand === "updates") {
         const arg = (parts[2] || "").toLowerCase();
         if (arg === "off") {
@@ -1264,7 +1210,7 @@ function handleMetaCommand(inputValue: string): boolean {
         return true;
     }
 
-    appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc updates on/off  |  /ebc features", UI.gold);
+    appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc updates on/off", UI.gold);
     return true;
 }
 
