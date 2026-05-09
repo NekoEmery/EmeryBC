@@ -426,6 +426,7 @@
             command: outfit.command,
             displayName: outfit.displayName,
             announceText: outfit.announceText,
+            nickname: typeof outfit.nickname === "string" ? outfit.nickname.trim() || null : null,
             includeRestraints: !!outfit.includeRestraints,
             // Default true (preserve) for existing outfits that don't have this field yet
             preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
@@ -549,6 +550,17 @@
         sanitizeLiveAppearance();
         sendRoomAppearanceUpdate();
         scheduleAppearanceRefresh();
+        // Apply nickname change if set
+        if (outfit.nickname) {
+            try {
+                const nick = outfit.nickname;
+                Player.Nickname = nick;
+                const updater = window.ServerAccountUpdate;
+                if (updater === null || updater === void 0 ? void 0 : updater.QueueData)
+                    updater.QueueData({ Nickname: nick });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
         // Let the appearance update hit the send queue before we add the optional emote.
         window.setTimeout(() => {
             try {
@@ -584,7 +596,7 @@
         return true;
     }
     // Called from the drawer to create a brand new outfit from current appearance
-    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false) {
+    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "") {
         const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
         if (!cmd || !displayName.trim())
             return null;
@@ -598,6 +610,7 @@
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
+            nickname: nickname.trim() || null,
             includeRestraints,
             preserveRestraints,
             preserveClothing,
@@ -662,7 +675,7 @@
         const outfits = getOutfits().filter(o => o.id !== id);
         saveOutfits(outfits);
     }
-    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false) {
+    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "") {
         const outfits = getOutfits();
         const outfit = outfits.find(o => o.id === id);
         if (!outfit)
@@ -678,6 +691,7 @@
         outfit.command = cmd;
         outfit.displayName = displayName.trim();
         outfit.announceText = announceText.trim();
+        outfit.nickname = nickname.trim() || null;
         outfit.includeRestraints = includeRestraints;
         outfit.preserveRestraints = preserveRestraints;
         outfit.preserveClothing = preserveClothing;
@@ -819,6 +833,7 @@
             command: finalCmd,
             displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
+            nickname: null,
             includeRestraints: includesRestraints,
             preserveRestraints: mode === "outfit", // outfit-only: keep existing restraints
             preserveClothing: mode === "restraints", // restraints-only: keep existing clothing
@@ -7284,6 +7299,7 @@
             body.appendChild(container);
         }
         buildOutfitRow(o, body) {
+            var _a;
             // Wrapper holds the visual row + collapsible diff panel
             const wrapper = document.createElement("div");
             wrapper.style.marginBottom = "4px";
@@ -7372,9 +7388,14 @@
             const eAnnounceInput = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input", type: "text", value: o.announceText, maxLength: 120,
             });
+            const eNicknameInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", value: (_a = o.nickname) !== null && _a !== void 0 ? _a : "", maxLength: 40,
+                placeholder: "Optional — blank = no change",
+            });
             editPanel.appendChild(makeEditRow("Command", eCmdInput));
             editPanel.appendChild(makeEditRow("Name", eNameInput));
             editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
+            editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
             const eInclRow = document.createElement("label");
             eInclRow.className = "ebc-form-check-row";
             const eInclCheck = document.createElement("input");
@@ -7478,7 +7499,7 @@
                 eNameInput.style.borderColor = eNameInput.value.trim() ? "" : "#cf6f98";
                 if (!eCmdInput.value.trim() || !eNameInput.value.trim())
                     return;
-                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked);
+                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked, eNicknameInput.value);
                 if (ok)
                     this.renderOutfits();
             });
@@ -7579,9 +7600,13 @@
             const announceInput = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input", type: "text", placeholder: "e.g. changes into dom mode", maxLength: 120,
             });
+            const nicknameInput = Object.assign(document.createElement("input"), {
+                className: "ebc-form-input", type: "text", placeholder: "Optional — blank = no change", maxLength: 40,
+            });
             form.appendChild(makeRow("Command", cmdInput));
             form.appendChild(makeRow("Name", nameInput));
             form.appendChild(makeRow("Announce", announceInput));
+            form.appendChild(makeRow("Nickname", nicknameInput));
             const checkRow = document.createElement("label");
             checkRow.className = "ebc-form-check-row";
             const checkbox = document.createElement("input");
@@ -7621,11 +7646,12 @@
                     return;
                 createBtn.disabled = true;
                 createBtn.textContent = "Saving...";
-                const result = createOutfitFromCurrent(cmdInput.value, nameInput.value, announceInput.value, checkbox.checked, preserveCheckbox.checked);
+                const result = createOutfitFromCurrent(cmdInput.value, nameInput.value, announceInput.value, checkbox.checked, preserveCheckbox.checked, false, nicknameInput.value);
                 if (result) {
                     cmdInput.value = "";
                     nameInput.value = "";
                     announceInput.value = "";
+                    nicknameInput.value = "";
                     checkbox.checked = false;
                     form.style.display = "none";
                     newBtn.textContent = "+ New Outfit from Current Look";
@@ -12715,9 +12741,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EmeryBC";
-    const MOD_VERSION = "1.0.2";
+    const MOD_VERSION = "1.0.3";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.0.3",
+            changes: [
+                "Outfits: optional Nickname field — set a nickname per outfit and it applies automatically when you wear it. Leave blank for no change.",
+            ],
+        },
         {
             version: "1.0.2",
             changes: [

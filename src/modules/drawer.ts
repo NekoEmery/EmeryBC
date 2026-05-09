@@ -4463,10 +4463,15 @@ export class EBCDrawer {
         const eAnnounceInput = Object.assign(document.createElement("input"), {
             className: "ebc-form-input", type: "text", value: o.announceText, maxLength: 120,
         });
+        const eNicknameInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", value: o.nickname ?? "", maxLength: 40,
+            placeholder: "Optional — blank = no change",
+        });
 
         editPanel.appendChild(makeEditRow("Command", eCmdInput));
         editPanel.appendChild(makeEditRow("Name", eNameInput));
         editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
+        editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
 
         const eInclRow = document.createElement("label");
         eInclRow.className = "ebc-form-check-row";
@@ -4588,6 +4593,7 @@ export class EBCDrawer {
                 eInclCheck.checked,
                 ePreserveCheck.checked,
                 ePreserveClothingCheck.checked,
+                eNicknameInput.value,
             );
             if (ok) this.renderOutfits();
         });
@@ -4691,10 +4697,14 @@ export class EBCDrawer {
         const announceInput = Object.assign(document.createElement("input"), {
             className: "ebc-form-input", type: "text", placeholder: "e.g. changes into dom mode", maxLength: 120,
         });
+        const nicknameInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", placeholder: "Optional — blank = no change", maxLength: 40,
+        });
 
         form.appendChild(makeRow("Command", cmdInput));
         form.appendChild(makeRow("Name", nameInput));
         form.appendChild(makeRow("Announce", announceInput));
+        form.appendChild(makeRow("Nickname", nicknameInput));
 
         const checkRow = document.createElement("label");
         checkRow.className = "ebc-form-check-row";
@@ -4742,11 +4752,13 @@ export class EBCDrawer {
             const result = createOutfitFromCurrent(
                 cmdInput.value, nameInput.value, announceInput.value,
                 checkbox.checked, preserveCheckbox.checked,
+                false, nicknameInput.value,
             );
             if (result) {
                 cmdInput.value = "";
                 nameInput.value = "";
                 announceInput.value = "";
+                nicknameInput.value = "";
                 checkbox.checked = false;
                 form.style.display = "none";
                 newBtn.textContent = "+ New Outfit from Current Look";

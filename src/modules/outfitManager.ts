@@ -15,6 +15,7 @@ export interface ConfiguredOutfit {
     command: string;
     displayName: string;
     announceText: string;
+    nickname: string | null;     // optional nickname to set when outfit is worn (null = no change)
     includeRestraints: boolean;
     preserveRestraints: boolean; // keep existing restraints when applying (default: true)
     preserveClothing: boolean;   // keep existing clothing (non-restraint) when applying (default: false)
@@ -137,6 +138,7 @@ function sanitizeOutfit(outfit: ConfiguredOutfit): ConfiguredOutfit {
         command: outfit.command,
         displayName: outfit.displayName,
         announceText: outfit.announceText,
+        nickname: typeof outfit.nickname === "string" ? outfit.nickname.trim() || null : null,
         includeRestraints: !!outfit.includeRestraints,
         // Default true (preserve) for existing outfits that don't have this field yet
         preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
@@ -264,6 +266,17 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
     sendRoomAppearanceUpdate();
     scheduleAppearanceRefresh();
 
+    // Apply nickname change if set
+    if (outfit.nickname) {
+        try {
+            const nick = outfit.nickname;
+            (Player as unknown as Record<string, unknown>).Nickname = nick;
+            type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
+            const updater = (window as unknown as Record<string, unknown>).ServerAccountUpdate as AccountUpdater | undefined;
+            if (updater?.QueueData) updater.QueueData({ Nickname: nick });
+        } catch { /* ignore */ }
+    }
+
     // Let the appearance update hit the send queue before we add the optional emote.
     window.setTimeout(() => {
         try {
@@ -307,6 +320,7 @@ export function createOutfitFromCurrent(
     includeRestraints: boolean,
     preserveRestraints: boolean,
     preserveClothing = false,
+    nickname = "",
 ): ConfiguredOutfit | null {
     const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
     if (!cmd || !displayName.trim()) return null;
@@ -320,6 +334,7 @@ export function createOutfitFromCurrent(
         command: cmd,
         displayName: displayName.trim(),
         announceText: announceText.trim(),
+        nickname: nickname.trim() || null,
         includeRestraints,
         preserveRestraints,
         preserveClothing,
@@ -397,6 +412,7 @@ export function editOutfit(
     includeRestraints: boolean,
     preserveRestraints: boolean,
     preserveClothing = false,
+    nickname = "",
 ): boolean {
     const outfits = getOutfits();
     const outfit = outfits.find(o => o.id === id);
@@ -414,6 +430,7 @@ export function editOutfit(
     outfit.command            = cmd;
     outfit.displayName        = displayName.trim();
     outfit.announceText       = announceText.trim();
+    outfit.nickname           = nickname.trim() || null;
     outfit.includeRestraints  = includeRestraints;
     outfit.preserveRestraints = preserveRestraints;
     outfit.preserveClothing   = preserveClothing;
@@ -572,6 +589,7 @@ export function importOutfitFromBCCode(
         command:           finalCmd,
         displayName:       displayName.trim() || "Imported Outfit",
         announceText:      "",
+        nickname:          null,
         includeRestraints: includesRestraints,
         preserveRestraints: mode === "outfit",      // outfit-only: keep existing restraints
         preserveClothing:   mode === "restraints",  // restraints-only: keep existing clothing
