@@ -5,7 +5,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -1985,6 +1985,14 @@ function init(): void {
             )) {
                 if (input) input.value = "";
                 return;
+            }
+            // OOC mode: prepend "(" to normal messages.
+            // Skip commands (/), emotes (*), and already-OOC messages (().
+            if (input && getOocEnabled()) {
+                const v = input.value;
+                if (v.trim() && !v.startsWith("/") && !v.startsWith("*") && !v.startsWith("(")) {
+                    input.value = "(" + v;
+                }
             }
         } catch { /* ignore */ }
         return next(args);

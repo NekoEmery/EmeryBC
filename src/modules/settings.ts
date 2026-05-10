@@ -175,6 +175,24 @@ export function setAfkMessage(msg: string): void {
     try { const s = getStore(); if (s) { s.afkMessage = msg.slice(0, 200).trim(); ServerPlayerExtensionSettingsSync("EmeryBC"); } } catch { /* ignore */ }
 }
 
+// -- OOC mode ------------------------------------------------------------------
+// When enabled, every normal chat message is prefixed with "(" so it reads
+// as out-of-character speech. Commands (/), emotes (*), and already-OOC
+// messages (() are never modified.
+
+export function getOocEnabled(): boolean {
+    try { return getStore()?.oocEnabled === true; } catch { return false; }
+}
+
+export function setOocEnabled(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.oocEnabled = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}
+
 // -- Beep mute -----------------------------------------------------------------
 
 export function getBeepMuted(): boolean {

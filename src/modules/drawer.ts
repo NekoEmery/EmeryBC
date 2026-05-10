@@ -76,7 +76,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getRoomHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -9130,6 +9130,38 @@ export class EBCDrawer {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
+
+        // ── OOC mode ──────────────────────────────────────────────────────────
+        const oocRow = document.createElement("div");
+        oocRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:8px;";
+
+        const oocLbl = document.createElement("span");
+        oocLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+        oocLbl.textContent = "OOC mode — prefix ( on every message";
+
+        const oocBtn = document.createElement("button");
+        const refreshOoc = (): void => {
+            const on = getOocEnabled();
+            oocBtn.textContent = on ? "ON" : "OFF";
+            oocBtn.style.cssText = [
+                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                "padding:3px 12px", "border-radius:5px", "cursor:pointer", "flex-shrink:0",
+                on ? "border:1px solid #cf6f98" : "border:1px solid #a03050",
+                on ? "background:#4a1030"        : "background:#2a0515",
+                on ? "color:#f7cce0"             : "color:#e05070",
+            ].join(";");
+        };
+        refreshOoc();
+        oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
+
+        oocRow.appendChild(oocLbl);
+        oocRow.appendChild(oocBtn);
+        body.appendChild(oocRow);
+
+        const oocHint = document.createElement("div");
+        oocHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4858;margin-bottom:10px;line-height:1.5;";
+        oocHint.textContent = "Prepends ( to chat messages. Commands (/), emotes (*), and already-OOC messages (() are never modified.";
+        body.appendChild(oocHint);
 
         // ── AFK auto-reply ────────────────────────────────────────────────────
         let afkCollapsed = true;
