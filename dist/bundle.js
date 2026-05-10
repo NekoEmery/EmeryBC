@@ -2482,6 +2482,9 @@
     const LS_KEY$1 = "EBC_roomHistory";
     let currentVisit = null;
     let lastRecordedRoomName = null;
+    // Track member numbers already accounted for (entry list + joins) so we never
+    // double-count someone when detectNewJoins runs on every render tick.
+    let knownMemberNums = new Set();
     function uid$2() { return Math.random().toString(36).slice(2, 9); }
     function loadHistory() {
         try {
@@ -2514,33 +2517,45 @@
             history.unshift(currentVisit);
         saveHistory(history);
     }
+    function getRoomChars() {
+        var _a;
+        return (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+    }
     // Called from the ChatRoomSync hook. Detects new-room entry by name change.
     function onRoomSync() {
         try {
             const data = window.ChatRoomData;
             const name = typeof (data === null || data === void 0 ? void 0 : data.Name) === "string" ? data.Name : null;
-            if (!name || name === lastRecordedRoomName)
+            if (!name)
                 return;
-            lastRecordedRoomName = name;
-            // Flush previous visit before starting new one
-            if (currentVisit)
-                flushCurrent();
-            const chars = window.ChatRoomCharacter;
-            const members = (chars !== null && chars !== void 0 ? chars : [])
-                .filter(c => c.MemberNumber && c.MemberNumber !== Player.MemberNumber)
-                .map(c => {
-                var _a;
-                return ({
-                    memberNumber: c.MemberNumber,
-                    name: ((_a = c.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || c.Name || `#${c.MemberNumber}`,
+            const chars = getRoomChars();
+            if (name !== lastRecordedRoomName) {
+                // ── New room entered ────────────────────────────────────────────────
+                lastRecordedRoomName = name;
+                if (currentVisit)
+                    flushCurrent();
+                const members = chars
+                    .filter(c => c.MemberNumber && c.MemberNumber !== Player.MemberNumber)
+                    .map(c => {
+                    var _a;
+                    return ({
+                        memberNumber: c.MemberNumber,
+                        name: ((_a = c.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || c.Name || `#${c.MemberNumber}`,
+                    });
                 });
-            });
-            const space = typeof (data === null || data === void 0 ? void 0 : data.Space) === "string" ? data.Space : "";
-            currentVisit = {
-                id: uid$2(), name, space,
-                enteredAt: Date.now(), leftAt: null,
-                members, joins: [],
-            };
+                const space = typeof (data === null || data === void 0 ? void 0 : data.Space) === "string" ? data.Space : "";
+                currentVisit = {
+                    id: uid$2(), name, space,
+                    enteredAt: Date.now(), leftAt: null,
+                    members, joins: [],
+                };
+                // Seed knownMemberNums from the entry snapshot so we don't
+                // immediately re-log them as joins on the next detectNewJoins call.
+                knownMemberNums = new Set(members.map(m => m.memberNumber));
+            }
+            // When still in the same room we rely on detectNewJoins() (called from
+            // the render poller) rather than re-diffing here, since ChatRoomSync may
+            // not fire for every individual member join in all BC versions.
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -2552,17 +2567,49 @@
                 return;
             flushCurrent();
             currentVisit = null;
+            knownMemberNums.clear();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // Called from the ChatRoomSyncMemberJoin hook.
+    // Called from the ChatRoomSyncMemberJoin hook (supplementary — BC may also
+    // broadcast full ChatRoomSync packets; detectNewJoins handles those cases).
     function onMemberJoin(char) {
         var _a;
         try {
             if (!currentVisit || !char.MemberNumber || char.MemberNumber === Player.MemberNumber)
                 return;
+            if (knownMemberNums.has(char.MemberNumber))
+                return; // already recorded
+            knownMemberNums.add(char.MemberNumber);
             const name = ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || char.Name || `#${char.MemberNumber}`;
             currentVisit.joins.push({ memberNumber: char.MemberNumber, name, at: Date.now() });
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // Called every render tick (1.5 s) to catch joins that slipped through because
+    // ChatRoomSyncMemberJoin didn't fire or had an unexpected data shape.
+    function detectNewJoins() {
+        var _a;
+        try {
+            if (!currentVisit) {
+                // EBC loaded while already in a room — bootstrap currentVisit now.
+                onRoomSync();
+                return;
+            }
+            const chars = getRoomChars();
+            for (const c of chars) {
+                if (!c.MemberNumber || c.MemberNumber === Player.MemberNumber)
+                    continue;
+                if (knownMemberNums.has(c.MemberNumber))
+                    continue;
+                knownMemberNums.add(c.MemberNumber);
+                // Only count as a "join" if they weren't in the original entry list.
+                const wasOnEntry = currentVisit.members.some(m => m.memberNumber === c.MemberNumber);
+                if (!wasOnEntry) {
+                    const name = ((_a = c.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || c.Name || `#${c.MemberNumber}`;
+                    currentVisit.joins.push({ memberNumber: c.MemberNumber, name, at: Date.now() });
+                }
+            }
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
@@ -2586,6 +2633,7 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
         currentVisit = null;
+        knownMemberNums.clear();
     }
 
     // Restraint log — records every restraint applied to / removed from the player.
@@ -2598,6 +2646,38 @@
     const activeIds = new Map();
     // Known groups right now (for diff)
     let knownGroups = new Set();
+    const pendingEntries = [];
+    let pendingApplier = null;
+    let pendingTimer = null;
+    // Called from the ChatRoomMessage hook when an Action targeting the player
+    // arrives — this fires after CharacterRefresh, so we store the name here and
+    // immediately flush any queued entries.
+    function setPendingLogApplier(name) {
+        pendingApplier = name;
+        if (pendingTimer !== null) {
+            clearTimeout(pendingTimer);
+            pendingTimer = null;
+        }
+        flushPending(name);
+        pendingApplier = null;
+    }
+    function flushPending(applierName) {
+        if (pendingEntries.length === 0)
+            return;
+        const log = loadLog();
+        for (const p of pendingEntries.splice(0)) {
+            log.unshift({
+                id: p.id,
+                itemName: p.itemName,
+                group: p.group,
+                applier: applierName || "Unknown",
+                appliedAt: p.appliedAt,
+                removedAt: null,
+            });
+        }
+        saveLog(log);
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
     function uid$1() { return Math.random().toString(36).slice(2, 9); }
     function loadLog() {
         try {
@@ -2637,12 +2717,13 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
     // Call from CharacterRefresh when C === Player.
-    // applierName = whoever last used an item on the player (pass "" / "Unknown" if unset).
-    function checkRestraintChanges(applierName) {
+    // Removals are written immediately. Additions are queued and flushed once the
+    // applier name arrives via setPendingLogApplier (or after 400 ms timeout).
+    function checkRestraintChanges() {
         try {
             const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
             const curGroups = new Set(current.map((i) => i.Asset.Group.Name));
-            // ── Removed ──────────────────────────────────────────────────────────
+            // ── Removed (immediate) ───────────────────────────────────────────────
             for (const group of [...knownGroups]) {
                 if (!curGroups.has(group)) {
                     knownGroups.delete(group);
@@ -2658,7 +2739,8 @@
                     }
                 }
             }
-            // ── Added ─────────────────────────────────────────────────────────────
+            // ── Added (deferred — wait for Action message with applier name) ──────
+            let hasNew = false;
             for (const item of current) {
                 const group = item.Asset.Group.Name;
                 if (!knownGroups.has(group)) {
@@ -2667,16 +2749,30 @@
                         || item.Asset.Name;
                     const id = uid$1();
                     activeIds.set(group, id);
-                    const log = loadLog();
-                    log.unshift({
+                    pendingEntries.push({
                         id,
                         itemName,
                         group: group.replace(/^Item/, ""),
-                        applier: applierName || "Unknown",
                         appliedAt: Date.now(),
-                        removedAt: null,
                     });
-                    saveLog(log);
+                    hasNew = true;
+                }
+            }
+            if (hasNew) {
+                if (pendingApplier !== null) {
+                    // Name already arrived (Action fired before CharacterRefresh — rare)
+                    flushPending(pendingApplier);
+                    pendingApplier = null;
+                }
+                else {
+                    // Schedule a fallback flush in case no Action message ever arrives
+                    if (pendingTimer !== null)
+                        clearTimeout(pendingTimer);
+                    pendingTimer = window.setTimeout(() => {
+                        pendingTimer = null;
+                        flushPending(pendingApplier !== null && pendingApplier !== void 0 ? pendingApplier : "Unknown");
+                        pendingApplier = null;
+                    }, 400);
                 }
             }
         }
@@ -2690,6 +2786,12 @@
         catch ( /* ignore */_a) { /* ignore */ }
         activeIds.clear();
         knownGroups.clear();
+        pendingEntries.splice(0);
+        if (pendingTimer !== null) {
+            clearTimeout(pendingTimer);
+            pendingTimer = null;
+        }
+        pendingApplier = null;
     }
 
     // Friends system — tags, beep history, name cache.
@@ -13512,6 +13614,9 @@
                 roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
                 makeInner("Room History", "EBC_roomHistoryCollapsed", true, (c) => {
                     renderRoom = () => {
+                        // Scan ChatRoomCharacter for any members we haven't seen yet
+                        // (catches joins that slipped through the hook or loaded late).
+                        detectNewJoins();
                         while (c.firstChild)
                             c.removeChild(c.firstChild);
                         const visits = getRoomHistory();
@@ -16836,6 +16941,7 @@
         // can name them. BC sends an Action message with SourceCharacter / TargetCharacter
         // in the Dictionary whenever someone uses an item on another character.
         tryHookFunction(modAPI, "ChatRoomMessage", 3, (args, next) => {
+            var _a;
             const result = next(args);
             try {
                 const [data] = args;
@@ -16862,29 +16968,35 @@
                 if (typeof targetNum === "number" && targetNum === Player.MemberNumber &&
                     typeof sourceNum === "number" && sourceNum !== Player.MemberNumber) {
                     recordRestrainer(sourceNum);
+                    // Also stash the name for the restraint log — it flushes any
+                    // pending additions that are waiting on the applier name.
+                    try {
+                        setPendingLogApplier((_a = getLastRestrainerName()) !== null && _a !== void 0 ? _a : `#${sourceNum}`);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
                 }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return result;
         });
         // Anti-restraint + grace period: detect new restraints on the player after any refresh
         tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
-            var _a;
             const result = next(args);
             try {
                 const [C] = args;
                 if (C === Player) {
                     checkGraceExpiry();
                     enforceGracePeriod();
-                    // Log restraint changes BEFORE anti-restraint clears lastRestrainerName
+                    // Detect restraint changes — applier name is resolved asynchronously
+                    // via setPendingLogApplier when the Action message arrives.
                     try {
-                        checkRestraintChanges((_a = getLastRestrainerName()) !== null && _a !== void 0 ? _a : "Unknown");
+                        checkRestraintChanges();
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
+                    catch ( /* ignore */_a) { /* ignore */ }
                     antiRestraintOnPlayerRefresh();
                 }
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
             return result;
         });
         // Keep drawer visibility in sync whenever the BC screen changes.
@@ -16912,15 +17024,18 @@
             return result;
         });
         // Track member joins for room history.
+        // BC may pass the character directly as data, or wrapped as data.Character —
+        // handle both shapes to be safe across BC versions.
         tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
+            var _a;
             const result = next(args);
             try {
                 const [data] = args;
-                const char = data.Character;
-                if (char)
+                const char = ((_a = data.Character) !== null && _a !== void 0 ? _a : data);
+                if (char.MemberNumber)
                     onMemberJoin(char);
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
             return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)

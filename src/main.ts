@@ -8,7 +8,7 @@ import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin } from "./modules/roomHistory";
-import { snapshotForLog, checkRestraintChanges } from "./modules/restraintLog";
+import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
@@ -1748,6 +1748,9 @@ function init(): void {
             if (typeof targetNum === "number" && targetNum === Player.MemberNumber &&
                 typeof sourceNum === "number" && sourceNum !== Player.MemberNumber) {
                 recordRestrainer(sourceNum);
+                // Also stash the name for the restraint log — it flushes any
+                // pending additions that are waiting on the applier name.
+                try { setPendingLogApplier(getLastRestrainerName() ?? `#${sourceNum}`); } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
         return result;
@@ -1761,8 +1764,9 @@ function init(): void {
             if (C === Player) {
                 checkGraceExpiry();
                 enforceGracePeriod();
-                // Log restraint changes BEFORE anti-restraint clears lastRestrainerName
-                try { checkRestraintChanges(getLastRestrainerName() ?? "Unknown"); } catch { /* ignore */ }
+                // Detect restraint changes — applier name is resolved asynchronously
+                // via setPendingLogApplier when the Action message arrives.
+                try { checkRestraintChanges(); } catch { /* ignore */ }
                 antiRestraintOnPlayerRefresh();
             }
         } catch { /* ignore */ }
@@ -1787,12 +1791,14 @@ function init(): void {
     });
 
     // Track member joins for room history.
+    // BC may pass the character directly as data, or wrapped as data.Character —
+    // handle both shapes to be safe across BC versions.
     tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
         const result = next(args);
         try {
             const [data] = args as [Record<string, unknown>];
-            const char = data.Character as { MemberNumber?: number; Nickname?: string; Name?: string } | undefined;
-            if (char) onMemberJoin(char);
+            const char = (data.Character ?? data) as { MemberNumber?: number; Nickname?: string; Name?: string };
+            if (char.MemberNumber) onMemberJoin(char);
         } catch { /* ignore */ }
         return result;
     });

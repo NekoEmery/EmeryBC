@@ -24,6 +24,10 @@ const LS_KEY      = "EBC_roomHistory";
 let currentVisit:         RoomVisit | null = null;
 let lastRecordedRoomName: string   | null = null;
 
+// Track member numbers already accounted for (entry list + joins) so we never
+// double-count someone when detectNewJoins runs on every render tick.
+let knownMemberNums = new Set<number>();
+
 function uid(): string { return Math.random().toString(36).slice(2, 9); }
 
 function loadHistory(): RoomVisit[] {
@@ -51,34 +55,47 @@ function flushCurrent(): void {
     saveHistory(history);
 }
 
+function getRoomChars(): Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> {
+    return ((window as unknown as Record<string, unknown>).ChatRoomCharacter as
+        Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined) ?? [];
+}
+
 // Called from the ChatRoomSync hook. Detects new-room entry by name change.
 export function onRoomSync(): void {
     try {
         const data = (window as unknown as Record<string, unknown>).ChatRoomData as Record<string, unknown> | undefined;
         const name  = typeof data?.Name  === "string" ? data.Name  : null;
-        if (!name || name === lastRecordedRoomName) return;
-        lastRecordedRoomName = name;
+        if (!name) return;
 
-        // Flush previous visit before starting new one
-        if (currentVisit) flushCurrent();
+        const chars = getRoomChars();
 
-        const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
-            Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined;
+        if (name !== lastRecordedRoomName) {
+            // ── New room entered ────────────────────────────────────────────────
+            lastRecordedRoomName = name;
+            if (currentVisit) flushCurrent();
 
-        const members = (chars ?? [])
-            .filter(c => c.MemberNumber && c.MemberNumber !== Player.MemberNumber)
-            .map(c => ({
-                memberNumber: c.MemberNumber!,
-                name: c.Nickname?.trim() || c.Name || `#${c.MemberNumber}`,
-            }));
+            const members = chars
+                .filter(c => c.MemberNumber && c.MemberNumber !== Player.MemberNumber)
+                .map(c => ({
+                    memberNumber: c.MemberNumber!,
+                    name: c.Nickname?.trim() || c.Name || `#${c.MemberNumber}`,
+                }));
 
-        const space = typeof data?.Space === "string" ? data.Space : "";
+            const space = typeof data?.Space === "string" ? data.Space : "";
 
-        currentVisit = {
-            id: uid(), name, space,
-            enteredAt: Date.now(), leftAt: null,
-            members, joins: [],
-        };
+            currentVisit = {
+                id: uid(), name, space,
+                enteredAt: Date.now(), leftAt: null,
+                members, joins: [],
+            };
+
+            // Seed knownMemberNums from the entry snapshot so we don't
+            // immediately re-log them as joins on the next detectNewJoins call.
+            knownMemberNums = new Set(members.map(m => m.memberNumber));
+        }
+        // When still in the same room we rely on detectNewJoins() (called from
+        // the render poller) rather than re-diffing here, since ChatRoomSync may
+        // not fire for every individual member join in all BC versions.
     } catch { /* ignore */ }
 }
 
@@ -89,15 +106,43 @@ export function onRoomLeave(): void {
         if (!currentVisit) return;
         flushCurrent();
         currentVisit = null;
+        knownMemberNums.clear();
     } catch { /* ignore */ }
 }
 
-// Called from the ChatRoomSyncMemberJoin hook.
+// Called from the ChatRoomSyncMemberJoin hook (supplementary — BC may also
+// broadcast full ChatRoomSync packets; detectNewJoins handles those cases).
 export function onMemberJoin(char: { MemberNumber?: number; Nickname?: string; Name?: string }): void {
     try {
         if (!currentVisit || !char.MemberNumber || char.MemberNumber === Player.MemberNumber) return;
+        if (knownMemberNums.has(char.MemberNumber)) return; // already recorded
+        knownMemberNums.add(char.MemberNumber);
         const name = char.Nickname?.trim() || char.Name || `#${char.MemberNumber}`;
         currentVisit.joins.push({ memberNumber: char.MemberNumber, name, at: Date.now() });
+    } catch { /* ignore */ }
+}
+
+// Called every render tick (1.5 s) to catch joins that slipped through because
+// ChatRoomSyncMemberJoin didn't fire or had an unexpected data shape.
+export function detectNewJoins(): void {
+    try {
+        if (!currentVisit) {
+            // EBC loaded while already in a room — bootstrap currentVisit now.
+            onRoomSync();
+            return;
+        }
+        const chars = getRoomChars();
+        for (const c of chars) {
+            if (!c.MemberNumber || c.MemberNumber === Player.MemberNumber) continue;
+            if (knownMemberNums.has(c.MemberNumber)) continue;
+            knownMemberNums.add(c.MemberNumber);
+            // Only count as a "join" if they weren't in the original entry list.
+            const wasOnEntry = currentVisit.members.some(m => m.memberNumber === c.MemberNumber);
+            if (!wasOnEntry) {
+                const name = c.Nickname?.trim() || c.Name || `#${c.MemberNumber}`;
+                currentVisit.joins.push({ memberNumber: c.MemberNumber, name, at: Date.now() });
+            }
+        }
     } catch { /* ignore */ }
 }
 
@@ -120,4 +165,5 @@ export function getRoomHistory(): RoomVisit[] {
 export function clearRoomHistory(): void {
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
     currentVisit = null;
+    knownMemberNums.clear();
 }

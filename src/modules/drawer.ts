@@ -78,7 +78,7 @@ import {
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
-import { getRoomHistory, clearRoomHistory } from "./roomHistory";
+import { getRoomHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
@@ -10167,6 +10167,9 @@ export class EBCDrawer {
 
             makeInner("Room History", "EBC_roomHistoryCollapsed", true, (c) => {
                 renderRoom = (): void => {
+                    // Scan ChatRoomCharacter for any members we haven't seen yet
+                    // (catches joins that slipped through the hook or loaded late).
+                    detectNewJoins();
                     while (c.firstChild) c.removeChild(c.firstChild);
                     const visits = getRoomHistory();
                     if (visits.length === 0) {
