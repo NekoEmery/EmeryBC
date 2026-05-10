@@ -310,7 +310,6 @@
     }
     // --- In-game sidebar ---------------------------------------------------------
     const BTN_X = 0;
-    const BTN_START_Y = 320;
     const BTN_SIZE = 45;
     // Collapse toggle - shorter than action buttons so it reads as a control, not a content button
     const CHIP_X = 0;
@@ -323,6 +322,8 @@
     const CAT_CHIP_H = 30;
     // Prev/next arrows flanking the category name
     const CAT_ARR_W = 22;
+    // Buttons start immediately below the category chip
+    const BTN_START_Y = CAT_CHIP_Y + CAT_CHIP_H + 4;
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
