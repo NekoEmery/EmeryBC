@@ -13272,7 +13272,7 @@
                     emoji: "🎀",
                     name: "Sin",
                     memberId: 143776,
-                    reason: "Creator of CRABS — the UI inspiration behind this whole drawer. Open design, open heart.",
+                    reason: "Creator of CRABS — the sliding panel design that inspired the whole look and feel of this drawer. She shaped the foundation without even knowing it, and when it mattered she was genuinely kind and helpful too. Open code, open heart.",
                     heart: "💗",
                 },
                 {
