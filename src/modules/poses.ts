@@ -31,6 +31,7 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
     {
         group: "Arms",
         poses: [
+            { key: "",               label: "Relaxed"     },
             { key: "OverTheHead",    label: "Arms Up"     },
             { key: "BackCuffs",      label: "Arms Back"   },
             { key: "BackBoxTie",     label: "Box Tie"     },

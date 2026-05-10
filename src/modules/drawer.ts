@@ -7173,16 +7173,25 @@ export class EBCDrawer {
             for (const preset of group.poses) {
                 const btn = document.createElement("button");
                 const presetPoses = preset.key ? [preset.key] : [];
-                const isActive = preset.key === ""
+                const armKeys = KNOWN_POSES.find(g => g.group === "Arms")?.poses.map(p => p.key).filter(Boolean) ?? [];
+                const isActive = preset.key === "" && group.group === "Arms"
+                    ? !currentPoses.some(p => armKeys.includes(p))
+                    : preset.key === ""
                     ? currentPoses.length === 0
                     : isPoseActive(preset.key);
                 btn.className = "ebc-pose-btn" + (isActive ? " active" : "");
                 btn.textContent = preset.label;
                 btn.title = preset.key
                     ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
-                    : "Clear all poses";
+                    : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                 btn.addEventListener("click", () => {
-                    if (preset.key === "") {
+                    if (preset.key === "" && group.group === "Arms") {
+                        // "Relaxed" — clear arm poses but keep body poses
+                        const bodyPoses = currentPoses.filter(p =>
+                            KNOWN_POSES.find(g => g.group === "Body")?.poses.some(x => x.key === p),
+                        );
+                        applyPoses(bodyPoses);
+                    } else if (preset.key === "") {
                         // "Stand" clears everything
                         applyPoses([]);
                     } else if (group.group === "Body") {

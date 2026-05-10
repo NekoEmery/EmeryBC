@@ -1424,6 +1424,7 @@
         {
             group: "Arms",
             poses: [
+                { key: "", label: "Relaxed" },
                 { key: "OverTheHead", label: "Arms Up" },
                 { key: "BackCuffs", label: "Arms Back" },
                 { key: "BackBoxTie", label: "Box Tie" },
@@ -10340,7 +10341,7 @@
         }
         // -- Poses tab -------------------------------------------------------------
         renderPoses() {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e, _f;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -10632,16 +10633,24 @@
                 for (const preset of group.poses) {
                     const btn = document.createElement("button");
                     preset.key ? [preset.key] : [];
-                    const isActive = preset.key === ""
-                        ? currentPoses.length === 0
-                        : isPoseActive(preset.key);
+                    const armKeys = (_c = (_b = KNOWN_POSES.find(g => g.group === "Arms")) === null || _b === void 0 ? void 0 : _b.poses.map(p => p.key).filter(Boolean)) !== null && _c !== void 0 ? _c : [];
+                    const isActive = preset.key === "" && group.group === "Arms"
+                        ? !currentPoses.some(p => armKeys.includes(p))
+                        : preset.key === ""
+                            ? currentPoses.length === 0
+                            : isPoseActive(preset.key);
                     btn.className = "ebc-pose-btn" + (isActive ? " active" : "");
                     btn.textContent = preset.label;
                     btn.title = preset.key
                         ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
-                        : "Clear all poses";
+                        : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                     btn.addEventListener("click", () => {
-                        if (preset.key === "") {
+                        if (preset.key === "" && group.group === "Arms") {
+                            // "Relaxed" — clear arm poses but keep body poses
+                            const bodyPoses = currentPoses.filter(p => { var _a; return (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses.some(x => x.key === p); });
+                            applyPoses(bodyPoses);
+                        }
+                        else if (preset.key === "") {
                             // "Stand" clears everything
                             applyPoses([]);
                         }
@@ -10789,9 +10798,9 @@
                 poseSectionLbl.className = "ebc-import-hint";
                 poseSectionLbl.textContent = "Sequence:";
                 editor.appendChild(poseSectionLbl);
-                const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_b = combo.stepDelayMs) !== null && _b !== void 0 ? _b : 420);
+                const { getPoses, getDelay } = buildPoseOrderEditor(editor, combo.poses, (_d = combo.stepDelayMs) !== null && _d !== void 0 ? _d : 420);
                 // Command + Announce
-                const { getCommand, getAnnounce } = buildComboOptions(editor, (_c = combo.command) !== null && _c !== void 0 ? _c : "", (_d = combo.announceText) !== null && _d !== void 0 ? _d : "");
+                const { getCommand, getAnnounce } = buildComboOptions(editor, (_e = combo.command) !== null && _e !== void 0 ? _e : "", (_f = combo.announceText) !== null && _f !== void 0 ? _f : "");
                 // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
                 topSaveBtn.addEventListener("click", () => {
                     updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
