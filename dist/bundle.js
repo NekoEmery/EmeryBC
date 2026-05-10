@@ -13442,7 +13442,9 @@
                 cnt.appendChild(hookRefreshBtn);
             });
             // ── LOG ───────────────────────────────────────────────────────────────
-            // renderMsgLog is hoisted so the poller can reference it
+            // Hoisted so the auto-refresh poller can reference them without
+            // needing to know whether the inner sections are expanded yet.
+            let renderRoom = () => { };
             let renderMsgLog = () => { };
             makeSection("LOG", "EBC_devLogSectionCollapsed", true, (cnt) => {
                 // -- shared helpers --
@@ -13509,7 +13511,7 @@
                 roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
                 roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
                 makeInner("Room History", "EBC_roomHistoryCollapsed", true, (c) => {
-                    const renderRoom = () => {
+                    renderRoom = () => {
                         while (c.firstChild)
                             c.removeChild(c.firstChild);
                         const visits = getRoomHistory();
@@ -13792,10 +13794,14 @@
                     msgClearBtn.addEventListener("click", () => { clearDevLog(); renderMsgLog(); });
                 });
             });
-            // Auto-refresh every 1.5 s while the DEV tab is open (only if msg logging enabled)
+            // Auto-refresh every 1.5 s while the DEV tab is open.
+            // Room History always refreshes (cheap read). Message log only if logging is on.
             this.stopDevLogPoller();
             this.devLogPoller = window.setInterval(() => {
-                if (this.currentTab === "dev" && isDevLogEnabled())
+                if (this.currentTab !== "dev")
+                    return;
+                renderRoom();
+                if (isDevLogEnabled())
                     renderMsgLog();
             }, 1500);
         }

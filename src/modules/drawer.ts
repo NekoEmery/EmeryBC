@@ -10104,7 +10104,9 @@ export class EBCDrawer {
         });
 
         // ── LOG ───────────────────────────────────────────────────────────────
-        // renderMsgLog is hoisted so the poller can reference it
+        // Hoisted so the auto-refresh poller can reference them without
+        // needing to know whether the inner sections are expanded yet.
+        let renderRoom:   () => void = () => { /* populated below */ };
         let renderMsgLog: () => void = () => { /* populated below */ };
 
         makeSection("LOG", "EBC_devLogSectionCollapsed", true, (cnt) => {
@@ -10164,7 +10166,7 @@ export class EBCDrawer {
             roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
 
             makeInner("Room History", "EBC_roomHistoryCollapsed", true, (c) => {
-                const renderRoom = (): void => {
+                renderRoom = (): void => {
                     while (c.firstChild) c.removeChild(c.firstChild);
                     const visits = getRoomHistory();
                     if (visits.length === 0) {
@@ -10398,10 +10400,13 @@ export class EBCDrawer {
             });
         });
 
-        // Auto-refresh every 1.5 s while the DEV tab is open (only if msg logging enabled)
+        // Auto-refresh every 1.5 s while the DEV tab is open.
+        // Room History always refreshes (cheap read). Message log only if logging is on.
         this.stopDevLogPoller();
         this.devLogPoller = window.setInterval(() => {
-            if (this.currentTab === "dev" && isDevLogEnabled()) renderMsgLog();
+            if (this.currentTab !== "dev") return;
+            renderRoom();
+            if (isDevLogEnabled()) renderMsgLog();
         }, 1500);
     }
 
