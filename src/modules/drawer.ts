@@ -312,44 +312,30 @@ const CSS = `
     position: relative; /* needed so the resize corner is positioned inside this element */
 }
 
-/* Left-edge drag strip — the primary width handle.
-   Drag left = wider, drag right = narrower.
-   Same pattern as VS Code / Discord sidebar resize. */
+/* Left-edge drag strip — width handle (drag left = wider, drag right = narrower).
+   Thin line always visible so users can discover it; brightens on hover/drag. */
 .ebc-resize-left {
     position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
-    width: 5px;
+    width: 6px;
     cursor: ew-resize;
     user-select: none;
     touch-action: none;
     pointer-events: auto;
     z-index: 5;
+    background: rgba(74, 37, 55, 0.6); /* faint line — always discoverable */
     transition: background 0.15s;
 }
 .ebc-resize-left:hover,
 .ebc-resize-left.ebc-resizing {
-    background: rgba(207, 111, 152, 0.25);
+    background: rgba(207, 111, 152, 0.5);
 }
 
-/* Bottom-edge drag strip — height handle. */
-.ebc-resize-bottom {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 5px;
-    cursor: s-resize;
-    user-select: none;
-    touch-action: none;
-    pointer-events: auto;
-    z-index: 5;
-    transition: background 0.15s;
-}
-.ebc-resize-bottom:hover,
-.ebc-resize-bottom.ebc-resizing {
-    background: rgba(207, 111, 152, 0.25);
+/* Footer doubles as the height drag handle — s-resize cursor set inline in JS. */
+.ebc-footer.ebc-resizing {
+    background: rgba(207, 111, 152, 0.12);
 }
 
 /* Catch-all hover brightening for any button that lacks its own :hover rule */
@@ -3253,17 +3239,15 @@ export class EBCDrawer {
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
 
-        // Two resize handles inside .ebc-panel (position:relative):
-        //   resizeLeft  — left edge, ew-resize cursor, controls WIDTH  (like Discord/VS Code sidebar)
-        //   resizeBottom — bottom edge, s-resize cursor, controls HEIGHT
+        // Two resize handles:
+        //   resizeLeft — left edge strip, controls WIDTH  (like Discord/VS Code sidebar)
+        //   footer     — doubles as height handle at the bottom (no extra element = no halo)
         // Both use setPointerCapture so drags can't be stolen by BC's event handlers.
-        // Double-click either handle to reset that dimension (or both) to auto.
-        const resizeLeft   = document.createElement("div");
-        const resizeBottom = document.createElement("div");
-        resizeLeft.className   = "ebc-resize-left";
-        resizeBottom.className = "ebc-resize-bottom";
-        resizeLeft.title   = "Drag to resize width · Double-click to reset";
-        resizeBottom.title = "Drag to resize height · Double-click to reset";
+        // Width formula: newW = panel.right - cursor.x  (left edge literally follows the cursor)
+        // Double-click to reset.
+        const resizeLeft = document.createElement("div");
+        resizeLeft.className = "ebc-resize-left";
+        resizeLeft.title     = "Drag to resize width · Double-click to reset";
 
         const EBC_HEIGHT_KEY = "EBC_panelHeight";
         const EBC_WIDTH_KEY  = "EBC_panelWidth";
@@ -3277,7 +3261,6 @@ export class EBCDrawer {
         panel.appendChild(body);
         panel.appendChild(footer);
         panel.appendChild(resizeLeft);
-        panel.appendChild(resizeBottom);
         slideContainer.appendChild(panel);
         root.appendChild(slideContainer);
 
@@ -3302,19 +3285,18 @@ export class EBCDrawer {
             if (this.panelContentEl) this.panelContentEl.style.height = `${h}px`;
         };
 
-        // LEFT EDGE — width resize
+        // LEFT EDGE — width resize.
+        // newW = panel's fixed right edge − cursor X, so the left edge literally sticks to
+        // the cursor: drag left = wider, drag right = narrower.  No delta math needed.
         resizeLeft.addEventListener("pointerdown", (e: PointerEvent) => {
             if (e.button !== 0) return;
             e.preventDefault();
             e.stopPropagation();
-            const startW = (this.panelEl as HTMLElement).getBoundingClientRect().width;
-            const startX = e.clientX;
+            const rightEdge = (this.panelEl as HTMLElement).getBoundingClientRect().right;
             resizeLeft.setPointerCapture(e.pointerId);
             resizeLeft.classList.add("ebc-resizing");
             const onMove = (me: PointerEvent): void => {
-                // Panel is right-anchored: dragging left (dx < 0) makes it wider
-                const newW = Math.max(120, Math.min(window.innerWidth - 60, startW - (me.clientX - startX)));
-                applyWidth(newW);
+                applyWidth(Math.max(120, Math.min(window.innerWidth - 60, rightEdge - me.clientX)));
             };
             const onUp = (): void => {
                 resizeLeft.removeEventListener("pointermove", onMove);
@@ -3333,29 +3315,30 @@ export class EBCDrawer {
             this.syncToChat();
         });
 
-        // BOTTOM EDGE — height resize
-        resizeBottom.addEventListener("pointerdown", (e: PointerEvent) => {
+        // FOOTER — height resize (reuses existing footer element; no extra strip = no halo).
+        footer.style.cursor = "s-resize";
+        footer.title = "Drag to resize height · Double-click to reset";
+        footer.addEventListener("pointerdown", (e: PointerEvent) => {
             if (e.button !== 0) return;
             e.preventDefault();
             e.stopPropagation();
             const startH = (this.panelEl as HTMLElement).getBoundingClientRect().height;
             const startY = e.clientY;
-            resizeBottom.setPointerCapture(e.pointerId);
-            resizeBottom.classList.add("ebc-resizing");
+            footer.setPointerCapture(e.pointerId);
+            footer.classList.add("ebc-resizing");
             const onMove = (me: PointerEvent): void => {
-                const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (me.clientY - startY)));
-                applyHeight(newH);
+                applyHeight(Math.max(180, Math.min(window.innerHeight - 40, startH + (me.clientY - startY))));
             };
             const onUp = (): void => {
-                resizeBottom.removeEventListener("pointermove", onMove);
-                resizeBottom.removeEventListener("pointerup",   onUp);
-                resizeBottom.classList.remove("ebc-resizing");
+                footer.removeEventListener("pointermove", onMove);
+                footer.removeEventListener("pointerup",   onUp);
+                footer.classList.remove("ebc-resizing");
                 try { if (this.userPanelHeight !== null) localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight)); } catch { /* ignore */ }
             };
-            resizeBottom.addEventListener("pointermove", onMove);
-            resizeBottom.addEventListener("pointerup",   onUp);
+            footer.addEventListener("pointermove", onMove);
+            footer.addEventListener("pointerup",   onUp);
         });
-        resizeBottom.addEventListener("dblclick", () => {
+        footer.addEventListener("dblclick", () => {
             this.userPanelHeight = null;
             if (this.panelEl) (this.panelEl as HTMLElement).style.height = "";
             if (this.panelContentEl) this.panelContentEl.style.height = "";
