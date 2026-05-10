@@ -408,7 +408,7 @@ const CSS = `
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #7a5a6a;
+    color: #9a7888;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
@@ -447,7 +447,7 @@ const CSS = `
     font-size: 10px;
     font-weight: bold;
     letter-spacing: 0.1em;
-    color: #8a6070;
+    color: #c09098;
     text-transform: uppercase;
     padding: 4px 4px 5px;
 }
@@ -932,7 +932,7 @@ const CSS = `
 .ebc-notes-member-num {
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
-    color: #553142;
+    color: #8a6878;
     flex-shrink: 0;
 }
 
@@ -1065,7 +1065,7 @@ const CSS = `
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 6px;
-    color: #7a4a5e;
+    color: #c08890;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
@@ -1142,7 +1142,7 @@ const CSS = `
 .ebc-thanks-reason {
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
-    color: #967281;
+    color: #c0a8b8;
     line-height: 1.4;
 }
 
@@ -1150,6 +1150,66 @@ const CSS = `
     flex-shrink: 0;
     font-size: 16px;
     user-select: none;
+}
+
+.ebc-member-chip {
+    display: inline-block;
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    font-weight: bold;
+    color: #d08898;
+    background: #2a0e1e;
+    border: 1px solid #6b3050;
+    border-radius: 4px;
+    padding: 1px 5px;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+    user-select: all;
+}
+
+.ebc-cat-pill {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    border: 1px solid #3a1928;
+    background: transparent;
+    color: #9a7080;
+}
+.ebc-cat-pill:hover { color: #cf6f98; border-color: #6b3048; }
+.ebc-cat-pill.active {
+    border-color: #cf6f98;
+    background: #3a1028;
+    color: #cf6f98;
+}
+.ebc-cat-select {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    background: #1b0d17;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #d0a0b8;
+    padding: 2px 6px;
+    cursor: pointer;
+    outline: none;
+    flex: 1;
+}
+.ebc-cat-select:focus { border-color: #cf6f98; }
+.ebc-cat-select-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0 4px;
+}
+.ebc-cat-select-label {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #9a7888;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex-shrink: 0;
 }
 
 .ebc-thanks-intro {
@@ -1197,7 +1257,7 @@ const CSS = `
 .ebc-restraint-group {
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
-    color: #8a6070;
+    color: #a88090;
     white-space: nowrap;
 }
 
@@ -1210,7 +1270,7 @@ const CSS = `
     text-align: right;
 }
 
-.ebc-restraint-lock.unlocked { color: #7a5a6a; }
+.ebc-restraint-lock.unlocked { color: #9a7888; }
 
 .ebc-restraint-duration {
     margin-left: auto;
@@ -2403,6 +2463,8 @@ export class EBCDrawer {
     private resetLocationBtn: HTMLElement | null = null;
     // User-dragged panel height override. null = match chat log height.
     private userPanelHeight: number | null = null;
+    // Category dropdown in quick actions bar
+    private catSelectEl: HTMLSelectElement | null = null;
     // DEV tab auto-refresh poller
     private devLogPoller: ReturnType<typeof window.setInterval> | null = null;
 
@@ -2627,6 +2689,26 @@ export class EBCDrawer {
         qaRow1.appendChild(releaseBtn);
         qaRow1.appendChild(unlockBtn);
         quickActions.appendChild(qaRow1);
+
+        // Row 0: Category selector for quick buttons
+        const catSelectRow = document.createElement("div");
+        catSelectRow.className = "ebc-cat-select-row";
+        const catSelectLbl = document.createElement("span");
+        catSelectLbl.className = "ebc-cat-select-label";
+        catSelectLbl.textContent = "Buttons";
+        const catSel = document.createElement("select");
+        catSel.className = "ebc-cat-select";
+        catSel.title = "Switch active Quick Action Button category";
+        catSel.addEventListener("change", () => {
+            const idx = parseInt(catSel.value, 10);
+            if (!isNaN(idx)) {
+                setActiveCategoryIndex(idx);
+            }
+        });
+        this.catSelectEl = catSel;
+        catSelectRow.appendChild(catSelectLbl);
+        catSelectRow.appendChild(catSel);
+        quickActions.appendChild(catSelectRow);
 
         // Row 1b: confirm-before-escaping (centered, subtle, between danger buttons and picker)
         const qaConfirmRow = document.createElement("div");
@@ -3269,6 +3351,23 @@ export class EBCDrawer {
     // Because both addons respond to the same layout events the read order is
     // non-deterministic, so we poll CRABS's position every 200 ms instead of
     // relying on a one-shot read during syncToChat().
+
+    public refreshCategorySelect(): void {
+        const sel = this.catSelectEl;
+        if (!sel) return;
+        try {
+            const cats = getCategories();
+            const activeIdx = getActiveCategoryIndex();
+            sel.innerHTML = "";
+            cats.forEach((cat, i) => {
+                const opt = document.createElement("option");
+                opt.value = String(i);
+                opt.textContent = cat.name;
+                if (i === activeIdx) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        } catch { /* ignore */ }
+    }
 
     private syncToChat(): boolean {
         const chatLog = document.getElementById("TextAreaChatLog");
@@ -6073,7 +6172,7 @@ export class EBCDrawer {
                 const tab = document.createElement("button");
                 tab.textContent = cat.name;
                 const isActive = i === activeCatIdx;
-                tab.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 8px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isActive ? "#cf6f98" : "#3a1928"};background:${isActive ? "#3a1028" : "transparent"};color:${isActive ? "#cf6f98" : "#7a5060"};`;
+                tab.className = "ebc-cat-pill" + (isActive ? " active" : "");
                 tab.addEventListener("click", () => {
                     activeCatIdx = i;
                     setActiveCategoryIndex(i);
@@ -6091,7 +6190,9 @@ export class EBCDrawer {
             const addCatBtn = document.createElement("button");
             addCatBtn.textContent = "+ Cat";
             addCatBtn.title = "Add a new category";
-            addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px dashed #4c2537;background:transparent;color:#5a3a4a;";
+            addCatBtn.className = "ebc-cat-pill";
+            addCatBtn.style.borderStyle = "dashed";
+            addCatBtn.style.color = "#7a5a6a";
             addCatBtn.addEventListener("click", () => {
                 const name = window.prompt("Category name (e.g. RP, Casual):") ?? "";
                 if (!name.trim()) return;
@@ -6111,7 +6212,8 @@ export class EBCDrawer {
                 const renameBtn = document.createElement("button");
                 renameBtn.textContent = "✎";
                 renameBtn.title = "Rename active category";
-                renameBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid #3a1928;background:transparent;color:#7a5060;";
+                renameBtn.className = "ebc-cat-pill";
+                renameBtn.style.padding = "1px 5px";
                 renameBtn.addEventListener("click", () => {
                     const newName = window.prompt("New name:", cats[activeCatIdx].name) ?? "";
                     if (!newName.trim()) return;
@@ -6516,6 +6618,7 @@ export class EBCDrawer {
             cats[activeCatIdx].buttons   = [...btns];
             cats[activeCatIdx].slotCount = slotCount;
             saveCategories([...cats], activeCatIdx);
+                    try { this.refreshCategorySelect(); } catch { /* ignore */ }
             saveBtn.textContent = "Saved!";
             window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
         });
@@ -6547,6 +6650,7 @@ export class EBCDrawer {
                 cats[activeCatIdx].buttons   = [...btns];
                 cats[activeCatIdx].slotCount = slotCount;
                 saveCategories([...cats], activeCatIdx);
+                    try { this.refreshCategorySelect(); } catch { /* ignore */ }
                 renderSlots();
                 updateFooterState();
             }
@@ -10186,7 +10290,7 @@ export class EBCDrawer {
             if (vipCredit) applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
 
             const idEl2 = document.createElement("span");
-            idEl2.style.cssText = "font-size:9px;color:#7a5a6a;font-family:'Trebuchet MS',serif;flex-shrink:0;";
+            idEl2.className = "ebc-member-chip";
             idEl2.textContent = "#" + p.memberId;
             idEl2.title = "BC Member Number";
 
@@ -11266,6 +11370,7 @@ export class EBCDrawer {
         }
         if (!this.positioned) this.syncToChat();
         try { this.refreshBadgeRow?.(); } catch { /* ignore */ }
+        try { this.refreshCategorySelect(); } catch { /* ignore */ }
         // Show the DOM tab only for the creator
         const domTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-dom");
         if (domTabEl) domTabEl.style.display = isDomEnabled() ? "" : "none";
