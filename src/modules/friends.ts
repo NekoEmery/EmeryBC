@@ -87,11 +87,16 @@ export interface FriendOnlineInfo {
 const onlineSet = new Set<number>();
 const onlineInfo = new Map<number, FriendOnlineInfo>();
 
-// Members we sent a message to while they were offline — notify them when they come online
-const pendingOfflineMessages = new Set<number>();
+// Messages sent while recipient was offline — re-delivered when they come online.
+// BC's server drops beeps to offline players, so we queue them here and resend
+// once we detect the recipient came online via AccountQueryResult.
+const pendingOfflineMessages = new Map<number, string[]>();
 
-export function markPendingMessage(memberNumber: number): void {
-    if (!onlineSet.has(memberNumber)) pendingOfflineMessages.add(memberNumber);
+function markPendingMessage(memberNumber: number, message: string): void {
+    if (onlineSet.has(memberNumber)) return;
+    const queue = pendingOfflineMessages.get(memberNumber) ?? [];
+    queue.push(message);
+    pendingOfflineMessages.set(memberNumber, queue);
 }
 
 // Session cache: EBC version for members we've shared a room with this session
@@ -122,17 +127,15 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
             roomLocked:  typeof r.Locked          === "boolean" ? r.Locked          : undefined,
         });
     }
-    // Notify anyone who just came online that we have a message waiting for them
-    for (const num of pendingOfflineMessages) {
+    // Re-deliver any messages that were sent while the recipient was offline.
+    // BC drops beeps to offline players, so we resend the originals now that they're back.
+    for (const [num, msgs] of pendingOfflineMessages) {
         if (onlineSet.has(num) && !prevOnline.has(num)) {
             pendingOfflineMessages.delete(num);
             try {
-                const myName = (Player as unknown as Record<string, unknown>).Nickname as string | undefined
-                    ?? Player.Name ?? "Someone";
-                ServerSend("AccountBeep", {
-                    MemberNumber: num,
-                    Message: `[EBC] ${myName} sent you a message while you were offline — open EBC chat to read it!`,
-                });
+                for (const msg of msgs) {
+                    ServerSend("AccountBeep", { MemberNumber: num, Message: msg });
+                }
             } catch { /* ignore */ }
         }
     }
@@ -234,8 +237,9 @@ export function getConversation(memberNumber: number): BeepEntry[] {
 // -- Sending -------------------------------------------------------------------
 
 export function sendBeep(memberNumber: number, message: string): void {
-    // If recipient is offline, flag them so we notify them when they come online
-    markPendingMessage(memberNumber);
+    // Queue the message for re-delivery if the recipient is currently offline.
+    // BC drops beeps to offline players, so we resend when they come online.
+    markPendingMessage(memberNumber, message);
     try {
         ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message });
     } catch { /* ignore */ }
