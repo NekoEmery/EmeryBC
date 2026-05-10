@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.4.3";
+const MOD_VERSION = "1.4.4";
 
 let noticeShown = false;
 
@@ -26,6 +26,15 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.4.4",
+        changes: [
+            "Room History and Restraint Log are now opt-in (off by default) — each has an enable toggle inside its section in DEV → LOG.",
+            "Restraint log no longer records items that are in your anti-restraint whitelist.",
+            "Room history join detection now runs directly from BC hooks (ChatRoomSync, ChatRoomSyncMemberJoin) so joins are captured even when the DEV tab is closed.",
+            "OOC mode toggle moved from Notes tab to Buttons tab → Fun Actions section.",
+        ],
+    },
     {
         version: "1.4.3",
         changes: [
