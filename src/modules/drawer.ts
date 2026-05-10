@@ -3932,11 +3932,19 @@ export class EBCDrawer {
 
         const lbl = document.createElement("div");
         lbl.className = "ebc-section-label";
-        lbl.textContent = "Outfit Schedule";
-        body.appendChild(lbl);
+        lbl.style.cursor = "pointer";
+        lbl.style.userSelect = "none";
+
+        const container = document.createElement("div");
+
+        let collapsed = false;
+        try { collapsed = localStorage.getItem("EBC_scheduleCollapsed") === "1"; } catch { /* ignore */ }
+
+        const updateLabel = (): void => {
+            lbl.textContent = (collapsed ? "▶" : "▼") + " OUTFIT SCHEDULE";
+        };
 
         const scheduleList = document.createElement("div");
-        body.appendChild(scheduleList);
 
         const renderScheduleList = (): void => {
             while (scheduleList.firstChild) scheduleList.removeChild(scheduleList.firstChild);
@@ -4056,7 +4064,22 @@ export class EBCDrawer {
         addRow.appendChild(outfitSelect);
         addRow.appendChild(timeInput);
         addRow.appendChild(addBtn);
-        body.appendChild(addRow);
+
+        container.appendChild(scheduleList);
+        container.appendChild(addRow);
+
+        lbl.addEventListener("click", () => {
+            collapsed = !collapsed;
+            try { localStorage.setItem("EBC_scheduleCollapsed", collapsed ? "1" : "0"); } catch { /* ignore */ }
+            updateLabel();
+            container.style.display = collapsed ? "none" : "";
+        });
+
+        updateLabel();
+        container.style.display = collapsed ? "none" : "";
+
+        body.appendChild(lbl);
+        body.appendChild(container);
     }
 
     // -- Restraint info --------------------------------------------------------

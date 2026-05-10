@@ -7143,10 +7143,18 @@
             body.appendChild(divEl);
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
-            lbl.textContent = "Outfit Schedule";
-            body.appendChild(lbl);
+            lbl.style.cursor = "pointer";
+            lbl.style.userSelect = "none";
+            const container = document.createElement("div");
+            let collapsed = false;
+            try {
+                collapsed = localStorage.getItem("EBC_scheduleCollapsed") === "1";
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            const updateLabel = () => {
+                lbl.textContent = (collapsed ? "▶" : "▼") + " OUTFIT SCHEDULE";
+            };
             const scheduleList = document.createElement("div");
-            body.appendChild(scheduleList);
             const renderScheduleList = () => {
                 while (scheduleList.firstChild)
                     scheduleList.removeChild(scheduleList.firstChild);
@@ -7256,7 +7264,21 @@
             addRow.appendChild(outfitSelect);
             addRow.appendChild(timeInput);
             addRow.appendChild(addBtn);
-            body.appendChild(addRow);
+            container.appendChild(scheduleList);
+            container.appendChild(addRow);
+            lbl.addEventListener("click", () => {
+                collapsed = !collapsed;
+                try {
+                    localStorage.setItem("EBC_scheduleCollapsed", collapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                updateLabel();
+                container.style.display = collapsed ? "none" : "";
+            });
+            updateLabel();
+            container.style.display = collapsed ? "none" : "";
+            body.appendChild(lbl);
+            body.appendChild(container);
         }
         // -- Restraint info --------------------------------------------------------
         renderRestraintInfo(body) {
@@ -14468,9 +14490,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.22";
+    const MOD_VERSION = "1.3.23";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.23",
+            changes: [
+                "Outfit Schedule section is now collapsible (▶/▼) with state saved to localStorage. Fix update checker: package.json version was stuck at 1.3.6 so /ebc update always said 'up to date' — now kept in sync with MOD_VERSION.",
+            ],
+        },
         {
             version: "1.3.22",
             changes: [

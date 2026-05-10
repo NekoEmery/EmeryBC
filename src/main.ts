@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.22";
+const MOD_VERSION = "1.3.23";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.23",
+        changes: [
+            "Outfit Schedule section is now collapsible (▶/▼) with state saved to localStorage. Fix update checker: package.json version was stuck at 1.3.6 so /ebc update always said 'up to date' — now kept in sync with MOD_VERSION.",
+        ],
+    },
     {
         version: "1.3.22",
         changes: [
