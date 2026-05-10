@@ -14308,9 +14308,18 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.3";
+    const MOD_VERSION = "1.3.4";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.4",
+            changes: [
+                "Fix: beep messages no longer show □ box characters — private-use Unicode separators inserted by WCE/FBC/etc. are now stripped alongside their JSON metadata blob.",
+                "Fix: native BC beeps that contain only mod metadata (empty after stripping) no longer get stored as blank messages in EBC chat history.",
+                "UI: text contrast improved across the board (section labels, tab names, button text, notes, credits). Member numbers in credits are now highlighted chips.",
+                "Category dropdown added to the quick actions bar — switch button categories without touching the BC sidebar.",
+            ],
+        },
         {
             version: "1.3.3",
             changes: [
