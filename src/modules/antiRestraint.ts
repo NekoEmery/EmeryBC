@@ -1,10 +1,28 @@
 // Anti-restraint — when enabled, any restraint applied to the player by
 // another character is immediately removed and a glare emote is sent.
-// Whitelisted groups are always kept even if applied by others.
+// Whitelisted items are always kept even if applied by others.
+// Whitelist entries are item keys: "AssetName" or "AssetName|CraftName".
 // Removal is attempted up to 2 times per group before giving up (locked items).
 
 import { getAntiRestraintEnabled, getAntiRestraintWhitelist, getAntiRestraintConfirm } from "./settings";
 import { callBC } from "./bcUtils";
+
+// Compute a stable identity key for a restraint item.
+// Uses asset name + craft name (if any) so that e.g. two different crafted
+// collars in the same slot can be whitelisted independently.
+export function getItemKey(item: Item): string {
+    const craft = item.Craft as { Name?: string } | undefined;
+    const craftName = craft?.Name?.trim();
+    return craftName ? `${item.Asset.Name}|${craftName}` : item.Asset.Name;
+}
+
+// Human-readable label for a restraint item (shown in whitelist chips).
+export function getItemDisplayName(item: Item): string {
+    const craft = item.Craft as { Name?: string } | undefined;
+    const craftName = craft?.Name?.trim();
+    const baseName = (item.Asset as unknown as { Description?: string }).Description || item.Asset.Name;
+    return craftName ? `${craftName} (${baseName})` : baseName;
+}
 
 // Show a custom in-game overlay rather than window.confirm (which can be
 // suppressed by some browsers / userscript sandboxes).
@@ -103,9 +121,10 @@ export function antiRestraintOnPlayerRefresh(): void {
     try {
         const whitelist = getAntiRestraintWhitelist();
         const current = Player.Appearance.filter((i: Item) => i.Asset.Group.IsRestraint);
+        // Whitelist is now item-key based ("AssetName" or "AssetName|CraftName")
         const candidates = current.filter((i: Item) =>
             !knownRestraints.has(i.Asset.Group.Name) &&
-            !whitelist.includes(i.Asset.Group.Name)
+            !whitelist.includes(getItemKey(i))
         );
 
         // Promote items that have hit the retry limit: add to known and drop them.

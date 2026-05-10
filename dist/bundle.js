@@ -1806,8 +1806,26 @@
 
     // Anti-restraint — when enabled, any restraint applied to the player by
     // another character is immediately removed and a glare emote is sent.
-    // Whitelisted groups are always kept even if applied by others.
+    // Whitelisted items are always kept even if applied by others.
+    // Whitelist entries are item keys: "AssetName" or "AssetName|CraftName".
     // Removal is attempted up to 2 times per group before giving up (locked items).
+    // Compute a stable identity key for a restraint item.
+    // Uses asset name + craft name (if any) so that e.g. two different crafted
+    // collars in the same slot can be whitelisted independently.
+    function getItemKey(item) {
+        var _a;
+        const craft = item.Craft;
+        const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
+        return craftName ? `${item.Asset.Name}|${craftName}` : item.Asset.Name;
+    }
+    // Human-readable label for a restraint item (shown in whitelist chips).
+    function getItemDisplayName(item) {
+        var _a;
+        const craft = item.Craft;
+        const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
+        const baseName = item.Asset.Description || item.Asset.Name;
+        return craftName ? `${craftName} (${baseName})` : baseName;
+    }
     // Show a custom in-game overlay rather than window.confirm (which can be
     // suppressed by some browsers / userscript sandboxes).
     function showEscapePrompt(itemName, restrainer, onKeep, onEscape) {
@@ -1890,8 +1908,9 @@
         try {
             const whitelist = getAntiRestraintWhitelist();
             const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
+            // Whitelist is now item-key based ("AssetName" or "AssetName|CraftName")
             const candidates = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name) &&
-                !whitelist.includes(i.Asset.Group.Name));
+                !whitelist.includes(getItemKey(i)));
             // Promote items that have hit the retry limit: add to known and drop them.
             for (const item of candidates.filter(i => { var _a; return ((_a = failAttempts.get(i.Asset.Group.Name)) !== null && _a !== void 0 ? _a : 0) >= 2; })) {
                 knownRestraints.add(item.Asset.Group.Name);
@@ -4695,15 +4714,14 @@
 /* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
-    padding: 4px 8px;
+    padding: 5px 8px 4px;
     border-top: 1px solid #3a1928;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     color: #9a7888;
     display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 2px;
+    flex-direction: column;
+    gap: 3px;
 }
 
 /* -- Special Thanks tab -- */
@@ -4840,9 +4858,7 @@
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     color: #e8d07a;
-    text-align: center;
-    padding: 2px 0 0;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     min-height: 13px;
 }
 
@@ -6743,7 +6759,7 @@
             footer.className = "ebc-footer";
             const footerVerEl = document.createElement("span");
             footerVerEl.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
-            footerVerEl.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+            footerVerEl.style.cssText = "font-size:9px;color:#7a5a6a;";
             footer.appendChild(footerVerEl);
             const timerEl = document.createElement("div");
             timerEl.className = "ebc-timer";
@@ -13656,15 +13672,17 @@
                     msgCtrlRow.appendChild(logToggleWrap);
                     c.appendChild(msgCtrlRow);
                     const logOffHint = document.createElement("div");
-                    logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a5060;background:#1a080f;border:1px dashed #4c2537;border-radius:4px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px;";
+                    logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;display:flex;align-items:center;gap:8px;margin-bottom:4px;";
                     logOffHint.style.display = isDevLogEnabled() ? "none" : "";
                     const logOffText = document.createElement("span");
-                    logOffText.textContent = "Logging is off — enable it to capture messages.";
+                    logOffText.textContent = "Logging is off.";
+                    logOffText.style.flex = "1";
                     logOffHint.appendChild(logOffText);
                     const enableBtn = document.createElement("button");
-                    enableBtn.className = "ebc-wear-btn";
                     enableBtn.textContent = "Enable";
-                    enableBtn.style.flexShrink = "0";
+                    enableBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                    enableBtn.addEventListener("mouseenter", () => { enableBtn.style.color = "#cf6f98"; enableBtn.style.borderColor = "#cf6f98"; });
+                    enableBtn.addEventListener("mouseleave", () => { enableBtn.style.color = "#9a7080"; enableBtn.style.borderColor = "#4c2537"; });
                     enableBtn.addEventListener("click", () => {
                         setDevLogEnabled(true);
                         logToggleChk.checked = true;
@@ -14058,10 +14076,9 @@
             const whitelistSection = document.createElement("div");
             whitelistSection.style.cssText = "margin-bottom:10px;";
             const wlTitle = document.createElement("span");
-            wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
-            wlTitle.textContent = "Escape whitelist — items auto-escape will keep";
+            wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;";
+            wlTitle.textContent = "Escape whitelist — specific items auto-escape will never remove";
             whitelistSection.appendChild(wlTitle);
-            const domFriendlyGroup = (g) => g.replace(/^Item/, "").replace(/([A-Z])/g, " $1").trim();
             const domMakeChip = (label, onRemove) => {
                 const chip = document.createElement("div");
                 chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
@@ -14077,7 +14094,7 @@
                 return chip;
             };
             const wlChips = document.createElement("div");
-            wlChips.style.cssText = "min-height:18px;margin-bottom:4px;";
+            wlChips.style.cssText = "min-height:18px;margin-bottom:6px;";
             const wlAddRow = document.createElement("div");
             wlAddRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
             const refreshWhitelistUI = () => {
@@ -14086,34 +14103,42 @@
                 const whitelist = getAntiRestraintWhitelist();
                 if (whitelist.length === 0) {
                     const empty = document.createElement("span");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#4c2537;";
-                    empty.textContent = "Nothing whitelisted — all restraints will be escaped";
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
+                    empty.textContent = "Nothing whitelisted — all new restraints will be escaped";
                     wlChips.appendChild(empty);
                 }
                 else {
-                    for (const group of whitelist) {
-                        wlChips.appendChild(domMakeChip(domFriendlyGroup(group), () => {
-                            removeFromAntiRestraintWhitelist(group);
+                    for (const key of whitelist) {
+                        // Display the key in a friendly way:
+                        // "AssetName|CraftName" → "CraftName" ; "AssetName" → AssetName (stripped of camelCase)
+                        const parts = key.split("|");
+                        const displayLabel = parts.length > 1
+                            ? parts[1] // craft name is already human-readable
+                            : parts[0].replace(/([A-Z])/g, " $1").trim();
+                        wlChips.appendChild(domMakeChip(displayLabel, () => {
+                            removeFromAntiRestraintWhitelist(key);
                             refreshWhitelistUI();
                         }));
                     }
                 }
                 try {
-                    const wornGroups = Player.Appearance
-                        .filter((i) => i.Asset.Group.IsRestraint && !whitelist.includes(i.Asset.Group.Name))
-                        .map((i) => i.Asset.Group.Name);
-                    if (wornGroups.length > 0) {
+                    const wornItems = Player.Appearance
+                        .filter((i) => i.Asset.Group.IsRestraint && !whitelist.includes(getItemKey(i)));
+                    if (wornItems.length > 0) {
                         const addLabel = document.createElement("span");
-                        addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;align-self:center;";
-                        addLabel.textContent = "Currently wearing:";
+                        addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;margin-right:4px;align-self:center;width:100%;margin-bottom:2px;";
+                        addLabel.textContent = "Currently wearing — click to whitelist:";
                         wlAddRow.appendChild(addLabel);
-                        for (const group of wornGroups) {
+                        for (const item of wornItems) {
                             const btn = document.createElement("button");
-                            btn.textContent = "+ " + domFriendlyGroup(group);
-                            btn.title = "Add to whitelist — auto-escape will keep this";
-                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#7a5a6a;padding:2px 8px;cursor:pointer;";
+                            const displayName = getItemDisplayName(item);
+                            btn.textContent = "+ " + displayName;
+                            btn.title = `Whitelist this specific item — auto-escape will keep it`;
+                            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#9a7888;padding:2px 8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+                            btn.addEventListener("mouseenter", () => { btn.style.color = "#cf6f98"; btn.style.borderColor = "#6b3048"; });
+                            btn.addEventListener("mouseleave", () => { btn.style.color = "#9a7888"; btn.style.borderColor = "#4c2537"; });
                             btn.addEventListener("click", () => {
-                                addToAntiRestraintWhitelist(group);
+                                addToAntiRestraintWhitelist(getItemKey(item));
                                 refreshWhitelistUI();
                             });
                             wlAddRow.appendChild(btn);
@@ -15076,7 +15101,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.4.1";
+    const MOD_VERSION = "1.4.2";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -15084,6 +15109,16 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.4.2",
+            changes: [
+                "Footer layout changed to stacked column — version credit and session timer now appear on separate lines instead of cramped side-by-side.",
+                "Escape whitelist now saves by specific item identity (asset name + craft name) instead of slot. A whitelisted chain collar no longer prevents escaping every neck item.",
+                "Whitelist UI now shows item display names and craft names on chips; 'Currently wearing' list iterates items rather than slots.",
+                "Improved text contrast throughout the whitelist section and drawer footer — previously invisible or near-invisible labels are now readable.",
+                "Message log 'Enable' button replaced with a subtle low-profile style that matches the surrounding UI instead of the loud action-button look.",
+            ],
+        },
         {
             version: "1.4.1",
             changes: [

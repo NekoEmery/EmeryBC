@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.4.1";
+const MOD_VERSION = "1.4.2";
 
 let noticeShown = false;
 
@@ -26,6 +26,16 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.4.2",
+        changes: [
+            "Footer layout changed to stacked column — version credit and session timer now appear on separate lines instead of cramped side-by-side.",
+            "Escape whitelist now saves by specific item identity (asset name + craft name) instead of slot. A whitelisted chain collar no longer prevents escaping every neck item.",
+            "Whitelist UI now shows item display names and craft names on chips; 'Currently wearing' list iterates items rather than slots.",
+            "Improved text contrast throughout the whitelist section and drawer footer — previously invisible or near-invisible labels are now readable.",
+            "Message log 'Enable' button replaced with a subtle low-profile style that matches the surrounding UI instead of the loud action-button look.",
+        ],
+    },
     {
         version: "1.4.1",
         changes: [
