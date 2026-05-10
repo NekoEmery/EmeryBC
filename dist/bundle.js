@@ -3879,7 +3879,7 @@
     border-radius: 3px;
     border: 1px solid #3a1928;
     background: #1b0d17;
-    color: #553142;
+    color: #9a7080;
     cursor: pointer;
     white-space: nowrap;
     letter-spacing: 0.03em;
@@ -3900,7 +3900,7 @@
     background: transparent;
     border: 1px solid #4c2537;
     border-radius: 5px;
-    color: #553142;
+    color: #9a7080;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 13px;
@@ -3915,7 +3915,7 @@
 
 /* -- Empty -- */
 .ebc-empty {
-    color: #553142;
+    color: #9a7080;
     font-family: "Trebuchet MS", serif;
     font-size: 11px;
     text-align: center;
@@ -4048,7 +4048,7 @@
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 4px;
-    color: #553142;
+    color: #9a7080;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
@@ -4110,7 +4110,7 @@
     background: transparent;
     border: 1px solid #4c2537;
     border-radius: 4px;
-    color: #553142;
+    color: #9a7080;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 11px;
@@ -4143,7 +4143,7 @@
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 4px;
-    color: #553142;
+    color: #9a7080;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
@@ -4301,7 +4301,7 @@
 .ebc-notes-save-hint {
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
-    color: #553142;
+    color: #9a7080;
     text-align: right;
 }
 
@@ -4312,7 +4312,7 @@
     background: transparent;
     border: 1px solid #4c2537;
     border-radius: 5px;
-    color: #553142;
+    color: #9a7080;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -4345,7 +4345,7 @@
     background: transparent;
     border: 1px solid #4c2537;
     border-radius: 5px;
-    color: #553142;
+    color: #9a7080;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 13px;
@@ -4382,7 +4382,7 @@
 .ebc-diff-add    { color: #79a885; }
 .ebc-diff-remove { color: #cb798c; }
 .ebc-diff-change { color: #c9ab72; }
-.ebc-diff-none   { color: #553142; font-style: italic; }
+.ebc-diff-none   { color: #9a7080; font-style: italic; }
 
 /* -- Quick actions -- */
 .ebc-quick-actions {
@@ -5686,7 +5686,7 @@
     flex-shrink: 0;
     background: transparent;
     border: none;
-    color: #553142;
+    color: #9a7080;
     font-size: 13px;
     cursor: pointer;
     padding: 0 2px;
@@ -6084,7 +6084,7 @@
                 const locks = getPlayerLockedItems();
                 if (restraints.length === 0 && locks.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:2px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:2px;";
                     hint.textContent = "Nothing to remove — no restraints or locks found.";
                     selfPickPanel.appendChild(hint);
                     selfPickPanel.appendChild(selfPickStatus);
@@ -6211,7 +6211,7 @@
             const badgeRow = document.createElement("div");
             badgeRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
             const badgeLbl = document.createElement("span");
-            badgeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;flex:1;user-select:none;";
+            badgeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
             badgeLbl.textContent = "Show EBC tags";
             const badgeToggle = document.createElement("button");
             const updateBadgeToggle = () => {
@@ -6226,7 +6226,7 @@
                     "cursor:pointer",
                     "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
                     "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
                     "transition:background 0.14s,color 0.14s,border-color 0.14s",
                 ].join(";");
                 badgeToggle.title = on
@@ -7022,12 +7022,16 @@
             const tagMgmtDiv = document.createElement("div");
             tagMgmtDiv.style.marginBottom = "8px";
             let tagMgmtOpen = false;
+            try {
+                tagMgmtOpen = localStorage.getItem("EBC_tagsOpen") === "1";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
             const tagToggleBtn = document.createElement("button");
             tagToggleBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #3a1928;border-radius:5px;color:#7a5060;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-bottom:3px;text-align:left;padding-left:8px;";
             const allTagsNow = getOutfitTags();
             tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` Tags (${allTagsNow.length} saved)`;
             const tagMgmtBody = document.createElement("div");
-            tagMgmtBody.style.display = "none";
+            tagMgmtBody.style.display = tagMgmtOpen ? "block" : "none";
             const renderTagMgmt = () => {
                 while (tagMgmtBody.firstChild)
                     tagMgmtBody.removeChild(tagMgmtBody.firstChild);
@@ -7078,7 +7082,7 @@
                 }
                 if (tags.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#553142;padding:2px 0 4px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;padding:2px 0 4px;";
                     hint.textContent = "No tags yet.";
                     tagMgmtBody.appendChild(hint);
                 }
@@ -7117,6 +7121,10 @@
             tagToggleBtn.addEventListener("click", () => {
                 tagMgmtOpen = !tagMgmtOpen;
                 tagMgmtBody.style.display = tagMgmtOpen ? "block" : "none";
+                try {
+                    localStorage.setItem("EBC_tagsOpen", tagMgmtOpen ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
                 renderTagMgmt();
             });
             tagMgmtDiv.appendChild(tagToggleBtn);
@@ -7128,7 +7136,7 @@
             try {
                 outfitsCollapsed = localStorage.getItem("EBC_outfitsCollapsed") === "1";
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             const outfitsHeaderRow = document.createElement("div");
             outfitsHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const outfitLbl = document.createElement("div");
@@ -7306,6 +7314,10 @@
             const container = document.createElement("div");
             container.style.marginBottom = "6px";
             let collapsed = false;
+            try {
+                collapsed = localStorage.getItem("EBC_activeRestraintsCollapsed") === "1";
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             const render = () => {
                 while (container.firstChild)
                     container.removeChild(container.firstChild);
@@ -7371,6 +7383,10 @@
             };
             label.addEventListener("click", () => {
                 collapsed = !collapsed;
+                try {
+                    localStorage.setItem("EBC_activeRestraintsCollapsed", collapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
                 updateLabel();
                 render();
             });
@@ -7573,6 +7589,10 @@
             const container = document.createElement("div");
             container.style.marginBottom = "6px";
             let collapsed = true;
+            try {
+                collapsed = localStorage.getItem("EBC_coloursCollapsed") !== "0";
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             let selectedColor = null;
             // Targeted updaters — assigned inside build(), called without full rebuild
             let updateSelBar = () => { };
@@ -8043,9 +8063,13 @@
                 div2.style.margin = "10px 0 4px";
                 container.appendChild(div2);
                 let palCollapsed = true;
+                try {
+                    palCollapsed = localStorage.getItem("EBC_paletteCollapsed") !== "0";
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
                 const palToggle = document.createElement("div");
                 palToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4a5a;cursor:pointer;user-select:none;padding:2px 0 4px;";
-                palToggle.textContent = "▶ Saved palettes (capture & apply full looks)";
+                palToggle.textContent = (palCollapsed ? "▶" : "▼") + " Saved palettes (capture & apply full looks)";
                 const palContainer = document.createElement("div");
                 const renderPal = () => {
                     while (palContainer.firstChild)
@@ -8153,6 +8177,10 @@
                 };
                 palToggle.addEventListener("click", () => {
                     palCollapsed = !palCollapsed;
+                    try {
+                        localStorage.setItem("EBC_paletteCollapsed", palCollapsed ? "1" : "0");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                     palToggle.textContent = (palCollapsed ? "▶" : "▼") + " Saved palettes (capture & apply full looks)";
                     renderPal();
                 });
@@ -8163,7 +8191,15 @@
                 const cc = getCustomColors().length;
                 label.textContent = (collapsed ? "▶" : "▼") + ` COLOURS${cc > 0 ? ` (${cc} saved)` : ""}`;
             };
-            label.addEventListener("click", () => { collapsed = !collapsed; updateLabel(); build(); });
+            label.addEventListener("click", () => {
+                collapsed = !collapsed;
+                try {
+                    localStorage.setItem("EBC_coloursCollapsed", collapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                updateLabel();
+                build();
+            });
             updateLabel();
             build();
             body.appendChild(label);
@@ -8321,7 +8357,7 @@
                 const allTags = getOutfitTags();
                 if (allTags.length === 0) {
                     const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#553142;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;";
                     hint.textContent = "No tags yet — create some in the Tags section below.";
                     eTagsGrid.appendChild(hint);
                     return;
@@ -9075,7 +9111,7 @@
                 const allTags = getOutfitTags();
                 if (allTags.length === 0) {
                     const hint = document.createElement("span");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#553142;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;";
                     hint.textContent = "No tags yet — create some in the Tags section above.";
                     eTagsGrid.appendChild(hint);
                     return;
@@ -9436,8 +9472,18 @@
                 const catBody = document.createElement("div");
                 catBody.style.cssText = "padding:6px 8px 4px;";
                 let isExpanded = isActive;
-                if (!isActive)
-                    catBody.style.display = "none";
+                if (isActive) {
+                    // Restore persisted collapse state for the active category
+                    try {
+                        isExpanded = localStorage.getItem("EBC_activeCatExpanded") !== "0";
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    // Sync visual state to match the restored expansion state
+                    chevron.textContent = isExpanded ? "▼" : "▶";
+                    section.style.borderColor = isExpanded ? "#5a2840" : "#2a1421";
+                    hrow.style.background = isExpanded ? "#2a0e1e" : "#1b0d17";
+                }
+                catBody.style.display = isExpanded ? "" : "none";
                 // Clicking a collapsed header switches to it and re-renders.
                 // Clicking the active (expanded) header toggles it open/closed inline.
                 hrow.addEventListener("click", () => {
@@ -9451,6 +9497,10 @@
                     chevron.textContent = isExpanded ? "▼" : "▶";
                     section.style.borderColor = isExpanded ? "#5a2840" : "#2a1421";
                     hrow.style.background = isExpanded ? "#2a0e1e" : "#1b0d17";
+                    try {
+                        localStorage.setItem("EBC_activeCatExpanded", isExpanded ? "1" : "0");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                 });
                 section.appendChild(hrow);
                 // ── Body (only rendered for the active category) ──
@@ -12559,6 +12609,11 @@
                     buildFriendRow(num, body);
                 // Offline toggle header + collapsible section
                 if (offlineFriends.length > 0) {
+                    // Restore persisted collapsed state
+                    try {
+                        this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -12577,6 +12632,10 @@
                     updateOfflineToggle();
                     offlineToggle.addEventListener("click", () => {
                         this.offlineFriendsCollapsed = !this.offlineFriendsCollapsed;
+                        try {
+                            localStorage.setItem("EBC_offlineFriendsCollapsed", this.offlineFriendsCollapsed ? "1" : "0");
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
                         updateOfflineToggle();
                         // Build offline rows lazily on first expand
                         if (!this.offlineFriendsCollapsed && !offlineContainer.firstChild) {
@@ -12717,7 +12776,7 @@
                     "flex-shrink:0",
                     "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
                     "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
                     "transition:background 0.14s,color 0.14s,border-color 0.14s",
                 ].join(";");
             };
@@ -12759,7 +12818,7 @@
                 }
                 if (found.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
                     hint.textContent = "No other EBC users detected in this room.";
                     presListEl.appendChild(hint);
                     return;
@@ -12899,7 +12958,7 @@
                     const mods = getModsInfo ? getModsInfo.call(sdk) : [];
                     if (!Array.isArray(mods) || mods.length === 0) {
                         const hint = document.createElement("div");
-                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;";
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
                         hint.textContent = "bcModSdk not available or no mods loaded.";
                         hookList.appendChild(hint);
                         return;
@@ -13040,7 +13099,7 @@
                 const entries = [...getDevLog()].reverse();
                 if (entries.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:8px 6px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:8px 6px;";
                     hint.textContent = isDevLogEnabled()
                         ? "No messages yet. Must be in a room — chat, emote, or have someone do an action. Click Test above to verify the UI works."
                         : "Logging is off. Click Enable above, then do something in a room.";
@@ -13056,7 +13115,7 @@
                     typeTag.style.cssText = `font-family:'Courier New',monospace;font-size:9px;font-weight:bold;color:${msgTypeColor(entry.type)};`;
                     typeTag.textContent = entry.type;
                     const timeTag = document.createElement("span");
-                    timeTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#553142;margin-left:auto;";
+                    timeTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-left:auto;";
                     timeTag.textContent = entry.timestamp.toLocaleTimeString();
                     headerLine.appendChild(typeTag);
                     if (entry.sender !== undefined) {
@@ -13380,7 +13439,7 @@
                     "flex-shrink:0",
                     "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
                     "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#553142"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
                     "transition:background 0.14s,color 0.14s,border-color 0.14s",
                 ].join(";");
             };
@@ -13547,10 +13606,10 @@
                     numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;";
                     numEl.textContent = "#" + t.id;
                     const delBtn = document.createElement("button");
-                    delBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#553142;cursor:pointer;font-size:11px;padding:1px 6px;transition:background 0.14s,color 0.12s;";
+                    delBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#9a7080;cursor:pointer;font-size:11px;padding:1px 6px;transition:background 0.14s,color 0.12s;";
                     delBtn.textContent = "×";
                     delBtn.addEventListener("mouseenter", () => { delBtn.style.background = "#3a1017"; delBtn.style.color = "#ff6b6b"; });
-                    delBtn.addEventListener("mouseleave", () => { delBtn.style.background = ""; delBtn.style.color = "#553142"; });
+                    delBtn.addEventListener("mouseleave", () => { delBtn.style.background = ""; delBtn.style.color = "#9a7080"; });
                     delBtn.addEventListener("click", () => { removeDomTarget(t.id); rebuildTargets(); rebuildAddable(); });
                     row.appendChild(nameEl);
                     row.appendChild(numEl);
@@ -13568,7 +13627,7 @@
                 const addable = getRoomAddable();
                 if (addable.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:3px 2px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:3px 2px;";
                     hint.textContent = "No new people in room to add.";
                     addableWrap.appendChild(hint);
                     return;
@@ -13902,7 +13961,7 @@
                 const sections = getTargetRestraints();
                 if (sections.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:3px 2px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:3px 2px;";
                     hint.textContent = "No targets are in the room right now.";
                     pickPanel.appendChild(hint);
                     return;
@@ -13915,7 +13974,7 @@
                     pickPanel.appendChild(targHdr);
                     if (items.length === 0) {
                         const none = document.createElement("div");
-                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:1px 4px 4px;";
+                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:1px 4px 4px;";
                         none.textContent = "No restraints worn.";
                         pickPanel.appendChild(none);
                         continue;
@@ -14012,7 +14071,7 @@
                 const cfg = getDomConfig();
                 if (cfg.sets.length === 0) {
                     const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:4px 2px;margin-bottom:4px;";
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;margin-bottom:4px;";
                     hint.textContent = "No sets yet — create one with + New Set.";
                     setsContainer.appendChild(hint);
                 }
@@ -14074,7 +14133,7 @@
                     const { row: annRow, input: annInput } = makeField("Announce", set.announceTemplate, "", "{name} appears on {targets}~");
                     editor.appendChild(annRow);
                     const tokenHint = document.createElement("div");
-                    tokenHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#553142;padding:0 0 6px;";
+                    tokenHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;padding:0 0 6px;";
                     tokenHint.textContent = "{name} = set name  ·  {targets} = names of restrained";
                     editor.appendChild(tokenHint);
                     const saveBtn = document.createElement("button");
@@ -14106,7 +14165,7 @@
                         itemsLbl.textContent = "Items (" + items.length + ")";
                         if (items.length === 0) {
                             const hint2 = document.createElement("div");
-                            hint2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#553142;padding:3px 2px;";
+                            hint2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:3px 2px;";
                             hint2.textContent = "No items yet — import from a BC code below.";
                             itemListEl.appendChild(hint2);
                             return;
@@ -14122,7 +14181,7 @@
                             igrp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;";
                             igrp.textContent = item.Group.replace("Item", "");
                             const iDel = document.createElement("button");
-                            iDel.style.cssText = "background:transparent;border:none;color:#553142;cursor:pointer;font-size:12px;padding:0 3px;line-height:1;";
+                            iDel.style.cssText = "background:transparent;border:none;color:#9a7080;cursor:pointer;font-size:12px;padding:0 3px;line-height:1;";
                             iDel.textContent = "×";
                             iDel.addEventListener("click", () => {
                                 const cfg2 = getDomConfig();
@@ -14274,7 +14333,7 @@
                     editor.appendChild(importPanel);
                     // Delete set
                     const delSetBtn = document.createElement("button");
-                    delSetBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#553142;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-top:5px;";
+                    delSetBtn.style.cssText = "width:100%;background:transparent;border:1px solid #4c2537;border-radius:5px;color:#9a7080;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-top:5px;";
                     delSetBtn.textContent = "Delete Set";
                     let delConfirm = false;
                     delSetBtn.addEventListener("click", () => {
@@ -14288,7 +14347,7 @@
                                     return;
                                 delConfirm = false;
                                 delSetBtn.textContent = "Delete Set";
-                                delSetBtn.style.color = "#553142";
+                                delSetBtn.style.color = "#9a7080";
                                 delSetBtn.style.borderColor = "#4c2537";
                             }, 3000);
                         }
@@ -14420,9 +14479,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.14";
+    const MOD_VERSION = "1.3.15";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.15",
+            changes: [
+                "All collapsible sections now remember their open/closed state across sessions: Tags, Active Restraints, Colours, Saved Palettes, Offline Friends, and the Buttons accordion active category.",
+                "Empty-state hint text (\"No combos yet\", \"No tags yet\", etc.) is brighter — was nearly invisible against the dark background.",
+            ],
+        },
         {
             version: "1.3.14",
             changes: [

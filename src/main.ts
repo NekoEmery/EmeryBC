@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.14";
+const MOD_VERSION = "1.3.15";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.15",
+        changes: [
+            "All collapsible sections now remember their open/closed state across sessions: Tags, Active Restraints, Colours, Saved Palettes, Offline Friends, and the Buttons accordion active category.",
+            "Empty-state hint text (\"No combos yet\", \"No tags yet\", etc.) is brighter — was nearly invisible against the dark background.",
+        ],
+    },
     {
         version: "1.3.14",
         changes: [
