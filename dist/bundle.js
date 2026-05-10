@@ -711,7 +711,7 @@
             return null;
         }
         const outfit = {
-            id: uid$4(),
+            id: uid$6(),
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
@@ -753,7 +753,7 @@
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function createOutfitTag(name, color) {
-        const tag = { id: uid$4(), name: name.trim() || "Tag", color: color || "#cf6f98" };
+        const tag = { id: uid$6(), name: name.trim() || "Tag", color: color || "#cf6f98" };
         saveOutfitTags([...getOutfitTags(), tag]);
         return tag;
     }
@@ -868,12 +868,12 @@
         let suffix = 2;
         while (existing.some(o => o.command === finalCmd))
             finalCmd = baseCmd + suffix++;
-        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$4(), command: finalCmd }));
+        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$6(), command: finalCmd }));
         saveOutfits([...existing, outfit]);
         localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}).`);
         return outfit;
     }
-    function uid$4() {
+    function uid$6() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getSchedules() {
@@ -885,7 +885,7 @@
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function addSchedule(outfitId, time) {
-        const schedule = { id: uid$4(), outfitId, time, enabled: true };
+        const schedule = { id: uid$6(), outfitId, time, enabled: true };
         saveSchedules([...getSchedules(), schedule]);
         return schedule;
     }
@@ -1017,7 +1017,7 @@
             return null;
         }
         const restraint = {
-            id: uid$4(),
+            id: uid$6(),
             command: cmd,
             displayName: displayName.trim(),
             announceText: announceText.trim(),
@@ -1151,7 +1151,7 @@
             finalCmd = baseCmd + sfx++;
         const includesRestraints = mode !== "outfit";
         const outfit = sanitizeOutfit({
-            id: uid$4(),
+            id: uid$6(),
             command: finalCmd,
             displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
@@ -1185,7 +1185,7 @@
         getStore$7().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function uid$3() {
+    function uid$5() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getPalettesByType(type) {
@@ -1199,7 +1199,7 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$3(), name: name.trim() || "Palette", type: "outfit", colorMap };
+        const palette = { id: uid$5(), name: name.trim() || "Palette", type: "outfit", colorMap };
         save([...load$2(), palette]);
         return palette;
     }
@@ -1211,7 +1211,7 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$3(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
+        const palette = { id: uid$5(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
         save([...load$2(), palette]);
         return palette;
     }
@@ -1388,7 +1388,7 @@
         return Array.isArray(v) ? v : [];
     }
     function saveRestraintPreset(name, colors) {
-        const p = { id: uid$3(), name: name.trim() || "Preset", colors: [...colors] };
+        const p = { id: uid$5(), name: name.trim() || "Preset", colors: [...colors] };
         saveRestraintPresets([...getRestraintPresets(), p]);
         return p;
     }
@@ -1470,7 +1470,7 @@
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
-    function uid$2() { return Math.random().toString(36).slice(2, 9); }
+    function uid$4() { return Math.random().toString(36).slice(2, 9); }
     function load$1() {
         const list = getStore$6().poseCombos;
         return Array.isArray(list) ? list : [];
@@ -1482,7 +1482,7 @@
     function getPoseCombos() { return load$1(); }
     function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
         const combo = {
-            id: uid$2(),
+            id: uid$4(),
             name: name.trim() || "Combo",
             poses: poses.filter(Boolean),
             stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
@@ -1721,6 +1721,68 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- AFK auto-reply ------------------------------------------------------------
+    // When enabled, EBC sends a configurable auto-reply beep if a message arrives
+    // while the player has been inactive for more than the threshold.
+    function getAfkEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkEnabled) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAfkEnabled(v) {
+        try {
+            const s = getStore$5();
+            if (s) {
+                s.afkEnabled = v;
+                ServerPlayerExtensionSettingsSync("EmeryBC");
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getAfkThreshold() {
+        var _a;
+        try {
+            const v = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkThreshold;
+            return typeof v === "number" && v >= 1 ? v : 10;
+        }
+        catch (_b) {
+            return 10;
+        }
+    }
+    function setAfkThreshold(n) {
+        try {
+            const s = getStore$5();
+            if (s) {
+                s.afkThreshold = Math.max(1, Math.min(120, Math.round(n)));
+                ServerPlayerExtensionSettingsSync("EmeryBC");
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getAfkMessage() {
+        var _a;
+        try {
+            const v = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkMessage;
+            return typeof v === "string" && v.trim() ? v : "I'm currently AFK — I'll reply when I'm back!";
+        }
+        catch (_b) {
+            return "I'm currently AFK — I'll reply when I'm back!";
+        }
+    }
+    function setAfkMessage(msg) {
+        try {
+            const s = getStore$5();
+            if (s) {
+                s.afkMessage = msg.slice(0, 200).trim();
+                ServerPlayerExtensionSettingsSync("EmeryBC");
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Beep mute -----------------------------------------------------------------
     function getBeepMuted() {
         var _a;
@@ -1781,6 +1843,7 @@
         document.body.appendChild(overlay);
     }
     let lastRestrainerName = null;
+    function getLastRestrainerName() { return lastRestrainerName; }
     function recordRestrainer(sourceMemberNumber) {
         var _a;
         try {
@@ -1917,7 +1980,7 @@
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
-    function uid$1() { return Math.random().toString(36).slice(2, 9); }
+    function uid$3() { return Math.random().toString(36).slice(2, 9); }
     function load() {
         const raw = getStore$4().scenes;
         return Array.isArray(raw) ? raw : [];
@@ -1929,7 +1992,7 @@
     function getScenes() { return load(); }
     function createScene(name, steps, command = "") {
         const scene = {
-            id: uid$1(),
+            id: uid$3(),
             name: name.trim() || "Scene",
             steps,
             command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
@@ -2084,7 +2147,7 @@
         if (typeof obj.name !== "string" || !Array.isArray(obj.steps))
             throw new Error("Missing required fields (name, steps).");
         const scene = {
-            id: uid$1(),
+            id: uid$3(),
             name: obj.name.trim() || "Imported Scene",
             steps: obj.steps,
             command: typeof obj.command === "string"
@@ -2390,6 +2453,210 @@
         callBC(() => ChatRoomCharacterUpdate(Player));
         callBC(() => ServerPlayerAppearanceSync());
         localNotice(`Removed ${unlocked} lock(s).`, UI.gold);
+    }
+
+    // Room visit history — records the last MAX_HISTORY rooms the player entered,
+    // who was in the room at entry, and who joined while they were there.
+    // Stored in localStorage (device-local; persists across sessions).
+    const MAX_HISTORY = 15;
+    const LS_KEY$1 = "EBC_roomHistory";
+    let currentVisit = null;
+    let lastRecordedRoomName = null;
+    function uid$2() { return Math.random().toString(36).slice(2, 9); }
+    function loadHistory() {
+        try {
+            const raw = localStorage.getItem(LS_KEY$1);
+            if (raw) {
+                const p = JSON.parse(raw);
+                if (Array.isArray(p))
+                    return p;
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return [];
+    }
+    function saveHistory(visits) {
+        try {
+            localStorage.setItem(LS_KEY$1, JSON.stringify(visits.slice(0, MAX_HISTORY)));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function flushCurrent() {
+        if (!currentVisit)
+            return;
+        if (!currentVisit.leftAt)
+            currentVisit.leftAt = Date.now();
+        const history = loadHistory();
+        const idx = history.findIndex(v => v.id === currentVisit.id);
+        if (idx >= 0)
+            history[idx] = currentVisit;
+        else
+            history.unshift(currentVisit);
+        saveHistory(history);
+    }
+    // Called from the ChatRoomSync hook. Detects new-room entry by name change.
+    function onRoomSync() {
+        try {
+            const data = window.ChatRoomData;
+            const name = typeof (data === null || data === void 0 ? void 0 : data.Name) === "string" ? data.Name : null;
+            if (!name || name === lastRecordedRoomName)
+                return;
+            lastRecordedRoomName = name;
+            // Flush previous visit before starting new one
+            if (currentVisit)
+                flushCurrent();
+            const chars = window.ChatRoomCharacter;
+            const members = (chars !== null && chars !== void 0 ? chars : [])
+                .filter(c => c.MemberNumber && c.MemberNumber !== Player.MemberNumber)
+                .map(c => {
+                var _a;
+                return ({
+                    memberNumber: c.MemberNumber,
+                    name: ((_a = c.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || c.Name || `#${c.MemberNumber}`,
+                });
+            });
+            const space = typeof (data === null || data === void 0 ? void 0 : data.Space) === "string" ? data.Space : "";
+            currentVisit = {
+                id: uid$2(), name, space,
+                enteredAt: Date.now(), leftAt: null,
+                members, joins: [],
+            };
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // Called from the ChatRoomLeave hook.
+    function onRoomLeave() {
+        try {
+            lastRecordedRoomName = null;
+            if (!currentVisit)
+                return;
+            flushCurrent();
+            currentVisit = null;
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // Called from the ChatRoomSyncMemberJoin hook.
+    function onMemberJoin(char) {
+        var _a;
+        try {
+            if (!currentVisit || !char.MemberNumber || char.MemberNumber === Player.MemberNumber)
+                return;
+            const name = ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || char.Name || `#${char.MemberNumber}`;
+            currentVisit.joins.push({ memberNumber: char.MemberNumber, name, at: Date.now() });
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    function getRoomHistory() { return loadHistory(); }
+    function clearRoomHistory() {
+        try {
+            localStorage.removeItem(LS_KEY$1);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        currentVisit = null;
+    }
+
+    // Restraint log — records every restraint applied to / removed from the player.
+    // Detects changes by comparing Player.Appearance against an internal snapshot
+    // (independent of the anti-restraint module's own snapshot).
+    // Stored in localStorage (last MAX_ENTRIES entries; device-local).
+    const MAX_ENTRIES$2 = 50;
+    const LS_KEY = "EBC_restraintLog";
+    // group name → log entry id (for marking removedAt)
+    const activeIds = new Map();
+    // Known groups right now (for diff)
+    let knownGroups = new Set();
+    function uid$1() { return Math.random().toString(36).slice(2, 9); }
+    function loadLog() {
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+                const p = JSON.parse(raw);
+                if (Array.isArray(p))
+                    return p;
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return [];
+    }
+    function saveLog(entries) {
+        try {
+            localStorage.setItem(LS_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES$2)));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // Call once on room entry to baseline existing restraints without logging them.
+    function snapshotForLog() {
+        try {
+            const groups = Player.Appearance
+                .filter((i) => i.Asset.Group.IsRestraint)
+                .map((i) => i.Asset.Group.Name);
+            knownGroups = new Set(groups);
+            // Restore active IDs from persisted log so page-reloads within a session
+            // can still mark items removed.
+            activeIds.clear();
+            const log = loadLog();
+            for (const entry of log) {
+                if (entry.removedAt === null && groups.includes(entry.group)) {
+                    activeIds.set(entry.group, entry.id);
+                }
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // Call from CharacterRefresh when C === Player.
+    // applierName = whoever last used an item on the player (pass "" / "Unknown" if unset).
+    function checkRestraintChanges(applierName) {
+        try {
+            const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
+            const curGroups = new Set(current.map((i) => i.Asset.Group.Name));
+            // ── Removed ──────────────────────────────────────────────────────────
+            for (const group of [...knownGroups]) {
+                if (!curGroups.has(group)) {
+                    knownGroups.delete(group);
+                    const id = activeIds.get(group);
+                    if (id) {
+                        activeIds.delete(group);
+                        const log = loadLog();
+                        const entry = log.find(e => e.id === id);
+                        if (entry) {
+                            entry.removedAt = Date.now();
+                            saveLog(log);
+                        }
+                    }
+                }
+            }
+            // ── Added ─────────────────────────────────────────────────────────────
+            for (const item of current) {
+                const group = item.Asset.Group.Name;
+                if (!knownGroups.has(group)) {
+                    knownGroups.add(group);
+                    const itemName = item.Asset.Description
+                        || item.Asset.Name;
+                    const id = uid$1();
+                    activeIds.set(group, id);
+                    const log = loadLog();
+                    log.unshift({
+                        id,
+                        itemName,
+                        group: group.replace(/^Item/, ""),
+                        applier: applierName || "Unknown",
+                        appliedAt: Date.now(),
+                        removedAt: null,
+                    });
+                    saveLog(log);
+                }
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getRestraintLog() { return loadLog(); }
+    function clearRestraintLog() {
+        try {
+            localStorage.removeItem(LS_KEY);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        activeIds.clear();
+        knownGroups.clear();
     }
 
     // Friends system — tags, beep history, name cache.
@@ -5987,6 +6254,11 @@
             notesTabBtn.className = "ebc-tab-btn";
             notesTabBtn.id = "ebc-tab-notes";
             notesTabBtn.textContent = "USERS";
+            const logTabBtn = document.createElement("button");
+            logTabBtn.className = "ebc-tab-btn";
+            logTabBtn.id = "ebc-tab-log";
+            logTabBtn.textContent = "LOG";
+            logTabBtn.title = "Room history & restraint log";
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
             thanksTabBtn.id = "ebc-tab-thanks";
@@ -6015,6 +6287,7 @@
             tabBar.appendChild(buttonsTabBtn);
             tabBar.appendChild(posesTabBtn);
             tabBar.appendChild(notesTabBtn);
+            tabBar.appendChild(logTabBtn);
             tabBar.appendChild(thanksTabBtn);
             tabBar.appendChild(devTabBtn2);
             tabBar.appendChild(domTabBtn);
@@ -6569,6 +6842,7 @@
             buttonsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
             posesTabBtn.addEventListener("click", () => this.switchTab("anims"));
             notesTabBtn.addEventListener("click", () => this.switchTab("notes"));
+            logTabBtn.addEventListener("click", () => this.switchTab("log"));
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
             domTabBtn.addEventListener("click", () => this.switchTab("dom"));
@@ -6879,6 +7153,7 @@
                 ["ebc-tab-buttons", "buttons"],
                 ["ebc-tab-poses", "anims"],
                 ["ebc-tab-notes", "notes"],
+                ["ebc-tab-log", "log"],
                 ["ebc-tab-thanks", "thanks"],
                 ["ebc-tab-dev", "dev"],
                 ["ebc-tab-dom", "dom"],
@@ -6899,6 +7174,8 @@
                 this.renderPoses();
             else if (this.currentTab === "notes")
                 this.renderNotes();
+            else if (this.currentTab === "log")
+                this.renderLog();
             else if (this.currentTab === "thanks")
                 this.renderThanks();
             else if (this.currentTab === "dev")
@@ -12132,6 +12409,246 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
+        // -- Log tab ---------------------------------------------------------------
+        renderLog() {
+            var _a;
+            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            const fmtDuration = (ms) => {
+                const s = Math.floor(ms / 1000);
+                if (s < 60)
+                    return `${s}s`;
+                const m = Math.floor(s / 60);
+                if (m < 60)
+                    return `${m}m`;
+                const h = Math.floor(m / 60);
+                const rm = m % 60;
+                return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
+            };
+            const fmtTs = (ts) => {
+                const d = new Date(ts);
+                const now = new Date();
+                const isToday = d.toDateString() === now.toDateString();
+                const t = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                return isToday ? t : `${d.getDate()}/${d.getMonth() + 1} ${t}`;
+            };
+            // ── Room visit history ─────────────────────────────────────────────────
+            let roomCollapsed = false;
+            try {
+                roomCollapsed = localStorage.getItem("EBC_roomHistoryCollapsed") === "1";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            const roomHeader = document.createElement("div");
+            roomHeader.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;";
+            const roomChev = document.createElement("span");
+            roomChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
+            const roomLbl = document.createElement("span");
+            roomLbl.className = "ebc-section-label";
+            roomLbl.style.cssText = "margin:0;flex:1;";
+            roomLbl.textContent = "ROOM HISTORY";
+            const roomClearBtn = document.createElement("button");
+            roomClearBtn.textContent = "Clear";
+            roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
+            roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
+            roomHeader.appendChild(roomChev);
+            roomHeader.appendChild(roomLbl);
+            roomHeader.appendChild(roomClearBtn);
+            body.appendChild(roomHeader);
+            const roomContainer = document.createElement("div");
+            const updateRoomChev = () => { roomChev.textContent = roomCollapsed ? "▶" : "▼"; };
+            const renderRoomHistory = () => {
+                while (roomContainer.firstChild)
+                    roomContainer.removeChild(roomContainer.firstChild);
+                const visits = getRoomHistory();
+                if (visits.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.className = "ebc-empty";
+                    empty.textContent = "No rooms visited yet.";
+                    roomContainer.appendChild(empty);
+                    return;
+                }
+                for (const visit of visits) {
+                    const card = document.createElement("div");
+                    card.style.cssText = "background:rgba(20,8,16,0.7);border:1px solid #2a1421;border-radius:5px;padding:6px 8px;margin-bottom:5px;";
+                    const hRow = document.createElement("div");
+                    hRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:2px;";
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameEl.textContent = visit.name;
+                    hRow.appendChild(nameEl);
+                    if (visit.space) {
+                        const spEl = document.createElement("span");
+                        spEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                        spEl.textContent = visit.space;
+                        hRow.appendChild(spEl);
+                    }
+                    card.appendChild(hRow);
+                    const timeRow = document.createElement("div");
+                    timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-bottom:3px;";
+                    const dur = visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "current";
+                    timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${dur}`;
+                    card.appendChild(timeRow);
+                    const totalJoins = visit.joins.length;
+                    const totalMembers = visit.members.length;
+                    const summary = document.createElement("div");
+                    summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;cursor:pointer;";
+                    const detail = document.createElement("div");
+                    detail.style.display = "none";
+                    detail.style.marginTop = "5px";
+                    let expanded = false;
+                    const updateSummary = () => {
+                        summary.textContent = `${totalMembers} on entry · ${totalJoins} joined ${expanded ? "▲" : "▼"}`;
+                    };
+                    updateSummary();
+                    summary.addEventListener("click", () => {
+                        expanded = !expanded;
+                        detail.style.display = expanded ? "block" : "none";
+                        if (expanded) {
+                            while (detail.firstChild)
+                                detail.removeChild(detail.firstChild);
+                            if (visit.members.length > 0) {
+                                const mHdr = document.createElement("div");
+                                mHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
+                                mHdr.textContent = "On entry:";
+                                detail.appendChild(mHdr);
+                                const mList = document.createElement("div");
+                                mList.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.6;";
+                                mList.textContent = visit.members.map(m => m.name).join(", ");
+                                detail.appendChild(mList);
+                            }
+                            if (visit.joins.length > 0) {
+                                const jHdr = document.createElement("div");
+                                jHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-top:4px;margin-bottom:2px;";
+                                jHdr.textContent = "Joined after:";
+                                detail.appendChild(jHdr);
+                                for (const j of visit.joins) {
+                                    const jRow = document.createElement("div");
+                                    jRow.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;";
+                                    const jName = document.createElement("span");
+                                    jName.textContent = j.name;
+                                    const jTime = document.createElement("span");
+                                    jTime.style.color = "#7a5a6a";
+                                    jTime.textContent = fmtTs(j.at);
+                                    jRow.appendChild(jName);
+                                    jRow.appendChild(jTime);
+                                    detail.appendChild(jRow);
+                                }
+                            }
+                        }
+                        updateSummary();
+                    });
+                    card.appendChild(summary);
+                    card.appendChild(detail);
+                    roomContainer.appendChild(card);
+                }
+            };
+            roomClearBtn.addEventListener("click", () => { clearRoomHistory(); renderRoomHistory(); });
+            roomHeader.addEventListener("click", (e) => {
+                var _a, _b;
+                if (((_b = (_a = e.target) === null || _a === void 0 ? void 0 : _a.closest) === null || _b === void 0 ? void 0 : _b.call(_a, "button")) === roomClearBtn)
+                    return;
+                roomCollapsed = !roomCollapsed;
+                try {
+                    localStorage.setItem("EBC_roomHistoryCollapsed", roomCollapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+                updateRoomChev();
+                roomContainer.style.display = roomCollapsed ? "none" : "";
+            });
+            updateRoomChev();
+            renderRoomHistory();
+            roomContainer.style.display = roomCollapsed ? "none" : "";
+            body.appendChild(roomContainer);
+            // ── Restraint log ──────────────────────────────────────────────────────
+            const div1 = document.createElement("div");
+            div1.className = "ebc-divider";
+            body.appendChild(div1);
+            let rlogCollapsed = false;
+            try {
+                rlogCollapsed = localStorage.getItem("EBC_restraintLogCollapsed") === "1";
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+            const rlogHeader = document.createElement("div");
+            rlogHeader.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;";
+            const rlogChev = document.createElement("span");
+            rlogChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
+            const rlogLbl = document.createElement("span");
+            rlogLbl.className = "ebc-section-label";
+            rlogLbl.style.cssText = "margin:0;flex:1;";
+            rlogLbl.textContent = "RESTRAINT LOG";
+            const rlogClearBtn = document.createElement("button");
+            rlogClearBtn.textContent = "Clear";
+            rlogClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            rlogClearBtn.addEventListener("mouseenter", () => { rlogClearBtn.style.color = "#cf6f98"; rlogClearBtn.style.borderColor = "#cf6f98"; });
+            rlogClearBtn.addEventListener("mouseleave", () => { rlogClearBtn.style.color = "#7a5a6a"; rlogClearBtn.style.borderColor = "#3a1928"; });
+            rlogHeader.appendChild(rlogChev);
+            rlogHeader.appendChild(rlogLbl);
+            rlogHeader.appendChild(rlogClearBtn);
+            body.appendChild(rlogHeader);
+            const rlogContainer = document.createElement("div");
+            const updateRlogChev = () => { rlogChev.textContent = rlogCollapsed ? "▶" : "▼"; };
+            const renderRestraintLog = () => {
+                while (rlogContainer.firstChild)
+                    rlogContainer.removeChild(rlogContainer.firstChild);
+                const entries = getRestraintLog();
+                if (entries.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.className = "ebc-empty";
+                    empty.textContent = "No restraints recorded yet.";
+                    rlogContainer.appendChild(empty);
+                    return;
+                }
+                for (const entry of entries) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 6px;border-bottom:1px solid rgba(42,20,33,0.5);";
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameEl.textContent = entry.itemName;
+                    nameEl.title = `${entry.itemName} (${entry.group})  ·  ${new Date(entry.appliedAt).toLocaleString()}`;
+                    row.appendChild(nameEl);
+                    const applierEl = document.createElement("span");
+                    applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#cf6f98;flex-shrink:0;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    applierEl.textContent = entry.applier;
+                    applierEl.title = `Applied by: ${entry.applier}`;
+                    row.appendChild(applierEl);
+                    const durEl = document.createElement("span");
+                    durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;flex-shrink:0;min-width:38px;text-align:right;";
+                    if (entry.removedAt !== null) {
+                        durEl.textContent = fmtDuration(entry.removedAt - entry.appliedAt);
+                        durEl.style.color = "#7a5a6a";
+                        durEl.title = `Removed: ${new Date(entry.removedAt).toLocaleString()}`;
+                    }
+                    else {
+                        durEl.textContent = "on now";
+                        durEl.style.color = "#79a885";
+                        durEl.title = `Still wearing`;
+                    }
+                    row.appendChild(durEl);
+                    rlogContainer.appendChild(row);
+                }
+            };
+            rlogClearBtn.addEventListener("click", () => { clearRestraintLog(); renderRestraintLog(); });
+            rlogHeader.addEventListener("click", (e) => {
+                var _a, _b;
+                if (((_b = (_a = e.target) === null || _a === void 0 ? void 0 : _a.closest) === null || _b === void 0 ? void 0 : _b.call(_a, "button")) === rlogClearBtn)
+                    return;
+                rlogCollapsed = !rlogCollapsed;
+                try {
+                    localStorage.setItem("EBC_restraintLogCollapsed", rlogCollapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+                updateRlogChev();
+                rlogContainer.style.display = rlogCollapsed ? "none" : "";
+            });
+            updateRlogChev();
+            renderRestraintLog();
+            rlogContainer.style.display = rlogCollapsed ? "none" : "";
+            body.appendChild(rlogContainer);
+        }
         // -- Notes tab -------------------------------------------------------------
         renderNotes() {
             var _a;
@@ -12140,13 +12657,110 @@
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── AFK auto-reply ────────────────────────────────────────────────────
+            let afkCollapsed = true;
+            try {
+                afkCollapsed = localStorage.getItem("EBC_afkCollapsed") !== "0";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            const afkHeader = document.createElement("div");
+            afkHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
+            const afkLbl = document.createElement("div");
+            afkLbl.className = "ebc-section-label";
+            afkLbl.style.margin = "0";
+            afkLbl.textContent = "AFK Auto-Reply";
+            const afkChevron = document.createElement("span");
+            afkChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            afkHeader.appendChild(afkLbl);
+            afkHeader.appendChild(afkChevron);
+            body.appendChild(afkHeader);
+            const afkBody = document.createElement("div");
+            afkBody.style.cssText = "padding:6px 0 2px 0;display:flex;flex-direction:column;gap:7px;";
+            // ON/OFF row
+            const afkToggleRow = document.createElement("div");
+            afkToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+            const afkToggleLbl = document.createElement("span");
+            afkToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+            afkToggleLbl.textContent = "Auto-reply when AFK";
+            const afkToggleBtn = document.createElement("button");
+            const refreshAfkToggle = () => {
+                const on = getAfkEnabled();
+                afkToggleBtn.textContent = on ? "ON" : "OFF";
+                afkToggleBtn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                    "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                    "background:" + (on ? "#4a1f30" : "#100508"),
+                    "color:" + (on ? "#f7e6ee" : "#4c2537"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshAfkToggle();
+            afkToggleBtn.addEventListener("click", () => { setAfkEnabled(!getAfkEnabled()); refreshAfkToggle(); });
+            afkToggleRow.appendChild(afkToggleLbl);
+            afkToggleRow.appendChild(afkToggleBtn);
+            afkBody.appendChild(afkToggleRow);
+            // Threshold row
+            const afkThreshRow = document.createElement("div");
+            afkThreshRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+            const afkThreshLbl = document.createElement("span");
+            afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+            afkThreshLbl.textContent = "Idle threshold (minutes)";
+            const afkThreshInput = document.createElement("input");
+            afkThreshInput.type = "number";
+            afkThreshInput.min = "1";
+            afkThreshInput.max = "120";
+            afkThreshInput.value = String(getAfkThreshold());
+            afkThreshInput.style.cssText = "width:52px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
+            afkThreshInput.addEventListener("change", () => {
+                const v = parseInt(afkThreshInput.value, 10);
+                if (!isNaN(v))
+                    setAfkThreshold(v);
+            });
+            afkThreshRow.appendChild(afkThreshLbl);
+            afkThreshRow.appendChild(afkThreshInput);
+            afkBody.appendChild(afkThreshRow);
+            // Message row
+            const afkMsgLbl = document.createElement("div");
+            afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
+            afkMsgLbl.textContent = "Reply message";
+            afkBody.appendChild(afkMsgLbl);
+            const afkMsgArea = document.createElement("textarea");
+            afkMsgArea.value = getAfkMessage();
+            afkMsgArea.maxLength = 200;
+            afkMsgArea.rows = 2;
+            afkMsgArea.placeholder = "I'm currently AFK — I'll reply when I'm back!";
+            afkMsgArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 6px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;resize:vertical;";
+            afkMsgArea.addEventListener("change", () => { setAfkMessage(afkMsgArea.value); });
+            afkBody.appendChild(afkMsgArea);
+            const afkHint = document.createElement("div");
+            afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;font-style:italic;";
+            afkHint.textContent = "Sends once per contact every 30 min. Prefix [AFK] added automatically.";
+            afkBody.appendChild(afkHint);
+            const toggleAfkCollapsed = () => {
+                afkCollapsed = !afkCollapsed;
+                afkBody.style.display = afkCollapsed ? "none" : "flex";
+                afkChevron.textContent = afkCollapsed ? "▲" : "▼";
+                try {
+                    localStorage.setItem("EBC_afkCollapsed", afkCollapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            afkChevron.textContent = afkCollapsed ? "▲" : "▼";
+            afkBody.style.display = afkCollapsed ? "none" : "flex";
+            afkHeader.addEventListener("click", toggleAfkCollapsed);
+            body.appendChild(afkBody);
+            // ── Divider ───────────────────────────────────────────────────────────
+            const afkDiv = document.createElement("div");
+            afkDiv.className = "ebc-divider";
+            body.appendChild(afkDiv);
             const notes = getNotes();
             // ── Collapsible "User Notes" header ──────────────────────────────────
             let userNotesCollapsed = true;
             try {
                 userNotesCollapsed = localStorage.getItem("EBC_userNotesCollapsed") !== "0";
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             const userNotesHeaderRow = document.createElement("div");
             userNotesHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const userNotesLbl = document.createElement("div");
@@ -14501,9 +15115,22 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.25";
+    const MOD_VERSION = "1.3.26";
     let noticeShown = false;
+    // -- AFK auto-reply state -------------------------------------------------------
+    let lastActivityTime = Date.now();
+    // memberNumber → last AFK reply timestamp (avoid spamming the same person)
+    const afkReplyCooldown = new Map();
+    const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.3.26",
+            changes: [
+                "Room visit history: LOG tab tracks the last 15 rooms you visited — name, space, entry/exit times, who was in the room, and who joined while you were there.",
+                "Restraint log: LOG tab also records every restraint applied to you — item name, slot, who put it on, when, and how long it was worn. Stored in localStorage; clear button available.",
+                "AFK auto-reply: configurable in the USERS tab — enable, set an idle threshold (minutes), and write a custom message. EBC auto-replies to incoming beeps when you've been inactive longer than the threshold. Each sender has a 30-minute cooldown so they're never spammed.",
+            ],
+        },
         {
             version: "1.3.25",
             changes: [
@@ -16133,9 +16760,17 @@
             }
             catch ( /* ignore */_g) { /* ignore */ }
             try {
-                drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                snapshotForLog();
             }
             catch ( /* ignore */_h) { /* ignore */ }
+            try {
+                onRoomSync();
+            }
+            catch ( /* ignore */_j) { /* ignore */ }
+            try {
+                drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+            }
+            catch ( /* ignore */_k) { /* ignore */ }
             // Cache names and EBC presence for everyone currently in the room.
             try {
                 const chars = window.ChatRoomCharacter;
@@ -16155,7 +16790,7 @@
                         }
                     }
             }
-            catch ( /* ignore */_j) { /* ignore */ }
+            catch ( /* ignore */_l) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
@@ -16195,16 +16830,22 @@
         });
         // Anti-restraint + grace period: detect new restraints on the player after any refresh
         tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
+            var _a;
             const result = next(args);
             try {
                 const [C] = args;
                 if (C === Player) {
                     checkGraceExpiry();
                     enforceGracePeriod();
+                    // Log restraint changes BEFORE anti-restraint clears lastRestrainerName
+                    try {
+                        checkRestraintChanges((_a = getLastRestrainerName()) !== null && _a !== void 0 ? _a : "Unknown");
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
                     antiRestraintOnPlayerRefresh();
                 }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return result;
         });
         // Keep drawer visibility in sync whenever the BC screen changes.
@@ -16225,6 +16866,22 @@
                 timerOnRoomLeave();
             }
             catch ( /* ignore */_a) { /* ignore */ }
+            try {
+                onRoomLeave();
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            return result;
+        });
+        // Track member joins for room history.
+        tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
+            const result = next(args);
+            try {
+                const [data] = args;
+                const char = data.Character;
+                if (char)
+                    onMemberJoin(char);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)
@@ -16238,7 +16895,7 @@
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
         // Only handle plain beeps (BeepType === "" or undefined) — skip game/friend-request beeps.
         tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
-            var _a, _b;
+            var _a, _b, _c;
             try {
                 const [beep] = args;
                 // Non-chat beeps (friend requests, etc.) always pass through unchanged.
@@ -16262,17 +16919,40 @@
                     try {
                         playBeepSound();
                     }
-                    catch ( /* ignore */_c) { /* ignore */ }
+                    catch ( /* ignore */_d) { /* ignore */ }
                 }
                 try {
                     drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
+                // AFK auto-reply
+                try {
+                    if (getAfkEnabled()) {
+                        const idleMs = Date.now() - lastActivityTime;
+                        const thresholdMs = getAfkThreshold() * 60 * 1000;
+                        const lastReply = (_c = afkReplyCooldown.get(fromNum)) !== null && _c !== void 0 ? _c : 0;
+                        if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
+                            afkReplyCooldown.set(fromNum, Date.now());
+                            const replyMsg = getAfkMessage();
+                            window.setTimeout(() => {
+                                try {
+                                    ServerSend("AccountBeep", {
+                                        MemberNumber: fromNum,
+                                        Message: `[AFK] ${replyMsg}`,
+                                        BeepType: "",
+                                    });
+                                }
+                                catch ( /* ignore */_a) { /* ignore */ }
+                            }, 500);
+                        }
+                    }
+                }
+                catch ( /* ignore */_f) { /* ignore */ }
                 // Suppress BC's native chat-log notification when our IM handles it.
                 if (getSuppressNativeBeep())
                     return;
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             return next(args);
         });
         // Cache friend names whenever BC notifies us a friend came online.
@@ -16344,6 +17024,9 @@
         // (before gag processing), and cancels propagation if a word matches.
         // Works for normal chat AND gag speech (we see the original typed text).
         const getChatInput = () => document.getElementById("InputChat");
+        // Track user activity for AFK detection
+        document.addEventListener("keydown", () => { lastActivityTime = Date.now(); }, true);
+        document.addEventListener("mousedown", () => { lastActivityTime = Date.now(); }, true);
         const onChatKeydownCapture = (e) => {
             var _a;
             try {

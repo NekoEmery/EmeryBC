@@ -147,6 +147,34 @@ export function setUpdateNotify(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- AFK auto-reply ------------------------------------------------------------
+// When enabled, EBC sends a configurable auto-reply beep if a message arrives
+// while the player has been inactive for more than the threshold.
+
+export function getAfkEnabled(): boolean {
+    try { return getStore()?.afkEnabled === true; } catch { return false; }
+}
+export function setAfkEnabled(v: boolean): void {
+    try { const s = getStore(); if (s) { s.afkEnabled = v; ServerPlayerExtensionSettingsSync("EmeryBC"); } } catch { /* ignore */ }
+}
+
+export function getAfkThreshold(): number {
+    try { const v = getStore()?.afkThreshold; return typeof v === "number" && v >= 1 ? v : 10; } catch { return 10; }
+}
+export function setAfkThreshold(n: number): void {
+    try { const s = getStore(); if (s) { s.afkThreshold = Math.max(1, Math.min(120, Math.round(n))); ServerPlayerExtensionSettingsSync("EmeryBC"); } } catch { /* ignore */ }
+}
+
+export function getAfkMessage(): string {
+    try {
+        const v = getStore()?.afkMessage;
+        return typeof v === "string" && v.trim() ? v : "I'm currently AFK — I'll reply when I'm back!";
+    } catch { return "I'm currently AFK — I'll reply when I'm back!"; }
+}
+export function setAfkMessage(msg: string): void {
+    try { const s = getStore(); if (s) { s.afkMessage = msg.slice(0, 200).trim(); ServerPlayerExtensionSettingsSync("EmeryBC"); } } catch { /* ignore */ }
+}
+
 // -- Beep mute -----------------------------------------------------------------
 
 export function getBeepMuted(): boolean {

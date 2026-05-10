@@ -53,6 +53,8 @@ function showEscapePrompt(
 
 let lastRestrainerName: string | null = null;
 
+export function getLastRestrainerName(): string | null { return lastRestrainerName; }
+
 export function recordRestrainer(sourceMemberNumber: number): void {
     try {
         const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as

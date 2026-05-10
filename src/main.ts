@@ -5,8 +5,10 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify } from "./modules/settings";
-import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer } from "./modules/antiRestraint";
+import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage } from "./modules/settings";
+import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
+import { onRoomSync, onRoomLeave, onMemberJoin } from "./modules/roomHistory";
+import { snapshotForLog, checkRestraintChanges } from "./modules/restraintLog";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
@@ -14,10 +16,24 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.25";
+const MOD_VERSION = "1.3.26";
 
 let noticeShown = false;
+
+// -- AFK auto-reply state -------------------------------------------------------
+let lastActivityTime = Date.now();
+// memberNumber → last AFK reply timestamp (avoid spamming the same person)
+const afkReplyCooldown = new Map<number, number>();
+const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.26",
+        changes: [
+            "Room visit history: LOG tab tracks the last 15 rooms you visited — name, space, entry/exit times, who was in the room, and who joined while you were there.",
+            "Restraint log: LOG tab also records every restraint applied to you — item name, slot, who put it on, when, and how long it was worn. Stored in localStorage; clear button available.",
+            "AFK auto-reply: configurable in the USERS tab — enable, set an idle threshold (minutes), and write a custom message. EBC auto-replies to incoming beeps when you've been inactive longer than the threshold. Each sender has a 30-minute cooldown so they're never spammed.",
+        ],
+    },
     {
         version: "1.3.25",
         changes: [
@@ -1656,6 +1672,8 @@ function init(): void {
         try { timerOnRoomEnter();           } catch { /* ignore */ }
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
+        try { snapshotForLog();             } catch { /* ignore */ }
+        try { onRoomSync();                 } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
         // Cache names and EBC presence for everyone currently in the room.
         try {
@@ -1719,6 +1737,8 @@ function init(): void {
             if (C === Player) {
                 checkGraceExpiry();
                 enforceGracePeriod();
+                // Log restraint changes BEFORE anti-restraint clears lastRestrainerName
+                try { checkRestraintChanges(getLastRestrainerName() ?? "Unknown"); } catch { /* ignore */ }
                 antiRestraintOnPlayerRefresh();
             }
         } catch { /* ignore */ }
@@ -1738,6 +1758,18 @@ function init(): void {
     tryHookFunction(modAPI, "ChatRoomLeave", 3, (args, next) => {
         const result = next(args);
         try { timerOnRoomLeave(); } catch { /* ignore */ }
+        try { onRoomLeave();     } catch { /* ignore */ }
+        return result;
+    });
+
+    // Track member joins for room history.
+    tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 3, (args, next) => {
+        const result = next(args);
+        try {
+            const [data] = args as [Record<string, unknown>];
+            const char = data.Character as { MemberNumber?: number; Nickname?: string; Name?: string } | undefined;
+            if (char) onMemberJoin(char);
+        } catch { /* ignore */ }
         return result;
     });
 
@@ -1767,6 +1799,29 @@ function init(): void {
             addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
             if (!getBeepMuted()) { try { playBeepSound(); } catch { /* ignore */ } }
             try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
+
+            // AFK auto-reply
+            try {
+                if (getAfkEnabled()) {
+                    const idleMs = Date.now() - lastActivityTime;
+                    const thresholdMs = getAfkThreshold() * 60 * 1000;
+                    const lastReply = afkReplyCooldown.get(fromNum) ?? 0;
+                    if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
+                        afkReplyCooldown.set(fromNum, Date.now());
+                        const replyMsg = getAfkMessage();
+                        window.setTimeout(() => {
+                            try {
+                                ServerSend("AccountBeep", {
+                                    MemberNumber: fromNum,
+                                    Message: `[AFK] ${replyMsg}`,
+                                    BeepType: "",
+                                });
+                            } catch { /* ignore */ }
+                        }, 500);
+                    }
+                }
+            } catch { /* ignore */ }
+
             // Suppress BC's native chat-log notification when our IM handles it.
             if (getSuppressNativeBeep()) return;
         } catch { /* ignore */ }
@@ -1832,6 +1887,10 @@ function init(): void {
     // Works for normal chat AND gag speech (we see the original typed text).
     const getChatInput = (): HTMLInputElement | null =>
         document.getElementById("InputChat") as HTMLInputElement | null;
+
+    // Track user activity for AFK detection
+    document.addEventListener("keydown", () => { lastActivityTime = Date.now(); }, true);
+    document.addEventListener("mousedown", () => { lastActivityTime = Date.now(); }, true);
 
     const onChatKeydownCapture = (e: KeyboardEvent): void => {
         try {
