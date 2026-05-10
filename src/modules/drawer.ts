@@ -313,32 +313,29 @@ const CSS = `
 
 .ebc-corner-grip {
     flex-shrink: 0;
-    height: 14px;
+    height: 16px;
     width: 100%;
     cursor: ns-resize;
     user-select: none;
     touch-action: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(20, 8, 16, 0.6);
-    border-top: 1px solid #2a1421;
-    transition: background 0.15s;
+    position: relative;
+    background: transparent;
 }
-.ebc-corner-grip:hover {
-    background: rgba(42, 20, 33, 0.9);
-}
+/* Triangle in the bottom-left corner — classic resize grip visual */
 .ebc-corner-grip::before {
     content: "";
-    display: block;
-    width: 48px;
-    height: 3px;
-    border-radius: 2px;
-    background: #6b3050;
-    transition: background 0.15s;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 0 16px 16px;
+    border-color: transparent transparent #6b3050 transparent;
+    transition: border-color 0.15s;
 }
 .ebc-corner-grip:hover::before {
-    background: #cf6f98;
+    border-color: transparent transparent #cf6f98 transparent;
 }
 
 /* Catch-all hover brightening for any button that lacks its own :hover rule */

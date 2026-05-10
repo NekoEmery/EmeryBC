@@ -14,12 +14,12 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.5";
+const MOD_VERSION = "1.3.6";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "1.3.5",
+        version: "1.3.6",
         changes: [
             "Fix: beep messages no longer show □ box characters — private-use Unicode separators inserted by WCE/FBC/etc. are now stripped alongside their JSON metadata blob.",
             "Fix: native BC beeps that contain only mod metadata (empty after stripping) no longer get stored as blank messages in EBC chat history.",
