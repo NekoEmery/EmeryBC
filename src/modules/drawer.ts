@@ -1070,6 +1070,7 @@ const CSS = `
     color: #9a7888;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 3px;
 }
 
