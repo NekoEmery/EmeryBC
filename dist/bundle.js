@@ -14180,17 +14180,24 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.2";
+    const MOD_VERSION = "1.3.3";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.3",
+            changes: [
+                "Fix: offline messages now actually delivered — when a recipient comes back online, EBC re-sends the original message(s) as real beeps so they appear in chat history (BC silently drops beeps to offline players).",
+                "Resize handle: replaced A-/A+ scale buttons with a drag handle at the bottom edge of the panel — drag down/up to resize the panel height, saved across sessions.",
+                "BC sidebar: category ◀/▶ arrows are now larger and easier to click.",
+            ],
+        },
         {
             version: "1.3.2",
             changes: [
                 "Button categories: Quick Action Buttons now support multiple named categories (e.g. RP, Casual). Switch between them with ◀/▶ chips in the BC sidebar or the tab bar in the Buttons drawer. Each category has its own independent set of up to 12 buttons. Existing buttons are automatically migrated to a 'Default' category.",
-                "Offline message notification: if you send someone a beep while they are offline, EBC will automatically send them a notification beep the moment they come online.",
+                "Offline message notification: if you send someone a beep while they are offline, EBC will automatically notify them the moment they come online.",
                 "Chat windows: drag is now clamped to the browser viewport -- windows can no longer be dragged off-screen.",
                 "Chat windows: member number (#XXXXX) is now shown in the window title bar and in each message bubble so you always know who you are talking to.",
-                "UI scale: A- and A+ buttons in the drawer header let you shrink or grow the entire EBC panel (7 steps from 70% to 130%). Setting is saved in localStorage.",
             ],
         },
         {
