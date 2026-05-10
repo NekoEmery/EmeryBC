@@ -2491,8 +2491,6 @@ export class EBCDrawer {
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
     private resetLocationBtn: HTMLElement | null = null;
-    // UI zoom scale (0.75 – 1.5). Applied as CSS zoom on the inner panel.
-    private uiScale = 1.0;
     // Category dropdown in quick actions bar
     // DEV tab auto-refresh poller
     private devLogPoller: ReturnType<typeof window.setInterval> | null = null;
@@ -2584,57 +2582,9 @@ export class EBCDrawer {
         closeBtn.title = "Close";
         closeBtn.textContent = "X";
 
-        // UI zoom — A− / % / A+ sit in the header so they are always accessible
-        // regardless of how much content is zoomed or scrolled below.
-        // Only panel width is compensated so the visual width stays ~360 px.
-        // Height is left at natural 100% — at high zoom the body area simply scrolls.
-        const EBC_SCALE_KEY = "EBC_uiScale";
-        const SCALE_STEPS   = [0.75, 0.85, 1.0, 1.1, 1.2, 1.35];
-        const BASE_WIDTH    = 360;
-
-        const zoomOutBtn = document.createElement("button");
-        const zoomInBtn  = document.createElement("button");
-        const scaleLabel = document.createElement("span");
-        zoomOutBtn.className = "ebc-icon-btn";
-        zoomInBtn.className  = "ebc-icon-btn";
-        zoomOutBtn.title = "Zoom out (A−)";
-        zoomInBtn.title  = "Zoom in (A+)";
-        zoomOutBtn.textContent = "A−";
-        zoomInBtn.textContent  = "A+";
-        scaleLabel.textContent = "100%";
-        scaleLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;min-width:26px;text-align:center;pointer-events:none;user-select:none;";
-
-        const applyScale = (scale: number): void => {
-            this.uiScale = scale;
-            panel.style.zoom  = String(scale);
-            panel.style.width = `${Math.round(BASE_WIDTH / scale)}px`;
-            scaleLabel.textContent = Math.round(scale * 100) + "%";
-            zoomOutBtn.disabled = scale <= SCALE_STEPS[0];
-            zoomInBtn.disabled  = scale >= SCALE_STEPS[SCALE_STEPS.length - 1];
-            try { localStorage.setItem(EBC_SCALE_KEY, String(scale)); } catch { /* ignore */ }
-        };
-
-        zoomOutBtn.addEventListener("click", () => {
-            const idx = SCALE_STEPS.indexOf(this.uiScale);
-            applyScale(idx > 0 ? SCALE_STEPS[idx - 1] : SCALE_STEPS[0]);
-        });
-        zoomInBtn.addEventListener("click", () => {
-            const idx = SCALE_STEPS.indexOf(this.uiScale);
-            applyScale(idx < SCALE_STEPS.length - 1 ? SCALE_STEPS[idx + 1] : SCALE_STEPS[SCALE_STEPS.length - 1]);
-        });
-
-        // Restore saved scale (applied further below after panelEl is assigned)
-        try {
-            const saved = parseFloat(localStorage.getItem(EBC_SCALE_KEY) ?? "");
-            if (!isNaN(saved) && SCALE_STEPS.includes(saved)) this.uiScale = saved;
-        } catch { /* ignore */ }
-
         headerBtns.appendChild(refreshBtn);
         headerBtns.appendChild(moveHandle);
         headerBtns.appendChild(resetLocBtn);
-        headerBtns.appendChild(zoomOutBtn);
-        headerBtns.appendChild(scaleLabel);
-        headerBtns.appendChild(zoomInBtn);
         headerBtns.appendChild(closeBtn);
         header.appendChild(title);
         header.appendChild(headerBtns);
@@ -3278,9 +3228,6 @@ export class EBCDrawer {
         this.rootEl  = root;
         this.panelEl = slideContainer;
 
-        // Apply saved scale (applyScale only touches panel.style, no DOM needed)
-        if (this.uiScale !== 1.0) applyScale(this.uiScale);
-
         // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
         // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
         // Works with both mouse and touch input via addPointerDown / addPointerTracking.
@@ -3711,10 +3658,7 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        this.renderRestraintInfo(body);
-        this.renderPalettes(body);
-
-        // ── Default nickname ─────────────────────────────────────────────────────
+        // ── Default nickname (top of page) ───────────────────────────────────────
         const nickRow = document.createElement("div");
         nickRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
 
@@ -3744,6 +3688,9 @@ export class EBCDrawer {
         nickRow.appendChild(nickInp);
         nickRow.appendChild(nickSaveBtn);
         body.appendChild(nickRow);
+
+        this.renderRestraintInfo(body);
+        this.renderPalettes(body);
 
         // ── Tag management ───────────────────────────────────────────────────────────
         const tagMgmtDiv = document.createElement("div");
@@ -4098,7 +4045,6 @@ export class EBCDrawer {
 
         const render = (): void => {
             while (container.firstChild) container.removeChild(container.firstChild);
-            if (collapsed) return;
 
             try {
                 const restraints = Player.Appearance.filter(i => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
@@ -4170,11 +4116,12 @@ export class EBCDrawer {
             collapsed = !collapsed;
             try { localStorage.setItem("EBC_activeRestraintsCollapsed", collapsed ? "1" : "0"); } catch { /* ignore */ }
             updateLabel();
-            render();
+            container.style.display = collapsed ? "none" : "";
         });
 
         updateLabel();
         render();
+        container.style.display = collapsed ? "none" : "";
         body.appendChild(label);
         body.appendChild(container);
     }

@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.23";
+const MOD_VERSION = "1.3.24";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.24",
+        changes: [
+            "Remove UI zoom (A-/A+) entirely. Header restored to original buttons only. Default Nickname moved to top of Outfits tab. Active Restraints collapse state now saves reliably (switched to display:none). Removed non-functional Legs Closed pose button (ClosedLegs is an item-forced pose, not directly applicable).",
+        ],
+    },
     {
         version: "1.3.23",
         changes: [
