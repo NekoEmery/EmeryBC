@@ -1,7 +1,14 @@
-// Room visit history — records the last MAX_HISTORY rooms the player entered,
-// who was in the room at entry, and who joined while they were there.
-// Stored in localStorage (device-local; persists across sessions).
-// Recording is opt-in: getRoomHistoryEnabled() must be true for any data to be saved.
+// Room history — two independent features:
+//
+// 1. Current Room  (always active, in-memory only)
+//    Tracks who is in the room right now and who joined after you arrived.
+//    Lives in `currentVisit`; no localStorage; always works regardless of settings.
+//
+// 2. Rooms Visited  (opt-in, persisted)
+//    Saves a record of each room you enter to localStorage when
+//    getRoomHistoryEnabled() is true. Flushed on room-leave.
+
+import { getRoomHistoryEnabled } from "./settings";
 
 export interface RoomJoinEvent {
     memberNumber: number;
@@ -14,12 +21,10 @@ export interface RoomVisit {
     name:      string;
     space:     string;
     enteredAt: number;
-    leftAt:    number | null; // null = still in room
-    members:   Array<{ memberNumber: number; name: string }>; // at entry
-    joins:     RoomJoinEvent[]; // people who joined after you arrived
+    leftAt:    number | null;
+    members:   Array<{ memberNumber: number; name: string }>; // present on entry
+    joins:     RoomJoinEvent[];                               // arrived after you
 }
-
-import { getRoomHistoryEnabled } from "./settings";
 
 const MAX_HISTORY = 15;
 const LS_KEY      = "EBC_roomHistory";
@@ -27,8 +32,7 @@ const LS_KEY      = "EBC_roomHistory";
 let currentVisit:         RoomVisit | null = null;
 let lastRecordedRoomName: string   | null = null;
 
-// Track member numbers already accounted for (entry list + joins) so we never
-// double-count someone when detectNewJoins runs on every render tick.
+// Member numbers already accounted for so we never double-count on each poll.
 let knownMemberNums = new Set<number>();
 
 function uid(): string { return Math.random().toString(36).slice(2, 9); }
@@ -48,8 +52,10 @@ function saveHistory(visits: RoomVisit[]): void {
     try { localStorage.setItem(LS_KEY, JSON.stringify(visits.slice(0, MAX_HISTORY))); } catch { /* ignore */ }
 }
 
+// Persist the current visit to localStorage — only if the user opted in.
 function flushCurrent(): void {
     if (!currentVisit) return;
+    if (!getRoomHistoryEnabled()) return; // opt-out → don't save history
     if (!currentVisit.leftAt) currentVisit.leftAt = Date.now();
     const history = loadHistory();
     const idx = history.findIndex(v => v.id === currentVisit!.id);
@@ -63,9 +69,10 @@ function getRoomChars(): Array<{ MemberNumber?: number; Nickname?: string; Name?
         Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined) ?? [];
 }
 
-// Called from the ChatRoomSync hook. Detects new-room entry by name change.
+// ── Called from ChatRoomSync hook ────────────────────────────────────────────
+// Always tracks the current room in memory. Flushes previous visit to storage
+// only if Rooms Visited logging is enabled.
 export function onRoomSync(): void {
-    if (!getRoomHistoryEnabled()) return;
     try {
         const data = (window as unknown as Record<string, unknown>).ChatRoomData as Record<string, unknown> | undefined;
         const name  = typeof data?.Name  === "string" ? data.Name  : null;
@@ -74,9 +81,8 @@ export function onRoomSync(): void {
         const chars = getRoomChars();
 
         if (name !== lastRecordedRoomName) {
-            // ── New room entered ────────────────────────────────────────────────
             lastRecordedRoomName = name;
-            if (currentVisit) flushCurrent();
+            if (currentVisit) flushCurrent(); // save previous room if enabled
 
             const members = chars
                 .filter(c => c.MemberNumber && c.MemberNumber !== Player.MemberNumber)
@@ -93,17 +99,12 @@ export function onRoomSync(): void {
                 members, joins: [],
             };
 
-            // Seed knownMemberNums from the entry snapshot so we don't
-            // immediately re-log them as joins on the next detectNewJoins call.
             knownMemberNums = new Set(members.map(m => m.memberNumber));
         }
-        // When still in the same room we rely on detectNewJoins() (called from
-        // the render poller) rather than re-diffing here, since ChatRoomSync may
-        // not fire for every individual member join in all BC versions.
     } catch { /* ignore */ }
 }
 
-// Called from the ChatRoomLeave hook.
+// ── Called from ChatRoomLeave hook ───────────────────────────────────────────
 export function onRoomLeave(): void {
     try {
         lastRecordedRoomName = null;
@@ -114,26 +115,24 @@ export function onRoomLeave(): void {
     } catch { /* ignore */ }
 }
 
-// Called from the ChatRoomSyncMemberJoin hook (supplementary — BC may also
-// broadcast full ChatRoomSync packets; detectNewJoins handles those cases).
+// ── Called from ChatRoomSyncMemberJoin hook ──────────────────────────────────
 export function onMemberJoin(char: { MemberNumber?: number; Nickname?: string; Name?: string }): void {
-    if (!getRoomHistoryEnabled()) return;
     try {
         if (!currentVisit || !char.MemberNumber || char.MemberNumber === Player.MemberNumber) return;
-        if (knownMemberNums.has(char.MemberNumber)) return; // already recorded
+        if (knownMemberNums.has(char.MemberNumber)) return;
         knownMemberNums.add(char.MemberNumber);
         const name = char.Nickname?.trim() || char.Name || `#${char.MemberNumber}`;
         currentVisit.joins.push({ memberNumber: char.MemberNumber, name, at: Date.now() });
     } catch { /* ignore */ }
 }
 
-// Called every render tick and from BC hooks to catch joins reliably.
+// ── Called every render tick and directly from BC hooks ──────────────────────
+// Diffs ChatRoomCharacter against knownMemberNums to catch any joins that
+// slipped through the hook or arrived before the addon initialised.
 export function detectNewJoins(): void {
-    if (!getRoomHistoryEnabled()) return;
     try {
         if (!currentVisit) {
-            // EBC loaded while already in a room — bootstrap currentVisit now.
-            onRoomSync();
+            onRoomSync(); // bootstrap if we loaded mid-room
             return;
         }
         const chars = getRoomChars();
@@ -141,7 +140,6 @@ export function detectNewJoins(): void {
             if (!c.MemberNumber || c.MemberNumber === Player.MemberNumber) continue;
             if (knownMemberNums.has(c.MemberNumber)) continue;
             knownMemberNums.add(c.MemberNumber);
-            // Only count as a "join" if they weren't in the original entry list.
             const wasOnEntry = currentVisit.members.some(m => m.memberNumber === c.MemberNumber);
             if (!wasOnEntry) {
                 const name = c.Nickname?.trim() || c.Name || `#${c.MemberNumber}`;
@@ -151,24 +149,23 @@ export function detectNewJoins(): void {
     } catch { /* ignore */ }
 }
 
+// ── Accessors ────────────────────────────────────────────────────────────────
+
+// Live in-memory current room — always available, no logging required.
 export function getCurrentVisit(): RoomVisit | null { return currentVisit; }
 
-// Always includes the live in-memory currentVisit so joins show immediately
-// without waiting for the room to be left (which is when it flushes to storage).
-export function getRoomHistory(): RoomVisit[] {
-    const history = loadHistory();
-    if (!currentVisit) return history;
-    const idx = history.findIndex(v => v.id === currentVisit!.id);
-    if (idx >= 0) {
-        const merged = [...history];
-        merged[idx] = currentVisit;
-        return merged;
-    }
-    return [currentVisit, ...history];
-}
+// Past rooms from localStorage — only populated when Rooms Visited logging is on.
+export function getVisitedHistory(): RoomVisit[] { return loadHistory(); }
+
+/** @deprecated use getCurrentVisit / getVisitedHistory */
+export function getRoomHistory(): RoomVisit[] { return loadHistory(); }
 
 export function clearRoomHistory(): void {
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
+}
+
+export function clearCurrentVisit(): void {
     currentVisit = null;
     knownMemberNums.clear();
+    lastRecordedRoomName = null;
 }

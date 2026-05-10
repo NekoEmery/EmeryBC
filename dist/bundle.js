@@ -2540,16 +2540,20 @@
         localNotice(`Removed ${unlocked} lock(s).`, UI.gold);
     }
 
-    // Room visit history — records the last MAX_HISTORY rooms the player entered,
-    // who was in the room at entry, and who joined while they were there.
-    // Stored in localStorage (device-local; persists across sessions).
-    // Recording is opt-in: getRoomHistoryEnabled() must be true for any data to be saved.
+    // Room history — two independent features:
+    //
+    // 1. Current Room  (always active, in-memory only)
+    //    Tracks who is in the room right now and who joined after you arrived.
+    //    Lives in `currentVisit`; no localStorage; always works regardless of settings.
+    //
+    // 2. Rooms Visited  (opt-in, persisted)
+    //    Saves a record of each room you enter to localStorage when
+    //    getRoomHistoryEnabled() is true. Flushed on room-leave.
     const MAX_HISTORY = 15;
     const LS_KEY$1 = "EBC_roomHistory";
     let currentVisit = null;
     let lastRecordedRoomName = null;
-    // Track member numbers already accounted for (entry list + joins) so we never
-    // double-count someone when detectNewJoins runs on every render tick.
+    // Member numbers already accounted for so we never double-count on each poll.
     let knownMemberNums = new Set();
     function uid$2() { return Math.random().toString(36).slice(2, 9); }
     function loadHistory() {
@@ -2570,9 +2574,12 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // Persist the current visit to localStorage — only if the user opted in.
     function flushCurrent() {
         if (!currentVisit)
             return;
+        if (!getRoomHistoryEnabled())
+            return; // opt-out → don't save history
         if (!currentVisit.leftAt)
             currentVisit.leftAt = Date.now();
         const history = loadHistory();
@@ -2587,10 +2594,10 @@
         var _a;
         return (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
     }
-    // Called from the ChatRoomSync hook. Detects new-room entry by name change.
+    // ── Called from ChatRoomSync hook ────────────────────────────────────────────
+    // Always tracks the current room in memory. Flushes previous visit to storage
+    // only if Rooms Visited logging is enabled.
     function onRoomSync() {
-        if (!getRoomHistoryEnabled())
-            return;
         try {
             const data = window.ChatRoomData;
             const name = typeof (data === null || data === void 0 ? void 0 : data.Name) === "string" ? data.Name : null;
@@ -2598,10 +2605,9 @@
                 return;
             const chars = getRoomChars();
             if (name !== lastRecordedRoomName) {
-                // ── New room entered ────────────────────────────────────────────────
                 lastRecordedRoomName = name;
                 if (currentVisit)
-                    flushCurrent();
+                    flushCurrent(); // save previous room if enabled
                 const members = chars
                     .filter(c => c.MemberNumber && c.MemberNumber !== Player.MemberNumber)
                     .map(c => {
@@ -2617,17 +2623,12 @@
                     enteredAt: Date.now(), leftAt: null,
                     members, joins: [],
                 };
-                // Seed knownMemberNums from the entry snapshot so we don't
-                // immediately re-log them as joins on the next detectNewJoins call.
                 knownMemberNums = new Set(members.map(m => m.memberNumber));
             }
-            // When still in the same room we rely on detectNewJoins() (called from
-            // the render poller) rather than re-diffing here, since ChatRoomSync may
-            // not fire for every individual member join in all BC versions.
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // Called from the ChatRoomLeave hook.
+    // ── Called from ChatRoomLeave hook ───────────────────────────────────────────
     function onRoomLeave() {
         try {
             lastRecordedRoomName = null;
@@ -2639,32 +2640,28 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // Called from the ChatRoomSyncMemberJoin hook (supplementary — BC may also
-    // broadcast full ChatRoomSync packets; detectNewJoins handles those cases).
+    // ── Called from ChatRoomSyncMemberJoin hook ──────────────────────────────────
     function onMemberJoin(char) {
         var _a;
-        if (!getRoomHistoryEnabled())
-            return;
         try {
             if (!currentVisit || !char.MemberNumber || char.MemberNumber === Player.MemberNumber)
                 return;
             if (knownMemberNums.has(char.MemberNumber))
-                return; // already recorded
+                return;
             knownMemberNums.add(char.MemberNumber);
             const name = ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || char.Name || `#${char.MemberNumber}`;
             currentVisit.joins.push({ memberNumber: char.MemberNumber, name, at: Date.now() });
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
-    // Called every render tick and from BC hooks to catch joins reliably.
+    // ── Called every render tick and directly from BC hooks ──────────────────────
+    // Diffs ChatRoomCharacter against knownMemberNums to catch any joins that
+    // slipped through the hook or arrived before the addon initialised.
     function detectNewJoins() {
         var _a;
-        if (!getRoomHistoryEnabled())
-            return;
         try {
             if (!currentVisit) {
-                // EBC loaded while already in a room — bootstrap currentVisit now.
-                onRoomSync();
+                onRoomSync(); // bootstrap if we loaded mid-room
                 return;
             }
             const chars = getRoomChars();
@@ -2674,7 +2671,6 @@
                 if (knownMemberNums.has(c.MemberNumber))
                     continue;
                 knownMemberNums.add(c.MemberNumber);
-                // Only count as a "join" if they weren't in the original entry list.
                 const wasOnEntry = currentVisit.members.some(m => m.memberNumber === c.MemberNumber);
                 if (!wasOnEntry) {
                     const name = ((_a = c.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) || c.Name || `#${c.MemberNumber}`;
@@ -2684,27 +2680,16 @@
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
-    // Always includes the live in-memory currentVisit so joins show immediately
-    // without waiting for the room to be left (which is when it flushes to storage).
-    function getRoomHistory() {
-        const history = loadHistory();
-        if (!currentVisit)
-            return history;
-        const idx = history.findIndex(v => v.id === currentVisit.id);
-        if (idx >= 0) {
-            const merged = [...history];
-            merged[idx] = currentVisit;
-            return merged;
-        }
-        return [currentVisit, ...history];
-    }
+    // ── Accessors ────────────────────────────────────────────────────────────────
+    // Live in-memory current room — always available, no logging required.
+    function getCurrentVisit() { return currentVisit; }
+    // Past rooms from localStorage — only populated when Rooms Visited logging is on.
+    function getVisitedHistory() { return loadHistory(); }
     function clearRoomHistory() {
         try {
             localStorage.removeItem(LS_KEY$1);
         }
         catch ( /* ignore */_a) { /* ignore */ }
-        currentVisit = null;
-        knownMemberNums.clear();
     }
 
     // Restraint log — records every restraint applied to / removed from the player.
@@ -13732,19 +13717,93 @@
                     cnt.appendChild(hdr);
                     cnt.appendChild(inner);
                 };
-                // ── Room History ──────────────────────────────────────────────────
+                // ── Current Room ──────────────────────────────────────────────────
+                // Always live — no toggle needed. Shows who is in the current room
+                // and who has joined since you arrived.
+                makeInner("Current Room", "EBC_currentRoomCollapsed", true, (c) => {
+                    renderRoom = () => {
+                        detectNewJoins();
+                        while (c.firstChild)
+                            c.removeChild(c.firstChild);
+                        const visit = getCurrentVisit();
+                        if (!visit) {
+                            const hint = document.createElement("div");
+                            hint.className = "ebc-empty";
+                            hint.textContent = "Not currently in a room.";
+                            c.appendChild(hint);
+                            return;
+                        }
+                        // Room name + time
+                        const nameRow = document.createElement("div");
+                        nameRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:2px;";
+                        const nameEl = document.createElement("span");
+                        nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        nameEl.textContent = visit.name;
+                        nameRow.appendChild(nameEl);
+                        if (visit.space) {
+                            const sp = document.createElement("span");
+                            sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                            sp.textContent = visit.space;
+                            nameRow.appendChild(sp);
+                        }
+                        c.appendChild(nameRow);
+                        const timeEl = document.createElement("div");
+                        timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-bottom:6px;";
+                        timeEl.textContent = `Entered ${fmtTs(visit.enteredAt)}`;
+                        c.appendChild(timeEl);
+                        // Members on entry
+                        if (visit.members.length > 0) {
+                            const mLbl = document.createElement("div");
+                            mLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
+                            mLbl.textContent = `On entry (${visit.members.length})`;
+                            c.appendChild(mLbl);
+                            const mList = document.createElement("div");
+                            mList.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.7;margin-bottom:6px;";
+                            mList.textContent = visit.members.map(m => m.name).join(", ");
+                            c.appendChild(mList);
+                        }
+                        // People who joined after
+                        const jLbl = document.createElement("div");
+                        jLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
+                        jLbl.textContent = `Joined after you (${visit.joins.length})`;
+                        c.appendChild(jLbl);
+                        if (visit.joins.length === 0) {
+                            const none = document.createElement("div");
+                            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4a3040;font-style:italic;";
+                            none.textContent = "Nobody yet.";
+                            c.appendChild(none);
+                        }
+                        else {
+                            for (const j of visit.joins) {
+                                const row = document.createElement("div");
+                                row.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;padding:1px 0;";
+                                const jn = document.createElement("span");
+                                jn.textContent = j.name;
+                                const jt = document.createElement("span");
+                                jt.style.color = "#7a5a6a";
+                                jt.textContent = fmtTs(j.at);
+                                row.appendChild(jn);
+                                row.appendChild(jt);
+                                c.appendChild(row);
+                            }
+                        }
+                    };
+                    renderRoom();
+                });
+                // ── Rooms Visited ─────────────────────────────────────────────────
+                // Opt-in persistent history of past rooms.
                 const roomClearBtn = document.createElement("button");
                 roomClearBtn.textContent = "Clear";
                 roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                 roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
                 roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
-                makeInner("Room History", "EBC_roomHistoryCollapsed", true, (c) => {
+                makeInner("Rooms Visited", "EBC_roomHistoryCollapsed", true, (c) => {
                     // Enable / disable toggle row
                     const rhToggleRow = document.createElement("div");
                     rhToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
                     const rhToggleLbl = document.createElement("span");
                     rhToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
-                    rhToggleLbl.textContent = "Record room visits";
+                    rhToggleLbl.textContent = "Save room visits";
                     const rhToggleBtn = document.createElement("button");
                     const refreshRhToggle = () => {
                         const on = getRoomHistoryEnabled();
@@ -13757,40 +13816,28 @@
                     };
                     refreshRhToggle();
                     rhToggleBtn.addEventListener("click", () => {
-                        const on = !getRoomHistoryEnabled();
-                        setRoomHistoryEnabled(on);
-                        if (on)
-                            try {
-                                detectNewJoins();
-                            }
-                            catch ( /* ignore */_a) { /* ignore */ }
+                        setRoomHistoryEnabled(!getRoomHistoryEnabled());
                         refreshRhToggle();
-                        renderRoom();
+                        renderRoomsVisited();
                     });
                     rhToggleRow.appendChild(rhToggleLbl);
                     rhToggleRow.appendChild(rhToggleBtn);
                     c.appendChild(rhToggleRow);
-                    renderRoom = () => {
-                        // Scan ChatRoomCharacter for any members we haven't seen yet
-                        // (catches joins that slipped through the hook or loaded late).
-                        detectNewJoins();
-                        while (c.firstChild && c.firstChild !== rhToggleRow)
-                            c.removeChild(c.firstChild);
-                        // Keep the toggle row; re-render below it
+                    const renderRoomsVisited = () => {
                         while (rhToggleRow.nextSibling)
                             c.removeChild(rhToggleRow.nextSibling);
                         if (!getRoomHistoryEnabled()) {
                             const hint = document.createElement("div");
                             hint.className = "ebc-empty";
-                            hint.textContent = "Recording is off — enable above to start logging.";
+                            hint.textContent = "Recording is off — enable above to save visited rooms.";
                             c.appendChild(hint);
                             return;
                         }
-                        const visits = getRoomHistory();
+                        const visits = getVisitedHistory();
                         if (visits.length === 0) {
                             const e = document.createElement("div");
                             e.className = "ebc-empty";
-                            e.textContent = "No rooms visited yet.";
+                            e.textContent = "No rooms saved yet. Rooms are saved when you leave them.";
                             c.appendChild(e);
                             return;
                         }
@@ -13812,7 +13859,7 @@
                             card.appendChild(hRow);
                             const timeRow = document.createElement("div");
                             timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-bottom:3px;";
-                            timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "current"}`;
+                            timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "in progress"}`;
                             card.appendChild(timeRow);
                             const summary = document.createElement("div");
                             summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;cursor:pointer;";
@@ -13866,8 +13913,8 @@
                             c.appendChild(card);
                         }
                     };
-                    roomClearBtn.addEventListener("click", () => { clearRoomHistory(); renderRoom(); });
-                    renderRoom();
+                    roomClearBtn.addEventListener("click", () => { clearRoomHistory(); renderRoomsVisited(); });
+                    renderRoomsVisited();
                 }, roomClearBtn);
                 // ── Restraint Log ─────────────────────────────────────────────────
                 const rlogClearBtn = document.createElement("button");

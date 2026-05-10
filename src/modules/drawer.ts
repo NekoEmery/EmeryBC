@@ -78,7 +78,7 @@ import {
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
-import { getRoomHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
+import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
@@ -10207,20 +10207,82 @@ export class EBCDrawer {
                 cnt.appendChild(hdr); cnt.appendChild(inner);
             };
 
-            // ── Room History ──────────────────────────────────────────────────
+            // ── Current Room ──────────────────────────────────────────────────
+            // Always live — no toggle needed. Shows who is in the current room
+            // and who has joined since you arrived.
+            makeInner("Current Room", "EBC_currentRoomCollapsed", true, (c) => {
+                renderRoom = (): void => {
+                    detectNewJoins();
+                    while (c.firstChild) c.removeChild(c.firstChild);
+                    const visit = getCurrentVisit();
+                    if (!visit) {
+                        const hint = document.createElement("div"); hint.className = "ebc-empty";
+                        hint.textContent = "Not currently in a room."; c.appendChild(hint); return;
+                    }
+
+                    // Room name + time
+                    const nameRow = document.createElement("div");
+                    nameRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:2px;";
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameEl.textContent = visit.name; nameRow.appendChild(nameEl);
+                    if (visit.space) {
+                        const sp = document.createElement("span");
+                        sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                        sp.textContent = visit.space; nameRow.appendChild(sp);
+                    }
+                    c.appendChild(nameRow);
+                    const timeEl = document.createElement("div");
+                    timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-bottom:6px;";
+                    timeEl.textContent = `Entered ${fmtTs(visit.enteredAt)}`;
+                    c.appendChild(timeEl);
+
+                    // Members on entry
+                    if (visit.members.length > 0) {
+                        const mLbl = document.createElement("div");
+                        mLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
+                        mLbl.textContent = `On entry (${visit.members.length})`; c.appendChild(mLbl);
+                        const mList = document.createElement("div");
+                        mList.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.7;margin-bottom:6px;";
+                        mList.textContent = visit.members.map(m => m.name).join(", "); c.appendChild(mList);
+                    }
+
+                    // People who joined after
+                    const jLbl = document.createElement("div");
+                    jLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
+                    jLbl.textContent = `Joined after you (${visit.joins.length})`; c.appendChild(jLbl);
+                    if (visit.joins.length === 0) {
+                        const none = document.createElement("div");
+                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4a3040;font-style:italic;";
+                        none.textContent = "Nobody yet."; c.appendChild(none);
+                    } else {
+                        for (const j of visit.joins) {
+                            const row = document.createElement("div");
+                            row.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;padding:1px 0;";
+                            const jn = document.createElement("span"); jn.textContent = j.name;
+                            const jt = document.createElement("span"); jt.style.color = "#7a5a6a"; jt.textContent = fmtTs(j.at);
+                            row.appendChild(jn); row.appendChild(jt); c.appendChild(row);
+                        }
+                    }
+                };
+                renderRoom();
+            });
+
+            // ── Rooms Visited ─────────────────────────────────────────────────
+            // Opt-in persistent history of past rooms.
             const roomClearBtn = document.createElement("button");
             roomClearBtn.textContent = "Clear";
             roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
             roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
             roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
 
-            makeInner("Room History", "EBC_roomHistoryCollapsed", true, (c) => {
+            makeInner("Rooms Visited", "EBC_roomHistoryCollapsed", true, (c) => {
                 // Enable / disable toggle row
                 const rhToggleRow = document.createElement("div");
                 rhToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
                 const rhToggleLbl = document.createElement("span");
                 rhToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
-                rhToggleLbl.textContent = "Record room visits";
+                rhToggleLbl.textContent = "Save room visits";
                 const rhToggleBtn = document.createElement("button");
                 const refreshRhToggle = (): void => {
                     const on = getRoomHistoryEnabled();
@@ -10233,29 +10295,22 @@ export class EBCDrawer {
                 };
                 refreshRhToggle();
                 rhToggleBtn.addEventListener("click", () => {
-                    const on = !getRoomHistoryEnabled();
-                    setRoomHistoryEnabled(on);
-                    if (on) try { detectNewJoins(); } catch { /* ignore */ }
-                    refreshRhToggle(); renderRoom();
+                    setRoomHistoryEnabled(!getRoomHistoryEnabled());
+                    refreshRhToggle(); renderRoomsVisited();
                 });
                 rhToggleRow.appendChild(rhToggleLbl); rhToggleRow.appendChild(rhToggleBtn);
                 c.appendChild(rhToggleRow);
 
-                renderRoom = (): void => {
-                    // Scan ChatRoomCharacter for any members we haven't seen yet
-                    // (catches joins that slipped through the hook or loaded late).
-                    detectNewJoins();
-                    while (c.firstChild && c.firstChild !== rhToggleRow) c.removeChild(c.firstChild);
-                    // Keep the toggle row; re-render below it
+                const renderRoomsVisited = (): void => {
                     while (rhToggleRow.nextSibling) c.removeChild(rhToggleRow.nextSibling);
                     if (!getRoomHistoryEnabled()) {
                         const hint = document.createElement("div"); hint.className = "ebc-empty";
-                        hint.textContent = "Recording is off — enable above to start logging."; c.appendChild(hint); return;
+                        hint.textContent = "Recording is off — enable above to save visited rooms."; c.appendChild(hint); return;
                     }
-                    const visits = getRoomHistory();
+                    const visits = getVisitedHistory();
                     if (visits.length === 0) {
                         const e = document.createElement("div"); e.className = "ebc-empty";
-                        e.textContent = "No rooms visited yet."; c.appendChild(e); return;
+                        e.textContent = "No rooms saved yet. Rooms are saved when you leave them."; c.appendChild(e); return;
                     }
                     for (const visit of visits) {
                         const card = document.createElement("div");
@@ -10273,7 +10328,7 @@ export class EBCDrawer {
                         card.appendChild(hRow);
                         const timeRow = document.createElement("div");
                         timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-bottom:3px;";
-                        timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "current"}`;
+                        timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "in progress"}`;
                         card.appendChild(timeRow);
                         const summary = document.createElement("div");
                         summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;cursor:pointer;";
@@ -10316,8 +10371,8 @@ export class EBCDrawer {
                         c.appendChild(card);
                     }
                 };
-                roomClearBtn.addEventListener("click", () => { clearRoomHistory(); renderRoom(); });
-                renderRoom();
+                roomClearBtn.addEventListener("click", () => { clearRoomHistory(); renderRoomsVisited(); });
+                renderRoomsVisited();
             }, roomClearBtn);
 
             // ── Restraint Log ─────────────────────────────────────────────────
