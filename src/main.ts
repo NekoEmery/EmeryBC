@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.9";
+const MOD_VERSION = "1.3.10";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.10",
+        changes: [
+            "Fix: resize grip triangle moved to bottom-right corner (correct side for a right-anchored panel).",
+        ],
+    },
     {
         version: "1.3.9",
         changes: [

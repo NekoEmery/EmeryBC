@@ -3648,21 +3648,22 @@
     background: transparent;
     pointer-events: auto;
 }
-/* Triangle in the bottom-left corner — classic resize grip visual */
+/* Triangle in the bottom-right corner — right-side panel resize grip */
 .ebc-corner-grip::before {
     content: "";
     position: absolute;
     bottom: 0;
-    left: 0;
+    right: 0;
+    left: auto;
     width: 0;
     height: 0;
     border-style: solid;
-    border-width: 0 0 18px 18px;
-    border-color: transparent transparent #6b3050 transparent;
+    border-width: 18px 0 0 18px;
+    border-color: transparent transparent transparent #6b3050;
     transition: border-color 0.15s;
 }
 .ebc-corner-grip:hover::before {
-    border-color: transparent transparent #cf6f98 transparent;
+    border-color: transparent transparent transparent #cf6f98;
 }
 
 /* Catch-all hover brightening for any button that lacks its own :hover rule */
@@ -14448,9 +14449,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.9";
+    const MOD_VERSION = "1.3.10";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.10",
+            changes: [
+                "Fix: resize grip triangle moved to bottom-right corner (correct side for a right-anchored panel).",
+            ],
+        },
         {
             version: "1.3.9",
             changes: [
