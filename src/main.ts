@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.8";
+const MOD_VERSION = "1.3.9";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.9",
+        changes: [
+            "Fix: resize grip moved outside panel overflow context — no longer clipped; drag the triangle in the bottom-left corner to resize panel height.",
+            "Buttons tab: category dropdown now lives at the top of the Buttons tab itself — 'Active Category' selector is the first thing you see when switching to Buttons.",
+        ],
+    },
     {
         version: "1.3.8",
         changes: [

@@ -3636,14 +3636,17 @@
 }
 
 .ebc-corner-grip {
-    flex-shrink: 0;
-    height: 16px;
-    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
     cursor: ns-resize;
     user-select: none;
     touch-action: none;
-    position: relative;
+    z-index: 10;
     background: transparent;
+    pointer-events: auto;
 }
 /* Triangle in the bottom-left corner — classic resize grip visual */
 .ebc-corner-grip::before {
@@ -3654,7 +3657,7 @@
     width: 0;
     height: 0;
     border-style: solid;
-    border-width: 0 0 16px 16px;
+    border-width: 0 0 18px 18px;
     border-color: transparent transparent #6b3050 transparent;
     transition: border-color 0.15s;
 }
@@ -6021,25 +6024,12 @@
             qaRow1.appendChild(releaseBtn);
             qaRow1.appendChild(unlockBtn);
             quickActions.appendChild(qaRow1);
-            // Row 0: Category selector for quick buttons
-            const catSelectRow = document.createElement("div");
-            catSelectRow.className = "ebc-cat-select-row";
-            const catSelectLbl = document.createElement("span");
-            catSelectLbl.className = "ebc-cat-select-label";
-            catSelectLbl.textContent = "Buttons";
+            // Category select element — injected into the Buttons tab by renderButtons()
             const catSel = document.createElement("select");
             catSel.className = "ebc-cat-select";
             catSel.title = "Switch active Quick Action Button category";
-            catSel.addEventListener("change", () => {
-                const idx = parseInt(catSel.value, 10);
-                if (!isNaN(idx)) {
-                    setActiveCategoryIndex(idx);
-                }
-            });
+            // onchange is assigned in renderButtons() so it can refresh the full tab state
             this.catSelectEl = catSel;
-            catSelectRow.appendChild(catSelectLbl);
-            catSelectRow.appendChild(catSel);
-            quickActions.appendChild(catSelectRow);
             // Row 1b: confirm-before-escaping (centered, subtle, between danger buttons and picker)
             const qaConfirmRow = document.createElement("div");
             qaConfirmRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:7px;";
@@ -6482,12 +6472,7 @@
             timerEl.className = "ebc-timer";
             footer.appendChild(timerEl);
             this.timerEl = timerEl;
-            // Resize grip — last flex child of panel so it sits at the very bottom.
-            // Being a normal flex item avoids z-index / pointer-event fights with .ebc-panel.
             const EBC_HEIGHT_KEY = "EBC_panelHeight";
-            const cornerGrip = document.createElement("div");
-            cornerGrip.className = "ebc-corner-grip";
-            cornerGrip.title = "Drag to resize panel height";
             panel.appendChild(header);
             panel.appendChild(tabBar);
             panel.appendChild(quickActions);
@@ -6496,8 +6481,13 @@
             panel.appendChild(safewordRow);
             panel.appendChild(body);
             panel.appendChild(footer);
-            panel.appendChild(cornerGrip);
             slideContainer.appendChild(panel);
+            // Resize grip — absolutely positioned on slideContainer so it is never
+            // clipped by panel's overflow:hidden and always sits at the exact bottom edge.
+            const cornerGrip = document.createElement("div");
+            cornerGrip.className = "ebc-corner-grip";
+            cornerGrip.title = "Drag to resize panel height";
+            slideContainer.appendChild(cornerGrip);
             root.appendChild(slideContainer);
             // Restore saved height
             try {
@@ -9379,15 +9369,44 @@
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── Category tab bar ────────────────────────────────────────────────
+            // ── Category dropdown (top of tab) ───────────────────────────────────
             let cats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
             let activeCatIdx = getActiveCategoryIndex();
             if (activeCatIdx >= cats.length)
                 activeCatIdx = 0;
+            // Refresh and inject the shared <select> into the tab body
+            this.refreshCategorySelect();
+            if (this.catSelectEl) {
+                const catDropRow = document.createElement("div");
+                catDropRow.className = "ebc-cat-select-row";
+                const catDropLbl = document.createElement("span");
+                catDropLbl.className = "ebc-cat-select-label";
+                catDropLbl.textContent = "Active Category";
+                catDropRow.appendChild(catDropLbl);
+                catDropRow.appendChild(this.catSelectEl);
+                body.appendChild(catDropRow);
+                // Keep local activeCatIdx in sync when user changes the dropdown
+                this.catSelectEl.onchange = () => {
+                    const idx = parseInt(this.catSelectEl.value, 10);
+                    if (!isNaN(idx)) {
+                        activeCatIdx = idx;
+                        setActiveCategoryIndex(idx);
+                        btns = cats[idx].buttons.map(b => (Object.assign({}, b)));
+                        slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[idx].slotCount || cats[idx].buttons.length || 1));
+                        renderCatBar();
+                        renderSlots();
+                        updateFooterState();
+                    }
+                };
+            }
+            // ── Category pill bar (manage / add / rename / delete) ────────────────
             const catBar = document.createElement("div");
             catBar.style.cssText = "display:flex;gap:3px;flex-wrap:wrap;align-items:center;margin-bottom:5px;";
             const renderCatBar = () => {
                 catBar.innerHTML = "";
+                // Keep the dropdown in sync
+                if (this.catSelectEl)
+                    this.catSelectEl.value = String(activeCatIdx);
                 cats.forEach((cat, i) => {
                     const tab = document.createElement("button");
                     tab.textContent = cat.name;
@@ -14429,9 +14448,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.8";
+    const MOD_VERSION = "1.3.9";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.9",
+            changes: [
+                "Fix: resize grip moved outside panel overflow context — no longer clipped; drag the triangle in the bottom-left corner to resize panel height.",
+                "Buttons tab: category dropdown now lives at the top of the Buttons tab itself — 'Active Category' selector is the first thing you see when switching to Buttons.",
+            ],
+        },
         {
             version: "1.3.8",
             changes: [
