@@ -311,36 +311,42 @@ const CSS = `
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
-.ebc-corner-grip {
+/* Resize bar — full-width strip at the bottom of the slide container */
+.ebc-resize-bar {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 20px;
+    height: 14px;
     cursor: ns-resize;
+    z-index: 10;
+    pointer-events: auto;
     user-select: none;
     touch-action: none;
-    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
-    pointer-events: auto;
+    transition: background 0.15s;
 }
-/* Triangle in the bottom-right corner — right-side panel resize grip */
-.ebc-corner-grip::before {
+/* Three-line grip indicator */
+.ebc-resize-bar::before {
     content: "";
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    left: auto;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 18px 0 0 18px;
-    border-color: transparent transparent transparent #6b3050;
-    transition: border-color 0.15s;
+    display: block;
+    width: 36px;
+    height: 2px;
+    border-radius: 2px;
+    background: #4c2537;
+    box-shadow: 0 -4px 0 #4c2537, 0 4px 0 #4c2537;
+    transition: background 0.15s, box-shadow 0.15s;
 }
-.ebc-corner-grip:hover::before {
-    border-color: transparent transparent transparent #cf6f98;
+.ebc-resize-bar:hover { background: rgba(207, 111, 152, 0.06); }
+.ebc-resize-bar:hover::before,
+.ebc-resize-bar.ebc-resizing::before {
+    background: #cf6f98;
+    box-shadow: 0 -4px 0 #cf6f98, 0 4px 0 #cf6f98;
 }
+.ebc-resize-bar.ebc-resizing { background: rgba(207, 111, 152, 0.1); cursor: ns-resize; }
 
 /* Catch-all hover brightening for any button that lacks its own :hover rule */
 .ebc-panel button:not([disabled]) {
@@ -3259,36 +3265,55 @@ export class EBCDrawer {
         panel.appendChild(footer);
         slideContainer.appendChild(panel);
 
-        // Resize grip — absolutely positioned on slideContainer so it is never
-        // clipped by panel's overflow:hidden and always sits at the exact bottom edge.
-        const cornerGrip = document.createElement("div");
-        cornerGrip.className = "ebc-corner-grip";
-        cornerGrip.title = "Drag to resize panel height";
-        slideContainer.appendChild(cornerGrip);
+        // Resize bar — absolutely positioned at the bottom of the slide container.
+        // Lives outside .ebc-panel so overflow:hidden can never clip it.
+        const resizeBar = document.createElement("div");
+        resizeBar.className = "ebc-resize-bar";
+        resizeBar.title = "Drag to resize · Double-click to reset";
+        slideContainer.appendChild(resizeBar);
 
         root.appendChild(slideContainer);
 
         // Restore saved height
         try {
             const savedH = localStorage.getItem(EBC_HEIGHT_KEY);
-            if (savedH !== null) { const h = parseFloat(savedH); if (!isNaN(h) && h >= 150) this.userPanelHeight = h; }
+            if (savedH !== null) { const h = parseFloat(savedH); if (!isNaN(h) && h >= 180) this.userPanelHeight = h; }
         } catch { /* ignore */ }
 
-        addPointerDown(cornerGrip, (start, e) => {
+        addPointerDown(resizeBar, (start, e) => {
             e.preventDefault();
+            e.stopPropagation();
+            // Read current pixel height from inline style (most reliable — it's what we wrote last)
+            const styleH = parseFloat(this.rootEl?.style.height ?? "");
+            const startH = (isNaN(styleH) || styleH < 1)
+                ? (this.rootEl?.getBoundingClientRect().height ?? 400)
+                : styleH;
             const startY = start.clientY;
-            const startH = this.rootEl ? this.rootEl.getBoundingClientRect().height : 400;
+            resizeBar.classList.add("ebc-resizing");
             addPointerTracking(
                 (pos) => {
                     if (!this.rootEl) return;
-                    const newH = Math.max(150, Math.min(window.innerHeight - 16, startH + (pos.clientY - startY)));
+                    const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (pos.clientY - startY)));
                     this.userPanelHeight = newH;
                     this.rootEl.style.height = `${newH}px`;
                 },
                 () => {
-                    try { if (this.userPanelHeight !== null) localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight)); } catch { /* ignore */ }
+                    resizeBar.classList.remove("ebc-resizing");
+                    try {
+                        if (this.userPanelHeight !== null)
+                            localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight));
+                    } catch { /* ignore */ }
                 },
             );
+        });
+
+        // Double-click resets height to auto (follow chat log size)
+        resizeBar.addEventListener("dblclick", () => {
+            this.userPanelHeight = null;
+            try { localStorage.removeItem(EBC_HEIGHT_KEY); } catch { /* ignore */ }
+            // Force syncToChat to recalculate on the next tick
+            this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
+            this.syncToChat();
         });
 
         document.body.appendChild(root);

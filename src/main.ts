@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.10";
+const MOD_VERSION = "1.3.11";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.11",
+        changes: [
+            "Resize rework: replaced the corner triangle with a full-width resize bar at the panel bottom — three horizontal lines appear on hover, drag up/down to resize, double-click to reset to auto height.",
+        ],
+    },
     {
         version: "1.3.10",
         changes: [
