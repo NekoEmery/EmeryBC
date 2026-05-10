@@ -10325,7 +10325,7 @@ export class EBCDrawer {
 
                 const logOffHint = document.createElement("div");
                 logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;display:flex;align-items:center;gap:8px;margin-bottom:4px;";
-                logOffHint.style.display = isDevLogEnabled() ? "none" : "";
+                logOffHint.style.display = isDevLogEnabled() ? "none" : "flex";
                 const logOffText = document.createElement("span"); logOffText.textContent = "Logging is off."; logOffText.style.flex = "1";
                 logOffHint.appendChild(logOffText);
                 const enableBtn = document.createElement("button");
