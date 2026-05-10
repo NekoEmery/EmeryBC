@@ -3619,33 +3619,6 @@
     height: 100%;
     overflow: hidden;
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
-    position: relative; /* needed so the resize corner is positioned inside this element */
-}
-
-/* Left-edge drag strip — width handle (drag left = wider, drag right = narrower).
-   Thin line always visible so users can discover it; brightens on hover/drag. */
-.ebc-resize-left {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    cursor: ew-resize;
-    user-select: none;
-    touch-action: none;
-    pointer-events: auto;
-    z-index: 5;
-    background: rgba(74, 37, 55, 0.6); /* faint line — always discoverable */
-    transition: background 0.15s;
-}
-.ebc-resize-left:hover,
-.ebc-resize-left.ebc-resizing {
-    background: rgba(207, 111, 152, 0.5);
-}
-
-/* Footer doubles as the height drag handle — s-resize cursor set inline in JS. */
-.ebc-footer.ebc-resizing {
-    background: rgba(207, 111, 152, 0.12);
 }
 
 /* Catch-all hover brightening for any button that lacks its own :hover rule */
@@ -4398,12 +4371,15 @@
 /* -- Footer -- */
 .ebc-footer {
     flex-shrink: 0;
-    padding: 4px 10px;
+    padding: 4px 8px;
     border-top: 1px solid #3a1928;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     color: #9a7888;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
 }
 
 /* -- Special Thanks tab -- */
@@ -5814,11 +5790,8 @@
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
             this.resetLocationBtn = null;
-            // User-dragged panel height/width overrides. null = auto (follow chat log).
-            this.userPanelHeight = null;
-            this.userPanelWidth = null;
-            // Direct reference to the .ebc-panel flex container — set height here to resize.
-            this.panelContentEl = null;
+            // UI zoom scale (0.75 – 1.5). Applied as CSS zoom on the inner panel.
+            this.uiScale = 1.0;
             // Category dropdown in quick actions bar
             // DEV tab auto-refresh poller
             this.devLogPoller = null;
@@ -5833,6 +5806,7 @@
         }
         // -- Setup -----------------------------------------------------------------
         setup() {
+            var _a;
             if (this.rootEl)
                 return;
             this.injectStyles();
@@ -5857,7 +5831,6 @@
             // Inner panel (visual content)
             const panel = document.createElement("div");
             panel.className = "ebc-panel";
-            this.panelContentEl = panel;
             // Header
             const header = document.createElement("div");
             header.className = "ebc-header";
@@ -6220,7 +6193,7 @@
             try {
                 updateBadgeToggle();
             }
-            catch ( /* Player may not be ready yet — synced on first open */_a) { /* Player may not be ready yet — synced on first open */ }
+            catch ( /* Player may not be ready yet — synced on first open */_b) { /* Player may not be ready yet — synced on first open */ }
             badgeToggle.addEventListener("click", () => {
                 // Client-side only — toggle just controls what YOU see locally.
                 // Your own presence is always broadcast regardless of this setting.
@@ -6452,17 +6425,56 @@
             timerEl.className = "ebc-timer";
             footer.appendChild(timerEl);
             this.timerEl = timerEl;
-            // Two resize handles:
-            //   resizeLeft — left edge strip, controls WIDTH  (like Discord/VS Code sidebar)
-            //   footer     — doubles as height handle at the bottom (no extra element = no halo)
-            // Both use setPointerCapture so drags can't be stolen by BC's event handlers.
-            // Width formula: newW = panel.right - cursor.x  (left edge literally follows the cursor)
-            // Double-click to reset.
-            const resizeLeft = document.createElement("div");
-            resizeLeft.className = "ebc-resize-left";
-            resizeLeft.title = "Drag to resize width · Double-click to reset";
-            const EBC_HEIGHT_KEY = "EBC_panelHeight";
-            const EBC_WIDTH_KEY = "EBC_panelWidth";
+            // UI zoom controls — A− / scale% / A+ in the footer.
+            // CSS zoom is applied to the inner .ebc-panel so everything scales together.
+            // The slide-container width is kept at 360/scale so the visual width stays constant.
+            const EBC_SCALE_KEY = "EBC_uiScale";
+            const SCALE_STEPS = [0.75, 0.85, 1.0, 1.1, 1.2, 1.35];
+            const BASE_WIDTH = 360;
+            const applyScale = (scale) => {
+                this.uiScale = scale;
+                panel.style.zoom = String(scale);
+                // Shrink the container width so the zoomed content stays ~360px wide visually
+                if (this.panelEl)
+                    this.panelEl.style.width = `${Math.round(BASE_WIDTH / scale)}px`;
+                scaleLabel.textContent = Math.round(scale * 100) + "%";
+                zoomOutBtn.disabled = scale <= SCALE_STEPS[0];
+                zoomInBtn.disabled = scale >= SCALE_STEPS[SCALE_STEPS.length - 1];
+                try {
+                    localStorage.setItem(EBC_SCALE_KEY, String(scale));
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            const zoomOutBtn = document.createElement("button");
+            const zoomInBtn = document.createElement("button");
+            const scaleLabel = document.createElement("span");
+            zoomOutBtn.textContent = "A−";
+            zoomInBtn.textContent = "A+";
+            scaleLabel.textContent = "100%";
+            const zoomBtnStyle = "background:none;border:none;color:#9a7888;font-family:'Trebuchet MS',serif;font-size:10px;cursor:pointer;padding:0 3px;line-height:1;";
+            zoomOutBtn.style.cssText = zoomBtnStyle;
+            zoomInBtn.style.cssText = zoomBtnStyle;
+            scaleLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5868;min-width:30px;text-align:center;";
+            zoomOutBtn.addEventListener("click", () => {
+                const idx = SCALE_STEPS.indexOf(this.uiScale);
+                const next = idx > 0 ? SCALE_STEPS[idx - 1] : SCALE_STEPS[0];
+                applyScale(next);
+            });
+            zoomInBtn.addEventListener("click", () => {
+                const idx = SCALE_STEPS.indexOf(this.uiScale);
+                const next = idx < SCALE_STEPS.length - 1 ? SCALE_STEPS[idx + 1] : SCALE_STEPS[SCALE_STEPS.length - 1];
+                applyScale(next);
+            });
+            footer.appendChild(zoomOutBtn);
+            footer.appendChild(scaleLabel);
+            footer.appendChild(zoomInBtn);
+            // Restore saved scale
+            try {
+                const saved = parseFloat((_a = localStorage.getItem(EBC_SCALE_KEY)) !== null && _a !== void 0 ? _a : "");
+                if (!isNaN(saved) && SCALE_STEPS.includes(saved))
+                    this.uiScale = saved;
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             panel.appendChild(header);
             panel.appendChild(tabBar);
             panel.appendChild(quickActions);
@@ -6471,123 +6483,14 @@
             panel.appendChild(safewordRow);
             panel.appendChild(body);
             panel.appendChild(footer);
-            panel.appendChild(resizeLeft);
             slideContainer.appendChild(panel);
             root.appendChild(slideContainer);
-            // Restore saved height / width — applied to panelEl on next syncToChat()
-            try {
-                const savedH = localStorage.getItem(EBC_HEIGHT_KEY);
-                if (savedH !== null) {
-                    const h = parseFloat(savedH);
-                    if (!isNaN(h) && h >= 180)
-                        this.userPanelHeight = h;
-                }
-                const savedW = localStorage.getItem(EBC_WIDTH_KEY);
-                if (savedW !== null) {
-                    const w = parseFloat(savedW);
-                    if (!isNaN(w) && w >= 120)
-                        this.userPanelWidth = w;
-                }
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
-            // Helper: apply new width to all relevant elements
-            const applyWidth = (w) => {
-                this.userPanelWidth = w;
-                if (this.panelEl)
-                    this.panelEl.style.width = `${w}px`;
-            };
-            // Helper: apply new height to all relevant elements
-            const applyHeight = (h) => {
-                this.userPanelHeight = h;
-                if (this.rootEl)
-                    this.rootEl.style.height = `${h}px`;
-                if (this.panelEl)
-                    this.panelEl.style.height = `${h}px`;
-                if (this.panelContentEl)
-                    this.panelContentEl.style.height = `${h}px`;
-            };
-            // LEFT EDGE — width resize.
-            // newW = panel's fixed right edge − cursor X, so the left edge literally sticks to
-            // the cursor: drag left = wider, drag right = narrower.  No delta math needed.
-            resizeLeft.addEventListener("pointerdown", (e) => {
-                if (e.button !== 0)
-                    return;
-                e.preventDefault();
-                e.stopPropagation();
-                const rightEdge = this.panelEl.getBoundingClientRect().right;
-                resizeLeft.setPointerCapture(e.pointerId);
-                resizeLeft.classList.add("ebc-resizing");
-                const onMove = (me) => {
-                    applyWidth(Math.max(120, Math.min(window.innerWidth - 60, rightEdge - me.clientX)));
-                };
-                const onUp = () => {
-                    resizeLeft.removeEventListener("pointermove", onMove);
-                    resizeLeft.removeEventListener("pointerup", onUp);
-                    resizeLeft.classList.remove("ebc-resizing");
-                    try {
-                        if (this.userPanelWidth !== null)
-                            localStorage.setItem(EBC_WIDTH_KEY, String(this.userPanelWidth));
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                };
-                resizeLeft.addEventListener("pointermove", onMove);
-                resizeLeft.addEventListener("pointerup", onUp);
-            });
-            resizeLeft.addEventListener("dblclick", () => {
-                this.userPanelWidth = null;
-                if (this.panelEl)
-                    this.panelEl.style.width = "";
-                try {
-                    localStorage.removeItem(EBC_WIDTH_KEY);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
-                this.syncToChat();
-            });
-            // FOOTER — height resize (reuses existing footer element; no extra strip = no halo).
-            footer.style.cursor = "s-resize";
-            footer.title = "Drag to resize height · Double-click to reset";
-            footer.addEventListener("pointerdown", (e) => {
-                if (e.button !== 0)
-                    return;
-                e.preventDefault();
-                e.stopPropagation();
-                const startH = this.panelEl.getBoundingClientRect().height;
-                const startY = e.clientY;
-                footer.setPointerCapture(e.pointerId);
-                footer.classList.add("ebc-resizing");
-                const onMove = (me) => {
-                    applyHeight(Math.max(180, Math.min(window.innerHeight - 40, startH + (me.clientY - startY))));
-                };
-                const onUp = () => {
-                    footer.removeEventListener("pointermove", onMove);
-                    footer.removeEventListener("pointerup", onUp);
-                    footer.classList.remove("ebc-resizing");
-                    try {
-                        if (this.userPanelHeight !== null)
-                            localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight));
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                };
-                footer.addEventListener("pointermove", onMove);
-                footer.addEventListener("pointerup", onUp);
-            });
-            footer.addEventListener("dblclick", () => {
-                this.userPanelHeight = null;
-                if (this.panelEl)
-                    this.panelEl.style.height = "";
-                if (this.panelContentEl)
-                    this.panelContentEl.style.height = "";
-                try {
-                    localStorage.removeItem(EBC_HEIGHT_KEY);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
-                this.syncToChat();
-            });
             document.body.appendChild(root);
             this.rootEl = root;
             this.panelEl = slideContainer;
+            // Apply saved scale now that panelEl is set
+            if (this.uiScale !== 1.0)
+                applyScale(this.uiScale);
             // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
             // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
             // Works with both mouse and touch input via addPointerDown / addPointerTracking.
@@ -6700,19 +6603,12 @@
                 this.lastRect.height !== rect.height ||
                 this.lastRect.right !== rightOffset) {
                 // Cap height so the panel never extends below the visible viewport.
-                const maxH = Math.max(100, window.innerHeight - rect.top - 8);
-                const autoH = Math.min(rect.height, maxH);
-                // Respect user-dragged height — clamp to maxH so it never goes off-screen.
-                const finalH = this.userPanelHeight !== null
-                    ? Math.min(this.userPanelHeight, maxH)
-                    : autoH;
+                const finalH = Math.min(rect.height, Math.max(100, window.innerHeight - rect.top - 8));
                 this.rootEl.style.top = `${rect.top}px`;
                 this.rootEl.style.right = `${rightOffset}px`;
                 this.rootEl.style.height = `${finalH}px`;
                 if (this.panelEl)
                     this.panelEl.style.height = `${finalH}px`;
-                if (this.panelContentEl)
-                    this.panelContentEl.style.height = `${finalH}px`;
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
                 // Chat log moved — force a fresh CRABS position read next tick
@@ -6723,10 +6619,6 @@
                     if (tabEl)
                         this.applyTabOffset(tabEl, this.userTabOffset);
                 }
-            }
-            // Apply user width preference — independent of chat log sync guard.
-            if (this.panelEl && this.userPanelWidth !== null) {
-                this.panelEl.style.width = `${this.userPanelWidth}px`;
             }
             // Load saved tab offset once on first successful position sync
             if (this.userTabOffset === null) {
@@ -14575,9 +14467,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.19";
+    const MOD_VERSION = "1.3.20";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.20",
+            changes: [
+                "Removed panel resize (width/height drag). Added UI zoom: A− and A+ buttons in the footer step through 75/85/100/110/120/135% scale — scales all buttons, text, and layout together. Scale is saved and restored across sessions.",
+            ],
+        },
         {
             version: "1.3.19",
             changes: [

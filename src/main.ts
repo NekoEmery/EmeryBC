@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.19";
+const MOD_VERSION = "1.3.20";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.20",
+        changes: [
+            "Removed panel resize (width/height drag). Added UI zoom: A− and A+ buttons in the footer step through 75/85/100/110/120/135% scale — scales all buttons, text, and layout together. Scale is saved and restored across sessions.",
+        ],
+    },
     {
         version: "1.3.19",
         changes: [
