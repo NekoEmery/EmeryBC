@@ -102,7 +102,21 @@ export function onMemberJoin(char: { MemberNumber?: number; Nickname?: string; N
 }
 
 export function getCurrentVisit(): RoomVisit | null { return currentVisit; }
-export function getRoomHistory():  RoomVisit[]     { return loadHistory(); }
+
+// Always includes the live in-memory currentVisit so joins show immediately
+// without waiting for the room to be left (which is when it flushes to storage).
+export function getRoomHistory(): RoomVisit[] {
+    const history = loadHistory();
+    if (!currentVisit) return history;
+    const idx = history.findIndex(v => v.id === currentVisit!.id);
+    if (idx >= 0) {
+        const merged = [...history];
+        merged[idx] = currentVisit;
+        return merged;
+    }
+    return [currentVisit, ...history];
+}
+
 export function clearRoomHistory(): void {
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
     currentVisit = null;

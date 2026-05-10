@@ -2565,7 +2565,20 @@
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
-    function getRoomHistory() { return loadHistory(); }
+    // Always includes the live in-memory currentVisit so joins show immediately
+    // without waiting for the room to be left (which is when it flushes to storage).
+    function getRoomHistory() {
+        const history = loadHistory();
+        if (!currentVisit)
+            return history;
+        const idx = history.findIndex(v => v.id === currentVisit.id);
+        if (idx >= 0) {
+            const merged = [...history];
+            merged[idx] = currentVisit;
+            return merged;
+        }
+        return [currentVisit, ...history];
+    }
     function clearRoomHistory() {
         try {
             localStorage.removeItem(LS_KEY$1);
@@ -15101,7 +15114,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.4.2";
+    const MOD_VERSION = "1.4.3";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -15109,6 +15122,12 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.4.3",
+            changes: [
+                "Fix room history not showing people who joined after you: getRoomHistory() now merges the live in-memory current visit so joins appear immediately, without waiting until you leave the room.",
+            ],
+        },
         {
             version: "1.4.2",
             changes: [
