@@ -2434,7 +2434,7 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "buttons" | "anims" | "notes" | "log" | "thanks" | "dev" | "dom" | "puppy";
+type DrawerTab = "outfits" | "buttons" | "anims" | "notes" | "thanks" | "dev" | "dom" | "puppy";
 
 const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
 
@@ -2659,12 +2659,6 @@ export class EBCDrawer {
         notesTabBtn.id = "ebc-tab-notes";
         notesTabBtn.textContent = "USERS";
 
-        const logTabBtn = document.createElement("button");
-        logTabBtn.className = "ebc-tab-btn";
-        logTabBtn.id = "ebc-tab-log";
-        logTabBtn.textContent = "LOG";
-        logTabBtn.title = "Room history & restraint log";
-
         const thanksTabBtn = document.createElement("button");
         thanksTabBtn.className = "ebc-tab-btn";
         thanksTabBtn.id = "ebc-tab-thanks";
@@ -2697,7 +2691,6 @@ export class EBCDrawer {
         tabBar.appendChild(buttonsTabBtn);
         tabBar.appendChild(posesTabBtn);
         tabBar.appendChild(notesTabBtn);
-        tabBar.appendChild(logTabBtn);
         tabBar.appendChild(thanksTabBtn);
         tabBar.appendChild(devTabBtn2);
         tabBar.appendChild(domTabBtn);
@@ -3315,7 +3308,6 @@ export class EBCDrawer {
         buttonsTabBtn.addEventListener("click",  () => this.switchTab("buttons"));
         posesTabBtn.addEventListener("click",    () => this.switchTab("anims"));
         notesTabBtn.addEventListener("click",    () => this.switchTab("notes"));
-        logTabBtn.addEventListener("click",      () => this.switchTab("log"));
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
         devTabBtn2.addEventListener("click",     () => this.switchTab("dev"));
         domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
@@ -3612,7 +3604,6 @@ export class EBCDrawer {
             ["ebc-tab-buttons", "buttons"],
             ["ebc-tab-poses",   "anims"],
             ["ebc-tab-notes",   "notes"],
-            ["ebc-tab-log",     "log"],
             ["ebc-tab-thanks",  "thanks"],
             ["ebc-tab-dev",     "dev"],
             ["ebc-tab-dom",     "dom"],
@@ -3630,7 +3621,6 @@ export class EBCDrawer {
         else if (this.currentTab === "buttons")  this.renderButtons();
         else if (this.currentTab === "anims")    this.renderPoses();
         else if (this.currentTab === "notes")    this.renderNotes();
-        else if (this.currentTab === "log")      this.renderLog();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
         else if (this.currentTab === "dom")      this.renderDomTools();
@@ -9127,247 +9117,6 @@ export class EBCDrawer {
         } catch { /* ignore */ }
     }
 
-    // -- Log tab ---------------------------------------------------------------
-
-    private renderLog(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
-        if (!body) return;
-        while (body.firstChild) body.removeChild(body.firstChild);
-
-        const fmtDuration = (ms: number): string => {
-            const s = Math.floor(ms / 1000);
-            if (s < 60) return `${s}s`;
-            const m = Math.floor(s / 60);
-            if (m < 60) return `${m}m`;
-            const h = Math.floor(m / 60);
-            const rm = m % 60;
-            return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
-        };
-        const fmtTs = (ts: number): string => {
-            const d = new Date(ts);
-            const now = new Date();
-            const isToday = d.toDateString() === now.toDateString();
-            const t = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-            return isToday ? t : `${d.getDate()}/${d.getMonth() + 1} ${t}`;
-        };
-
-        // ── Room visit history ─────────────────────────────────────────────────
-        let roomCollapsed = false;
-        try { roomCollapsed = localStorage.getItem("EBC_roomHistoryCollapsed") === "1"; } catch { /* ignore */ }
-
-        const roomHeader = document.createElement("div");
-        roomHeader.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;";
-        const roomChev = document.createElement("span");
-        roomChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
-        const roomLbl = document.createElement("span");
-        roomLbl.className = "ebc-section-label";
-        roomLbl.style.cssText = "margin:0;flex:1;";
-        roomLbl.textContent = "ROOM HISTORY";
-        const roomClearBtn = document.createElement("button");
-        roomClearBtn.textContent = "Clear";
-        roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
-        roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
-        roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
-        roomHeader.appendChild(roomChev);
-        roomHeader.appendChild(roomLbl);
-        roomHeader.appendChild(roomClearBtn);
-        body.appendChild(roomHeader);
-
-        const roomContainer = document.createElement("div");
-        const updateRoomChev = (): void => { roomChev.textContent = roomCollapsed ? "▶" : "▼"; };
-
-        const renderRoomHistory = (): void => {
-            while (roomContainer.firstChild) roomContainer.removeChild(roomContainer.firstChild);
-            const visits = getRoomHistory();
-            if (visits.length === 0) {
-                const empty = document.createElement("div");
-                empty.className = "ebc-empty";
-                empty.textContent = "No rooms visited yet.";
-                roomContainer.appendChild(empty);
-                return;
-            }
-            for (const visit of visits) {
-                const card = document.createElement("div");
-                card.style.cssText = "background:rgba(20,8,16,0.7);border:1px solid #2a1421;border-radius:5px;padding:6px 8px;margin-bottom:5px;";
-
-                const hRow = document.createElement("div");
-                hRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:2px;";
-                const nameEl = document.createElement("span");
-                nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                nameEl.textContent = visit.name;
-                hRow.appendChild(nameEl);
-                if (visit.space) {
-                    const spEl = document.createElement("span");
-                    spEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
-                    spEl.textContent = visit.space;
-                    hRow.appendChild(spEl);
-                }
-                card.appendChild(hRow);
-
-                const timeRow = document.createElement("div");
-                timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-bottom:3px;";
-                const dur = visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "current";
-                timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${dur}`;
-                card.appendChild(timeRow);
-
-                const totalJoins = visit.joins.length;
-                const totalMembers = visit.members.length;
-                const summary = document.createElement("div");
-                summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;cursor:pointer;";
-
-                const detail = document.createElement("div");
-                detail.style.display = "none";
-                detail.style.marginTop = "5px";
-                let expanded = false;
-
-                const updateSummary = (): void => {
-                    summary.textContent = `${totalMembers} on entry · ${totalJoins} joined ${expanded ? "▲" : "▼"}`;
-                };
-                updateSummary();
-
-                summary.addEventListener("click", () => {
-                    expanded = !expanded;
-                    detail.style.display = expanded ? "block" : "none";
-                    if (expanded) {
-                        while (detail.firstChild) detail.removeChild(detail.firstChild);
-                        if (visit.members.length > 0) {
-                            const mHdr = document.createElement("div");
-                            mHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
-                            mHdr.textContent = "On entry:";
-                            detail.appendChild(mHdr);
-                            const mList = document.createElement("div");
-                            mList.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.6;";
-                            mList.textContent = visit.members.map(m => m.name).join(", ");
-                            detail.appendChild(mList);
-                        }
-                        if (visit.joins.length > 0) {
-                            const jHdr = document.createElement("div");
-                            jHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-top:4px;margin-bottom:2px;";
-                            jHdr.textContent = "Joined after:";
-                            detail.appendChild(jHdr);
-                            for (const j of visit.joins) {
-                                const jRow = document.createElement("div");
-                                jRow.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;";
-                                const jName = document.createElement("span");
-                                jName.textContent = j.name;
-                                const jTime = document.createElement("span");
-                                jTime.style.color = "#7a5a6a";
-                                jTime.textContent = fmtTs(j.at);
-                                jRow.appendChild(jName);
-                                jRow.appendChild(jTime);
-                                detail.appendChild(jRow);
-                            }
-                        }
-                    }
-                    updateSummary();
-                });
-                card.appendChild(summary);
-                card.appendChild(detail);
-                roomContainer.appendChild(card);
-            }
-        };
-
-        roomClearBtn.addEventListener("click", () => { clearRoomHistory(); renderRoomHistory(); });
-        roomHeader.addEventListener("click", (e) => {
-            if ((e.target as HTMLElement)?.closest?.("button") === roomClearBtn) return;
-            roomCollapsed = !roomCollapsed;
-            try { localStorage.setItem("EBC_roomHistoryCollapsed", roomCollapsed ? "1" : "0"); } catch { /* ignore */ }
-            updateRoomChev();
-            roomContainer.style.display = roomCollapsed ? "none" : "";
-        });
-
-        updateRoomChev();
-        renderRoomHistory();
-        roomContainer.style.display = roomCollapsed ? "none" : "";
-        body.appendChild(roomContainer);
-
-        // ── Restraint log ──────────────────────────────────────────────────────
-        const div1 = document.createElement("div");
-        div1.className = "ebc-divider";
-        body.appendChild(div1);
-
-        let rlogCollapsed = false;
-        try { rlogCollapsed = localStorage.getItem("EBC_restraintLogCollapsed") === "1"; } catch { /* ignore */ }
-
-        const rlogHeader = document.createElement("div");
-        rlogHeader.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;";
-        const rlogChev = document.createElement("span");
-        rlogChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
-        const rlogLbl = document.createElement("span");
-        rlogLbl.className = "ebc-section-label";
-        rlogLbl.style.cssText = "margin:0;flex:1;";
-        rlogLbl.textContent = "RESTRAINT LOG";
-        const rlogClearBtn = document.createElement("button");
-        rlogClearBtn.textContent = "Clear";
-        rlogClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
-        rlogClearBtn.addEventListener("mouseenter", () => { rlogClearBtn.style.color = "#cf6f98"; rlogClearBtn.style.borderColor = "#cf6f98"; });
-        rlogClearBtn.addEventListener("mouseleave", () => { rlogClearBtn.style.color = "#7a5a6a"; rlogClearBtn.style.borderColor = "#3a1928"; });
-        rlogHeader.appendChild(rlogChev);
-        rlogHeader.appendChild(rlogLbl);
-        rlogHeader.appendChild(rlogClearBtn);
-        body.appendChild(rlogHeader);
-
-        const rlogContainer = document.createElement("div");
-        const updateRlogChev = (): void => { rlogChev.textContent = rlogCollapsed ? "▶" : "▼"; };
-
-        const renderRestraintLog = (): void => {
-            while (rlogContainer.firstChild) rlogContainer.removeChild(rlogContainer.firstChild);
-            const entries = getRestraintLog();
-            if (entries.length === 0) {
-                const empty = document.createElement("div");
-                empty.className = "ebc-empty";
-                empty.textContent = "No restraints recorded yet.";
-                rlogContainer.appendChild(empty);
-                return;
-            }
-            for (const entry of entries) {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 6px;border-bottom:1px solid rgba(42,20,33,0.5);";
-
-                const nameEl = document.createElement("span");
-                nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                nameEl.textContent = entry.itemName;
-                nameEl.title = `${entry.itemName} (${entry.group})  ·  ${new Date(entry.appliedAt).toLocaleString()}`;
-                row.appendChild(nameEl);
-
-                const applierEl = document.createElement("span");
-                applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#cf6f98;flex-shrink:0;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                applierEl.textContent = entry.applier;
-                applierEl.title = `Applied by: ${entry.applier}`;
-                row.appendChild(applierEl);
-
-                const durEl = document.createElement("span");
-                durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;flex-shrink:0;min-width:38px;text-align:right;";
-                if (entry.removedAt !== null) {
-                    durEl.textContent = fmtDuration(entry.removedAt - entry.appliedAt);
-                    durEl.style.color = "#7a5a6a";
-                    durEl.title = `Removed: ${new Date(entry.removedAt).toLocaleString()}`;
-                } else {
-                    durEl.textContent = "on now";
-                    durEl.style.color = "#79a885";
-                    durEl.title = `Still wearing`;
-                }
-                row.appendChild(durEl);
-
-                rlogContainer.appendChild(row);
-            }
-        };
-
-        rlogClearBtn.addEventListener("click", () => { clearRestraintLog(); renderRestraintLog(); });
-        rlogHeader.addEventListener("click", (e) => {
-            if ((e.target as HTMLElement)?.closest?.("button") === rlogClearBtn) return;
-            rlogCollapsed = !rlogCollapsed;
-            try { localStorage.setItem("EBC_restraintLogCollapsed", rlogCollapsed ? "1" : "0"); } catch { /* ignore */ }
-            updateRlogChev();
-            rlogContainer.style.display = rlogCollapsed ? "none" : "";
-        });
-
-        updateRlogChev();
-        renderRestraintLog();
-        rlogContainer.style.display = rlogCollapsed ? "none" : "";
-        body.appendChild(rlogContainer);
-    }
-
     // -- Notes tab -------------------------------------------------------------
 
     private renderNotes(): void {
@@ -10098,455 +9847,548 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        const devLbl = document.createElement("div");
-        devLbl.className = "ebc-section-label";
-        devLbl.textContent = "Developer Tools";
-        body.appendChild(devLbl);
-
-        // -- Toggle: show EBC version in overhead badge --
-        const verRow = document.createElement("div");
-        verRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:4px;";
-
-        const verLbl = document.createElement("span");
-        verLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
-        verLbl.textContent = "Show version in overhead badge";
-        const verHint = document.createElement("span");
-        verHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-        verHint.textContent = "Shows EBC version above room members";
-
-        const verInfo = document.createElement("div");
-        verInfo.style.cssText = "flex:1;min-width:0;";
-        verInfo.appendChild(verLbl);
-        verInfo.appendChild(document.createElement("br"));
-        verInfo.appendChild(verHint);
-
-        const verToggle = document.createElement("button");
-        const refreshVerToggle = (): void => {
-            const on = getShowVersionBadge();
-            verToggle.textContent = on ? "ON" : "OFF";
-            verToggle.style.cssText = [
-                "font-family:'Trebuchet MS',serif",
-                "font-size:10px",
-                "font-weight:bold",
-                "padding:2px 10px",
-                "border-radius:4px",
-                "cursor:pointer",
-                "flex-shrink:0",
-                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                "background:" + (on ? "#6b3048" : "#1b0d17"),
-                "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                "transition:background 0.14s,color 0.14s,border-color 0.14s",
-            ].join(";");
-        };
-        refreshVerToggle();
-        verToggle.addEventListener("click", () => {
-            setShowVersionBadge(!getShowVersionBadge());
-            refreshVerToggle();
-        });
-
-        verRow.appendChild(verInfo);
-        verRow.appendChild(verToggle);
-        body.appendChild(verRow);
-
-        // -- Room EBC presence list --
-        const presLbl = document.createElement("div");
-        presLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
-        presLbl.textContent = "EBC users in this room";
-        body.appendChild(presLbl);
-
-        const presListEl = document.createElement("div");
-        body.appendChild(presListEl);
-
-        const refreshPresence = (): void => {
-            while (presListEl.firstChild) presListEl.removeChild(presListEl.firstChild);
-            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Array<Record<string, unknown>> | undefined) ?? [];
-            const found: Array<{ gameName: string; nickname: string; id: number; version: string; isSelf: boolean }> = [];
-
-            for (const c of room) {
-                const memberNum = c.MemberNumber as number | undefined;
-                const isSelf = memberNum === Player.MemberNumber;
-                const gameName = String(c.Name ?? "?");
-                const nickname = String((c.Nickname as string | undefined)?.trim() || gameName);
-                if (isSelf) {
-                    found.push({ gameName, nickname, id: memberNum ?? 0, version: "self", isSelf: true });
-                    continue;
-                }
-                const shared = (c.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EmeryBC"] as Record<string, unknown> | undefined;
-                const presence = shared?.["presence"] as Record<string, unknown> | undefined;
-                if (presence?.["marker"] === "EBC") {
-                    found.push({ gameName, nickname, id: memberNum ?? 0, version: String(presence["version"] ?? "?"), isSelf: false });
-                }
-            }
-
-            if (found.length === 0) {
-                const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
-                hint.textContent = "No other EBC users detected in this room.";
-                presListEl.appendChild(hint);
-                return;
-            }
-
-            for (const p of found) {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
-
-                // Name block: "Nickname - (GameName)" when they differ, else just the name
-                const nameWrap = document.createElement("span");
-                nameWrap.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;";
-
-                const nicknameEl = document.createElement("span");
-                nicknameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-
-                if (p.isSelf) {
-                    nicknameEl.textContent = p.nickname !== p.gameName ? p.nickname : p.gameName;
-                } else {
-                    nicknameEl.textContent = p.nickname !== p.gameName ? p.nickname : p.gameName;
-                }
-
-                nameWrap.appendChild(nicknameEl);
-
-                // Show "(GameName)" sub-line when nickname differs from game name
-                if (p.nickname !== p.gameName) {
-                    const gameNameEl = document.createElement("span");
-                    gameNameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    gameNameEl.textContent = "(" + p.gameName + ")";
-                    nameWrap.appendChild(gameNameEl);
-                }
-
-                const idEl = document.createElement("span");
-                idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
-                idEl.textContent = "#" + p.id;
-
-                const verEl = document.createElement("span");
-                verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;flex-shrink:0;" +
-                    (p.isSelf ? "color:#7a5a6a;background:#1b0d17;border:1px solid #3a1928;" : "color:#cf6f98;background:#2a1421;border:1px solid #6b3048;");
-                verEl.textContent = p.isSelf ? "you" : ("v" + p.version);
-
-                row.appendChild(nameWrap);
-                row.appendChild(idEl);
-                row.appendChild(verEl);
-                presListEl.appendChild(row);
-            }
+        // Helper: collapsible section wrapper
+        const makeSection = (
+            labelText: string,
+            lsKey: string,
+            defaultCollapsed: boolean,
+            buildContent: (c: HTMLElement) => void,
+        ): void => {
+            let collapsed = defaultCollapsed;
+            try { const v = localStorage.getItem(lsKey); if (v !== null) collapsed = v === "1"; } catch { /* ignore */ }
+            const hdr = document.createElement("div");
+            hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;margin-bottom:2px;";
+            const chev = document.createElement("span");
+            chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
+            const lbl = document.createElement("span");
+            lbl.className = "ebc-section-label";
+            lbl.style.margin = "0";
+            lbl.textContent = labelText;
+            hdr.appendChild(chev);
+            hdr.appendChild(lbl);
+            const cnt = document.createElement("div");
+            cnt.style.paddingBottom = "6px";
+            const updateChev = (): void => { chev.textContent = collapsed ? "▶" : "▼"; };
+            updateChev();
+            cnt.style.display = collapsed ? "none" : "";
+            buildContent(cnt);
+            hdr.addEventListener("click", () => {
+                collapsed = !collapsed;
+                try { localStorage.setItem(lsKey, collapsed ? "1" : "0"); } catch { /* ignore */ }
+                updateChev();
+                cnt.style.display = collapsed ? "none" : "";
+            });
+            body.appendChild(hdr);
+            body.appendChild(cnt);
+            const div = document.createElement("div");
+            div.className = "ebc-divider";
+            body.appendChild(div);
         };
 
-        refreshPresence();
+        // ── EBC Users In This Room ─────────────────────────────────────────────
+        makeSection("EBC USERS IN THIS ROOM", "EBC_devEbcUsersCollapsed", true, (cnt) => {
+            const presListEl = document.createElement("div");
+            cnt.appendChild(presListEl);
 
-        const refreshBtn = document.createElement("button");
-        refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-        refreshBtn.textContent = "↻ Refresh list";
-        refreshBtn.addEventListener("click", () => { refreshPresence(); });
-        body.appendChild(refreshBtn);
-
-        // ── Character Inspector ──────────────────────────────────────────────────
-        const charLbl = document.createElement("div");
-        charLbl.className = "ebc-section-label";
-        charLbl.style.marginTop = "12px";
-        charLbl.textContent = "Character Inspector";
-        body.appendChild(charLbl);
-
-        const charHint = document.createElement("div");
-        charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
-        charHint.textContent = "Dump raw appearance + property data for any room member.";
-        body.appendChild(charHint);
-
-        const charPickRow = document.createElement("div");
-        charPickRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
-
-        const charSelect = document.createElement("select");
-        charSelect.style.cssText = "flex:1;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;";
-
-        const charInspBtn = document.createElement("button");
-        charInspBtn.className = "ebc-create-btn";
-        charInspBtn.style.cssText = "margin:0;padding:2px 10px;font-size:10px;";
-        charInspBtn.textContent = "Inspect";
-
-        charPickRow.appendChild(charSelect);
-        charPickRow.appendChild(charInspBtn);
-        body.appendChild(charPickRow);
-
-        const charDump = document.createElement("pre");
-        charDump.style.cssText = [
-            "background:#100810", "border:1px solid #3a1928", "border-radius:4px",
-            "padding:6px", "font-size:8.5px", "color:#cf6f98",
-            "max-height:220px", "overflow-y:auto", "white-space:pre-wrap",
-            "word-break:break-all", "margin:0", "display:none",
-            "font-family:'Courier New',monospace",
-        ].join(";");
-        body.appendChild(charDump);
-
-        const populateCharSelect = (): void => {
-            while (charSelect.firstChild) charSelect.removeChild(charSelect.firstChild);
-            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
-            for (const c of room) {
-                const opt = document.createElement("option");
-                opt.value = String(c.MemberNumber);
-                opt.textContent = `${(c as unknown as Record<string, unknown>).Nickname as string || c.Name} (#${c.MemberNumber})`;
-                charSelect.appendChild(opt);
-            }
-        };
-        populateCharSelect();
-
-        charInspBtn.addEventListener("click", () => {
-            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
-            const num = parseInt(charSelect.value, 10);
-            const char = room.find(c => c.MemberNumber === num);
-            if (!char) { charDump.textContent = "Character not found in room."; charDump.style.display = ""; return; }
-            try {
-                const snapshot = {
-                    Name: char.Name,
-                    Nickname: (char as unknown as Record<string, unknown>).Nickname,
-                    MemberNumber: char.MemberNumber,
-                    ActivePose: (char as unknown as Record<string, unknown>).ActivePose,
-                    Appearance: char.Appearance.map((a: Item) => ({
-                        Group: a.Asset.Group.Name,
-                        Name: a.Asset.Name,
-                        Color: a.Color,
-                        Difficulty: (a as unknown as Record<string, unknown>).Difficulty,
-                        Property: a.Property,
-                        Craft: a.Craft,
-                    })),
-                };
-                charDump.textContent = JSON.stringify(snapshot, null, 2);
-                charDump.style.display = "";
-            } catch (e) {
-                charDump.textContent = "Error: " + String(e);
-                charDump.style.display = "";
-            }
-        });
-
-        // ── Addons Loaded ────────────────────────────────────────────────────────
-        const hookLbl = document.createElement("div");
-        hookLbl.className = "ebc-section-label";
-        hookLbl.style.marginTop = "12px";
-        hookLbl.textContent = "Addons Loaded";
-        body.appendChild(hookLbl);
-
-        const hookList = document.createElement("div");
-        body.appendChild(hookList);
-
-        const renderHooks = (): void => {
-            while (hookList.firstChild) hookList.removeChild(hookList.firstChild);
-            try {
-                const sdk = (window as unknown as Record<string, unknown>).bcModSdk as Record<string, unknown> | undefined;
-                const getModsInfo = sdk?.getModsInfo as ((...a: unknown[]) => unknown) | undefined;
-                const mods = getModsInfo ? (getModsInfo.call(sdk) as unknown[]) : [];
-                if (!Array.isArray(mods) || mods.length === 0) {
+            const refreshPresence = (): void => {
+                while (presListEl.firstChild) presListEl.removeChild(presListEl.firstChild);
+                const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Array<Record<string, unknown>> | undefined) ?? [];
+                const found: Array<{ gameName: string; nickname: string; id: number; version: string; isSelf: boolean }> = [];
+                for (const c of room) {
+                    const memberNum = c.MemberNumber as number | undefined;
+                    const isSelf = memberNum === Player.MemberNumber;
+                    const gameName = String(c.Name ?? "?");
+                    const nickname = String((c.Nickname as string | undefined)?.trim() || gameName);
+                    if (isSelf) { found.push({ gameName, nickname, id: memberNum ?? 0, version: "self", isSelf: true }); continue; }
+                    const shared = (c.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EmeryBC"] as Record<string, unknown> | undefined;
+                    const presence = shared?.["presence"] as Record<string, unknown> | undefined;
+                    if (presence?.["marker"] === "EBC")
+                        found.push({ gameName, nickname, id: memberNum ?? 0, version: String(presence["version"] ?? "?"), isSelf: false });
+                }
+                if (found.length === 0) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
-                    hint.textContent = "bcModSdk not available or no mods loaded.";
-                    hookList.appendChild(hint);
+                    hint.textContent = "No other EBC users detected in this room.";
+                    presListEl.appendChild(hint);
                     return;
                 }
-                for (const mod of mods) {
-                    const m = mod as Record<string, unknown>;
-                    const hooks = Array.isArray(m.hooks) ? m.hooks as string[] : [];
+                for (const p of found) {
                     const row = document.createElement("div");
-                    row.style.cssText = "padding:4px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
-
-                    const topLine = document.createElement("div");
-                    topLine.style.cssText = "display:flex;align-items:center;gap:6px;";
-
-                    const nameEl = document.createElement("span");
-                    nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
-                    nameEl.textContent = String(m.name ?? "?");
-
-                    const verEl = document.createElement("span");
-                    verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;";
-                    verEl.textContent = "v" + String(m.version ?? "?");
-
-                    topLine.appendChild(nameEl);
-                    topLine.appendChild(verEl);
-                    row.appendChild(topLine);
-
-                    if (hooks.length > 0) {
-                        const hookDetail = document.createElement("div");
-                        hookDetail.style.cssText = "font-family:'Courier New',monospace;font-size:8px;color:#7a5a6a;margin-top:2px;word-break:break-all;";
-                        hookDetail.textContent = hooks.join(", ");
-                        row.appendChild(hookDetail);
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
+                    const nameWrap = document.createElement("span");
+                    nameWrap.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;";
+                    const nicknameEl = document.createElement("span");
+                    nicknameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    nicknameEl.textContent = p.nickname !== p.gameName ? p.nickname : p.gameName;
+                    nameWrap.appendChild(nicknameEl);
+                    if (p.nickname !== p.gameName) {
+                        const gameNameEl = document.createElement("span");
+                        gameNameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                        gameNameEl.textContent = "(" + p.gameName + ")";
+                        nameWrap.appendChild(gameNameEl);
                     }
-                    hookList.appendChild(row);
+                    const idEl = document.createElement("span");
+                    idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+                    idEl.textContent = "#" + p.id;
+                    const verEl = document.createElement("span");
+                    verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;flex-shrink:0;" +
+                        (p.isSelf ? "color:#7a5a6a;background:#1b0d17;border:1px solid #3a1928;" : "color:#cf6f98;background:#2a1421;border:1px solid #6b3048;");
+                    verEl.textContent = p.isSelf ? "you" : ("v" + p.version);
+                    row.appendChild(nameWrap); row.appendChild(idEl); row.appendChild(verEl);
+                    presListEl.appendChild(row);
                 }
-            } catch (e) {
-                const err = document.createElement("div");
-                err.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#ff6b6b;padding:4px 2px;";
-                err.textContent = "Error reading hooks: " + String(e);
-                hookList.appendChild(err);
-            }
-        };
-        renderHooks();
-
-        const hookRefreshBtn = document.createElement("button");
-        hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-        hookRefreshBtn.textContent = "↻ Refresh";
-        hookRefreshBtn.addEventListener("click", renderHooks);
-        body.appendChild(hookRefreshBtn);
-
-        // ── Message Logger ───────────────────────────────────────────────────────
-        const msgLblRow = document.createElement("div");
-        msgLblRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:12px;margin-bottom:2px;";
-
-        const msgLbl = document.createElement("div");
-        msgLbl.className = "ebc-section-label";
-        msgLbl.style.margin = "0";
-        msgLbl.textContent = "Message Log";
-
-        const logStatusDot = document.createElement("span");
-        logStatusDot.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;padding:1px 6px;border-radius:3px;flex-shrink:0;";
-        const updateStatusDot = (): void => {
-            if (isDevLogEnabled()) {
-                logStatusDot.textContent = "● CAPTURING";
-                logStatusDot.style.cssText += "background:#1a3a1a;color:#6bd478;border:1px solid #2a6a2a;";
-            } else {
-                logStatusDot.textContent = "○ OFF";
-                logStatusDot.style.cssText += "background:#1a0a10;color:#7a4050;border:1px solid #3a1020;";
-            }
-        };
-        updateStatusDot();
-
-        msgLblRow.appendChild(msgLbl);
-        msgLblRow.appendChild(logStatusDot);
-        body.appendChild(msgLblRow);
-
-        const msgCtrlRow = document.createElement("div");
-        msgCtrlRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;align-items:center;";
-
-        const msgRefreshBtn2 = document.createElement("button");
-        msgRefreshBtn2.className = "ebc-icon-btn";
-        msgRefreshBtn2.style.cssText = "font-size:10px;padding:2px 8px;";
-        msgRefreshBtn2.textContent = "↻";
-        msgRefreshBtn2.title = "Refresh log";
-
-        const msgClearBtn = document.createElement("button");
-        msgClearBtn.className = "ebc-icon-btn";
-        msgClearBtn.style.cssText = "font-size:10px;padding:2px 8px;";
-        msgClearBtn.textContent = "Clear";
-
-        const logToggleWrap = document.createElement("label");
-        logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
-        const logToggleChk = document.createElement("input");
-        logToggleChk.type = "checkbox";
-        logToggleChk.checked = isDevLogEnabled();
-        logToggleChk.addEventListener("change", () => {
-            setDevLogEnabled(logToggleChk.checked);
-            updateStatusDot();
-            renderMsgLog();
-        });
-        logToggleWrap.appendChild(logToggleChk);
-        logToggleWrap.appendChild(document.createTextNode(" Live logging"));
-
-        const msgTestBtn = document.createElement("button");
-        msgTestBtn.className = "ebc-icon-btn";
-        msgTestBtn.style.cssText = "font-size:10px;padding:2px 8px;";
-        msgTestBtn.textContent = "Test";
-        msgTestBtn.title = "Inject a test entry to verify the log UI is working";
-        msgTestBtn.addEventListener("click", () => {
-            pushTestEntry();
-            renderMsgLog();
+            };
+            refreshPresence();
+            const refreshBtn = document.createElement("button");
+            refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
+            refreshBtn.textContent = "↻ Refresh list";
+            refreshBtn.addEventListener("click", refreshPresence);
+            cnt.appendChild(refreshBtn);
         });
 
-        msgCtrlRow.appendChild(msgRefreshBtn2);
-        msgCtrlRow.appendChild(msgClearBtn);
-        msgCtrlRow.appendChild(msgTestBtn);
-        msgCtrlRow.appendChild(logToggleWrap);
-        body.appendChild(msgCtrlRow);
+        // ── Developer Tools ────────────────────────────────────────────────────
+        makeSection("DEVELOPER TOOLS", "EBC_devToolsCollapsed", true, (cnt) => {
+            // Version badge toggle
+            const verRow = document.createElement("div");
+            verRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
+            const verInfo = document.createElement("div");
+            verInfo.style.cssText = "flex:1;min-width:0;";
+            const verLbl = document.createElement("span");
+            verLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;display:block;";
+            verLbl.textContent = "Show version in overhead badge";
+            const verHint = document.createElement("span");
+            verHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+            verHint.textContent = "Shows EBC version above room members";
+            verInfo.appendChild(verLbl); verInfo.appendChild(verHint);
+            const verToggle = document.createElement("button");
+            const refreshVerToggle = (): void => {
+                const on = getShowVersionBadge();
+                verToggle.textContent = on ? "ON" : "OFF";
+                verToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                    "padding:2px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshVerToggle();
+            verToggle.addEventListener("click", () => { setShowVersionBadge(!getShowVersionBadge()); refreshVerToggle(); });
+            verRow.appendChild(verInfo); verRow.appendChild(verToggle);
+            cnt.appendChild(verRow);
 
-        // Hint row — shown when logging is off
-        const logOffHint = document.createElement("div");
-        logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a5060;background:#1a080f;border:1px dashed #4c2537;border-radius:4px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px;";
-        logOffHint.style.display = isDevLogEnabled() ? "none" : "";
-        logOffHint.innerHTML = "<span>Logging is off — enable it to capture messages.</span>";
-        const enableBtn = document.createElement("button");
-        enableBtn.className = "ebc-wear-btn";
-        enableBtn.textContent = "Enable";
-        enableBtn.style.flexShrink = "0";
-        enableBtn.addEventListener("click", () => {
-            setDevLogEnabled(true);
-            logToggleChk.checked = true;
-            logOffHint.style.display = "none";
-            updateStatusDot();
-            renderMsgLog();
-        });
-        logOffHint.appendChild(enableBtn);
-        body.appendChild(logOffHint);
-
-        const msgLogEl = document.createElement("div");
-        msgLogEl.style.cssText = "background:#100810;border:1px solid #3a1928;border-radius:4px;max-height:260px;overflow-y:auto;";
-        body.appendChild(msgLogEl);
-
-        const msgTypeColor = (type: string): string => {
-            switch (type) {
-                case "Chat":     return "#6bd478";
-                case "Emote":    return "#78a4d4";
-                case "Activity": return "#d4a478";
-                case "Action":   return "#d478c4";
-                case "Whisper":  return "#78d4c4";
-                case "Hidden":   return "#a0a0a0";
-                default:         return "#cf6f98";
-            }
-        };
-
-        const renderMsgLog = (): void => {
-            while (msgLogEl.firstChild) msgLogEl.removeChild(msgLogEl.firstChild);
-            const entries = [...getDevLog()].reverse();
-            if (entries.length === 0) {
-                const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:8px 6px;";
-                hint.textContent = isDevLogEnabled()
-                    ? "No messages yet. Must be in a room — chat, emote, or have someone do an action. Click Test above to verify the UI works."
-                    : "Logging is off. Click Enable above, then do something in a room.";
-                msgLogEl.appendChild(hint);
-                return;
-            }
-            for (const entry of entries) {
-                const row = document.createElement("div");
-                row.style.cssText = "border-bottom:1px solid #1a0e17;padding:4px 6px;cursor:pointer;";
-
-                const headerLine = document.createElement("div");
-                headerLine.style.cssText = "display:flex;gap:5px;align-items:baseline;";
-
-                const typeTag = document.createElement("span");
-                typeTag.style.cssText = `font-family:'Courier New',monospace;font-size:9px;font-weight:bold;color:${msgTypeColor(entry.type)};`;
-                typeTag.textContent = entry.type;
-
-                const timeTag = document.createElement("span");
-                timeTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-left:auto;";
-                timeTag.textContent = entry.timestamp.toLocaleTimeString();
-
-                headerLine.appendChild(typeTag);
-                if (entry.sender !== undefined) {
-                    const senderTag = document.createElement("span");
-                    senderTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;";
-                    senderTag.textContent = "from #" + entry.sender;
-                    headerLine.appendChild(senderTag);
+            // Character Inspector
+            const charLbl = document.createElement("div");
+            charLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
+            charLbl.textContent = "Character Inspector";
+            cnt.appendChild(charLbl);
+            const charHint = document.createElement("div");
+            charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
+            charHint.textContent = "Dump raw appearance + property data for any room member.";
+            cnt.appendChild(charHint);
+            const charPickRow = document.createElement("div");
+            charPickRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
+            const charSelect = document.createElement("select");
+            charSelect.style.cssText = "flex:1;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;";
+            const charInspBtn = document.createElement("button");
+            charInspBtn.className = "ebc-create-btn";
+            charInspBtn.style.cssText = "margin:0;padding:2px 10px;font-size:10px;";
+            charInspBtn.textContent = "Inspect";
+            charPickRow.appendChild(charSelect); charPickRow.appendChild(charInspBtn);
+            cnt.appendChild(charPickRow);
+            const charDump = document.createElement("pre");
+            charDump.style.cssText = [
+                "background:#100810", "border:1px solid #3a1928", "border-radius:4px",
+                "padding:6px", "font-size:8.5px", "color:#cf6f98",
+                "max-height:220px", "overflow-y:auto", "white-space:pre-wrap",
+                "word-break:break-all", "margin:0 0 8px", "display:none",
+                "font-family:'Courier New',monospace",
+            ].join(";");
+            cnt.appendChild(charDump);
+            const populateCharSelect = (): void => {
+                while (charSelect.firstChild) charSelect.removeChild(charSelect.firstChild);
+                const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+                for (const c of room) {
+                    const opt = document.createElement("option");
+                    opt.value = String(c.MemberNumber);
+                    opt.textContent = `${(c as unknown as Record<string, unknown>).Nickname as string || c.Name} (#${c.MemberNumber})`;
+                    charSelect.appendChild(opt);
                 }
-                headerLine.appendChild(timeTag);
+            };
+            populateCharSelect();
+            charInspBtn.addEventListener("click", () => {
+                const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+                const num = parseInt(charSelect.value, 10);
+                const char = room.find(c => c.MemberNumber === num);
+                if (!char) { charDump.textContent = "Character not found in room."; charDump.style.display = ""; return; }
+                try {
+                    const snapshot = {
+                        Name: char.Name,
+                        Nickname: (char as unknown as Record<string, unknown>).Nickname,
+                        MemberNumber: char.MemberNumber,
+                        ActivePose: (char as unknown as Record<string, unknown>).ActivePose,
+                        Appearance: char.Appearance.map((a: Item) => ({
+                            Group: a.Asset.Group.Name, Name: a.Asset.Name, Color: a.Color,
+                            Difficulty: (a as unknown as Record<string, unknown>).Difficulty,
+                            Property: a.Property, Craft: a.Craft,
+                        })),
+                    };
+                    charDump.textContent = JSON.stringify(snapshot, null, 2);
+                    charDump.style.display = "";
+                } catch (e) { charDump.textContent = "Error: " + String(e); charDump.style.display = ""; }
+            });
 
-                const contentLine = document.createElement("div");
-                contentLine.style.cssText = "font-family:'Courier New',monospace;font-size:8.5px;color:#cf6f98;word-break:break-all;margin-top:1px;";
-                contentLine.textContent = entry.content.length > 150 ? entry.content.slice(0, 150) + "…" : entry.content;
+            // Addons Loaded
+            const hookLbl = document.createElement("div");
+            hookLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
+            hookLbl.textContent = "Addons Loaded";
+            cnt.appendChild(hookLbl);
+            const hookList = document.createElement("div");
+            cnt.appendChild(hookList);
+            const renderHooks = (): void => {
+                while (hookList.firstChild) hookList.removeChild(hookList.firstChild);
+                try {
+                    const sdk = (window as unknown as Record<string, unknown>).bcModSdk as Record<string, unknown> | undefined;
+                    const getModsInfo = sdk?.getModsInfo as ((...a: unknown[]) => unknown) | undefined;
+                    const mods = getModsInfo ? (getModsInfo.call(sdk) as unknown[]) : [];
+                    if (!Array.isArray(mods) || mods.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
+                        hint.textContent = "bcModSdk not available or no mods loaded.";
+                        hookList.appendChild(hint); return;
+                    }
+                    for (const mod of mods) {
+                        const m = mod as Record<string, unknown>;
+                        const hooks = Array.isArray(m.hooks) ? m.hooks as string[] : [];
+                        const row = document.createElement("div");
+                        row.style.cssText = "padding:4px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
+                        const topLine = document.createElement("div");
+                        topLine.style.cssText = "display:flex;align-items:center;gap:6px;";
+                        const nameEl = document.createElement("span");
+                        nameEl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;";
+                        nameEl.textContent = String(m.name ?? "?");
+                        const verEl = document.createElement("span");
+                        verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;";
+                        verEl.textContent = "v" + String(m.version ?? "?");
+                        topLine.appendChild(nameEl); topLine.appendChild(verEl);
+                        row.appendChild(topLine);
+                        if (hooks.length > 0) {
+                            const hookDetail = document.createElement("div");
+                            hookDetail.style.cssText = "font-family:'Courier New',monospace;font-size:8px;color:#7a5a6a;margin-top:2px;word-break:break-all;";
+                            hookDetail.textContent = hooks.join(", ");
+                            row.appendChild(hookDetail);
+                        }
+                        hookList.appendChild(row);
+                    }
+                } catch (e) {
+                    const err = document.createElement("div");
+                    err.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#ff6b6b;padding:4px 2px;";
+                    err.textContent = "Error reading hooks: " + String(e);
+                    hookList.appendChild(err);
+                }
+            };
+            renderHooks();
+            const hookRefreshBtn = document.createElement("button");
+            hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
+            hookRefreshBtn.textContent = "↻ Refresh";
+            hookRefreshBtn.addEventListener("click", renderHooks);
+            cnt.appendChild(hookRefreshBtn);
+        });
 
-                // Clicking a row expands/collapses the full dictionary JSON
-                let dictEl: HTMLElement | null = null;
-                row.addEventListener("click", () => {
-                    if (dictEl) { dictEl.remove(); dictEl = null; return; }
-                    dictEl = document.createElement("pre");
-                    dictEl.style.cssText = "font-family:'Courier New',monospace;font-size:7.5px;color:#7a5a6a;margin:3px 0 0;white-space:pre-wrap;word-break:break-all;";
-                    try { dictEl.textContent = JSON.stringify(entry.dictionary, null, 2); }
-                    catch { dictEl.textContent = String(entry.dictionary); }
-                    row.appendChild(dictEl);
+        // ── LOG ───────────────────────────────────────────────────────────────
+        // renderMsgLog is hoisted so the poller can reference it
+        let renderMsgLog: () => void = () => { /* populated below */ };
+
+        makeSection("LOG", "EBC_devLogSectionCollapsed", true, (cnt) => {
+            // -- shared helpers --
+            const fmtDuration = (ms: number): string => {
+                const s = Math.floor(ms / 1000);
+                if (s < 60) return `${s}s`;
+                const m = Math.floor(s / 60);
+                if (m < 60) return `${m}m`;
+                const h = Math.floor(m / 60), rm = m % 60;
+                return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
+            };
+            const fmtTs = (ts: number): string => {
+                const d = new Date(ts);
+                const t = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                return d.toDateString() === new Date().toDateString() ? t : `${d.getDate()}/${d.getMonth() + 1} ${t}`;
+            };
+
+            // ── inner collapsible helper ──────────────────────────────────────
+            const makeInner = (
+                labelText: string,
+                lsKey: string,
+                defaultCollapsed: boolean,
+                build: (c: HTMLElement) => void,
+                extraBtn?: HTMLElement,
+            ): void => {
+                let col = defaultCollapsed;
+                try { const v = localStorage.getItem(lsKey); if (v !== null) col = v === "1"; } catch { /* ignore */ }
+                const hdr = document.createElement("div");
+                hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;margin-bottom:2px;";
+                const chev = document.createElement("span");
+                chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:8px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;flex:1;";
+                lbl.textContent = labelText;
+                hdr.appendChild(chev); hdr.appendChild(lbl);
+                if (extraBtn) hdr.appendChild(extraBtn);
+                const inner = document.createElement("div");
+                inner.style.marginBottom = "6px";
+                const upd = (): void => { chev.textContent = col ? "▶" : "▼"; };
+                upd(); inner.style.display = col ? "none" : "";
+                build(inner);
+                hdr.addEventListener("click", (e) => {
+                    if (extraBtn && (e.target === extraBtn || (e.target as HTMLElement)?.closest?.("button") === extraBtn)) return;
+                    col = !col;
+                    try { localStorage.setItem(lsKey, col ? "1" : "0"); } catch { /* ignore */ }
+                    upd(); inner.style.display = col ? "none" : "";
                 });
+                cnt.appendChild(hdr); cnt.appendChild(inner);
+            };
 
-                row.appendChild(headerLine);
-                row.appendChild(contentLine);
-                msgLogEl.appendChild(row);
-            }
-        };
+            // ── Room History ──────────────────────────────────────────────────
+            const roomClearBtn = document.createElement("button");
+            roomClearBtn.textContent = "Clear";
+            roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
+            roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
 
-        renderMsgLog();
-        msgRefreshBtn2.addEventListener("click", renderMsgLog);
-        msgClearBtn.addEventListener("click", () => { clearDevLog(); renderMsgLog(); });
+            makeInner("Room History", "EBC_roomHistoryCollapsed", true, (c) => {
+                const renderRoom = (): void => {
+                    while (c.firstChild) c.removeChild(c.firstChild);
+                    const visits = getRoomHistory();
+                    if (visits.length === 0) {
+                        const e = document.createElement("div"); e.className = "ebc-empty";
+                        e.textContent = "No rooms visited yet."; c.appendChild(e); return;
+                    }
+                    for (const visit of visits) {
+                        const card = document.createElement("div");
+                        card.style.cssText = "background:rgba(20,8,16,0.7);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;margin-bottom:4px;";
+                        const hRow = document.createElement("div");
+                        hRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:2px;";
+                        const nameEl = document.createElement("span");
+                        nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        nameEl.textContent = visit.name; hRow.appendChild(nameEl);
+                        if (visit.space) {
+                            const sp = document.createElement("span");
+                            sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                            sp.textContent = visit.space; hRow.appendChild(sp);
+                        }
+                        card.appendChild(hRow);
+                        const timeRow = document.createElement("div");
+                        timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-bottom:3px;";
+                        timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "current"}`;
+                        card.appendChild(timeRow);
+                        const summary = document.createElement("div");
+                        summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;cursor:pointer;";
+                        const detail = document.createElement("div");
+                        detail.style.display = "none"; detail.style.marginTop = "4px";
+                        let expanded = false;
+                        const updateSum = (): void => {
+                            summary.textContent = `${visit.members.length} on entry · ${visit.joins.length} joined ${expanded ? "▲" : "▼"}`;
+                        };
+                        updateSum();
+                        summary.addEventListener("click", () => {
+                            expanded = !expanded;
+                            detail.style.display = expanded ? "block" : "none";
+                            if (expanded) {
+                                while (detail.firstChild) detail.removeChild(detail.firstChild);
+                                if (visit.members.length > 0) {
+                                    const mh = document.createElement("div");
+                                    mh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
+                                    mh.textContent = "On entry:"; detail.appendChild(mh);
+                                    const ml = document.createElement("div");
+                                    ml.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.6;";
+                                    ml.textContent = visit.members.map(m => m.name).join(", "); detail.appendChild(ml);
+                                }
+                                if (visit.joins.length > 0) {
+                                    const jh = document.createElement("div");
+                                    jh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-top:4px;margin-bottom:2px;";
+                                    jh.textContent = "Joined after:"; detail.appendChild(jh);
+                                    for (const j of visit.joins) {
+                                        const jr = document.createElement("div");
+                                        jr.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;";
+                                        const jn = document.createElement("span"); jn.textContent = j.name;
+                                        const jt = document.createElement("span"); jt.style.color = "#7a5a6a"; jt.textContent = fmtTs(j.at);
+                                        jr.appendChild(jn); jr.appendChild(jt); detail.appendChild(jr);
+                                    }
+                                }
+                            }
+                            updateSum();
+                        });
+                        card.appendChild(summary); card.appendChild(detail);
+                        c.appendChild(card);
+                    }
+                };
+                roomClearBtn.addEventListener("click", () => { clearRoomHistory(); renderRoom(); });
+                renderRoom();
+            }, roomClearBtn);
 
-        // Auto-refresh every 1.5 s while the DEV tab is open
+            // ── Restraint Log ─────────────────────────────────────────────────
+            const rlogClearBtn = document.createElement("button");
+            rlogClearBtn.textContent = "Clear";
+            rlogClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            rlogClearBtn.addEventListener("mouseenter", () => { rlogClearBtn.style.color = "#cf6f98"; rlogClearBtn.style.borderColor = "#cf6f98"; });
+            rlogClearBtn.addEventListener("mouseleave", () => { rlogClearBtn.style.color = "#7a5a6a"; rlogClearBtn.style.borderColor = "#3a1928"; });
+
+            makeInner("Restraint Log", "EBC_restraintLogCollapsed", true, (c) => {
+                const renderRlog = (): void => {
+                    while (c.firstChild) c.removeChild(c.firstChild);
+                    const entries = getRestraintLog();
+                    if (entries.length === 0) {
+                        const e = document.createElement("div"); e.className = "ebc-empty";
+                        e.textContent = "No restraints recorded yet."; c.appendChild(e); return;
+                    }
+                    for (const entry of entries) {
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 6px;border-bottom:1px solid rgba(42,20,33,0.5);";
+                        const nameEl = document.createElement("span");
+                        nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        nameEl.textContent = entry.itemName;
+                        nameEl.title = `${entry.itemName} (${entry.group})  ·  ${new Date(entry.appliedAt).toLocaleString()}`;
+                        row.appendChild(nameEl);
+                        const applierEl = document.createElement("span");
+                        applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#cf6f98;flex-shrink:0;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        applierEl.textContent = entry.applier; applierEl.title = `Applied by: ${entry.applier}`;
+                        row.appendChild(applierEl);
+                        const durEl = document.createElement("span");
+                        durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;flex-shrink:0;min-width:38px;text-align:right;";
+                        if (entry.removedAt !== null) {
+                            durEl.textContent = fmtDuration(entry.removedAt - entry.appliedAt);
+                            durEl.style.color = "#7a5a6a";
+                            durEl.title = `Removed: ${new Date(entry.removedAt).toLocaleString()}`;
+                        } else {
+                            durEl.textContent = "on now"; durEl.style.color = "#79a885"; durEl.title = "Still wearing";
+                        }
+                        row.appendChild(durEl); c.appendChild(row);
+                    }
+                };
+                rlogClearBtn.addEventListener("click", () => { clearRestraintLog(); renderRlog(); });
+                renderRlog();
+            }, rlogClearBtn);
+
+            // ── Message Log ───────────────────────────────────────────────────
+            makeInner("Message Log", "EBC_msgLogCollapsed", true, (c) => {
+                const logStatusDot = document.createElement("span");
+                logStatusDot.style.cssText = "font-size:9px;font-family:'Trebuchet MS',serif;padding:1px 6px;border-radius:3px;flex-shrink:0;margin-bottom:4px;display:inline-block;";
+                const updateStatusDot = (): void => {
+                    if (isDevLogEnabled()) {
+                        logStatusDot.textContent = "● CAPTURING";
+                        logStatusDot.style.background = "#1a3a1a"; logStatusDot.style.color = "#6bd478"; logStatusDot.style.border = "1px solid #2a6a2a";
+                    } else {
+                        logStatusDot.textContent = "○ OFF";
+                        logStatusDot.style.background = "#1a0a10"; logStatusDot.style.color = "#7a4050"; logStatusDot.style.border = "1px solid #3a1020";
+                    }
+                };
+                updateStatusDot();
+                c.appendChild(logStatusDot);
+
+                const msgCtrlRow = document.createElement("div");
+                msgCtrlRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;align-items:center;";
+                const msgRefreshBtn2 = document.createElement("button");
+                msgRefreshBtn2.className = "ebc-icon-btn";
+                msgRefreshBtn2.style.cssText = "font-size:10px;padding:2px 8px;";
+                msgRefreshBtn2.textContent = "↻"; msgRefreshBtn2.title = "Refresh log";
+                const msgClearBtn = document.createElement("button");
+                msgClearBtn.className = "ebc-icon-btn";
+                msgClearBtn.style.cssText = "font-size:10px;padding:2px 8px;";
+                msgClearBtn.textContent = "Clear";
+                const logToggleWrap = document.createElement("label");
+                logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
+                const logToggleChk = document.createElement("input");
+                logToggleChk.type = "checkbox"; logToggleChk.checked = isDevLogEnabled();
+                const msgTestBtn = document.createElement("button");
+                msgTestBtn.className = "ebc-icon-btn";
+                msgTestBtn.style.cssText = "font-size:10px;padding:2px 8px;";
+                msgTestBtn.textContent = "Test"; msgTestBtn.title = "Inject a test entry";
+                msgTestBtn.addEventListener("click", () => { pushTestEntry(); renderMsgLog(); });
+                logToggleWrap.appendChild(logToggleChk);
+                logToggleWrap.appendChild(document.createTextNode(" Live logging"));
+                msgCtrlRow.appendChild(msgRefreshBtn2); msgCtrlRow.appendChild(msgClearBtn);
+                msgCtrlRow.appendChild(msgTestBtn); msgCtrlRow.appendChild(logToggleWrap);
+                c.appendChild(msgCtrlRow);
+
+                const logOffHint = document.createElement("div");
+                logOffHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#8a5060;background:#1a080f;border:1px dashed #4c2537;border-radius:4px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px;";
+                logOffHint.style.display = isDevLogEnabled() ? "none" : "";
+                const logOffText = document.createElement("span"); logOffText.textContent = "Logging is off — enable it to capture messages.";
+                logOffHint.appendChild(logOffText);
+                const enableBtn = document.createElement("button");
+                enableBtn.className = "ebc-wear-btn"; enableBtn.textContent = "Enable"; enableBtn.style.flexShrink = "0";
+                enableBtn.addEventListener("click", () => {
+                    setDevLogEnabled(true); logToggleChk.checked = true;
+                    logOffHint.style.display = "none"; updateStatusDot(); renderMsgLog();
+                });
+                logOffHint.appendChild(enableBtn); c.appendChild(logOffHint);
+
+                const msgLogEl = document.createElement("div");
+                msgLogEl.style.cssText = "background:#100810;border:1px solid #3a1928;border-radius:4px;max-height:260px;overflow-y:auto;";
+                c.appendChild(msgLogEl);
+
+                const msgTypeColor = (type: string): string => ({
+                    "Chat": "#6bd478", "Emote": "#78a4d4", "Activity": "#d4a478",
+                    "Action": "#d478c4", "Whisper": "#78d4c4", "Hidden": "#a0a0a0",
+                }[type] ?? "#cf6f98");
+
+                renderMsgLog = (): void => {
+                    while (msgLogEl.firstChild) msgLogEl.removeChild(msgLogEl.firstChild);
+                    const entries = [...getDevLog()].reverse();
+                    if (entries.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:8px 6px;";
+                        hint.textContent = isDevLogEnabled()
+                            ? "No messages yet — chat, emote, or click Test above."
+                            : "Logging is off. Click Enable above.";
+                        msgLogEl.appendChild(hint); return;
+                    }
+                    for (const entry of entries) {
+                        const row = document.createElement("div");
+                        row.style.cssText = "border-bottom:1px solid #1a0e17;padding:4px 6px;cursor:pointer;";
+                        const headerLine = document.createElement("div");
+                        headerLine.style.cssText = "display:flex;gap:5px;align-items:baseline;";
+                        const typeTag = document.createElement("span");
+                        typeTag.style.cssText = `font-family:'Courier New',monospace;font-size:9px;font-weight:bold;color:${msgTypeColor(entry.type)};`;
+                        typeTag.textContent = entry.type;
+                        const timeTag = document.createElement("span");
+                        timeTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-left:auto;";
+                        timeTag.textContent = entry.timestamp.toLocaleTimeString();
+                        headerLine.appendChild(typeTag);
+                        if (entry.sender !== undefined) {
+                            const senderTag = document.createElement("span");
+                            senderTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;";
+                            senderTag.textContent = "from #" + entry.sender;
+                            headerLine.appendChild(senderTag);
+                        }
+                        headerLine.appendChild(timeTag);
+                        const contentLine = document.createElement("div");
+                        contentLine.style.cssText = "font-family:'Courier New',monospace;font-size:8.5px;color:#cf6f98;word-break:break-all;margin-top:1px;";
+                        contentLine.textContent = entry.content.length > 150 ? entry.content.slice(0, 150) + "…" : entry.content;
+                        let dictEl: HTMLElement | null = null;
+                        row.addEventListener("click", () => {
+                            if (dictEl) { dictEl.remove(); dictEl = null; return; }
+                            dictEl = document.createElement("pre");
+                            dictEl.style.cssText = "font-family:'Courier New',monospace;font-size:7.5px;color:#7a5a6a;margin:3px 0 0;white-space:pre-wrap;word-break:break-all;";
+                            try { dictEl.textContent = JSON.stringify(entry.dictionary, null, 2); }
+                            catch { dictEl.textContent = String(entry.dictionary); }
+                            row.appendChild(dictEl);
+                        });
+                        row.appendChild(headerLine); row.appendChild(contentLine);
+                        msgLogEl.appendChild(row);
+                    }
+                };
+                logToggleChk.addEventListener("change", () => {
+                    setDevLogEnabled(logToggleChk.checked); updateStatusDot(); renderMsgLog();
+                });
+                renderMsgLog();
+                msgRefreshBtn2.addEventListener("click", renderMsgLog);
+                msgClearBtn.addEventListener("click", () => { clearDevLog(); renderMsgLog(); });
+            });
+        });
+
+        // Auto-refresh every 1.5 s while the DEV tab is open (only if msg logging enabled)
         this.stopDevLogPoller();
         this.devLogPoller = window.setInterval(() => {
             if (this.currentTab === "dev" && isDevLogEnabled()) renderMsgLog();

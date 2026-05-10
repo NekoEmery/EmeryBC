@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.4.0";
+const MOD_VERSION = "1.4.1";
 
 let noticeShown = false;
 
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.4.1",
+        changes: [
+            "DEV tab restructured into three collapsible dropdowns: EBC USERS IN THIS ROOM, DEVELOPER TOOLS (version badge toggle, Character Inspector, Addons Loaded), and LOG (Room History, Restraint Log, Message Log). All three default to collapsed.",
+            "Removed standalone LOG tab — all log content is now inside DEV → LOG.",
+        ],
+    },
     {
         version: "1.4.0",
         changes: [
