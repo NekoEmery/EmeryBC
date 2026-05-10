@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.20";
+const MOD_VERSION = "1.3.21";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.21",
+        changes: [
+            "Fix A− / A+ zoom buttons not working: replaced raw text node in footer with a proper span element (the text node was consuming all flex space, making buttons invisible). Also compensate panel height when zoomed so footer never scrolls off-screen.",
+        ],
+    },
     {
         version: "1.3.20",
         changes: [

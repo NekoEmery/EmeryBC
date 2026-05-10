@@ -1068,7 +1068,7 @@ const CSS = `
     color: #9a7888;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 2px;
 }
 
@@ -3204,25 +3204,30 @@ export class EBCDrawer {
         // Footer: version + credit line + live timer (info only — not interactive)
         const footer = document.createElement("div");
         footer.className = "ebc-footer";
-        footer.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
 
-        const timerEl = document.createElement("div");
-        timerEl.className = "ebc-timer";
-        footer.appendChild(timerEl);
-        this.timerEl = timerEl;
+        // Version text as a real element (not a raw text node) so flex layout gives the
+        // zoom buttons their own visible space.
+        const footerVerEl = document.createElement("span");
+        footerVerEl.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
+        footerVerEl.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        footer.appendChild(footerVerEl);
 
         // UI zoom controls — A− / scale% / A+ in the footer.
         // CSS zoom is applied to the inner .ebc-panel so everything scales together.
-        // The slide-container width is kept at 360/scale so the visual width stays constant.
+        // Both panel width AND height are compensated (= natural_size / scale) so the
+        // zoomed result always fills — and never overflows — the slide container.
         const EBC_SCALE_KEY  = "EBC_uiScale";
         const SCALE_STEPS    = [0.75, 0.85, 1.0, 1.1, 1.2, 1.35];
         const BASE_WIDTH     = 360;
 
         const applyScale = (scale: number): void => {
             this.uiScale = scale;
-            panel.style.zoom = String(scale);
-            // Shrink the container width so the zoomed content stays ~360px wide visually
-            if (this.panelEl) (this.panelEl as HTMLElement).style.width = `${Math.round(BASE_WIDTH / scale)}px`;
+            // zoom: scale enlarges/shrinks the element's visual AND layout size.
+            // Pre-compensate width and height so the zoomed result stays exactly
+            // inside the container (360 px wide, full container height).
+            panel.style.zoom   = String(scale);
+            panel.style.width  = `${Math.round(BASE_WIDTH / scale)}px`;
+            panel.style.height = scale !== 1.0 ? `${(100 / scale).toFixed(4)}%` : "100%";
             scaleLabel.textContent = Math.round(scale * 100) + "%";
             zoomOutBtn.disabled = scale <= SCALE_STEPS[0];
             zoomInBtn.disabled  = scale >= SCALE_STEPS[SCALE_STEPS.length - 1];
@@ -3252,6 +3257,11 @@ export class EBCDrawer {
         footer.appendChild(zoomOutBtn);
         footer.appendChild(scaleLabel);
         footer.appendChild(zoomInBtn);
+
+        const timerEl = document.createElement("div");
+        timerEl.className = "ebc-timer";
+        footer.appendChild(timerEl);
+        this.timerEl = timerEl;
 
         // Restore saved scale
         try {
