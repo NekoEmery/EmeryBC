@@ -60,8 +60,13 @@ import {
     DEFAULT_BUTTONS,
     ABSOLUTE_MAX,
     parseStep,
+    getCategories,
+    getActiveCategoryIndex,
+    setActiveCategoryIndex,
+    saveCategories,
     type ActionButton,
     type ActionStyle,
+    type ButtonCategory,
 } from "./actionButtons";
 import {
     releaseRestraints,
@@ -2456,6 +2461,51 @@ export class EBCDrawer {
         closeBtn.title = "Close";
         closeBtn.textContent = "X";
 
+        // UI scale controls — A- / A+, stored in localStorage
+        const EBC_SCALE_KEY = "EBC_uiScale";
+        const SCALES = [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3];
+        const getScale = (): number => {
+            try { const v = parseFloat(localStorage.getItem(EBC_SCALE_KEY) ?? ""); return isNaN(v) ? 1.0 : v; } catch { return 1.0; }
+        };
+        const applyScale = (s: number): void => {
+            try {
+                localStorage.setItem(EBC_SCALE_KEY, String(s));
+                const p = this.panelEl;
+                if (p) {
+                    p.style.transformOrigin = "top right";
+                    p.style.transform = s === 1.0 ? "" : `scale(${s})`;
+                }
+            } catch { /* ignore */ }
+        };
+        // Apply saved scale immediately
+        applyScale(getScale());
+
+        const scaleDownBtn = document.createElement("button");
+        scaleDownBtn.className = "ebc-icon-btn";
+        scaleDownBtn.title = "Decrease UI size";
+        scaleDownBtn.textContent = "A-";
+        scaleDownBtn.style.fontSize = "9px";
+        scaleDownBtn.addEventListener("click", () => {
+            const cur = getScale();
+            const idx = SCALES.indexOf(cur);
+            const next = idx > 0 ? SCALES[idx - 1] : SCALES[0];
+            applyScale(next);
+        });
+
+        const scaleUpBtn = document.createElement("button");
+        scaleUpBtn.className = "ebc-icon-btn";
+        scaleUpBtn.title = "Increase UI size";
+        scaleUpBtn.textContent = "A+";
+        scaleUpBtn.style.fontSize = "9px";
+        scaleUpBtn.addEventListener("click", () => {
+            const cur = getScale();
+            const idx = SCALES.indexOf(cur);
+            const next = idx < SCALES.length - 1 ? SCALES[idx + 1] : SCALES[SCALES.length - 1];
+            applyScale(next);
+        });
+
+        headerBtns.appendChild(scaleDownBtn);
+        headerBtns.appendChild(scaleUpBtn);
         headerBtns.appendChild(refreshBtn);
         headerBtns.appendChild(moveHandle);
         headerBtns.appendChild(resetLocBtn);
@@ -5986,9 +6036,93 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        // ── Category tab bar ────────────────────────────────────────────────
+        let cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
+        let activeCatIdx = getActiveCategoryIndex();
+        if (activeCatIdx >= cats.length) activeCatIdx = 0;
+
+        const catBar = document.createElement("div");
+        catBar.style.cssText = "display:flex;gap:3px;flex-wrap:wrap;align-items:center;margin-bottom:5px;";
+
+        const renderCatBar = (): void => {
+            catBar.innerHTML = "";
+            cats.forEach((cat, i) => {
+                const tab = document.createElement("button");
+                tab.textContent = cat.name;
+                const isActive = i === activeCatIdx;
+                tab.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 8px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isActive ? "#cf6f98" : "#3a1928"};background:${isActive ? "#3a1028" : "transparent"};color:${isActive ? "#cf6f98" : "#7a5060"};`;
+                tab.addEventListener("click", () => {
+                    activeCatIdx = i;
+                    setActiveCategoryIndex(i);
+                    // Load that category's buttons into working state
+                    btns = cats[i].buttons.map(b => ({ ...b }));
+                    slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[i].slotCount || cats[i].buttons.length || 1));
+                    renderCatBar();
+                    renderSlots();
+                    updateFooterState();
+                });
+                catBar.appendChild(tab);
+            });
+
+            // + Add category button
+            const addCatBtn = document.createElement("button");
+            addCatBtn.textContent = "+ Cat";
+            addCatBtn.title = "Add a new category";
+            addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px dashed #4c2537;background:transparent;color:#5a3a4a;";
+            addCatBtn.addEventListener("click", () => {
+                const name = window.prompt("Category name (e.g. RP, Casual):") ?? "";
+                if (!name.trim()) return;
+                cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" }], slotCount: 1 });
+                activeCatIdx = cats.length - 1;
+                setActiveCategoryIndex(activeCatIdx);
+                btns = cats[activeCatIdx].buttons.map(b => ({ ...b }));
+                slotCount = 1;
+                renderCatBar();
+                renderSlots();
+                updateFooterState();
+            });
+            catBar.appendChild(addCatBtn);
+
+            // Rename / delete active category
+            if (cats.length > 0) {
+                const renameBtn = document.createElement("button");
+                renameBtn.textContent = "✎";
+                renameBtn.title = "Rename active category";
+                renameBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid #3a1928;background:transparent;color:#7a5060;";
+                renameBtn.addEventListener("click", () => {
+                    const newName = window.prompt("New name:", cats[activeCatIdx].name) ?? "";
+                    if (!newName.trim()) return;
+                    cats[activeCatIdx].name = newName.trim();
+                    renderCatBar();
+                });
+                catBar.appendChild(renameBtn);
+
+                if (cats.length > 1) {
+                    const delCatBtn = document.createElement("button");
+                    delCatBtn.textContent = "✕";
+                    delCatBtn.title = "Delete active category";
+                    delCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a3040;";
+                    delCatBtn.addEventListener("click", () => {
+                        if (!window.confirm(`Delete category "${cats[activeCatIdx].name}"?`)) return;
+                        cats.splice(activeCatIdx, 1);
+                        activeCatIdx = Math.min(activeCatIdx, cats.length - 1);
+                        setActiveCategoryIndex(activeCatIdx);
+                        btns = cats[activeCatIdx].buttons.map(b => ({ ...b }));
+                        slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
+                        renderCatBar();
+                        renderSlots();
+                        updateFooterState();
+                    });
+                    catBar.appendChild(delCatBtn);
+                }
+            }
+        };
+        renderCatBar();
+        body.appendChild(catBar);
+
         // Working copies so we don't mutate storage until Save is clicked
-        let btns: ActionButton[] = getButtons().map(b => ({ ...b }));
-        let slotCount = getSlotCount();
+        let btns: ActionButton[] = cats[activeCatIdx].buttons.map(b => ({ ...b }));
+        let slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
 
         // Ensure array has slotCount entries
         while (btns.length < slotCount) {
@@ -6353,10 +6487,12 @@ export class EBCDrawer {
                 const eInp = row.querySelector<HTMLInputElement>(".ebc-slot-emote");
                 if (lInp) btns[i].label = lInp.value.trim().slice(0, 6);
                 if (cInp) btns[i].color = normalizeHex(cInp.value);
-                // Skip emote flush for seq buttons — seq builder keeps btns[i].emote in sync directly
                 if (eInp && btns[i].style !== "seq") btns[i].emote = eInp.value;
             });
-            saveButtons([...btns], slotCount);
+            // Save into the active category then persist all categories
+            cats[activeCatIdx].buttons   = [...btns];
+            cats[activeCatIdx].slotCount = slotCount;
+            saveCategories([...cats], activeCatIdx);
             saveBtn.textContent = "Saved!";
             window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
         });
@@ -6385,7 +6521,9 @@ export class EBCDrawer {
                 importToggleBtn.classList.remove("open");
                 btns = DEFAULT_BUTTONS.map(b => ({ ...b }));
                 slotCount = DEFAULT_BUTTONS.length;
-                saveButtons([...btns], slotCount);
+                cats[activeCatIdx].buttons   = [...btns];
+                cats[activeCatIdx].slotCount = slotCount;
+                saveCategories([...cats], activeCatIdx);
                 renderSlots();
                 updateFooterState();
             }
@@ -8363,13 +8501,13 @@ export class EBCDrawer {
 
         const title = document.createElement("span");
         title.className = "ebc-beep-win-title";
-        title.textContent = resolveName(memberNumber);
+        title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
 
         // Called whenever online friend status refreshes (AccountQueryResult)
         const updateStatus = (): void => {
             const s = getFriendStatus(memberNumber);
             dot.className = "ebc-friend-dot " + s;
-            title.textContent = resolveName(memberNumber);
+            title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
         };
         (win as unknown as Record<string, unknown>)._updateStatus = updateStatus;
 
@@ -8479,8 +8617,12 @@ export class EBCDrawer {
             const oyFromBottom = rect.bottom - start.clientY;
             addPointerTracking(
                 (pos) => {
-                    win.style.left   = `${pos.clientX - ox}px`;
-                    win.style.bottom = `${vh - pos.clientY - oyFromBottom}px`;
+                    const winW  = win.offsetWidth  || 280;
+                    const hdrH  = header.offsetHeight || 38;
+                    const rawL  = pos.clientX - ox;
+                    const rawB  = vh - pos.clientY - oyFromBottom;
+                    win.style.left   = `${Math.max(0, Math.min(rawL, window.innerWidth  - winW))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(rawB, window.innerHeight - hdrH))}px`;
                     win.style.right  = "";
                     win.style.top    = "";
                 },
@@ -8532,8 +8674,9 @@ export class EBCDrawer {
                 const wrap = document.createElement("div");
                 wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
 
+                const bubbleMember = isSent ? self : e.from;
                 const nameLabel = document.createElement("div");
-                nameLabel.textContent = resolveName(isSent ? self : e.from);
+                nameLabel.textContent = `${resolveName(bubbleMember)} #${bubbleMember}`;
                 const nameColor = isSent ? "#e090b8" : "#80c0e0";
                 nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;font-weight:600;color:${nameColor};margin-bottom:2px;padding:0 3px;`;
                 wrap.appendChild(nameLabel);

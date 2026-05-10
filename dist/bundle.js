@@ -44,22 +44,61 @@
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
-    function getButtons() {
-        const stored = getStore$8().actionButtons;
-        return Array.isArray(stored) ? stored : DEFAULT_BUTTONS;
-    }
-    function getSlotCount() {
+    /** Returns all categories, migrating from old flat format if needed. */
+    function getCategories() {
         const store = getStore$8();
-        const n = store.actionSlotCount;
-        if (typeof n === "number")
-            return Math.min(ABSOLUTE_MAX, Math.max(1, n));
-        const buttons = getButtons();
-        return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, buttons.length));
+        // Migrate old flat actionButtons → first category "Default"
+        if (!store.buttonCategories && store.actionButtons) {
+            const migrated = [{
+                    name: "Default",
+                    buttons: store.actionButtons,
+                    slotCount: typeof store.actionSlotCount === "number"
+                        ? store.actionSlotCount
+                        : DEFAULT_SLOTS,
+                }];
+            store.buttonCategories = migrated;
+            delete store.actionButtons;
+            delete store.actionSlotCount;
+        }
+        const cats = store.buttonCategories;
+        if (Array.isArray(cats) && cats.length > 0)
+            return cats;
+        return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
+    }
+    function getActiveCategoryIndex() {
+        const store = getStore$8();
+        const cats = getCategories();
+        const idx = store.activeCategoryIndex;
+        if (typeof idx === "number" && idx >= 0 && idx < cats.length)
+            return idx;
+        return 0;
+    }
+    function setActiveCategoryIndex(idx) {
+        const store = getStore$8();
+        store.activeCategoryIndex = idx;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function getActiveCategory() {
+        var _a;
+        const cats = getCategories();
+        return (_a = cats[getActiveCategoryIndex()]) !== null && _a !== void 0 ? _a : cats[0];
+    }
+    function getButtons() {
+        return getActiveCategory().buttons;
     }
     function saveButtons(buttons, slotCount) {
         const store = getStore$8();
-        store.actionButtons = buttons;
-        store.actionSlotCount = slotCount;
+        const cats = getCategories();
+        const idx = getActiveCategoryIndex();
+        cats[idx].buttons = buttons;
+        cats[idx].slotCount = slotCount;
+        store.buttonCategories = cats;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function saveCategories(categories, activeIndex) {
+        const store = getStore$8();
+        store.buttonCategories = categories;
+        store.activeCategoryIndex = activeIndex;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function normalizeHex(value, fallback = "#c2185b") {
@@ -83,14 +122,14 @@
     }
     // --- Sequence runner ----------------------------------------------------------
     // Sequence steps are pipe-separated (|). Each step is one of:
-    //   PoseName   â€“ set BC pose (e.g. "HandsUp", "Yoked")
-    //   _          â€“ clear all active poses back to neutral
-    //   !text      â€“ send as (Name text) action message
-    //   *text      â€“ send as * Name text * emote message
+    //   PoseName   â€" set BC pose (e.g. "HandsUp", "Yoked")
+    //   _          â€" clear all active poses back to neutral
+    //   !text      â€" send as (Name text) action message
+    //   *text      â€" send as * Name text * emote message
     // Steps run 500 ms apart. Original poses are restored when done.
     let seqRunning = false;
     // Sends the current ActivePose to the room without triggering a full re-render on each step.
-    // appearanceBundle should be pre-built once before the sequence starts and reused â€” sending
+    // appearanceBundle should be pre-built once before the sequence starts and reused â€" sending
     // a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
     // time, which looks like flickering/glitching.
     function sendPoseUpdate(appearanceBundle) {
@@ -110,7 +149,7 @@
     }
     function syncPoseToRoom() {
         // Used for one-shot pose syncs (outside of sequences).
-        // Capture desired pose BEFORE CharacterRefresh â€” BC may re-apply item-forced poses
+        // Capture desired pose BEFORE CharacterRefresh â€" BC may re-apply item-forced poses
         // during refresh and override what we just set.
         const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
             ? Player.ActivePose
@@ -153,17 +192,17 @@
         // Parse each step: strip @NNN suffix for per-step delay, keep content.
         const steps = rawSteps.map(r => parseStep(r, defaultStepMs));
         seqRunning = true;
-        // null means "no pose / neutral" in BC â€” store as null so we restore correctly.
+        // null means "no pose / neutral" in BC â€" store as null so we restore correctly.
         const originalPoses = (Player.ActivePose && Player.ActivePose.length > 0)
             ? [...Player.ActivePose]
             : null;
-        // Build appearance bundle ONCE â€” reusing it avoids re-render flicker on other clients.
+        // Build appearance bundle ONCE â€" reusing it avoids re-render flicker on other clients.
         const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
         let idx = 0;
         const next = () => {
             try {
                 if (idx >= steps.length) {
-                    // Sequence done â€” restore original pose, do a full sync + local refresh.
+                    // Sequence done â€" restore original pose, do a full sync + local refresh.
                     Player.ActivePose = originalPoses;
                     syncPoseToRoom();
                     seqRunning = false;
@@ -195,7 +234,7 @@
     // --- Label-based animation triggers ------------------------------------------
     // If a button's label matches one of these (case-insensitive), the matching
     // animation plays automatically alongside the normal message. Completely hidden
-    // from the user â€” the emote field is just normal text.
+    // from the user -- the emote field is just normal text.
     function isArmRestrained() {
         // Only ItemArms covers actual binding restraints (armbinders, straitjackets, etc.).
         // ItemHands covers paws/mittens/gloves which don't lock arm movement, so we skip it.
@@ -222,7 +261,7 @@
     // Returns true if the animation ran (or will run), false if it was blocked.
     function runCheerAnimation() {
         if (isArmRestrained()) {
-            localNotice$2("Your arms are restrained â€” can't cheer right now!");
+            localNotice$2("Your arms are restrained -- can't cheer right now!");
             return false;
         }
         // Yoked (arms out) -> OverTheHead (arms fully above head) -> repeat -> neutral
@@ -233,7 +272,7 @@
         ["CHEER", runCheerAnimation],
         ["CHEERS", runCheerAnimation],
     ]);
-    // Returns false if an animation was attempted but blocked â€” caller should suppress the chat message.
+    // Returns false if an animation was attempted but blocked â€" caller should suppress the chat message.
     // Returns true if the animation ran fine, or if there is no animation for this label.
     function triggerLabelAnimation(label) {
         const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
@@ -279,12 +318,34 @@
     const CHIP_W = 45;
     const CHIP_H = 28;
     let sidebarCollapsed = false;
+    // Category chip — sits between the collapse toggle and the buttons
+    const CAT_CHIP_Y = CHIP_Y + CHIP_H + 4;
+    const CAT_CHIP_H = 22;
+    // Prev/next arrows flanking the category name
+    const CAT_ARR_W = 16;
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
         DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H, sidebarCollapsed ? "+" : "=", sidebarCollapsed ? UI.accentDeep : UI.accentSoft, "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
         if (sidebarCollapsed)
             return;
+        // Category switcher chip: [◀] Name [▶]
+        const cats = getCategories();
+        const idx = getActiveCategoryIndex();
+        const label = cats.length > 1
+            ? cats[idx].name.slice(0, 5) // truncate so it fits
+            : cats[idx].name.slice(0, 7);
+        const chipBg = "#2a0e1e";
+        // Left arrow (disabled at first category)
+        DrawButton(CHIP_X, CAT_CHIP_Y, CAT_ARR_W, CAT_CHIP_H, "◀", idx > 0 ? chipBg : "#1a0a14", "", idx > 0 ? "Previous category" : "");
+        // Name label (full width minus arrows when multiple cats)
+        if (cats.length > 1) {
+            DrawButton(CHIP_X + CAT_ARR_W, CAT_CHIP_Y, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H, label, chipBg, "", cats[idx].name);
+            DrawButton(CHIP_X + CHIP_W - CAT_ARR_W, CAT_CHIP_Y, CAT_ARR_W, CAT_CHIP_H, "▶", idx < cats.length - 1 ? chipBg : "#1a0a14", "", idx < cats.length - 1 ? "Next category" : "");
+        }
+        else {
+            DrawButton(CHIP_X, CAT_CHIP_Y, CHIP_W, CAT_CHIP_H, label, chipBg, "", cats[idx].name);
+        }
         const buttons = getButtons();
         for (let i = 0; i < buttons.length; i++) {
             const btn = buttons[i];
@@ -305,6 +366,24 @@
         }
         if (sidebarCollapsed)
             return false;
+        // Category prev/next arrows
+        const cats = getCategories();
+        const idx = getActiveCategoryIndex();
+        if (MouseY >= CAT_CHIP_Y && MouseY <= CAT_CHIP_Y + CAT_CHIP_H) {
+            if (cats.length > 1) {
+                if (MouseX >= CHIP_X && MouseX <= CHIP_X + CAT_ARR_W) {
+                    if (idx > 0)
+                        setActiveCategoryIndex(idx - 1);
+                    return true;
+                }
+                if (MouseX >= CHIP_X + CHIP_W - CAT_ARR_W && MouseX <= CHIP_X + CHIP_W) {
+                    if (idx < cats.length - 1)
+                        setActiveCategoryIndex(idx + 1);
+                    return true;
+                }
+            }
+            return true; // click on label area — consume but do nothing
+        }
         const buttons = getButtons();
         for (let i = 0; i < buttons.length; i++) {
             const btn = buttons[i];
@@ -313,7 +392,6 @@
             const y = BTN_START_Y + i * BTN_SIZE;
             if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
                 MouseY >= y && MouseY <= y + BTN_SIZE) {
-                // Check animation first â€” if it's blocked, suppress the chat message too.
                 const animOk = triggerLabelAnimation(btn.label);
                 if (animOk)
                     sendAction(btn.emote, (_a = btn.style) !== null && _a !== void 0 ? _a : "action");
@@ -2377,6 +2455,12 @@
     // Set of member numbers BC reports as online (updated via AccountQueryResult hook)
     const onlineSet = new Set();
     const onlineInfo = new Map();
+    // Members we sent a message to while they were offline — notify them when they come online
+    const pendingOfflineMessages = new Set();
+    function markPendingMessage(memberNumber) {
+        if (!onlineSet.has(memberNumber))
+            pendingOfflineMessages.add(memberNumber);
+    }
     // Session cache: EBC version for members we've shared a room with this session
     const ebcVersionCache = new Map();
     function cacheEBCVersion(memberNumber, version) {
@@ -2387,6 +2471,8 @@
         return (_a = ebcVersionCache.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
     }
     function updateOnlineFriends(entries) {
+        var _a, _b;
+        const prevOnline = new Set(onlineSet);
         onlineSet.clear();
         onlineInfo.clear();
         for (const r of entries) {
@@ -2402,6 +2488,20 @@
                 roomFull: typeof r.ChatRoomFull === "boolean" ? r.ChatRoomFull : undefined,
                 roomLocked: typeof r.Locked === "boolean" ? r.Locked : undefined,
             });
+        }
+        // Notify anyone who just came online that we have a message waiting for them
+        for (const num of pendingOfflineMessages) {
+            if (onlineSet.has(num) && !prevOnline.has(num)) {
+                pendingOfflineMessages.delete(num);
+                try {
+                    const myName = (_b = (_a = Player.Nickname) !== null && _a !== void 0 ? _a : Player.Name) !== null && _b !== void 0 ? _b : "Someone";
+                    ServerSend("AccountBeep", {
+                        MemberNumber: num,
+                        Message: `[EBC] ${myName} sent you a message while you were offline — open EBC chat to read it!`,
+                    });
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+            }
         }
     }
     function getFriendOnlineInfo(memberNumber) {
@@ -2487,6 +2587,8 @@
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
         var _a;
+        // If recipient is offline, flag them so we notify them when they come online
+        markPendingMessage(memberNumber);
         try {
             ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message });
         }
@@ -5639,6 +5741,56 @@
             closeBtn.className = "ebc-icon-btn";
             closeBtn.title = "Close";
             closeBtn.textContent = "X";
+            // UI scale controls — A- / A+, stored in localStorage
+            const EBC_SCALE_KEY = "EBC_uiScale";
+            const SCALES = [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3];
+            const getScale = () => {
+                var _a;
+                try {
+                    const v = parseFloat((_a = localStorage.getItem(EBC_SCALE_KEY)) !== null && _a !== void 0 ? _a : "");
+                    return isNaN(v) ? 1.0 : v;
+                }
+                catch (_b) {
+                    return 1.0;
+                }
+            };
+            const applyScale = (s) => {
+                try {
+                    localStorage.setItem(EBC_SCALE_KEY, String(s));
+                    const p = this.panelEl;
+                    if (p) {
+                        p.style.transformOrigin = "top right";
+                        p.style.transform = s === 1.0 ? "" : `scale(${s})`;
+                    }
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            // Apply saved scale immediately
+            applyScale(getScale());
+            const scaleDownBtn = document.createElement("button");
+            scaleDownBtn.className = "ebc-icon-btn";
+            scaleDownBtn.title = "Decrease UI size";
+            scaleDownBtn.textContent = "A-";
+            scaleDownBtn.style.fontSize = "9px";
+            scaleDownBtn.addEventListener("click", () => {
+                const cur = getScale();
+                const idx = SCALES.indexOf(cur);
+                const next = idx > 0 ? SCALES[idx - 1] : SCALES[0];
+                applyScale(next);
+            });
+            const scaleUpBtn = document.createElement("button");
+            scaleUpBtn.className = "ebc-icon-btn";
+            scaleUpBtn.title = "Increase UI size";
+            scaleUpBtn.textContent = "A+";
+            scaleUpBtn.style.fontSize = "9px";
+            scaleUpBtn.addEventListener("click", () => {
+                const cur = getScale();
+                const idx = SCALES.indexOf(cur);
+                const next = idx < SCALES.length - 1 ? SCALES[idx + 1] : SCALES[SCALES.length - 1];
+                applyScale(next);
+            });
+            headerBtns.appendChild(scaleDownBtn);
+            headerBtns.appendChild(scaleUpBtn);
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
             headerBtns.appendChild(resetLocBtn);
@@ -9036,9 +9188,93 @@
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Category tab bar ────────────────────────────────────────────────
+            let cats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
+            let activeCatIdx = getActiveCategoryIndex();
+            if (activeCatIdx >= cats.length)
+                activeCatIdx = 0;
+            const catBar = document.createElement("div");
+            catBar.style.cssText = "display:flex;gap:3px;flex-wrap:wrap;align-items:center;margin-bottom:5px;";
+            const renderCatBar = () => {
+                catBar.innerHTML = "";
+                cats.forEach((cat, i) => {
+                    const tab = document.createElement("button");
+                    tab.textContent = cat.name;
+                    const isActive = i === activeCatIdx;
+                    tab.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 8px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isActive ? "#cf6f98" : "#3a1928"};background:${isActive ? "#3a1028" : "transparent"};color:${isActive ? "#cf6f98" : "#7a5060"};`;
+                    tab.addEventListener("click", () => {
+                        activeCatIdx = i;
+                        setActiveCategoryIndex(i);
+                        // Load that category's buttons into working state
+                        btns = cats[i].buttons.map(b => (Object.assign({}, b)));
+                        slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[i].slotCount || cats[i].buttons.length || 1));
+                        renderCatBar();
+                        renderSlots();
+                        updateFooterState();
+                    });
+                    catBar.appendChild(tab);
+                });
+                // + Add category button
+                const addCatBtn = document.createElement("button");
+                addCatBtn.textContent = "+ Cat";
+                addCatBtn.title = "Add a new category";
+                addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;cursor:pointer;border:1px dashed #4c2537;background:transparent;color:#5a3a4a;";
+                addCatBtn.addEventListener("click", () => {
+                    var _a;
+                    const name = (_a = window.prompt("Category name (e.g. RP, Casual):")) !== null && _a !== void 0 ? _a : "";
+                    if (!name.trim())
+                        return;
+                    cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" }], slotCount: 1 });
+                    activeCatIdx = cats.length - 1;
+                    setActiveCategoryIndex(activeCatIdx);
+                    btns = cats[activeCatIdx].buttons.map(b => (Object.assign({}, b)));
+                    slotCount = 1;
+                    renderCatBar();
+                    renderSlots();
+                    updateFooterState();
+                });
+                catBar.appendChild(addCatBtn);
+                // Rename / delete active category
+                if (cats.length > 0) {
+                    const renameBtn = document.createElement("button");
+                    renameBtn.textContent = "✎";
+                    renameBtn.title = "Rename active category";
+                    renameBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid #3a1928;background:transparent;color:#7a5060;";
+                    renameBtn.addEventListener("click", () => {
+                        var _a;
+                        const newName = (_a = window.prompt("New name:", cats[activeCatIdx].name)) !== null && _a !== void 0 ? _a : "";
+                        if (!newName.trim())
+                            return;
+                        cats[activeCatIdx].name = newName.trim();
+                        renderCatBar();
+                    });
+                    catBar.appendChild(renameBtn);
+                    if (cats.length > 1) {
+                        const delCatBtn = document.createElement("button");
+                        delCatBtn.textContent = "✕";
+                        delCatBtn.title = "Delete active category";
+                        delCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a3040;";
+                        delCatBtn.addEventListener("click", () => {
+                            if (!window.confirm(`Delete category "${cats[activeCatIdx].name}"?`))
+                                return;
+                            cats.splice(activeCatIdx, 1);
+                            activeCatIdx = Math.min(activeCatIdx, cats.length - 1);
+                            setActiveCategoryIndex(activeCatIdx);
+                            btns = cats[activeCatIdx].buttons.map(b => (Object.assign({}, b)));
+                            slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
+                            renderCatBar();
+                            renderSlots();
+                            updateFooterState();
+                        });
+                        catBar.appendChild(delCatBtn);
+                    }
+                }
+            };
+            renderCatBar();
+            body.appendChild(catBar);
             // Working copies so we don't mutate storage until Save is clicked
-            let btns = getButtons().map(b => (Object.assign({}, b)));
-            let slotCount = getSlotCount();
+            let btns = cats[activeCatIdx].buttons.map(b => (Object.assign({}, b)));
+            let slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
             // Ensure array has slotCount entries
             while (btns.length < slotCount) {
                 btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
@@ -9369,11 +9605,13 @@
                         btns[i].label = lInp.value.trim().slice(0, 6);
                     if (cInp)
                         btns[i].color = normalizeHex(cInp.value);
-                    // Skip emote flush for seq buttons — seq builder keeps btns[i].emote in sync directly
                     if (eInp && btns[i].style !== "seq")
                         btns[i].emote = eInp.value;
                 });
-                saveButtons([...btns], slotCount);
+                // Save into the active category then persist all categories
+                cats[activeCatIdx].buttons = [...btns];
+                cats[activeCatIdx].slotCount = slotCount;
+                saveCategories([...cats], activeCatIdx);
                 saveBtn.textContent = "Saved!";
                 window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
             });
@@ -9403,7 +9641,9 @@
                     importToggleBtn.classList.remove("open");
                     btns = DEFAULT_BUTTONS.map(b => (Object.assign({}, b)));
                     slotCount = DEFAULT_BUTTONS.length;
-                    saveButtons([...btns], slotCount);
+                    cats[activeCatIdx].buttons = [...btns];
+                    cats[activeCatIdx].slotCount = slotCount;
+                    saveCategories([...cats], activeCatIdx);
                     renderSlots();
                     updateFooterState();
                 }
@@ -11232,12 +11472,12 @@
             dot.className = "ebc-friend-dot " + getFriendStatus(memberNumber);
             const title = document.createElement("span");
             title.className = "ebc-beep-win-title";
-            title.textContent = resolveName(memberNumber);
+            title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
             // Called whenever online friend status refreshes (AccountQueryResult)
             const updateStatus = () => {
                 const s = getFriendStatus(memberNumber);
                 dot.className = "ebc-friend-dot " + s;
-                title.textContent = resolveName(memberNumber);
+                title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
             };
             win._updateStatus = updateStatus;
             // Unread dot (shown on minimized bar)
@@ -11347,8 +11587,12 @@
                 const vh = window.innerHeight;
                 const oyFromBottom = rect.bottom - start.clientY;
                 addPointerTracking((pos) => {
-                    win.style.left = `${pos.clientX - ox}px`;
-                    win.style.bottom = `${vh - pos.clientY - oyFromBottom}px`;
+                    const winW = win.offsetWidth || 280;
+                    const hdrH = header.offsetHeight || 38;
+                    const rawL = pos.clientX - ox;
+                    const rawB = vh - pos.clientY - oyFromBottom;
+                    win.style.left = `${Math.max(0, Math.min(rawL, window.innerWidth - winW))}px`;
+                    win.style.bottom = `${Math.max(0, Math.min(rawB, window.innerHeight - hdrH))}px`;
                     win.style.right = "";
                     win.style.top = "";
                 }, () => {
@@ -11394,8 +11638,9 @@
                     const isSent = e.from === self;
                     const wrap = document.createElement("div");
                     wrap.style.cssText = "display:flex;flex-direction:column;align-items:" + (isSent ? "flex-end" : "flex-start") + ";";
+                    const bubbleMember = isSent ? self : e.from;
                     const nameLabel = document.createElement("div");
-                    nameLabel.textContent = resolveName(isSent ? self : e.from);
+                    nameLabel.textContent = `${resolveName(bubbleMember)} #${bubbleMember}`;
                     const nameColor = isSent ? "#e090b8" : "#80c0e0";
                     nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;font-weight:600;color:${nameColor};margin-bottom:2px;padding:0 3px;`;
                     wrap.appendChild(nameLabel);
@@ -13912,9 +14157,19 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.1";
+    const MOD_VERSION = "1.3.2";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.2",
+            changes: [
+                "Button categories: Quick Action Buttons now support multiple named categories (e.g. RP, Casual). Switch between them with ◀/▶ chips in the BC sidebar or the tab bar in the Buttons drawer. Each category has its own independent set of up to 12 buttons. Existing buttons are automatically migrated to a 'Default' category.",
+                "Offline message notification: if you send someone a beep while they are offline, EBC will automatically send them a notification beep the moment they come online.",
+                "Chat windows: drag is now clamped to the browser viewport -- windows can no longer be dragged off-screen.",
+                "Chat windows: member number (#XXXXX) is now shown in the window title bar and in each message bubble so you always know who you are talking to.",
+                "UI scale: A- and A+ buttons in the drawer header let you shrink or grow the entire EBC panel (7 steps from 70% to 130%). Setting is saved in localStorage.",
+            ],
+        },
         {
             version: "1.3.1",
             changes: [

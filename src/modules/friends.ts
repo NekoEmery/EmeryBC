@@ -87,6 +87,13 @@ export interface FriendOnlineInfo {
 const onlineSet = new Set<number>();
 const onlineInfo = new Map<number, FriendOnlineInfo>();
 
+// Members we sent a message to while they were offline — notify them when they come online
+const pendingOfflineMessages = new Set<number>();
+
+export function markPendingMessage(memberNumber: number): void {
+    if (!onlineSet.has(memberNumber)) pendingOfflineMessages.add(memberNumber);
+}
+
 // Session cache: EBC version for members we've shared a room with this session
 const ebcVersionCache = new Map<number, string>();
 
@@ -99,6 +106,7 @@ export function getEBCVersion(memberNumber: number): string | null {
 }
 
 export function updateOnlineFriends(entries: Array<Record<string, unknown>>): void {
+    const prevOnline = new Set(onlineSet);
     onlineSet.clear();
     onlineInfo.clear();
     for (const r of entries) {
@@ -113,6 +121,20 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
             roomFull:    typeof r.ChatRoomFull    === "boolean" ? r.ChatRoomFull    : undefined,
             roomLocked:  typeof r.Locked          === "boolean" ? r.Locked          : undefined,
         });
+    }
+    // Notify anyone who just came online that we have a message waiting for them
+    for (const num of pendingOfflineMessages) {
+        if (onlineSet.has(num) && !prevOnline.has(num)) {
+            pendingOfflineMessages.delete(num);
+            try {
+                const myName = (Player as unknown as Record<string, unknown>).Nickname as string | undefined
+                    ?? Player.Name ?? "Someone";
+                ServerSend("AccountBeep", {
+                    MemberNumber: num,
+                    Message: `[EBC] ${myName} sent you a message while you were offline — open EBC chat to read it!`,
+                });
+            } catch { /* ignore */ }
+        }
     }
 }
 
@@ -212,6 +234,8 @@ export function getConversation(memberNumber: number): BeepEntry[] {
 // -- Sending -------------------------------------------------------------------
 
 export function sendBeep(memberNumber: number, message: string): void {
+    // If recipient is offline, flag them so we notify them when they come online
+    markPendingMessage(memberNumber);
     try {
         ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message });
     } catch { /* ignore */ }
