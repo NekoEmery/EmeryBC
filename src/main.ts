@@ -10,7 +10,7 @@ import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestraine
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata } from "./modules/friends";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
@@ -1631,7 +1631,7 @@ function init(): void {
             // Non-chat beeps (friend requests, etc.) always pass through unchanged.
             if (beep.BeepType) return next(args);
             const fromNum = typeof beep.MemberNumber === "number" ? beep.MemberNumber : 0;
-            const msg = typeof beep.Message === "string" ? beep.Message : "";
+            const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
             if (!fromNum || !msg) return next(args);
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
             if (name) cacheName(fromNum, name);

@@ -2391,22 +2391,31 @@
     // All data stored in Player.ExtensionSettings.EmeryBC and synced to server
     // so it's available across devices on next login.
     /**
-     * Some BC mods (WCE, FBC, etc.) append a JSON metadata blob to beep messages,
-     * e.g. "hiya {"messageType":"Message","messageColor":"#EFB0E2"}".
-     * Strip any trailing valid JSON object so we display only the plain text.
+     * Some BC mods (WCE, FBC, etc.) append metadata to beep messages in two forms:
+     *   1. A JSON blob:  "hiya {"messageType":"Message","messageColor":"#EFB0E2"}"
+     *   2. A private-use Unicode separator (U+E000–U+F8FF, e.g. U+E001) followed by
+     *      the JSON, leaving a □ box character when only partially stripped.
+     * Strip both so we display only the plain text.
      */
     function stripBeepMetadata(msg) {
+        // Pass 1 — strip trailing JSON metadata object appended by WCE/FBC/etc.
+        // e.g. "hey {"messageType":"Message","messageColor":"#EFB0E2"}"
         const idx = msg.lastIndexOf("{");
-        if (idx <= 0)
-            return msg;
-        try {
-            const tail = msg.slice(idx).trim();
-            const parsed = JSON.parse(tail);
-            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                return msg.slice(0, idx).trim();
+        if (idx > 0) {
+            try {
+                const tail = msg.slice(idx).trim();
+                const parsed = JSON.parse(tail);
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                    msg = msg.slice(0, idx).trim();
+                }
             }
+            catch ( /* not valid JSON */_a) { /* not valid JSON */ }
         }
-        catch ( /* not valid JSON — leave as-is */_a) { /* not valid JSON — leave as-is */ }
+        // Pass 2 — strip private-use area Unicode separators (U+E000..U+F8FF and
+        // supplementary PUA as surrogate pairs) that mods insert before their metadata.
+        // These render as hollow squares (□) in most fonts.
+        msg = msg.replace(/[-][\s\S]*$/, "").trim();
+        msg = msg.replace(/[\uDB80-\uDBFF][\uDC00-\uDFFF][\s\S]*$/, "").trim();
         return msg;
     }
     function getStore$2() {
@@ -15919,7 +15928,7 @@
                 if (beep.BeepType)
                     return next(args);
                 const fromNum = typeof beep.MemberNumber === "number" ? beep.MemberNumber : 0;
-                const msg = typeof beep.Message === "string" ? beep.Message : "";
+                const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
                 if (!fromNum || !msg)
                     return next(args);
                 const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
