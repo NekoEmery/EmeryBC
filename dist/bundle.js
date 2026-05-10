@@ -3635,16 +3635,13 @@
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
-/* Resize bar — full-width strip at the bottom of the slide container */
+/* Resize bar — dedicated thin strip at the very bottom of the panel flex column.
+   Simple flex child: no absolute positioning, no z-index fights, always receives
+   pointer events because it's just a normal child of .ebc-panel. */
 .ebc-resize-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 14px;
+    flex-shrink: 0;
+    height: 8px;
     cursor: ns-resize;
-    z-index: 10;
-    pointer-events: auto;
     user-select: none;
     touch-action: none;
     display: flex;
@@ -3657,20 +3654,20 @@
 .ebc-resize-bar::before {
     content: "";
     display: block;
-    width: 36px;
-    height: 2px;
+    width: 30px;
+    height: 1.5px;
     border-radius: 2px;
-    background: #4c2537;
-    box-shadow: 0 -4px 0 #4c2537, 0 4px 0 #4c2537;
+    background: #3a1928;
+    box-shadow: 0 -3px 0 #3a1928, 0 3px 0 #3a1928;
     transition: background 0.15s, box-shadow 0.15s;
 }
-.ebc-resize-bar:hover { background: rgba(207, 111, 152, 0.06); }
+.ebc-resize-bar:hover { background: rgba(207, 111, 152, 0.07); }
 .ebc-resize-bar:hover::before,
 .ebc-resize-bar.ebc-resizing::before {
     background: #cf6f98;
-    box-shadow: 0 -4px 0 #cf6f98, 0 4px 0 #cf6f98;
+    box-shadow: 0 -3px 0 #cf6f98, 0 3px 0 #cf6f98;
 }
-.ebc-resize-bar.ebc-resizing { background: rgba(207, 111, 152, 0.1); cursor: ns-resize; }
+.ebc-resize-bar.ebc-resizing { background: rgba(207, 111, 152, 0.12); }
 
 /* Catch-all hover brightening for any button that lacks its own :hover rule */
 .ebc-panel button:not([disabled]) {
@@ -6464,17 +6461,21 @@
             const body = document.createElement("div");
             body.className = "ebc-body";
             body.id = "ebc-body";
-            // Footer: version + credit line + live timer
-            // The footer also doubles as the resize handle — it's inside .ebc-panel so
-            // pointer events are guaranteed to work (same as every other panel element).
+            // Footer: version + credit line + live timer (info only — not interactive)
             const footer = document.createElement("div");
-            footer.className = "ebc-footer ebc-resize-bar";
-            footer.title = "Drag to resize · Double-click to reset";
+            footer.className = "ebc-footer";
             footer.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
             const timerEl = document.createElement("div");
             timerEl.className = "ebc-timer";
             footer.appendChild(timerEl);
             this.timerEl = timerEl;
+            // Resize bar — dedicated thin strip, the last child of the flex column.
+            // Lives inside .ebc-panel so pointer events are always guaranteed (same as
+            // every other element in the panel). Pure flex child — no absolute positioning,
+            // no stacking-context fights with backdrop-filter.
+            const resizeBar = document.createElement("div");
+            resizeBar.className = "ebc-resize-bar";
+            resizeBar.title = "Drag to resize · Double-click to reset";
             const EBC_HEIGHT_KEY = "EBC_panelHeight";
             panel.appendChild(header);
             panel.appendChild(tabBar);
@@ -6484,6 +6485,7 @@
             panel.appendChild(safewordRow);
             panel.appendChild(body);
             panel.appendChild(footer);
+            panel.appendChild(resizeBar);
             slideContainer.appendChild(panel);
             root.appendChild(slideContainer);
             // Restore saved height
@@ -6496,7 +6498,7 @@
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
-            addPointerDown(footer, (start, e) => {
+            addPointerDown(resizeBar, (start, e) => {
                 var _a, _b, _c, _d;
                 e.preventDefault();
                 e.stopPropagation();
@@ -6505,7 +6507,7 @@
                     ? ((_d = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.getBoundingClientRect().height) !== null && _d !== void 0 ? _d : 400)
                     : styleH;
                 const startY = start.clientY;
-                footer.classList.add("ebc-resizing");
+                resizeBar.classList.add("ebc-resizing");
                 addPointerTracking((pos) => {
                     if (!this.rootEl)
                         return;
@@ -6513,7 +6515,7 @@
                     this.userPanelHeight = newH;
                     this.rootEl.style.height = `${newH}px`;
                 }, () => {
-                    footer.classList.remove("ebc-resizing");
+                    resizeBar.classList.remove("ebc-resizing");
                     try {
                         if (this.userPanelHeight !== null)
                             localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight));
@@ -6522,7 +6524,7 @@
                 });
             });
             // Double-click resets height to auto (follow chat log size)
-            footer.addEventListener("dblclick", () => {
+            resizeBar.addEventListener("dblclick", () => {
                 this.userPanelHeight = null;
                 try {
                     localStorage.removeItem(EBC_HEIGHT_KEY);
@@ -14418,14 +14420,13 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.13";
+    const MOD_VERSION = "1.3.14";
     let noticeShown = false;
     const CHANGELOG = [
         {
-            version: "1.3.13",
+            version: "1.3.14",
             changes: [
-                "Fix: accordion category headers are now properly collapsible — clicking the currently expanded category header collapses it; clicking it again re-expands it.",
-                "Fix: panel resize now reliably works via the footer bar (version text strip at the bottom of the panel); drag up/down to resize, double-click to reset.",
+                "Resize rework: the resize grip is now a dedicated thin strip at the very bottom of the panel (below the version credit line), completely separate from the footer text. It's a normal flex child — no absolute positioning, no stacking-context issues. Drag it up/down to resize; double-click to reset to auto height.",
             ],
         },
         {
