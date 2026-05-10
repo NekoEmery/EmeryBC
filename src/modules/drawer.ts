@@ -311,6 +311,32 @@ const CSS = `
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
+.ebc-resize-handle {
+    flex-shrink: 0;
+    height: 8px;
+    cursor: ns-resize;
+    background: linear-gradient(to bottom, #2a0e1e, #3d1828);
+    border-top: 1px solid #4c2537;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    touch-action: none;
+}
+.ebc-resize-handle::before {
+    content: "";
+    display: block;
+    width: 32px;
+    height: 3px;
+    border-radius: 2px;
+    background: #6b3050;
+    opacity: 0.7;
+}
+.ebc-resize-handle:hover::before {
+    background: #cf6f98;
+    opacity: 1;
+}
+
 /* -- Header -- */
 .ebc-header {
     display: flex;
@@ -2371,6 +2397,8 @@ export class EBCDrawer {
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
     private resetLocationBtn: HTMLElement | null = null;
+    // User-dragged panel height override. null = match chat log height.
+    private userPanelHeight: number | null = null;
     // DEV tab auto-refresh poller
     private devLogPoller: ReturnType<typeof window.setInterval> | null = null;
 
@@ -2461,51 +2489,6 @@ export class EBCDrawer {
         closeBtn.title = "Close";
         closeBtn.textContent = "X";
 
-        // UI scale controls — A- / A+, stored in localStorage
-        const EBC_SCALE_KEY = "EBC_uiScale";
-        const SCALES = [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3];
-        const getScale = (): number => {
-            try { const v = parseFloat(localStorage.getItem(EBC_SCALE_KEY) ?? ""); return isNaN(v) ? 1.0 : v; } catch { return 1.0; }
-        };
-        const applyScale = (s: number): void => {
-            try {
-                localStorage.setItem(EBC_SCALE_KEY, String(s));
-                const p = this.panelEl;
-                if (p) {
-                    p.style.transformOrigin = "top right";
-                    p.style.transform = s === 1.0 ? "" : `scale(${s})`;
-                }
-            } catch { /* ignore */ }
-        };
-        // Apply saved scale immediately
-        applyScale(getScale());
-
-        const scaleDownBtn = document.createElement("button");
-        scaleDownBtn.className = "ebc-icon-btn";
-        scaleDownBtn.title = "Decrease UI size";
-        scaleDownBtn.textContent = "A-";
-        scaleDownBtn.style.fontSize = "9px";
-        scaleDownBtn.addEventListener("click", () => {
-            const cur = getScale();
-            const idx = SCALES.indexOf(cur);
-            const next = idx > 0 ? SCALES[idx - 1] : SCALES[0];
-            applyScale(next);
-        });
-
-        const scaleUpBtn = document.createElement("button");
-        scaleUpBtn.className = "ebc-icon-btn";
-        scaleUpBtn.title = "Increase UI size";
-        scaleUpBtn.textContent = "A+";
-        scaleUpBtn.style.fontSize = "9px";
-        scaleUpBtn.addEventListener("click", () => {
-            const cur = getScale();
-            const idx = SCALES.indexOf(cur);
-            const next = idx < SCALES.length - 1 ? SCALES[idx + 1] : SCALES[SCALES.length - 1];
-            applyScale(next);
-        });
-
-        headerBtns.appendChild(scaleDownBtn);
-        headerBtns.appendChild(scaleUpBtn);
         headerBtns.appendChild(refreshBtn);
         headerBtns.appendChild(moveHandle);
         headerBtns.appendChild(resetLocBtn);
@@ -3133,6 +3116,41 @@ export class EBCDrawer {
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
 
+        // Bottom resize handle — drag vertically to change panel height
+        const EBC_HEIGHT_KEY = "EBC_panelHeight";
+        const resizeHandle = document.createElement("div");
+        resizeHandle.className = "ebc-resize-handle";
+        resizeHandle.title = "Drag to resize";
+
+        addPointerDown(resizeHandle, (start, e) => {
+            e.preventDefault();
+            const startY    = start.clientY;
+            const startH    = this.rootEl ? this.rootEl.getBoundingClientRect().height : 400;
+            addPointerTracking(
+                (pos) => {
+                    if (!this.rootEl) return;
+                    const dy      = pos.clientY - startY;
+                    const newH    = Math.max(150, Math.min(window.innerHeight - 16, startH + dy));
+                    this.userPanelHeight = newH;
+                    this.rootEl.style.height = `${newH}px`;
+                },
+                () => {
+                    if (this.userPanelHeight !== null) {
+                        try { localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight)); } catch { /* ignore */ }
+                    }
+                },
+            );
+        });
+
+        // Restore saved height
+        try {
+            const saved = localStorage.getItem(EBC_HEIGHT_KEY);
+            if (saved !== null) {
+                const h = parseFloat(saved);
+                if (!isNaN(h) && h >= 150) this.userPanelHeight = h;
+            }
+        } catch { /* ignore */ }
+
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(quickActions);
@@ -3141,6 +3159,7 @@ export class EBCDrawer {
         panel.appendChild(safewordRow);
         panel.appendChild(body);
         panel.appendChild(footer);
+        panel.appendChild(resizeHandle);
         slideContainer.appendChild(panel);
         root.appendChild(slideContainer);
 
@@ -3269,10 +3288,14 @@ export class EBCDrawer {
         ) {
             // Cap height so the panel never extends below the visible viewport.
             const maxH = Math.max(100, window.innerHeight - rect.top - 8);
-            const panelH = Math.min(rect.height, maxH);
+            const autoH = Math.min(rect.height, maxH);
+            // Respect user-dragged height — clamp to maxH so it never goes off-screen.
+            const finalH = this.userPanelHeight !== null
+                ? Math.min(this.userPanelHeight, maxH)
+                : autoH;
             this.rootEl.style.top    = `${rect.top}px`;
             this.rootEl.style.right  = `${rightOffset}px`;
-            this.rootEl.style.height = `${panelH}px`;
+            this.rootEl.style.height = `${finalH}px`;
             this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
             this.positioned = true;
             // Chat log moved — force a fresh CRABS position read next tick

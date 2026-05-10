@@ -338,9 +338,9 @@ let sidebarCollapsed = false;
 
 // Category chip — sits between the collapse toggle and the buttons
 const CAT_CHIP_Y = CHIP_Y + CHIP_H + 4;
-const CAT_CHIP_H = 22;
+const CAT_CHIP_H = 30;
 // Prev/next arrows flanking the category name
-const CAT_ARR_W  = 16;
+const CAT_ARR_W  = 22;
 
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
