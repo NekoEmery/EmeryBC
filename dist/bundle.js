@@ -3635,39 +3635,40 @@
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
-/* Resize bar — dedicated thin strip at the very bottom of the panel flex column.
-   Simple flex child: no absolute positioning, no z-index fights, always receives
-   pointer events because it's just a normal child of .ebc-panel. */
+/* Resize grip — sits at the very bottom of the panel flex column.
+   Deliberately tall and visually distinct so users can find and grab it.
+   The ::before three-line indicator is visible at rest, not just on hover. */
 .ebc-resize-bar {
     flex-shrink: 0;
-    height: 8px;
-    cursor: ns-resize;
+    height: 22px;
+    cursor: row-resize;
     user-select: none;
     touch-action: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    background: #120910;
+    border-top: 1px solid #2a1421;
     transition: background 0.15s;
+    pointer-events: auto;
 }
-/* Three-line grip indicator */
 .ebc-resize-bar::before {
     content: "";
     display: block;
-    width: 30px;
-    height: 1.5px;
+    width: 40px;
+    height: 2px;
     border-radius: 2px;
-    background: #3a1928;
-    box-shadow: 0 -3px 0 #3a1928, 0 3px 0 #3a1928;
+    background: #5a3048;
+    box-shadow: 0 -5px 0 #5a3048, 0 5px 0 #5a3048;
     transition: background 0.15s, box-shadow 0.15s;
 }
-.ebc-resize-bar:hover { background: rgba(207, 111, 152, 0.07); }
+.ebc-resize-bar:hover,
+.ebc-resize-bar.ebc-resizing { background: #1e0c18; }
 .ebc-resize-bar:hover::before,
 .ebc-resize-bar.ebc-resizing::before {
     background: #cf6f98;
-    box-shadow: 0 -3px 0 #cf6f98, 0 3px 0 #cf6f98;
+    box-shadow: 0 -5px 0 #cf6f98, 0 5px 0 #cf6f98;
 }
-.ebc-resize-bar.ebc-resizing { background: rgba(207, 111, 152, 0.12); }
 
 /* Catch-all hover brightening for any button that lacks its own :hover rule */
 .ebc-panel button:not([disabled]) {
@@ -6488,7 +6489,7 @@
             panel.appendChild(resizeBar);
             slideContainer.appendChild(panel);
             root.appendChild(slideContainer);
-            // Restore saved height
+            // Restore saved height — applied to panelEl on next syncToChat()
             try {
                 const savedH = localStorage.getItem(EBC_HEIGHT_KEY);
                 if (savedH !== null) {
@@ -6499,21 +6500,25 @@
             }
             catch ( /* ignore */_b) { /* ignore */ }
             addPointerDown(resizeBar, (start, e) => {
-                var _a, _b, _c, _d;
+                var _a, _b, _c;
                 e.preventDefault();
                 e.stopPropagation();
-                const styleH = parseFloat((_b = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.style.height) !== null && _b !== void 0 ? _b : "");
-                const startH = (isNaN(styleH) || styleH < 1)
-                    ? ((_d = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.getBoundingClientRect().height) !== null && _d !== void 0 ? _d : 400)
-                    : styleH;
+                // Read the current visual height from the slide container directly —
+                // more reliable than rootEl since rootEl has width:0 and some browsers
+                // don't propagate containing-block height from zero-width fixed elements.
+                const panelEl = this.panelEl;
+                const currentH = (_c = (_a = panelEl === null || panelEl === void 0 ? void 0 : panelEl.getBoundingClientRect().height) !== null && _a !== void 0 ? _a : (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.getBoundingClientRect().height) !== null && _c !== void 0 ? _c : 400;
+                const startH = currentH;
                 const startY = start.clientY;
                 resizeBar.classList.add("ebc-resizing");
                 addPointerTracking((pos) => {
-                    if (!this.rootEl)
-                        return;
                     const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (pos.clientY - startY)));
                     this.userPanelHeight = newH;
-                    this.rootEl.style.height = `${newH}px`;
+                    // Set on both the visual container and the rootEl anchor
+                    if (panelEl)
+                        panelEl.style.height = `${newH}px`;
+                    if (this.rootEl)
+                        this.rootEl.style.height = `${newH}px`;
                 }, () => {
                     resizeBar.classList.remove("ebc-resizing");
                     try {
@@ -6526,6 +6531,8 @@
             // Double-click resets height to auto (follow chat log size)
             resizeBar.addEventListener("dblclick", () => {
                 this.userPanelHeight = null;
+                if (this.panelEl)
+                    this.panelEl.style.height = "";
                 try {
                     localStorage.removeItem(EBC_HEIGHT_KEY);
                 }
@@ -6657,6 +6664,10 @@
                 this.rootEl.style.top = `${rect.top}px`;
                 this.rootEl.style.right = `${rightOffset}px`;
                 this.rootEl.style.height = `${finalH}px`;
+                // Also set directly on the slide container — more reliable than relying on
+                // height:100% propagation from a zero-width fixed rootEl.
+                if (this.panelEl)
+                    this.panelEl.style.height = `${finalH}px`;
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
                 // Chat log moved — force a fresh CRABS position read next tick
@@ -14479,9 +14490,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.15";
+    const MOD_VERSION = "1.3.16";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.16",
+            changes: [
+                "Resize grip rework: replaced the tiny invisible 8px strip with a clearly visible 22px drag bar at the panel bottom. The three-line grip indicator is visible at rest and turns pink on hover. Drag up/down to resize; double-click to reset to auto height.",
+                "Resize reliability fix: panel height is now set directly on the slide container element rather than relying on height:100% propagation from the zero-width root anchor — fixes browsers where that chain didn't reflow correctly.",
+            ],
+        },
         {
             version: "1.3.15",
             changes: [

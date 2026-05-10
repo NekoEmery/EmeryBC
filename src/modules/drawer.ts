@@ -311,39 +311,40 @@ const CSS = `
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
-/* Resize bar — dedicated thin strip at the very bottom of the panel flex column.
-   Simple flex child: no absolute positioning, no z-index fights, always receives
-   pointer events because it's just a normal child of .ebc-panel. */
+/* Resize grip — sits at the very bottom of the panel flex column.
+   Deliberately tall and visually distinct so users can find and grab it.
+   The ::before three-line indicator is visible at rest, not just on hover. */
 .ebc-resize-bar {
     flex-shrink: 0;
-    height: 8px;
-    cursor: ns-resize;
+    height: 22px;
+    cursor: row-resize;
     user-select: none;
     touch-action: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    background: #120910;
+    border-top: 1px solid #2a1421;
     transition: background 0.15s;
+    pointer-events: auto;
 }
-/* Three-line grip indicator */
 .ebc-resize-bar::before {
     content: "";
     display: block;
-    width: 30px;
-    height: 1.5px;
+    width: 40px;
+    height: 2px;
     border-radius: 2px;
-    background: #3a1928;
-    box-shadow: 0 -3px 0 #3a1928, 0 3px 0 #3a1928;
+    background: #5a3048;
+    box-shadow: 0 -5px 0 #5a3048, 0 5px 0 #5a3048;
     transition: background 0.15s, box-shadow 0.15s;
 }
-.ebc-resize-bar:hover { background: rgba(207, 111, 152, 0.07); }
+.ebc-resize-bar:hover,
+.ebc-resize-bar.ebc-resizing { background: #1e0c18; }
 .ebc-resize-bar:hover::before,
 .ebc-resize-bar.ebc-resizing::before {
     background: #cf6f98;
-    box-shadow: 0 -3px 0 #cf6f98, 0 3px 0 #cf6f98;
+    box-shadow: 0 -5px 0 #cf6f98, 0 5px 0 #cf6f98;
 }
-.ebc-resize-bar.ebc-resizing { background: rgba(207, 111, 152, 0.12); }
 
 /* Catch-all hover brightening for any button that lacks its own :hover rule */
 .ebc-panel button:not([disabled]) {
@@ -3264,7 +3265,7 @@ export class EBCDrawer {
         slideContainer.appendChild(panel);
         root.appendChild(slideContainer);
 
-        // Restore saved height
+        // Restore saved height — applied to panelEl on next syncToChat()
         try {
             const savedH = localStorage.getItem(EBC_HEIGHT_KEY);
             if (savedH !== null) { const h = parseFloat(savedH); if (!isNaN(h) && h >= 180) this.userPanelHeight = h; }
@@ -3273,18 +3274,23 @@ export class EBCDrawer {
         addPointerDown(resizeBar, (start, e) => {
             e.preventDefault();
             e.stopPropagation();
-            const styleH = parseFloat(this.rootEl?.style.height ?? "");
-            const startH = (isNaN(styleH) || styleH < 1)
-                ? (this.rootEl?.getBoundingClientRect().height ?? 400)
-                : styleH;
+            // Read the current visual height from the slide container directly —
+            // more reliable than rootEl since rootEl has width:0 and some browsers
+            // don't propagate containing-block height from zero-width fixed elements.
+            const panelEl = this.panelEl as HTMLElement | null;
+            const currentH = panelEl?.getBoundingClientRect().height
+                ?? this.rootEl?.getBoundingClientRect().height
+                ?? 400;
+            const startH = currentH;
             const startY = start.clientY;
             resizeBar.classList.add("ebc-resizing");
             addPointerTracking(
                 (pos) => {
-                    if (!this.rootEl) return;
                     const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (pos.clientY - startY)));
                     this.userPanelHeight = newH;
-                    this.rootEl.style.height = `${newH}px`;
+                    // Set on both the visual container and the rootEl anchor
+                    if (panelEl) panelEl.style.height = `${newH}px`;
+                    if (this.rootEl) this.rootEl.style.height = `${newH}px`;
                 },
                 () => {
                     resizeBar.classList.remove("ebc-resizing");
@@ -3299,6 +3305,7 @@ export class EBCDrawer {
         // Double-click resets height to auto (follow chat log size)
         resizeBar.addEventListener("dblclick", () => {
             this.userPanelHeight = null;
+            if (this.panelEl) (this.panelEl as HTMLElement).style.height = "";
             try { localStorage.removeItem(EBC_HEIGHT_KEY); } catch { /* ignore */ }
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.syncToChat();
@@ -3437,6 +3444,9 @@ export class EBCDrawer {
             this.rootEl.style.top    = `${rect.top}px`;
             this.rootEl.style.right  = `${rightOffset}px`;
             this.rootEl.style.height = `${finalH}px`;
+            // Also set directly on the slide container — more reliable than relying on
+            // height:100% propagation from a zero-width fixed rootEl.
+            if (this.panelEl) (this.panelEl as HTMLElement).style.height = `${finalH}px`;
             this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
             this.positioned = true;
             // Chat log moved — force a fresh CRABS position read next tick

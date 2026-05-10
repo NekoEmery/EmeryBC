@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.15";
+const MOD_VERSION = "1.3.16";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.16",
+        changes: [
+            "Resize grip rework: replaced the tiny invisible 8px strip with a clearly visible 22px drag bar at the panel bottom. The three-line grip indicator is visible at rest and turns pink on hover. Drag up/down to resize; double-click to reset to auto height.",
+            "Resize reliability fix: panel height is now set directly on the slide container element rather than relying on height:100% propagation from the zero-width root anchor — fixes browsers where that chain didn't reflow correctly.",
+        ],
+    },
     {
         version: "1.3.15",
         changes: [
