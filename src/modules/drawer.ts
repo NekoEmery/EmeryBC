@@ -9709,7 +9709,7 @@ export class EBCDrawer {
                         const lsEl = document.createElement("span");
                         lsEl.textContent = formatLastSeen(lsTs);
                         lsEl.title = `Last seen: ${new Date(lsTs).toLocaleString()}`;
-                        lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4a2838;flex-shrink:0;margin-left:auto;";
+                        lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a06878;flex-shrink:0;margin-left:auto;";
                         row.appendChild(lsEl);
                     }
                 }

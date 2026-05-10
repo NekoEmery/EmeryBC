@@ -12993,7 +12993,7 @@
                             const lsEl = document.createElement("span");
                             lsEl.textContent = formatLastSeen(lsTs);
                             lsEl.title = `Last seen: ${new Date(lsTs).toLocaleString()}`;
-                            lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4a2838;flex-shrink:0;margin-left:auto;";
+                            lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a06878;flex-shrink:0;margin-left:auto;";
                             row.appendChild(lsEl);
                         }
                     }
@@ -15115,7 +15115,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.26";
+    const MOD_VERSION = "1.4.0";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -15124,11 +15124,12 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
         {
-            version: "1.3.26",
+            version: "1.4.0",
             changes: [
-                "Room visit history: LOG tab tracks the last 15 rooms you visited — name, space, entry/exit times, who was in the room, and who joined while you were there.",
+                "Room visit history: new LOG tab tracks the last 15 rooms you visited — name, space, entry/exit times, who was in the room on entry, and who joined while you were there. Click any room card to expand the member lists.",
                 "Restraint log: LOG tab also records every restraint applied to you — item name, slot, who put it on, when, and how long it was worn. Stored in localStorage; clear button available.",
                 "AFK auto-reply: configurable in the USERS tab — enable, set an idle threshold (minutes), and write a custom message. EBC auto-replies to incoming beeps when you've been inactive longer than the threshold. Each sender has a 30-minute cooldown so they're never spammed.",
+                "Fix: offline friend 'last seen' timestamp is now clearly readable (brighter colour, larger text).",
             ],
         },
         {
