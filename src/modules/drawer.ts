@@ -6786,18 +6786,6 @@ export class EBCDrawer {
         funLbl.textContent = "Fun Actions";
         body.appendChild(funLbl);
 
-        const oocBtn = document.createElement("button");
-        oocBtn.className = "ebc-create-btn";
-        oocBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        const refreshOoc = (): void => {
-            const on = getOocEnabled();
-            oocBtn.textContent = on ? "( OOC Mode: ON  —  click to turn off" : "( OOC Mode: OFF  —  click to turn on";
-            oocBtn.style.opacity = on ? "1" : "0.6";
-        };
-        refreshOoc();
-        oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
-        body.appendChild(oocBtn);
-
         const boopBtn = document.createElement("button");
         boopBtn.className = "ebc-create-btn";
         boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
@@ -6820,6 +6808,18 @@ export class EBCDrawer {
         usefulLbl.style.marginTop = "10px";
         usefulLbl.textContent = "Useful Buttons";
         body.appendChild(usefulLbl);
+
+        const oocBtn = document.createElement("button");
+        oocBtn.className = "ebc-create-btn";
+        oocBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        const refreshOoc = (): void => {
+            const on = getOocEnabled();
+            oocBtn.textContent = on ? "( OOC Mode: ON  —  click to turn off" : "( OOC Mode: OFF  —  click to turn on";
+            oocBtn.style.opacity = on ? "1" : "0.6";
+        };
+        refreshOoc();
+        oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
+        body.appendChild(oocBtn);
 
         const copyMemberBtn = document.createElement("button");
         copyMemberBtn.className = "ebc-create-btn";
