@@ -10485,22 +10485,22 @@
             const copyMemberBtn = document.createElement("button");
             copyMemberBtn.className = "ebc-create-btn";
             copyMemberBtn.style.cssText = "margin:4px 0 0; width:100%;";
-            copyMemberBtn.textContent = "📋 Copy My Member Number";
+            copyMemberBtn.textContent = "Copy My Member Number";
             copyMemberBtn.addEventListener("click", () => {
                 try {
                     navigator.clipboard.writeText(String(Player.MemberNumber));
-                    copyMemberBtn.textContent = "✓ Copied!";
+                    copyMemberBtn.textContent = "Copied!";
                 }
                 catch (_a) {
                     copyMemberBtn.textContent = `#${Player.MemberNumber}`;
                 }
-                window.setTimeout(() => { copyMemberBtn.textContent = "📋 Copy My Member Number"; }, 2000);
+                window.setTimeout(() => { copyMemberBtn.textContent = "Copy My Member Number"; }, 2000);
             });
             body.appendChild(copyMemberBtn);
             const clearPoseBtn = document.createElement("button");
             clearPoseBtn.className = "ebc-create-btn";
             clearPoseBtn.style.cssText = "margin:4px 0 0; width:100%;";
-            clearPoseBtn.textContent = "🧍 Reset to Default Pose";
+            clearPoseBtn.textContent = "Reset to Default Pose";
             clearPoseBtn.title = "Clears all active poses back to standing";
             clearPoseBtn.addEventListener("click", () => {
                 try {
