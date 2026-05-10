@@ -13737,56 +13737,73 @@
                             c.appendChild(hint);
                             return;
                         }
-                        // Room name + time
+                        // Room name + space tag
                         const nameRow = document.createElement("div");
-                        nameRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:2px;";
+                        nameRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:2px;";
                         const nameEl = document.createElement("span");
-                        nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;color:#ffe8f5;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                         nameEl.textContent = visit.name;
                         nameRow.appendChild(nameEl);
                         if (visit.space) {
                             const sp = document.createElement("span");
-                            sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                            sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
                             sp.textContent = visit.space;
                             nameRow.appendChild(sp);
                         }
                         c.appendChild(nameRow);
                         const timeEl = document.createElement("div");
-                        timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-bottom:6px;";
+                        timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;margin-bottom:8px;";
                         timeEl.textContent = `Entered ${fmtTs(visit.enteredAt)}`;
                         c.appendChild(timeEl);
                         // Members on entry
                         if (visit.members.length > 0) {
                             const mLbl = document.createElement("div");
-                            mLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
+                            mLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
                             mLbl.textContent = `On entry (${visit.members.length})`;
                             c.appendChild(mLbl);
-                            const mList = document.createElement("div");
-                            mList.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.7;margin-bottom:6px;";
-                            mList.textContent = visit.members.map(m => `${m.name} #${m.memberNumber}`).join(", ");
-                            c.appendChild(mList);
+                            for (const m of visit.members) {
+                                const mr = document.createElement("div");
+                                mr.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 0;border-bottom:1px solid #2a1421;";
+                                const mn = document.createElement("span");
+                                mn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
+                                mn.textContent = m.name;
+                                const mid = document.createElement("span");
+                                mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;flex-shrink:0;";
+                                mid.textContent = `#${m.memberNumber}`;
+                                mr.appendChild(mn);
+                                mr.appendChild(mid);
+                                c.appendChild(mr);
+                            }
+                            const spacer = document.createElement("div");
+                            spacer.style.height = "8px";
+                            c.appendChild(spacer);
                         }
                         // People who joined after
                         const jLbl = document.createElement("div");
-                        jLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
+                        jLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-bottom:4px;";
                         jLbl.textContent = `Joined after you (${visit.joins.length})`;
                         c.appendChild(jLbl);
                         if (visit.joins.length === 0) {
                             const none = document.createElement("div");
-                            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4a3040;font-style:italic;";
+                            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;font-style:italic;";
                             none.textContent = "Nobody yet.";
                             c.appendChild(none);
                         }
                         else {
                             for (const j of visit.joins) {
                                 const row = document.createElement("div");
-                                row.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;padding:1px 0;";
+                                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #2a1421;";
                                 const jn = document.createElement("span");
-                                jn.textContent = `${j.name} #${j.memberNumber}`;
+                                jn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
+                                jn.textContent = j.name;
+                                const jid = document.createElement("span");
+                                jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;";
+                                jid.textContent = `#${j.memberNumber}`;
                                 const jt = document.createElement("span");
-                                jt.style.color = "#7a5a6a";
+                                jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;flex-shrink:0;";
                                 jt.textContent = fmtTs(j.at);
                                 row.appendChild(jn);
+                                row.appendChild(jid);
                                 row.appendChild(jt);
                                 c.appendChild(row);
                             }
@@ -13847,32 +13864,32 @@
                         }
                         for (const visit of visits) {
                             const card = document.createElement("div");
-                            card.style.cssText = "background:rgba(20,8,16,0.7);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;margin-bottom:4px;";
+                            card.style.cssText = "background:rgba(25,10,20,0.85);border:1px solid #3a1928;border-radius:6px;padding:7px 9px;margin-bottom:6px;";
                             const hRow = document.createElement("div");
-                            hRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:2px;";
+                            hRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:2px;";
                             const nameEl = document.createElement("span");
-                            nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                            nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;color:#ffe8f5;font-weight:bold;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                             nameEl.textContent = visit.name;
                             hRow.appendChild(nameEl);
                             if (visit.space) {
                                 const sp = document.createElement("span");
-                                sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                                sp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
                                 sp.textContent = visit.space;
                                 hRow.appendChild(sp);
                             }
                             card.appendChild(hRow);
                             const timeRow = document.createElement("div");
-                            timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;margin-bottom:3px;";
+                            timeRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;margin-bottom:4px;";
                             timeRow.textContent = `${fmtTs(visit.enteredAt)}  ·  ${visit.leftAt ? fmtDuration(visit.leftAt - visit.enteredAt) : "in progress"}`;
                             card.appendChild(timeRow);
                             const summary = document.createElement("div");
-                            summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;cursor:pointer;";
+                            summary.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;cursor:pointer;user-select:none;";
                             const detail = document.createElement("div");
                             detail.style.display = "none";
-                            detail.style.marginTop = "4px";
+                            detail.style.marginTop = "6px";
                             let expanded = false;
                             const updateSum = () => {
-                                summary.textContent = `${visit.members.length} on entry · ${visit.joins.length} joined ${expanded ? "▲" : "▼"}`;
+                                summary.textContent = `${visit.members.length} on entry · ${visit.joins.length} joined  ${expanded ? "▲" : "▼"}`;
                             };
                             updateSum();
                             summary.addEventListener("click", () => {
@@ -13883,28 +13900,42 @@
                                         detail.removeChild(detail.firstChild);
                                     if (visit.members.length > 0) {
                                         const mh = document.createElement("div");
-                                        mh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-bottom:2px;";
+                                        mh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-bottom:3px;";
                                         mh.textContent = "On entry:";
                                         detail.appendChild(mh);
-                                        const ml = document.createElement("div");
-                                        ml.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.6;";
-                                        ml.textContent = visit.members.map(m => `${m.name} #${m.memberNumber}`).join(", ");
-                                        detail.appendChild(ml);
+                                        for (const m of visit.members) {
+                                            const mr = document.createElement("div");
+                                            mr.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 0;border-bottom:1px solid #2a1421;";
+                                            const mn = document.createElement("span");
+                                            mn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
+                                            mn.textContent = m.name;
+                                            const mid = document.createElement("span");
+                                            mid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;flex-shrink:0;";
+                                            mid.textContent = `#${m.memberNumber}`;
+                                            mr.appendChild(mn);
+                                            mr.appendChild(mid);
+                                            detail.appendChild(mr);
+                                        }
                                     }
                                     if (visit.joins.length > 0) {
                                         const jh = document.createElement("div");
-                                        jh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5060;font-weight:bold;margin-top:4px;margin-bottom:2px;";
+                                        jh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;font-weight:bold;margin-top:6px;margin-bottom:3px;";
                                         jh.textContent = "Joined after:";
                                         detail.appendChild(jh);
                                         for (const j of visit.joins) {
                                             const jr = document.createElement("div");
-                                            jr.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;";
+                                            jr.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 0;border-bottom:1px solid #2a1421;";
                                             const jn = document.createElement("span");
-                                            jn.textContent = `${j.name} #${j.memberNumber}`;
+                                            jn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;";
+                                            jn.textContent = j.name;
+                                            const jid = document.createElement("span");
+                                            jid.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;";
+                                            jid.textContent = `#${j.memberNumber}`;
                                             const jt = document.createElement("span");
-                                            jt.style.color = "#7a5a6a";
+                                            jt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#b899a8;flex-shrink:0;";
                                             jt.textContent = fmtTs(j.at);
                                             jr.appendChild(jn);
+                                            jr.appendChild(jid);
                                             jr.appendChild(jt);
                                             detail.appendChild(jr);
                                         }
