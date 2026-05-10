@@ -311,30 +311,31 @@ const CSS = `
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
 }
 
-.ebc-resize-handle {
-    flex-shrink: 0;
-    height: 8px;
-    cursor: ns-resize;
-    background: linear-gradient(to bottom, #2a0e1e, #3d1828);
-    border-top: 1px solid #4c2537;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.ebc-corner-grip {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 22px;
+    height: 22px;
+    cursor: nesw-resize;
+    z-index: 200;
     user-select: none;
     touch-action: none;
 }
-.ebc-resize-handle::before {
+.ebc-corner-grip::before {
     content: "";
-    display: block;
-    width: 32px;
-    height: 3px;
-    border-radius: 2px;
-    background: #6b3050;
-    opacity: 0.7;
+    position: absolute;
+    bottom: 3px;
+    left: 3px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 0 14px 14px;
+    border-color: transparent transparent #6b3050 transparent;
+    transition: border-color 0.15s;
 }
-.ebc-resize-handle:hover::before {
-    background: #cf6f98;
-    opacity: 1;
+.ebc-corner-grip:hover::before {
+    border-color: transparent transparent #cf6f98 transparent;
 }
 
 /* -- Header -- */
@@ -2397,8 +2398,9 @@ export class EBCDrawer {
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
     private resetLocationBtn: HTMLElement | null = null;
-    // User-dragged panel height override. null = match chat log height.
+    // User-dragged panel size overrides. null = use defaults.
     private userPanelHeight: number | null = null;
+    private userPanelWidth:  number | null = null;
     // DEV tab auto-refresh poller
     private devLogPoller: ReturnType<typeof window.setInterval> | null = null;
 
@@ -3116,41 +3118,6 @@ export class EBCDrawer {
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
 
-        // Bottom resize handle — drag vertically to change panel height
-        const EBC_HEIGHT_KEY = "EBC_panelHeight";
-        const resizeHandle = document.createElement("div");
-        resizeHandle.className = "ebc-resize-handle";
-        resizeHandle.title = "Drag to resize";
-
-        addPointerDown(resizeHandle, (start, e) => {
-            e.preventDefault();
-            const startY    = start.clientY;
-            const startH    = this.rootEl ? this.rootEl.getBoundingClientRect().height : 400;
-            addPointerTracking(
-                (pos) => {
-                    if (!this.rootEl) return;
-                    const dy      = pos.clientY - startY;
-                    const newH    = Math.max(150, Math.min(window.innerHeight - 16, startH + dy));
-                    this.userPanelHeight = newH;
-                    this.rootEl.style.height = `${newH}px`;
-                },
-                () => {
-                    if (this.userPanelHeight !== null) {
-                        try { localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight)); } catch { /* ignore */ }
-                    }
-                },
-            );
-        });
-
-        // Restore saved height
-        try {
-            const saved = localStorage.getItem(EBC_HEIGHT_KEY);
-            if (saved !== null) {
-                const h = parseFloat(saved);
-                if (!isNaN(h) && h >= 150) this.userPanelHeight = h;
-            }
-        } catch { /* ignore */ }
-
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(quickActions);
@@ -3159,9 +3126,54 @@ export class EBCDrawer {
         panel.appendChild(safewordRow);
         panel.appendChild(body);
         panel.appendChild(footer);
-        panel.appendChild(resizeHandle);
         slideContainer.appendChild(panel);
         root.appendChild(slideContainer);
+
+        // Corner resize grip — position:absolute on slideContainer, bottom-left corner.
+        // Dragging resizes width (left/right) and height (up/down).
+        const EBC_HEIGHT_KEY = "EBC_panelHeight";
+        const EBC_WIDTH_KEY  = "EBC_panelWidth";
+
+        const cornerGrip = document.createElement("div");
+        cornerGrip.className = "ebc-corner-grip";
+        cornerGrip.title = "Drag to resize";
+        slideContainer.appendChild(cornerGrip);
+
+        // Restore saved size
+        try {
+            const savedH = localStorage.getItem(EBC_HEIGHT_KEY);
+            if (savedH !== null) { const h = parseFloat(savedH); if (!isNaN(h) && h >= 150) this.userPanelHeight = h; }
+        } catch { /* ignore */ }
+        try {
+            const savedW = localStorage.getItem(EBC_WIDTH_KEY);
+            if (savedW !== null) { const w = parseFloat(savedW); if (!isNaN(w) && w >= 200) this.userPanelWidth = w; }
+        } catch { /* ignore */ }
+        if (this.userPanelWidth !== null) slideContainer.style.width = `${this.userPanelWidth}px`;
+
+        addPointerDown(cornerGrip, (start, e) => {
+            e.preventDefault();
+            const startX  = start.clientX;
+            const startY  = start.clientY;
+            const startH  = this.rootEl         ? this.rootEl.getBoundingClientRect().height         : 400;
+            const startW  = this.panelEl        ? this.panelEl.getBoundingClientRect().width          : 360;
+            addPointerTracking(
+                (pos) => {
+                    const dx = pos.clientX - startX;
+                    const dy = pos.clientY - startY;
+                    // Panel is right-anchored: dragging left widens, dragging right narrows.
+                    const newW = Math.max(200, Math.min(window.innerWidth - 60, startW - dx));
+                    const newH = Math.max(150, Math.min(window.innerHeight - 16, startH + dy));
+                    this.userPanelWidth  = newW;
+                    this.userPanelHeight = newH;
+                    if (this.panelEl) this.panelEl.style.width  = `${newW}px`;
+                    if (this.rootEl)  this.rootEl.style.height  = `${newH}px`;
+                },
+                () => {
+                    try { if (this.userPanelHeight !== null) localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight)); } catch { /* ignore */ }
+                    try { if (this.userPanelWidth  !== null) localStorage.setItem(EBC_WIDTH_KEY,  String(this.userPanelWidth));  } catch { /* ignore */ }
+                },
+            );
+        });
 
         document.body.appendChild(root);
         this.rootEl  = root;
