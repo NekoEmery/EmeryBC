@@ -1,5 +1,7 @@
 // Expression presets and sequences — live expression picker + animated sequences.
 
+import { callBC } from "./bcUtils";
+
 export const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"] as const;
 export type ExprGroup = typeof EXPR_GROUPS[number];
 
@@ -97,9 +99,9 @@ export function applyExprGroup(group: string, exprName: string | null): void {
                 if (asset) Player.Appearance.push({ Asset: asset, Color: "Default", Difficulty: 0 } as Item);
             }
         }
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
     } catch { /* ignore */ }
 }
 

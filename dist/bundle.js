@@ -26,6 +26,23 @@
         swatchBorder: "#f8dce8",
     };
 
+    /**
+     * Call a BC function, swallowing both synchronous throws AND async rejections.
+     *
+     * In BC R127+ any function can be hooked by a mod with an async wrapper.
+     * If that async wrapper rejects, the caller gets an unhandled Promise rejection
+     * because normal try/catch only covers synchronous throws.
+     * Wrapping with this helper catches both paths.
+     */
+    function callBC(fn) {
+        try {
+            const r = fn();
+            if (r && typeof r.catch === "function")
+                r.catch(() => { });
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+
     // Action buttons drawn in the chatroom sidebar below BCAR's buttons.
     const DEFAULT_BUTTONS = [
         { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
@@ -164,10 +181,7 @@
             }
         }
         catch (_) { }
-        try {
-            CharacterRefresh(Player, false, false);
-        }
-        catch (_) { }
+        callBC(() => CharacterRefresh(Player, false, false));
     }
     // Parses a single raw step token (may have @NNN suffix) into {content, delay}.
     // E.g. "!waves.@1000" -> { content: "!waves.", delay: 1000 }
@@ -1233,9 +1247,9 @@
             item.Color = saved;
         }
         try {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
+            callBC(() => CharacterRefresh(Player, false));
+            callBC(() => ChatRoomCharacterUpdate(Player));
+            callBC(() => ServerPlayerAppearanceSync());
         }
         catch ( /* ignore */_a) { /* ignore */ }
         return true;
@@ -1279,9 +1293,9 @@
             ? existing.map(() => color)
             : color;
         try {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
+            callBC(() => CharacterRefresh(Player, false));
+            callBC(() => ChatRoomCharacterUpdate(Player));
+            callBC(() => ServerPlayerAppearanceSync());
         }
         catch ( /* ignore */_a) { /* ignore */ }
         return true;
@@ -1304,9 +1318,9 @@
         colors[zoneIndex] = color;
         item.Color = colors;
         try {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
+            callBC(() => CharacterRefresh(Player, false));
+            callBC(() => ChatRoomCharacterUpdate(Player));
+            callBC(() => ServerPlayerAppearanceSync());
         }
         catch ( /* ignore */_b) { /* ignore */ }
         return true;
@@ -1330,9 +1344,9 @@
             item.Color = (_c = colors[0]) !== null && _c !== void 0 ? _c : "Default";
         }
         try {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
+            callBC(() => CharacterRefresh(Player, false));
+            callBC(() => ChatRoomCharacterUpdate(Player));
+            callBC(() => ServerPlayerAppearanceSync());
         }
         catch ( /* ignore */_d) { /* ignore */ }
         return true;
@@ -1422,11 +1436,11 @@
         const filtered = poses.filter(Boolean);
         try {
             Player.ActivePose = filtered;
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
         }
         catch ( /* ignore */_a) { /* ignore */ }
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Respects the exact order provided — the user controls sequencing via the editor.
@@ -1872,9 +1886,9 @@
                 failAttempts.delete(group);
             }
         }
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
         mergeCurrentRestraints();
         window.setTimeout(() => {
             try {
@@ -1937,15 +1951,6 @@
     function deleteScene(id) {
         saveScenes(load().filter(s => s.id !== id));
     }
-    /** Call a BC function, silencing both synchronous throws and async rejections from mod hooks. */
-    function callBC$1(fn) {
-        try {
-            const r = fn();
-            if (r && typeof r.catch === "function")
-                r.catch(() => { });
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
     function executeStep(step) {
         var _a, _b, _c;
         try {
@@ -1990,17 +1995,17 @@
                         // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
                         // see the newly-added restraint as "unknown" and immediately strip it.
                         snapshotPlayerRestraints();
-                        callBC$1(() => CharacterRefresh(Player, false));
-                        callBC$1(() => ChatRoomCharacterUpdate(Player));
-                        callBC$1(() => ServerPlayerAppearanceSync());
+                        callBC(() => CharacterRefresh(Player, false));
+                        callBC(() => ChatRoomCharacterUpdate(Player));
+                        callBC(() => ServerPlayerAppearanceSync());
                     }
                     break;
                 case "unequip":
                     if (step.group) {
                         InventoryRemove(Player, step.group, false);
-                        callBC$1(() => CharacterRefresh(Player, false));
-                        callBC$1(() => ChatRoomCharacterUpdate(Player));
-                        callBC$1(() => ServerPlayerAppearanceSync());
+                        callBC(() => CharacterRefresh(Player, false));
+                        callBC(() => ChatRoomCharacterUpdate(Player));
+                        callBC(() => ServerPlayerAppearanceSync());
                     }
                     break;
                 case "emote":
@@ -2291,9 +2296,9 @@
         if (skipped.length > 0) {
             localNotice(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
         }
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
         localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
     }
     // Returns un-protected restraint items currently worn by the player.
@@ -2382,9 +2387,9 @@
         if (skipped > 0) {
             localNotice(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
         }
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
         localNotice(`Removed ${unlocked} lock(s).`, UI.gold);
     }
 
@@ -2746,22 +2751,6 @@
     const NECK_GROUPS = new Set([
         "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
     ]);
-    /**
-     * Call a BC function, swallowing both synchronous throws AND async rejections.
-     *
-     * In BC R127+ any function can be hooked by a mod with an async wrapper.
-     * If that async wrapper rejects, the caller gets an unhandled Promise rejection
-     * because normal try/catch only covers synchronous throws.
-     * Wrapping with this helper catches both paths.
-     */
-    function callBC(fn) {
-        try {
-            const r = fn();
-            if (r && typeof r.catch === "function")
-                r.catch(() => { });
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
     function releaseBindingRestraints() {
         const removeGroups = new Set(Player.Appearance
             .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !NECK_GROUPS.has(i.Asset.Group.Name))
@@ -3162,26 +3151,23 @@
     // Shared sync helper for non-player characters.
     function syncChar(char) {
         // Local visual refresh first (no push)
-        try {
-            CharacterRefresh(char, false, false);
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
+        callBC(() => CharacterRefresh(char, false, false));
         // Sort layers so the server packet contains the correct layer order
         try {
             const sortFn = window.CharacterAppearanceSortLayers;
             if (sortFn)
                 sortFn(char);
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_a) { /* ignore */ }
         // Push update to server — BC validates relationship permissions server-side
         try {
             const updateFn = window.ChatRoomCharacterUpdate;
             if (updateFn)
-                updateFn(char);
+                callBC(() => updateFn(char));
             else
-                CharacterRefresh(char, true, false);
+                callBC(() => CharacterRefresh(char, true, false));
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
     }
     // Returns the restraint items currently worn by each in-room target.
     function getTargetRestraints() {
@@ -14589,9 +14575,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.18";
+    const MOD_VERSION = "1.3.19";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.19",
+            changes: [
+                "Fix unhandled Promise rejection errors: every call to CharacterRefresh, ChatRoomCharacterUpdate, and ServerPlayerAppearanceSync across all modules (poses, restraints, palettes, expressions, antiRestraint, domTools, actionButtons) now uses the callBC() helper that silences async rejections from mod hooks (WCE, BCX, CRABS, etc.).",
+            ],
+        },
         {
             version: "1.3.18",
             changes: [

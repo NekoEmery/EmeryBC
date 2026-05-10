@@ -1,6 +1,8 @@
 // Color palette manager — capture the full color map of your current
 // appearance as a named palette and re-apply it later (or to a different outfit).
 
+import { callBC } from "./bcUtils";
+
 export type PaletteType = "outfit" | "restraint";
 
 export interface ColorPalette {
@@ -95,9 +97,9 @@ export function applyPalette(id: string): boolean {
     }
 
     try {
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
     } catch { /* ignore */ }
 
     return true;
@@ -144,9 +146,9 @@ export function applyColorToGroup(groupName: string, color: string): boolean {
         ? (existing as string[]).map(() => color)
         : color;
     try {
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
     } catch { /* ignore */ }
     return true;
 }
@@ -165,9 +167,9 @@ export function applyColorZoneToGroup(groupName: string, zoneIndex: number, colo
     colors[zoneIndex] = color;
     (item as unknown as Record<string, unknown>).Color = colors;
     try {
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
     } catch { /* ignore */ }
     return true;
 }
@@ -188,9 +190,9 @@ export function applyColorsToGroup(groupName: string, colors: string[]): boolean
         (item as unknown as Record<string, unknown>).Color = colors[0] ?? "Default";
     }
     try {
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
     } catch { /* ignore */ }
     return true;
 }

@@ -3,6 +3,7 @@
 // validation server-side and silently ignores inapplicable poses.
 
 import { getDisplayName } from "./actionButtons";
+import { callBC } from "./bcUtils";
 
 export interface PoseCombo {
     id: string;
@@ -41,12 +42,10 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
 
 export function applyPoses(poses: string[]): void {
     const filtered = poses.filter(Boolean);
-    try {
-        (Player as unknown as Record<string, unknown>).ActivePose = filtered;
-        CharacterRefresh(Player, false);
-        ChatRoomCharacterUpdate(Player);
-        ServerPlayerAppearanceSync();
-    } catch { /* ignore */ }
+    try { (Player as unknown as Record<string, unknown>).ActivePose = filtered; } catch { /* ignore */ }
+    callBC(() => CharacterRefresh(Player, false));
+    callBC(() => ChatRoomCharacterUpdate(Player));
+    callBC(() => ServerPlayerAppearanceSync());
 }
 
 // Apply poses one-by-one in the given order with a delay between each step.

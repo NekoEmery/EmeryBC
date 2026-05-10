@@ -4,6 +4,7 @@
 
 import { SerializedItem, RESTRAINT_GROUPS } from "./outfitManager";
 import { getDisplayName } from "./actionButtons";
+import { callBC } from "./bcUtils";
 
 export const DOM_CREATOR_ID = 130267;
 
@@ -261,7 +262,7 @@ export function applyDomSet(setId: string, targetIds?: Set<number>): { applied: 
 // Shared sync helper for non-player characters.
 function syncChar(char: Character): void {
     // Local visual refresh first (no push)
-    try { CharacterRefresh(char, false, false); } catch { /* ignore */ }
+    callBC(() => CharacterRefresh(char, false, false));
     // Sort layers so the server packet contains the correct layer order
     try {
         const sortFn = (window as unknown as Record<string, unknown>).CharacterAppearanceSortLayers as
@@ -272,8 +273,8 @@ function syncChar(char: Character): void {
     try {
         const updateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterUpdate as
             ((c: Character) => void) | undefined;
-        if (updateFn) updateFn(char);
-        else CharacterRefresh(char, true, false);
+        if (updateFn) callBC(() => updateFn(char));
+        else callBC(() => CharacterRefresh(char, true, false));
     } catch { /* ignore */ }
 }
 

@@ -1,5 +1,6 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
+import { callBC } from "./bcUtils";
 
 export type ActionStyle = "action" | "emote" | "seq";
 // "action" = (Name text)
@@ -172,7 +173,7 @@ function syncPoseToRoom(): void {
             });
         }
     } catch (_) {}
-    try { CharacterRefresh(Player, false, false); } catch (_) {}
+    callBC(() => CharacterRefresh(Player, false, false));
 }
 
 // Parses a single raw step token (may have @NNN suffix) into {content, delay}.

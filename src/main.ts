@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.18";
+const MOD_VERSION = "1.3.19";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.19",
+        changes: [
+            "Fix unhandled Promise rejection errors: every call to CharacterRefresh, ChatRoomCharacterUpdate, and ServerPlayerAppearanceSync across all modules (poses, restraints, palettes, expressions, antiRestraint, domTools, actionButtons) now uses the callBC() helper that silences async rejections from mod hooks (WCE, BCX, CRABS, etc.).",
+        ],
+    },
     {
         version: "1.3.18",
         changes: [

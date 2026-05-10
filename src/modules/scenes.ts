@@ -4,6 +4,7 @@
 import { applyPoses } from "./poses";
 import { getDisplayName } from "./actionButtons";
 import { snapshotPlayerRestraints } from "./antiRestraint";
+import { callBC } from "./bcUtils";
 
 export type StepType = "pose" | "equip" | "equip-restraint" | "equip-clothes" | "unequip" | "emote" | "chat" | "wait";
 
@@ -71,14 +72,6 @@ export function deleteScene(id: string): void {
     saveScenes(load().filter(s => s.id !== id));
 }
 
-/** Call a BC function, silencing both synchronous throws and async rejections from mod hooks. */
-function callBC(fn: () => unknown): void {
-    try {
-        const r = fn();
-        if (r && typeof (r as Promise<unknown>).catch === "function")
-            (r as Promise<unknown>).catch(() => {});
-    } catch { /* ignore */ }
-}
 
 function executeStep(step: SceneStep): void {
     try {

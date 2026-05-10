@@ -1,6 +1,7 @@
 ﻿// Shared restraint/lock removal logic used by both /ebc commands and the drawer.
 
 import { UI } from "./ui";
+import { callBC } from "./bcUtils";
 
 // Locks that must never be touched regardless of the operation.
 function isProtectedLock(item: Item): boolean {
@@ -53,9 +54,9 @@ export function releaseRestraints(): void {
         localNotice(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
     }
 
-    CharacterRefresh(Player, false);
-    ChatRoomCharacterUpdate(Player);
-    ServerPlayerAppearanceSync();
+    callBC(() => CharacterRefresh(Player, false));
+    callBC(() => ChatRoomCharacterUpdate(Player));
+    callBC(() => ServerPlayerAppearanceSync());
     localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
 }
 
@@ -147,8 +148,8 @@ export function unlockItems(): void {
         localNotice(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
     }
 
-    CharacterRefresh(Player, false);
-    ChatRoomCharacterUpdate(Player);
-    ServerPlayerAppearanceSync();
+    callBC(() => CharacterRefresh(Player, false));
+    callBC(() => ChatRoomCharacterUpdate(Player));
+    callBC(() => ServerPlayerAppearanceSync());
     localNotice(`Removed ${unlocked} lock(s).`, UI.gold);
 }

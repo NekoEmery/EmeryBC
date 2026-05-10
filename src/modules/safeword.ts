@@ -6,6 +6,7 @@
 
 import { applyOutfit, getOutfits, RESTRAINT_GROUPS } from "./outfitManager";
 import { snapshotPlayerRestraints } from "./antiRestraint";
+import { callBC } from "./bcUtils";
 
 export interface SafewordConfig {
     enabled: boolean;
@@ -116,21 +117,6 @@ const NECK_GROUPS = new Set([
     "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
 ]);
 
-/**
- * Call a BC function, swallowing both synchronous throws AND async rejections.
- *
- * In BC R127+ any function can be hooked by a mod with an async wrapper.
- * If that async wrapper rejects, the caller gets an unhandled Promise rejection
- * because normal try/catch only covers synchronous throws.
- * Wrapping with this helper catches both paths.
- */
-function callBC(fn: () => unknown): void {
-    try {
-        const r = fn();
-        if (r && typeof (r as Promise<unknown>).catch === "function")
-            (r as Promise<unknown>).catch(() => {});
-    } catch { /* ignore */ }
-}
 
 function releaseBindingRestraints(): void {
     const removeGroups = new Set(

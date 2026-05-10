@@ -4,6 +4,7 @@
 // Removal is attempted up to 2 times per group before giving up (locked items).
 
 import { getAntiRestraintEnabled, getAntiRestraintWhitelist, getAntiRestraintConfirm } from "./settings";
+import { callBC } from "./bcUtils";
 
 // Show a custom in-game overlay rather than window.confirm (which can be
 // suppressed by some browsers / userscript sandboxes).
@@ -175,9 +176,9 @@ function doEscape(newItems: Item[], restrainer: string | null, itemName: string)
         }
     }
 
-    CharacterRefresh(Player, false);
-    ChatRoomCharacterUpdate(Player);
-    ServerPlayerAppearanceSync();
+    callBC(() => CharacterRefresh(Player, false));
+    callBC(() => ChatRoomCharacterUpdate(Player));
+    callBC(() => ServerPlayerAppearanceSync());
     mergeCurrentRestraints();
 
     window.setTimeout(() => {
