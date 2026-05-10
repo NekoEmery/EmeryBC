@@ -193,6 +193,38 @@ export function setOocEnabled(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Room history enabled ------------------------------------------------------
+// When off (default), no room visits are recorded. User must opt in.
+
+export function getRoomHistoryEnabled(): boolean {
+    try { return getStore()?.roomHistoryEnabled === true; } catch { return false; }
+}
+
+export function setRoomHistoryEnabled(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.roomHistoryEnabled = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}
+
+// -- Restraint log enabled -----------------------------------------------------
+// When off (default), no restraint changes are recorded. User must opt in.
+
+export function getRestraintLogEnabled(): boolean {
+    try { return getStore()?.restraintLogEnabled === true; } catch { return false; }
+}
+
+export function setRestraintLogEnabled(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.restraintLogEnabled = value;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}
+
 // -- Beep mute -----------------------------------------------------------------
 
 export function getBeepMuted(): boolean {

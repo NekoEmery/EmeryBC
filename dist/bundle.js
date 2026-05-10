@@ -1807,6 +1807,48 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Room history enabled ------------------------------------------------------
+    // When off (default), no room visits are recorded. User must opt in.
+    function getRoomHistoryEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.roomHistoryEnabled) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setRoomHistoryEnabled(value) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.roomHistoryEnabled = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Restraint log enabled -----------------------------------------------------
+    // When off (default), no restraint changes are recorded. User must opt in.
+    function getRestraintLogEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.restraintLogEnabled) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setRestraintLogEnabled(value) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.restraintLogEnabled = value;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Beep mute -----------------------------------------------------------------
     function getBeepMuted() {
         var _a;
@@ -2501,6 +2543,7 @@
     // Room visit history — records the last MAX_HISTORY rooms the player entered,
     // who was in the room at entry, and who joined while they were there.
     // Stored in localStorage (device-local; persists across sessions).
+    // Recording is opt-in: getRoomHistoryEnabled() must be true for any data to be saved.
     const MAX_HISTORY = 15;
     const LS_KEY$1 = "EBC_roomHistory";
     let currentVisit = null;
@@ -2546,6 +2589,8 @@
     }
     // Called from the ChatRoomSync hook. Detects new-room entry by name change.
     function onRoomSync() {
+        if (!getRoomHistoryEnabled())
+            return;
         try {
             const data = window.ChatRoomData;
             const name = typeof (data === null || data === void 0 ? void 0 : data.Name) === "string" ? data.Name : null;
@@ -2598,6 +2643,8 @@
     // broadcast full ChatRoomSync packets; detectNewJoins handles those cases).
     function onMemberJoin(char) {
         var _a;
+        if (!getRoomHistoryEnabled())
+            return;
         try {
             if (!currentVisit || !char.MemberNumber || char.MemberNumber === Player.MemberNumber)
                 return;
@@ -2609,10 +2656,11 @@
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
-    // Called every render tick (1.5 s) to catch joins that slipped through because
-    // ChatRoomSyncMemberJoin didn't fire or had an unexpected data shape.
+    // Called every render tick and from BC hooks to catch joins reliably.
     function detectNewJoins() {
         var _a;
+        if (!getRoomHistoryEnabled())
+            return;
         try {
             if (!currentVisit) {
                 // EBC loaded while already in a room — bootstrap currentVisit now.
@@ -2663,6 +2711,8 @@
     // Detects changes by comparing Player.Appearance against an internal snapshot
     // (independent of the anti-restraint module's own snapshot).
     // Stored in localStorage (last MAX_ENTRIES entries; device-local).
+    // Recording is opt-in: getRestraintLogEnabled() must be true.
+    // Whitelisted items (anti-restraint whitelist) are never logged.
     const MAX_ENTRIES$2 = 50;
     const LS_KEY = "EBC_restraintLog";
     // group name → log entry id (for marking removedAt)
@@ -2743,7 +2793,10 @@
     // Removals are written immediately. Additions are queued and flushed once the
     // applier name arrives via setPendingLogApplier (or after 400 ms timeout).
     function checkRestraintChanges() {
+        if (!getRestraintLogEnabled())
+            return;
         try {
+            const whitelist = getAntiRestraintWhitelist();
             const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
             const curGroups = new Set(current.map((i) => i.Asset.Group.Name));
             // ── Removed (immediate) ───────────────────────────────────────────────
@@ -2768,6 +2821,9 @@
                 const group = item.Asset.Group.Name;
                 if (!knownGroups.has(group)) {
                     knownGroups.add(group);
+                    // Skip items in the anti-restraint whitelist
+                    if (whitelist.includes(getItemKey(item)))
+                        continue;
                     const itemName = item.Asset.Description
                         || item.Asset.Name;
                     const id = uid$1();
@@ -10398,6 +10454,29 @@
             funLbl.style.marginTop = "10px";
             funLbl.textContent = "Fun Actions";
             body.appendChild(funLbl);
+            // OOC toggle
+            const oocRow = document.createElement("div");
+            oocRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0 0;";
+            const oocLbl = document.createElement("span");
+            oocLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+            oocLbl.textContent = "OOC mode — prefix ( on every message";
+            const oocBtn = document.createElement("button");
+            const refreshOoc = () => {
+                const on = getOocEnabled();
+                oocBtn.textContent = on ? "ON" : "OFF";
+                oocBtn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                    "padding:3px 12px", "border-radius:5px", "cursor:pointer", "flex-shrink:0",
+                    on ? "border:1px solid #cf6f98" : "border:1px solid #a03050",
+                    on ? "background:#4a1030" : "background:#2a0515",
+                    on ? "color:#f7cce0" : "color:#e05070",
+                ].join(";");
+            };
+            refreshOoc();
+            oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
+            oocRow.appendChild(oocLbl);
+            oocRow.appendChild(oocBtn);
+            body.appendChild(oocRow);
             const boopBtn = document.createElement("button");
             boopBtn.className = "ebc-create-btn";
             boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
@@ -12571,33 +12650,6 @@
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── OOC mode ──────────────────────────────────────────────────────────
-            const oocRow = document.createElement("div");
-            oocRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:8px;";
-            const oocLbl = document.createElement("span");
-            oocLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            oocLbl.textContent = "OOC mode — prefix ( on every message";
-            const oocBtn = document.createElement("button");
-            const refreshOoc = () => {
-                const on = getOocEnabled();
-                oocBtn.textContent = on ? "ON" : "OFF";
-                oocBtn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                    "padding:3px 12px", "border-radius:5px", "cursor:pointer", "flex-shrink:0",
-                    on ? "border:1px solid #cf6f98" : "border:1px solid #a03050",
-                    on ? "background:#4a1030" : "background:#2a0515",
-                    on ? "color:#f7cce0" : "color:#e05070",
-                ].join(";");
-            };
-            refreshOoc();
-            oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
-            oocRow.appendChild(oocLbl);
-            oocRow.appendChild(oocBtn);
-            body.appendChild(oocRow);
-            const oocHint = document.createElement("div");
-            oocHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4858;margin-bottom:10px;line-height:1.5;";
-            oocHint.textContent = "Prepends ( to chat messages. Commands (/), emotes (*), and already-OOC messages (() are never modified.";
-            body.appendChild(oocHint);
             // ── AFK auto-reply ────────────────────────────────────────────────────
             let afkCollapsed = true;
             try {
@@ -13663,12 +13715,43 @@
                 roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
                 roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
                 makeInner("Room History", "EBC_roomHistoryCollapsed", true, (c) => {
+                    // Enable / disable toggle row
+                    const rhToggleRow = document.createElement("div");
+                    rhToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
+                    const rhToggleLbl = document.createElement("span");
+                    rhToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+                    rhToggleLbl.textContent = "Record room visits";
+                    const rhToggleBtn = document.createElement("button");
+                    const refreshRhToggle = () => {
+                        const on = getRoomHistoryEnabled();
+                        rhToggleBtn.textContent = on ? "ON" : "OFF";
+                        rhToggleBtn.style.cssText = [
+                            "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                            "padding:2px 8px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                            on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;" : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
+                        ].join(";");
+                    };
+                    refreshRhToggle();
+                    rhToggleBtn.addEventListener("click", () => { setRoomHistoryEnabled(!getRoomHistoryEnabled()); refreshRhToggle(); renderRoom(); });
+                    rhToggleRow.appendChild(rhToggleLbl);
+                    rhToggleRow.appendChild(rhToggleBtn);
+                    c.appendChild(rhToggleRow);
                     renderRoom = () => {
                         // Scan ChatRoomCharacter for any members we haven't seen yet
                         // (catches joins that slipped through the hook or loaded late).
                         detectNewJoins();
-                        while (c.firstChild)
+                        while (c.firstChild && c.firstChild !== rhToggleRow)
                             c.removeChild(c.firstChild);
+                        // Keep the toggle row; re-render below it
+                        while (rhToggleRow.nextSibling)
+                            c.removeChild(rhToggleRow.nextSibling);
+                        if (!getRoomHistoryEnabled()) {
+                            const hint = document.createElement("div");
+                            hint.className = "ebc-empty";
+                            hint.textContent = "Recording is off — enable above to start logging.";
+                            c.appendChild(hint);
+                            return;
+                        }
                         const visits = getRoomHistory();
                         if (visits.length === 0) {
                             const e = document.createElement("div");
@@ -13759,9 +13842,37 @@
                 rlogClearBtn.addEventListener("mouseenter", () => { rlogClearBtn.style.color = "#cf6f98"; rlogClearBtn.style.borderColor = "#cf6f98"; });
                 rlogClearBtn.addEventListener("mouseleave", () => { rlogClearBtn.style.color = "#7a5a6a"; rlogClearBtn.style.borderColor = "#3a1928"; });
                 makeInner("Restraint Log", "EBC_restraintLogCollapsed", true, (c) => {
+                    // Enable / disable toggle row
+                    const rlToggleRow = document.createElement("div");
+                    rlToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
+                    const rlToggleLbl = document.createElement("span");
+                    rlToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+                    rlToggleLbl.textContent = "Record restraint changes";
+                    const rlToggleBtn = document.createElement("button");
+                    const refreshRlToggle = () => {
+                        const on = getRestraintLogEnabled();
+                        rlToggleBtn.textContent = on ? "ON" : "OFF";
+                        rlToggleBtn.style.cssText = [
+                            "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                            "padding:2px 8px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                            on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;" : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
+                        ].join(";");
+                    };
+                    refreshRlToggle();
+                    rlToggleBtn.addEventListener("click", () => { setRestraintLogEnabled(!getRestraintLogEnabled()); refreshRlToggle(); renderRlog(); });
+                    rlToggleRow.appendChild(rlToggleLbl);
+                    rlToggleRow.appendChild(rlToggleBtn);
+                    c.appendChild(rlToggleRow);
                     const renderRlog = () => {
-                        while (c.firstChild)
-                            c.removeChild(c.firstChild);
+                        while (rlToggleRow.nextSibling)
+                            c.removeChild(rlToggleRow.nextSibling);
+                        if (!getRestraintLogEnabled()) {
+                            const hint = document.createElement("div");
+                            hint.className = "ebc-empty";
+                            hint.textContent = "Recording is off — enable above to start logging.";
+                            c.appendChild(hint);
+                            return;
+                        }
                         const entries = getRestraintLog();
                         if (entries.length === 0) {
                             const e = document.createElement("div");
@@ -16962,9 +17073,13 @@
             }
             catch ( /* ignore */_j) { /* ignore */ }
             try {
-                drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                detectNewJoins();
             }
             catch ( /* ignore */_k) { /* ignore */ }
+            try {
+                drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+            }
+            catch ( /* ignore */_l) { /* ignore */ }
             // Cache names and EBC presence for everyone currently in the room.
             try {
                 const chars = window.ChatRoomCharacter;
@@ -16984,7 +17099,7 @@
                         }
                     }
             }
-            catch ( /* ignore */_l) { /* ignore */ }
+            catch ( /* ignore */_m) { /* ignore */ }
             return result;
         });
         // Anti-restraint: record who last acted on the player so the escape emote
@@ -17084,8 +17199,12 @@
                 const char = ((_a = data.Character) !== null && _a !== void 0 ? _a : data);
                 if (char.MemberNumber)
                     onMemberJoin(char);
+                try {
+                    detectNewJoins();
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return result;
         });
         // Keep restraint timer up to date on every draw tick (lightweight check)

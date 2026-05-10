@@ -76,7 +76,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getRoomHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -6786,6 +6786,30 @@ export class EBCDrawer {
         funLbl.textContent = "Fun Actions";
         body.appendChild(funLbl);
 
+        // OOC toggle
+        const oocRow = document.createElement("div");
+        oocRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0 0;";
+        const oocLbl = document.createElement("span");
+        oocLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+        oocLbl.textContent = "OOC mode — prefix ( on every message";
+        const oocBtn = document.createElement("button");
+        const refreshOoc = (): void => {
+            const on = getOocEnabled();
+            oocBtn.textContent = on ? "ON" : "OFF";
+            oocBtn.style.cssText = [
+                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                "padding:3px 12px", "border-radius:5px", "cursor:pointer", "flex-shrink:0",
+                on ? "border:1px solid #cf6f98" : "border:1px solid #a03050",
+                on ? "background:#4a1030"        : "background:#2a0515",
+                on ? "color:#f7cce0"             : "color:#e05070",
+            ].join(";");
+        };
+        refreshOoc();
+        oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
+        oocRow.appendChild(oocLbl);
+        oocRow.appendChild(oocBtn);
+        body.appendChild(oocRow);
+
         const boopBtn = document.createElement("button");
         boopBtn.className = "ebc-create-btn";
         boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
@@ -9131,38 +9155,6 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // ── OOC mode ──────────────────────────────────────────────────────────
-        const oocRow = document.createElement("div");
-        oocRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:8px;";
-
-        const oocLbl = document.createElement("span");
-        oocLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        oocLbl.textContent = "OOC mode — prefix ( on every message";
-
-        const oocBtn = document.createElement("button");
-        const refreshOoc = (): void => {
-            const on = getOocEnabled();
-            oocBtn.textContent = on ? "ON" : "OFF";
-            oocBtn.style.cssText = [
-                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                "padding:3px 12px", "border-radius:5px", "cursor:pointer", "flex-shrink:0",
-                on ? "border:1px solid #cf6f98" : "border:1px solid #a03050",
-                on ? "background:#4a1030"        : "background:#2a0515",
-                on ? "color:#f7cce0"             : "color:#e05070",
-            ].join(";");
-        };
-        refreshOoc();
-        oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
-
-        oocRow.appendChild(oocLbl);
-        oocRow.appendChild(oocBtn);
-        body.appendChild(oocRow);
-
-        const oocHint = document.createElement("div");
-        oocHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4858;margin-bottom:10px;line-height:1.5;";
-        oocHint.textContent = "Prepends ( to chat messages. Commands (/), emotes (*), and already-OOC messages (() are never modified.";
-        body.appendChild(oocHint);
-
         // ── AFK auto-reply ────────────────────────────────────────────────────
         let afkCollapsed = true;
         try { afkCollapsed = localStorage.getItem("EBC_afkCollapsed") !== "0"; } catch { /* ignore */ }
@@ -10198,11 +10190,38 @@ export class EBCDrawer {
             roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
 
             makeInner("Room History", "EBC_roomHistoryCollapsed", true, (c) => {
+                // Enable / disable toggle row
+                const rhToggleRow = document.createElement("div");
+                rhToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
+                const rhToggleLbl = document.createElement("span");
+                rhToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+                rhToggleLbl.textContent = "Record room visits";
+                const rhToggleBtn = document.createElement("button");
+                const refreshRhToggle = (): void => {
+                    const on = getRoomHistoryEnabled();
+                    rhToggleBtn.textContent = on ? "ON" : "OFF";
+                    rhToggleBtn.style.cssText = [
+                        "font-family:'Trebuchet MS',serif","font-size:9px","font-weight:bold",
+                        "padding:2px 8px","border-radius:4px","cursor:pointer","flex-shrink:0",
+                        on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;" : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
+                    ].join(";");
+                };
+                refreshRhToggle();
+                rhToggleBtn.addEventListener("click", () => { setRoomHistoryEnabled(!getRoomHistoryEnabled()); refreshRhToggle(); renderRoom(); });
+                rhToggleRow.appendChild(rhToggleLbl); rhToggleRow.appendChild(rhToggleBtn);
+                c.appendChild(rhToggleRow);
+
                 renderRoom = (): void => {
                     // Scan ChatRoomCharacter for any members we haven't seen yet
                     // (catches joins that slipped through the hook or loaded late).
                     detectNewJoins();
-                    while (c.firstChild) c.removeChild(c.firstChild);
+                    while (c.firstChild && c.firstChild !== rhToggleRow) c.removeChild(c.firstChild);
+                    // Keep the toggle row; re-render below it
+                    while (rhToggleRow.nextSibling) c.removeChild(rhToggleRow.nextSibling);
+                    if (!getRoomHistoryEnabled()) {
+                        const hint = document.createElement("div"); hint.className = "ebc-empty";
+                        hint.textContent = "Recording is off — enable above to start logging."; c.appendChild(hint); return;
+                    }
                     const visits = getRoomHistory();
                     if (visits.length === 0) {
                         const e = document.createElement("div"); e.className = "ebc-empty";
@@ -10279,8 +10298,33 @@ export class EBCDrawer {
             rlogClearBtn.addEventListener("mouseleave", () => { rlogClearBtn.style.color = "#7a5a6a"; rlogClearBtn.style.borderColor = "#3a1928"; });
 
             makeInner("Restraint Log", "EBC_restraintLogCollapsed", true, (c) => {
+                // Enable / disable toggle row
+                const rlToggleRow = document.createElement("div");
+                rlToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px;";
+                const rlToggleLbl = document.createElement("span");
+                rlToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+                rlToggleLbl.textContent = "Record restraint changes";
+                const rlToggleBtn = document.createElement("button");
+                const refreshRlToggle = (): void => {
+                    const on = getRestraintLogEnabled();
+                    rlToggleBtn.textContent = on ? "ON" : "OFF";
+                    rlToggleBtn.style.cssText = [
+                        "font-family:'Trebuchet MS',serif","font-size:9px","font-weight:bold",
+                        "padding:2px 8px","border-radius:4px","cursor:pointer","flex-shrink:0",
+                        on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;" : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
+                    ].join(";");
+                };
+                refreshRlToggle();
+                rlToggleBtn.addEventListener("click", () => { setRestraintLogEnabled(!getRestraintLogEnabled()); refreshRlToggle(); renderRlog(); });
+                rlToggleRow.appendChild(rlToggleLbl); rlToggleRow.appendChild(rlToggleBtn);
+                c.appendChild(rlToggleRow);
+
                 const renderRlog = (): void => {
-                    while (c.firstChild) c.removeChild(c.firstChild);
+                    while (rlToggleRow.nextSibling) c.removeChild(rlToggleRow.nextSibling);
+                    if (!getRestraintLogEnabled()) {
+                        const hint = document.createElement("div"); hint.className = "ebc-empty";
+                        hint.textContent = "Recording is off — enable above to start logging."; c.appendChild(hint); return;
+                    }
                     const entries = getRestraintLog();
                     if (entries.length === 0) {
                         const e = document.createElement("div"); e.className = "ebc-empty";

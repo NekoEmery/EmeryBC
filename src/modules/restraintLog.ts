@@ -2,6 +2,8 @@
 // Detects changes by comparing Player.Appearance against an internal snapshot
 // (independent of the anti-restraint module's own snapshot).
 // Stored in localStorage (last MAX_ENTRIES entries; device-local).
+// Recording is opt-in: getRestraintLogEnabled() must be true.
+// Whitelisted items (anti-restraint whitelist) are never logged.
 
 export interface RestraintLogEntry {
     id:        string;
@@ -11,6 +13,9 @@ export interface RestraintLogEntry {
     appliedAt: number;  // unix ms
     removedAt: number | null;
 }
+
+import { getRestraintLogEnabled, getAntiRestraintWhitelist } from "./settings";
+import { getItemKey } from "./antiRestraint";
 
 const MAX_ENTRIES = 50;
 const LS_KEY      = "EBC_restraintLog";
@@ -102,7 +107,9 @@ export function snapshotForLog(): void {
 // Removals are written immediately. Additions are queued and flushed once the
 // applier name arrives via setPendingLogApplier (or after 400 ms timeout).
 export function checkRestraintChanges(): void {
+    if (!getRestraintLogEnabled()) return;
     try {
+        const whitelist = getAntiRestraintWhitelist();
         const current   = Player.Appearance.filter((i: Item) => i.Asset.Group.IsRestraint);
         const curGroups = new Set(current.map((i: Item) => i.Asset.Group.Name));
 
@@ -126,6 +133,8 @@ export function checkRestraintChanges(): void {
             const group = item.Asset.Group.Name;
             if (!knownGroups.has(group)) {
                 knownGroups.add(group);
+                // Skip items in the anti-restraint whitelist
+                if (whitelist.includes(getItemKey(item))) continue;
                 const itemName = (item.Asset as unknown as Record<string, unknown>).Description as string
                     || item.Asset.Name;
                 const id = uid();

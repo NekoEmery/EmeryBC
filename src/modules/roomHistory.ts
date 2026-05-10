@@ -1,6 +1,7 @@
 // Room visit history — records the last MAX_HISTORY rooms the player entered,
 // who was in the room at entry, and who joined while they were there.
 // Stored in localStorage (device-local; persists across sessions).
+// Recording is opt-in: getRoomHistoryEnabled() must be true for any data to be saved.
 
 export interface RoomJoinEvent {
     memberNumber: number;
@@ -17,6 +18,8 @@ export interface RoomVisit {
     members:   Array<{ memberNumber: number; name: string }>; // at entry
     joins:     RoomJoinEvent[]; // people who joined after you arrived
 }
+
+import { getRoomHistoryEnabled } from "./settings";
 
 const MAX_HISTORY = 15;
 const LS_KEY      = "EBC_roomHistory";
@@ -62,6 +65,7 @@ function getRoomChars(): Array<{ MemberNumber?: number; Nickname?: string; Name?
 
 // Called from the ChatRoomSync hook. Detects new-room entry by name change.
 export function onRoomSync(): void {
+    if (!getRoomHistoryEnabled()) return;
     try {
         const data = (window as unknown as Record<string, unknown>).ChatRoomData as Record<string, unknown> | undefined;
         const name  = typeof data?.Name  === "string" ? data.Name  : null;
@@ -113,6 +117,7 @@ export function onRoomLeave(): void {
 // Called from the ChatRoomSyncMemberJoin hook (supplementary — BC may also
 // broadcast full ChatRoomSync packets; detectNewJoins handles those cases).
 export function onMemberJoin(char: { MemberNumber?: number; Nickname?: string; Name?: string }): void {
+    if (!getRoomHistoryEnabled()) return;
     try {
         if (!currentVisit || !char.MemberNumber || char.MemberNumber === Player.MemberNumber) return;
         if (knownMemberNums.has(char.MemberNumber)) return; // already recorded
@@ -122,9 +127,9 @@ export function onMemberJoin(char: { MemberNumber?: number; Nickname?: string; N
     } catch { /* ignore */ }
 }
 
-// Called every render tick (1.5 s) to catch joins that slipped through because
-// ChatRoomSyncMemberJoin didn't fire or had an unexpected data shape.
+// Called every render tick and from BC hooks to catch joins reliably.
 export function detectNewJoins(): void {
+    if (!getRoomHistoryEnabled()) return;
     try {
         if (!currentVisit) {
             // EBC loaded while already in a room — bootstrap currentVisit now.

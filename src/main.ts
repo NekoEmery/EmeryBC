@@ -7,7 +7,7 @@ import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
 import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
-import { onRoomSync, onRoomLeave, onMemberJoin } from "./modules/roomHistory";
+import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
@@ -1698,6 +1698,7 @@ function init(): void {
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
         try { snapshotForLog();             } catch { /* ignore */ }
         try { onRoomSync();                 } catch { /* ignore */ }
+        try { detectNewJoins();             } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
         // Cache names and EBC presence for everyone currently in the room.
         try {
@@ -1799,6 +1800,7 @@ function init(): void {
             const [data] = args as [Record<string, unknown>];
             const char = (data.Character ?? data) as { MemberNumber?: number; Nickname?: string; Name?: string };
             if (char.MemberNumber) onMemberJoin(char);
+            try { detectNewJoins(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
     });
