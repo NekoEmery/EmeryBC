@@ -2597,14 +2597,18 @@
     // ── Called from ChatRoomSync hook ────────────────────────────────────────────
     // Always tracks the current room in memory. Flushes previous visit to storage
     // only if Rooms Visited logging is enabled.
-    function onRoomSync() {
+    // Pass the raw ChatRoomSync data arg when calling from the hook so we don't
+    // have to rely on window.ChatRoomData being available at call time.
+    function onRoomSync(roomData) {
         try {
-            const data = window.ChatRoomData;
+            const data = roomData !== null && roomData !== void 0 ? roomData : window.ChatRoomData;
             const name = typeof (data === null || data === void 0 ? void 0 : data.Name) === "string" ? data.Name : null;
             if (!name)
                 return;
             const chars = getRoomChars();
-            if (name !== lastRecordedRoomName) {
+            // Recreate currentVisit if the room name changed OR if it was cleared
+            // (e.g. by a false ChatRoomLeave firing on a menu transition).
+            if (name !== lastRecordedRoomName || !currentVisit) {
                 lastRecordedRoomName = name;
                 if (currentVisit)
                     flushCurrent(); // save previous room if enabled
@@ -13759,7 +13763,7 @@
                             c.appendChild(mLbl);
                             const mList = document.createElement("div");
                             mList.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.7;margin-bottom:6px;";
-                            mList.textContent = visit.members.map(m => m.name).join(", ");
+                            mList.textContent = visit.members.map(m => `${m.name} #${m.memberNumber}`).join(", ");
                             c.appendChild(mList);
                         }
                         // People who joined after
@@ -13778,7 +13782,7 @@
                                 const row = document.createElement("div");
                                 row.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;padding:1px 0;";
                                 const jn = document.createElement("span");
-                                jn.textContent = j.name;
+                                jn.textContent = `${j.name} #${j.memberNumber}`;
                                 const jt = document.createElement("span");
                                 jt.style.color = "#7a5a6a";
                                 jt.textContent = fmtTs(j.at);
@@ -13884,7 +13888,7 @@
                                         detail.appendChild(mh);
                                         const ml = document.createElement("div");
                                         ml.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.6;";
-                                        ml.textContent = visit.members.map(m => m.name).join(", ");
+                                        ml.textContent = visit.members.map(m => `${m.name} #${m.memberNumber}`).join(", ");
                                         detail.appendChild(ml);
                                     }
                                     if (visit.joins.length > 0) {
@@ -13896,7 +13900,7 @@
                                             const jr = document.createElement("div");
                                             jr.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;";
                                             const jn = document.createElement("span");
-                                            jn.textContent = j.name;
+                                            jn.textContent = `${j.name} #${j.memberNumber}`;
                                             const jt = document.createElement("span");
                                             jt.style.color = "#7a5a6a";
                                             jt.textContent = fmtTs(j.at);
@@ -17172,7 +17176,7 @@
             }
             catch ( /* ignore */_h) { /* ignore */ }
             try {
-                onRoomSync();
+                onRoomSync(args[0]);
             }
             catch ( /* ignore */_j) { /* ignore */ }
             try {

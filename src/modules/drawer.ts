@@ -10244,7 +10244,7 @@ export class EBCDrawer {
                         mLbl.textContent = `On entry (${visit.members.length})`; c.appendChild(mLbl);
                         const mList = document.createElement("div");
                         mList.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.7;margin-bottom:6px;";
-                        mList.textContent = visit.members.map(m => m.name).join(", "); c.appendChild(mList);
+                        mList.textContent = visit.members.map(m => `${m.name} #${m.memberNumber}`).join(", "); c.appendChild(mList);
                     }
 
                     // People who joined after
@@ -10259,7 +10259,7 @@ export class EBCDrawer {
                         for (const j of visit.joins) {
                             const row = document.createElement("div");
                             row.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;padding:1px 0;";
-                            const jn = document.createElement("span"); jn.textContent = j.name;
+                            const jn = document.createElement("span"); jn.textContent = `${j.name} #${j.memberNumber}`;
                             const jt = document.createElement("span"); jt.style.color = "#7a5a6a"; jt.textContent = fmtTs(j.at);
                             row.appendChild(jn); row.appendChild(jt); c.appendChild(row);
                         }
@@ -10350,7 +10350,7 @@ export class EBCDrawer {
                                     mh.textContent = "On entry:"; detail.appendChild(mh);
                                     const ml = document.createElement("div");
                                     ml.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;line-height:1.6;";
-                                    ml.textContent = visit.members.map(m => m.name).join(", "); detail.appendChild(ml);
+                                    ml.textContent = visit.members.map(m => `${m.name} #${m.memberNumber}`).join(", "); detail.appendChild(ml);
                                 }
                                 if (visit.joins.length > 0) {
                                     const jh = document.createElement("div");
@@ -10359,7 +10359,7 @@ export class EBCDrawer {
                                     for (const j of visit.joins) {
                                         const jr = document.createElement("div");
                                         jr.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:8px;color:#c8a0b8;";
-                                        const jn = document.createElement("span"); jn.textContent = j.name;
+                                        const jn = document.createElement("span"); jn.textContent = `${j.name} #${j.memberNumber}`;
                                         const jt = document.createElement("span"); jt.style.color = "#7a5a6a"; jt.textContent = fmtTs(j.at);
                                         jr.appendChild(jn); jr.appendChild(jt); detail.appendChild(jr);
                                     }

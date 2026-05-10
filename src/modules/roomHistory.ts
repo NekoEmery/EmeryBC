@@ -72,15 +72,20 @@ function getRoomChars(): Array<{ MemberNumber?: number; Nickname?: string; Name?
 // ── Called from ChatRoomSync hook ────────────────────────────────────────────
 // Always tracks the current room in memory. Flushes previous visit to storage
 // only if Rooms Visited logging is enabled.
-export function onRoomSync(): void {
+// Pass the raw ChatRoomSync data arg when calling from the hook so we don't
+// have to rely on window.ChatRoomData being available at call time.
+export function onRoomSync(roomData?: Record<string, unknown>): void {
     try {
-        const data = (window as unknown as Record<string, unknown>).ChatRoomData as Record<string, unknown> | undefined;
+        const data = roomData ??
+            ((window as unknown as Record<string, unknown>).ChatRoomData as Record<string, unknown> | undefined);
         const name  = typeof data?.Name  === "string" ? data.Name  : null;
         if (!name) return;
 
         const chars = getRoomChars();
 
-        if (name !== lastRecordedRoomName) {
+        // Recreate currentVisit if the room name changed OR if it was cleared
+        // (e.g. by a false ChatRoomLeave firing on a menu transition).
+        if (name !== lastRecordedRoomName || !currentVisit) {
             lastRecordedRoomName = name;
             if (currentVisit) flushCurrent(); // save previous room if enabled
 

@@ -1715,7 +1715,7 @@ function init(): void {
         try { drawer?.updateVisibility();   } catch { /* ignore */ }
         try { snapshotPlayerRestraints();   } catch { /* ignore */ }
         try { snapshotForLog();             } catch { /* ignore */ }
-        try { onRoomSync();                 } catch { /* ignore */ }
+        try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }
         try { detectNewJoins();             } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
         // Cache names and EBC presence for everyone currently in the room.
