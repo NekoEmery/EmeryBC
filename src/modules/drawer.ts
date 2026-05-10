@@ -2525,6 +2525,8 @@ export class EBCDrawer {
     private resetLocationBtn: HTMLElement | null = null;
     // User-dragged panel height override. null = match chat log height.
     private userPanelHeight: number | null = null;
+    // Direct reference to the .ebc-panel flex container — set height here to resize.
+    private panelContentEl: HTMLElement | null = null;
     // Category dropdown in quick actions bar
     // DEV tab auto-refresh poller
     private devLogPoller: ReturnType<typeof window.setInterval> | null = null;
@@ -2569,6 +2571,7 @@ export class EBCDrawer {
         // Inner panel (visual content)
         const panel = document.createElement("div");
         panel.className = "ebc-panel";
+        this.panelContentEl = panel;
 
         // Header
         const header = document.createElement("div");
@@ -3271,41 +3274,50 @@ export class EBCDrawer {
             if (savedH !== null) { const h = parseFloat(savedH); if (!isNaN(h) && h >= 180) this.userPanelHeight = h; }
         } catch { /* ignore */ }
 
-        addPointerDown(resizeBar, (start, e) => {
+        // Resize via Pointer Capture API — most reliable drag mechanism in browsers.
+        // setPointerCapture routes ALL subsequent pointer events to resizeBar regardless
+        // of where the cursor moves, bypassing any event interception by BC or other mods.
+        // We also set height directly on `panel` (.ebc-panel) — the actual flex container —
+        // instead of relying on height:100% propagating through the DOM tree.
+        resizeBar.addEventListener("pointerdown", (e: PointerEvent) => {
+            if (e.button !== 0) return;
             e.preventDefault();
             e.stopPropagation();
-            // Read the current visual height from the slide container directly —
-            // more reliable than rootEl since rootEl has width:0 and some browsers
-            // don't propagate containing-block height from zero-width fixed elements.
-            const panelEl = this.panelEl as HTMLElement | null;
-            const currentH = panelEl?.getBoundingClientRect().height
-                ?? this.rootEl?.getBoundingClientRect().height
-                ?? 400;
-            const startH = currentH;
-            const startY = start.clientY;
+
+            const startH = panel.getBoundingClientRect().height;
+            const startY = e.clientY;
+
+            resizeBar.setPointerCapture(e.pointerId);
             resizeBar.classList.add("ebc-resizing");
-            addPointerTracking(
-                (pos) => {
-                    const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (pos.clientY - startY)));
-                    this.userPanelHeight = newH;
-                    // Set on both the visual container and the rootEl anchor
-                    if (panelEl) panelEl.style.height = `${newH}px`;
-                    if (this.rootEl) this.rootEl.style.height = `${newH}px`;
-                },
-                () => {
-                    resizeBar.classList.remove("ebc-resizing");
-                    try {
-                        if (this.userPanelHeight !== null)
-                            localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight));
-                    } catch { /* ignore */ }
-                },
-            );
+
+            const onMove = (me: PointerEvent): void => {
+                const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (me.clientY - startY)));
+                this.userPanelHeight = newH;
+                panel.style.height = `${newH}px`;
+                if (this.panelEl)  (this.panelEl  as HTMLElement).style.height = `${newH}px`;
+                if (this.rootEl)    this.rootEl.style.height                    = `${newH}px`;
+            };
+
+            const onUp = (): void => {
+                resizeBar.removeEventListener("pointermove", onMove);
+                resizeBar.removeEventListener("pointerup",   onUp);
+                resizeBar.classList.remove("ebc-resizing");
+                try {
+                    if (this.userPanelHeight !== null)
+                        localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight));
+                } catch { /* ignore */ }
+            };
+
+            resizeBar.addEventListener("pointermove", onMove);
+            resizeBar.addEventListener("pointerup",   onUp);
         });
 
         // Double-click resets height to auto (follow chat log size)
         resizeBar.addEventListener("dblclick", () => {
             this.userPanelHeight = null;
-            if (this.panelEl) (this.panelEl as HTMLElement).style.height = "";
+            panel.style.height = "";
+            if (this.panelEl)        (this.panelEl as HTMLElement).style.height = "";
+            if (this.panelContentEl)  this.panelContentEl.style.height           = "";
             try { localStorage.removeItem(EBC_HEIGHT_KEY); } catch { /* ignore */ }
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.syncToChat();
@@ -3444,9 +3456,10 @@ export class EBCDrawer {
             this.rootEl.style.top    = `${rect.top}px`;
             this.rootEl.style.right  = `${rightOffset}px`;
             this.rootEl.style.height = `${finalH}px`;
-            // Also set directly on the slide container — more reliable than relying on
-            // height:100% propagation from a zero-width fixed rootEl.
-            if (this.panelEl) (this.panelEl as HTMLElement).style.height = `${finalH}px`;
+            if (this.panelEl)        (this.panelEl as HTMLElement).style.height = `${finalH}px`;
+            // Set directly on the .ebc-panel content box — the most reliable target,
+            // no height:100% inheritance chain required.
+            if (this.panelContentEl) this.panelContentEl.style.height = `${finalH}px`;
             this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
             this.positioned = true;
             // Chat log moved — force a fresh CRABS position read next tick

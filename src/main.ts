@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.16";
+const MOD_VERSION = "1.3.17";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.17",
+        changes: [
+            "Resize: switched to Pointer Capture API (setPointerCapture) — routes all drag events directly to the grip bar regardless of what BC or other mods are doing with mouse events, making the drag impossible to intercept.",
+            "Resize: height is now set directly on the .ebc-panel flex container itself (the innermost visual box), bypassing every height:100% inheritance step in the DOM chain.",
+        ],
+    },
     {
         version: "1.3.16",
         changes: [

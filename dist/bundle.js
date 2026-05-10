@@ -5838,6 +5838,8 @@
             this.resetLocationBtn = null;
             // User-dragged panel height override. null = match chat log height.
             this.userPanelHeight = null;
+            // Direct reference to the .ebc-panel flex container — set height here to resize.
+            this.panelContentEl = null;
             // Category dropdown in quick actions bar
             // DEV tab auto-refresh poller
             this.devLogPoller = null;
@@ -5876,6 +5878,7 @@
             // Inner panel (visual content)
             const panel = document.createElement("div");
             panel.className = "ebc-panel";
+            this.panelContentEl = panel;
             // Header
             const header = document.createElement("div");
             header.className = "ebc-header";
@@ -6499,40 +6502,50 @@
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
-            addPointerDown(resizeBar, (start, e) => {
-                var _a, _b, _c;
+            // Resize via Pointer Capture API — most reliable drag mechanism in browsers.
+            // setPointerCapture routes ALL subsequent pointer events to resizeBar regardless
+            // of where the cursor moves, bypassing any event interception by BC or other mods.
+            // We also set height directly on `panel` (.ebc-panel) — the actual flex container —
+            // instead of relying on height:100% propagating through the DOM tree.
+            resizeBar.addEventListener("pointerdown", (e) => {
+                if (e.button !== 0)
+                    return;
                 e.preventDefault();
                 e.stopPropagation();
-                // Read the current visual height from the slide container directly —
-                // more reliable than rootEl since rootEl has width:0 and some browsers
-                // don't propagate containing-block height from zero-width fixed elements.
-                const panelEl = this.panelEl;
-                const currentH = (_c = (_a = panelEl === null || panelEl === void 0 ? void 0 : panelEl.getBoundingClientRect().height) !== null && _a !== void 0 ? _a : (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.getBoundingClientRect().height) !== null && _c !== void 0 ? _c : 400;
-                const startH = currentH;
-                const startY = start.clientY;
+                const startH = panel.getBoundingClientRect().height;
+                const startY = e.clientY;
+                resizeBar.setPointerCapture(e.pointerId);
                 resizeBar.classList.add("ebc-resizing");
-                addPointerTracking((pos) => {
-                    const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (pos.clientY - startY)));
+                const onMove = (me) => {
+                    const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (me.clientY - startY)));
                     this.userPanelHeight = newH;
-                    // Set on both the visual container and the rootEl anchor
-                    if (panelEl)
-                        panelEl.style.height = `${newH}px`;
+                    panel.style.height = `${newH}px`;
+                    if (this.panelEl)
+                        this.panelEl.style.height = `${newH}px`;
                     if (this.rootEl)
                         this.rootEl.style.height = `${newH}px`;
-                }, () => {
+                };
+                const onUp = () => {
+                    resizeBar.removeEventListener("pointermove", onMove);
+                    resizeBar.removeEventListener("pointerup", onUp);
                     resizeBar.classList.remove("ebc-resizing");
                     try {
                         if (this.userPanelHeight !== null)
                             localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight));
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
-                });
+                };
+                resizeBar.addEventListener("pointermove", onMove);
+                resizeBar.addEventListener("pointerup", onUp);
             });
             // Double-click resets height to auto (follow chat log size)
             resizeBar.addEventListener("dblclick", () => {
                 this.userPanelHeight = null;
+                panel.style.height = "";
                 if (this.panelEl)
                     this.panelEl.style.height = "";
+                if (this.panelContentEl)
+                    this.panelContentEl.style.height = "";
                 try {
                     localStorage.removeItem(EBC_HEIGHT_KEY);
                 }
@@ -6664,10 +6677,12 @@
                 this.rootEl.style.top = `${rect.top}px`;
                 this.rootEl.style.right = `${rightOffset}px`;
                 this.rootEl.style.height = `${finalH}px`;
-                // Also set directly on the slide container — more reliable than relying on
-                // height:100% propagation from a zero-width fixed rootEl.
                 if (this.panelEl)
                     this.panelEl.style.height = `${finalH}px`;
+                // Set directly on the .ebc-panel content box — the most reliable target,
+                // no height:100% inheritance chain required.
+                if (this.panelContentEl)
+                    this.panelContentEl.style.height = `${finalH}px`;
                 this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
                 this.positioned = true;
                 // Chat log moved — force a fresh CRABS position read next tick
@@ -14490,9 +14505,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.16";
+    const MOD_VERSION = "1.3.17";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.17",
+            changes: [
+                "Resize: switched to Pointer Capture API (setPointerCapture) — routes all drag events directly to the grip bar regardless of what BC or other mods are doing with mouse events, making the drag impossible to intercept.",
+                "Resize: height is now set directly on the .ebc-panel flex container itself (the innermost visual box), bypassing every height:100% inheritance step in the DOM chain.",
+            ],
+        },
         {
             version: "1.3.16",
             changes: [
