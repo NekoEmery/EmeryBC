@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.21";
+const MOD_VERSION = "1.3.22";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.22",
+        changes: [
+            "Move A− / A+ zoom controls from footer to header row — always accessible regardless of zoom level. Remove broken height-compensation that was crushing the body at high zoom; body now scrolls naturally.",
+        ],
+    },
     {
         version: "1.3.21",
         changes: [

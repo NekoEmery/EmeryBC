@@ -2584,9 +2584,57 @@ export class EBCDrawer {
         closeBtn.title = "Close";
         closeBtn.textContent = "X";
 
+        // UI zoom — A− / % / A+ sit in the header so they are always accessible
+        // regardless of how much content is zoomed or scrolled below.
+        // Only panel width is compensated so the visual width stays ~360 px.
+        // Height is left at natural 100% — at high zoom the body area simply scrolls.
+        const EBC_SCALE_KEY = "EBC_uiScale";
+        const SCALE_STEPS   = [0.75, 0.85, 1.0, 1.1, 1.2, 1.35];
+        const BASE_WIDTH    = 360;
+
+        const zoomOutBtn = document.createElement("button");
+        const zoomInBtn  = document.createElement("button");
+        const scaleLabel = document.createElement("span");
+        zoomOutBtn.className = "ebc-icon-btn";
+        zoomInBtn.className  = "ebc-icon-btn";
+        zoomOutBtn.title = "Zoom out (A−)";
+        zoomInBtn.title  = "Zoom in (A+)";
+        zoomOutBtn.textContent = "A−";
+        zoomInBtn.textContent  = "A+";
+        scaleLabel.textContent = "100%";
+        scaleLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;min-width:26px;text-align:center;pointer-events:none;user-select:none;";
+
+        const applyScale = (scale: number): void => {
+            this.uiScale = scale;
+            panel.style.zoom  = String(scale);
+            panel.style.width = `${Math.round(BASE_WIDTH / scale)}px`;
+            scaleLabel.textContent = Math.round(scale * 100) + "%";
+            zoomOutBtn.disabled = scale <= SCALE_STEPS[0];
+            zoomInBtn.disabled  = scale >= SCALE_STEPS[SCALE_STEPS.length - 1];
+            try { localStorage.setItem(EBC_SCALE_KEY, String(scale)); } catch { /* ignore */ }
+        };
+
+        zoomOutBtn.addEventListener("click", () => {
+            const idx = SCALE_STEPS.indexOf(this.uiScale);
+            applyScale(idx > 0 ? SCALE_STEPS[idx - 1] : SCALE_STEPS[0]);
+        });
+        zoomInBtn.addEventListener("click", () => {
+            const idx = SCALE_STEPS.indexOf(this.uiScale);
+            applyScale(idx < SCALE_STEPS.length - 1 ? SCALE_STEPS[idx + 1] : SCALE_STEPS[SCALE_STEPS.length - 1]);
+        });
+
+        // Restore saved scale (applied further below after panelEl is assigned)
+        try {
+            const saved = parseFloat(localStorage.getItem(EBC_SCALE_KEY) ?? "");
+            if (!isNaN(saved) && SCALE_STEPS.includes(saved)) this.uiScale = saved;
+        } catch { /* ignore */ }
+
         headerBtns.appendChild(refreshBtn);
         headerBtns.appendChild(moveHandle);
         headerBtns.appendChild(resetLocBtn);
+        headerBtns.appendChild(zoomOutBtn);
+        headerBtns.appendChild(scaleLabel);
+        headerBtns.appendChild(zoomInBtn);
         headerBtns.appendChild(closeBtn);
         header.appendChild(title);
         header.appendChild(headerBtns);
@@ -3201,73 +3249,19 @@ export class EBCDrawer {
         body.className = "ebc-body";
         body.id = "ebc-body";
 
-        // Footer: version + credit line + live timer (info only — not interactive)
+        // Footer: version credit + live timer only — no controls here.
         const footer = document.createElement("div");
         footer.className = "ebc-footer";
 
-        // Version text as a real element (not a raw text node) so flex layout gives the
-        // zoom buttons their own visible space.
         const footerVerEl = document.createElement("span");
         footerVerEl.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
         footerVerEl.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
         footer.appendChild(footerVerEl);
 
-        // UI zoom controls — A− / scale% / A+ in the footer.
-        // CSS zoom is applied to the inner .ebc-panel so everything scales together.
-        // Both panel width AND height are compensated (= natural_size / scale) so the
-        // zoomed result always fills — and never overflows — the slide container.
-        const EBC_SCALE_KEY  = "EBC_uiScale";
-        const SCALE_STEPS    = [0.75, 0.85, 1.0, 1.1, 1.2, 1.35];
-        const BASE_WIDTH     = 360;
-
-        const applyScale = (scale: number): void => {
-            this.uiScale = scale;
-            // zoom: scale enlarges/shrinks the element's visual AND layout size.
-            // Pre-compensate width and height so the zoomed result stays exactly
-            // inside the container (360 px wide, full container height).
-            panel.style.zoom   = String(scale);
-            panel.style.width  = `${Math.round(BASE_WIDTH / scale)}px`;
-            panel.style.height = scale !== 1.0 ? `${(100 / scale).toFixed(4)}%` : "100%";
-            scaleLabel.textContent = Math.round(scale * 100) + "%";
-            zoomOutBtn.disabled = scale <= SCALE_STEPS[0];
-            zoomInBtn.disabled  = scale >= SCALE_STEPS[SCALE_STEPS.length - 1];
-            try { localStorage.setItem(EBC_SCALE_KEY, String(scale)); } catch { /* ignore */ }
-        };
-
-        const zoomOutBtn = document.createElement("button");
-        const zoomInBtn  = document.createElement("button");
-        const scaleLabel = document.createElement("span");
-        zoomOutBtn.textContent = "A−";
-        zoomInBtn.textContent  = "A+";
-        scaleLabel.textContent = "100%";
-        const zoomBtnStyle = "background:none;border:none;color:#9a7888;font-family:'Trebuchet MS',serif;font-size:10px;cursor:pointer;padding:0 3px;line-height:1;";
-        zoomOutBtn.style.cssText = zoomBtnStyle;
-        zoomInBtn.style.cssText  = zoomBtnStyle;
-        scaleLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5868;min-width:30px;text-align:center;";
-        zoomOutBtn.addEventListener("click", () => {
-            const idx = SCALE_STEPS.indexOf(this.uiScale);
-            const next = idx > 0 ? SCALE_STEPS[idx - 1] : SCALE_STEPS[0];
-            applyScale(next);
-        });
-        zoomInBtn.addEventListener("click", () => {
-            const idx = SCALE_STEPS.indexOf(this.uiScale);
-            const next = idx < SCALE_STEPS.length - 1 ? SCALE_STEPS[idx + 1] : SCALE_STEPS[SCALE_STEPS.length - 1];
-            applyScale(next);
-        });
-        footer.appendChild(zoomOutBtn);
-        footer.appendChild(scaleLabel);
-        footer.appendChild(zoomInBtn);
-
         const timerEl = document.createElement("div");
         timerEl.className = "ebc-timer";
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
-
-        // Restore saved scale
-        try {
-            const saved = parseFloat(localStorage.getItem(EBC_SCALE_KEY) ?? "");
-            if (!isNaN(saved) && SCALE_STEPS.includes(saved)) this.uiScale = saved;
-        } catch { /* ignore */ }
 
         panel.appendChild(header);
         panel.appendChild(tabBar);
@@ -3284,7 +3278,7 @@ export class EBCDrawer {
         this.rootEl  = root;
         this.panelEl = slideContainer;
 
-        // Apply saved scale now that panelEl is set
+        // Apply saved scale (applyScale only touches panel.style, no DOM needed)
         if (this.uiScale !== 1.0) applyScale(this.uiScale);
 
         // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
