@@ -6,12 +6,13 @@
 // Whitelisted items (anti-restraint whitelist) are never logged.
 
 export interface RestraintLogEntry {
-    id:        string;
-    itemName:  string;
-    group:     string;  // asset group with "Item" prefix stripped
-    applier:   string;  // display name or "#number"
-    appliedAt: number;  // unix ms
-    removedAt: number | null;
+    id:            string;
+    itemName:      string;
+    group:         string;  // asset group with "Item" prefix stripped
+    applier:       string;  // display name or "#number"
+    applierNumber: number | null;
+    appliedAt:     number;  // unix ms
+    removedAt:     number | null;
 }
 
 import { getRestraintLogEnabled, getAntiRestraintWhitelist } from "./settings";
@@ -32,33 +33,37 @@ let knownGroups = new Set<string>();
 
 interface PendingEntry { id: string; itemName: string; group: string; appliedAt: number; }
 const pendingEntries: PendingEntry[] = [];
-let pendingApplier: string | null = null;
+let pendingApplier:       string | null = null;
+let pendingApplierNumber: number | null = null;
 let pendingTimer: ReturnType<typeof window.setTimeout> | null = null;
 
 // Called from the ChatRoomMessage hook when an Action targeting the player
 // arrives — this fires after CharacterRefresh, so we store the name here and
 // immediately flush any queued entries.
-export function setPendingLogApplier(name: string): void {
-    pendingApplier = name;
+export function setPendingLogApplier(name: string, memberNumber?: number): void {
+    pendingApplier       = name;
+    pendingApplierNumber = memberNumber ?? null;
     if (pendingTimer !== null) {
         clearTimeout(pendingTimer);
         pendingTimer = null;
     }
-    flushPending(name);
-    pendingApplier = null;
+    flushPending(name, pendingApplierNumber);
+    pendingApplier       = null;
+    pendingApplierNumber = null;
 }
 
-function flushPending(applierName: string): void {
+function flushPending(applierName: string, applierNumber: number | null = null): void {
     if (pendingEntries.length === 0) return;
     const log = loadLog();
     for (const p of pendingEntries.splice(0)) {
         log.unshift({
-            id:        p.id,
-            itemName:  p.itemName,
-            group:     p.group,
-            applier:   applierName || "Unknown",
-            appliedAt: p.appliedAt,
-            removedAt: null,
+            id:            p.id,
+            itemName:      p.itemName,
+            group:         p.group,
+            applier:       applierName || "Unknown",
+            applierNumber: applierNumber,
+            appliedAt:     p.appliedAt,
+            removedAt:     null,
         });
     }
     saveLog(log);
@@ -152,15 +157,17 @@ export function checkRestraintChanges(): void {
         if (hasNew) {
             if (pendingApplier !== null) {
                 // Name already arrived (Action fired before CharacterRefresh — rare)
-                flushPending(pendingApplier);
+                flushPending(pendingApplier, pendingApplierNumber);
                 pendingApplier = null;
+                pendingApplierNumber = null;
             } else {
                 // Schedule a fallback flush in case no Action message ever arrives
                 if (pendingTimer !== null) clearTimeout(pendingTimer);
                 pendingTimer = window.setTimeout(() => {
                     pendingTimer = null;
-                    flushPending(pendingApplier ?? "Unknown");
+                    flushPending(pendingApplier ?? "Unknown", pendingApplierNumber);
                     pendingApplier = null;
+                    pendingApplierNumber = null;
                 }, 400);
             }
         }

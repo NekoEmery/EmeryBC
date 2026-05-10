@@ -2710,20 +2710,23 @@
     let knownGroups = new Set();
     const pendingEntries = [];
     let pendingApplier = null;
+    let pendingApplierNumber = null;
     let pendingTimer = null;
     // Called from the ChatRoomMessage hook when an Action targeting the player
     // arrives — this fires after CharacterRefresh, so we store the name here and
     // immediately flush any queued entries.
-    function setPendingLogApplier(name) {
+    function setPendingLogApplier(name, memberNumber) {
         pendingApplier = name;
+        pendingApplierNumber = memberNumber !== null && memberNumber !== void 0 ? memberNumber : null;
         if (pendingTimer !== null) {
             clearTimeout(pendingTimer);
             pendingTimer = null;
         }
-        flushPending(name);
+        flushPending(name, pendingApplierNumber);
         pendingApplier = null;
+        pendingApplierNumber = null;
     }
-    function flushPending(applierName) {
+    function flushPending(applierName, applierNumber = null) {
         if (pendingEntries.length === 0)
             return;
         const log = loadLog();
@@ -2733,6 +2736,7 @@
                 itemName: p.itemName,
                 group: p.group,
                 applier: applierName || "Unknown",
+                applierNumber: applierNumber,
                 appliedAt: p.appliedAt,
                 removedAt: null,
             });
@@ -2829,8 +2833,9 @@
             if (hasNew) {
                 if (pendingApplier !== null) {
                     // Name already arrived (Action fired before CharacterRefresh — rare)
-                    flushPending(pendingApplier);
+                    flushPending(pendingApplier, pendingApplierNumber);
                     pendingApplier = null;
+                    pendingApplierNumber = null;
                 }
                 else {
                     // Schedule a fallback flush in case no Action message ever arrives
@@ -2838,8 +2843,9 @@
                         clearTimeout(pendingTimer);
                     pendingTimer = window.setTimeout(() => {
                         pendingTimer = null;
-                        flushPending(pendingApplier !== null && pendingApplier !== void 0 ? pendingApplier : "Unknown");
+                        flushPending(pendingApplier !== null && pendingApplier !== void 0 ? pendingApplier : "Unknown", pendingApplierNumber);
                         pendingApplier = null;
+                        pendingApplierNumber = null;
                     }, 400);
                 }
             }
@@ -13662,6 +13668,7 @@
             // Hoisted so the auto-refresh poller can reference them without
             // needing to know whether the inner sections are expanded yet.
             let renderRoom = () => { };
+            let renderRlog = () => { };
             let renderMsgLog = () => { };
             makeSection("LOG", "EBC_devLogSectionCollapsed", true, (cnt) => {
                 // -- shared helpers --
@@ -13979,7 +13986,7 @@
                     rlToggleRow.appendChild(rlToggleLbl);
                     rlToggleRow.appendChild(rlToggleBtn);
                     c.appendChild(rlToggleRow);
-                    const renderRlog = () => {
+                    renderRlog = () => {
                         while (rlToggleRow.nextSibling)
                             c.removeChild(rlToggleRow.nextSibling);
                         if (!getRestraintLogEnabled()) {
@@ -13999,22 +14006,34 @@
                         }
                         for (const entry of entries) {
                             const row = document.createElement("div");
-                            row.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 6px;border-bottom:1px solid rgba(42,20,33,0.5);";
+                            row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 4px;border-bottom:1px solid #2a1421;";
+                            // Item name + group
                             const nameEl = document.createElement("span");
-                            nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                            nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                             nameEl.textContent = entry.itemName;
                             nameEl.title = `${entry.itemName} (${entry.group})  ·  ${new Date(entry.appliedAt).toLocaleString()}`;
                             row.appendChild(nameEl);
+                            // Applier name + member number
+                            const applierWrap = document.createElement("span");
+                            applierWrap.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;";
                             const applierEl = document.createElement("span");
-                            applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#cf6f98;flex-shrink:0;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                            applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                             applierEl.textContent = entry.applier;
-                            applierEl.title = `Applied by: ${entry.applier}`;
-                            row.appendChild(applierEl);
+                            applierWrap.appendChild(applierEl);
+                            if (entry.applierNumber != null) {
+                                const numEl = document.createElement("span");
+                                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;white-space:nowrap;";
+                                numEl.textContent = `#${entry.applierNumber}`;
+                                applierWrap.appendChild(numEl);
+                            }
+                            applierWrap.title = `Applied by: ${entry.applier}${entry.applierNumber != null ? ` #${entry.applierNumber}` : ""}`;
+                            row.appendChild(applierWrap);
+                            // Duration / status
                             const durEl = document.createElement("span");
-                            durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;flex-shrink:0;min-width:38px;text-align:right;";
+                            durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;flex-shrink:0;min-width:42px;text-align:right;";
                             if (entry.removedAt !== null) {
                                 durEl.textContent = fmtDuration(entry.removedAt - entry.appliedAt);
-                                durEl.style.color = "#7a5a6a";
+                                durEl.style.color = "#9a7090";
                                 durEl.title = `Removed: ${new Date(entry.removedAt).toLocaleString()}`;
                             }
                             else {
@@ -14183,6 +14202,7 @@
                 if (this.currentTab !== "dev")
                     return;
                 renderRoom();
+                renderRlog();
                 if (isDevLogEnabled())
                     renderMsgLog();
             }, 1500);
@@ -17274,7 +17294,7 @@
                     // Also stash the name for the restraint log — it flushes any
                     // pending additions that are waiting on the applier name.
                     try {
-                        setPendingLogApplier((_a = getLastRestrainerName()) !== null && _a !== void 0 ? _a : `#${sourceNum}`);
+                        setPendingLogApplier((_a = getLastRestrainerName()) !== null && _a !== void 0 ? _a : `#${sourceNum}`, sourceNum);
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
                 }

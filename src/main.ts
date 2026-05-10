@@ -1769,7 +1769,7 @@ function init(): void {
                 recordRestrainer(sourceNum);
                 // Also stash the name for the restraint log — it flushes any
                 // pending additions that are waiting on the applier name.
-                try { setPendingLogApplier(getLastRestrainerName() ?? `#${sourceNum}`); } catch { /* ignore */ }
+                try { setPendingLogApplier(getLastRestrainerName() ?? `#${sourceNum}`, sourceNum); } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
         return result;
