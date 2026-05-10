@@ -6465,8 +6465,11 @@
             body.className = "ebc-body";
             body.id = "ebc-body";
             // Footer: version + credit line + live timer
+            // The footer also doubles as the resize handle — it's inside .ebc-panel so
+            // pointer events are guaranteed to work (same as every other panel element).
             const footer = document.createElement("div");
-            footer.className = "ebc-footer";
+            footer.className = "ebc-footer ebc-resize-bar";
+            footer.title = "Drag to resize · Double-click to reset";
             footer.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
             const timerEl = document.createElement("div");
             timerEl.className = "ebc-timer";
@@ -6482,12 +6485,6 @@
             panel.appendChild(body);
             panel.appendChild(footer);
             slideContainer.appendChild(panel);
-            // Resize bar — absolutely positioned at the bottom of the slide container.
-            // Lives outside .ebc-panel so overflow:hidden can never clip it.
-            const resizeBar = document.createElement("div");
-            resizeBar.className = "ebc-resize-bar";
-            resizeBar.title = "Drag to resize · Double-click to reset";
-            slideContainer.appendChild(resizeBar);
             root.appendChild(slideContainer);
             // Restore saved height
             try {
@@ -6499,17 +6496,16 @@
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
-            addPointerDown(resizeBar, (start, e) => {
+            addPointerDown(footer, (start, e) => {
                 var _a, _b, _c, _d;
                 e.preventDefault();
                 e.stopPropagation();
-                // Read current pixel height from inline style (most reliable — it's what we wrote last)
                 const styleH = parseFloat((_b = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.style.height) !== null && _b !== void 0 ? _b : "");
                 const startH = (isNaN(styleH) || styleH < 1)
                     ? ((_d = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.getBoundingClientRect().height) !== null && _d !== void 0 ? _d : 400)
                     : styleH;
                 const startY = start.clientY;
-                resizeBar.classList.add("ebc-resizing");
+                footer.classList.add("ebc-resizing");
                 addPointerTracking((pos) => {
                     if (!this.rootEl)
                         return;
@@ -6517,7 +6513,7 @@
                     this.userPanelHeight = newH;
                     this.rootEl.style.height = `${newH}px`;
                 }, () => {
-                    resizeBar.classList.remove("ebc-resizing");
+                    footer.classList.remove("ebc-resizing");
                     try {
                         if (this.userPanelHeight !== null)
                             localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight));
@@ -6526,13 +6522,12 @@
                 });
             });
             // Double-click resets height to auto (follow chat log size)
-            resizeBar.addEventListener("dblclick", () => {
+            footer.addEventListener("dblclick", () => {
                 this.userPanelHeight = null;
                 try {
                     localStorage.removeItem(EBC_HEIGHT_KEY);
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
-                // Force syncToChat to recalculate on the next tick
                 this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
                 this.syncToChat();
             });
@@ -9435,18 +9430,29 @@
                     });
                     hrow.appendChild(delBtn);
                 }
-                // Clicking a collapsed header switches to it; clicking the active one does nothing
+                // Build the body element now so the click handler can reference it for toggling
+                const catBody = document.createElement("div");
+                catBody.style.cssText = "padding:6px 8px 4px;";
+                let isExpanded = isActive;
+                if (!isActive)
+                    catBody.style.display = "none";
+                // Clicking a collapsed header switches to it and re-renders.
+                // Clicking the active (expanded) header toggles it open/closed inline.
                 hrow.addEventListener("click", () => {
-                    if (i === activeCatIdx)
+                    if (i !== activeCatIdx) {
+                        setActiveCategoryIndex(i);
+                        this.renderButtons();
                         return;
-                    setActiveCategoryIndex(i);
-                    this.renderButtons();
+                    }
+                    isExpanded = !isExpanded;
+                    catBody.style.display = isExpanded ? "" : "none";
+                    chevron.textContent = isExpanded ? "▼" : "▶";
+                    section.style.borderColor = isExpanded ? "#5a2840" : "#2a1421";
+                    hrow.style.background = isExpanded ? "#2a0e1e" : "#1b0d17";
                 });
                 section.appendChild(hrow);
                 // ── Body (only rendered for the active category) ──
                 if (isActive) {
-                    const catBody = document.createElement("div");
-                    catBody.style.cssText = "padding:6px 8px 4px;";
                     activeBodyEl = catBody;
                     section.appendChild(catBody);
                 }
@@ -14412,9 +14418,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.12";
+    const MOD_VERSION = "1.3.13";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.13",
+            changes: [
+                "Fix: accordion category headers are now properly collapsible — clicking the currently expanded category header collapses it; clicking it again re-expands it.",
+                "Fix: panel resize now reliably works via the footer bar (version text strip at the bottom of the panel); drag up/down to resize, double-click to reset.",
+            ],
+        },
         {
             version: "1.3.12",
             changes: [

@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.12";
+const MOD_VERSION = "1.3.13";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.13",
+        changes: [
+            "Fix: accordion category headers are now properly collapsible — clicking the currently expanded category header collapses it; clicking it again re-expands it.",
+            "Fix: panel resize now reliably works via the footer bar (version text strip at the bottom of the panel); drag up/down to resize, double-click to reset.",
+        ],
+    },
     {
         version: "1.3.12",
         changes: [
