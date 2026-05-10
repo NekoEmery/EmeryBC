@@ -309,41 +309,47 @@ const CSS = `
     height: 100%;
     overflow: hidden;
     box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+    position: relative; /* needed so the resize corner is positioned inside this element */
 }
 
-/* Resize grip — sits at the very bottom of the panel flex column.
-   Deliberately tall and visually distinct so users can find and grab it.
-   The ::before three-line indicator is visible at rest, not just on hover. */
-.ebc-resize-bar {
-    flex-shrink: 0;
-    height: 22px;
-    cursor: row-resize;
+/* Left-edge drag strip — the primary width handle.
+   Drag left = wider, drag right = narrower.
+   Same pattern as VS Code / Discord sidebar resize. */
+.ebc-resize-left {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: ew-resize;
     user-select: none;
     touch-action: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #120910;
-    border-top: 1px solid #2a1421;
-    transition: background 0.15s;
     pointer-events: auto;
+    z-index: 5;
+    transition: background 0.15s;
 }
-.ebc-resize-bar::before {
-    content: "";
-    display: block;
-    width: 40px;
-    height: 2px;
-    border-radius: 2px;
-    background: #5a3048;
-    box-shadow: 0 -5px 0 #5a3048, 0 5px 0 #5a3048;
-    transition: background 0.15s, box-shadow 0.15s;
+.ebc-resize-left:hover,
+.ebc-resize-left.ebc-resizing {
+    background: rgba(207, 111, 152, 0.25);
 }
-.ebc-resize-bar:hover,
-.ebc-resize-bar.ebc-resizing { background: #1e0c18; }
-.ebc-resize-bar:hover::before,
-.ebc-resize-bar.ebc-resizing::before {
-    background: #cf6f98;
-    box-shadow: 0 -5px 0 #cf6f98, 0 5px 0 #cf6f98;
+
+/* Bottom-edge drag strip — height handle. */
+.ebc-resize-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    cursor: s-resize;
+    user-select: none;
+    touch-action: none;
+    pointer-events: auto;
+    z-index: 5;
+    transition: background 0.15s;
+}
+.ebc-resize-bottom:hover,
+.ebc-resize-bottom.ebc-resizing {
+    background: rgba(207, 111, 152, 0.25);
 }
 
 /* Catch-all hover brightening for any button that lacks its own :hover rule */
@@ -2523,8 +2529,9 @@ export class EBCDrawer {
     // Free-float panel position. null = anchored to chat log (default slide behaviour).
     private panelPosition: { x: number; y: number } | null = null;
     private resetLocationBtn: HTMLElement | null = null;
-    // User-dragged panel height override. null = match chat log height.
+    // User-dragged panel height/width overrides. null = auto (follow chat log).
     private userPanelHeight: number | null = null;
+    private userPanelWidth:  number | null = null;
     // Direct reference to the .ebc-panel flex container — set height here to resize.
     private panelContentEl: HTMLElement | null = null;
     // Category dropdown in quick actions bar
@@ -3246,15 +3253,20 @@ export class EBCDrawer {
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
 
-        // Resize bar — dedicated thin strip, the last child of the flex column.
-        // Lives inside .ebc-panel so pointer events are always guaranteed (same as
-        // every other element in the panel). Pure flex child — no absolute positioning,
-        // no stacking-context fights with backdrop-filter.
-        const resizeBar = document.createElement("div");
-        resizeBar.className = "ebc-resize-bar";
-        resizeBar.title = "Drag to resize · Double-click to reset";
+        // Two resize handles inside .ebc-panel (position:relative):
+        //   resizeLeft  — left edge, ew-resize cursor, controls WIDTH  (like Discord/VS Code sidebar)
+        //   resizeBottom — bottom edge, s-resize cursor, controls HEIGHT
+        // Both use setPointerCapture so drags can't be stolen by BC's event handlers.
+        // Double-click either handle to reset that dimension (or both) to auto.
+        const resizeLeft   = document.createElement("div");
+        const resizeBottom = document.createElement("div");
+        resizeLeft.className   = "ebc-resize-left";
+        resizeBottom.className = "ebc-resize-bottom";
+        resizeLeft.title   = "Drag to resize width · Double-click to reset";
+        resizeBottom.title = "Drag to resize height · Double-click to reset";
 
         const EBC_HEIGHT_KEY = "EBC_panelHeight";
+        const EBC_WIDTH_KEY  = "EBC_panelWidth";
 
         panel.appendChild(header);
         panel.appendChild(tabBar);
@@ -3264,60 +3276,89 @@ export class EBCDrawer {
         panel.appendChild(safewordRow);
         panel.appendChild(body);
         panel.appendChild(footer);
-        panel.appendChild(resizeBar);
+        panel.appendChild(resizeLeft);
+        panel.appendChild(resizeBottom);
         slideContainer.appendChild(panel);
         root.appendChild(slideContainer);
 
-        // Restore saved height — applied to panelEl on next syncToChat()
+        // Restore saved height / width — applied to panelEl on next syncToChat()
         try {
             const savedH = localStorage.getItem(EBC_HEIGHT_KEY);
             if (savedH !== null) { const h = parseFloat(savedH); if (!isNaN(h) && h >= 180) this.userPanelHeight = h; }
+            const savedW = localStorage.getItem(EBC_WIDTH_KEY);
+            if (savedW !== null) { const w = parseFloat(savedW); if (!isNaN(w) && w >= 120) this.userPanelWidth  = w; }
         } catch { /* ignore */ }
 
-        // Resize via Pointer Capture API — most reliable drag mechanism in browsers.
-        // setPointerCapture routes ALL subsequent pointer events to resizeBar regardless
-        // of where the cursor moves, bypassing any event interception by BC or other mods.
-        // We also set height directly on `panel` (.ebc-panel) — the actual flex container —
-        // instead of relying on height:100% propagating through the DOM tree.
-        resizeBar.addEventListener("pointerdown", (e: PointerEvent) => {
+        // Helper: apply new width to all relevant elements
+        const applyWidth = (w: number): void => {
+            this.userPanelWidth = w;
+            if (this.panelEl) (this.panelEl as HTMLElement).style.width = `${w}px`;
+        };
+        // Helper: apply new height to all relevant elements
+        const applyHeight = (h: number): void => {
+            this.userPanelHeight = h;
+            if (this.rootEl) this.rootEl.style.height = `${h}px`;
+            if (this.panelEl) (this.panelEl as HTMLElement).style.height = `${h}px`;
+            if (this.panelContentEl) this.panelContentEl.style.height = `${h}px`;
+        };
+
+        // LEFT EDGE — width resize
+        resizeLeft.addEventListener("pointerdown", (e: PointerEvent) => {
             if (e.button !== 0) return;
             e.preventDefault();
             e.stopPropagation();
-
-            const startH = panel.getBoundingClientRect().height;
-            const startY = e.clientY;
-
-            resizeBar.setPointerCapture(e.pointerId);
-            resizeBar.classList.add("ebc-resizing");
-
+            const startW = (this.panelEl as HTMLElement).getBoundingClientRect().width;
+            const startX = e.clientX;
+            resizeLeft.setPointerCapture(e.pointerId);
+            resizeLeft.classList.add("ebc-resizing");
             const onMove = (me: PointerEvent): void => {
-                const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (me.clientY - startY)));
-                this.userPanelHeight = newH;
-                panel.style.height = `${newH}px`;
-                if (this.panelEl)  (this.panelEl  as HTMLElement).style.height = `${newH}px`;
-                if (this.rootEl)    this.rootEl.style.height                    = `${newH}px`;
+                // Panel is right-anchored: dragging left (dx < 0) makes it wider
+                const newW = Math.max(120, Math.min(window.innerWidth - 60, startW - (me.clientX - startX)));
+                applyWidth(newW);
             };
-
             const onUp = (): void => {
-                resizeBar.removeEventListener("pointermove", onMove);
-                resizeBar.removeEventListener("pointerup",   onUp);
-                resizeBar.classList.remove("ebc-resizing");
-                try {
-                    if (this.userPanelHeight !== null)
-                        localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight));
-                } catch { /* ignore */ }
+                resizeLeft.removeEventListener("pointermove", onMove);
+                resizeLeft.removeEventListener("pointerup",   onUp);
+                resizeLeft.classList.remove("ebc-resizing");
+                try { if (this.userPanelWidth !== null) localStorage.setItem(EBC_WIDTH_KEY, String(this.userPanelWidth)); } catch { /* ignore */ }
             };
-
-            resizeBar.addEventListener("pointermove", onMove);
-            resizeBar.addEventListener("pointerup",   onUp);
+            resizeLeft.addEventListener("pointermove", onMove);
+            resizeLeft.addEventListener("pointerup",   onUp);
+        });
+        resizeLeft.addEventListener("dblclick", () => {
+            this.userPanelWidth = null;
+            if (this.panelEl) (this.panelEl as HTMLElement).style.width = "";
+            try { localStorage.removeItem(EBC_WIDTH_KEY); } catch { /* ignore */ }
+            this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
+            this.syncToChat();
         });
 
-        // Double-click resets height to auto (follow chat log size)
-        resizeBar.addEventListener("dblclick", () => {
+        // BOTTOM EDGE — height resize
+        resizeBottom.addEventListener("pointerdown", (e: PointerEvent) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const startH = (this.panelEl as HTMLElement).getBoundingClientRect().height;
+            const startY = e.clientY;
+            resizeBottom.setPointerCapture(e.pointerId);
+            resizeBottom.classList.add("ebc-resizing");
+            const onMove = (me: PointerEvent): void => {
+                const newH = Math.max(180, Math.min(window.innerHeight - 40, startH + (me.clientY - startY)));
+                applyHeight(newH);
+            };
+            const onUp = (): void => {
+                resizeBottom.removeEventListener("pointermove", onMove);
+                resizeBottom.removeEventListener("pointerup",   onUp);
+                resizeBottom.classList.remove("ebc-resizing");
+                try { if (this.userPanelHeight !== null) localStorage.setItem(EBC_HEIGHT_KEY, String(this.userPanelHeight)); } catch { /* ignore */ }
+            };
+            resizeBottom.addEventListener("pointermove", onMove);
+            resizeBottom.addEventListener("pointerup",   onUp);
+        });
+        resizeBottom.addEventListener("dblclick", () => {
             this.userPanelHeight = null;
-            panel.style.height = "";
-            if (this.panelEl)        (this.panelEl as HTMLElement).style.height = "";
-            if (this.panelContentEl)  this.panelContentEl.style.height           = "";
+            if (this.panelEl) (this.panelEl as HTMLElement).style.height = "";
+            if (this.panelContentEl) this.panelContentEl.style.height = "";
             try { localStorage.removeItem(EBC_HEIGHT_KEY); } catch { /* ignore */ }
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.syncToChat();
@@ -3457,9 +3498,7 @@ export class EBCDrawer {
             this.rootEl.style.right  = `${rightOffset}px`;
             this.rootEl.style.height = `${finalH}px`;
             if (this.panelEl)        (this.panelEl as HTMLElement).style.height = `${finalH}px`;
-            // Set directly on the .ebc-panel content box — the most reliable target,
-            // no height:100% inheritance chain required.
-            if (this.panelContentEl) this.panelContentEl.style.height = `${finalH}px`;
+            if (this.panelContentEl) this.panelContentEl.style.height           = `${finalH}px`;
             this.lastRect = { top: rect.top, width: rect.width, height: rect.height, right: rightOffset };
             this.positioned = true;
             // Chat log moved — force a fresh CRABS position read next tick
@@ -3470,6 +3509,11 @@ export class EBCDrawer {
                 const tabEl = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
                 if (tabEl) this.applyTabOffset(tabEl, this.userTabOffset);
             }
+        }
+
+        // Apply user width preference — independent of chat log sync guard.
+        if (this.panelEl && this.userPanelWidth !== null) {
+            (this.panelEl as HTMLElement).style.width = `${this.userPanelWidth}px`;
         }
 
         // Load saved tab offset once on first successful position sync
@@ -9361,6 +9405,27 @@ export class EBCDrawer {
                 pinDot.textContent = "📌";
                 pinDot.style.cssText = "font-size:9px;flex-shrink:0;line-height:1;" + (pinned ? "" : "display:none;");
 
+                // Relationship badge (❤️ lover · 🔒 owned by them · 👑 you own them)
+                const relBadge = (() => {
+                    try {
+                        const icons: string[] = [];
+                        // Owned by them
+                        const own = (Player as unknown as Record<string, unknown>).Ownership as
+                            { MemberNumber?: number } | undefined;
+                        if (own?.MemberNumber === num) icons.push("🔒");
+                        // Lover
+                        const loves = (Player as unknown as Record<string, unknown>).Lovership as
+                            Array<{ MemberNumber?: number }> | undefined;
+                        if (loves?.some(l => l.MemberNumber === num)) icons.push("❤️");
+                        // You own them — need their room data
+                        const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                            Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number } }> | undefined;
+                        const roomChar = room?.find(c => c.MemberNumber === num);
+                        if (roomChar?.Ownership?.MemberNumber === Player.MemberNumber) icons.push("👑");
+                        return icons.join("");
+                    } catch { return ""; }
+                })();
+
                 const nameEl = document.createElement("span");
                 nameEl.className = "ebc-friend-name";
                 nameEl.textContent = name;
@@ -9395,12 +9460,24 @@ export class EBCDrawer {
                     row.appendChild(dot);
                     row.appendChild(pinDot);
                     row.appendChild(nameEl);
+                    if (relBadge) {
+                        const badge = document.createElement("span");
+                        badge.textContent = relBadge;
+                        badge.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
+                        row.appendChild(badge);
+                    }
                     row.appendChild(numEl);
                     row.appendChild(roomTag);
                 } else {
                     row.appendChild(dot);
                     row.appendChild(pinDot);
                     row.appendChild(nameEl);
+                    if (relBadge) {
+                        const badge = document.createElement("span");
+                        badge.textContent = relBadge;
+                        badge.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
+                        row.appendChild(badge);
+                    }
                     row.appendChild(numEl);
                 }
 

@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.17";
+const MOD_VERSION = "1.3.18";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.18",
+        changes: [
+            "Resize rework: replaced the bottom grip bar with a bottom-left corner triangle handle — drag left/right to adjust width, drag up/down to adjust height, just like standard OS windows. Double-click to reset both. Both dimensions are saved and restored across sessions.",
+            "Friends tab: relationship icons now appear beside each friend's name — ❤️ lover, 🔒 they own you, 👑 you own them.",
+        ],
+    },
     {
         version: "1.3.17",
         changes: [
