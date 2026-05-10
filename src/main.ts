@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.7";
+const MOD_VERSION = "1.3.8";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.8",
+        changes: [
+            "Poses: added 'Legs Closed' (ClosedLegs) to the Body pose group — available as a quick-apply button in the Poses tab and as a step in the combo/animation editor.",
+        ],
+    },
     {
         version: "1.3.7",
         changes: [

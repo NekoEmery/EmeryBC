@@ -1400,6 +1400,7 @@
             group: "Body",
             poses: [
                 { key: "", label: "Stand" },
+                { key: "ClosedLegs", label: "Legs Closed" },
                 { key: "Kneel", label: "Kneel" },
                 { key: "KneelingSpread", label: "Kneel Wide" },
                 { key: "AllFours", label: "All Fours" },
@@ -14428,9 +14429,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.7";
+    const MOD_VERSION = "1.3.8";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.8",
+            changes: [
+                "Poses: added 'Legs Closed' (ClosedLegs) to the Body pose group — available as a quick-apply button in the Poses tab and as a step in the combo/animation editor.",
+            ],
+        },
         {
             version: "1.3.7",
             changes: [

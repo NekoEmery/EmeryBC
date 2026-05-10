@@ -19,12 +19,13 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
     {
         group: "Body",
         poses: [
-            { key: "",               label: "Stand"       },
-            { key: "Kneel",          label: "Kneel"       },
-            { key: "KneelingSpread", label: "Kneel Wide"  },
-            { key: "AllFours",       label: "All Fours"   },
-            { key: "Hogtied",        label: "Hogtied"     },
-            { key: "Spread",         label: "Spread"      },
+            { key: "",               label: "Stand"        },
+            { key: "ClosedLegs",     label: "Legs Closed"  },
+            { key: "Kneel",          label: "Kneel"        },
+            { key: "KneelingSpread", label: "Kneel Wide"   },
+            { key: "AllFours",       label: "All Fours"    },
+            { key: "Hogtied",        label: "Hogtied"      },
+            { key: "Spread",         label: "Spread"       },
         ],
     },
     {
