@@ -1684,6 +1684,9 @@ function init(): void {
         // Fire an initial visibility check in case the addon loads while the
         // player is already in a chat room (ChatRoomSync won't fire again).
         window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);
+        // Bootstrap room history in case the addon loaded while already in a room
+        // (ChatRoomSync won't fire again so we seed the current visit manually).
+        window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); } catch { /* ignore */ } }, 600);
     } catch (err) {
         console.warn("[EBC] Drawer failed to initialise:", err);
     }

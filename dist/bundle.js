@@ -10454,29 +10454,17 @@
             funLbl.style.marginTop = "10px";
             funLbl.textContent = "Fun Actions";
             body.appendChild(funLbl);
-            // OOC toggle
-            const oocRow = document.createElement("div");
-            oocRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0 0;";
-            const oocLbl = document.createElement("span");
-            oocLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            oocLbl.textContent = "OOC mode — prefix ( on every message";
             const oocBtn = document.createElement("button");
+            oocBtn.className = "ebc-create-btn";
+            oocBtn.style.cssText = "margin:4px 0 0; width:100%;";
             const refreshOoc = () => {
                 const on = getOocEnabled();
-                oocBtn.textContent = on ? "ON" : "OFF";
-                oocBtn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                    "padding:3px 12px", "border-radius:5px", "cursor:pointer", "flex-shrink:0",
-                    on ? "border:1px solid #cf6f98" : "border:1px solid #a03050",
-                    on ? "background:#4a1030" : "background:#2a0515",
-                    on ? "color:#f7cce0" : "color:#e05070",
-                ].join(";");
+                oocBtn.textContent = on ? "( OOC Mode: ON  —  click to turn off" : "( OOC Mode: OFF  —  click to turn on";
+                oocBtn.style.opacity = on ? "1" : "0.6";
             };
             refreshOoc();
             oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
-            oocRow.appendChild(oocLbl);
-            oocRow.appendChild(oocBtn);
-            body.appendChild(oocRow);
+            body.appendChild(oocBtn);
             const boopBtn = document.createElement("button");
             boopBtn.className = "ebc-create-btn";
             boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
@@ -10493,6 +10481,42 @@
                 window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
             });
             body.appendChild(boopBtn);
+            // -- Useful Buttons ------------------------------------------------------
+            const usefulLbl = document.createElement("div");
+            usefulLbl.className = "ebc-section-label";
+            usefulLbl.style.marginTop = "10px";
+            usefulLbl.textContent = "Useful Buttons";
+            body.appendChild(usefulLbl);
+            const copyMemberBtn = document.createElement("button");
+            copyMemberBtn.className = "ebc-create-btn";
+            copyMemberBtn.style.cssText = "margin:4px 0 0; width:100%;";
+            copyMemberBtn.textContent = "📋 Copy My Member Number";
+            copyMemberBtn.addEventListener("click", () => {
+                try {
+                    navigator.clipboard.writeText(String(Player.MemberNumber));
+                    copyMemberBtn.textContent = "✓ Copied!";
+                }
+                catch (_a) {
+                    copyMemberBtn.textContent = `#${Player.MemberNumber}`;
+                }
+                window.setTimeout(() => { copyMemberBtn.textContent = "📋 Copy My Member Number"; }, 2000);
+            });
+            body.appendChild(copyMemberBtn);
+            const clearPoseBtn = document.createElement("button");
+            clearPoseBtn.className = "ebc-create-btn";
+            clearPoseBtn.style.cssText = "margin:4px 0 0; width:100%;";
+            clearPoseBtn.textContent = "🧍 Reset to Default Pose";
+            clearPoseBtn.title = "Clears all active poses back to standing";
+            clearPoseBtn.addEventListener("click", () => {
+                try {
+                    Player.ActivePose = [];
+                    CharacterRefresh(Player, false);
+                    ChatRoomCharacterUpdate(Player);
+                    ServerPlayerAppearanceSync();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            body.appendChild(clearPoseBtn);
         }
         // -- Appearance diff -------------------------------------------------------
         renderDiff(panel, outfit) {
@@ -13732,7 +13756,17 @@
                         ].join(";");
                     };
                     refreshRhToggle();
-                    rhToggleBtn.addEventListener("click", () => { setRoomHistoryEnabled(!getRoomHistoryEnabled()); refreshRhToggle(); renderRoom(); });
+                    rhToggleBtn.addEventListener("click", () => {
+                        const on = !getRoomHistoryEnabled();
+                        setRoomHistoryEnabled(on);
+                        if (on)
+                            try {
+                                detectNewJoins();
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                        refreshRhToggle();
+                        renderRoom();
+                    });
                     rhToggleRow.appendChild(rhToggleLbl);
                     rhToggleRow.appendChild(rhToggleBtn);
                     c.appendChild(rhToggleRow);
@@ -17036,6 +17070,13 @@
                 drawer === null || drawer === void 0 ? void 0 : drawer.updateVisibility();
             }
             catch ( /* ignore */_a) { /* ignore */ } }, 400);
+            // Bootstrap room history in case the addon loaded while already in a room
+            // (ChatRoomSync won't fire again so we seed the current visit manually).
+            window.setTimeout(() => { try {
+                onRoomSync();
+                detectNewJoins();
+            }
+            catch ( /* ignore */_a) { /* ignore */ } }, 600);
         }
         catch (err) {
             console.warn("[EBC] Drawer failed to initialise:", err);
