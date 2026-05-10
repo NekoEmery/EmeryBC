@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.11";
+const MOD_VERSION = "1.3.12";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.12",
+        changes: [
+            "Buttons tab: categories are now collapsible accordion sections — click a category header to expand it and edit its buttons, click another to switch. Rename/delete buttons sit in each header. Add Category button at the bottom.",
+            "Outfits tab: removed ⛓ icon from Saved Restraints section header.",
+        ],
+    },
     {
         version: "1.3.11",
         changes: [

@@ -5841,7 +5841,6 @@
             // User-dragged panel height override. null = match chat log height.
             this.userPanelHeight = null;
             // Category dropdown in quick actions bar
-            this.catSelectEl = null;
             // DEV tab auto-refresh poller
             this.devLogPoller = null;
             EBCDrawer._instance = this;
@@ -6031,12 +6030,6 @@
             qaRow1.appendChild(releaseBtn);
             qaRow1.appendChild(unlockBtn);
             quickActions.appendChild(qaRow1);
-            // Category select element — injected into the Buttons tab by renderButtons()
-            const catSel = document.createElement("select");
-            catSel.className = "ebc-cat-select";
-            catSel.title = "Switch active Quick Action Button category";
-            // onchange is assigned in renderButtons() so it can refresh the full tab state
-            this.catSelectEl = catSel;
             // Row 1b: confirm-before-escaping (centered, subtle, between danger buttons and picker)
             const qaConfirmRow = document.createElement("div");
             qaConfirmRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:7px;";
@@ -6643,25 +6636,6 @@
         // Because both addons respond to the same layout events the read order is
         // non-deterministic, so we poll CRABS's position every 200 ms instead of
         // relying on a one-shot read during syncToChat().
-        refreshCategorySelect() {
-            const sel = this.catSelectEl;
-            if (!sel)
-                return;
-            try {
-                const cats = getCategories();
-                const activeIdx = getActiveCategoryIndex();
-                sel.innerHTML = "";
-                cats.forEach((cat, i) => {
-                    const opt = document.createElement("option");
-                    opt.value = String(i);
-                    opt.textContent = cat.name;
-                    if (i === activeIdx)
-                        opt.selected = true;
-                    sel.appendChild(opt);
-                });
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-        }
         syncToChat() {
             const chatLog = document.getElementById("TextAreaChatLog");
             if (!chatLog || !this.rootEl)
@@ -8785,7 +8759,7 @@
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
             lbl.style.margin = "0";
-            lbl.textContent = "⛓ Saved Restraints";
+            lbl.textContent = "Saved Restraints";
             const chevron = document.createElement("span");
             chevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
             chevron.textContent = restraintsCollapsed ? "▲" : "▼";
@@ -9395,136 +9369,112 @@
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── Category dropdown (top of tab) ───────────────────────────────────
-            let cats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
+            // Working category state
+            const cats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
             let activeCatIdx = getActiveCategoryIndex();
             if (activeCatIdx >= cats.length)
                 activeCatIdx = 0;
-            // Refresh and inject the shared <select> into the tab body
-            this.refreshCategorySelect();
-            if (this.catSelectEl) {
-                const catDropRow = document.createElement("div");
-                catDropRow.className = "ebc-cat-select-row";
-                const catDropLbl = document.createElement("span");
-                catDropLbl.className = "ebc-cat-select-label";
-                catDropLbl.textContent = "Active Category";
-                catDropRow.appendChild(catDropLbl);
-                catDropRow.appendChild(this.catSelectEl);
-                body.appendChild(catDropRow);
-                // Keep local activeCatIdx in sync when user changes the dropdown
-                this.catSelectEl.onchange = () => {
-                    const idx = parseInt(this.catSelectEl.value, 10);
-                    if (!isNaN(idx)) {
-                        activeCatIdx = idx;
-                        setActiveCategoryIndex(idx);
-                        btns = cats[idx].buttons.map(b => (Object.assign({}, b)));
-                        slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[idx].slotCount || cats[idx].buttons.length || 1));
-                        renderCatBar();
-                        renderSlots();
-                        updateFooterState();
-                    }
-                };
-            }
-            // ── Category pill bar (manage / add / rename / delete) ────────────────
-            const catBar = document.createElement("div");
-            catBar.style.cssText = "display:flex;gap:3px;flex-wrap:wrap;align-items:center;margin-bottom:5px;";
-            const renderCatBar = () => {
-                catBar.innerHTML = "";
-                // Keep the dropdown in sync
-                if (this.catSelectEl)
-                    this.catSelectEl.value = String(activeCatIdx);
-                cats.forEach((cat, i) => {
-                    const tab = document.createElement("button");
-                    tab.textContent = cat.name;
-                    const isActive = i === activeCatIdx;
-                    tab.className = "ebc-cat-pill" + (isActive ? " active" : "");
-                    tab.addEventListener("click", () => {
-                        activeCatIdx = i;
-                        setActiveCategoryIndex(i);
-                        // Load that category's buttons into working state
-                        btns = cats[i].buttons.map(b => (Object.assign({}, b)));
-                        slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[i].slotCount || cats[i].buttons.length || 1));
-                        renderCatBar();
-                        renderSlots();
-                        updateFooterState();
-                    });
-                    catBar.appendChild(tab);
-                });
-                // + Add category button
-                const addCatBtn = document.createElement("button");
-                addCatBtn.textContent = "+ Cat";
-                addCatBtn.title = "Add a new category";
-                addCatBtn.className = "ebc-cat-pill";
-                addCatBtn.style.borderStyle = "dashed";
-                addCatBtn.style.color = "#7a5a6a";
-                addCatBtn.addEventListener("click", () => {
-                    var _a;
-                    const name = (_a = window.prompt("Category name (e.g. RP, Casual):")) !== null && _a !== void 0 ? _a : "";
-                    if (!name.trim())
-                        return;
-                    cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" }], slotCount: 1 });
-                    activeCatIdx = cats.length - 1;
-                    setActiveCategoryIndex(activeCatIdx);
-                    btns = cats[activeCatIdx].buttons.map(b => (Object.assign({}, b)));
-                    slotCount = 1;
-                    renderCatBar();
-                    renderSlots();
-                    updateFooterState();
-                });
-                catBar.appendChild(addCatBtn);
-                // Rename / delete active category
-                if (cats.length > 0) {
-                    const renameBtn = document.createElement("button");
-                    renameBtn.textContent = "✎";
-                    renameBtn.title = "Rename active category";
-                    renameBtn.className = "ebc-cat-pill";
-                    renameBtn.style.padding = "1px 5px";
-                    renameBtn.addEventListener("click", () => {
-                        var _a;
-                        const newName = (_a = window.prompt("New name:", cats[activeCatIdx].name)) !== null && _a !== void 0 ? _a : "";
-                        if (!newName.trim())
-                            return;
-                        cats[activeCatIdx].name = newName.trim();
-                        renderCatBar();
-                    });
-                    catBar.appendChild(renameBtn);
-                    if (cats.length > 1) {
-                        const delCatBtn = document.createElement("button");
-                        delCatBtn.textContent = "✕";
-                        delCatBtn.title = "Delete active category";
-                        delCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a3040;";
-                        delCatBtn.addEventListener("click", () => {
-                            if (!window.confirm(`Delete category "${cats[activeCatIdx].name}"?`))
-                                return;
-                            cats.splice(activeCatIdx, 1);
-                            activeCatIdx = Math.min(activeCatIdx, cats.length - 1);
-                            setActiveCategoryIndex(activeCatIdx);
-                            btns = cats[activeCatIdx].buttons.map(b => (Object.assign({}, b)));
-                            slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
-                            renderCatBar();
-                            renderSlots();
-                            updateFooterState();
-                        });
-                        catBar.appendChild(delCatBtn);
-                    }
-                }
-            };
-            renderCatBar();
-            body.appendChild(catBar);
-            // Working copies so we don't mutate storage until Save is clicked
+            // ── Accordion: one collapsible section per category ───────────────────
+            // Build all headers; only the active one has its editor body visible.
+            // Clicking a collapsed header switches to it and re-renders.
+            // Working copies for the active category's editor
             let btns = cats[activeCatIdx].buttons.map(b => (Object.assign({}, b)));
             let slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
-            // Ensure array has slotCount entries
             while (btns.length < slotCount) {
                 btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
             }
-            const lbl = document.createElement("div");
-            lbl.className = "ebc-section-label";
-            lbl.textContent = "Quick Action Buttons";
-            body.appendChild(lbl);
+            // ── Build accordion ───────────────────────────────────────────────────
+            // One section per category. The active one is expanded; others collapsed.
+            let activeBodyEl = document.createElement("div"); // filled below
+            const HROW_CSS = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;border-radius:6px;margin-bottom:2px;";
+            const CAT_LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+            const ICON_BTN_CSS = "background:none;border:none;font-family:'Trebuchet MS',serif;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:3px;color:#7a5a6a;flex-shrink:0;";
+            cats.forEach((cat, i) => {
+                const isActive = i === activeCatIdx;
+                const section = document.createElement("div");
+                section.style.cssText = "border:1px solid " + (isActive ? "#5a2840" : "#2a1421") + ";border-radius:7px;margin-bottom:5px;overflow:hidden;";
+                // ── Header ──
+                const hrow = document.createElement("div");
+                hrow.style.cssText = HROW_CSS + "background:" + (isActive ? "#2a0e1e" : "#1b0d17") + ";";
+                const chevron = document.createElement("span");
+                chevron.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+                chevron.textContent = isActive ? "▼" : "▶";
+                const nameLbl = document.createElement("span");
+                nameLbl.style.cssText = CAT_LBL_CSS;
+                nameLbl.textContent = cat.name;
+                const renameBtn = document.createElement("button");
+                renameBtn.style.cssText = ICON_BTN_CSS;
+                renameBtn.textContent = "✎";
+                renameBtn.title = "Rename";
+                renameBtn.addEventListener("click", (e) => {
+                    var _a;
+                    e.stopPropagation();
+                    const newName = (_a = window.prompt("New name:", cats[i].name)) !== null && _a !== void 0 ? _a : "";
+                    if (!newName.trim())
+                        return;
+                    cats[i].name = newName.trim();
+                    saveCategories([...cats], activeCatIdx);
+                    nameLbl.textContent = newName.trim();
+                });
+                hrow.appendChild(chevron);
+                hrow.appendChild(nameLbl);
+                hrow.appendChild(renameBtn);
+                if (cats.length > 1) {
+                    const delBtn = document.createElement("button");
+                    delBtn.style.cssText = ICON_BTN_CSS + "color:#7a3040;";
+                    delBtn.textContent = "✕";
+                    delBtn.title = "Delete category";
+                    delBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        if (!window.confirm(`Delete category "${cats[i].name}"?`))
+                            return;
+                        cats.splice(i, 1);
+                        const newIdx = Math.min(i, cats.length - 1);
+                        saveCategories([...cats], newIdx);
+                        this.renderButtons();
+                    });
+                    hrow.appendChild(delBtn);
+                }
+                // Clicking a collapsed header switches to it; clicking the active one does nothing
+                hrow.addEventListener("click", () => {
+                    if (i === activeCatIdx)
+                        return;
+                    setActiveCategoryIndex(i);
+                    this.renderButtons();
+                });
+                section.appendChild(hrow);
+                // ── Body (only rendered for the active category) ──
+                if (isActive) {
+                    const catBody = document.createElement("div");
+                    catBody.style.cssText = "padding:6px 8px 4px;";
+                    activeBodyEl = catBody;
+                    section.appendChild(catBody);
+                }
+                body.appendChild(section);
+            });
+            // ── Add Category row ──────────────────────────────────────────────────
+            const addCatRow = document.createElement("div");
+            addCatRow.style.cssText = "margin-bottom:8px;";
+            const addCatBtn = document.createElement("button");
+            addCatBtn.className = "ebc-cat-pill";
+            addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
+            addCatBtn.textContent = "+ Add Category";
+            addCatBtn.addEventListener("click", () => {
+                var _a;
+                const name = (_a = window.prompt("Category name (e.g. RP, Casual):")) !== null && _a !== void 0 ? _a : "";
+                if (!name.trim())
+                    return;
+                cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" }], slotCount: 1 });
+                const newIdx = cats.length - 1;
+                saveCategories([...cats], newIdx);
+                this.renderButtons();
+            });
+            addCatRow.appendChild(addCatBtn);
+            body.appendChild(addCatRow);
+            // ── Slot list + render fn — appended into the active category body ─────
             const slotList = document.createElement("div");
             slotList.id = "ebc-slot-list";
-            body.appendChild(slotList);
+            activeBodyEl.appendChild(slotList);
             const renderSlots = () => {
                 var _a;
                 // Always ensure btns has a real object for every slot — prevents "undefined" crashes
@@ -9775,8 +9725,8 @@
             footer.appendChild(addBtn);
             footer.appendChild(saveBtn);
             footer.appendChild(resetBtn);
-            body.appendChild(footer);
-            // Export / Import row
+            activeBodyEl.appendChild(footer);
+            // Export / Import row — inside the active category body
             const ioRow = document.createElement("div");
             ioRow.className = "ebc-btn-footer";
             ioRow.style.marginTop = "3px";
@@ -9790,11 +9740,11 @@
             importToggleBtn.title = "Load a shared button config";
             ioRow.appendChild(exportBtn);
             ioRow.appendChild(importToggleBtn);
-            body.appendChild(ioRow);
+            activeBodyEl.appendChild(ioRow);
             // Import panel (collapsible)
             const importPanel = document.createElement("div");
             importPanel.className = "ebc-import-panel";
-            body.appendChild(importPanel);
+            activeBodyEl.appendChild(importPanel);
             const importHint = document.createElement("div");
             importHint.className = "ebc-import-hint";
             importHint.textContent = "Paste exported config here:";
@@ -9851,10 +9801,6 @@
                 cats[activeCatIdx].buttons = [...btns];
                 cats[activeCatIdx].slotCount = slotCount;
                 saveCategories([...cats], activeCatIdx);
-                try {
-                    this.refreshCategorySelect();
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
                 saveBtn.textContent = "Saved!";
                 window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
             });
@@ -9887,10 +9833,6 @@
                     cats[activeCatIdx].buttons = [...btns];
                     cats[activeCatIdx].slotCount = slotCount;
                     saveCategories([...cats], activeCatIdx);
-                    try {
-                        this.refreshCategorySelect();
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
                     renderSlots();
                     updateFooterState();
                 }
@@ -14415,10 +14357,6 @@
                 (_b = this.refreshBadgeRow) === null || _b === void 0 ? void 0 : _b.call(this);
             }
             catch ( /* ignore */_e) { /* ignore */ }
-            try {
-                this.refreshCategorySelect();
-            }
-            catch ( /* ignore */_f) { /* ignore */ }
             // Show the DOM tab only for the creator
             const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
             if (domTabEl)
@@ -14474,9 +14412,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.11";
+    const MOD_VERSION = "1.3.12";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.12",
+            changes: [
+                "Buttons tab: categories are now collapsible accordion sections — click a category header to expand it and edit its buttons, click another to switch. Rename/delete buttons sit in each header. Add Category button at the bottom.",
+                "Outfits tab: removed ⛓ icon from Saved Restraints section header.",
+            ],
+        },
         {
             version: "1.3.11",
             changes: [
