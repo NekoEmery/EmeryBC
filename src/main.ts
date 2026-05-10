@@ -14,10 +14,17 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.6";
+const MOD_VERSION = "1.3.7";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.7",
+        changes: [
+            "Beep chat: room location shown under contact name in chat window header — see at a glance which room they are in.",
+            "Beep chat: emoji picker added — click 😊 next to the send bar to open an emoji grid and insert emojis at the cursor.",
+        ],
+    },
     {
         version: "1.3.6",
         changes: [

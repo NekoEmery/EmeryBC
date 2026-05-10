@@ -5495,6 +5495,56 @@
 }
 .ebc-beep-reply-btn:hover { color: #cf6f98; background: #2a0e1e; }
 
+.ebc-beep-room-pill {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #a08098;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+    line-height: 1.3;
+}
+
+.ebc-emoji-btn {
+    background: #2a0e1e;
+    border: 1px solid #4a2035;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: background 0.12s, border-color 0.12s;
+}
+.ebc-emoji-btn:hover { background: #3a1028; border-color: #cf6f98; }
+
+.ebc-emoji-picker {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    right: 0;
+    background: #1e0d1a;
+    border: 1px solid #5a2840;
+    border-radius: 8px;
+    padding: 6px;
+    flex-wrap: wrap;
+    gap: 2px;
+    width: 206px;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.6);
+    z-index: 10001;
+}
+.ebc-emoji-picker button {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 3px 4px;
+    border-radius: 4px;
+    transition: background 0.1s;
+    line-height: 1;
+}
+.ebc-emoji-picker button:hover { background: #3a1028 !important; filter: none !important; }
+
 /* -- Free-float panel mode -- */
 #emerybc-panel.ebc-free-mode {
     position: fixed !important;
@@ -11621,16 +11671,32 @@
             header.className = "ebc-beep-win-header";
             const dot = document.createElement("span");
             dot.className = "ebc-friend-dot " + getFriendStatus(memberNumber);
+            const titleArea = document.createElement("div");
+            titleArea.style.cssText = "display:flex;flex-direction:column;flex:1;min-width:0;justify-content:center;overflow:hidden;";
             const title = document.createElement("span");
             title.className = "ebc-beep-win-title";
             title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
+            const roomPill = document.createElement("div");
+            roomPill.className = "ebc-beep-room-pill";
+            roomPill.style.display = "none";
+            titleArea.appendChild(title);
+            titleArea.appendChild(roomPill);
             // Called whenever online friend status refreshes (AccountQueryResult)
             const updateStatus = () => {
                 const s = getFriendStatus(memberNumber);
                 dot.className = "ebc-friend-dot " + s;
                 title.textContent = `${resolveName(memberNumber)} #${memberNumber}`;
+                const info = getFriendOnlineInfo(memberNumber);
+                if (info === null || info === void 0 ? void 0 : info.roomName) {
+                    roomPill.textContent = `📍 ${info.roomName}`;
+                    roomPill.style.display = "";
+                }
+                else {
+                    roomPill.style.display = "none";
+                }
             };
             win._updateStatus = updateStatus;
+            updateStatus(); // populate room pill immediately
             // Unread dot (shown on minimized bar)
             const unreadDot = document.createElement("div");
             unreadDot.className = "ebc-beep-win-unread-dot";
@@ -11702,12 +11768,19 @@
             closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
             closeBtn.textContent = "×";
             closeBtn.addEventListener("click", () => {
+                const cleanup = win._closeEmoji;
+                if (cleanup) {
+                    try {
+                        document.removeEventListener("click", cleanup, true);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
                 win.remove();
                 this.beepWins.delete(memberNumber);
                 EBCDrawer.removeOpenBeepWindow(memberNumber);
             });
             header.appendChild(dot);
-            header.appendChild(title);
+            header.appendChild(titleArea);
             header.appendChild(unreadDot);
             header.appendChild(muteBtn);
             header.appendChild(suppressBtn);
@@ -11871,6 +11944,7 @@
             // Footer
             const footer = document.createElement("div");
             footer.className = "ebc-beep-win-footer";
+            footer.style.position = "relative";
             const input = document.createElement("input");
             input.className = "ebc-beep-win-input";
             input.type = "text";
@@ -11879,6 +11953,46 @@
             const sendBtn = document.createElement("button");
             sendBtn.className = "ebc-beep-win-send";
             sendBtn.textContent = "Send";
+            // Emoji picker
+            const EMOJIS = [
+                "😊", "😄", "😂", "🥰", "😍", "😘", "😜", "😏", "🤔", "😳",
+                "😭", "😢", "👉", "👈", "👀", "💕", "💖", "❤️", "🎉", "✨",
+                "🌸", "🍑", "🐱", "🐾", "🌙", "💤", "😺", "🥺", "🙈", "🐰",
+            ];
+            const emojiPicker = document.createElement("div");
+            emojiPicker.className = "ebc-emoji-picker";
+            emojiPicker.style.display = "none";
+            for (const emoji of EMOJIS) {
+                const eb = document.createElement("button");
+                eb.textContent = emoji;
+                eb.addEventListener("click", (e) => {
+                    var _a, _b;
+                    e.stopPropagation();
+                    const start = (_a = input.selectionStart) !== null && _a !== void 0 ? _a : input.value.length;
+                    const end = (_b = input.selectionEnd) !== null && _b !== void 0 ? _b : input.value.length;
+                    input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+                    input.selectionStart = input.selectionEnd = start + [...emoji].length;
+                    input.focus();
+                    emojiPicker.style.display = "none";
+                });
+                emojiPicker.appendChild(eb);
+            }
+            const emojiBtn = document.createElement("button");
+            emojiBtn.className = "ebc-emoji-btn";
+            emojiBtn.textContent = "😊";
+            emojiBtn.title = "Insert emoji";
+            emojiBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const showing = emojiPicker.style.display !== "none";
+                emojiPicker.style.display = showing ? "none" : "flex";
+            });
+            const closeEmojiOnOutside = (e) => {
+                if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
+                    emojiPicker.style.display = "none";
+                }
+            };
+            document.addEventListener("click", closeEmojiOnOutside, true);
+            win._closeEmoji = closeEmojiOnOutside;
             const doSend = () => {
                 const msg = input.value.trim();
                 if (!msg)
@@ -11892,7 +12006,9 @@
             sendBtn.addEventListener("click", doSend);
             input.addEventListener("keydown", (e) => { if (e.key === "Enter")
                 doSend(); });
+            footer.appendChild(emojiPicker);
             footer.appendChild(input);
+            footer.appendChild(emojiBtn);
             footer.appendChild(sendBtn);
             win.appendChild(footer);
             document.body.appendChild(win);
@@ -14312,9 +14428,16 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.6";
+    const MOD_VERSION = "1.3.7";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.7",
+            changes: [
+                "Beep chat: room location shown under contact name in chat window header — see at a glance which room they are in.",
+                "Beep chat: emoji picker added — click 😊 next to the send bar to open an emoji grid and insert emojis at the cursor.",
+            ],
+        },
         {
             version: "1.3.6",
             changes: [
