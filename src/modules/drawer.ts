@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EmeryBC Drawer
  *
  * CRABS-inspired sliding panel aligned to the right edge of the chat log,
@@ -312,34 +312,41 @@ const CSS = `
 }
 
 .ebc-corner-grip {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 8px;
+    flex-shrink: 0;
+    height: 14px;
+    width: 100%;
     cursor: ns-resize;
-    z-index: 200;
     user-select: none;
     touch-action: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    background: rgba(20, 8, 16, 0.6);
+    border-top: 1px solid #2a1421;
+    transition: background 0.15s;
+}
+.ebc-corner-grip:hover {
+    background: rgba(42, 20, 33, 0.9);
 }
 .ebc-corner-grip::before {
     content: "";
     display: block;
-    width: 40px;
+    width: 48px;
     height: 3px;
     border-radius: 2px;
     background: #6b3050;
-    opacity: 0.6;
-    transition: opacity 0.15s, background 0.15s;
+    transition: background 0.15s;
 }
 .ebc-corner-grip:hover::before {
     background: #cf6f98;
-    opacity: 1;
 }
+
+/* Catch-all hover brightening for any button that lacks its own :hover rule */
+.ebc-panel button:not([disabled]) {
+    transition: filter 0.12s ease, background 0.14s, color 0.12s, border-color 0.12s, opacity 0.12s;
+}
+.ebc-panel button:not([disabled]):hover  { filter: brightness(1.18); }
+.ebc-panel button:not([disabled]):active { filter: brightness(0.88); transform: scale(0.97); }
 
 /* -- Header -- */
 .ebc-header {
@@ -3202,6 +3209,13 @@ export class EBCDrawer {
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
 
+        // Resize grip — last flex child of panel so it sits at the very bottom.
+        // Being a normal flex item avoids z-index / pointer-event fights with .ebc-panel.
+        const EBC_HEIGHT_KEY = "EBC_panelHeight";
+        const cornerGrip = document.createElement("div");
+        cornerGrip.className = "ebc-corner-grip";
+        cornerGrip.title = "Drag to resize panel height";
+
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(quickActions);
@@ -3210,17 +3224,9 @@ export class EBCDrawer {
         panel.appendChild(safewordRow);
         panel.appendChild(body);
         panel.appendChild(footer);
+        panel.appendChild(cornerGrip);
         slideContainer.appendChild(panel);
         root.appendChild(slideContainer);
-
-        // Corner resize grip — position:absolute on slideContainer, bottom-left corner.
-        // Dragging resizes width (left/right) and height (up/down).
-        const EBC_HEIGHT_KEY = "EBC_panelHeight";
-
-        const cornerGrip = document.createElement("div");
-        cornerGrip.className = "ebc-corner-grip";
-        cornerGrip.title = "Drag to resize panel height";
-        slideContainer.appendChild(cornerGrip);
 
         // Restore saved height
         try {
