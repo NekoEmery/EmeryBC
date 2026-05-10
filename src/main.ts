@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.4.4";
+const MOD_VERSION = "1.4.5";
 
 let noticeShown = false;
 
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.4.5",
+        changes: [
+            "Room History split into two sections: 'Current Room' (always-on, in-memory — shows who was present on entry and who joined after) and 'Rooms Visited' (opt-in, persisted to localStorage — saves a record of each room you enter when enabled).",
+        ],
+    },
     {
         version: "1.4.4",
         changes: [

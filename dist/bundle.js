@@ -15477,7 +15477,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.4.4";
+    const MOD_VERSION = "1.4.5";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -15485,6 +15485,12 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.4.5",
+            changes: [
+                "Room History split into two sections: 'Current Room' (always-on, in-memory — shows who was present on entry and who joined after) and 'Rooms Visited' (opt-in, persisted to localStorage — saves a record of each room you enter when enabled).",
+            ],
+        },
         {
             version: "1.4.4",
             changes: [
