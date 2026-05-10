@@ -137,6 +137,11 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
             roomLocked:  typeof r.Locked          === "boolean" ? r.Locked          : undefined,
         });
     }
+    // Record last-seen for anyone who just went offline (was online last tick, not now).
+    for (const num of prevOnline) {
+        if (!onlineSet.has(num)) recordLastSeen(num);
+    }
+
     // Re-deliver any messages that were sent while the recipient was offline.
     // BC drops beeps to offline players, so we resend the originals now that they're back.
     for (const [num, msgs] of pendingOfflineMessages) {
@@ -165,6 +170,54 @@ export function getFriendStatus(memberNumber: number): FriendStatus {
     } catch { /* ignore */ }
     if (onlineSet.has(memberNumber)) return "online";
     return "away";
+}
+
+// -- Last seen -----------------------------------------------------------------
+// Stored in localStorage (not BC server) so it survives restarts but is
+// device-local.  Key → member number as string, value → unix ms timestamp.
+
+const EBC_LAST_SEEN_KEY = "EBC_lastSeen";
+
+function loadLastSeenMap(): Record<string, number> {
+    try {
+        const raw = localStorage.getItem(EBC_LAST_SEEN_KEY);
+        if (raw) {
+            const p = JSON.parse(raw) as unknown;
+            if (p && typeof p === "object" && !Array.isArray(p)) return p as Record<string, number>;
+        }
+    } catch { /* ignore */ }
+    return {};
+}
+
+export function recordLastSeen(memberNumber: number): void {
+    try {
+        const data = loadLastSeenMap();
+        data[String(memberNumber)] = Date.now();
+        localStorage.setItem(EBC_LAST_SEEN_KEY, JSON.stringify(data));
+    } catch { /* ignore */ }
+}
+
+export function getLastSeen(memberNumber: number): number | null {
+    try {
+        const data = loadLastSeenMap();
+        const ts = data[String(memberNumber)];
+        return typeof ts === "number" ? ts : null;
+    } catch { return null; }
+}
+
+export function formatLastSeen(ts: number): string {
+    const diff = Date.now() - ts;
+    const sec  = Math.floor(diff / 1000);
+    const min  = Math.floor(sec  / 60);
+    const hr   = Math.floor(min  / 60);
+    const day  = Math.floor(hr   / 24);
+    if (sec < 60)  return "just now";
+    if (min < 60)  return `${min}m ago`;
+    if (hr  < 24)  return `${hr}h ago`;
+    if (day === 1) return "yesterday";
+    const d = new Date(ts);
+    if (day < 7)   return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+    return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
 // -- Pinned friends ------------------------------------------------------------

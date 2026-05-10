@@ -2509,6 +2509,11 @@
                 roomLocked: typeof r.Locked === "boolean" ? r.Locked : undefined,
             });
         }
+        // Record last-seen for anyone who just went offline (was online last tick, not now).
+        for (const num of prevOnline) {
+            if (!onlineSet.has(num))
+                recordLastSeen(num);
+        }
         // Re-deliver any messages that were sent while the recipient was offline.
         // BC drops beeps to offline players, so we resend the originals now that they're back.
         for (const [num, msgs] of pendingOfflineMessages) {
@@ -2536,6 +2541,59 @@
         if (onlineSet.has(memberNumber))
             return "online";
         return "away";
+    }
+    // -- Last seen -----------------------------------------------------------------
+    // Stored in localStorage (not BC server) so it survives restarts but is
+    // device-local.  Key → member number as string, value → unix ms timestamp.
+    const EBC_LAST_SEEN_KEY = "EBC_lastSeen";
+    function loadLastSeenMap() {
+        try {
+            const raw = localStorage.getItem(EBC_LAST_SEEN_KEY);
+            if (raw) {
+                const p = JSON.parse(raw);
+                if (p && typeof p === "object" && !Array.isArray(p))
+                    return p;
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return {};
+    }
+    function recordLastSeen(memberNumber) {
+        try {
+            const data = loadLastSeenMap();
+            data[String(memberNumber)] = Date.now();
+            localStorage.setItem(EBC_LAST_SEEN_KEY, JSON.stringify(data));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getLastSeen(memberNumber) {
+        try {
+            const data = loadLastSeenMap();
+            const ts = data[String(memberNumber)];
+            return typeof ts === "number" ? ts : null;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    function formatLastSeen(ts) {
+        const diff = Date.now() - ts;
+        const sec = Math.floor(diff / 1000);
+        const min = Math.floor(sec / 60);
+        const hr = Math.floor(min / 60);
+        const day = Math.floor(hr / 24);
+        if (sec < 60)
+            return "just now";
+        if (min < 60)
+            return `${min}m ago`;
+        if (hr < 24)
+            return `${hr}h ago`;
+        if (day === 1)
+            return "yesterday";
+        const d = new Date(ts);
+        if (day < 7)
+            return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
+        return `${d.getDate()}/${d.getMonth() + 1}`;
     }
     // -- Pinned friends ------------------------------------------------------------
     function getPinnedFriends() {
@@ -12315,6 +12373,15 @@
                             row.appendChild(badge);
                         }
                         row.appendChild(numEl);
+                        // Last-seen timestamp for offline friends
+                        const lsTs = getLastSeen(num);
+                        if (lsTs !== null) {
+                            const lsEl = document.createElement("span");
+                            lsEl.textContent = formatLastSeen(lsTs);
+                            lsEl.title = `Last seen: ${new Date(lsTs).toLocaleString()}`;
+                            lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4a2838;flex-shrink:0;margin-left:auto;";
+                            row.appendChild(lsEl);
+                        }
                     }
                     // EBC badge
                     const ebcVer = (() => {
@@ -14434,9 +14501,15 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.3.24";
+    const MOD_VERSION = "1.3.25";
     let noticeShown = false;
     const CHANGELOG = [
+        {
+            version: "1.3.25",
+            changes: [
+                "Friends list: offline friends now show a 'last seen' timestamp (e.g. '2h ago', 'yesterday', 'Mon'). Recorded automatically when a friend goes offline while the addon is running; stored in localStorage so it persists across sessions.",
+            ],
+        },
         {
             version: "1.3.24",
             changes: [

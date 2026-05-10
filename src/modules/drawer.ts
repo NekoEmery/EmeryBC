@@ -78,7 +78,7 @@ import {
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -9351,6 +9351,15 @@ export class EBCDrawer {
                         row.appendChild(badge);
                     }
                     row.appendChild(numEl);
+                    // Last-seen timestamp for offline friends
+                    const lsTs = getLastSeen(num);
+                    if (lsTs !== null) {
+                        const lsEl = document.createElement("span");
+                        lsEl.textContent = formatLastSeen(lsTs);
+                        lsEl.title = `Last seen: ${new Date(lsTs).toLocaleString()}`;
+                        lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4a2838;flex-shrink:0;margin-left:auto;";
+                        row.appendChild(lsEl);
+                    }
                 }
 
                 // EBC badge

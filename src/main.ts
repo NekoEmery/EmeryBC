@@ -14,10 +14,16 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.3.24";
+const MOD_VERSION = "1.3.25";
 
 let noticeShown = false;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.3.25",
+        changes: [
+            "Friends list: offline friends now show a 'last seen' timestamp (e.g. '2h ago', 'yesterday', 'Mon'). Recorded automatically when a friend goes offline while the addon is running; stored in localStorage so it persists across sessions.",
+        ],
+    },
     {
         version: "1.3.24",
         changes: [
