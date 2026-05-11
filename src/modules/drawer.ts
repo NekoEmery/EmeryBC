@@ -10917,29 +10917,39 @@ export class EBCDrawer {
 
                     // ── Skills ────────────────────────────────────────────────
                     try {
-                        // Build a fresh skill array from the inputs so we never
-                        // rely on mutating the existing array (avoids reference issues).
-                        const currentSkill = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[] | undefined ?? [];
-                        const newSkillArr: BCSkillEntry[] = Object.keys(SKILL_LABELS).map(key => {
-                            const existing = Array.isArray(currentSkill) ? currentSkill.find(e => e.Skill === key) : undefined;
+                        // Mutate the existing Player.Skill array in-place.
+                        // Replacing the whole array reference can break BC's internal
+                        // watchers; mutating entries is safer.
+                        const skillArrRaw = (Player as unknown as Record<string, unknown>).Skill;
+                        if (!Array.isArray(skillArrRaw)) {
+                            (Player as unknown as Record<string, unknown>).Skill = [];
+                        }
+                        const skillArr = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[];
+                        for (const key of Object.keys(SKILL_LABELS)) {
                             const inp = statInputs.get("skill_" + key);
                             const val = Math.max(0, parseInt(inp?.value ?? "0") || 0);
-                            return { Skill: key, Level: val, Progress: existing?.Progress ?? 0 };
-                        });
-                        (Player as unknown as Record<string, unknown>).Skill = newSkillArr;
-                        // Send immediately — don't queue (another addon's QueueData could overwrite Skill).
-                        // AccountName + MemberNumber are required by BC's server to accept the update.
+                            const existing = skillArr.find(e => e.Skill === key);
+                            if (existing) {
+                                existing.Level = val;
+                            } else {
+                                skillArr.push({ Skill: key, Level: val, Progress: 0 });
+                            }
+                        }
+
+                        // QueueData is BC's canonical path (same as SkillChange uses internally).
+                        const sAU = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
+                            Record<string, unknown> | undefined;
+                        if (sAU) {
+                            (sAU.QueueData as ((d: Record<string, unknown>) => void) | undefined)
+                                ?.call(sAU, { Skill: skillArr });
+                            // Flush immediately if the Send method is exposed
+                            (sAU.Send as (() => void) | undefined)?.call(sAU);
+                        }
+                        // Also fire a direct send — matches how main.ts updates OnlineSharedSettings.
+                        // No AccountName/MemberNumber needed; the socket session identifies the user.
                         type SendFn = (type: string, data: Record<string, unknown>) => void;
                         const ss = (window as unknown as Record<string, unknown>).ServerSend as SendFn | undefined;
-                        if (ss) {
-                            ss("AccountUpdate", {
-                                AccountName: (Player as unknown as Record<string, unknown>).AccountName,
-                                MemberNumber: Player.MemberNumber,
-                                Skill: newSkillArr,
-                            });
-                        } else if (upd?.QueueData) {
-                            upd.QueueData({ Skill: newSkillArr });
-                        }
+                        ss?.("AccountUpdate", { Skill: skillArr });
                     } catch (e) {
                         applyBtn.textContent = "Skill error!";
                         window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 2000);

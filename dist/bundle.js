@@ -14527,32 +14527,38 @@
                     applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#3a1525"; });
                     applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#2a0f1a"; });
                     applyBtn.addEventListener("click", () => {
-                        var _a;
+                        var _a, _b, _c;
                         const upd = window.ServerAccountUpdate;
                         // ── Skills ────────────────────────────────────────────────
                         try {
-                            // Build a fresh skill array from the inputs so we never
-                            // rely on mutating the existing array (avoids reference issues).
-                            const currentSkill = (_a = Player.Skill) !== null && _a !== void 0 ? _a : [];
-                            const newSkillArr = Object.keys(SKILL_LABELS).map(key => {
-                                var _a, _b;
-                                const existing = Array.isArray(currentSkill) ? currentSkill.find(e => e.Skill === key) : undefined;
+                            // Mutate the existing Player.Skill array in-place.
+                            // Replacing the whole array reference can break BC's internal
+                            // watchers; mutating entries is safer.
+                            const skillArrRaw = Player.Skill;
+                            if (!Array.isArray(skillArrRaw)) {
+                                Player.Skill = [];
+                            }
+                            const skillArr = Player.Skill;
+                            for (const key of Object.keys(SKILL_LABELS)) {
                                 const inp = statInputs.get("skill_" + key);
                                 const val = Math.max(0, parseInt((_a = inp === null || inp === void 0 ? void 0 : inp.value) !== null && _a !== void 0 ? _a : "0") || 0);
-                                return { Skill: key, Level: val, Progress: (_b = existing === null || existing === void 0 ? void 0 : existing.Progress) !== null && _b !== void 0 ? _b : 0 };
-                            });
-                            Player.Skill = newSkillArr;
+                                const existing = skillArr.find(e => e.Skill === key);
+                                if (existing) {
+                                    existing.Level = val;
+                                }
+                                else {
+                                    skillArr.push({ Skill: key, Level: val, Progress: 0 });
+                                }
+                            }
+                            // QueueData is BC's canonical path (same as SkillChange uses internally).
+                            const sAU = window.ServerAccountUpdate;
+                            if (sAU) {
+                                (_b = sAU.QueueData) === null || _b === void 0 ? void 0 : _b.call(sAU, { Skill: skillArr });
+                                // Flush immediately if the Send method is exposed
+                                (_c = sAU.Send) === null || _c === void 0 ? void 0 : _c.call(sAU);
+                            }
                             const ss = window.ServerSend;
-                            if (ss) {
-                                ss("AccountUpdate", {
-                                    AccountName: Player.AccountName,
-                                    MemberNumber: Player.MemberNumber,
-                                    Skill: newSkillArr,
-                                });
-                            }
-                            else if (upd === null || upd === void 0 ? void 0 : upd.QueueData) {
-                                upd.QueueData({ Skill: newSkillArr });
-                            }
+                            ss === null || ss === void 0 ? void 0 : ss("AccountUpdate", { Skill: skillArr });
                         }
                         catch (e) {
                             applyBtn.textContent = "Skill error!";
@@ -14585,7 +14591,7 @@
                             if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
                                 upd.QueueData({ Reputation: rep });
                         }
-                        catch ( /* reputation save failed — non-fatal */_b) { /* reputation save failed — non-fatal */ }
+                        catch ( /* reputation save failed — non-fatal */_d) { /* reputation save failed — non-fatal */ }
                         applyBtn.textContent = "Applied!";
                         window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 1500);
                     });
