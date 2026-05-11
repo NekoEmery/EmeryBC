@@ -14310,7 +14310,7 @@
             const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
             if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
                 makeSection("Stat Editor", "EBC_statEditorCollapsed", true, (cnt) => {
-                    var _a, _b, _c;
+                    var _a, _b;
                     const FONT = "font-family:'Trebuchet MS',serif;";
                     // Helper: sub-label
                     const subLbl = (text) => {
@@ -14354,11 +14354,21 @@
                         LockPicking: "Lock Picking", Evasion: "Evasion",
                         Willpower: "Willpower", Infiltration: "Infiltration",
                     };
+                    const skillGetLevel = window.SkillGetLevel;
                     const playerSkillArr = (_a = Player.Skill) !== null && _a !== void 0 ? _a : [];
                     const skillMap = new Map((Array.isArray(playerSkillArr) ? playerSkillArr : []).map(e => { var _a; return [e.Skill, (_a = e.Level) !== null && _a !== void 0 ? _a : 0]; }));
+                    const readSkill = (key) => {
+                        var _a, _b;
+                        try {
+                            if (skillGetLevel)
+                                return (_a = skillGetLevel(Player, key)) !== null && _a !== void 0 ? _a : 0;
+                        }
+                        catch ( /* ignore */_c) { /* ignore */ }
+                        return (_b = skillMap.get(key)) !== null && _b !== void 0 ? _b : 0;
+                    };
                     cnt.appendChild(subLbl("Skills"));
                     for (const [key, label] of Object.entries(SKILL_LABELS)) {
-                        makeStatRow("skill_" + key, label, (_b = skillMap.get(key)) !== null && _b !== void 0 ? _b : 0);
+                        makeStatRow("skill_" + key, label, readSkill(key));
                     }
                     // ── Reputation ────────────────────────────────────────────────
                     // Player.Reputation is Array<{ Type: string; Value: number }>
@@ -14480,7 +14490,7 @@
                         lbl.textContent = "Money";
                         const moneyInp = document.createElement("input");
                         moneyInp.type = "number";
-                        moneyInp.value = String((_c = Player.Money) !== null && _c !== void 0 ? _c : 0);
+                        moneyInp.value = String((_b = Player.Money) !== null && _b !== void 0 ? _b : 0);
                         moneyInp.style.cssText = INP;
                         const addMoneyBtn = document.createElement("button");
                         addMoneyBtn.textContent = "+ Add";

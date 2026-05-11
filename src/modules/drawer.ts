@@ -10749,14 +10749,24 @@ export class EBCDrawer {
                     LockPicking: "Lock Picking", Evasion: "Evasion",
                     Willpower: "Willpower", Infiltration: "Infiltration",
                 };
+                // Use BC's own SkillGetLevel so we get the real effective value
+                // (handles missing entries, bonuses, caps). Fall back to direct array read.
+                type SkillGetLevelFn = (c: unknown, skill: string) => number;
+                const skillGetLevel = (window as unknown as Record<string, unknown>).SkillGetLevel as SkillGetLevelFn | undefined;
                 const playerSkillArr = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[] | undefined ?? [];
                 const skillMap = new Map<string, number>(
                     (Array.isArray(playerSkillArr) ? playerSkillArr : []).map(e => [e.Skill, e.Level ?? 0])
                 );
+                const readSkill = (key: string): number => {
+                    try {
+                        if (skillGetLevel) return skillGetLevel(Player, key) ?? 0;
+                    } catch { /* ignore */ }
+                    return skillMap.get(key) ?? 0;
+                };
 
                 cnt.appendChild(subLbl("Skills"));
                 for (const [key, label] of Object.entries(SKILL_LABELS)) {
-                    makeStatRow("skill_" + key, label, skillMap.get(key) ?? 0);
+                    makeStatRow("skill_" + key, label, readSkill(key));
                 }
 
                 // ── Reputation ────────────────────────────────────────────────
