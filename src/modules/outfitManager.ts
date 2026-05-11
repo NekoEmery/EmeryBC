@@ -22,6 +22,7 @@ export interface ConfiguredOutfit {
     displayName: string;
     announceText: string;
     nickname: string | null;     // optional nickname to set when outfit is worn (null = no change)
+    title:    string | null;     // optional title to set when outfit is worn (null = use default / no change)
     tagIds: string[];
     includeRestraints: boolean;
     preserveRestraints: boolean; // keep existing restraints when applying (default: true)
@@ -70,6 +71,16 @@ export function getDefaultNickname(): string {
 
 export function setDefaultNickname(nick: string): void {
     getAddon().defaultNickname = nick.trim();
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+export function getDefaultTitle(): string {
+    const raw = getAddon().defaultTitle;
+    return typeof raw === "string" ? raw : "";
+}
+
+export function setDefaultTitle(title: string): void {
+    getAddon().defaultTitle = title;
     ServerPlayerExtensionSettingsSync("EmeryBC");
 }
 
@@ -159,6 +170,7 @@ function sanitizeOutfit(outfit: ConfiguredOutfit): ConfiguredOutfit {
         displayName: outfit.displayName,
         announceText: outfit.announceText,
         nickname: typeof outfit.nickname === "string" ? outfit.nickname.trim() || null : null,
+        title:    typeof outfit.title    === "string" ? outfit.title.trim()    || null : null,
         tagIds: Array.isArray(outfit.tagIds) ? outfit.tagIds.filter((t: unknown) => typeof t === "string") : [],
         includeRestraints: !!outfit.includeRestraints,
         // Default true (preserve) for existing outfits that don't have this field yet
@@ -298,6 +310,19 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
         } catch { /* ignore */ }
     }
 
+    // Apply title — outfit-specific takes priority, falls back to default title
+    const titleToApply = outfit.title ?? getDefaultTitle() ?? null;
+    if (titleToApply) {
+        try {
+            // "None" in TitleNames maps to clearing the title in BC (empty string)
+            const bcTitle = titleToApply === "None" ? "" : titleToApply;
+            (Player as unknown as Record<string, unknown>).Title = bcTitle;
+            type AccountUpdater2 = { QueueData(data: Record<string, unknown>): void };
+            const updater2 = (window as unknown as Record<string, unknown>).ServerAccountUpdate as AccountUpdater2 | undefined;
+            if (updater2?.QueueData) updater2.QueueData({ Title: bcTitle });
+        } catch { /* ignore */ }
+    }
+
     // Let the appearance update hit the send queue before we add the optional emote.
     window.setTimeout(() => {
         try {
@@ -342,6 +367,7 @@ export function createOutfitFromCurrent(
     preserveRestraints: boolean,
     preserveClothing = false,
     nickname = "",
+    title = "",
 ): ConfiguredOutfit | null {
     const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
     if (!cmd || !displayName.trim()) return null;
@@ -356,6 +382,7 @@ export function createOutfitFromCurrent(
         displayName: displayName.trim(),
         announceText: announceText.trim(),
         nickname: nickname.trim() || null,
+        title:    title.trim()    || null,
         tagIds: [],
         includeRestraints,
         preserveRestraints,
@@ -483,6 +510,7 @@ export function editOutfit(
     preserveRestraints: boolean,
     preserveClothing = false,
     nickname = "",
+    title = "",
 ): boolean {
     const outfits = getOutfits();
     const outfit = outfits.find(o => o.id === id);
@@ -501,6 +529,7 @@ export function editOutfit(
     outfit.displayName        = displayName.trim();
     outfit.announceText       = announceText.trim();
     outfit.nickname           = nickname.trim() || null;
+    outfit.title              = title.trim()    || null;
     outfit.includeRestraints  = includeRestraints;
     outfit.preserveRestraints = preserveRestraints;
     outfit.preserveClothing   = preserveClothing;
@@ -715,6 +744,7 @@ export function createRestraintFromCurrent(
         displayName: displayName.trim(),
         announceText: announceText.trim(),
         nickname: null,
+        title:    null,
         tagIds: [],
         includeRestraints: true,
         preserveRestraints: false,
@@ -848,6 +878,7 @@ export function importOutfitFromBCCode(
         displayName:       displayName.trim() || "Imported Outfit",
         announceText:      "",
         nickname:          null,
+        title:             null,
         tagIds:            [],
         includeRestraints: includesRestraints,
         preserveRestraints: mode === "outfit",      // outfit-only: keep existing restraints

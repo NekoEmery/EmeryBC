@@ -453,6 +453,14 @@
         getAddon$1().defaultNickname = nick.trim();
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
+    function getDefaultTitle() {
+        const raw = getAddon$1().defaultTitle;
+        return typeof raw === "string" ? raw : "";
+    }
+    function setDefaultTitle(title) {
+        getAddon$1().defaultTitle = title;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
     function saveOutfits(list) {
         const sanitized = list.map(sanitizeOutfit);
         cachedOutfits = sanitized;
@@ -531,6 +539,7 @@
             displayName: outfit.displayName,
             announceText: outfit.announceText,
             nickname: typeof outfit.nickname === "string" ? outfit.nickname.trim() || null : null,
+            title: typeof outfit.title === "string" ? outfit.title.trim() || null : null,
             tagIds: Array.isArray(outfit.tagIds) ? outfit.tagIds.filter((t) => typeof t === "string") : [],
             includeRestraints: !!outfit.includeRestraints,
             // Default true (preserve) for existing outfits that don't have this field yet
@@ -615,6 +624,7 @@
         }));
     }
     function applyOutfit(outfit) {
+        var _a, _b;
         if (outfitApplyPending) {
             localNotice$1("An outfit swap is already in progress.", "#ffb7c7");
             return;
@@ -664,7 +674,20 @@
                 if (updater === null || updater === void 0 ? void 0 : updater.QueueData)
                     updater.QueueData({ Nickname: nickToApply });
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
+        }
+        // Apply title — outfit-specific takes priority, falls back to default title
+        const titleToApply = (_b = (_a = outfit.title) !== null && _a !== void 0 ? _a : getDefaultTitle()) !== null && _b !== void 0 ? _b : null;
+        if (titleToApply) {
+            try {
+                // "None" in TitleNames maps to clearing the title in BC (empty string)
+                const bcTitle = titleToApply === "None" ? "" : titleToApply;
+                Player.Title = bcTitle;
+                const updater2 = window.ServerAccountUpdate;
+                if (updater2 === null || updater2 === void 0 ? void 0 : updater2.QueueData)
+                    updater2.QueueData({ Title: bcTitle });
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
         }
         // Let the appearance update hit the send queue before we add the optional emote.
         window.setTimeout(() => {
@@ -701,7 +724,7 @@
         return true;
     }
     // Called from the drawer to create a brand new outfit from current appearance
-    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "") {
+    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "") {
         const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
         if (!cmd || !displayName.trim())
             return null;
@@ -716,6 +739,7 @@
             displayName: displayName.trim(),
             announceText: announceText.trim(),
             nickname: nickname.trim() || null,
+            title: title.trim() || null,
             tagIds: [],
             includeRestraints,
             preserveRestraints,
@@ -823,7 +847,7 @@
         const outfits = getOutfits().filter(o => o.id !== id);
         saveOutfits(outfits);
     }
-    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "") {
+    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "") {
         const outfits = getOutfits();
         const outfit = outfits.find(o => o.id === id);
         if (!outfit)
@@ -840,6 +864,7 @@
         outfit.displayName = displayName.trim();
         outfit.announceText = announceText.trim();
         outfit.nickname = nickname.trim() || null;
+        outfit.title = title.trim() || null;
         outfit.includeRestraints = includeRestraints;
         outfit.preserveRestraints = preserveRestraints;
         outfit.preserveClothing = preserveClothing;
@@ -1022,6 +1047,7 @@
             displayName: displayName.trim(),
             announceText: announceText.trim(),
             nickname: null,
+            title: null,
             tagIds: [],
             includeRestraints: true,
             preserveRestraints: false,
@@ -1156,6 +1182,7 @@
             displayName: displayName.trim() || "Imported Outfit",
             announceText: "",
             nickname: null,
+            title: null,
             tagIds: [],
             includeRestraints: includesRestraints,
             preserveRestraints: mode === "outfit", // outfit-only: keep existing restraints
@@ -7412,6 +7439,38 @@
             window.clearInterval(this.timerPoller);
             this.timerPoller = null;
         }
+        // -- Title select helper --------------------------------------------------
+        // includeNoChange = true  → first option is "(No change)" stored as ""
+        // includeNoChange = false → first option is "(No change)" stored as ""
+        // Either way the first option means "don't touch the title on outfit apply"
+        makeTitleSelect(currentValue, isDefault = false) {
+            const sel = document.createElement("select");
+            sel.style.cssText = [
+                "font-family:'Trebuchet MS',serif", "font-size:10px",
+                "background:#1a0810", "color:#f0d8ec",
+                "border:1px solid #4c2537", "border-radius:4px",
+                "padding:3px 6px", "cursor:pointer", "outline:none",
+            ].join(";");
+            const noChangeOpt = document.createElement("option");
+            noChangeOpt.value = "";
+            noChangeOpt.textContent = isDefault ? "(No default title)" : "(No change)";
+            if (!currentValue)
+                noChangeOpt.selected = true;
+            sel.appendChild(noChangeOpt);
+            const bcTitles = window.TitleNames;
+            const entries = bcTitles
+                ? bcTitles.map(t => typeof t === "string" ? t : t.Name).filter(Boolean)
+                : [];
+            for (const key of entries) {
+                const opt = document.createElement("option");
+                opt.value = key;
+                opt.textContent = key;
+                if (key === currentValue)
+                    opt.selected = true;
+                sel.appendChild(opt);
+            }
+            return sel;
+        }
         // -- Outfits tab -----------------------------------------------------------
         renderOutfits() {
             var _a;
@@ -7446,6 +7505,18 @@
             nickRow.appendChild(nickInp);
             nickRow.appendChild(nickSaveBtn);
             body.appendChild(nickRow);
+            // ── Default title (below default nickname) ───────────────────────────────
+            const defTitleRow = document.createElement("div");
+            defTitleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;";
+            const defTitleLbl = document.createElement("span");
+            defTitleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
+            defTitleLbl.textContent = "Default title";
+            const defTitleSel = this.makeTitleSelect(getDefaultTitle(), true);
+            defTitleSel.style.flex = "1";
+            defTitleSel.addEventListener("change", () => setDefaultTitle(defTitleSel.value));
+            defTitleRow.appendChild(defTitleLbl);
+            defTitleRow.appendChild(defTitleSel);
+            body.appendChild(defTitleRow);
             this.renderRestraintInfo(body);
             this.renderPalettes(body);
             // ── Tag management ───────────────────────────────────────────────────────────
@@ -8657,7 +8728,7 @@
             body.appendChild(container);
         }
         buildOutfitRow(o, body) {
-            var _a;
+            var _a, _b;
             // Wrapper holds the visual row + collapsible diff panel
             const wrapper = document.createElement("div");
             wrapper.style.marginBottom = "4px";
@@ -8791,10 +8862,12 @@
                 className: "ebc-form-input", type: "text", value: (_a = o.nickname) !== null && _a !== void 0 ? _a : "", maxLength: 40,
                 placeholder: "Optional — blank = no change",
             });
+            const eTitleSel = this.makeTitleSelect((_b = o.title) !== null && _b !== void 0 ? _b : "");
             editPanel.appendChild(makeEditRow("Command", eCmdInput));
             editPanel.appendChild(makeEditRow("Name", eNameInput));
             editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
             editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
+            editPanel.appendChild(makeEditRow("Title", eTitleSel));
             // Tag assignment
             const eTagsLbl = document.createElement("div");
             eTagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;margin:6px 0 3px;";
@@ -8942,7 +9015,7 @@
                 eNameInput.style.borderColor = eNameInput.value.trim() ? "" : "#cf6f98";
                 if (!eCmdInput.value.trim() || !eNameInput.value.trim())
                     return;
-                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked, eNicknameInput.value);
+                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked, eNicknameInput.value, eTitleSel.value);
                 if (ok)
                     this.renderOutfits();
             });
@@ -9046,10 +9119,12 @@
             const nicknameInput = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input", type: "text", placeholder: "Optional — blank = no change", maxLength: 40,
             });
+            const newTitleSel = this.makeTitleSelect("");
             form.appendChild(makeRow("Command", cmdInput));
             form.appendChild(makeRow("Name", nameInput));
             form.appendChild(makeRow("Announce", announceInput));
             form.appendChild(makeRow("Nickname", nicknameInput));
+            form.appendChild(makeRow("Title", newTitleSel));
             const checkRow = document.createElement("label");
             checkRow.className = "ebc-form-check-row";
             const checkbox = document.createElement("input");
@@ -9089,12 +9164,13 @@
                     return;
                 createBtn.disabled = true;
                 createBtn.textContent = "Saving...";
-                const result = createOutfitFromCurrent(cmdInput.value, nameInput.value, announceInput.value, checkbox.checked, preserveCheckbox.checked, false, nicknameInput.value);
+                const result = createOutfitFromCurrent(cmdInput.value, nameInput.value, announceInput.value, checkbox.checked, preserveCheckbox.checked, false, nicknameInput.value, newTitleSel.value);
                 if (result) {
                     cmdInput.value = "";
                     nameInput.value = "";
                     announceInput.value = "";
                     nicknameInput.value = "";
+                    newTitleSel.value = "";
                     checkbox.checked = false;
                     form.style.display = "none";
                     newBtn.textContent = "+ New Outfit from Current Look";
@@ -9847,7 +9923,7 @@
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a, _b;
+            var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -10471,52 +10547,6 @@
             usefulLbl.style.marginTop = "10px";
             usefulLbl.textContent = "Useful Buttons";
             body.appendChild(usefulLbl);
-            // Title picker
-            const titleRow = document.createElement("div");
-            titleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:6px 0 4px;";
-            const titleLbl2 = document.createElement("span");
-            titleLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;";
-            titleLbl2.textContent = "Title";
-            const titleSel = document.createElement("select");
-            titleSel.style.cssText = [
-                "font-family:'Trebuchet MS',serif", "font-size:10px",
-                "background:#1a0810", "color:#f0d8ec",
-                "border:1px solid #4c2537", "border-radius:4px",
-                "padding:3px 6px", "cursor:pointer", "outline:none",
-                "flex-shrink:0", "max-width:150px",
-            ].join(";");
-            {
-                const bcTitles = window.TitleNames;
-                const currentTitle = (_b = Player.Title) !== null && _b !== void 0 ? _b : "";
-                const entries = bcTitles
-                    ? bcTitles.map(t => typeof t === "string" ? t : t.Name)
-                    : [];
-                if (!entries.includes("None"))
-                    entries.unshift("None");
-                if (currentTitle && !entries.includes(currentTitle))
-                    entries.push(currentTitle);
-                for (const key of entries) {
-                    const opt = document.createElement("option");
-                    opt.value = key;
-                    opt.textContent = key === "None" ? "(No title)" : key;
-                    if (key === currentTitle || (!currentTitle && key === "None"))
-                        opt.selected = true;
-                    titleSel.appendChild(opt);
-                }
-            }
-            titleSel.addEventListener("change", () => {
-                try {
-                    const val = titleSel.value === "None" ? "" : titleSel.value;
-                    Player.Title = val;
-                    const upd = window.ServerAccountUpdate;
-                    if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
-                        upd.QueueData({ Title: val });
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            });
-            titleRow.appendChild(titleLbl2);
-            titleRow.appendChild(titleSel);
-            body.appendChild(titleRow);
             const oocBtn = document.createElement("button");
             oocBtn.className = "ebc-create-btn";
             oocBtn.style.cssText = "margin:4px 0 0; width:100%;";

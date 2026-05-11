@@ -31,6 +31,8 @@ import {
     checkAndApplySchedules,
     getDefaultNickname,
     setDefaultNickname,
+    getDefaultTitle,
+    setDefaultTitle,
     getOutfitTags,
     createOutfitTag,
     deleteOutfitTag,
@@ -3651,6 +3653,38 @@ export class EBCDrawer {
         this.timerPoller = null;
     }
 
+    // -- Title select helper --------------------------------------------------
+    // includeNoChange = true  → first option is "(No change)" stored as ""
+    // includeNoChange = false → first option is "(No change)" stored as ""
+    // Either way the first option means "don't touch the title on outfit apply"
+    private makeTitleSelect(currentValue: string, isDefault = false): HTMLSelectElement {
+        const sel = document.createElement("select");
+        sel.style.cssText = [
+            "font-family:'Trebuchet MS',serif", "font-size:10px",
+            "background:#1a0810", "color:#f0d8ec",
+            "border:1px solid #4c2537", "border-radius:4px",
+            "padding:3px 6px", "cursor:pointer", "outline:none",
+        ].join(";");
+        const noChangeOpt = document.createElement("option");
+        noChangeOpt.value = "";
+        noChangeOpt.textContent = isDefault ? "(No default title)" : "(No change)";
+        if (!currentValue) noChangeOpt.selected = true;
+        sel.appendChild(noChangeOpt);
+        const bcTitles = (window as unknown as Record<string, unknown>).TitleNames as
+            Array<{ Name: string } | string> | undefined;
+        const entries: string[] = bcTitles
+            ? bcTitles.map(t => typeof t === "string" ? t : (t as { Name: string }).Name).filter(Boolean)
+            : [];
+        for (const key of entries) {
+            const opt = document.createElement("option");
+            opt.value = key;
+            opt.textContent = key;
+            if (key === currentValue) opt.selected = true;
+            sel.appendChild(opt);
+        }
+        return sel;
+    }
+
     // -- Outfits tab -----------------------------------------------------------
 
     private renderOutfits(): void {
@@ -3688,6 +3722,19 @@ export class EBCDrawer {
         nickRow.appendChild(nickInp);
         nickRow.appendChild(nickSaveBtn);
         body.appendChild(nickRow);
+
+        // ── Default title (below default nickname) ───────────────────────────────
+        const defTitleRow = document.createElement("div");
+        defTitleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;";
+        const defTitleLbl = document.createElement("span");
+        defTitleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
+        defTitleLbl.textContent = "Default title";
+        const defTitleSel = this.makeTitleSelect(getDefaultTitle(), true);
+        defTitleSel.style.flex = "1";
+        defTitleSel.addEventListener("change", () => setDefaultTitle(defTitleSel.value));
+        defTitleRow.appendChild(defTitleLbl);
+        defTitleRow.appendChild(defTitleSel);
+        body.appendChild(defTitleRow);
 
         this.renderRestraintInfo(body);
         this.renderPalettes(body);
@@ -4970,7 +5017,7 @@ export class EBCDrawer {
         editPanel.className = "ebc-edit-panel";
 
         // Build form fields inside editPanel
-        const makeEditRow = (labelText: string, input: HTMLInputElement): HTMLElement => {
+        const makeEditRow = (labelText: string, input: HTMLInputElement | HTMLSelectElement): HTMLElement => {
             const r = document.createElement("div");
             r.className = "ebc-form-row";
             const lbl = document.createElement("span");
@@ -4994,11 +5041,13 @@ export class EBCDrawer {
             className: "ebc-form-input", type: "text", value: o.nickname ?? "", maxLength: 40,
             placeholder: "Optional — blank = no change",
         });
+        const eTitleSel = this.makeTitleSelect(o.title ?? "");
 
         editPanel.appendChild(makeEditRow("Command", eCmdInput));
         editPanel.appendChild(makeEditRow("Name", eNameInput));
         editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
         editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
+        editPanel.appendChild(makeEditRow("Title", eTitleSel));
 
         // Tag assignment
         const eTagsLbl = document.createElement("div");
@@ -5164,6 +5213,7 @@ export class EBCDrawer {
                 ePreserveCheck.checked,
                 ePreserveClothingCheck.checked,
                 eNicknameInput.value,
+                eTitleSel.value,
             );
             if (ok) this.renderOutfits();
         });
@@ -5247,7 +5297,7 @@ export class EBCDrawer {
         form.className = "ebc-new-form";
         target.appendChild(form);
 
-        const makeRow = (labelText: string, input: HTMLInputElement): HTMLElement => {
+        const makeRow = (labelText: string, input: HTMLInputElement | HTMLSelectElement): HTMLElement => {
             const row = document.createElement("div");
             row.className = "ebc-form-row";
             const lbl = document.createElement("span");
@@ -5270,11 +5320,13 @@ export class EBCDrawer {
         const nicknameInput = Object.assign(document.createElement("input"), {
             className: "ebc-form-input", type: "text", placeholder: "Optional — blank = no change", maxLength: 40,
         });
+        const newTitleSel = this.makeTitleSelect("");
 
         form.appendChild(makeRow("Command", cmdInput));
         form.appendChild(makeRow("Name", nameInput));
         form.appendChild(makeRow("Announce", announceInput));
         form.appendChild(makeRow("Nickname", nicknameInput));
+        form.appendChild(makeRow("Title", newTitleSel));
 
         const checkRow = document.createElement("label");
         checkRow.className = "ebc-form-check-row";
@@ -5322,13 +5374,14 @@ export class EBCDrawer {
             const result = createOutfitFromCurrent(
                 cmdInput.value, nameInput.value, announceInput.value,
                 checkbox.checked, preserveCheckbox.checked,
-                false, nicknameInput.value,
+                false, nicknameInput.value, newTitleSel.value,
             );
             if (result) {
                 cmdInput.value = "";
                 nameInput.value = "";
                 announceInput.value = "";
                 nicknameInput.value = "";
+                newTitleSel.value = "";
                 checkbox.checked = false;
                 form.style.display = "none";
                 newBtn.textContent = "+ New Outfit from Current Look";
@@ -6808,49 +6861,6 @@ export class EBCDrawer {
         usefulLbl.style.marginTop = "10px";
         usefulLbl.textContent = "Useful Buttons";
         body.appendChild(usefulLbl);
-
-        // Title picker
-        const titleRow = document.createElement("div");
-        titleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:6px 0 4px;";
-        const titleLbl2 = document.createElement("span");
-        titleLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;";
-        titleLbl2.textContent = "Title";
-        const titleSel = document.createElement("select");
-        titleSel.style.cssText = [
-            "font-family:'Trebuchet MS',serif", "font-size:10px",
-            "background:#1a0810", "color:#f0d8ec",
-            "border:1px solid #4c2537", "border-radius:4px",
-            "padding:3px 6px", "cursor:pointer", "outline:none",
-            "flex-shrink:0", "max-width:150px",
-        ].join(";");
-        {
-            const bcTitles = (window as unknown as Record<string, unknown>).TitleNames as
-                Array<{ Name: string } | string> | undefined;
-            const currentTitle = (Player as unknown as Record<string, unknown>).Title as string ?? "";
-            const entries: string[] = bcTitles
-                ? bcTitles.map(t => typeof t === "string" ? t : (t as { Name: string }).Name)
-                : [];
-            if (!entries.includes("None")) entries.unshift("None");
-            if (currentTitle && !entries.includes(currentTitle)) entries.push(currentTitle);
-            for (const key of entries) {
-                const opt = document.createElement("option");
-                opt.value = key;
-                opt.textContent = key === "None" ? "(No title)" : key;
-                if (key === currentTitle || (!currentTitle && key === "None")) opt.selected = true;
-                titleSel.appendChild(opt);
-            }
-        }
-        titleSel.addEventListener("change", () => {
-            try {
-                const val = titleSel.value === "None" ? "" : titleSel.value;
-                (Player as unknown as Record<string, unknown>).Title = val;
-                type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
-                const upd = (window as unknown as Record<string, unknown>).ServerAccountUpdate as AccountUpdater | undefined;
-                if (upd?.QueueData) upd.QueueData({ Title: val });
-            } catch { /* ignore */ }
-        });
-        titleRow.appendChild(titleLbl2); titleRow.appendChild(titleSel);
-        body.appendChild(titleRow);
 
         const oocBtn = document.createElement("button");
         oocBtn.className = "ebc-create-btn";
