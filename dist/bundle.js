@@ -16551,7 +16551,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.5.14";
+    const MOD_VERSION = "1.6.4";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -16560,32 +16560,32 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
         {
-            version: "1.5.14",
+            version: "1.6.4",
             changes: [
                 "Fix: safeword toggle state now saves correctly — getStore() in safeword.ts was missing null safety so setSafewordConfig silently threw and never persisted the change.",
             ],
         },
         {
-            version: "1.5.13",
+            version: "1.6.3",
             changes: [
                 "Fix: /ebc update now always shows both your current version and the latest GitHub version in the result line. appendLocalLogLine retries once if the chat log isn't mounted yet.",
             ],
         },
         {
-            version: "1.5.12",
+            version: "1.6.2",
             changes: [
                 "Fix: Profile button now actually opens the BC info sheet correctly — root cause was bundle capture happening AFTER BC mutated the data (changed string IDs to integers, replaced raw Appearance with loaded Assets). Now captures a deep copy before BC processes the sync, matching WCE exactly. Also adds ChatRoomBackground restore so the profile screen renders fully.",
                 "Fix: Chat windows now open with messages pinned to the bottom instead of the top.",
             ],
         },
         {
-            version: "1.5.11",
+            version: "1.6.1",
             changes: [
                 "Fix: Lucy's client now shows ♛ Mistress on Emery's name in her friends panel.",
             ],
         },
         {
-            version: "1.5.10",
+            version: "1.6.0",
             changes: [
                 "Fix: removed ♛ Mistress locked tag from Emery's entry — only Emery's own panel shows it on Lucy.",
             ],
