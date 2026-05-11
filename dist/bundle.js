@@ -14532,10 +14532,16 @@
                             });
                             Player.Skill = newSkillArr;
                             const ss = window.ServerSend;
-                            if (ss)
-                                ss("AccountUpdate", { Skill: newSkillArr });
-                            else if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
+                            if (ss) {
+                                ss("AccountUpdate", {
+                                    AccountName: Player.AccountName,
+                                    MemberNumber: Player.MemberNumber,
+                                    Skill: newSkillArr,
+                                });
+                            }
+                            else if (upd === null || upd === void 0 ? void 0 : upd.QueueData) {
                                 upd.QueueData({ Skill: newSkillArr });
+                            }
                         }
                         catch (e) {
                             applyBtn.textContent = "Skill error!";

@@ -10918,11 +10918,19 @@ export class EBCDrawer {
                             return { Skill: key, Level: val, Progress: existing?.Progress ?? 0 };
                         });
                         (Player as unknown as Record<string, unknown>).Skill = newSkillArr;
-                        // Send immediately — don't queue (another addon's QueueData could overwrite Skill)
+                        // Send immediately — don't queue (another addon's QueueData could overwrite Skill).
+                        // AccountName + MemberNumber are required by BC's server to accept the update.
                         type SendFn = (type: string, data: Record<string, unknown>) => void;
                         const ss = (window as unknown as Record<string, unknown>).ServerSend as SendFn | undefined;
-                        if (ss) ss("AccountUpdate", { Skill: newSkillArr });
-                        else if (upd?.QueueData) upd.QueueData({ Skill: newSkillArr });
+                        if (ss) {
+                            ss("AccountUpdate", {
+                                AccountName: (Player as unknown as Record<string, unknown>).AccountName,
+                                MemberNumber: Player.MemberNumber,
+                                Skill: newSkillArr,
+                            });
+                        } else if (upd?.QueueData) {
+                            upd.QueueData({ Skill: newSkillArr });
+                        }
                     } catch (e) {
                         applyBtn.textContent = "Skill error!";
                         window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 2000);
