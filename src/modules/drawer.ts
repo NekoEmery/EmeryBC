@@ -2480,6 +2480,7 @@ export class EBCDrawer {
     private friendPollTick = 0;
     private friendRefreshDebounce: ReturnType<typeof window.setTimeout> | null = null;
     private offlineFriendsCollapsed = true;
+    private roomPeopleCollapsed = false;
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
@@ -9459,6 +9460,214 @@ export class EBCDrawer {
         while (body.firstChild) body.removeChild(body.firstChild);
 
         const friendList = getFriendList();
+
+        // ── People in Room ────────────────────────────────────────────────────
+        {
+            const w2 = window as unknown as Record<string, unknown>;
+            const roomCharsAll = w2.ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
+            const roomList = Array.isArray(roomCharsAll)
+                ? roomCharsAll.filter(c => (c.MemberNumber as number) !== Player.MemberNumber)
+                : [];
+
+            if (roomList.length > 0) {
+                const divR = document.createElement("div");
+                divR.className = "ebc-divider";
+                body.appendChild(divR);
+
+                try { this.roomPeopleCollapsed = localStorage.getItem("EBC_roomPeopleCollapsed") === "1"; } catch { /* ignore */ }
+
+                const roomContainer = document.createElement("div");
+
+                const buildRoomRow = (char: Record<string, unknown>, container: HTMLElement): void => {
+                    const num = char.MemberNumber as number;
+                    const nameRaw = (char.Nickname as string | undefined) || (char.Name as string) || "Unknown";
+                    const name = resolveName(num) || nameRaw;
+
+                    const wrap = document.createElement("div");
+                    wrap.className = "ebc-friend-wrap";
+
+                    const row = document.createElement("div");
+                    row.className = "ebc-friend-row";
+
+                    // Green dot — in room
+                    const dot = document.createElement("div");
+                    dot.className = "ebc-friend-dot room";
+
+                    // Name
+                    const nameEl = document.createElement("span");
+                    nameEl.className = "ebc-friend-name";
+                    nameEl.textContent = name;
+                    const vipRoom = VIP_MEMBERS[num];
+                    if (vipRoom) applyGradientText(nameEl, vipRoom.gradient[0], vipRoom.gradient[1]);
+
+                    // Member number
+                    const numEl = document.createElement("span");
+                    numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;flex-shrink:0;";
+                    numEl.textContent = "#" + num;
+
+                    // Relationship badge
+                    const relBadge = (() => {
+                        try {
+                            const icons: string[] = [];
+                            const own = (Player as unknown as Record<string, unknown>).Ownership as { MemberNumber?: number } | undefined;
+                            if (own?.MemberNumber === num) icons.push("🔒");
+                            const loves = (Player as unknown as Record<string, unknown>).Lovership as Array<{ MemberNumber?: number }> | undefined;
+                            if (loves?.some(l => l.MemberNumber === num)) icons.push("❤️");
+                            const charOwn = char.Ownership as { MemberNumber?: number } | undefined;
+                            if (charOwn?.MemberNumber === Player.MemberNumber) icons.push("👑");
+                            return icons.join("");
+                        } catch { return ""; }
+                    })();
+
+                    // EBC version badge
+                    const ebcVer = (() => {
+                        try {
+                            const sh = (char.OnlineSharedSettings as Record<string, unknown> | undefined)?.EmeryBC;
+                            if (sh && typeof sh === "object") {
+                                const p = (sh as Record<string, unknown>).presence;
+                                if (p && typeof p === "object") {
+                                    const v = (p as Record<string, unknown>).version;
+                                    const m = (p as Record<string, unknown>).marker;
+                                    if (m === "EBC" && typeof v === "string") { cacheEBCVersion(num, v); return v; }
+                                }
+                            }
+                        } catch { /* ignore */ }
+                        return getEBCVersion(num);
+                    })();
+
+                    row.appendChild(dot);
+                    row.appendChild(nameEl);
+                    if (relBadge) {
+                        const badge = document.createElement("span");
+                        badge.textContent = relBadge;
+                        badge.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
+                        row.appendChild(badge);
+                    }
+                    row.appendChild(numEl);
+
+                    if (ebcVer) {
+                        const ebcBadge = document.createElement("span");
+                        ebcBadge.textContent = "EBC " + ebcVer;
+                        ebcBadge.title = "Uses EmeryBC v" + ebcVer;
+                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
+                        row.appendChild(ebcBadge);
+                    }
+
+                    // Tag chips from friend list (if any)
+                    const tl = getFriendTagList(num);
+                    if (tl.length > 0) {
+                        const tagArea = document.createElement("span");
+                        tagArea.style.cssText = "display:inline-flex;align-items:center;gap:3px;flex-shrink:0;";
+                        const first = tl[0];
+                        const pill = document.createElement("span");
+                        pill.className = "ebc-friend-tag";
+                        pill.textContent = first.text;
+                        if (first.locked) {
+                            pill.style.cssText = "background:#3a2e00;color:#FFD700;border:1px solid #FFD700;font-weight:700;text-shadow:0 0 6px #FFD70088;";
+                        } else {
+                            pill.style.cssText = `background:${first.color}22;color:${first.color};border:1px solid ${first.color}55;`;
+                        }
+                        tagArea.appendChild(pill);
+                        if (tl.length > 1) {
+                            const more = document.createElement("span");
+                            more.className = "ebc-friend-tag-more";
+                            more.textContent = "+" + (tl.length - 1);
+                            tagArea.appendChild(more);
+                        }
+                        row.appendChild(tagArea);
+                    }
+
+                    // Profile button — always available since they're in the room
+                    const profBtn = document.createElement("button");
+                    profBtn.textContent = "Profile";
+                    profBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;margin-left:auto;";
+                    profBtn.addEventListener("mouseenter", () => { profBtn.style.color = "#cf6f98"; profBtn.style.borderColor = "#cf6f98"; });
+                    profBtn.addEventListener("mouseleave", () => { profBtn.style.color = "#7a5a6a"; profBtn.style.borderColor = "#3a1928"; });
+                    profBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        const loadChar = w2.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
+                        const hideEls  = w2.ChatRoomHideElements as (() => void) | undefined;
+                        if (!loadChar) return;
+                        try {
+                            this.close();
+                            if (w2.CurrentScreen === "ChatRoom") {
+                                try { hideEls?.(); } catch { /* ignore */ }
+                                try {
+                                    const bgData = (w2.ChatRoomData as Record<string, unknown> | undefined)?.Background;
+                                    if (bgData) w2.ChatRoomBackground = bgData;
+                                } catch { /* ignore */ }
+                            }
+                            loadChar(char);
+                        } catch { /* ignore */ }
+                    });
+                    row.appendChild(profBtn);
+
+                    // Beep button — only for friends
+                    if (friendList.includes(num)) {
+                        const unread = this.beepUnread.get(num) ?? 0;
+                        const beepBtn = document.createElement("button");
+                        beepBtn.className = "ebc-friend-btn";
+                        beepBtn.style.cssText = "position:relative;flex-shrink:0;";
+                        beepBtn.textContent = "💬";
+                        beepBtn.title = unread ? `${unread} unread` : "Open beep chat";
+                        if (unread > 0) {
+                            const badge = document.createElement("span");
+                            badge.textContent = unread > 9 ? "9+" : String(unread);
+                            badge.style.cssText = "position:absolute;top:-4px;right:-4px;background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-family:'Trebuchet MS',serif;padding:0 3px;min-width:12px;text-align:center;line-height:12px;pointer-events:none;";
+                            beepBtn.appendChild(badge);
+                        }
+                        beepBtn.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            this.beepUnread.delete(num);
+                            this.openBeepWindow(num);
+                            try { this.refreshFriendList(); } catch { /* ignore */ }
+                        });
+                        row.appendChild(beepBtn);
+                    }
+
+                    wrap.appendChild(row);
+                    container.appendChild(wrap);
+                };
+
+                // Collapsible section header — styled like a section label + arrow
+                const roomToggle = document.createElement("div");
+                const updateRoomToggle = (): void => {
+                    const col = this.roomPeopleCollapsed;
+                    roomToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
+                    roomToggle.innerHTML = "";
+                    const arrow = document.createElement("span");
+                    arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex-shrink:0;";
+                    arrow.textContent = col ? "▶" : "▼";
+                    const lbl = document.createElement("span");
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
+                    lbl.textContent = `People in Room`;
+                    const cnt = document.createElement("span");
+                    cnt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;";
+                    cnt.textContent = String(roomList.length);
+                    roomToggle.appendChild(arrow);
+                    roomToggle.appendChild(lbl);
+                    roomToggle.appendChild(cnt);
+                    roomContainer.style.display = col ? "none" : "block";
+                };
+                updateRoomToggle();
+                roomToggle.addEventListener("click", () => {
+                    this.roomPeopleCollapsed = !this.roomPeopleCollapsed;
+                    try { localStorage.setItem("EBC_roomPeopleCollapsed", this.roomPeopleCollapsed ? "1" : "0"); } catch { /* ignore */ }
+                    updateRoomToggle();
+                    if (!this.roomPeopleCollapsed && !roomContainer.firstChild) {
+                        for (const c of roomList) buildRoomRow(c, roomContainer);
+                    }
+                });
+                body.appendChild(roomToggle);
+                body.appendChild(roomContainer);
+
+                // Populate rows immediately if not collapsed
+                if (!this.roomPeopleCollapsed) {
+                    for (const c of roomList) buildRoomRow(c, roomContainer);
+                }
+            }
+        }
+
         if (friendList.length > 0) {
             const divF = document.createElement("div");
             divF.className = "ebc-divider";

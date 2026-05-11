@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.6.4";
+const MOD_VERSION = "1.6.5";
 
 let noticeShown = false;
 
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.6.5",
+        changes: [
+            "New: People in Room section added above Friends in the notes tab — collapsible header showing every person currently in the chat room with their name, member number, relationship badges, EBC badge, friend tags, a Profile button, and a Beep button for friends.",
+        ],
+    },
     {
         version: "1.6.4",
         changes: [
