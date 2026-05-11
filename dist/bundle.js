@@ -14563,44 +14563,54 @@
                     applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#3a1525"; });
                     applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#2a0f1a"; });
                     applyBtn.addEventListener("click", () => {
+                        var _a;
+                        const upd = window.ServerAccountUpdate;
+                        // ── Skills ────────────────────────────────────────────────
                         try {
-                            // Apply skills — Player.Skill is BCSkillEntry[]
-                            const skillArr = Player.Skill;
-                            for (const [k, inp] of statInputs) {
-                                if (!k.startsWith("skill_"))
-                                    continue;
-                                const key = k.slice(6);
-                                const val = Math.max(0, parseInt(inp.value) || 0);
-                                const entry = skillArr.find(e => e.Skill === key);
-                                if (entry)
-                                    entry.Level = val;
-                                else
-                                    skillArr.push({ Skill: key, Level: val, Progress: 0 });
-                            }
-                            // Apply reputation — only update existing entries, never push new types
-                            // (BC will error if unknown reputation types appear in the information sheet)
+                            // Build a fresh skill array from the inputs so we never
+                            // rely on mutating the existing array (avoids reference issues).
+                            const currentSkill = (_a = Player.Skill) !== null && _a !== void 0 ? _a : [];
+                            const newSkillArr = Object.keys(SKILL_LABELS).map(key => {
+                                var _a, _b;
+                                const existing = Array.isArray(currentSkill) ? currentSkill.find(e => e.Skill === key) : undefined;
+                                const inp = statInputs.get("skill_" + key);
+                                const val = Math.max(0, parseInt((_a = inp === null || inp === void 0 ? void 0 : inp.value) !== null && _a !== void 0 ? _a : "0") || 0);
+                                return { Skill: key, Level: val, Progress: (_b = existing === null || existing === void 0 ? void 0 : existing.Progress) !== null && _b !== void 0 ? _b : 0 };
+                            });
+                            Player.Skill = newSkillArr;
+                            const ss = window.ServerSend;
+                            if (ss)
+                                ss("AccountUpdate", { Skill: newSkillArr });
+                            else if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
+                                upd.QueueData({ Skill: newSkillArr });
+                        }
+                        catch (e) {
+                            applyBtn.textContent = "Skill error!";
+                            window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 2000);
+                            return;
+                        }
+                        // ── Reputation ────────────────────────────────────────────
+                        try {
                             const rep = Player.Reputation;
-                            for (const [k, inp] of statInputs) {
-                                if (!k.startsWith("rep_"))
-                                    continue;
-                                const type = k.slice(4);
-                                const val = parseInt(inp.value);
-                                if (isNaN(val))
-                                    continue;
-                                const entry = rep.find(r => r.Type === type);
-                                if (entry)
-                                    entry.Value = val;
-                                // deliberately no push — never create new reputation types
+                            if (Array.isArray(rep)) {
+                                for (const [k, inp] of statInputs) {
+                                    if (!k.startsWith("rep_"))
+                                        continue;
+                                    const type = k.slice(4);
+                                    const val = parseInt(inp.value);
+                                    if (isNaN(val))
+                                        continue;
+                                    const entry = rep.find(r => r.Type === type);
+                                    if (entry)
+                                        entry.Value = val;
+                                }
+                                if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
+                                    upd.QueueData({ Reputation: rep });
                             }
-                            const upd = window.ServerAccountUpdate;
-                            if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
-                                upd.QueueData({ Skill: skillArr, Reputation: rep });
-                            applyBtn.textContent = "Applied!";
-                            window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 1500);
                         }
-                        catch (_a) {
-                            applyBtn.textContent = "Error — check console";
-                        }
+                        catch ( /* reputation save failed — non-fatal */_b) { /* reputation save failed — non-fatal */ }
+                        applyBtn.textContent = "Applied!";
+                        window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 1500);
                     });
                     cnt.appendChild(applyBtn);
                 });
