@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.5.12";
+const MOD_VERSION = "1.5.13";
 
 let noticeShown = false;
 
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.5.13",
+        changes: [
+            "Fix: /ebc update now always shows both current and remote version (\"Up to date — v1.5.13, latest is v1.5.13\" or \"Update available! v1.5.13 is out\"). appendLocalLogLine retries once if TextAreaChatLog isn't mounted yet.",
+        ],
+    },
     {
         version: "1.5.12",
         changes: [
@@ -1439,22 +1445,28 @@ function playBeepSound(): void {
 }
 
 function appendLocalLogLine(text: string, color = UI.accent): void {
-    const log = document.getElementById("TextAreaChatLog");
-    if (!log) return;
-
-    const msg = document.createElement("div");
-    msg.style.cssText = `
-        background: ${UI.cardMuted};
-        color: ${color};
-        border-left: 3px solid ${UI.accent};
-        padding: 4px 8px;
-        margin: 2px 0;
-        font-style: italic;
-        font-size: 12px;
-    `;
-    msg.textContent = text;
-    log.appendChild(msg);
-    log.scrollTop = log.scrollHeight;
+    const doAppend = (): boolean => {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log) return false;
+        const msg = document.createElement("div");
+        msg.style.cssText = `
+            background: ${UI.cardMuted};
+            color: ${color};
+            border-left: 3px solid ${UI.accent};
+            padding: 4px 8px;
+            margin: 2px 0;
+            font-style: italic;
+            font-size: 12px;
+        `;
+        msg.textContent = text;
+        log.appendChild(msg);
+        log.scrollTop = log.scrollHeight;
+        return true;
+    };
+    // Try immediately; if the chat log isn't mounted yet retry once after a short delay
+    if (!doAppend()) {
+        window.setTimeout(() => doAppend(), 300);
+    }
 }
 
 function showVersionInfo(): void {
@@ -1627,15 +1639,15 @@ async function checkUpdateManual(): Promise<void> {
         }
 
         if (!isNewerVersion(remote, MOD_VERSION)) {
-            appendLocalLogLine(`[EBC] ✔ You're on the latest version (v${MOD_VERSION}).`, UI.gold);
+            appendLocalLogLine(`[EBC] ✔ Up to date — you are on v${MOD_VERSION}, latest is v${remote}.`, UI.gold);
             return;
         }
 
-        // Update available — show same message as the automatic check
+        // Update available
         try { localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote); } catch { /* ignore */ }
-        appendLocalLogLine(`[EBC] 🔔 Update available — v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
-        appendLocalLogLine(`[EBC]    Refresh the page to get the latest version.`, UI.gold);
-        appendLocalLogLine(`[EBC]    To silence automatic notifications: /ebc updates off`, UI.textMuted);
+        appendLocalLogLine(`[EBC] 🔔 Update available! v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
+        appendLocalLogLine(`[EBC]    Refresh the page to load the latest version.`, UI.gold);
+        appendLocalLogLine(`[EBC]    To silence auto-notifications: /ebc updates off`, UI.textMuted);
     } catch {
         appendLocalLogLine(`[EBC] Network error while checking for updates.`, UI.danger);
     }
