@@ -149,7 +149,7 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
             pendingOfflineMessages.delete(num);
             try {
                 for (const msg of msgs) {
-                    ServerSend("AccountBeep", { MemberNumber: num, Message: msg });
+                    ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
                 }
             } catch { /* ignore */ }
         }
@@ -173,35 +173,117 @@ export function getFriendStatus(memberNumber: number): FriendStatus {
 }
 
 // -- Last seen -----------------------------------------------------------------
-// Stored in localStorage (not BC server) so it survives restarts but is
-// device-local.  Key → member number as string, value → unix ms timestamp.
+// Stored in Player.ExtensionSettings.EmeryBC.lastSeen (server-synced, cross-device).
+// On first load, existing localStorage data is merged in so no history is lost
+// (localStorage values only fill gaps; server data always wins for conflicts).
+// Capped at 300 entries — oldest timestamps are evicted when over cap.
 
-const EBC_LAST_SEEN_KEY = "EBC_lastSeen";
+const EBC_LAST_SEEN_LEGACY_KEY = "EBC_lastSeen"; // legacy localStorage key (migration only)
+const LAST_SEEN_CAP = 300;
 
-function loadLastSeenMap(): Record<string, number> {
+function getLastSeenMap(): Record<string, number> {
     try {
-        const raw = localStorage.getItem(EBC_LAST_SEEN_KEY);
-        if (raw) {
-            const p = JSON.parse(raw) as unknown;
-            if (p && typeof p === "object" && !Array.isArray(p)) return p as Record<string, number>;
+        const store = getStore();
+        // One-time migration from localStorage → ExtensionSettings
+        if (!store.lastSeenMigrated) {
+            try {
+                const raw = localStorage.getItem(EBC_LAST_SEEN_LEGACY_KEY);
+                if (raw) {
+                    const p = JSON.parse(raw) as unknown;
+                    if (p && typeof p === "object" && !Array.isArray(p)) {
+                        const existing: Record<string, number> =
+                            (store.lastSeen && typeof store.lastSeen === "object" && !Array.isArray(store.lastSeen))
+                            ? (store.lastSeen as Record<string, number>)
+                            : {};
+                        for (const [k, v] of Object.entries(p as Record<string, unknown>)) {
+                            if (typeof v === "number" && !(k in existing)) existing[k] = v;
+                        }
+                        store.lastSeen = existing;
+                    }
+                }
+            } catch { /* ignore */ }
+            store.lastSeenMigrated = true;
+            // Sync will happen on the next recordLastSeen() call
         }
+        const v = store.lastSeen;
+        if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, number>;
+        if (!store.lastSeen) store.lastSeen = {};
+        return store.lastSeen as Record<string, number>;
     } catch { /* ignore */ }
     return {};
 }
 
+function evictLastSeen(data: Record<string, number>): void {
+    const entries = Object.entries(data);
+    if (entries.length <= LAST_SEEN_CAP) return;
+    entries.sort((a, b) => a[1] - b[1]); // oldest first
+    const toEvict = entries.length - LAST_SEEN_CAP;
+    for (let i = 0; i < toEvict; i++) delete data[entries[i][0]];
+}
+
 export function recordLastSeen(memberNumber: number): void {
     try {
-        const data = loadLastSeenMap();
+        const store = getStore();
+        const data = getLastSeenMap();
         data[String(memberNumber)] = Date.now();
-        localStorage.setItem(EBC_LAST_SEEN_KEY, JSON.stringify(data));
+        evictLastSeen(data);
+        store.lastSeen = data;
+        sync();
     } catch { /* ignore */ }
 }
 
 export function getLastSeen(memberNumber: number): number | null {
     try {
-        const data = loadLastSeenMap();
+        const data = getLastSeenMap();
         const ts = data[String(memberNumber)];
         return typeof ts === "number" ? ts : null;
+    } catch { return null; }
+}
+
+// -- Friend since --------------------------------------------------------------
+// Records the first time EBC observed each member number in Player.FriendList.
+// Stored in ExtensionSettings.EmeryBC.friendSince (server-synced, cross-device).
+// Call syncFriendsSince() each time the friend list is freshly available
+// (e.g. on AccountQueryResult) so newly added friends are recorded promptly.
+
+export function syncFriendsSince(): void {
+    try {
+        const store = getStore();
+        if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
+            store.friendSince = {};
+        }
+        const map = store.friendSince as Record<string, number>;
+        const fl = getFriendList();
+        let changed = false;
+        const now = Date.now();
+        for (const num of fl) {
+            const key = String(num);
+            if (!map[key]) {
+                map[key] = now;
+                changed = true;
+            }
+        }
+        if (changed) sync();
+    } catch { /* ignore */ }
+}
+
+export function getFriendSince(memberNumber: number): number | null {
+    try {
+        const store = getStore();
+        if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
+            store.friendSince = {};
+        }
+        const map = store.friendSince as Record<string, number>;
+        const key = String(memberNumber);
+        if (typeof map[key] === "number") return map[key];
+        // No record yet — stamp right now if they're actually in our friend list
+        // (covers friends added before this EBC version and any timing gaps)
+        if (getFriendList().includes(memberNumber)) {
+            map[key] = Date.now();
+            sync();
+            return map[key];
+        }
+        return null;
     } catch { return null; }
 }
 
@@ -247,6 +329,62 @@ export function togglePinFriend(memberNumber: number): boolean {
 export interface FriendTag {
     text: string;
     color: string; // hex e.g. "#cf6f98"
+    locked?: true;  // hardcoded system tag — never stored, never removable
+}
+
+// Hardcoded entries that are permanently shown for specific members regardless of
+// whether they are in Player.FriendList. Tags cannot be removed or stored.
+//
+// viewerOnly: if set, the entry is only active when Player.MemberNumber equals
+// this value — so each side of a relationship sees only the tag meant for them.
+interface LockedEntry {
+    tag: FriendTag;
+    displayName: string; // fallback display name when not in room / name cache
+    viewerOnly?: number; // restrict to a specific player's client (optional)
+}
+
+const LOCKED_ENTRIES = new Map<number, LockedEntry>([
+    // On Emery's client (#130267): Lucy (#230466) shows ♛ Mistress
+    [230466, {
+        tag:         { text: "♛ Mistress", color: "#FFD700", locked: true },
+        displayName: "Lucy",
+        viewerOnly:  130267,
+    }],
+    // On Lucy's client (#230466): Emery (#130267) shows ♛ Mistress
+    [130267, {
+        tag:         { text: "♛ Mistress", color: "#FFD700", locked: true },
+        displayName: "Emery",
+        viewerOnly:  230466,
+    }],
+]);
+
+/** Whether a locked entry is active for the currently logged-in player. */
+function lockedEntryActive(entry: LockedEntry): boolean {
+    try {
+        if (entry.viewerOnly === undefined) return true;
+        return Player?.MemberNumber === entry.viewerOnly;
+    } catch { return false; }
+}
+
+/**
+ * Returns the locked (permanent, non-removable) tag for a member, or null if none.
+ */
+export function getLockedTag(memberNumber: number): FriendTag | null {
+    const entry = LOCKED_ENTRIES.get(memberNumber);
+    if (!entry || !lockedEntryActive(entry)) return null;
+    return entry.tag;
+}
+
+/**
+ * Returns every member number that has a locked tag entry visible to the
+ * current player, mapped to their hardcoded fallback display name.
+ */
+export function getLockedTagMembers(): Map<number, string> {
+    const out = new Map<number, string>();
+    for (const [num, entry] of LOCKED_ENTRIES) {
+        if (lockedEntryActive(entry)) out.set(num, entry.displayName);
+    }
+    return out;
 }
 
 function migrateTagValue(v: unknown): FriendTag[] {
@@ -258,15 +396,22 @@ function migrateTagValue(v: unknown): FriendTag[] {
 export function getFriendTagList(memberNumber: number): FriendTag[] {
     const store = getStore();
     const raw = store.friendTags;
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
-    return migrateTagValue((raw as Record<string, unknown>)[String(memberNumber)]);
+    const userTags: FriendTag[] = (!raw || typeof raw !== "object" || Array.isArray(raw))
+        ? []
+        : migrateTagValue((raw as Record<string, unknown>)[String(memberNumber)]);
+    // Locked tag always comes first and is never stored — prepend it at read time.
+    // getLockedTag() already checks viewerOnly, so no extra filter needed here.
+    const lockedTag = getLockedTag(memberNumber);
+    return lockedTag ? [lockedTag, ...userTags] : userTags;
 }
 
 export function setFriendTagList(memberNumber: number, tagList: FriendTag[]): void {
+    // Strip any locked tags before saving — they must never enter storage
+    const toSave = tagList.filter(t => !t.locked);
     const store = getStore();
     if (!store.friendTags || typeof store.friendTags !== "object") store.friendTags = {};
     const tags = store.friendTags as Record<string, unknown>;
-    if (tagList.length > 0) tags[String(memberNumber)] = tagList;
+    if (toSave.length > 0) tags[String(memberNumber)] = toSave;
     else delete tags[String(memberNumber)];
     sync();
 }
@@ -295,6 +440,90 @@ export function getConversation(memberNumber: number): BeepEntry[] {
         (e.from === memberNumber && e.to === self) ||
         (e.from === self && e.to === memberNumber),
     );
+}
+
+// -- Character bundle store ----------------------------------------------------
+// Stores stripped raw server bundles so profiles can be opened via CharacterLoadOnline.
+//
+// Two tiers:
+//   1. sessionCharacterBundles (Map) — fast in-memory, current session only.
+//   2. localStorage (EBC_bundle_<num>) — persists across reloads so People Met
+//      entries from previous sessions can also open their profile.
+//
+// We hook ChatRoomSync/SyncSingle/MemberJoin (matching WCE) rather than
+// CharacterRefresh because only those fire with the raw server-format bundle
+// (string `ID` field, raw Appearance array) that CharacterLoadOnline expects.
+//
+// Large / privacy-sensitive fields are stripped before storage.
+
+const BUNDLE_STRIP_FIELDS = [
+    "Inventory", "BlockItems", "LimitedItems", "FavoriteItems",
+    "ActivePose", "ArousalSettings", "OnlineSharedSettings",
+    "WhiteList", "BlackList", "Crafting",
+];
+const BUNDLE_LS_PREFIX  = "EBC_bundle_";
+const BUNDLE_LS_META    = "EBC_bundleMeta"; // {[memberNumber]: seenTimestamp}
+const BUNDLE_LS_CAP     = 150;              // max localStorage entries
+
+const sessionCharacterBundles = new Map<number, unknown>();
+
+function evictBundleCache(meta: Record<string, number>): void {
+    const entries = Object.entries(meta);
+    if (entries.length <= BUNDLE_LS_CAP) return;
+    entries.sort((a, b) => a[1] - b[1]); // oldest first
+    const toEvict = entries.length - BUNDLE_LS_CAP;
+    for (let i = 0; i < toEvict; i++) {
+        const key = entries[i][0];
+        delete meta[key];
+        try { localStorage.removeItem(`${BUNDLE_LS_PREFIX}${key}`); } catch { /* ignore */ }
+    }
+    try { localStorage.setItem(BUNDLE_LS_META, JSON.stringify(meta)); } catch { /* ignore */ }
+}
+
+/**
+ * Store the raw server bundle for an online character.
+ * Pass the first argument of CharacterLoadOnline (the raw server data object),
+ * NOT a constructed Character object.
+ */
+export function storeRawBundle(data: unknown): void {
+    try {
+        const d = data as Record<string, unknown>;
+        const num = typeof d.MemberNumber === "number" ? d.MemberNumber : 0;
+        if (!num) return;
+        // Shallow-clone and strip large fields
+        const bundle: Record<string, unknown> = { ...d };
+        for (const f of BUNDLE_STRIP_FIELDS) delete bundle[f];
+        // JSON round-trip: plain data object, no live BC references or non-serialisable values
+        const serialized = JSON.stringify(bundle);
+        const parsed = JSON.parse(serialized) as unknown;
+        // Tier 1: session memory
+        sessionCharacterBundles.set(num, parsed);
+        // Tier 2: localStorage for cross-session persistence
+        try {
+            localStorage.setItem(`${BUNDLE_LS_PREFIX}${num}`, serialized);
+            const rawMeta = localStorage.getItem(BUNDLE_LS_META);
+            const meta: Record<string, number> = (rawMeta ? JSON.parse(rawMeta) : {}) as Record<string, number>;
+            meta[String(num)] = Date.now();
+            evictBundleCache(meta);
+            localStorage.setItem(BUNDLE_LS_META, JSON.stringify(meta));
+        } catch { /* localStorage quota exceeded or unavailable — session cache still works */ }
+    } catch { /* ignore */ }
+}
+
+export function getCharacterBundle(memberNumber: number): unknown | null {
+    // Tier 1: check session memory
+    const mem = sessionCharacterBundles.get(memberNumber);
+    if (mem != null) return mem;
+    // Tier 2: check localStorage (previous sessions)
+    try {
+        const raw = localStorage.getItem(`${BUNDLE_LS_PREFIX}${memberNumber}`);
+        if (raw) {
+            const bundle = JSON.parse(raw) as unknown;
+            sessionCharacterBundles.set(memberNumber, bundle); // promote to memory cache
+            return bundle;
+        }
+    } catch { /* ignore */ }
+    return null;
 }
 
 // -- Sending -------------------------------------------------------------------

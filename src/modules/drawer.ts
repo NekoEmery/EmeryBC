@@ -82,7 +82,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBa
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -2001,6 +2001,7 @@ const CSS = `
     padding: 8px 10px;
     display: flex;
     flex-direction: column;
+    justify-content: flex-end;
     gap: 4px;
 }
 
@@ -3497,8 +3498,9 @@ export class EBCDrawer {
     }
 
     // Called every 200ms by the CRABS poller — piggyback a 30s friend-list poll.
+    // Runs regardless of which tab is active so that online-status changes are always
+    // detected and offline-beep re-delivery fires even when the notes tab is closed.
     private tickFriendPoll(): void {
-        if (this.currentTab !== "notes") { this.friendPollTick = 0; return; }
         this.friendPollTick++;
         if (this.friendPollTick >= 150) { // 150 × 200ms = 30 s
             this.friendPollTick = 0;
@@ -9667,12 +9669,16 @@ export class EBCDrawer {
                     tagArea.innerHTML = "";
                     const tl = getFriendTagList(num);
                     if (!tl.length) return;
-                    // First tag pill
+                    // First tag pill — locked tags get a bold gold crown style
                     const first = tl[0];
                     const pill = document.createElement("span");
                     pill.className = "ebc-friend-tag";
                     pill.textContent = first.text;
-                    pill.style.cssText = `background:${first.color}22;color:${first.color};border:1px solid ${first.color}55;`;
+                    if (first.locked) {
+                        pill.style.cssText = `background:#3a2e00;color:#FFD700;border:1px solid #FFD700;font-weight:700;letter-spacing:0.03em;text-shadow:0 0 6px #FFD70088;`;
+                    } else {
+                        pill.style.cssText = `background:${first.color}22;color:${first.color};border:1px solid ${first.color}55;`;
+                    }
                     tagArea.appendChild(pill);
                     // "+N more" indicator
                     if (tl.length > 1) {
@@ -9695,7 +9701,11 @@ export class EBCDrawer {
                         const chip = document.createElement("span");
                         chip.className = "ebc-friend-tag";
                         chip.textContent = t.text;
-                        chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                        if (t.locked) {
+                            chip.style.cssText = `background:#3a2e00;color:#FFD700;border:1px solid #FFD700;font-weight:700;text-shadow:0 0 6px #FFD70088;`;
+                        } else {
+                            chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                        }
                         tt.appendChild(chip);
                     }
                     document.body.appendChild(tt);
@@ -9724,7 +9734,7 @@ export class EBCDrawer {
                 });
                 tagArea.addEventListener("mouseleave", hideTooltip);
 
-                if (getFriendTagList(num).length > 0) row.appendChild(tagArea);
+                if (getFriendTagList(num).length > 0 || getLockedTag(num)) row.appendChild(tagArea);
 
                 // Beep button — does NOT toggle expand
                 const unread = this.beepUnread.get(num) ?? 0;
@@ -9758,6 +9768,66 @@ export class EBCDrawer {
                     if (expandBuilt) return;
                     expandBuilt = true;
 
+                    // ── Friend info (since + last seen) ───────────────────────
+                    const infoBox = document.createElement("div");
+                    infoBox.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;background:#0e070d;border:1px solid #2a1020;border-radius:4px;padding:4px 7px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px;";
+
+                    // Read (and auto-stamp) the "friends since" date directly from the
+                    // raw store — bypasses all helper functions to rule out any module
+                    // bugs. Also calls getFriendSince as a secondary path for consistency.
+                    let sinceTs: number | null = null;
+                    try {
+                        const embc = (Player as unknown as Record<string, unknown>)?.ExtensionSettings as
+                            Record<string, unknown> | undefined;
+                        if (embc) {
+                            if (!embc.EmeryBC || typeof embc.EmeryBC !== "object" || Array.isArray(embc.EmeryBC)) {
+                                embc.EmeryBC = {};
+                            }
+                            const store = embc.EmeryBC as Record<string, unknown>;
+                            if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
+                                store.friendSince = {};
+                            }
+                            const fs = store.friendSince as Record<string, number>;
+                            const key = String(num);
+                            if (typeof fs[key] === "number") {
+                                sinceTs = fs[key];
+                            } else {
+                                // No record — stamp now (this IS a friend if they appear in the list)
+                                fs[key] = Date.now();
+                                sinceTs = fs[key];
+                                try {
+                                    const syncFn = (window as unknown as Record<string, unknown>).ServerPlayerExtensionSettingsSync as
+                                        ((k: string) => void) | undefined;
+                                    syncFn?.("EmeryBC");
+                                } catch { /* ignore */ }
+                            }
+                        }
+                    } catch { /* ignore */ }
+                    // Fallback: try the module helper too
+                    if (!sinceTs) { try { sinceTs = getFriendSince(num); } catch { /* ignore */ } }
+
+                    const sinceEl = document.createElement("div");
+                    if (sinceTs) {
+                        const d = new Date(sinceTs);
+                        const label = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+                        sinceEl.textContent = `🤝 Friends since: ${label}`;
+                    } else {
+                        sinceEl.textContent = "🤝 Friends since: Unknown";
+                    }
+                    infoBox.appendChild(sinceEl);
+
+                    const lsTsFull = getLastSeen(num);
+                    if (lsTsFull !== null) {
+                        const lsFullEl = document.createElement("div");
+                        const d2 = new Date(lsTsFull);
+                        const label2 = d2.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+                            + " " + d2.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                        lsFullEl.textContent = `🕑 Last seen: ${label2} (${formatLastSeen(lsTsFull)})`;
+                        infoBox.appendChild(lsFullEl);
+                    }
+
+                    expand.appendChild(infoBox);
+
                     // Tags label
                     const tagsLbl = document.createElement("div");
                     tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
@@ -9776,26 +9846,39 @@ export class EBCDrawer {
                             const t = tl[i];
                             const chip = document.createElement("span");
                             chip.className = "ebc-etag-chip";
-                            chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
-                            const dot2 = document.createElement("span");
-                            dot2.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${t.color};flex-shrink:0;`;
-                            const txt = document.createElement("span");
-                            txt.textContent = t.text;
-                            const rmBtn = document.createElement("button");
-                            rmBtn.className = "ebc-etag-chip-remove";
-                            rmBtn.textContent = "✕";
-                            rmBtn.style.color = t.color;
-                            rmBtn.addEventListener("click", () => {
-                                const updated = getFriendTagList(num).filter((_, j) => j !== i);
-                                setFriendTagList(num, updated);
-                                rebuildChips();
-                                renderTagArea();
-                                if (updated.length > 0) { if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn); }
-                                else tagArea.remove();
-                            });
-                            chip.appendChild(dot2);
-                            chip.appendChild(txt);
-                            chip.appendChild(rmBtn);
+                            if (t.locked) {
+                                // Locked tag: gold crown style, no remove button
+                                chip.style.cssText = `background:#3a2e00;color:#FFD700;border:1px solid #FFD700;font-weight:700;letter-spacing:0.03em;text-shadow:0 0 6px #FFD70088;`;
+                                const txt = document.createElement("span");
+                                txt.textContent = t.text;
+                                const lockIcon = document.createElement("span");
+                                lockIcon.textContent = "🔒";
+                                lockIcon.style.cssText = "font-size:8px;opacity:0.7;margin-left:2px;";
+                                lockIcon.title = "Permanent tag — cannot be removed";
+                                chip.appendChild(txt);
+                                chip.appendChild(lockIcon);
+                            } else {
+                                chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                                const dot2 = document.createElement("span");
+                                dot2.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${t.color};flex-shrink:0;`;
+                                const txt = document.createElement("span");
+                                txt.textContent = t.text;
+                                const rmBtn = document.createElement("button");
+                                rmBtn.className = "ebc-etag-chip-remove";
+                                rmBtn.textContent = "✕";
+                                rmBtn.style.color = t.color;
+                                rmBtn.addEventListener("click", () => {
+                                    const updated = getFriendTagList(num).filter((_, j) => j !== i);
+                                    setFriendTagList(num, updated);
+                                    rebuildChips();
+                                    renderTagArea();
+                                    if (updated.length > 0) { if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn); }
+                                    else tagArea.remove();
+                                });
+                                chip.appendChild(dot2);
+                                chip.appendChild(txt);
+                                chip.appendChild(rmBtn);
+                            }
                             chipsEl.appendChild(chip);
                         }
                     };
@@ -9884,6 +9967,15 @@ export class EBCDrawer {
                 wrap.appendChild(expand);
                 container.appendChild(wrap);
             };
+
+            // Always render locked-tag contacts first — even if not in Player.FriendList.
+            // Cache their fallback display names so resolveName() always has something to show.
+            for (const [num, fallbackName] of getLockedTagMembers()) {
+                try { cacheName(num, fallbackName); } catch { /* ignore */ }
+                if (!friendList.includes(num)) {
+                    buildFriendRow(num, body);
+                }
+            }
 
             // Render active friends
             for (const num of activeFriends) buildFriendRow(num, body);
@@ -11109,28 +11201,51 @@ export class EBCDrawer {
                     profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#2a0f1a"; profBtn.style.borderColor = "#cf6f98"; });
                     profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "transparent"; profBtn.style.borderColor = "#4c2537"; });
                     profBtn.addEventListener("click", () => {
-                        try {
-                            // Try to open BC's in-game info sheet if they're in the room
-                            const roomChars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
-                                Array<Record<string, unknown>> | undefined ?? [];
-                            const inRoom = roomChars.find(c => c.MemberNumber === person.n);
-                            if (inRoom) {
-                                const setChar = (window as unknown as Record<string, unknown>).CharacterSetCurrent as
-                                    ((c: unknown) => void) | undefined;
-                                const setScreen = (window as unknown as Record<string, unknown>).CommonSetScreen as
-                                    ((module: string, screen: string) => void) | undefined;
-                                if (setChar && setScreen) {
-                                    setChar(inRoom);
-                                    setScreen("Character", "InformationSheet");
-                                    return;
-                                }
+                        const w = window as unknown as Record<string, unknown>;
+                        const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
+                        const hideEls    = w.ChatRoomHideElements as (() => void) | undefined;
+                        const loadOnline = w.CharacterLoadOnline  as ((d: unknown, n: number) => unknown) | undefined;
+                        const roomChars  = w.ChatRoomCharacter    as Array<Record<string, unknown>> | undefined;
+
+                        // Open a BC info-sheet — mirrors WCE's openCharacter() exactly.
+                        const openProfile = (C: unknown): void => {
+                            this.close();
+                            if (w.CurrentScreen === "ChatRoom") {
+                                try { hideEls?.(); } catch { /* ignore */ }
+                                // Restore background so the info sheet renders correctly (WCE does this too)
+                                try {
+                                    const bgData = (w.ChatRoomData as Record<string, unknown> | undefined)?.Background;
+                                    if (bgData) w.ChatRoomBackground = bgData;
+                                } catch { /* ignore */ }
                             }
-                        } catch { /* ignore */ }
-                        // Fallback: copy member number to clipboard
+                            loadChar!(C);
+                        };
+
+                        if (!loadChar || !loadOnline) {
+                            // BC globals not ready — copy number as fallback
+                            try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
+                            return;
+                        }
+
+                        // Prefer live character object if they're still in the room
+                        const inRoom = Array.isArray(roomChars)
+                            ? roomChars.find(c => c.MemberNumber === person.n)
+                            : undefined;
+                        if (inRoom) {
+                            try { openProfile(inRoom); return; } catch { /* ignore */ }
+                        }
+
+                        // Reconstruct from stored bundle (WCE-style offline profile)
+                        const bundle = getCharacterBundle(person.n);
+                        if (bundle) {
+                            try {
+                                const C = loadOnline(bundle, person.n);
+                                if (C) { openProfile(C); return; }
+                            } catch { /* ignore */ }
+                        }
+
+                        // Absolute last resort — copy member number
                         try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
-                        const orig = profBtn.textContent;
-                        profBtn.textContent = "Copied #";
-                        window.setTimeout(() => { profBtn.textContent = orig; }, 1400);
                     });
 
                     row.appendChild(nameSpan);

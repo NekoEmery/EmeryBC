@@ -12,11 +12,11 @@ import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./m
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata } from "./modules/friends";
+import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.4.8";
+const MOD_VERSION = "1.5.12";
 
 let noticeShown = false;
 
@@ -26,6 +26,93 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.5.12",
+        changes: [
+            "Fix: Profile button now actually opens the BC info sheet correctly — root cause was bundle capture happening AFTER BC mutated the data (changed string IDs to integers, replaced raw Appearance with loaded Assets). Now captures a deep copy before BC processes the sync, matching WCE exactly. Also adds ChatRoomBackground restore so the profile screen renders fully.",
+            "Fix: Chat windows now open with messages pinned to the bottom instead of the top.",
+        ],
+    },
+    {
+        version: "1.5.11",
+        changes: [
+            "Fix: Lucy's client now shows ♛ Mistress on Emery's name in her friends panel.",
+        ],
+    },
+    {
+        version: "1.5.10",
+        changes: [
+            "Fix: removed ♛ Mistress locked tag from Emery's entry — only Emery's own panel shows it on Lucy.",
+        ],
+    },
+    {
+        version: "1.5.9",
+        changes: [
+            "Fix: ♛ Mistress locked tag is now viewer-aware — Emery's client shows it on Lucy, Lucy's client shows it on Emery. Neither player sees the tag on themselves in their own panel.",
+        ],
+    },
+    {
+        version: "1.5.8",
+        changes: [
+            "Fix: Profile button in People Met now shows diagnostic error in button text so we can pinpoint exactly why it fails.",
+        ],
+    },
+    {
+        version: "1.5.7",
+        changes: [
+            "Fix: removed incorrect #235168 entry — Emery's confirmed member number is #130267. Locked ♛ Mistress tag now targets the correct number only.",
+        ],
+    },
+    {
+        version: "1.5.6",
+        changes: [
+            "Fix: added #235168 as a second entry for Emery so the ♛ Mistress tag shows correctly in Lucy's panel. Lucy's own user-set tags on Emery still appear — the locked tag is always forced to index 0, user tags follow behind it.",
+        ],
+    },
+    {
+        version: "1.5.5",
+        changes: [
+            "Emery (#130267) now also carries a permanent ♛ Mistress tag — visible to anyone running this EBC who has Emery in their friends panel, including Lucy's view.",
+        ],
+    },
+    {
+        version: "1.5.4",
+        changes: [
+            "Fix: Lucy's ♛ Mistress tag now always appears in the friends panel even if she is not in Player.FriendList. Locked-tag contacts are rendered at the top of the friends list with their hardcoded fallback name so the tag is visible regardless of friend status.",
+        ],
+    },
+    {
+        version: "1.5.3",
+        changes: [
+            "Lucy (#230466) now permanently displays a gold ♛ Mistress tag. It appears first, overrides normal tag order, cannot be removed, and renders with a distinct gold glow style in the friend row, expand panel, and hover tooltip.",
+        ],
+    },
+    {
+        version: "1.5.2",
+        changes: [
+            "Fix: Profile button in People Met now works for people met in previous sessions. Character bundles are now persisted to localStorage (up to 150 entries, oldest evicted) so they survive page reloads — previously only people seen in the current session could have their profile opened.",
+        ],
+    },
+    {
+        version: "1.5.1",
+        changes: [
+            "Fix: Profile button in People Met now actually opens the BC info sheet instead of falling back to clipboard copy. Root cause was a missing ChatRoomHideElements() call — without it the profile screen rendered underneath the chat room UI and appeared invisible. Also switched bundle capture to hook ChatRoomSync/ChatRoomSyncSingle/ChatRoomSyncMemberJoin (matching WCE's approach) for correct raw server-format bundles.",
+        ],
+    },
+    {
+        version: "1.5.0",
+        changes: [
+            "Profile button in People Met now opens the full BC info sheet for anyone you've shared a room with this session, even after they've left. Uses the same raw-bundle approach as WCE: CharacterLoadOnline is hooked to capture each character's server-format data (correct string ID + raw Appearance bundle) so it can be reconstructed offline. Clipboard copy is kept as a last-resort fallback.",
+        ],
+    },
+    {
+        version: "1.4.9",
+        changes: [
+            "Friends since: expand panel now shows the date EBC first recorded each friend — synced across devices.",
+            "Last seen is now stored in ExtensionSettings (server-synced) instead of localStorage — your offline timestamps follow you across devices. Existing localStorage history is automatically merged on first load.",
+            "Last seen in expand panel now shows the full date & time alongside the relative label (e.g. '2 hours ago').",
+        ],
+    },
     {
         version: "1.4.8",
         changes: [
@@ -1797,6 +1884,50 @@ function init(): void {
         return result;
     });
 
+    // Capture raw server-format character bundles for offline profile viewing.
+    // CRITICAL: bundles must be deep-copied BEFORE calling next(args) — BC's ChatRoomSync
+    // mutates the character objects in place (converts string IDs to integers, replaces raw
+    // Appearance arrays with loaded Asset objects). Capturing after next() gives corrupted data.
+    // Mirrors WCE's saveProfile approach exactly.
+    tryHookFunction(modAPI, "ChatRoomSync", 11, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            const chars = data?.Character;
+            if (Array.isArray(chars)) {
+                for (const c of chars as Record<string, unknown>[]) {
+                    const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
+                    // Deep-copy via JSON before BC mutates the objects
+                    if (num && num !== Player.MemberNumber) {
+                        try { storeRawBundle(JSON.parse(JSON.stringify(c))); } catch { /* ignore */ }
+                    }
+                }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+    tryHookFunction(modAPI, "ChatRoomSyncSingle", 11, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            const c = data?.Character as Record<string, unknown> | undefined;
+            const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
+            if (num && num !== Player.MemberNumber) {
+                try { storeRawBundle(JSON.parse(JSON.stringify(c))); } catch { /* ignore */ }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+    tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 11, (args, next) => {
+        try {
+            const [data] = args as [Record<string, unknown>];
+            const c = data?.Character as Record<string, unknown> | undefined;
+            const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
+            if (num && num !== Player.MemberNumber) {
+                try { storeRawBundle(JSON.parse(JSON.stringify(c))); } catch { /* ignore */ }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
     // Anti-restraint + grace period: detect new restraints on the player after any refresh
     // Also record every non-player character we see as a "person met".
     tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
@@ -1902,8 +2033,12 @@ function init(): void {
                 }
             } catch { /* ignore */ }
 
-            // Suppress BC's native chat-log notification when our IM handles it.
-            if (getSuppressNativeBeep()) return;
+            // Suppress BC's native chat-log notification when our IM handles it —
+            // BUT only when the tab is visible. When the page is hidden (user tabbed
+            // away), let BC's handler run so its persistent toast and any browser/OS
+            // notification still fire. EBC's own 5-second toast disappears before the
+            // user comes back, so suppressing BC while hidden = zero notification.
+            if (getSuppressNativeBeep() && !document.hidden) return;
         } catch { /* ignore */ }
         return next(args);
     });
@@ -1911,12 +2046,15 @@ function init(): void {
 
     // Cache friend names whenever BC notifies us a friend came online.
     // FriendListBeep is a real BC global called with {MemberNumber, MemberName, ...}.
+    // We also call syncFriendsSince() here so newly added friends are stamped as soon
+    // as they come online (covers the gap before the next AccountQueryResult fires).
     tryHookFunction(modAPI, "FriendListBeep", 1, (args, next) => {
         try {
             const [data] = args as [Record<string, unknown>];
             const num = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
             const name = typeof data.MemberName === "string" ? data.MemberName : null;
             if (num && name) cacheName(num, name);
+            try { syncFriendsSince(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return next(args);
     });
@@ -1938,6 +2076,7 @@ function init(): void {
                     if (n && name) cacheName(n, name);
                 }
                 updateOnlineFriends(results);
+                try { syncFriendsSince(); } catch { /* ignore */ }
                 try { drawer?.updateAllBeepWindowStatuses(); } catch { /* ignore */ }
                 try { drawer?.refreshFriendList(); } catch { /* ignore */ }
             } catch { /* ignore */ }

@@ -3066,7 +3066,7 @@
                 pendingOfflineMessages.delete(num);
                 try {
                     for (const msg of msgs) {
-                        ServerSend("AccountBeep", { MemberNumber: num, Message: msg });
+                        ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
                     }
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
@@ -3088,34 +3088,122 @@
         return "away";
     }
     // -- Last seen -----------------------------------------------------------------
-    // Stored in localStorage (not BC server) so it survives restarts but is
-    // device-local.  Key → member number as string, value → unix ms timestamp.
-    const EBC_LAST_SEEN_KEY = "EBC_lastSeen";
-    function loadLastSeenMap() {
+    // Stored in Player.ExtensionSettings.EmeryBC.lastSeen (server-synced, cross-device).
+    // On first load, existing localStorage data is merged in so no history is lost
+    // (localStorage values only fill gaps; server data always wins for conflicts).
+    // Capped at 300 entries — oldest timestamps are evicted when over cap.
+    const EBC_LAST_SEEN_LEGACY_KEY = "EBC_lastSeen"; // legacy localStorage key (migration only)
+    const LAST_SEEN_CAP = 300;
+    function getLastSeenMap() {
         try {
-            const raw = localStorage.getItem(EBC_LAST_SEEN_KEY);
-            if (raw) {
-                const p = JSON.parse(raw);
-                if (p && typeof p === "object" && !Array.isArray(p))
-                    return p;
+            const store = getStore$2();
+            // One-time migration from localStorage → ExtensionSettings
+            if (!store.lastSeenMigrated) {
+                try {
+                    const raw = localStorage.getItem(EBC_LAST_SEEN_LEGACY_KEY);
+                    if (raw) {
+                        const p = JSON.parse(raw);
+                        if (p && typeof p === "object" && !Array.isArray(p)) {
+                            const existing = (store.lastSeen && typeof store.lastSeen === "object" && !Array.isArray(store.lastSeen))
+                                ? store.lastSeen
+                                : {};
+                            for (const [k, v] of Object.entries(p)) {
+                                if (typeof v === "number" && !(k in existing))
+                                    existing[k] = v;
+                            }
+                            store.lastSeen = existing;
+                        }
+                    }
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                store.lastSeenMigrated = true;
+                // Sync will happen on the next recordLastSeen() call
             }
+            const v = store.lastSeen;
+            if (v && typeof v === "object" && !Array.isArray(v))
+                return v;
+            if (!store.lastSeen)
+                store.lastSeen = {};
+            return store.lastSeen;
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
         return {};
+    }
+    function evictLastSeen(data) {
+        const entries = Object.entries(data);
+        if (entries.length <= LAST_SEEN_CAP)
+            return;
+        entries.sort((a, b) => a[1] - b[1]); // oldest first
+        const toEvict = entries.length - LAST_SEEN_CAP;
+        for (let i = 0; i < toEvict; i++)
+            delete data[entries[i][0]];
     }
     function recordLastSeen(memberNumber) {
         try {
-            const data = loadLastSeenMap();
+            const store = getStore$2();
+            const data = getLastSeenMap();
             data[String(memberNumber)] = Date.now();
-            localStorage.setItem(EBC_LAST_SEEN_KEY, JSON.stringify(data));
+            evictLastSeen(data);
+            store.lastSeen = data;
+            sync();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
     function getLastSeen(memberNumber) {
         try {
-            const data = loadLastSeenMap();
+            const data = getLastSeenMap();
             const ts = data[String(memberNumber)];
             return typeof ts === "number" ? ts : null;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    // -- Friend since --------------------------------------------------------------
+    // Records the first time EBC observed each member number in Player.FriendList.
+    // Stored in ExtensionSettings.EmeryBC.friendSince (server-synced, cross-device).
+    // Call syncFriendsSince() each time the friend list is freshly available
+    // (e.g. on AccountQueryResult) so newly added friends are recorded promptly.
+    function syncFriendsSince() {
+        try {
+            const store = getStore$2();
+            if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
+                store.friendSince = {};
+            }
+            const map = store.friendSince;
+            const fl = getFriendList();
+            let changed = false;
+            const now = Date.now();
+            for (const num of fl) {
+                const key = String(num);
+                if (!map[key]) {
+                    map[key] = now;
+                    changed = true;
+                }
+            }
+            if (changed)
+                sync();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getFriendSince(memberNumber) {
+        try {
+            const store = getStore$2();
+            if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
+                store.friendSince = {};
+            }
+            const map = store.friendSince;
+            const key = String(memberNumber);
+            if (typeof map[key] === "number")
+                return map[key];
+            // No record yet — stamp right now if they're actually in our friend list
+            // (covers friends added before this EBC version and any timing gaps)
+            if (getFriendList().includes(memberNumber)) {
+                map[key] = Date.now();
+                sync();
+                return map[key];
+            }
+            return null;
         }
         catch (_a) {
             return null;
@@ -3160,6 +3248,52 @@
         sync();
         return idx < 0; // true = now pinned
     }
+    const LOCKED_ENTRIES = new Map([
+        // On Emery's client (#130267): Lucy (#230466) shows ♛ Mistress
+        [230466, {
+                tag: { text: "♛ Mistress", color: "#FFD700", locked: true },
+                displayName: "Lucy",
+                viewerOnly: 130267,
+            }],
+        // On Lucy's client (#230466): Emery (#130267) shows ♛ Mistress
+        [130267, {
+                tag: { text: "♛ Mistress", color: "#FFD700", locked: true },
+                displayName: "Emery",
+                viewerOnly: 230466,
+            }],
+    ]);
+    /** Whether a locked entry is active for the currently logged-in player. */
+    function lockedEntryActive(entry) {
+        try {
+            if (entry.viewerOnly === undefined)
+                return true;
+            return (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) === entry.viewerOnly;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    /**
+     * Returns the locked (permanent, non-removable) tag for a member, or null if none.
+     */
+    function getLockedTag(memberNumber) {
+        const entry = LOCKED_ENTRIES.get(memberNumber);
+        if (!entry || !lockedEntryActive(entry))
+            return null;
+        return entry.tag;
+    }
+    /**
+     * Returns every member number that has a locked tag entry visible to the
+     * current player, mapped to their hardcoded fallback display name.
+     */
+    function getLockedTagMembers() {
+        const out = new Map();
+        for (const [num, entry] of LOCKED_ENTRIES) {
+            if (lockedEntryActive(entry))
+                out.set(num, entry.displayName);
+        }
+        return out;
+    }
     function migrateTagValue(v) {
         if (Array.isArray(v))
             return v;
@@ -3170,17 +3304,23 @@
     function getFriendTagList(memberNumber) {
         const store = getStore$2();
         const raw = store.friendTags;
-        if (!raw || typeof raw !== "object" || Array.isArray(raw))
-            return [];
-        return migrateTagValue(raw[String(memberNumber)]);
+        const userTags = (!raw || typeof raw !== "object" || Array.isArray(raw))
+            ? []
+            : migrateTagValue(raw[String(memberNumber)]);
+        // Locked tag always comes first and is never stored — prepend it at read time.
+        // getLockedTag() already checks viewerOnly, so no extra filter needed here.
+        const lockedTag = getLockedTag(memberNumber);
+        return lockedTag ? [lockedTag, ...userTags] : userTags;
     }
     function setFriendTagList(memberNumber, tagList) {
+        // Strip any locked tags before saving — they must never enter storage
+        const toSave = tagList.filter(t => !t.locked);
         const store = getStore$2();
         if (!store.friendTags || typeof store.friendTags !== "object")
             store.friendTags = {};
         const tags = store.friendTags;
-        if (tagList.length > 0)
-            tags[String(memberNumber)] = tagList;
+        if (toSave.length > 0)
+            tags[String(memberNumber)] = toSave;
         else
             delete tags[String(memberNumber)];
         sync();
@@ -3205,6 +3345,97 @@
         const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
         return getBeepHistory().filter(e => (e.from === memberNumber && e.to === self) ||
             (e.from === self && e.to === memberNumber));
+    }
+    // -- Character bundle store ----------------------------------------------------
+    // Stores stripped raw server bundles so profiles can be opened via CharacterLoadOnline.
+    //
+    // Two tiers:
+    //   1. sessionCharacterBundles (Map) — fast in-memory, current session only.
+    //   2. localStorage (EBC_bundle_<num>) — persists across reloads so People Met
+    //      entries from previous sessions can also open their profile.
+    //
+    // We hook ChatRoomSync/SyncSingle/MemberJoin (matching WCE) rather than
+    // CharacterRefresh because only those fire with the raw server-format bundle
+    // (string `ID` field, raw Appearance array) that CharacterLoadOnline expects.
+    //
+    // Large / privacy-sensitive fields are stripped before storage.
+    const BUNDLE_STRIP_FIELDS = [
+        "Inventory", "BlockItems", "LimitedItems", "FavoriteItems",
+        "ActivePose", "ArousalSettings", "OnlineSharedSettings",
+        "WhiteList", "BlackList", "Crafting",
+    ];
+    const BUNDLE_LS_PREFIX = "EBC_bundle_";
+    const BUNDLE_LS_META = "EBC_bundleMeta"; // {[memberNumber]: seenTimestamp}
+    const BUNDLE_LS_CAP = 150; // max localStorage entries
+    const sessionCharacterBundles = new Map();
+    function evictBundleCache(meta) {
+        const entries = Object.entries(meta);
+        if (entries.length <= BUNDLE_LS_CAP)
+            return;
+        entries.sort((a, b) => a[1] - b[1]); // oldest first
+        const toEvict = entries.length - BUNDLE_LS_CAP;
+        for (let i = 0; i < toEvict; i++) {
+            const key = entries[i][0];
+            delete meta[key];
+            try {
+                localStorage.removeItem(`${BUNDLE_LS_PREFIX}${key}`);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        try {
+            localStorage.setItem(BUNDLE_LS_META, JSON.stringify(meta));
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    /**
+     * Store the raw server bundle for an online character.
+     * Pass the first argument of CharacterLoadOnline (the raw server data object),
+     * NOT a constructed Character object.
+     */
+    function storeRawBundle(data) {
+        try {
+            const d = data;
+            const num = typeof d.MemberNumber === "number" ? d.MemberNumber : 0;
+            if (!num)
+                return;
+            // Shallow-clone and strip large fields
+            const bundle = Object.assign({}, d);
+            for (const f of BUNDLE_STRIP_FIELDS)
+                delete bundle[f];
+            // JSON round-trip: plain data object, no live BC references or non-serialisable values
+            const serialized = JSON.stringify(bundle);
+            const parsed = JSON.parse(serialized);
+            // Tier 1: session memory
+            sessionCharacterBundles.set(num, parsed);
+            // Tier 2: localStorage for cross-session persistence
+            try {
+                localStorage.setItem(`${BUNDLE_LS_PREFIX}${num}`, serialized);
+                const rawMeta = localStorage.getItem(BUNDLE_LS_META);
+                const meta = (rawMeta ? JSON.parse(rawMeta) : {});
+                meta[String(num)] = Date.now();
+                evictBundleCache(meta);
+                localStorage.setItem(BUNDLE_LS_META, JSON.stringify(meta));
+            }
+            catch ( /* localStorage quota exceeded or unavailable — session cache still works */_a) { /* localStorage quota exceeded or unavailable — session cache still works */ }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    function getCharacterBundle(memberNumber) {
+        // Tier 1: check session memory
+        const mem = sessionCharacterBundles.get(memberNumber);
+        if (mem != null)
+            return mem;
+        // Tier 2: check localStorage (previous sessions)
+        try {
+            const raw = localStorage.getItem(`${BUNDLE_LS_PREFIX}${memberNumber}`);
+            if (raw) {
+                const bundle = JSON.parse(raw);
+                sessionCharacterBundles.set(memberNumber, bundle); // promote to memory cache
+                return bundle;
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return null;
     }
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
@@ -5909,6 +6140,7 @@
     padding: 8px 10px;
     display: flex;
     flex-direction: column;
+    justify-content: flex-end;
     gap: 4px;
 }
 
@@ -7305,11 +7537,9 @@
             this.lastCrabsBottom = crabsRect.bottom;
         }
         // Called every 200ms by the CRABS poller — piggyback a 30s friend-list poll.
+        // Runs regardless of which tab is active so that online-status changes are always
+        // detected and offline-beep re-delivery fires even when the notes tab is closed.
         tickFriendPoll() {
-            if (this.currentTab !== "notes") {
-                this.friendPollTick = 0;
-                return;
-            }
             this.friendPollTick++;
             if (this.friendPollTick >= 150) { // 150 × 200ms = 30 s
                 this.friendPollTick = 0;
@@ -13222,12 +13452,17 @@
                         const tl = getFriendTagList(num);
                         if (!tl.length)
                             return;
-                        // First tag pill
+                        // First tag pill — locked tags get a bold gold crown style
                         const first = tl[0];
                         const pill = document.createElement("span");
                         pill.className = "ebc-friend-tag";
                         pill.textContent = first.text;
-                        pill.style.cssText = `background:${first.color}22;color:${first.color};border:1px solid ${first.color}55;`;
+                        if (first.locked) {
+                            pill.style.cssText = `background:#3a2e00;color:#FFD700;border:1px solid #FFD700;font-weight:700;letter-spacing:0.03em;text-shadow:0 0 6px #FFD70088;`;
+                        }
+                        else {
+                            pill.style.cssText = `background:${first.color}22;color:${first.color};border:1px solid ${first.color}55;`;
+                        }
                         tagArea.appendChild(pill);
                         // "+N more" indicator
                         if (tl.length > 1) {
@@ -13250,7 +13485,12 @@
                             const chip = document.createElement("span");
                             chip.className = "ebc-friend-tag";
                             chip.textContent = t.text;
-                            chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                            if (t.locked) {
+                                chip.style.cssText = `background:#3a2e00;color:#FFD700;border:1px solid #FFD700;font-weight:700;text-shadow:0 0 6px #FFD70088;`;
+                            }
+                            else {
+                                chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                            }
                             tt.appendChild(chip);
                         }
                         document.body.appendChild(tt);
@@ -13281,7 +13521,7 @@
                         document.addEventListener("mousemove", moveHandler, true);
                     });
                     tagArea.addEventListener("mouseleave", hideTooltip);
-                    if (getFriendTagList(num).length > 0)
+                    if (getFriendTagList(num).length > 0 || getLockedTag(num))
                         row.appendChild(tagArea);
                     // Beep button — does NOT toggle expand
                     const unread = (_a = this.beepUnread.get(num)) !== null && _a !== void 0 ? _a : 0;
@@ -13315,6 +13555,68 @@
                         if (expandBuilt)
                             return;
                         expandBuilt = true;
+                        // ── Friend info (since + last seen) ───────────────────────
+                        const infoBox = document.createElement("div");
+                        infoBox.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;background:#0e070d;border:1px solid #2a1020;border-radius:4px;padding:4px 7px;margin-bottom:6px;display:flex;flex-direction:column;gap:2px;";
+                        // Read (and auto-stamp) the "friends since" date directly from the
+                        // raw store — bypasses all helper functions to rule out any module
+                        // bugs. Also calls getFriendSince as a secondary path for consistency.
+                        let sinceTs = null;
+                        try {
+                            const embc = Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings;
+                            if (embc) {
+                                if (!embc.EmeryBC || typeof embc.EmeryBC !== "object" || Array.isArray(embc.EmeryBC)) {
+                                    embc.EmeryBC = {};
+                                }
+                                const store = embc.EmeryBC;
+                                if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
+                                    store.friendSince = {};
+                                }
+                                const fs = store.friendSince;
+                                const key = String(num);
+                                if (typeof fs[key] === "number") {
+                                    sinceTs = fs[key];
+                                }
+                                else {
+                                    // No record — stamp now (this IS a friend if they appear in the list)
+                                    fs[key] = Date.now();
+                                    sinceTs = fs[key];
+                                    try {
+                                        const syncFn = window.ServerPlayerExtensionSettingsSync;
+                                        syncFn === null || syncFn === void 0 ? void 0 : syncFn("EmeryBC");
+                                    }
+                                    catch ( /* ignore */_a) { /* ignore */ }
+                                }
+                            }
+                        }
+                        catch ( /* ignore */_b) { /* ignore */ }
+                        // Fallback: try the module helper too
+                        if (!sinceTs) {
+                            try {
+                                sinceTs = getFriendSince(num);
+                            }
+                            catch ( /* ignore */_c) { /* ignore */ }
+                        }
+                        const sinceEl = document.createElement("div");
+                        if (sinceTs) {
+                            const d = new Date(sinceTs);
+                            const label = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+                            sinceEl.textContent = `🤝 Friends since: ${label}`;
+                        }
+                        else {
+                            sinceEl.textContent = "🤝 Friends since: Unknown";
+                        }
+                        infoBox.appendChild(sinceEl);
+                        const lsTsFull = getLastSeen(num);
+                        if (lsTsFull !== null) {
+                            const lsFullEl = document.createElement("div");
+                            const d2 = new Date(lsTsFull);
+                            const label2 = d2.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+                                + " " + d2.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                            lsFullEl.textContent = `🕑 Last seen: ${label2} (${formatLastSeen(lsTsFull)})`;
+                            infoBox.appendChild(lsFullEl);
+                        }
+                        expand.appendChild(infoBox);
                         // Tags label
                         const tagsLbl = document.createElement("div");
                         tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
@@ -13331,30 +13633,44 @@
                                 const t = tl[i];
                                 const chip = document.createElement("span");
                                 chip.className = "ebc-etag-chip";
-                                chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
-                                const dot2 = document.createElement("span");
-                                dot2.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${t.color};flex-shrink:0;`;
-                                const txt = document.createElement("span");
-                                txt.textContent = t.text;
-                                const rmBtn = document.createElement("button");
-                                rmBtn.className = "ebc-etag-chip-remove";
-                                rmBtn.textContent = "✕";
-                                rmBtn.style.color = t.color;
-                                rmBtn.addEventListener("click", () => {
-                                    const updated = getFriendTagList(num).filter((_, j) => j !== i);
-                                    setFriendTagList(num, updated);
-                                    rebuildChips();
-                                    renderTagArea();
-                                    if (updated.length > 0) {
-                                        if (!row.contains(tagArea))
-                                            row.insertBefore(tagArea, beepBtn);
-                                    }
-                                    else
-                                        tagArea.remove();
-                                });
-                                chip.appendChild(dot2);
-                                chip.appendChild(txt);
-                                chip.appendChild(rmBtn);
+                                if (t.locked) {
+                                    // Locked tag: gold crown style, no remove button
+                                    chip.style.cssText = `background:#3a2e00;color:#FFD700;border:1px solid #FFD700;font-weight:700;letter-spacing:0.03em;text-shadow:0 0 6px #FFD70088;`;
+                                    const txt = document.createElement("span");
+                                    txt.textContent = t.text;
+                                    const lockIcon = document.createElement("span");
+                                    lockIcon.textContent = "🔒";
+                                    lockIcon.style.cssText = "font-size:8px;opacity:0.7;margin-left:2px;";
+                                    lockIcon.title = "Permanent tag — cannot be removed";
+                                    chip.appendChild(txt);
+                                    chip.appendChild(lockIcon);
+                                }
+                                else {
+                                    chip.style.cssText = `background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;`;
+                                    const dot2 = document.createElement("span");
+                                    dot2.style.cssText = `display:inline-block;width:7px;height:7px;border-radius:50%;background:${t.color};flex-shrink:0;`;
+                                    const txt = document.createElement("span");
+                                    txt.textContent = t.text;
+                                    const rmBtn = document.createElement("button");
+                                    rmBtn.className = "ebc-etag-chip-remove";
+                                    rmBtn.textContent = "✕";
+                                    rmBtn.style.color = t.color;
+                                    rmBtn.addEventListener("click", () => {
+                                        const updated = getFriendTagList(num).filter((_, j) => j !== i);
+                                        setFriendTagList(num, updated);
+                                        rebuildChips();
+                                        renderTagArea();
+                                        if (updated.length > 0) {
+                                            if (!row.contains(tagArea))
+                                                row.insertBefore(tagArea, beepBtn);
+                                        }
+                                        else
+                                            tagArea.remove();
+                                    });
+                                    chip.appendChild(dot2);
+                                    chip.appendChild(txt);
+                                    chip.appendChild(rmBtn);
+                                }
                                 chipsEl.appendChild(chip);
                             }
                         };
@@ -13443,6 +13759,17 @@
                     wrap.appendChild(expand);
                     container.appendChild(wrap);
                 };
+                // Always render locked-tag contacts first — even if not in Player.FriendList.
+                // Cache their fallback display names so resolveName() always has something to show.
+                for (const [num, fallbackName] of getLockedTagMembers()) {
+                    try {
+                        cacheName(num, fallbackName);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    if (!friendList.includes(num)) {
+                        buildFriendRow(num, body);
+                    }
+                }
                 // Render active friends
                 for (const num of activeFriends)
                     buildFriendRow(num, body);
@@ -13452,7 +13779,7 @@
                     try {
                         this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                     }
-                    catch ( /* ignore */_a) { /* ignore */ }
+                    catch ( /* ignore */_b) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -14737,30 +15064,66 @@
                         profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#2a0f1a"; profBtn.style.borderColor = "#cf6f98"; });
                         profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "transparent"; profBtn.style.borderColor = "#4c2537"; });
                         profBtn.addEventListener("click", () => {
-                            var _a;
-                            try {
-                                // Try to open BC's in-game info sheet if they're in the room
-                                const roomChars = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
-                                const inRoom = roomChars.find(c => c.MemberNumber === person.n);
-                                if (inRoom) {
-                                    const setChar = window.CharacterSetCurrent;
-                                    const setScreen = window.CommonSetScreen;
-                                    if (setChar && setScreen) {
-                                        setChar(inRoom);
-                                        setScreen("Character", "InformationSheet");
+                            const w = window;
+                            const loadChar = w.InformationSheetLoadCharacter;
+                            const hideEls = w.ChatRoomHideElements;
+                            const loadOnline = w.CharacterLoadOnline;
+                            const roomChars = w.ChatRoomCharacter;
+                            // Open a BC info-sheet — mirrors WCE's openCharacter() exactly.
+                            const openProfile = (C) => {
+                                var _a;
+                                this.close();
+                                if (w.CurrentScreen === "ChatRoom") {
+                                    try {
+                                        hideEls === null || hideEls === void 0 ? void 0 : hideEls();
+                                    }
+                                    catch ( /* ignore */_b) { /* ignore */ }
+                                    // Restore background so the info sheet renders correctly (WCE does this too)
+                                    try {
+                                        const bgData = (_a = w.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Background;
+                                        if (bgData)
+                                            w.ChatRoomBackground = bgData;
+                                    }
+                                    catch ( /* ignore */_c) { /* ignore */ }
+                                }
+                                loadChar(C);
+                            };
+                            if (!loadChar || !loadOnline) {
+                                // BC globals not ready — copy number as fallback
+                                try {
+                                    navigator.clipboard.writeText(String(person.n));
+                                }
+                                catch ( /* ignore */_a) { /* ignore */ }
+                                return;
+                            }
+                            // Prefer live character object if they're still in the room
+                            const inRoom = Array.isArray(roomChars)
+                                ? roomChars.find(c => c.MemberNumber === person.n)
+                                : undefined;
+                            if (inRoom) {
+                                try {
+                                    openProfile(inRoom);
+                                    return;
+                                }
+                                catch ( /* ignore */_b) { /* ignore */ }
+                            }
+                            // Reconstruct from stored bundle (WCE-style offline profile)
+                            const bundle = getCharacterBundle(person.n);
+                            if (bundle) {
+                                try {
+                                    const C = loadOnline(bundle, person.n);
+                                    if (C) {
+                                        openProfile(C);
                                         return;
                                     }
                                 }
+                                catch ( /* ignore */_c) { /* ignore */ }
                             }
-                            catch ( /* ignore */_b) { /* ignore */ }
-                            // Fallback: copy member number to clipboard
+                            // Absolute last resort — copy member number
                             try {
                                 navigator.clipboard.writeText(String(person.n));
                             }
-                            catch ( /* ignore */_c) { /* ignore */ }
-                            const orig = profBtn.textContent;
-                            profBtn.textContent = "Copied #";
-                            window.setTimeout(() => { profBtn.textContent = orig; }, 1400);
+                            catch ( /* ignore */_d) { /* ignore */ }
                         });
                         row.appendChild(nameSpan);
                         row.appendChild(numSpan);
@@ -16174,7 +16537,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.4.8";
+    const MOD_VERSION = "1.5.12";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -16182,6 +16545,93 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.5.12",
+            changes: [
+                "Fix: Profile button now actually opens the BC info sheet correctly — root cause was bundle capture happening AFTER BC mutated the data (changed string IDs to integers, replaced raw Appearance with loaded Assets). Now captures a deep copy before BC processes the sync, matching WCE exactly. Also adds ChatRoomBackground restore so the profile screen renders fully.",
+                "Fix: Chat windows now open with messages pinned to the bottom instead of the top.",
+            ],
+        },
+        {
+            version: "1.5.11",
+            changes: [
+                "Fix: Lucy's client now shows ♛ Mistress on Emery's name in her friends panel.",
+            ],
+        },
+        {
+            version: "1.5.10",
+            changes: [
+                "Fix: removed ♛ Mistress locked tag from Emery's entry — only Emery's own panel shows it on Lucy.",
+            ],
+        },
+        {
+            version: "1.5.9",
+            changes: [
+                "Fix: ♛ Mistress locked tag is now viewer-aware — Emery's client shows it on Lucy, Lucy's client shows it on Emery. Neither player sees the tag on themselves in their own panel.",
+            ],
+        },
+        {
+            version: "1.5.8",
+            changes: [
+                "Fix: Profile button in People Met now shows diagnostic error in button text so we can pinpoint exactly why it fails.",
+            ],
+        },
+        {
+            version: "1.5.7",
+            changes: [
+                "Fix: removed incorrect #235168 entry — Emery's confirmed member number is #130267. Locked ♛ Mistress tag now targets the correct number only.",
+            ],
+        },
+        {
+            version: "1.5.6",
+            changes: [
+                "Fix: added #235168 as a second entry for Emery so the ♛ Mistress tag shows correctly in Lucy's panel. Lucy's own user-set tags on Emery still appear — the locked tag is always forced to index 0, user tags follow behind it.",
+            ],
+        },
+        {
+            version: "1.5.5",
+            changes: [
+                "Emery (#130267) now also carries a permanent ♛ Mistress tag — visible to anyone running this EBC who has Emery in their friends panel, including Lucy's view.",
+            ],
+        },
+        {
+            version: "1.5.4",
+            changes: [
+                "Fix: Lucy's ♛ Mistress tag now always appears in the friends panel even if she is not in Player.FriendList. Locked-tag contacts are rendered at the top of the friends list with their hardcoded fallback name so the tag is visible regardless of friend status.",
+            ],
+        },
+        {
+            version: "1.5.3",
+            changes: [
+                "Lucy (#230466) now permanently displays a gold ♛ Mistress tag. It appears first, overrides normal tag order, cannot be removed, and renders with a distinct gold glow style in the friend row, expand panel, and hover tooltip.",
+            ],
+        },
+        {
+            version: "1.5.2",
+            changes: [
+                "Fix: Profile button in People Met now works for people met in previous sessions. Character bundles are now persisted to localStorage (up to 150 entries, oldest evicted) so they survive page reloads — previously only people seen in the current session could have their profile opened.",
+            ],
+        },
+        {
+            version: "1.5.1",
+            changes: [
+                "Fix: Profile button in People Met now actually opens the BC info sheet instead of falling back to clipboard copy. Root cause was a missing ChatRoomHideElements() call — without it the profile screen rendered underneath the chat room UI and appeared invisible. Also switched bundle capture to hook ChatRoomSync/ChatRoomSyncSingle/ChatRoomSyncMemberJoin (matching WCE's approach) for correct raw server-format bundles.",
+            ],
+        },
+        {
+            version: "1.5.0",
+            changes: [
+                "Profile button in People Met now opens the full BC info sheet for anyone you've shared a room with this session, even after they've left. Uses the same raw-bundle approach as WCE: CharacterLoadOnline is hooked to capture each character's server-format data (correct string ID + raw Appearance bundle) so it can be reconstructed offline. Clipboard copy is kept as a last-resort fallback.",
+            ],
+        },
+        {
+            version: "1.4.9",
+            changes: [
+                "Friends since: expand panel now shows the date EBC first recorded each friend — synced across devices.",
+                "Last seen is now stored in ExtensionSettings (server-synced) instead of localStorage — your offline timestamps follow you across devices. Existing localStorage history is automatically merged on first load.",
+                "Last seen in expand panel now shows the full date & time alongside the relative label (e.g. '2 hours ago').",
+            ],
+        },
         {
             version: "1.4.8",
             changes: [
@@ -17966,6 +18416,61 @@
             catch ( /* ignore */_c) { /* ignore */ }
             return result;
         });
+        // Capture raw server-format character bundles for offline profile viewing.
+        // CRITICAL: bundles must be deep-copied BEFORE calling next(args) — BC's ChatRoomSync
+        // mutates the character objects in place (converts string IDs to integers, replaces raw
+        // Appearance arrays with loaded Asset objects). Capturing after next() gives corrupted data.
+        // Mirrors WCE's saveProfile approach exactly.
+        tryHookFunction(modAPI, "ChatRoomSync", 11, (args, next) => {
+            try {
+                const [data] = args;
+                const chars = data === null || data === void 0 ? void 0 : data.Character;
+                if (Array.isArray(chars)) {
+                    for (const c of chars) {
+                        const num = typeof (c === null || c === void 0 ? void 0 : c.MemberNumber) === "number" ? c.MemberNumber : 0;
+                        // Deep-copy via JSON before BC mutates the objects
+                        if (num && num !== Player.MemberNumber) {
+                            try {
+                                storeRawBundle(JSON.parse(JSON.stringify(c)));
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                        }
+                    }
+                }
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            return next(args);
+        });
+        tryHookFunction(modAPI, "ChatRoomSyncSingle", 11, (args, next) => {
+            try {
+                const [data] = args;
+                const c = data === null || data === void 0 ? void 0 : data.Character;
+                const num = typeof (c === null || c === void 0 ? void 0 : c.MemberNumber) === "number" ? c.MemberNumber : 0;
+                if (num && num !== Player.MemberNumber) {
+                    try {
+                        storeRawBundle(JSON.parse(JSON.stringify(c)));
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            return next(args);
+        });
+        tryHookFunction(modAPI, "ChatRoomSyncMemberJoin", 11, (args, next) => {
+            try {
+                const [data] = args;
+                const c = data === null || data === void 0 ? void 0 : data.Character;
+                const num = typeof (c === null || c === void 0 ? void 0 : c.MemberNumber) === "number" ? c.MemberNumber : 0;
+                if (num && num !== Player.MemberNumber) {
+                    try {
+                        storeRawBundle(JSON.parse(JSON.stringify(c)));
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            return next(args);
+        });
         // Anti-restraint + grace period: detect new restraints on the player after any refresh
         // Also record every non-player character we see as a "person met".
         tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
@@ -18104,8 +18609,12 @@
                     }
                 }
                 catch ( /* ignore */_f) { /* ignore */ }
-                // Suppress BC's native chat-log notification when our IM handles it.
-                if (getSuppressNativeBeep())
+                // Suppress BC's native chat-log notification when our IM handles it —
+                // BUT only when the tab is visible. When the page is hidden (user tabbed
+                // away), let BC's handler run so its persistent toast and any browser/OS
+                // notification still fire. EBC's own 5-second toast disappears before the
+                // user comes back, so suppressing BC while hidden = zero notification.
+                if (getSuppressNativeBeep() && !document.hidden)
                     return;
             }
             catch ( /* ignore */_g) { /* ignore */ }
@@ -18113,6 +18622,8 @@
         });
         // Cache friend names whenever BC notifies us a friend came online.
         // FriendListBeep is a real BC global called with {MemberNumber, MemberName, ...}.
+        // We also call syncFriendsSince() here so newly added friends are stamped as soon
+        // as they come online (covers the gap before the next AccountQueryResult fires).
         tryHookFunction(modAPI, "FriendListBeep", 1, (args, next) => {
             try {
                 const [data] = args;
@@ -18120,8 +18631,12 @@
                 const name = typeof data.MemberName === "string" ? data.MemberName : null;
                 if (num && name)
                     cacheName(num, name);
+                try {
+                    syncFriendsSince();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_b) { /* ignore */ }
             return next(args);
         });
         // Track which friends BC considers online (not just in our room).
@@ -18144,15 +18659,19 @@
                     }
                     updateOnlineFriends(results);
                     try {
-                        drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
+                        syncFriendsSince();
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
                     try {
-                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                        drawer === null || drawer === void 0 ? void 0 : drawer.updateAllBeepWindowStatuses();
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
+                    try {
+                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshFriendList();
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
+                catch ( /* ignore */_d) { /* ignore */ }
             });
         }
         catch ( /* ignore */_b) { /* ignore */ }
