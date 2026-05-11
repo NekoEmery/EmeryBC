@@ -311,11 +311,12 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
     }
 
     // Apply title — outfit-specific takes priority, falls back to default title
-    const titleToApply = outfit.title ?? getDefaultTitle() ?? null;
-    if (titleToApply) {
+    // "__clear__" sentinel = explicitly remove the title (set to "")
+    // ""  = no preference configured → don't touch the title
+    const titleRaw = outfit.title ?? getDefaultTitle() ?? "";
+    if (titleRaw) {
         try {
-            // "None" in TitleNames maps to clearing the title in BC (empty string)
-            const bcTitle = titleToApply === "None" ? "" : titleToApply;
+            const bcTitle = titleRaw === "__clear__" ? "" : titleRaw;
             (Player as unknown as Record<string, unknown>).Title = bcTitle;
             type AccountUpdater2 = { QueueData(data: Record<string, unknown>): void };
             const updater2 = (window as unknown as Record<string, unknown>).ServerAccountUpdate as AccountUpdater2 | undefined;

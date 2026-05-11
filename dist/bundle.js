@@ -677,11 +677,12 @@
             catch ( /* ignore */_c) { /* ignore */ }
         }
         // Apply title — outfit-specific takes priority, falls back to default title
-        const titleToApply = (_b = (_a = outfit.title) !== null && _a !== void 0 ? _a : getDefaultTitle()) !== null && _b !== void 0 ? _b : null;
-        if (titleToApply) {
+        // "__clear__" sentinel = explicitly remove the title (set to "")
+        // ""  = no preference configured → don't touch the title
+        const titleRaw = (_b = (_a = outfit.title) !== null && _a !== void 0 ? _a : getDefaultTitle()) !== null && _b !== void 0 ? _b : "";
+        if (titleRaw) {
             try {
-                // "None" in TitleNames maps to clearing the title in BC (empty string)
-                const bcTitle = titleToApply === "None" ? "" : titleToApply;
+                const bcTitle = titleRaw === "__clear__" ? "" : titleRaw;
                 Player.Title = bcTitle;
                 const updater2 = window.ServerAccountUpdate;
                 if (updater2 === null || updater2 === void 0 ? void 0 : updater2.QueueData)
@@ -7451,20 +7452,38 @@
                 "border:1px solid #4c2537", "border-radius:4px",
                 "padding:3px 6px", "cursor:pointer", "outline:none",
             ].join(";");
+            // Helper: get BC localised display name for a title key
+            const win = window;
+            const textGetFn = win.TextGet;
+            const titleDisplay = (key) => {
+                if (!textGetFn)
+                    return key;
+                const result = textGetFn("Title" + key);
+                // TextGet returns "MISSING TEXT IN ..." when the key isn't found — fall back to raw key
+                return (result && !result.startsWith("MISSING TEXT")) ? result : key;
+            };
+            // "(No change)" — leave title untouched on outfit apply
             const noChangeOpt = document.createElement("option");
             noChangeOpt.value = "";
             noChangeOpt.textContent = isDefault ? "(No default title)" : "(No change)";
             if (!currentValue)
                 noChangeOpt.selected = true;
             sel.appendChild(noChangeOpt);
-            const bcTitles = window.TitleNames;
+            // "None" — explicitly clear the title (stored as sentinel "__clear__")
+            const clearOpt = document.createElement("option");
+            clearOpt.value = "__clear__";
+            clearOpt.textContent = "None (remove title)";
+            if (currentValue === "__clear__")
+                clearOpt.selected = true;
+            sel.appendChild(clearOpt);
+            const bcTitles = win.TitleNames;
             const entries = bcTitles
                 ? bcTitles.map(t => typeof t === "string" ? t : t.Name).filter(Boolean)
                 : [];
             for (const key of entries) {
                 const opt = document.createElement("option");
                 opt.value = key;
-                opt.textContent = key;
+                opt.textContent = titleDisplay(key);
                 if (key === currentValue)
                     opt.selected = true;
                 sel.appendChild(opt);

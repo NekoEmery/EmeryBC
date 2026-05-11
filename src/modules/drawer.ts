@@ -3665,20 +3665,39 @@ export class EBCDrawer {
             "border:1px solid #4c2537", "border-radius:4px",
             "padding:3px 6px", "cursor:pointer", "outline:none",
         ].join(";");
+
+        // Helper: get BC localised display name for a title key
+        const win = window as unknown as Record<string, unknown>;
+        const textGetFn = win.TextGet as ((k: string) => string) | undefined;
+        const titleDisplay = (key: string): string => {
+            if (!textGetFn) return key;
+            const result = textGetFn("Title" + key);
+            // TextGet returns "MISSING TEXT IN ..." when the key isn't found — fall back to raw key
+            return (result && !result.startsWith("MISSING TEXT")) ? result : key;
+        };
+
+        // "(No change)" — leave title untouched on outfit apply
         const noChangeOpt = document.createElement("option");
         noChangeOpt.value = "";
         noChangeOpt.textContent = isDefault ? "(No default title)" : "(No change)";
         if (!currentValue) noChangeOpt.selected = true;
         sel.appendChild(noChangeOpt);
-        const bcTitles = (window as unknown as Record<string, unknown>).TitleNames as
-            Array<{ Name: string } | string> | undefined;
+
+        // "None" — explicitly clear the title (stored as sentinel "__clear__")
+        const clearOpt = document.createElement("option");
+        clearOpt.value = "__clear__";
+        clearOpt.textContent = "None (remove title)";
+        if (currentValue === "__clear__") clearOpt.selected = true;
+        sel.appendChild(clearOpt);
+
+        const bcTitles = win.TitleNames as Array<{ Name: string } | string> | undefined;
         const entries: string[] = bcTitles
             ? bcTitles.map(t => typeof t === "string" ? t : (t as { Name: string }).Name).filter(Boolean)
             : [];
         for (const key of entries) {
             const opt = document.createElement("option");
             opt.value = key;
-            opt.textContent = key;
+            opt.textContent = titleDisplay(key);
             if (key === currentValue) opt.selected = true;
             sel.appendChild(opt);
         }
