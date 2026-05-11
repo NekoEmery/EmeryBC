@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.5.13";
+const MOD_VERSION = "1.5.14";
 
 let noticeShown = false;
 
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.5.14",
+        changes: [
+            "Fix: safeword toggle state now saves correctly — getStore() in safeword.ts was missing null safety so setSafewordConfig silently threw and never persisted the change.",
+        ],
+    },
     {
         version: "1.5.13",
         changes: [

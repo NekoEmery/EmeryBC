@@ -43,13 +43,16 @@ const DEFAULTS: SafewordConfig = {
     redLeave:       true,
 };
 
-function getStore(): Record<string, unknown> {
-    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+function getStore(): Record<string, unknown> | null {
+    try {
+        if (!Player?.ExtensionSettings) return null;
+        if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+    } catch { return null; }
 }
 
 export function getSafewordConfig(): SafewordConfig {
-    const raw = getStore().safeword;
+    const raw = getStore()?.safeword;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULTS };
     const r = raw as Record<string, unknown>;
     const b = (key: keyof SafewordConfig, def: boolean): boolean =>
@@ -73,8 +76,12 @@ export function getSafewordConfig(): SafewordConfig {
 }
 
 export function setSafewordConfig(cfg: SafewordConfig): void {
-    getStore().safeword = cfg;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.safeword = cfg;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
 }
 
 // -- Grace period state (in-memory; resets on page reload) --------------------

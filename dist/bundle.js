@@ -3518,12 +3518,20 @@
         redLeave: true,
     };
     function getStore$1() {
-        if (!Player.ExtensionSettings.EmeryBC)
-            Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC;
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
     }
     function getSafewordConfig() {
-        const raw = getStore$1().safeword;
+        var _a;
+        const raw = (_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.safeword;
         if (!raw || typeof raw !== "object" || Array.isArray(raw))
             return Object.assign({}, DEFAULTS);
         const r = raw;
@@ -3546,8 +3554,14 @@
         };
     }
     function setSafewordConfig(cfg) {
-        getStore$1().safeword = cfg;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        try {
+            const store = getStore$1();
+            if (!store)
+                return;
+            store.safeword = cfg;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // -- Grace period state (in-memory; resets on page reload) --------------------
     // null = inactive; Infinity = indefinite; number = unix-ms expiry timestamp
@@ -16537,7 +16551,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.5.13";
+    const MOD_VERSION = "1.5.14";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -16545,6 +16559,12 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.5.14",
+            changes: [
+                "Fix: safeword toggle state now saves correctly — getStore() in safeword.ts was missing null safety so setSafewordConfig silently threw and never persisted the change.",
+            ],
+        },
         {
             version: "1.5.13",
             changes: [
