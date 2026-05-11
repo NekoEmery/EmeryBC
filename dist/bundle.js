@@ -14434,15 +14434,24 @@
                     Player.ExtensionSettings.EmeryBC = {};
                 return Player.ExtensionSettings.EmeryBC;
             };
-            const getCustomBarks = () => {
-                const raw = getPuppyStore().customBarks;
-                return Array.isArray(raw) ? raw : [];
+            // Unified bark list — seeds from BUILTIN_BARKS on first use, migrates legacy customBarks
+            const getBarks = () => {
+                const store = getPuppyStore();
+                if (Array.isArray(store.barks))
+                    return store.barks;
+                const legacy = Array.isArray(store.customBarks) ? store.customBarks : [];
+                const initial = [...BUILTIN_BARKS, ...legacy];
+                store.barks = initial;
+                if (legacy.length > 0) {
+                    delete store.customBarks;
+                }
+                ServerPlayerExtensionSettingsSync("EmeryBC");
+                return initial;
             };
-            const saveCustomBarks = (barks) => {
-                getPuppyStore().customBarks = barks;
+            const saveBarks = (barks) => {
+                getPuppyStore().barks = barks;
                 ServerPlayerExtensionSettingsSync("EmeryBC");
             };
-            const getAllBarks = () => [...BUILTIN_BARKS, ...getCustomBarks()];
             // Bark button
             const barkBtn = document.createElement("button");
             barkBtn.style.cssText = [
@@ -14467,7 +14476,7 @@
             barkBtn.addEventListener("mousedown", () => { barkBtn.style.transform = "scale(0.95)"; });
             barkBtn.addEventListener("mouseup", () => { barkBtn.style.transform = ""; });
             barkBtn.addEventListener("click", () => {
-                const pool = getAllBarks();
+                const pool = getBarks();
                 const bark = pool[Math.floor(Math.random() * pool.length)];
                 try {
                     ServerSend("ChatRoomChat", { Type: "Chat", Content: bark });
@@ -14481,47 +14490,98 @@
                 }, 700);
             });
             body.appendChild(barkBtn);
-            // -- Custom barks section --
-            const customLbl = document.createElement("div");
-            customLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a7ab0;text-transform:uppercase;letter-spacing:0.05em;margin:18px 8px 5px;";
-            customLbl.textContent = "Custom Sounds";
-            body.appendChild(customLbl);
-            const customList = document.createElement("div");
-            customList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin:0 8px;";
-            body.appendChild(customList);
-            const rebuildCustomList = () => {
-                while (customList.firstChild)
-                    customList.removeChild(customList.firstChild);
-                const barks = getCustomBarks();
+            // -- Bark sounds list --
+            const barksLbl = document.createElement("div");
+            barksLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a7ab0;text-transform:uppercase;letter-spacing:0.05em;margin:18px 8px 5px;";
+            barksLbl.textContent = "Bark Sounds";
+            body.appendChild(barksLbl);
+            const barkList = document.createElement("div");
+            barkList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin:0 8px;";
+            body.appendChild(barkList);
+            const rebuildBarkList = () => {
+                while (barkList.firstChild)
+                    barkList.removeChild(barkList.firstChild);
+                const barks = getBarks();
                 if (barks.length === 0) {
                     const none = document.createElement("div");
                     none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a5880;padding:2px 0;";
-                    none.textContent = "No custom sounds yet.";
-                    customList.appendChild(none);
+                    none.textContent = "No sounds yet.";
+                    barkList.appendChild(none);
                     return;
                 }
                 for (let i = 0; i < barks.length; i++) {
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(58,32,96,0.4);border:1px solid #5a3a90;border-radius:5px;padding:3px 7px;";
                     const txt = document.createElement("span");
-                    txt.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#d8c8ff;";
+                    txt.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#d8c8ff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                     txt.textContent = barks[i];
-                    const del = document.createElement("button");
-                    del.textContent = "×";
-                    del.title = "Remove";
-                    del.style.cssText = "background:none;border:none;cursor:pointer;color:#9b7de0;font-size:13px;line-height:1;padding:0;flex-shrink:0;";
-                    del.addEventListener("click", () => {
-                        const updated = getCustomBarks().filter((_, j) => j !== i);
-                        saveCustomBarks(updated);
-                        rebuildCustomList();
+                    const editBtn = document.createElement("button");
+                    editBtn.textContent = "✎";
+                    editBtn.title = "Edit";
+                    editBtn.style.cssText = "background:none;border:none;cursor:pointer;color:#9b7de0;font-size:12px;line-height:1;padding:0 2px;flex-shrink:0;transition:color 0.1s;";
+                    editBtn.addEventListener("mouseenter", () => { editBtn.style.color = "#c8a8ff"; });
+                    editBtn.addEventListener("mouseleave", () => { editBtn.style.color = "#9b7de0"; });
+                    const delBtn = document.createElement("button");
+                    delBtn.textContent = "×";
+                    delBtn.title = "Remove";
+                    delBtn.style.cssText = "background:none;border:none;cursor:pointer;color:#9b7de0;font-size:13px;line-height:1;padding:0;flex-shrink:0;transition:color 0.1s;";
+                    delBtn.addEventListener("mouseenter", () => { delBtn.style.color = "#ff8080"; });
+                    delBtn.addEventListener("mouseleave", () => { delBtn.style.color = "#9b7de0"; });
+                    editBtn.addEventListener("click", () => {
+                        // Switch row to inline-edit mode
+                        while (row.firstChild)
+                            row.removeChild(row.firstChild);
+                        const inp = document.createElement("input");
+                        inp.type = "text";
+                        inp.maxLength = 60;
+                        inp.value = barks[i];
+                        inp.className = "ebc-form-input";
+                        inp.style.cssText = "flex:1;font-size:10px;min-width:0;";
+                        const saveBtn = document.createElement("button");
+                        saveBtn.textContent = "Save";
+                        saveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
+                        saveBtn.addEventListener("mouseenter", () => { saveBtn.style.background = "#5a30a0"; });
+                        saveBtn.addEventListener("mouseleave", () => { saveBtn.style.background = "#3a2060"; });
+                        const cancelBtn = document.createElement("button");
+                        cancelBtn.textContent = "Cancel";
+                        cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #5a3a80;background:transparent;color:#8a7ab0;cursor:pointer;flex-shrink:0;";
+                        const doSave = () => {
+                            const val = inp.value.trim();
+                            if (!val)
+                                return;
+                            const updated = getBarks();
+                            updated[i] = val;
+                            saveBarks(updated);
+                            rebuildBarkList();
+                        };
+                        saveBtn.addEventListener("click", doSave);
+                        cancelBtn.addEventListener("click", () => rebuildBarkList());
+                        inp.addEventListener("keydown", (e) => {
+                            if (e.key === "Enter")
+                                doSave();
+                            if (e.key === "Escape")
+                                rebuildBarkList();
+                        });
+                        row.appendChild(inp);
+                        row.appendChild(saveBtn);
+                        row.appendChild(cancelBtn);
+                        inp.focus();
+                        inp.select();
+                    });
+                    delBtn.addEventListener("click", () => {
+                        const updated = getBarks();
+                        updated.splice(i, 1);
+                        saveBarks(updated);
+                        rebuildBarkList();
                     });
                     row.appendChild(txt);
-                    row.appendChild(del);
-                    customList.appendChild(row);
+                    row.appendChild(editBtn);
+                    row.appendChild(delBtn);
+                    barkList.appendChild(row);
                 }
             };
-            rebuildCustomList();
-            // Add new custom sound
+            rebuildBarkList();
+            // Add new sound
             const addRow = document.createElement("div");
             addRow.style.cssText = "display:flex;gap:5px;margin:6px 8px 0;";
             const addInp = document.createElement("input");
@@ -14539,9 +14599,9 @@
                 const val = addInp.value.trim();
                 if (!val)
                     return;
-                saveCustomBarks([...getCustomBarks(), val]);
+                saveBarks([...getBarks(), val]);
                 addInp.value = "";
-                rebuildCustomList();
+                rebuildBarkList();
             };
             addBtn.addEventListener("click", doAdd);
             addInp.addEventListener("keydown", (e) => { if (e.key === "Enter")
@@ -15728,7 +15788,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.4.5";
+    const MOD_VERSION = "1.4.6";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -15736,6 +15796,13 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.4.6",
+            changes: [
+                "Bark sounds are now fully editable: all barks (built-in and custom) appear in a single list. Click the pencil icon on any entry to rename it inline, or the × to delete it. Built-in barks are no longer locked.",
+                "Bark storage migrated to a unified 'barks' list — existing custom barks are automatically carried over.",
+            ],
+        },
         {
             version: "1.4.5",
             changes: [

@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.4.5";
+const MOD_VERSION = "1.4.6";
 
 let noticeShown = false;
 
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.4.6",
+        changes: [
+            "Bark sounds are now fully editable: all barks (built-in and custom) appear in a single list. Click the pencil icon on any entry to rename it inline, or the × to delete it. Built-in barks are no longer locked.",
+            "Bark storage migrated to a unified 'barks' list — existing custom barks are automatically carried over.",
+        ],
+    },
     {
         version: "1.4.5",
         changes: [
