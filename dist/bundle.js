@@ -14275,7 +14275,7 @@
             const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
             if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
                 makeSection("Stat Editor", "EBC_statEditorCollapsed", true, (cnt) => {
-                    var _a, _b, _c, _d;
+                    var _a, _b, _c;
                     const FONT = "font-family:'Trebuchet MS',serif;";
                     // Helper: sub-label
                     const subLbl = (text) => {
@@ -14327,19 +14327,21 @@
                     }
                     // ── Reputation ────────────────────────────────────────────────
                     // Player.Reputation is Array<{ Type: string; Value: number }>
-                    const REP_LABELS = {
-                        Dominant: "Dominant", Submissive: "Submissive",
-                        Kidnapper: "Kidnapper", Asylum: "Asylum",
-                        ABDL: "ABDL", Pet: "Pet",
-                        Slave: "Slave", Maid: "Maid",
-                        Guard: "Guard", Nun: "Nun",
-                        Mistress: "Mistress", Lover: "Lover",
-                    };
+                    // Only show types the player already has — creating new entries would
+                    // cause BC to look up missing localization text and show error screens.
                     const playerRep = (_c = Player.Reputation) !== null && _c !== void 0 ? _c : [];
-                    const repMap = new Map((Array.isArray(playerRep) ? playerRep : []).map(r => [r.Type, r.Value]));
+                    const existingRep = Array.isArray(playerRep) ? playerRep : [];
                     cnt.appendChild(subLbl("Reputation"));
-                    for (const [type, label] of Object.entries(REP_LABELS)) {
-                        makeStatRow("rep_" + type, label, (_d = repMap.get(type)) !== null && _d !== void 0 ? _d : 0);
+                    if (existingRep.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = `${FONT}font-size:9px;color:#7a5a6a;font-style:italic;padding:2px 0;`;
+                        hint.textContent = "No reputation entries on this character yet.";
+                        cnt.appendChild(hint);
+                    }
+                    else {
+                        for (const rep of existingRep) {
+                            makeStatRow("rep_" + rep.Type, rep.Type, rep.Value);
+                        }
                     }
                     // ── Apply All button ──────────────────────────────────────────
                     const applyBtn = document.createElement("button");
@@ -14362,7 +14364,8 @@
                                 else
                                     skillArr.push({ Skill: key, Level: val, Progress: 0 });
                             }
-                            // Apply reputation — Player.Reputation is Array<{ Type, Value }>
+                            // Apply reputation — only update existing entries, never push new types
+                            // (BC will error if unknown reputation types appear in the information sheet)
                             const rep = Player.Reputation;
                             for (const [k, inp] of statInputs) {
                                 if (!k.startsWith("rep_"))
@@ -14374,8 +14377,7 @@
                                 const entry = rep.find(r => r.Type === type);
                                 if (entry)
                                     entry.Value = val;
-                                else
-                                    rep.push({ Type: type, Value: val });
+                                // deliberately no push — never create new reputation types
                             }
                             const upd = window.ServerAccountUpdate;
                             if (upd === null || upd === void 0 ? void 0 : upd.QueueData)

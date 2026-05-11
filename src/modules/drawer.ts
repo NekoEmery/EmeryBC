@@ -10722,23 +10722,23 @@ export class EBCDrawer {
 
                 // ── Reputation ────────────────────────────────────────────────
                 // Player.Reputation is Array<{ Type: string; Value: number }>
-                const REP_LABELS: Record<string, string> = {
-                    Dominant: "Dominant", Submissive: "Submissive",
-                    Kidnapper: "Kidnapper", Asylum: "Asylum",
-                    ABDL: "ABDL", Pet: "Pet",
-                    Slave: "Slave", Maid: "Maid",
-                    Guard: "Guard", Nun: "Nun",
-                    Mistress: "Mistress", Lover: "Lover",
-                };
+                // Only show types the player already has — creating new entries would
+                // cause BC to look up missing localization text and show error screens.
                 const playerRep = (Player as unknown as Record<string, unknown>).Reputation as
                     Array<{ Type: string; Value: number }> | undefined ?? [];
-                const repMap = new Map<string, number>(
-                    (Array.isArray(playerRep) ? playerRep : []).map(r => [r.Type, r.Value])
-                );
+                const existingRep: Array<{ Type: string; Value: number }> =
+                    Array.isArray(playerRep) ? playerRep : [];
 
                 cnt.appendChild(subLbl("Reputation"));
-                for (const [type, label] of Object.entries(REP_LABELS)) {
-                    makeStatRow("rep_" + type, label, repMap.get(type) ?? 0);
+                if (existingRep.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.style.cssText = `${FONT}font-size:9px;color:#7a5a6a;font-style:italic;padding:2px 0;`;
+                    hint.textContent = "No reputation entries on this character yet.";
+                    cnt.appendChild(hint);
+                } else {
+                    for (const rep of existingRep) {
+                        makeStatRow("rep_" + rep.Type, rep.Type, rep.Value);
+                    }
                 }
 
                 // ── Apply All button ──────────────────────────────────────────
@@ -10760,7 +10760,8 @@ export class EBCDrawer {
                             else skillArr.push({ Skill: key, Level: val, Progress: 0 });
                         }
 
-                        // Apply reputation — Player.Reputation is Array<{ Type, Value }>
+                        // Apply reputation — only update existing entries, never push new types
+                        // (BC will error if unknown reputation types appear in the information sheet)
                         const rep = (Player as unknown as Record<string, unknown>).Reputation as
                             Array<{ Type: string; Value: number }>;
                         for (const [k, inp] of statInputs) {
@@ -10770,7 +10771,7 @@ export class EBCDrawer {
                             if (isNaN(val)) continue;
                             const entry = rep.find(r => r.Type === type);
                             if (entry) entry.Value = val;
-                            else rep.push({ Type: type, Value: val });
+                            // deliberately no push — never create new reputation types
                         }
 
                         // Save to server
