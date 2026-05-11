@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.4.6";
+const MOD_VERSION = "1.4.7";
 
 let noticeShown = false;
 
@@ -26,6 +26,14 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.4.7",
+        changes: [
+            "Stat editor — Skills: inputs now show your actual current skill levels on open (uses BC's own SkillGetLevel) and correctly save to the server on Apply.",
+            "Stat editor — Reputation: all 12 known reputation types are always shown with their current values (0 if not yet earned). No more dropdown — just set any value and Apply adds it automatically.",
+            "Beep chat: Credits members now display their personal animated gradient name. Any other EBC user gets a soft pink–lavender gradient. Non-EBC senders keep the existing solid colour.",
+        ],
+    },
     {
         version: "1.4.6",
         changes: [
