@@ -10840,8 +10840,8 @@ export class EBCDrawer {
                 // Player.Reputation is Array<{ Type: string; Value: number }>
                 // All known types are always shown (0 if player doesn't have them yet).
                 const KNOWN_REP_TYPES = [
-                    "Dominant", "Submissive", "Kidnapper", "Asylum",
-                    "ABDL", "Pet", "Slave", "Maid", "Guard", "Nun", "Mistress", "Lover",
+                    "Gaming", "Gambling", "LARP", "Maid",
+                    "ABDL", "Dominant", "Asylum", "Kidnap", "HouseVincula",
                 ];
 
                 cnt.appendChild(subLbl("Reputation"));
