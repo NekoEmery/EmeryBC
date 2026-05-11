@@ -2496,6 +2496,9 @@ export class EBCDrawer {
     // Category dropdown in quick actions bar
     // DEV tab auto-refresh poller
     private devLogPoller: ReturnType<typeof window.setInterval> | null = null;
+    // Tag tooltip — kept at instance level so it survives list rebuilds
+    private tagTooltipEl: HTMLElement | null = null;
+    private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
 
     constructor(version = "") {
         EBCDrawer._instance = this;
@@ -9508,9 +9511,17 @@ export class EBCDrawer {
             const activeFriends  = sorted.filter(n => isFriendPinned(n) || getFriendStatus(n) !== "away");
             const offlineFriends = sorted.filter(n => !isFriendPinned(n) && getFriendStatus(n) === "away");
 
-            // Shared tooltip element (reused across all rows)
-            let activeTooltip: HTMLElement | null = null;
-            const hideTooltip = (): void => { activeTooltip?.remove(); activeTooltip = null; };
+            // Tooltip helpers — use instance-level refs so rebuilds don't orphan tooltips
+            const hideTooltip = (): void => {
+                this.tagTooltipEl?.remove();
+                this.tagTooltipEl = null;
+                if (this.tagTooltipMoveListener) {
+                    document.removeEventListener("mousemove", this.tagTooltipMoveListener, true);
+                    this.tagTooltipMoveListener = null;
+                }
+            };
+            // Clean up any leftover tooltip from a previous render
+            hideTooltip();
 
             // Container for offline friends (shown/hidden by toggle)
             const offlineContainer = document.createElement("div");
@@ -9688,7 +9699,7 @@ export class EBCDrawer {
                         tt.appendChild(chip);
                     }
                     document.body.appendChild(tt);
-                    activeTooltip = tt;
+                    this.tagTooltipEl = tt;
                     const rect = tagArea.getBoundingClientRect();
                     const ttW = tt.offsetWidth || 160;
                     let left = rect.left;
@@ -9696,6 +9707,20 @@ export class EBCDrawer {
                     const top = rect.bottom + 4;
                     tt.style.left = `${left}px`;
                     tt.style.top = `${top}px`;
+
+                    // Safety net: hide if the mouse strays away from the tagArea.
+                    // Covers cases where mouseleave doesn't fire (list rebuild, scroll, etc.)
+                    const moveHandler = (e: MouseEvent): void => {
+                        if (!tagArea.isConnected) { hideTooltip(); return; }
+                        const r = tagArea.getBoundingClientRect();
+                        const pad = 12; // small grace area around the element
+                        if (e.clientX < r.left - pad || e.clientX > r.right + pad ||
+                            e.clientY < r.top  - pad || e.clientY > r.bottom + pad) {
+                            hideTooltip();
+                        }
+                    };
+                    this.tagTooltipMoveListener = moveHandler;
+                    document.addEventListener("mousemove", moveHandler, true);
                 });
                 tagArea.addEventListener("mouseleave", hideTooltip);
 
