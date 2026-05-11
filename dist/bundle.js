@@ -14314,33 +14314,32 @@
                         cnt.appendChild(row);
                         statInputs.set(key, inp);
                     };
-                    // ── Skills ────────────────────────────────────────────────────
                     const SKILL_LABELS = {
                         Bondage: "Bondage", SelfBondage: "Self Bondage",
                         LockPicking: "Lock Picking", Evasion: "Evasion",
                         Willpower: "Willpower", Infiltration: "Infiltration",
                     };
-                    const playerSkill = (_a = Player.Skill) !== null && _a !== void 0 ? _a : {};
-                    // Merge known keys + any extras already on the player
-                    const allSkillKeys = [...new Set([...Object.keys(SKILL_LABELS), ...Object.keys(playerSkill)])];
+                    const playerSkillArr = (_a = Player.Skill) !== null && _a !== void 0 ? _a : [];
+                    const skillMap = new Map((Array.isArray(playerSkillArr) ? playerSkillArr : []).map(e => { var _a; return [e.Skill, (_a = e.Level) !== null && _a !== void 0 ? _a : 0]; }));
                     cnt.appendChild(subLbl("Skills"));
-                    for (const key of allSkillKeys) {
-                        const lbl = (_b = SKILL_LABELS[key]) !== null && _b !== void 0 ? _b : key.replace(/([A-Z])/g, " $1").trim();
-                        makeStatRow("skill_" + key, lbl, (_c = playerSkill[key]) !== null && _c !== void 0 ? _c : 0);
+                    for (const [key, label] of Object.entries(SKILL_LABELS)) {
+                        makeStatRow("skill_" + key, label, (_b = skillMap.get(key)) !== null && _b !== void 0 ? _b : 0);
                     }
                     // ── Reputation ────────────────────────────────────────────────
-                    const playerRep = (_d = Player.Reputation) !== null && _d !== void 0 ? _d : [];
+                    // Player.Reputation is Array<{ Type: string; Value: number }>
+                    const REP_LABELS = {
+                        Dominant: "Dominant", Submissive: "Submissive",
+                        Kidnapper: "Kidnapper", Asylum: "Asylum",
+                        ABDL: "ABDL", Pet: "Pet",
+                        Slave: "Slave", Maid: "Maid",
+                        Guard: "Guard", Nun: "Nun",
+                        Mistress: "Mistress", Lover: "Lover",
+                    };
+                    const playerRep = (_c = Player.Reputation) !== null && _c !== void 0 ? _c : [];
+                    const repMap = new Map((Array.isArray(playerRep) ? playerRep : []).map(r => [r.Type, r.Value]));
                     cnt.appendChild(subLbl("Reputation"));
-                    if (playerRep.length === 0) {
-                        const hint = document.createElement("div");
-                        hint.style.cssText = `${FONT}font-size:9px;color:#7a5a6a;font-style:italic;padding:2px 0;`;
-                        hint.textContent = "No reputation entries found on Player.";
-                        cnt.appendChild(hint);
-                    }
-                    else {
-                        for (const rep of playerRep) {
-                            makeStatRow("rep_" + rep.Type, rep.Type, rep.Value);
-                        }
+                    for (const [type, label] of Object.entries(REP_LABELS)) {
+                        makeStatRow("rep_" + type, label, (_d = repMap.get(type)) !== null && _d !== void 0 ? _d : 0);
                     }
                     // ── Apply All button ──────────────────────────────────────────
                     const applyBtn = document.createElement("button");
@@ -14349,21 +14348,22 @@
                     applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#3a1525"; });
                     applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#2a0f1a"; });
                     applyBtn.addEventListener("click", () => {
-                        var _a, _b;
                         try {
-                            // Apply skills
-                            const skill = (_a = Player.Skill) !== null && _a !== void 0 ? _a : {};
+                            // Apply skills — Player.Skill is BCSkillEntry[]
+                            const skillArr = Player.Skill;
                             for (const [k, inp] of statInputs) {
                                 if (!k.startsWith("skill_"))
                                     continue;
                                 const key = k.slice(6);
-                                const val = parseInt(inp.value);
-                                if (!isNaN(val))
-                                    skill[key] = Math.max(0, val);
+                                const val = Math.max(0, parseInt(inp.value) || 0);
+                                const entry = skillArr.find(e => e.Skill === key);
+                                if (entry)
+                                    entry.Level = val;
+                                else
+                                    skillArr.push({ Skill: key, Level: val, Progress: 0 });
                             }
-                            Player.Skill = skill;
-                            // Apply reputation
-                            const rep = (_b = Player.Reputation) !== null && _b !== void 0 ? _b : [];
+                            // Apply reputation — Player.Reputation is Array<{ Type, Value }>
+                            const rep = Player.Reputation;
                             for (const [k, inp] of statInputs) {
                                 if (!k.startsWith("rep_"))
                                     continue;
@@ -14377,14 +14377,13 @@
                                 else
                                     rep.push({ Type: type, Value: val });
                             }
-                            Player.Reputation = rep;
                             const upd = window.ServerAccountUpdate;
                             if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
-                                upd.QueueData({ Skill: skill, Reputation: rep });
-                            applyBtn.textContent = "✓ Applied!";
+                                upd.QueueData({ Skill: skillArr, Reputation: rep });
+                            applyBtn.textContent = "Applied!";
                             window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 1500);
                         }
-                        catch (_c) {
+                        catch (_a) {
                             applyBtn.textContent = "Error — check console";
                         }
                     });

@@ -10703,34 +10703,42 @@ export class EBCDrawer {
                 };
 
                 // ── Skills ────────────────────────────────────────────────────
+                // Player.Skill is Array<{ Skill: string; Level: number; Progress: number }>
+                interface BCSkillEntry { Skill: string; Level: number; Progress: number; }
                 const SKILL_LABELS: Record<string, string> = {
                     Bondage: "Bondage", SelfBondage: "Self Bondage",
                     LockPicking: "Lock Picking", Evasion: "Evasion",
                     Willpower: "Willpower", Infiltration: "Infiltration",
                 };
-                const playerSkill = (Player as unknown as Record<string, unknown>).Skill as Record<string, number> | undefined ?? {};
-                // Merge known keys + any extras already on the player
-                const allSkillKeys = [...new Set([...Object.keys(SKILL_LABELS), ...Object.keys(playerSkill)])];
+                const playerSkillArr = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[] | undefined ?? [];
+                const skillMap = new Map<string, number>(
+                    (Array.isArray(playerSkillArr) ? playerSkillArr : []).map(e => [e.Skill, e.Level ?? 0])
+                );
 
                 cnt.appendChild(subLbl("Skills"));
-                for (const key of allSkillKeys) {
-                    const lbl = SKILL_LABELS[key] ?? key.replace(/([A-Z])/g, " $1").trim();
-                    makeStatRow("skill_" + key, lbl, playerSkill[key] ?? 0);
+                for (const [key, label] of Object.entries(SKILL_LABELS)) {
+                    makeStatRow("skill_" + key, label, skillMap.get(key) ?? 0);
                 }
 
                 // ── Reputation ────────────────────────────────────────────────
+                // Player.Reputation is Array<{ Type: string; Value: number }>
+                const REP_LABELS: Record<string, string> = {
+                    Dominant: "Dominant", Submissive: "Submissive",
+                    Kidnapper: "Kidnapper", Asylum: "Asylum",
+                    ABDL: "ABDL", Pet: "Pet",
+                    Slave: "Slave", Maid: "Maid",
+                    Guard: "Guard", Nun: "Nun",
+                    Mistress: "Mistress", Lover: "Lover",
+                };
                 const playerRep = (Player as unknown as Record<string, unknown>).Reputation as
                     Array<{ Type: string; Value: number }> | undefined ?? [];
+                const repMap = new Map<string, number>(
+                    (Array.isArray(playerRep) ? playerRep : []).map(r => [r.Type, r.Value])
+                );
 
                 cnt.appendChild(subLbl("Reputation"));
-                if (playerRep.length === 0) {
-                    const hint = document.createElement("div");
-                    hint.style.cssText = `${FONT}font-size:9px;color:#7a5a6a;font-style:italic;padding:2px 0;`;
-                    hint.textContent = "No reputation entries found on Player."; cnt.appendChild(hint);
-                } else {
-                    for (const rep of playerRep) {
-                        makeStatRow("rep_" + rep.Type, rep.Type, rep.Value);
-                    }
+                for (const [type, label] of Object.entries(REP_LABELS)) {
+                    makeStatRow("rep_" + type, label, repMap.get(type) ?? 0);
                 }
 
                 // ── Apply All button ──────────────────────────────────────────
@@ -10741,19 +10749,20 @@ export class EBCDrawer {
                 applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#2a0f1a"; });
                 applyBtn.addEventListener("click", () => {
                     try {
-                        // Apply skills
-                        const skill = (Player as unknown as Record<string, unknown>).Skill as Record<string, number> | undefined ?? {};
+                        // Apply skills — Player.Skill is BCSkillEntry[]
+                        const skillArr = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[];
                         for (const [k, inp] of statInputs) {
                             if (!k.startsWith("skill_")) continue;
                             const key = k.slice(6);
-                            const val = parseInt(inp.value);
-                            if (!isNaN(val)) skill[key] = Math.max(0, val);
+                            const val = Math.max(0, parseInt(inp.value) || 0);
+                            const entry = skillArr.find(e => e.Skill === key);
+                            if (entry) entry.Level = val;
+                            else skillArr.push({ Skill: key, Level: val, Progress: 0 });
                         }
-                        (Player as unknown as Record<string, unknown>).Skill = skill;
 
-                        // Apply reputation
+                        // Apply reputation — Player.Reputation is Array<{ Type, Value }>
                         const rep = (Player as unknown as Record<string, unknown>).Reputation as
-                            Array<{ Type: string; Value: number }> | undefined ?? [];
+                            Array<{ Type: string; Value: number }>;
                         for (const [k, inp] of statInputs) {
                             if (!k.startsWith("rep_")) continue;
                             const type = k.slice(4);
@@ -10763,14 +10772,13 @@ export class EBCDrawer {
                             if (entry) entry.Value = val;
                             else rep.push({ Type: type, Value: val });
                         }
-                        (Player as unknown as Record<string, unknown>).Reputation = rep;
 
                         // Save to server
                         type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
                         const upd = (window as unknown as Record<string, unknown>).ServerAccountUpdate as AccountUpdater | undefined;
-                        if (upd?.QueueData) upd.QueueData({ Skill: skill, Reputation: rep });
+                        if (upd?.QueueData) upd.QueueData({ Skill: skillArr, Reputation: rep });
 
-                        applyBtn.textContent = "✓ Applied!";
+                        applyBtn.textContent = "Applied!";
                         window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 1500);
                     } catch { applyBtn.textContent = "Error — check console"; }
                 });
