@@ -7455,13 +7455,28 @@
             // Helper: get BC localised display name for a title key
             const win = window;
             const textGetFn = win.TextGet;
+            // Convert a CamelCase key to spaced words as a last-resort display fallback
+            const camelToWords = (s) => s.replace(/([A-Z])/g, " $1").trim();
             const titleDisplay = (key) => {
-                if (!textGetFn)
-                    return key;
-                const result = textGetFn("Title" + key);
-                // TextGet returns "MISSING TEXT IN ..." when the key isn't found — fall back to raw key
-                return (result && !result.startsWith("MISSING TEXT")) ? result : key;
+                if (textGetFn) {
+                    const result = textGetFn("Title" + key);
+                    if (result && !result.startsWith("MISSING TEXT"))
+                        return result;
+                }
+                // Fall back to inserting spaces before capitals (BondageMaid → Bondage Maid)
+                return camelToWords(key);
             };
+            // Hardcoded fallback — used when window.TitleNames is empty/unavailable
+            const FALLBACK_TITLES = [
+                "Admiral", "Alien", "Angel", "Archbishop", "Archjudge", "Bishop",
+                "BondageMaid", "Brat", "Bunny", "Captain", "Champion", "CollegeStudent",
+                "Concubus", "Demon", "Doctor", "Doll", "Dragon", "Drow", "Duchess", "Duke",
+                "Elf", "Femboy", "Foxy", "God", "Goddess", "GoodOne", "HeadMaid", "Houdini",
+                "Incubus", "Judge", "King", "Knight", "Librarian", "Lord", "Maid", "Master",
+                "Mistress", "Nun", "Officer", "Pet", "Pirate", "Princess", "Prisoner",
+                "Professor", "Puppy", "Queen", "Robot", "Secretary", "Slave", "Soldier",
+                "Switch", "Witch",
+            ];
             // "(No change)" — leave title untouched on outfit apply
             const noChangeOpt = document.createElement("option");
             noChangeOpt.value = "";
@@ -7477,9 +7492,10 @@
                 clearOpt.selected = true;
             sel.appendChild(clearOpt);
             const bcTitles = win.TitleNames;
-            const entries = bcTitles
+            const fromBC = bcTitles
                 ? bcTitles.map(t => typeof t === "string" ? t : t.Name).filter(Boolean)
                 : [];
+            const entries = fromBC.length > 0 ? fromBC : FALLBACK_TITLES;
             for (const key of entries) {
                 const opt = document.createElement("option");
                 opt.value = key;

@@ -3669,12 +3669,30 @@ export class EBCDrawer {
         // Helper: get BC localised display name for a title key
         const win = window as unknown as Record<string, unknown>;
         const textGetFn = win.TextGet as ((k: string) => string) | undefined;
+
+        // Convert a CamelCase key to spaced words as a last-resort display fallback
+        const camelToWords = (s: string): string => s.replace(/([A-Z])/g, " $1").trim();
+
         const titleDisplay = (key: string): string => {
-            if (!textGetFn) return key;
-            const result = textGetFn("Title" + key);
-            // TextGet returns "MISSING TEXT IN ..." when the key isn't found — fall back to raw key
-            return (result && !result.startsWith("MISSING TEXT")) ? result : key;
+            if (textGetFn) {
+                const result = textGetFn("Title" + key);
+                if (result && !result.startsWith("MISSING TEXT")) return result;
+            }
+            // Fall back to inserting spaces before capitals (BondageMaid → Bondage Maid)
+            return camelToWords(key);
         };
+
+        // Hardcoded fallback — used when window.TitleNames is empty/unavailable
+        const FALLBACK_TITLES = [
+            "Admiral","Alien","Angel","Archbishop","Archjudge","Bishop",
+            "BondageMaid","Brat","Bunny","Captain","Champion","CollegeStudent",
+            "Concubus","Demon","Doctor","Doll","Dragon","Drow","Duchess","Duke",
+            "Elf","Femboy","Foxy","God","Goddess","GoodOne","HeadMaid","Houdini",
+            "Incubus","Judge","King","Knight","Librarian","Lord","Maid","Master",
+            "Mistress","Nun","Officer","Pet","Pirate","Princess","Prisoner",
+            "Professor","Puppy","Queen","Robot","Secretary","Slave","Soldier",
+            "Switch","Witch",
+        ];
 
         // "(No change)" — leave title untouched on outfit apply
         const noChangeOpt = document.createElement("option");
@@ -3691,9 +3709,11 @@ export class EBCDrawer {
         sel.appendChild(clearOpt);
 
         const bcTitles = win.TitleNames as Array<{ Name: string } | string> | undefined;
-        const entries: string[] = bcTitles
+        const fromBC: string[] = bcTitles
             ? bcTitles.map(t => typeof t === "string" ? t : (t as { Name: string }).Name).filter(Boolean)
             : [];
+        const entries = fromBC.length > 0 ? fromBC : FALLBACK_TITLES;
+
         for (const key of entries) {
             const opt = document.createElement("option");
             opt.value = key;
