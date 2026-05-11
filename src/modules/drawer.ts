@@ -8999,8 +8999,17 @@ export class EBCDrawer {
                 const bubbleMember = isSent ? self : e.from;
                 const nameLabel = document.createElement("div");
                 nameLabel.textContent = `${resolveName(bubbleMember)} #${bubbleMember}`;
-                const nameColor = isSent ? "#e090b8" : "#80c0e0";
-                nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;font-weight:600;color:${nameColor};margin-bottom:2px;padding:0 3px;`;
+                nameLabel.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;font-weight:600;margin-bottom:2px;padding:0 3px;`;
+                // Apply gradient for VIP/Credits members, or a soft default for any EBC user.
+                // Fall back to solid colour for non-EBC senders.
+                const vipEntry = VIP_MEMBERS[bubbleMember];
+                if (vipEntry) {
+                    applyGradientText(nameLabel, vipEntry.gradient[0], vipEntry.gradient[1]);
+                } else if (bubbleMember === self || getEBCVersion(bubbleMember) !== null) {
+                    applyGradientText(nameLabel, "#cf6f98", "#8090d0");
+                } else {
+                    nameLabel.style.color = isSent ? "#e090b8" : "#80c0e0";
+                }
                 wrap.appendChild(nameLabel);
 
                 const bubble = document.createElement("div");
