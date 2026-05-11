@@ -14271,6 +14271,126 @@
                     msgClearBtn.addEventListener("click", () => { clearDevLog(); renderMsgLog(); });
                 });
             });
+            // ── Stat Editor (credited members only) ───────────────────────────────
+            const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
+            if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
+                makeSection("Stat Editor", "EBC_statEditorCollapsed", true, (cnt) => {
+                    var _a, _b, _c, _d;
+                    const FONT = "font-family:'Trebuchet MS',serif;";
+                    // Helper: sub-label
+                    const subLbl = (text) => {
+                        const el = document.createElement("div");
+                        el.style.cssText = `${FONT}font-size:9px;color:#e890b8;font-weight:bold;text-transform:uppercase;letter-spacing:0.06em;margin:6px 0 3px;`;
+                        el.textContent = text;
+                        return el;
+                    };
+                    // Helper: stat row — label + number input + − +
+                    const statInputs = new Map();
+                    const makeStatRow = (key, label, value) => {
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
+                        const lbl = document.createElement("span");
+                        lbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                        lbl.textContent = label;
+                        const inp = document.createElement("input");
+                        inp.type = "number";
+                        inp.value = String(value);
+                        inp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                        const mkBtn = (sym, delta) => {
+                            const b = document.createElement("button");
+                            b.textContent = sym;
+                            b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
+                            b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
+                            b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
+                            b.addEventListener("click", () => { inp.value = String((parseInt(inp.value) || 0) + delta); });
+                            return b;
+                        };
+                        row.appendChild(lbl);
+                        row.appendChild(inp);
+                        row.appendChild(mkBtn("−", -1));
+                        row.appendChild(mkBtn("+", 1));
+                        row.appendChild(mkBtn("−10", -10));
+                        row.appendChild(mkBtn("+10", 10));
+                        cnt.appendChild(row);
+                        statInputs.set(key, inp);
+                    };
+                    // ── Skills ────────────────────────────────────────────────────
+                    const SKILL_LABELS = {
+                        Bondage: "Bondage", SelfBondage: "Self Bondage",
+                        LockPicking: "Lock Picking", Evasion: "Evasion",
+                        Willpower: "Willpower", Infiltration: "Infiltration",
+                    };
+                    const playerSkill = (_a = Player.Skill) !== null && _a !== void 0 ? _a : {};
+                    // Merge known keys + any extras already on the player
+                    const allSkillKeys = [...new Set([...Object.keys(SKILL_LABELS), ...Object.keys(playerSkill)])];
+                    cnt.appendChild(subLbl("Skills"));
+                    for (const key of allSkillKeys) {
+                        const lbl = (_b = SKILL_LABELS[key]) !== null && _b !== void 0 ? _b : key.replace(/([A-Z])/g, " $1").trim();
+                        makeStatRow("skill_" + key, lbl, (_c = playerSkill[key]) !== null && _c !== void 0 ? _c : 0);
+                    }
+                    // ── Reputation ────────────────────────────────────────────────
+                    const playerRep = (_d = Player.Reputation) !== null && _d !== void 0 ? _d : [];
+                    cnt.appendChild(subLbl("Reputation"));
+                    if (playerRep.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = `${FONT}font-size:9px;color:#7a5a6a;font-style:italic;padding:2px 0;`;
+                        hint.textContent = "No reputation entries found on Player.";
+                        cnt.appendChild(hint);
+                    }
+                    else {
+                        for (const rep of playerRep) {
+                            makeStatRow("rep_" + rep.Type, rep.Type, rep.Value);
+                        }
+                    }
+                    // ── Apply All button ──────────────────────────────────────────
+                    const applyBtn = document.createElement("button");
+                    applyBtn.style.cssText = `${FONT}font-size:10px;font-weight:bold;width:100%;margin-top:8px;padding:5px 0;border-radius:5px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;transition:background 0.12s;`;
+                    applyBtn.textContent = "Apply All Stats";
+                    applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#3a1525"; });
+                    applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#2a0f1a"; });
+                    applyBtn.addEventListener("click", () => {
+                        var _a, _b;
+                        try {
+                            // Apply skills
+                            const skill = (_a = Player.Skill) !== null && _a !== void 0 ? _a : {};
+                            for (const [k, inp] of statInputs) {
+                                if (!k.startsWith("skill_"))
+                                    continue;
+                                const key = k.slice(6);
+                                const val = parseInt(inp.value);
+                                if (!isNaN(val))
+                                    skill[key] = Math.max(0, val);
+                            }
+                            Player.Skill = skill;
+                            // Apply reputation
+                            const rep = (_b = Player.Reputation) !== null && _b !== void 0 ? _b : [];
+                            for (const [k, inp] of statInputs) {
+                                if (!k.startsWith("rep_"))
+                                    continue;
+                                const type = k.slice(4);
+                                const val = parseInt(inp.value);
+                                if (isNaN(val))
+                                    continue;
+                                const entry = rep.find(r => r.Type === type);
+                                if (entry)
+                                    entry.Value = val;
+                                else
+                                    rep.push({ Type: type, Value: val });
+                            }
+                            Player.Reputation = rep;
+                            const upd = window.ServerAccountUpdate;
+                            if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
+                                upd.QueueData({ Skill: skill, Reputation: rep });
+                            applyBtn.textContent = "✓ Applied!";
+                            window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 1500);
+                        }
+                        catch (_c) {
+                            applyBtn.textContent = "Error — check console";
+                        }
+                    });
+                    cnt.appendChild(applyBtn);
+                });
+            }
             // Auto-refresh every 1.5 s while the DEV tab is open.
             // Room History always refreshes (cheap read). Message log only if logging is on.
             this.stopDevLogPoller();
