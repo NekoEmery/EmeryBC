@@ -10907,9 +10907,11 @@ export class EBCDrawer {
                             for (const asset of assetList) {
                                 try { invAdd(Player, asset.Name, asset.Group.Name, false); } catch { /* skip */ }
                             }
-                            type Upd = { QueueData(d: Record<string, unknown>): void };
-                            const upd = (window as unknown as Record<string, unknown>).ServerAccountUpdate as Upd | undefined;
-                            if (upd?.QueueData) upd.QueueData({ Inventory: (Player as unknown as Record<string, unknown>).Inventory });
+                            // Do NOT call QueueData({ Inventory: Player.Inventory }) here —
+                            // the array is now thousands of entries and socket.io's deep-clone
+                            // will stack-overflow trying to serialise it. BC's own account-update
+                            // cycle (triggered by leaving a room, opening the profile, etc.)
+                            // will persist the inventory naturally.
                             unlockBtn.textContent = `All items unlocked!`;
                             window.setTimeout(() => { unlockBtn.textContent = "Unlock All Items"; }, 2500);
                         } catch { unlockBtn.textContent = "Error — check console"; }

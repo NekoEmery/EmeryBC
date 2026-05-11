@@ -14526,9 +14526,11 @@
                                     }
                                     catch ( /* skip */_b) { /* skip */ }
                                 }
-                                const upd = window.ServerAccountUpdate;
-                                if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
-                                    upd.QueueData({ Inventory: Player.Inventory });
+                                // Do NOT call QueueData({ Inventory: Player.Inventory }) here —
+                                // the array is now thousands of entries and socket.io's deep-clone
+                                // will stack-overflow trying to serialise it. BC's own account-update
+                                // cycle (triggered by leaving a room, opening the profile, etc.)
+                                // will persist the inventory naturally.
                                 unlockBtn.textContent = `All items unlocked!`;
                                 window.setTimeout(() => { unlockBtn.textContent = "Unlock All Items"; }, 2500);
                             }
