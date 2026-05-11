@@ -14275,7 +14275,7 @@
             const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
             if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
                 makeSection("Stat Editor", "EBC_statEditorCollapsed", true, (cnt) => {
-                    var _a, _b, _c, _d;
+                    var _a, _b, _c;
                     const FONT = "font-family:'Trebuchet MS',serif;";
                     // Helper: sub-label
                     const subLbl = (text) => {
@@ -14327,22 +14327,112 @@
                     }
                     // ── Reputation ────────────────────────────────────────────────
                     // Player.Reputation is Array<{ Type: string; Value: number }>
-                    // Only show types the player already has — creating new entries would
-                    // cause BC to look up missing localization text and show error screens.
-                    const playerRep = (_c = Player.Reputation) !== null && _c !== void 0 ? _c : [];
-                    const existingRep = Array.isArray(playerRep) ? playerRep : [];
+                    const KNOWN_REP_TYPES = [
+                        "Dominant", "Submissive", "Kidnapper", "Asylum",
+                        "ABDL", "Pet", "Slave", "Maid", "Guard", "Nun", "Mistress", "Lover",
+                    ];
+                    const getRepArr = () => {
+                        const r = Player.Reputation;
+                        return Array.isArray(r) ? r : [];
+                    };
                     cnt.appendChild(subLbl("Reputation"));
-                    if (existingRep.length === 0) {
-                        const hint = document.createElement("div");
-                        hint.style.cssText = `${FONT}font-size:9px;color:#7a5a6a;font-style:italic;padding:2px 0;`;
-                        hint.textContent = "No reputation entries on this character yet.";
-                        cnt.appendChild(hint);
-                    }
-                    else {
-                        for (const rep of existingRep) {
-                            makeStatRow("rep_" + rep.Type, rep.Type, rep.Value);
+                    // Rebuilable container for existing rep rows
+                    const repContainer = document.createElement("div");
+                    cnt.appendChild(repContainer);
+                    // Dropdown + value for adding new types
+                    const repAddSel = document.createElement("select");
+                    const repAddInp = document.createElement("input");
+                    const rebuildRepSection = () => {
+                        while (repContainer.firstChild)
+                            repContainer.removeChild(repContainer.firstChild);
+                        // Clear old rep entries from statInputs so Apply doesn't double-write
+                        for (const k of [...statInputs.keys()]) {
+                            if (k.startsWith("rep_"))
+                                statInputs.delete(k);
                         }
-                    }
+                        const repArr = getRepArr();
+                        if (repArr.length === 0) {
+                            const hint = document.createElement("div");
+                            hint.style.cssText = `${FONT}font-size:9px;color:#7a5a6a;font-style:italic;padding:2px 0;`;
+                            hint.textContent = "No reputation yet — add one below.";
+                            repContainer.appendChild(hint);
+                        }
+                        else {
+                            for (const rep of repArr) {
+                                const row = document.createElement("div");
+                                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
+                                const lbl = document.createElement("span");
+                                lbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                                lbl.textContent = rep.Type;
+                                const inp = document.createElement("input");
+                                inp.type = "number";
+                                inp.value = String(rep.Value);
+                                inp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                                const mkRepBtn = (sym, delta) => {
+                                    const b = document.createElement("button");
+                                    b.textContent = sym;
+                                    b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
+                                    b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
+                                    b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
+                                    b.addEventListener("click", () => { inp.value = String((parseInt(inp.value) || 0) + delta); });
+                                    return b;
+                                };
+                                row.appendChild(lbl);
+                                row.appendChild(inp);
+                                row.appendChild(mkRepBtn("−", -1));
+                                row.appendChild(mkRepBtn("+", 1));
+                                row.appendChild(mkRepBtn("−10", -10));
+                                row.appendChild(mkRepBtn("+10", 10));
+                                repContainer.appendChild(row);
+                                statInputs.set("rep_" + rep.Type, inp);
+                            }
+                        }
+                        // Rebuild dropdown to only show types not yet present
+                        while (repAddSel.firstChild)
+                            repAddSel.removeChild(repAddSel.firstChild);
+                        const present = new Set(repArr.map(r => r.Type));
+                        for (const t of KNOWN_REP_TYPES) {
+                            if (present.has(t))
+                                continue;
+                            const opt = document.createElement("option");
+                            opt.value = t;
+                            opt.textContent = t;
+                            repAddSel.appendChild(opt);
+                        }
+                        repAddSel.disabled = repAddSel.options.length === 0;
+                    };
+                    rebuildRepSection();
+                    // Add reputation row
+                    const repAddRow = document.createElement("div");
+                    repAddRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:5px;";
+                    repAddSel.className = "ebc-form-input";
+                    repAddSel.style.cssText = "flex:1;font-size:10px;min-width:0;";
+                    repAddInp.type = "number";
+                    repAddInp.value = "0";
+                    repAddInp.style.cssText = `${FONT}font-size:10px;width:55px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;flex-shrink:0;`;
+                    const repAddBtn = document.createElement("button");
+                    repAddBtn.textContent = "+ Add";
+                    repAddBtn.style.cssText = `${FONT}font-size:10px;padding:2px 10px;border-radius:3px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;flex-shrink:0;transition:background 0.1s;`;
+                    repAddBtn.addEventListener("mouseenter", () => { repAddBtn.style.background = "#3a1525"; });
+                    repAddBtn.addEventListener("mouseleave", () => { repAddBtn.style.background = "#2a0f1a"; });
+                    repAddBtn.addEventListener("click", () => {
+                        const repType = repAddSel.value;
+                        if (!repType)
+                            return;
+                        const repVal = parseInt(repAddInp.value) || 0;
+                        const repArr = getRepArr();
+                        if (!repArr.find(r => r.Type === repType)) {
+                            repArr.push({ Type: repType, Value: repVal });
+                            const upd = window.ServerAccountUpdate;
+                            if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
+                                upd.QueueData({ Reputation: repArr });
+                        }
+                        rebuildRepSection();
+                    });
+                    repAddRow.appendChild(repAddSel);
+                    repAddRow.appendChild(repAddInp);
+                    repAddRow.appendChild(repAddBtn);
+                    cnt.appendChild(repAddRow);
                     // ── Money ─────────────────────────────────────────────────────
                     cnt.appendChild(subLbl("Account"));
                     {
@@ -14355,7 +14445,7 @@
                         lbl.textContent = "Money";
                         const moneyInp = document.createElement("input");
                         moneyInp.type = "number";
-                        moneyInp.value = String((_d = Player.Money) !== null && _d !== void 0 ? _d : 0);
+                        moneyInp.value = String((_c = Player.Money) !== null && _c !== void 0 ? _c : 0);
                         moneyInp.style.cssText = INP;
                         const addMoneyBtn = document.createElement("button");
                         addMoneyBtn.textContent = "+ Add";
