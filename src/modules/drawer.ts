@@ -10741,6 +10741,82 @@ export class EBCDrawer {
                     }
                 }
 
+                // ── Money ─────────────────────────────────────────────────────
+                cnt.appendChild(subLbl("Account"));
+                {
+                    const INP = `${FONT}font-size:10px;width:90px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                    const BTN = `${FONT}font-size:10px;padding:2px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:border-color 0.1s,background 0.1s;`;
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
+                    const lbl = document.createElement("span");
+                    lbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                    lbl.textContent = "Money";
+                    const moneyInp = document.createElement("input");
+                    moneyInp.type = "number";
+                    moneyInp.value = String((Player as unknown as Record<string, unknown>).Money ?? 0);
+                    moneyInp.style.cssText = INP;
+                    const addMoneyBtn = document.createElement("button");
+                    addMoneyBtn.textContent = "+ Add";
+                    addMoneyBtn.title = "Add this amount to current money";
+                    addMoneyBtn.style.cssText = BTN;
+                    const setMoneyBtn = document.createElement("button");
+                    setMoneyBtn.textContent = "Set";
+                    setMoneyBtn.title = "Set money to this exact amount";
+                    setMoneyBtn.style.cssText = BTN;
+                    const applyMoney = (mode: "add" | "set"): void => {
+                        try {
+                            type Upd = { QueueData(d: Record<string, unknown>): void };
+                            const upd = (window as unknown as Record<string, unknown>).ServerAccountUpdate as Upd | undefined;
+                            const cur = ((Player as unknown as Record<string, unknown>).Money as number) ?? 0;
+                            const inp = parseInt(moneyInp.value) || 0;
+                            const next = Math.max(0, mode === "add" ? cur + inp : inp);
+                            (Player as unknown as Record<string, unknown>).Money = next;
+                            if (upd?.QueueData) upd.QueueData({ Money: next });
+                            moneyInp.value = String(next);
+                            const btn = mode === "add" ? addMoneyBtn : setMoneyBtn;
+                            btn.textContent = "Done!";
+                            window.setTimeout(() => { btn.textContent = mode === "add" ? "+ Add" : "Set"; }, 1000);
+                        } catch { /* ignore */ }
+                    };
+                    addMoneyBtn.addEventListener("mouseenter", () => { addMoneyBtn.style.borderColor = "#cf6f98"; addMoneyBtn.style.background = "#2a0f1a"; });
+                    addMoneyBtn.addEventListener("mouseleave", () => { addMoneyBtn.style.borderColor = "#4c2537"; addMoneyBtn.style.background = "transparent"; });
+                    setMoneyBtn.addEventListener("mouseenter", () => { setMoneyBtn.style.borderColor = "#cf6f98"; setMoneyBtn.style.background = "#2a0f1a"; });
+                    setMoneyBtn.addEventListener("mouseleave", () => { setMoneyBtn.style.borderColor = "#4c2537"; setMoneyBtn.style.background = "transparent"; });
+                    addMoneyBtn.addEventListener("click", () => applyMoney("add"));
+                    setMoneyBtn.addEventListener("click", () => applyMoney("set"));
+                    row.appendChild(lbl); row.appendChild(moneyInp);
+                    row.appendChild(addMoneyBtn); row.appendChild(setMoneyBtn);
+                    cnt.appendChild(row);
+                }
+
+                // ── Unlock all items ───────────────────────────────────────────
+                cnt.appendChild(subLbl("Actions"));
+                {
+                    const unlockBtn = document.createElement("button");
+                    unlockBtn.style.cssText = `${FONT}font-size:10px;font-weight:bold;width:100%;margin-bottom:4px;padding:5px 0;border-radius:5px;border:1px solid #9b7de0;background:#1e1035;color:#d8c8ff;cursor:pointer;transition:background 0.12s;`;
+                    unlockBtn.textContent = "Unlock All Items";
+                    unlockBtn.addEventListener("mouseenter", () => { unlockBtn.style.background = "#2e1850"; });
+                    unlockBtn.addEventListener("mouseleave", () => { unlockBtn.style.background = "#1e1035"; });
+                    unlockBtn.addEventListener("click", () => {
+                        try {
+                            type InvAddFn = (c: unknown, name: string, group: string, push: boolean) => void;
+                            const invAdd = (window as unknown as Record<string, unknown>).InventoryAdd as InvAddFn | undefined;
+                            const assetList = (window as unknown as Record<string, unknown>).Asset as
+                                Array<{ Name: string; Group: { Name: string } }> | undefined ?? [];
+                            if (!invAdd) { unlockBtn.textContent = "InventoryAdd not found"; return; }
+                            for (const asset of assetList) {
+                                try { invAdd(Player, asset.Name, asset.Group.Name, false); } catch { /* skip */ }
+                            }
+                            type Upd = { QueueData(d: Record<string, unknown>): void };
+                            const upd = (window as unknown as Record<string, unknown>).ServerAccountUpdate as Upd | undefined;
+                            if (upd?.QueueData) upd.QueueData({ Inventory: (Player as unknown as Record<string, unknown>).Inventory });
+                            unlockBtn.textContent = `All items unlocked!`;
+                            window.setTimeout(() => { unlockBtn.textContent = "Unlock All Items"; }, 2500);
+                        } catch { unlockBtn.textContent = "Error — check console"; }
+                    });
+                    cnt.appendChild(unlockBtn);
+                }
+
                 // ── Apply All button ──────────────────────────────────────────
                 const applyBtn = document.createElement("button");
                 applyBtn.style.cssText = `${FONT}font-size:10px;font-weight:bold;width:100%;margin-top:8px;padding:5px 0;border-radius:5px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;transition:background 0.12s;`;
