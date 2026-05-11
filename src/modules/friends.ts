@@ -137,9 +137,19 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
             roomLocked:  typeof r.Locked          === "boolean" ? r.Locked          : undefined,
         });
     }
-    // Record last-seen for anyone who just went offline (was online last tick, not now).
-    for (const num of prevOnline) {
-        if (!onlineSet.has(num)) recordLastSeen(num);
+    // Record last-seen for anyone who just went offline — batched into a single
+    // ServerPlayerExtensionSettingsSync call to avoid rate-limiting on large rooms.
+    const nowOffline = [...prevOnline].filter(num => !onlineSet.has(num));
+    if (nowOffline.length > 0) {
+        try {
+            const store = getStore();
+            const data = getLastSeenMap();
+            const now = Date.now();
+            for (const num of nowOffline) data[String(num)] = now;
+            evictLastSeen(data);
+            store.lastSeen = data;
+            sync();
+        } catch { /* ignore */ }
     }
 
     // Re-deliver any messages that were sent while the recipient was offline.

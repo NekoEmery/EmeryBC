@@ -3054,10 +3054,21 @@
                 roomLocked: typeof r.Locked === "boolean" ? r.Locked : undefined,
             });
         }
-        // Record last-seen for anyone who just went offline (was online last tick, not now).
-        for (const num of prevOnline) {
-            if (!onlineSet.has(num))
-                recordLastSeen(num);
+        // Record last-seen for anyone who just went offline — batched into a single
+        // ServerPlayerExtensionSettingsSync call to avoid rate-limiting on large rooms.
+        const nowOffline = [...prevOnline].filter(num => !onlineSet.has(num));
+        if (nowOffline.length > 0) {
+            try {
+                const store = getStore$2();
+                const data = getLastSeenMap();
+                const now = Date.now();
+                for (const num of nowOffline)
+                    data[String(num)] = now;
+                evictLastSeen(data);
+                store.lastSeen = data;
+                sync();
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
         }
         // Re-deliver any messages that were sent while the recipient was offline.
         // BC drops beeps to offline players, so we resend the originals now that they're back.
@@ -3069,7 +3080,7 @@
                         ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
                     }
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_b) { /* ignore */ }
             }
         }
     }
@@ -3137,17 +3148,6 @@
         const toEvict = entries.length - LAST_SEEN_CAP;
         for (let i = 0; i < toEvict; i++)
             delete data[entries[i][0]];
-    }
-    function recordLastSeen(memberNumber) {
-        try {
-            const store = getStore$2();
-            const data = getLastSeenMap();
-            data[String(memberNumber)] = Date.now();
-            evictLastSeen(data);
-            store.lastSeen = data;
-            sync();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
     }
     function getLastSeen(memberNumber) {
         try {
@@ -16766,7 +16766,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.6.5";
+    const MOD_VERSION = "1.6.6";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -16774,6 +16774,12 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.6.6",
+            changes: [
+                "Fix: rate-limit disconnect when joining large rooms — last-seen timestamps for offline friends are now written in a single batched server sync instead of one per friend. syncPresenceMarker also skips the ExtensionSettings sync when presence is already recorded.",
+            ],
+        },
         {
             version: "1.6.5",
             changes: [
@@ -18441,22 +18447,27 @@
         return created;
     }
     function syncPresenceMarker() {
-        var _a, _b;
+        var _a, _b, _c;
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
         // Always broadcast presence regardless of local display toggle —
         // the toggle only controls what YOU see, not what others see.
         const presence = { version: MOD_VERSION, marker: "EBC" };
-        // Write to ExtensionSettings for local persistence
+        // Write to ExtensionSettings only if presence isn't already recorded —
+        // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
-        if (settings)
-            settings.presence = presence;
-        ServerPlayerExtensionSettingsSync(MOD_NAME);
+        if (settings) {
+            const alreadyStored = ((_b = settings.presence) === null || _b === void 0 ? void 0 : _b.version) === MOD_VERSION;
+            if (!alreadyStored) {
+                settings.presence = presence;
+                ServerPlayerExtensionSettingsSync(MOD_NAME);
+            }
+        }
         // Write to OnlineSharedSettings - this IS broadcast to all room members
         // via ChatRoomSync and CharacterUpdate packets, making the badge visible
         // to every other EmeryBC user in the room.
         const current = shared[MOD_NAME];
         const alreadySynced = current && typeof current === "object" &&
-            ((_b = current.presence) === null || _b === void 0 ? void 0 : _b.version) === MOD_VERSION;
+            ((_c = current.presence) === null || _c === void 0 ? void 0 : _c.version) === MOD_VERSION;
         if (!alreadySynced) {
             shared[MOD_NAME] = { presence };
             ServerSend("AccountUpdate", { OnlineSharedSettings: shared });

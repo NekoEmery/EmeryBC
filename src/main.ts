@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.6.5";
+const MOD_VERSION = "1.6.6";
 
 let noticeShown = false;
 
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.6.6",
+        changes: [
+            "Fix: rate-limit disconnect when joining large rooms — last-seen timestamps for offline friends are now written in a single batched server sync instead of one per friend. syncPresenceMarker also skips the ExtensionSettings sync when presence is already recorded.",
+        ],
+    },
     {
         version: "1.6.5",
         changes: [
@@ -1721,10 +1727,16 @@ function syncPresenceMarker(): void {
     // the toggle only controls what YOU see, not what others see.
     const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC" };
 
-    // Write to ExtensionSettings for local persistence
+    // Write to ExtensionSettings only if presence isn't already recorded —
+    // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
     const settings = getAddonSettings(Player, true);
-    if (settings) settings.presence = presence;
-    ServerPlayerExtensionSettingsSync(MOD_NAME);
+    if (settings) {
+        const alreadyStored = settings.presence?.version === MOD_VERSION;
+        if (!alreadyStored) {
+            settings.presence = presence;
+            ServerPlayerExtensionSettingsSync(MOD_NAME);
+        }
+    }
 
     // Write to OnlineSharedSettings - this IS broadcast to all room members
     // via ChatRoomSync and CharacterUpdate packets, making the badge visible
