@@ -10758,8 +10758,7 @@ export class EBCDrawer {
                     LockPicking: "Lock Picking", Evasion: "Evasion",
                     Willpower: "Willpower", Infiltration: "Infiltration",
                 };
-                // Use BC's own SkillGetLevel so we get the real effective value
-                // (handles missing entries, bonuses, caps). Fall back to direct array read.
+                // Use BC's own SkillGetLevel so we get the real effective value.
                 type SkillGetLevelFn = (c: unknown, skill: string) => number;
                 const skillGetLevel = (window as unknown as Record<string, unknown>).SkillGetLevel as SkillGetLevelFn | undefined;
                 const playerSkillArr = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[] | undefined ?? [];
@@ -10767,15 +10766,74 @@ export class EBCDrawer {
                     (Array.isArray(playerSkillArr) ? playerSkillArr : []).map(e => [e.Skill, e.Level ?? 0])
                 );
                 const readSkill = (key: string): number => {
-                    try {
-                        if (skillGetLevel) return skillGetLevel(Player, key) ?? 0;
-                    } catch { /* ignore */ }
+                    try { if (skillGetLevel) return skillGetLevel(Player, key) ?? 0; } catch { /* ignore */ }
                     return skillMap.get(key) ?? 0;
+                };
+
+                // Shared helpers used by both per-skill Set buttons and the global Apply button
+                const getSkillArr = (): BCSkillEntry[] => {
+                    if (!Array.isArray((Player as unknown as Record<string, unknown>).Skill)) {
+                        (Player as unknown as Record<string, unknown>).Skill = [];
+                    }
+                    return (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[];
+                };
+                const saveSkillArr = (skillArr: BCSkillEntry[]): void => {
+                    const sAU = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
+                        Record<string, unknown> | undefined;
+                    if (sAU) {
+                        (sAU.QueueData as ((d: Record<string, unknown>) => void) | undefined)
+                            ?.call(sAU, { Skill: skillArr });
+                        (sAU.Send as (() => void) | undefined)?.call(sAU);
+                    }
+                    type SkillSendFn = (type: string, data: Record<string, unknown>) => void;
+                    const ss2 = (window as unknown as Record<string, unknown>).ServerSend as SkillSendFn | undefined;
+                    ss2?.("AccountUpdate", { Skill: skillArr });
                 };
 
                 cnt.appendChild(subLbl("Skills"));
                 for (const [key, label] of Object.entries(SKILL_LABELS)) {
-                    makeStatRow("skill_" + key, label, readSkill(key));
+                    const skillRow = document.createElement("div");
+                    skillRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
+                    const skillLbl = document.createElement("span");
+                    skillLbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                    skillLbl.textContent = label;
+                    const skillInp = document.createElement("input");
+                    skillInp.type = "number"; skillInp.value = String(readSkill(key));
+                    skillInp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                    const mkDeltaBtn = (sym: string, delta: number): HTMLButtonElement => {
+                        const b = document.createElement("button");
+                        b.textContent = sym;
+                        b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
+                        b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
+                        b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
+                        b.addEventListener("click", () => { skillInp.value = String((parseInt(skillInp.value) || 0) + delta); });
+                        return b;
+                    };
+                    // Per-skill Set button
+                    const setBtn = document.createElement("button");
+                    setBtn.textContent = "Set";
+                    setBtn.style.cssText = `${FONT}font-size:10px;padding:0 6px;height:22px;border-radius:3px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s,color 0.1s;`;
+                    setBtn.addEventListener("mouseenter", () => { setBtn.style.background = "#3a1525"; });
+                    setBtn.addEventListener("mouseleave", () => { setBtn.style.background = "#2a0f1a"; });
+                    setBtn.addEventListener("click", () => {
+                        const val = Math.max(0, parseInt(skillInp.value) || 0);
+                        const arr = getSkillArr();
+                        const ex = arr.find(e => e.Skill === key);
+                        if (ex) ex.Level = val; else arr.push({ Skill: key, Level: val, Progress: 0 });
+                        saveSkillArr(arr);
+                        setBtn.textContent = "✓";
+                        setBtn.style.borderColor = "#80e890"; setBtn.style.color = "#80e890";
+                        window.setTimeout(() => {
+                            setBtn.textContent = "Set";
+                            setBtn.style.borderColor = "#cf6f98"; setBtn.style.color = "#f7cce0";
+                        }, 1200);
+                    });
+                    skillRow.appendChild(skillLbl); skillRow.appendChild(skillInp);
+                    skillRow.appendChild(mkDeltaBtn("−", -1)); skillRow.appendChild(mkDeltaBtn("+", 1));
+                    skillRow.appendChild(mkDeltaBtn("−10", -10)); skillRow.appendChild(mkDeltaBtn("+10", 10));
+                    skillRow.appendChild(setBtn);
+                    cnt.appendChild(skillRow);
+                    statInputs.set("skill_" + key, skillInp);
                 }
 
                 // ── Reputation ────────────────────────────────────────────────
@@ -10917,39 +10975,15 @@ export class EBCDrawer {
 
                     // ── Skills ────────────────────────────────────────────────
                     try {
-                        // Mutate the existing Player.Skill array in-place.
-                        // Replacing the whole array reference can break BC's internal
-                        // watchers; mutating entries is safer.
-                        const skillArrRaw = (Player as unknown as Record<string, unknown>).Skill;
-                        if (!Array.isArray(skillArrRaw)) {
-                            (Player as unknown as Record<string, unknown>).Skill = [];
-                        }
-                        const skillArr = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[];
+                        const skillArr = getSkillArr();
                         for (const key of Object.keys(SKILL_LABELS)) {
                             const inp = statInputs.get("skill_" + key);
                             const val = Math.max(0, parseInt(inp?.value ?? "0") || 0);
                             const existing = skillArr.find(e => e.Skill === key);
-                            if (existing) {
-                                existing.Level = val;
-                            } else {
-                                skillArr.push({ Skill: key, Level: val, Progress: 0 });
-                            }
+                            if (existing) existing.Level = val;
+                            else skillArr.push({ Skill: key, Level: val, Progress: 0 });
                         }
-
-                        // QueueData is BC's canonical path (same as SkillChange uses internally).
-                        const sAU = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
-                            Record<string, unknown> | undefined;
-                        if (sAU) {
-                            (sAU.QueueData as ((d: Record<string, unknown>) => void) | undefined)
-                                ?.call(sAU, { Skill: skillArr });
-                            // Flush immediately if the Send method is exposed
-                            (sAU.Send as (() => void) | undefined)?.call(sAU);
-                        }
-                        // Also fire a direct send — matches how main.ts updates OnlineSharedSettings.
-                        // No AccountName/MemberNumber needed; the socket session identifies the user.
-                        type SendFn = (type: string, data: Record<string, unknown>) => void;
-                        const ss = (window as unknown as Record<string, unknown>).ServerSend as SendFn | undefined;
-                        ss?.("AccountUpdate", { Skill: skillArr });
+                        saveSkillArr(skillArr);
                     } catch (e) {
                         applyBtn.textContent = "Skill error!";
                         window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 2000);

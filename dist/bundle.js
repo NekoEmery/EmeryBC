@@ -14332,34 +14332,6 @@
                     };
                     // Helper: stat row — label + number input + − +
                     const statInputs = new Map();
-                    const makeStatRow = (key, label, value) => {
-                        const row = document.createElement("div");
-                        row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
-                        const lbl = document.createElement("span");
-                        lbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
-                        lbl.textContent = label;
-                        const inp = document.createElement("input");
-                        inp.type = "number";
-                        inp.value = String(value);
-                        inp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
-                        const mkBtn = (sym, delta) => {
-                            const b = document.createElement("button");
-                            b.textContent = sym;
-                            b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
-                            b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
-                            b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
-                            b.addEventListener("click", () => { inp.value = String((parseInt(inp.value) || 0) + delta); });
-                            return b;
-                        };
-                        row.appendChild(lbl);
-                        row.appendChild(inp);
-                        row.appendChild(mkBtn("−", -1));
-                        row.appendChild(mkBtn("+", 1));
-                        row.appendChild(mkBtn("−10", -10));
-                        row.appendChild(mkBtn("+10", 10));
-                        cnt.appendChild(row);
-                        statInputs.set(key, inp);
-                    };
                     const SKILL_LABELS = {
                         Bondage: "Bondage", SelfBondage: "Self Bondage",
                         LockPicking: "Lock Picking", Evasion: "Evasion",
@@ -14377,9 +14349,76 @@
                         catch ( /* ignore */_c) { /* ignore */ }
                         return (_b = skillMap.get(key)) !== null && _b !== void 0 ? _b : 0;
                     };
+                    // Shared helpers used by both per-skill Set buttons and the global Apply button
+                    const getSkillArr = () => {
+                        if (!Array.isArray(Player.Skill)) {
+                            Player.Skill = [];
+                        }
+                        return Player.Skill;
+                    };
+                    const saveSkillArr = (skillArr) => {
+                        var _a, _b;
+                        const sAU = window.ServerAccountUpdate;
+                        if (sAU) {
+                            (_a = sAU.QueueData) === null || _a === void 0 ? void 0 : _a.call(sAU, { Skill: skillArr });
+                            (_b = sAU.Send) === null || _b === void 0 ? void 0 : _b.call(sAU);
+                        }
+                        const ss2 = window.ServerSend;
+                        ss2 === null || ss2 === void 0 ? void 0 : ss2("AccountUpdate", { Skill: skillArr });
+                    };
                     cnt.appendChild(subLbl("Skills"));
                     for (const [key, label] of Object.entries(SKILL_LABELS)) {
-                        makeStatRow("skill_" + key, label, readSkill(key));
+                        const skillRow = document.createElement("div");
+                        skillRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;border-bottom:1px solid #2a1421;";
+                        const skillLbl = document.createElement("span");
+                        skillLbl.style.cssText = `${FONT}font-size:10px;color:#c8a0b8;flex:1;`;
+                        skillLbl.textContent = label;
+                        const skillInp = document.createElement("input");
+                        skillInp.type = "number";
+                        skillInp.value = String(readSkill(key));
+                        skillInp.style.cssText = `${FONT}font-size:10px;width:62px;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 5px;text-align:right;outline:none;`;
+                        const mkDeltaBtn = (sym, delta) => {
+                            const b = document.createElement("button");
+                            b.textContent = sym;
+                            b.style.cssText = `${FONT}font-size:10px;width:22px;height:22px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;padding:0;`;
+                            b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2a0f1a"; });
+                            b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "transparent"; });
+                            b.addEventListener("click", () => { skillInp.value = String((parseInt(skillInp.value) || 0) + delta); });
+                            return b;
+                        };
+                        // Per-skill Set button
+                        const setBtn = document.createElement("button");
+                        setBtn.textContent = "Set";
+                        setBtn.style.cssText = `${FONT}font-size:10px;padding:0 6px;height:22px;border-radius:3px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s,color 0.1s;`;
+                        setBtn.addEventListener("mouseenter", () => { setBtn.style.background = "#3a1525"; });
+                        setBtn.addEventListener("mouseleave", () => { setBtn.style.background = "#2a0f1a"; });
+                        setBtn.addEventListener("click", () => {
+                            const val = Math.max(0, parseInt(skillInp.value) || 0);
+                            const arr = getSkillArr();
+                            const ex = arr.find(e => e.Skill === key);
+                            if (ex)
+                                ex.Level = val;
+                            else
+                                arr.push({ Skill: key, Level: val, Progress: 0 });
+                            saveSkillArr(arr);
+                            setBtn.textContent = "✓";
+                            setBtn.style.borderColor = "#80e890";
+                            setBtn.style.color = "#80e890";
+                            window.setTimeout(() => {
+                                setBtn.textContent = "Set";
+                                setBtn.style.borderColor = "#cf6f98";
+                                setBtn.style.color = "#f7cce0";
+                            }, 1200);
+                        });
+                        skillRow.appendChild(skillLbl);
+                        skillRow.appendChild(skillInp);
+                        skillRow.appendChild(mkDeltaBtn("−", -1));
+                        skillRow.appendChild(mkDeltaBtn("+", 1));
+                        skillRow.appendChild(mkDeltaBtn("−10", -10));
+                        skillRow.appendChild(mkDeltaBtn("+10", 10));
+                        skillRow.appendChild(setBtn);
+                        cnt.appendChild(skillRow);
+                        statInputs.set("skill_" + key, skillInp);
                     }
                     // ── Reputation ────────────────────────────────────────────────
                     // Player.Reputation is Array<{ Type: string; Value: number }>
@@ -14527,38 +14566,21 @@
                     applyBtn.addEventListener("mouseenter", () => { applyBtn.style.background = "#3a1525"; });
                     applyBtn.addEventListener("mouseleave", () => { applyBtn.style.background = "#2a0f1a"; });
                     applyBtn.addEventListener("click", () => {
-                        var _a, _b, _c;
+                        var _a;
                         const upd = window.ServerAccountUpdate;
                         // ── Skills ────────────────────────────────────────────────
                         try {
-                            // Mutate the existing Player.Skill array in-place.
-                            // Replacing the whole array reference can break BC's internal
-                            // watchers; mutating entries is safer.
-                            const skillArrRaw = Player.Skill;
-                            if (!Array.isArray(skillArrRaw)) {
-                                Player.Skill = [];
-                            }
-                            const skillArr = Player.Skill;
+                            const skillArr = getSkillArr();
                             for (const key of Object.keys(SKILL_LABELS)) {
                                 const inp = statInputs.get("skill_" + key);
                                 const val = Math.max(0, parseInt((_a = inp === null || inp === void 0 ? void 0 : inp.value) !== null && _a !== void 0 ? _a : "0") || 0);
                                 const existing = skillArr.find(e => e.Skill === key);
-                                if (existing) {
+                                if (existing)
                                     existing.Level = val;
-                                }
-                                else {
+                                else
                                     skillArr.push({ Skill: key, Level: val, Progress: 0 });
-                                }
                             }
-                            // QueueData is BC's canonical path (same as SkillChange uses internally).
-                            const sAU = window.ServerAccountUpdate;
-                            if (sAU) {
-                                (_b = sAU.QueueData) === null || _b === void 0 ? void 0 : _b.call(sAU, { Skill: skillArr });
-                                // Flush immediately if the Send method is exposed
-                                (_c = sAU.Send) === null || _c === void 0 ? void 0 : _c.call(sAU);
-                            }
-                            const ss = window.ServerSend;
-                            ss === null || ss === void 0 ? void 0 : ss("AccountUpdate", { Skill: skillArr });
+                            saveSkillArr(skillArr);
                         }
                         catch (e) {
                             applyBtn.textContent = "Skill error!";
@@ -14591,7 +14613,7 @@
                             if (upd === null || upd === void 0 ? void 0 : upd.QueueData)
                                 upd.QueueData({ Reputation: rep });
                         }
-                        catch ( /* reputation save failed — non-fatal */_d) { /* reputation save failed — non-fatal */ }
+                        catch ( /* reputation save failed — non-fatal */_b) { /* reputation save failed — non-fatal */ }
                         applyBtn.textContent = "Applied!";
                         window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 1500);
                     });
