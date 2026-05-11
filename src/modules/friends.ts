@@ -344,13 +344,7 @@ interface LockedEntry {
 }
 
 const LOCKED_ENTRIES = new Map<number, LockedEntry>([
-    // On Emery's client (#130267): Lucy (#230466) shows ♛ Mistress
-    [230466, {
-        tag:         { text: "♛ Mistress", color: "#FFD700", locked: true },
-        displayName: "Lucy",
-        viewerOnly:  130267,
-    }],
-    // On Lucy's client (#230466): Emery (#130267) shows ♛ Mistress
+    // On Lucy's client (#230466) only: Emery (#130267) shows ♛ Mistress
     [130267, {
         tag:         { text: "♛ Mistress", color: "#FFD700", locked: true },
         displayName: "Emery",
