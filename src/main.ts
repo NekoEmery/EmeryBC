@@ -35,7 +35,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "1.5.13",
         changes: [
-            "Fix: /ebc update now always shows both current and remote version (\"Up to date — v1.5.13, latest is v1.5.13\" or \"Update available! v1.5.13 is out\"). appendLocalLogLine retries once if TextAreaChatLog isn't mounted yet.",
+            "Fix: /ebc update now always shows both your current version and the latest GitHub version in the result line. appendLocalLogLine retries once if the chat log isn't mounted yet.",
         ],
     },
     {
