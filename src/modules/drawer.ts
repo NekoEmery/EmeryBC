@@ -78,7 +78,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -10751,43 +10751,45 @@ export class EBCDrawer {
                 };
 
                 // ── Skills ────────────────────────────────────────────────────
-                // Player.Skill is Array<{ Skill: string; Level: number; Progress: number }>
-                interface BCSkillEntry { Skill: string; Level: number; Progress: number; }
+                // BC source: Player.Skill is Array<{ Type: string; Level: number; Progress: number }>
+                // The property is "Type", NOT "Skill". SkillChange(C, type, level, progress) sets
+                // level absolutely and calls ServerPlayerSkillSync() internally.
+                interface BCSkillEntry { Type: string; Level: number; Progress: number; }
                 const SKILL_LABELS: Record<string, string> = {
                     Bondage: "Bondage", SelfBondage: "Self Bondage",
                     LockPicking: "Lock Picking", Evasion: "Evasion",
                     Willpower: "Willpower", Infiltration: "Infiltration",
+                    Dressage: "Dressage",
                 };
-                // Use BC's own SkillGetLevel so we get the real effective value.
-                type SkillGetLevelFn = (c: unknown, skill: string) => number;
-                const skillGetLevel = (window as unknown as Record<string, unknown>).SkillGetLevel as SkillGetLevelFn | undefined;
+                // SkillGetLevelReal returns base level without temporary modifiers — correct for display.
+                type SkillGetLevelRealFn = (c: unknown, skill: string) => number;
+                const skillGetLevelReal = (window as unknown as Record<string, unknown>).SkillGetLevelReal as SkillGetLevelRealFn | undefined;
                 const playerSkillArr = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[] | undefined ?? [];
                 const skillMap = new Map<string, number>(
-                    (Array.isArray(playerSkillArr) ? playerSkillArr : []).map(e => [e.Skill, e.Level ?? 0])
+                    (Array.isArray(playerSkillArr) ? playerSkillArr : []).map(e => [e.Type, e.Level ?? 0])
                 );
                 const readSkill = (key: string): number => {
-                    try { if (skillGetLevel) return skillGetLevel(Player, key) ?? 0; } catch { /* ignore */ }
+                    try { if (skillGetLevelReal) return skillGetLevelReal(Player, key) ?? 0; } catch { /* ignore */ }
                     return skillMap.get(key) ?? 0;
                 };
 
-                // Shared helpers used by both per-skill Set buttons and the global Apply button
-                const getSkillArr = (): BCSkillEntry[] => {
-                    if (!Array.isArray((Player as unknown as Record<string, unknown>).Skill)) {
-                        (Player as unknown as Record<string, unknown>).Skill = [];
+                // applySkill — uses BC's own SkillChange which handles Type property correctly
+                // and calls ServerPlayerSkillSync() (→ QueueData({ Skill: Player.Skill })) internally.
+                type SkillChangeFn = (c: unknown, type: string, level: number, progress: number) => void;
+                const skillChangeFn = (window as unknown as Record<string, unknown>).SkillChange as SkillChangeFn | undefined;
+                const applySkill = (key: string, val: number): void => {
+                    const clamped = Math.min(10, Math.max(0, val));
+                    if (skillChangeFn) {
+                        skillChangeFn(Player, key, clamped, 0);
+                    } else {
+                        // Fallback: manual mutation + sync (property name is "Type")
+                        const arr = (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[] | undefined;
+                        if (!Array.isArray(arr)) return;
+                        const ex = arr.find(e => e.Type === key);
+                        if (ex) ex.Level = clamped; else arr.push({ Type: key, Level: clamped, Progress: 0 });
+                        const sync = (window as unknown as Record<string, unknown>).ServerPlayerSkillSync as (() => void) | undefined;
+                        sync?.();
                     }
-                    return (Player as unknown as Record<string, unknown>).Skill as BCSkillEntry[];
-                };
-                const saveSkillArr = (skillArr: BCSkillEntry[]): void => {
-                    const sAU = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
-                        Record<string, unknown> | undefined;
-                    if (sAU) {
-                        (sAU.QueueData as ((d: Record<string, unknown>) => void) | undefined)
-                            ?.call(sAU, { Skill: skillArr });
-                        (sAU.Send as (() => void) | undefined)?.call(sAU);
-                    }
-                    type SkillSendFn = (type: string, data: Record<string, unknown>) => void;
-                    const ss2 = (window as unknown as Record<string, unknown>).ServerSend as SkillSendFn | undefined;
-                    ss2?.("AccountUpdate", { Skill: skillArr });
                 };
 
                 cnt.appendChild(subLbl("Skills"));
@@ -10809,18 +10811,13 @@ export class EBCDrawer {
                         b.addEventListener("click", () => { skillInp.value = String((parseInt(skillInp.value) || 0) + delta); });
                         return b;
                     };
-                    // Per-skill Set button
                     const setBtn = document.createElement("button");
                     setBtn.textContent = "Set";
                     setBtn.style.cssText = `${FONT}font-size:10px;padding:0 6px;height:22px;border-radius:3px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s,color 0.1s;`;
                     setBtn.addEventListener("mouseenter", () => { setBtn.style.background = "#3a1525"; });
                     setBtn.addEventListener("mouseleave", () => { setBtn.style.background = "#2a0f1a"; });
                     setBtn.addEventListener("click", () => {
-                        const val = Math.max(0, parseInt(skillInp.value) || 0);
-                        const arr = getSkillArr();
-                        const ex = arr.find(e => e.Skill === key);
-                        if (ex) ex.Level = val; else arr.push({ Skill: key, Level: val, Progress: 0 });
-                        saveSkillArr(arr);
+                        applySkill(key, parseInt(skillInp.value) || 0);
                         setBtn.textContent = "✓";
                         setBtn.style.borderColor = "#80e890"; setBtn.style.color = "#80e890";
                         window.setTimeout(() => {
@@ -10975,15 +10972,10 @@ export class EBCDrawer {
 
                     // ── Skills ────────────────────────────────────────────────
                     try {
-                        const skillArr = getSkillArr();
                         for (const key of Object.keys(SKILL_LABELS)) {
                             const inp = statInputs.get("skill_" + key);
-                            const val = Math.max(0, parseInt(inp?.value ?? "0") || 0);
-                            const existing = skillArr.find(e => e.Skill === key);
-                            if (existing) existing.Level = val;
-                            else skillArr.push({ Skill: key, Level: val, Progress: 0 });
+                            applySkill(key, parseInt(inp?.value ?? "0") || 0);
                         }
-                        saveSkillArr(skillArr);
                     } catch (e) {
                         applyBtn.textContent = "Skill error!";
                         window.setTimeout(() => { applyBtn.textContent = "Apply All Stats"; }, 2000);
@@ -11020,6 +11012,117 @@ export class EBCDrawer {
                 cnt.appendChild(applyBtn);
             });
         }
+
+        // ── People Met ────────────────────────────────────────────────────────
+        makeSection("PEOPLE MET", "EBC_peoplemetCollapsed", true, (cnt) => {
+            const PFONT = "font-family:'Trebuchet MS',serif;";
+
+            // Controls row: count + search + clear
+            const ctrlRow = document.createElement("div");
+            ctrlRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
+
+            const countLbl = document.createElement("span");
+            countLbl.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex:1;`;
+
+            const searchInp = document.createElement("input");
+            searchInp.type = "text";
+            searchInp.placeholder = "Search name or #id…";
+            searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
+
+            const clearBtn = document.createElement("button");
+            clearBtn.textContent = "Clear All";
+            clearBtn.style.cssText = `${PFONT}font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
+            clearBtn.addEventListener("mouseenter", () => { clearBtn.style.color = "#e05070"; clearBtn.style.borderColor = "#e05070"; });
+            clearBtn.addEventListener("mouseleave", () => { clearBtn.style.color = "#7a5a6a"; clearBtn.style.borderColor = "#4c2537"; });
+
+            ctrlRow.appendChild(countLbl);
+            ctrlRow.appendChild(searchInp);
+            ctrlRow.appendChild(clearBtn);
+            cnt.appendChild(ctrlRow);
+
+            // Scrollable list
+            const listEl = document.createElement("div");
+            listEl.style.cssText = "max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;";
+            cnt.appendChild(listEl);
+
+            const renderList = (): void => {
+                while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+                const all: PersonMet[] = getPeopleMet();
+                const q = searchInp.value.trim().toLowerCase();
+                const filtered = q
+                    ? all.filter(p => p.name.toLowerCase().includes(q) || String(p.n).includes(q))
+                    : all;
+
+                countLbl.textContent = `${filtered.length} / ${all.length} people`;
+
+                if (filtered.length === 0) {
+                    const hint = document.createElement("div");
+                    hint.style.cssText = `${PFONT}font-size:9px;color:#5a3a4a;font-style:italic;padding:6px 2px;text-align:center;`;
+                    hint.textContent = q ? "No matches." : "No one recorded yet — meet people in rooms!";
+                    listEl.appendChild(hint);
+                    return;
+                }
+
+                for (const person of [...filtered].reverse()) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:3px;background:#1a0810;border:1px solid #2a1421;";
+
+                    const nameSpan = document.createElement("span");
+                    nameSpan.style.cssText = `${PFONT}font-size:10px;color:#f0d8ec;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                    nameSpan.textContent = person.name;
+                    nameSpan.title = person.name;
+
+                    const numSpan = document.createElement("span");
+                    numSpan.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex-shrink:0;`;
+                    numSpan.textContent = `#${person.n}`;
+
+                    // Profile button — opens BC info sheet if person is in current room,
+                    // otherwise shows a quick popup with their stored info.
+                    const profBtn = document.createElement("button");
+                    profBtn.textContent = "Profile";
+                    profBtn.style.cssText = `${PFONT}font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s;`;
+                    profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#2a0f1a"; profBtn.style.borderColor = "#cf6f98"; });
+                    profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "transparent"; profBtn.style.borderColor = "#4c2537"; });
+                    profBtn.addEventListener("click", () => {
+                        try {
+                            // Try to open BC's in-game info sheet if they're in the room
+                            const roomChars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                                Array<Record<string, unknown>> | undefined ?? [];
+                            const inRoom = roomChars.find(c => c.MemberNumber === person.n);
+                            if (inRoom) {
+                                const setChar = (window as unknown as Record<string, unknown>).CharacterSetCurrent as
+                                    ((c: unknown) => void) | undefined;
+                                const setScreen = (window as unknown as Record<string, unknown>).CommonSetScreen as
+                                    ((module: string, screen: string) => void) | undefined;
+                                if (setChar && setScreen) {
+                                    setChar(inRoom);
+                                    setScreen("Character", "InformationSheet");
+                                    return;
+                                }
+                            }
+                        } catch { /* ignore */ }
+                        // Fallback: copy member number to clipboard
+                        try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
+                        const orig = profBtn.textContent;
+                        profBtn.textContent = "Copied #";
+                        window.setTimeout(() => { profBtn.textContent = orig; }, 1400);
+                    });
+
+                    row.appendChild(nameSpan);
+                    row.appendChild(numSpan);
+                    row.appendChild(profBtn);
+                    listEl.appendChild(row);
+                }
+            };
+
+            renderList();
+            searchInp.addEventListener("input", renderList);
+            clearBtn.addEventListener("click", () => {
+                if (!window.confirm("Clear the entire People Met list?")) return;
+                clearPeopleMet();
+                renderList();
+            });
+        });
 
         // Auto-refresh every 1.5 s while the DEV tab is open.
         // Room History always refreshes (cheap read). Message log only if logging is on.

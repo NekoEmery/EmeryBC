@@ -239,3 +239,47 @@ export function setBeepMuted(value: boolean): void {
         ServerPlayerExtensionSettingsSync("EmeryBC");
     } catch { /* ignore */ }
 }
+
+// -- People Met ----------------------------------------------------------------
+// Everyone the player has ever shared a room with. Saved server-side so it
+// syncs across devices. Capped at 2000 entries (oldest evicted first).
+
+export interface PersonMet {
+    n: number;   // member number
+    name: string;
+}
+
+const PEOPLE_MET_CAP = 2000;
+
+export function getPeopleMet(): PersonMet[] {
+    try {
+        const raw = getStore()?.peopleMet;
+        return Array.isArray(raw) ? (raw as PersonMet[]) : [];
+    } catch { return []; }
+}
+
+export function recordPersonMet(memberNumber: number, name: string): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        const list = getPeopleMet();
+        const existing = list.find(p => p.n === memberNumber);
+        if (existing) {
+            existing.name = name; // update display name
+        } else {
+            if (list.length >= PEOPLE_MET_CAP) list.splice(0, list.length - PEOPLE_MET_CAP + 1);
+            list.push({ n: memberNumber, name });
+        }
+        store.peopleMet = list;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}
+
+export function clearPeopleMet(): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.peopleMet = [];
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    } catch { /* ignore */ }
+}

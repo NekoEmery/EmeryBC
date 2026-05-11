@@ -1897,6 +1897,47 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    const PEOPLE_MET_CAP = 2000;
+    function getPeopleMet() {
+        var _a;
+        try {
+            const raw = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.peopleMet;
+            return Array.isArray(raw) ? raw : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function recordPersonMet(memberNumber, name) {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            const list = getPeopleMet();
+            const existing = list.find(p => p.n === memberNumber);
+            if (existing) {
+                existing.name = name; // update display name
+            }
+            else {
+                if (list.length >= PEOPLE_MET_CAP)
+                    list.splice(0, list.length - PEOPLE_MET_CAP + 1);
+                list.push({ n: memberNumber, name });
+            }
+            store.peopleMet = list;
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function clearPeopleMet() {
+        try {
+            const store = getStore$5();
+            if (!store)
+                return;
+            store.peopleMet = [];
+            ServerPlayerExtensionSettingsSync("EmeryBC");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
     // another character is immediately removed and a glare emote is sent.
@@ -14336,35 +14377,39 @@
                         Bondage: "Bondage", SelfBondage: "Self Bondage",
                         LockPicking: "Lock Picking", Evasion: "Evasion",
                         Willpower: "Willpower", Infiltration: "Infiltration",
+                        Dressage: "Dressage",
                     };
-                    const skillGetLevel = window.SkillGetLevel;
+                    const skillGetLevelReal = window.SkillGetLevelReal;
                     const playerSkillArr = (_a = Player.Skill) !== null && _a !== void 0 ? _a : [];
-                    const skillMap = new Map((Array.isArray(playerSkillArr) ? playerSkillArr : []).map(e => { var _a; return [e.Skill, (_a = e.Level) !== null && _a !== void 0 ? _a : 0]; }));
+                    const skillMap = new Map((Array.isArray(playerSkillArr) ? playerSkillArr : []).map(e => { var _a; return [e.Type, (_a = e.Level) !== null && _a !== void 0 ? _a : 0]; }));
                     const readSkill = (key) => {
                         var _a, _b;
                         try {
-                            if (skillGetLevel)
-                                return (_a = skillGetLevel(Player, key)) !== null && _a !== void 0 ? _a : 0;
+                            if (skillGetLevelReal)
+                                return (_a = skillGetLevelReal(Player, key)) !== null && _a !== void 0 ? _a : 0;
                         }
                         catch ( /* ignore */_c) { /* ignore */ }
                         return (_b = skillMap.get(key)) !== null && _b !== void 0 ? _b : 0;
                     };
-                    // Shared helpers used by both per-skill Set buttons and the global Apply button
-                    const getSkillArr = () => {
-                        if (!Array.isArray(Player.Skill)) {
-                            Player.Skill = [];
+                    const skillChangeFn = window.SkillChange;
+                    const applySkill = (key, val) => {
+                        const clamped = Math.min(10, Math.max(0, val));
+                        if (skillChangeFn) {
+                            skillChangeFn(Player, key, clamped, 0);
                         }
-                        return Player.Skill;
-                    };
-                    const saveSkillArr = (skillArr) => {
-                        var _a, _b;
-                        const sAU = window.ServerAccountUpdate;
-                        if (sAU) {
-                            (_a = sAU.QueueData) === null || _a === void 0 ? void 0 : _a.call(sAU, { Skill: skillArr });
-                            (_b = sAU.Send) === null || _b === void 0 ? void 0 : _b.call(sAU);
+                        else {
+                            // Fallback: manual mutation + sync (property name is "Type")
+                            const arr = Player.Skill;
+                            if (!Array.isArray(arr))
+                                return;
+                            const ex = arr.find(e => e.Type === key);
+                            if (ex)
+                                ex.Level = clamped;
+                            else
+                                arr.push({ Type: key, Level: clamped, Progress: 0 });
+                            const sync = window.ServerPlayerSkillSync;
+                            sync === null || sync === void 0 ? void 0 : sync();
                         }
-                        const ss2 = window.ServerSend;
-                        ss2 === null || ss2 === void 0 ? void 0 : ss2("AccountUpdate", { Skill: skillArr });
                     };
                     cnt.appendChild(subLbl("Skills"));
                     for (const [key, label] of Object.entries(SKILL_LABELS)) {
@@ -14386,21 +14431,13 @@
                             b.addEventListener("click", () => { skillInp.value = String((parseInt(skillInp.value) || 0) + delta); });
                             return b;
                         };
-                        // Per-skill Set button
                         const setBtn = document.createElement("button");
                         setBtn.textContent = "Set";
                         setBtn.style.cssText = `${FONT}font-size:10px;padding:0 6px;height:22px;border-radius:3px;border:1px solid #cf6f98;background:#2a0f1a;color:#f7cce0;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s,color 0.1s;`;
                         setBtn.addEventListener("mouseenter", () => { setBtn.style.background = "#3a1525"; });
                         setBtn.addEventListener("mouseleave", () => { setBtn.style.background = "#2a0f1a"; });
                         setBtn.addEventListener("click", () => {
-                            const val = Math.max(0, parseInt(skillInp.value) || 0);
-                            const arr = getSkillArr();
-                            const ex = arr.find(e => e.Skill === key);
-                            if (ex)
-                                ex.Level = val;
-                            else
-                                arr.push({ Skill: key, Level: val, Progress: 0 });
-                            saveSkillArr(arr);
+                            applySkill(key, parseInt(skillInp.value) || 0);
                             setBtn.textContent = "✓";
                             setBtn.style.borderColor = "#80e890";
                             setBtn.style.color = "#80e890";
@@ -14570,17 +14607,10 @@
                         const upd = window.ServerAccountUpdate;
                         // ── Skills ────────────────────────────────────────────────
                         try {
-                            const skillArr = getSkillArr();
                             for (const key of Object.keys(SKILL_LABELS)) {
                                 const inp = statInputs.get("skill_" + key);
-                                const val = Math.max(0, parseInt((_a = inp === null || inp === void 0 ? void 0 : inp.value) !== null && _a !== void 0 ? _a : "0") || 0);
-                                const existing = skillArr.find(e => e.Skill === key);
-                                if (existing)
-                                    existing.Level = val;
-                                else
-                                    skillArr.push({ Skill: key, Level: val, Progress: 0 });
+                                applySkill(key, parseInt((_a = inp === null || inp === void 0 ? void 0 : inp.value) !== null && _a !== void 0 ? _a : "0") || 0);
                             }
-                            saveSkillArr(skillArr);
                         }
                         catch (e) {
                             applyBtn.textContent = "Skill error!";
@@ -14620,6 +14650,105 @@
                     cnt.appendChild(applyBtn);
                 });
             }
+            // ── People Met ────────────────────────────────────────────────────────
+            makeSection("PEOPLE MET", "EBC_peoplemetCollapsed", true, (cnt) => {
+                const PFONT = "font-family:'Trebuchet MS',serif;";
+                // Controls row: count + search + clear
+                const ctrlRow = document.createElement("div");
+                ctrlRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
+                const countLbl = document.createElement("span");
+                countLbl.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex:1;`;
+                const searchInp = document.createElement("input");
+                searchInp.type = "text";
+                searchInp.placeholder = "Search name or #id…";
+                searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
+                const clearBtn = document.createElement("button");
+                clearBtn.textContent = "Clear All";
+                clearBtn.style.cssText = `${PFONT}font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
+                clearBtn.addEventListener("mouseenter", () => { clearBtn.style.color = "#e05070"; clearBtn.style.borderColor = "#e05070"; });
+                clearBtn.addEventListener("mouseleave", () => { clearBtn.style.color = "#7a5a6a"; clearBtn.style.borderColor = "#4c2537"; });
+                ctrlRow.appendChild(countLbl);
+                ctrlRow.appendChild(searchInp);
+                ctrlRow.appendChild(clearBtn);
+                cnt.appendChild(ctrlRow);
+                // Scrollable list
+                const listEl = document.createElement("div");
+                listEl.style.cssText = "max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;";
+                cnt.appendChild(listEl);
+                const renderList = () => {
+                    while (listEl.firstChild)
+                        listEl.removeChild(listEl.firstChild);
+                    const all = getPeopleMet();
+                    const q = searchInp.value.trim().toLowerCase();
+                    const filtered = q
+                        ? all.filter(p => p.name.toLowerCase().includes(q) || String(p.n).includes(q))
+                        : all;
+                    countLbl.textContent = `${filtered.length} / ${all.length} people`;
+                    if (filtered.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = `${PFONT}font-size:9px;color:#5a3a4a;font-style:italic;padding:6px 2px;text-align:center;`;
+                        hint.textContent = q ? "No matches." : "No one recorded yet — meet people in rooms!";
+                        listEl.appendChild(hint);
+                        return;
+                    }
+                    for (const person of [...filtered].reverse()) {
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:3px;background:#1a0810;border:1px solid #2a1421;";
+                        const nameSpan = document.createElement("span");
+                        nameSpan.style.cssText = `${PFONT}font-size:10px;color:#f0d8ec;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                        nameSpan.textContent = person.name;
+                        nameSpan.title = person.name;
+                        const numSpan = document.createElement("span");
+                        numSpan.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex-shrink:0;`;
+                        numSpan.textContent = `#${person.n}`;
+                        // Profile button — opens BC info sheet if person is in current room,
+                        // otherwise shows a quick popup with their stored info.
+                        const profBtn = document.createElement("button");
+                        profBtn.textContent = "Profile";
+                        profBtn.style.cssText = `${PFONT}font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s;`;
+                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#2a0f1a"; profBtn.style.borderColor = "#cf6f98"; });
+                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "transparent"; profBtn.style.borderColor = "#4c2537"; });
+                        profBtn.addEventListener("click", () => {
+                            var _a;
+                            try {
+                                // Try to open BC's in-game info sheet if they're in the room
+                                const roomChars = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+                                const inRoom = roomChars.find(c => c.MemberNumber === person.n);
+                                if (inRoom) {
+                                    const setChar = window.CharacterSetCurrent;
+                                    const setScreen = window.CommonSetScreen;
+                                    if (setChar && setScreen) {
+                                        setChar(inRoom);
+                                        setScreen("Character", "InformationSheet");
+                                        return;
+                                    }
+                                }
+                            }
+                            catch ( /* ignore */_b) { /* ignore */ }
+                            // Fallback: copy member number to clipboard
+                            try {
+                                navigator.clipboard.writeText(String(person.n));
+                            }
+                            catch ( /* ignore */_c) { /* ignore */ }
+                            const orig = profBtn.textContent;
+                            profBtn.textContent = "Copied #";
+                            window.setTimeout(() => { profBtn.textContent = orig; }, 1400);
+                        });
+                        row.appendChild(nameSpan);
+                        row.appendChild(numSpan);
+                        row.appendChild(profBtn);
+                        listEl.appendChild(row);
+                    }
+                };
+                renderList();
+                searchInp.addEventListener("input", renderList);
+                clearBtn.addEventListener("click", () => {
+                    if (!window.confirm("Clear the entire People Met list?"))
+                        return;
+                    clearPeopleMet();
+                    renderList();
+                });
+            });
             // Auto-refresh every 1.5 s while the DEV tab is open.
             // Room History always refreshes (cheap read). Message log only if logging is on.
             this.stopDevLogPoller();
@@ -16017,7 +16146,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.4.7";
+    const MOD_VERSION = "1.4.8";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -16025,6 +16154,13 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.4.8",
+            changes: [
+                "Skills fix: BC's skill entries use the property 'Type' (not 'Skill'). All previous apply attempts were looking up the wrong key. Skills now apply correctly via BC's own SkillChange() which calls ServerPlayerSkillSync() internally. Added Dressage skill. Display now uses SkillGetLevelReal (base level, no modifiers).",
+                "People Met: new DEV tab section that records every player you share a room with. Saved server-side so it syncs across devices. Search by name or member number. Profile button opens their BC info sheet if they're in the current room, otherwise copies their member number.",
+            ],
+        },
         {
             version: "1.4.7",
             changes: [
@@ -17803,7 +17939,9 @@
             return result;
         });
         // Anti-restraint + grace period: detect new restraints on the player after any refresh
+        // Also record every non-player character we see as a "person met".
         tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
+            var _a;
             const result = next(args);
             try {
                 const [C] = args;
@@ -17815,11 +17953,20 @@
                     try {
                         checkRestraintChanges();
                     }
-                    catch ( /* ignore */_a) { /* ignore */ }
+                    catch ( /* ignore */_b) { /* ignore */ }
                     antiRestraintOnPlayerRefresh();
                 }
+                else if ((C === null || C === void 0 ? void 0 : C.MemberNumber) != null && C.MemberNumber !== Player.MemberNumber) {
+                    // Record this person in the persistent "people met" list
+                    try {
+                        const displayName = C.Nickname;
+                        const name = (displayName === null || displayName === void 0 ? void 0 : displayName.trim()) || ((_a = C.Name) !== null && _a !== void 0 ? _a : "") || String(C.MemberNumber);
+                        recordPersonMet(C.MemberNumber, name);
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
+                }
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             return result;
         });
         // Keep drawer visibility in sync whenever the BC screen changes.

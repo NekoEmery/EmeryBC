@@ -5,7 +5,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.4.7";
+const MOD_VERSION = "1.4.8";
 
 let noticeShown = false;
 
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.4.8",
+        changes: [
+            "Skills fix: BC's skill entries use the property 'Type' (not 'Skill'). All previous apply attempts were looking up the wrong key. Skills now apply correctly via BC's own SkillChange() which calls ServerPlayerSkillSync() internally. Added Dressage skill. Display now uses SkillGetLevelReal (base level, no modifiers).",
+            "People Met: new DEV tab section that records every player you share a room with. Saved server-side so it syncs across devices. Search by name or member number. Profile button opens their BC info sheet if they're in the current room, otherwise copies their member number.",
+        ],
+    },
     {
         version: "1.4.7",
         changes: [
@@ -1791,6 +1798,7 @@ function init(): void {
     });
 
     // Anti-restraint + grace period: detect new restraints on the player after any refresh
+    // Also record every non-player character we see as a "person met".
     tryHookFunction(modAPI, "CharacterRefresh", 3, (args, next) => {
         const result = next(args);
         try {
@@ -1802,6 +1810,13 @@ function init(): void {
                 // via setPendingLogApplier when the Action message arrives.
                 try { checkRestraintChanges(); } catch { /* ignore */ }
                 antiRestraintOnPlayerRefresh();
+            } else if (C?.MemberNumber != null && C.MemberNumber !== Player.MemberNumber) {
+                // Record this person in the persistent "people met" list
+                try {
+                    const displayName = (C as unknown as Record<string, unknown>).Nickname as string | undefined;
+                    const name = (displayName?.trim()) || (C.Name ?? "") || String(C.MemberNumber);
+                    recordPersonMet(C.MemberNumber, name);
+                } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
         return result;
