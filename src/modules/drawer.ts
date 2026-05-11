@@ -6809,6 +6809,49 @@ export class EBCDrawer {
         usefulLbl.textContent = "Useful Buttons";
         body.appendChild(usefulLbl);
 
+        // Title picker
+        const titleRow = document.createElement("div");
+        titleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:6px 0 4px;";
+        const titleLbl2 = document.createElement("span");
+        titleLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;";
+        titleLbl2.textContent = "Title";
+        const titleSel = document.createElement("select");
+        titleSel.style.cssText = [
+            "font-family:'Trebuchet MS',serif", "font-size:10px",
+            "background:#1a0810", "color:#f0d8ec",
+            "border:1px solid #4c2537", "border-radius:4px",
+            "padding:3px 6px", "cursor:pointer", "outline:none",
+            "flex-shrink:0", "max-width:150px",
+        ].join(";");
+        {
+            const bcTitles = (window as unknown as Record<string, unknown>).TitleNames as
+                Array<{ Name: string } | string> | undefined;
+            const currentTitle = (Player as unknown as Record<string, unknown>).Title as string ?? "";
+            const entries: string[] = bcTitles
+                ? bcTitles.map(t => typeof t === "string" ? t : (t as { Name: string }).Name)
+                : [];
+            if (!entries.includes("None")) entries.unshift("None");
+            if (currentTitle && !entries.includes(currentTitle)) entries.push(currentTitle);
+            for (const key of entries) {
+                const opt = document.createElement("option");
+                opt.value = key;
+                opt.textContent = key === "None" ? "(No title)" : key;
+                if (key === currentTitle || (!currentTitle && key === "None")) opt.selected = true;
+                titleSel.appendChild(opt);
+            }
+        }
+        titleSel.addEventListener("change", () => {
+            try {
+                const val = titleSel.value === "None" ? "" : titleSel.value;
+                (Player as unknown as Record<string, unknown>).Title = val;
+                type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
+                const upd = (window as unknown as Record<string, unknown>).ServerAccountUpdate as AccountUpdater | undefined;
+                if (upd?.QueueData) upd.QueueData({ Title: val });
+            } catch { /* ignore */ }
+        });
+        titleRow.appendChild(titleLbl2); titleRow.appendChild(titleSel);
+        body.appendChild(titleRow);
+
         const oocBtn = document.createElement("button");
         oocBtn.className = "ebc-create-btn";
         oocBtn.style.cssText = "margin:4px 0 0; width:100%;";
