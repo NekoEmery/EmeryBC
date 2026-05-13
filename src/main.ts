@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.8.4";
+const MOD_VERSION = "1.8.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -28,9 +28,15 @@ const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "1.8.5",
+        changes: [
+            "Tweak: AFK mention-reply now sends a regular chat message instead of a whisper.",
+        ],
+    },
+    {
         version: "1.8.4",
         changes: [
-            "Fix: AFK mention-reply whisper now fires correctly — removed silent error suppression around ServerSend, made member-number parsing more robust, and added a local gold log line confirming the whisper was sent.",
+            "Fix: AFK mention-reply now fires correctly — removed silent error suppression, made member-number parsing robust, added local gold log line confirming reply was sent.",
             "Tweak: DEV chip removed from drawer title — the overhead badge already says 'dev | v...' for dev builds.",
             "Tweak: AFK idle threshold inputs now have their label on a separate line with more spacing between the h/m/s boxes.",
         ],
@@ -2051,10 +2057,9 @@ function init(): void {
                             const senderName = roomChars.find(c => c.MemberNumber === senderNum)?.Name ?? String(senderNum);
                             ServerSend("ChatRoomChat", {
                                 Content: `[AFK] ${replyMsg}`,
-                                Type: "Whisper",
-                                Target: senderNum,
+                                Type: "Chat",
                             });
-                            appendLocalLogLine(`[AFK] Whispered to ${senderName}: ${replyMsg}`, UI.gold);
+                            appendLocalLogLine(`[AFK] Auto-replied in chat (mention by ${senderName})`, UI.gold);
                         }
                     }
                 } catch { /* ignore */ }

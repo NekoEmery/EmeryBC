@@ -9589,7 +9589,7 @@ export class EBCDrawer {
         afkMentionRow.style.cssText = "display:flex;align-items:center;gap:8px;";
         const afkMentionLbl = document.createElement("span");
         afkMentionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        afkMentionLbl.textContent = "Whisper reply when name mentioned in chat";
+        afkMentionLbl.textContent = "Reply in chat when name is mentioned";
         const afkMentionBtn = document.createElement("button");
         const refreshAfkMention = (): void => {
             const on = getAfkMentionReply();

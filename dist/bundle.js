@@ -13513,7 +13513,7 @@
             afkMentionRow.style.cssText = "display:flex;align-items:center;gap:8px;";
             const afkMentionLbl = document.createElement("span");
             afkMentionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            afkMentionLbl.textContent = "Whisper reply when name mentioned in chat";
+            afkMentionLbl.textContent = "Reply in chat when name is mentioned";
             const afkMentionBtn = document.createElement("button");
             const refreshAfkMention = () => {
                 const on = getAfkMentionReply();
@@ -17620,7 +17620,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.8.4";
+    const MOD_VERSION = "1.8.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17630,9 +17630,15 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
         {
+            version: "1.8.5",
+            changes: [
+                "Tweak: AFK mention-reply now sends a regular chat message instead of a whisper.",
+            ],
+        },
+        {
             version: "1.8.4",
             changes: [
-                "Fix: AFK mention-reply whisper now fires correctly — removed silent error suppression around ServerSend, made member-number parsing more robust, and added a local gold log line confirming the whisper was sent.",
+                "Fix: AFK mention-reply now fires correctly — removed silent error suppression, made member-number parsing robust, added local gold log line confirming reply was sent.",
                 "Tweak: DEV chip removed from drawer title — the overhead badge already says 'dev | v...' for dev builds.",
                 "Tweak: AFK idle threshold inputs now have their label on a separate line with more spacing between the h/m/s boxes.",
             ],
@@ -19658,10 +19664,9 @@
                                 const senderName = (_f = (_e = roomChars.find(c => c.MemberNumber === senderNum)) === null || _e === void 0 ? void 0 : _e.Name) !== null && _f !== void 0 ? _f : String(senderNum);
                                 ServerSend("ChatRoomChat", {
                                     Content: `[AFK] ${replyMsg}`,
-                                    Type: "Whisper",
-                                    Target: senderNum,
+                                    Type: "Chat",
                                 });
-                                appendLocalLogLine(`[AFK] Whispered to ${senderName}: ${replyMsg}`, UI.gold);
+                                appendLocalLogLine(`[AFK] Auto-replied in chat (mention by ${senderName})`, UI.gold);
                             }
                         }
                     }
