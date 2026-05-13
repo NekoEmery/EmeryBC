@@ -383,12 +383,14 @@ function startDrag(cx: number, cy: number): void {
     dragAnchorMouseY = cy;
     dragAnchorPanelX = sidebarX;
     dragAnchorPanelY = sidebarY;
+    let hasMoved = false;
 
     const onMove = (e: MouseEvent | TouchEvent): void => {
         const pt = "touches" in e ? e.touches[0] : e as MouseEvent;
         const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
         sidebarX = Math.max(0,          Math.min(1955, dragAnchorPanelX + (x - dragAnchorMouseX)));
         sidebarY = Math.max(GRIP_H + 2, Math.min(900,  dragAnchorPanelY + (y - dragAnchorMouseY)));
+        hasMoved = true;
     };
     const onEnd = (): void => {
         isDragging = false;
@@ -397,6 +399,11 @@ function startDrag(cx: number, cy: number): void {
         document.removeEventListener("touchmove",  onMove as EventListener);
         document.removeEventListener("mouseup",    onEnd);
         document.removeEventListener("touchend",   onEnd);
+        // Suppress the click that fires after mouseup so it doesn't hit BC characters
+        if (hasMoved) {
+            const suppress = (e: Event): void => { e.stopPropagation(); e.preventDefault(); };
+            document.addEventListener("click", suppress, { capture: true, once: true });
+        }
     };
 
     document.addEventListener("mousemove", onMove as EventListener);
@@ -439,8 +446,18 @@ export function drawActionButtons(): void {
         isDragging ? "#3d1a2a" : "#1e0e18");
     DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H,
         isDragging ? UI.accent : "#5a2a44", 1);
-    DrawTextFit("⠿", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 6,
-        isDragging ? UI.accent : "#b06080");
+    // 2×3 dot grid drag-handle icon
+    const dotCol = isDragging ? UI.accent : "#c06888";
+    const dotSize = 3;
+    const dotGapX = 6;
+    const dotGapY = 5;
+    const dotStartX = sidebarX + CHIP_W / 2 - dotGapX / 2 - dotSize / 2;
+    const dotStartY = gripY + GRIP_H / 2 - dotGapY - dotSize / 2;
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 2; col++) {
+            DrawRect(dotStartX + col * dotGapX, dotStartY + row * dotGapY, dotSize, dotSize, dotCol);
+        }
+    }
 
     // Collapse toggle — dark, unobtrusive; just a small arrow hint
     DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#100810");
