@@ -6283,18 +6283,22 @@
 }
 
 .ebc-friend-btn {
-    background: none;
-    border: 1px solid #3a1928;
-    border-radius: 4px;
-    color: #9a6878;
-    font-size: 11px;
-    padding: 1px 5px;
+    background: #2a0e1e;
+    border: 1px solid #4c2537;
+    border-radius: 5px;
+    color: #cf6f98;
+    font-size: 13px;
+    padding: 4px 7px;
     cursor: pointer;
     flex-shrink: 0;
     font-family: "Trebuchet MS", serif;
-    line-height: 1.3;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, border-color 0.12s;
 }
-.ebc-friend-btn:hover { background: #2e1525; color: #cf6f98; border-color: #cf6f98; }
+.ebc-friend-btn:hover { background: #3a1428; border-color: #cf6f98; }
 
 /* -- Beep window -- */
 .ebc-beep-win {
@@ -17822,7 +17826,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.9.3";
+    const MOD_VERSION = "1.9.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17830,6 +17834,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "1.9.4",
+            changes: [
+                "Fix: beep button height now matches profile icon button in friends list — padding and border unified.",
+            ],
+        },
         {
             version: "1.9.3",
             changes: [
