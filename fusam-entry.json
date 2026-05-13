@@ -1,0 +1,19 @@
+{
+	"id": "EmeryBC",
+	"name": "EmeryBC",
+	"description": "Outfits, restraint sets, action buttons, poses, scenes, friends tools, palettes, IM & QoL features for Bondage Club.",
+	"author": "Emery",
+	"repository": "https://github.com/NekoEmery/EmeryBC",
+	"tags": ["enhancements", "automation"],
+	"type": "script",
+	"versions": [
+		{
+			"distribution": "stable",
+			"source": "https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/dist/bundle.js"
+		},
+		{
+			"distribution": "dev",
+			"source": "https://raw.githubusercontent.com/NekoEmery/EmeryBC/dev/dist/bundle.js"
+		}
+	]
+}

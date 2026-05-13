@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "build": "rollup -c",
+    "build:prod": "rollup -c --environment BUILD:production",
     "dev": "rollup -c -w"
   },
   "devDependencies": {
