@@ -17630,7 +17630,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.8.2";
+    const MOD_VERSION = "1.8.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17640,10 +17640,15 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
         {
+            version: "1.8.3",
+            changes: [
+                "Fix: overhead badge is now hidden in map/zoom-out view (zoom < 0.75) — positioning is unreliable at low zoom and the badge is too small to read anyway.",
+            ],
+        },
+        {
             version: "1.8.2",
             changes: [
                 "Tweak: drawer header DEV badge now sits below the version text (stacked) instead of inline, so the header reads cleaner.",
-                "Tweak: overhead badge in map/zoom-out view (zoom < 0.75) is now centered directly above the character's head instead of offset to the side.",
             ],
         },
         {
@@ -19477,19 +19482,16 @@
         const label = isSelf
             ? (showVer ? "dev | v" + verStr : "dev | EBC")
             : (showVer ? "v" + verStr : "EBC");
-        // Small size in map/zoomed-out view (zoom < 0.75), full size in normal room
-        const isMapView = zoom < 0.75;
+        // Badge is only meaningful at normal room zoom — skip entirely in map/zoom-out view.
+        if (zoom < 0.75)
+            return;
         const isDevLabel = isSelf;
-        const width = isMapView
-            ? (showVer ? Math.max(28, 32 * zoom) : Math.max(18, 22 * zoom))
-            : (isDevLabel
-                ? (showVer ? Math.max(70, 78 * zoom) : Math.max(52, 58 * zoom))
-                : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom)));
-        const height = isMapView ? Math.max(8, 10 * zoom) : Math.max(12, 14 * zoom);
-        // In map view, center badge directly above the character's head.
-        // In normal view, keep the original side-offset position.
-        const x = isMapView ? left + 105 * zoom : left + 197 * zoom;
-        const y = isMapView ? top + 28 * zoom : top + 26 * zoom;
+        const width = isDevLabel
+            ? (showVer ? Math.max(70, 78 * zoom) : Math.max(52, 58 * zoom))
+            : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
+        const height = Math.max(12, 14 * zoom);
+        const x = left + 197 * zoom;
+        const y = top + 26 * zoom;
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
         DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
