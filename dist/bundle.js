@@ -6723,7 +6723,7 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
-        constructor(version = "") {
+        constructor(version = "", isDev = false) {
             this.rootEl = null; // zero-width anchor (positioned)
             this.panelEl = null; // sliding panel (transforms)
             this.isOpen = false;
@@ -6731,6 +6731,7 @@
             this.resizeObserver = null;
             this.positioned = false;
             this.version = "";
+            this.isDev = false;
             this.refreshBadgeRow = null;
             this.refreshConfirmToggle = null;
             this.refreshSwEnableBtn = null;
@@ -6763,6 +6764,7 @@
             this.tagTooltipMoveListener = null;
             EBCDrawer._instance = this;
             this.version = version;
+            this.isDev = isDev;
             if (document.body) {
                 this.setup();
             }
@@ -6806,6 +6808,12 @@
             title.style.gap = "5px";
             const titleMain = document.createElement("span");
             titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+            if (this.isDev) {
+                const devBadge = document.createElement("span");
+                devBadge.textContent = "DEV";
+                devBadge.style.cssText = "font-size:8px;background:#cf6f98;color:#1a0d14;padding:1px 6px;border-radius:3px;font-weight:bold;letter-spacing:0.8px;margin-left:4px;vertical-align:middle;font-family:'Trebuchet MS',serif;";
+                titleMain.appendChild(devBadge);
+            }
             const titleSub = document.createElement("span");
             titleSub.textContent = "EmeryBC";
             titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
@@ -17364,6 +17372,7 @@
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "1.7.5";
+    const IS_DEV_BUILD = false; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -19212,7 +19221,7 @@
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
-            drawer = new EBCDrawer(MOD_VERSION);
+            drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD);
             // Fire an initial visibility check in case the addon loads while the
             // player is already in a chat room (ChatRoomSync won't fire again).
             window.setTimeout(() => { try {

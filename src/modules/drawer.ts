@@ -2580,6 +2580,7 @@ export class EBCDrawer {
     private resizeObserver: ResizeObserver | null = null;
     private positioned = false;
     private version = "";
+    private isDev   = false;
     private refreshBadgeRow: (() => void) | null = null;
     private refreshConfirmToggle: (() => void) | null = null;
     private refreshSwEnableBtn: (() => void) | null = null;
@@ -2611,9 +2612,10 @@ export class EBCDrawer {
     private tagTooltipEl: HTMLElement | null = null;
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
 
-    constructor(version = "") {
+    constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
         this.version = version;
+        this.isDev   = isDev;
         if (document.body) {
             this.setup();
         } else {
@@ -2664,6 +2666,13 @@ export class EBCDrawer {
 
         const titleMain = document.createElement("span");
         titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+
+        if (this.isDev) {
+            const devBadge = document.createElement("span");
+            devBadge.textContent = "DEV";
+            devBadge.style.cssText = "font-size:8px;background:#cf6f98;color:#1a0d14;padding:1px 6px;border-radius:3px;font-weight:bold;letter-spacing:0.8px;margin-left:4px;vertical-align:middle;font-family:'Trebuchet MS',serif;";
+            titleMain.appendChild(devBadge);
+        }
 
         const titleSub = document.createElement("span");
         titleSub.textContent = "EmeryBC";

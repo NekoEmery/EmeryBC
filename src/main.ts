@@ -17,6 +17,7 @@ import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/s
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "1.7.5";
+const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
 
@@ -1896,7 +1897,7 @@ function init(): void {
     // DOM drawer - outfit switcher panel beside the chat log
     let drawer: EBCDrawer | null = null;
     try {
-        drawer = new EBCDrawer(MOD_VERSION);
+        drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD);
         // Fire an initial visibility check in case the addon loads while the
         // player is already in a chat room (ChatRoomSync won't fire again).
         window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);
