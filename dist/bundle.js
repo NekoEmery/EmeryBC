@@ -1866,6 +1866,27 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // When enabled, EBC also whispers the AFK message to anyone who mentions the
+    // player's name in room chat while AFK (same cooldown as beep replies).
+    function getAfkMentionReply() {
+        var _a;
+        try {
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkMentionReply) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAfkMentionReply(v) {
+        try {
+            const s = getStore$5();
+            if (s) {
+                s.afkMentionReply = v;
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- OOC mode ------------------------------------------------------------------
     // When enabled, every normal chat message is prefixed with "(" so it reads
     // as out-of-character speech. Commands (/), emotes (*), and already-OOC
@@ -13454,9 +13475,40 @@
             afkMsgArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 6px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;resize:vertical;";
             afkMsgArea.addEventListener("change", () => { setAfkMessage(afkMsgArea.value); });
             afkBody.appendChild(afkMsgArea);
+            // Mention-reply toggle
+            const afkMentionRow = document.createElement("div");
+            afkMentionRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+            const afkMentionLbl = document.createElement("span");
+            afkMentionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+            afkMentionLbl.textContent = "Whisper reply when name mentioned in chat";
+            const afkMentionBtn = document.createElement("button");
+            const refreshAfkMention = () => {
+                const on = getAfkMentionReply();
+                afkMentionBtn.textContent = on ? "ON" : "OFF";
+                afkMentionBtn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                    "padding:2px 8px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                    on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;"
+                        : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
+                ].join(";");
+            };
+            refreshAfkMention();
+            afkMentionBtn.addEventListener("click", () => { setAfkMentionReply(!getAfkMentionReply()); refreshAfkMention(); });
+            afkMentionRow.appendChild(afkMentionLbl);
+            afkMentionRow.appendChild(afkMentionBtn);
+            afkBody.appendChild(afkMentionRow);
+            // Hints
+            const afkHintBeep = document.createElement("div");
+            afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+            afkHintBeep.textContent = "Beep reply: fires when someone beeps you directly.";
+            afkBody.appendChild(afkHintBeep);
+            const afkHintMention = document.createElement("div");
+            afkHintMention.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
+            afkHintMention.textContent = "Mention reply: whispers back if your name appears in room chat.";
+            afkBody.appendChild(afkHintMention);
             const afkHint = document.createElement("div");
-            afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;font-style:italic;";
-            afkHint.textContent = "Sends once per contact every 30 min. Prefix [AFK] added automatically.";
+            afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
+            afkHint.textContent = "Sends once per person every 30 min. Prefix [AFK] added automatically.";
             afkBody.appendChild(afkHint);
             const toggleAfkCollapsed = () => {
                 afkCollapsed = !afkCollapsed;
@@ -19485,11 +19537,41 @@
         // can name them. BC sends an Action message with SourceCharacter / TargetCharacter
         // in the Dictionary whenever someone uses an item on another character.
         tryHookFunction(modAPI, "ChatRoomMessage", 3, (args, next) => {
-            var _a;
+            var _a, _b, _c, _d;
             const result = next(args);
             try {
                 const [data] = args;
                 logMessage(data);
+                // AFK mention-reply: whisper back if someone says our name in room chat
+                if ((data.Type === "Chat" || data.Type === "Emote") && getAfkEnabled() && getAfkMentionReply()) {
+                    try {
+                        const senderNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+                        const content = typeof data.Content === "string" ? data.Content.toLowerCase() : "";
+                        const myName = ((_a = Player.Name) !== null && _a !== void 0 ? _a : "").toLowerCase();
+                        const myNick = ((_b = Player.Nickname) !== null && _b !== void 0 ? _b : "").toLowerCase();
+                        const nameMatch = myName && content.includes(myName) || (myNick && content.includes(myNick));
+                        if (senderNum && senderNum !== Player.MemberNumber && nameMatch) {
+                            const idleMs = Date.now() - lastActivityTime;
+                            const thresholdMs = getAfkThreshold() * 60 * 1000;
+                            const lastReply = (_c = afkReplyCooldown.get(senderNum)) !== null && _c !== void 0 ? _c : 0;
+                            if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
+                                afkReplyCooldown.set(senderNum, Date.now());
+                                const replyMsg = getAfkMessage();
+                                window.setTimeout(() => {
+                                    try {
+                                        ServerSend("ChatRoomChat", {
+                                            Content: `[AFK] ${replyMsg}`,
+                                            Type: "Whisper",
+                                            Target: senderNum,
+                                        });
+                                    }
+                                    catch ( /* ignore */_a) { /* ignore */ }
+                                }, 500);
+                            }
+                        }
+                    }
+                    catch ( /* ignore */_e) { /* ignore */ }
+                }
                 if (data.Type !== "Action")
                     return result;
                 const dict = data.Dictionary;
@@ -19515,12 +19597,12 @@
                     // Also stash the name for the restraint log — it flushes any
                     // pending additions that are waiting on the applier name.
                     try {
-                        setPendingLogApplier((_a = getLastRestrainerName()) !== null && _a !== void 0 ? _a : `#${sourceNum}`, sourceNum);
+                        setPendingLogApplier((_d = getLastRestrainerName()) !== null && _d !== void 0 ? _d : `#${sourceNum}`, sourceNum);
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
+                    catch ( /* ignore */_f) { /* ignore */ }
                 }
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             return result;
         });
         // Capture raw server-format character bundles for offline profile viewing.

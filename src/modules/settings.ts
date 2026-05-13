@@ -177,6 +177,15 @@ export function setAfkMessage(msg: string): void {
     try { const s = getStore(); if (s) { s.afkMessage = msg.slice(0, 200).trim(); callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC")); } } catch { /* ignore */ }
 }
 
+// When enabled, EBC also whispers the AFK message to anyone who mentions the
+// player's name in room chat while AFK (same cooldown as beep replies).
+export function getAfkMentionReply(): boolean {
+    try { return getStore()?.afkMentionReply === true; } catch { return false; }
+}
+export function setAfkMentionReply(v: boolean): void {
+    try { const s = getStore(); if (s) { s.afkMentionReply = v; callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC")); } } catch { /* ignore */ }
+}
+
 // -- OOC mode ------------------------------------------------------------------
 // When enabled, every normal chat message is prefixed with "(" so it reads
 // as out-of-character speech. Commands (/), emotes (*), and already-OOC

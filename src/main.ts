@@ -5,7 +5,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getAfkMentionReply, getOocEnabled, recordPersonMet } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -1965,6 +1965,36 @@ function init(): void {
         try {
             const [data] = args as [Record<string, unknown>];
             logMessage(data);
+
+            // AFK mention-reply: whisper back if someone says our name in room chat
+            if ((data.Type === "Chat" || data.Type === "Emote") && getAfkEnabled() && getAfkMentionReply()) {
+                try {
+                    const senderNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+                    const content   = typeof data.Content === "string" ? data.Content.toLowerCase() : "";
+                    const myName    = (Player.Name ?? "").toLowerCase();
+                    const myNick    = ((Player as unknown as Record<string, unknown>).Nickname as string | undefined ?? "").toLowerCase();
+                    const nameMatch = myName && content.includes(myName) || (myNick && content.includes(myNick));
+                    if (senderNum && senderNum !== Player.MemberNumber && nameMatch) {
+                        const idleMs      = Date.now() - lastActivityTime;
+                        const thresholdMs = getAfkThreshold() * 60 * 1000;
+                        const lastReply   = afkReplyCooldown.get(senderNum) ?? 0;
+                        if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
+                            afkReplyCooldown.set(senderNum, Date.now());
+                            const replyMsg = getAfkMessage();
+                            window.setTimeout(() => {
+                                try {
+                                    ServerSend("ChatRoomChat", {
+                                        Content: `[AFK] ${replyMsg}`,
+                                        Type: "Whisper",
+                                        Target: senderNum,
+                                    });
+                                } catch { /* ignore */ }
+                            }, 500);
+                        }
+                    }
+                } catch { /* ignore */ }
+            }
+
             if (data.Type !== "Action") return result;
             const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;
             if (!dict) return result;
