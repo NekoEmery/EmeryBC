@@ -1864,10 +1864,10 @@
         var _a;
         try {
             const v = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
-            return typeof v === "number" && v >= 1 ? v : 600;
+            return typeof v === "number" && v >= 1 ? v : 300;
         }
         catch (_b) {
-            return 600;
+            return 300;
         }
     }
     function setAfkThreshold(n) {
@@ -19854,6 +19854,8 @@
                         const replyMsg = `[AFK] ${getAfkMessage()}`;
                         ServerSend("AccountBeep", { MemberNumber: fromNum, Message: replyMsg, BeepType: "" });
                         addBeepEntry({ from: (_b = Player.MemberNumber) !== null && _b !== void 0 ? _b : 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                        const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
+                        appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
                         try {
                             drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
                         }

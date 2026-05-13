@@ -2217,6 +2217,8 @@ function init(): void {
                     const replyMsg = `[AFK] ${getAfkMessage()}`;
                     ServerSend("AccountBeep", { MemberNumber: fromNum, Message: replyMsg, BeepType: "" });
                     addBeepEntry({ from: Player.MemberNumber ?? 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                    const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
+                    appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
                     try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
                 }
             } catch { /* ignore */ }

@@ -162,7 +162,7 @@ export function setAfkEnabled(v: boolean): void {
 
 // Threshold stored in SECONDS (key afkThresholdSec). Default 600 s = 10 min.
 export function getAfkThreshold(): number {
-    try { const v = getStore()?.afkThresholdSec; return typeof v === "number" && v >= 1 ? v : 600; } catch { return 600; }
+    try { const v = getStore()?.afkThresholdSec; return typeof v === "number" && v >= 1 ? v : 300; } catch { return 300; }
 }
 export function setAfkThreshold(n: number): void {
     try { const s = getStore(); if (s) { s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n))); callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC")); } } catch { /* ignore */ }
