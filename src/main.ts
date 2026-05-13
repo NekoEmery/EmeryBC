@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.9.4";
+const MOD_VERSION = "1.9.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.9.5",
+        changes: [
+            "Fix: presence sync rate-limited to 6 s to prevent AccountUpdate spam on rapid ChatRoomSync bursts.",
+            "Fix: isDev field now included in alreadyStored check so it's always re-saved if missing.",
+            "Fix: saveTabOffset, savePanelPosition, getBarks, saveBarks now use callBC() wrapper to safely handle async hook rejections from ServerPlayerExtensionSettingsSync.",
+            "UI: colour slot labels renamed for clarity — 'Input BG' → 'Inset BG', 'Text (sub)' → 'Subtext', 'Text (muted)' → 'Dim Text'.",
+        ],
+    },
     {
         version: "1.9.4",
         changes: [
@@ -1914,6 +1923,10 @@ function getAddonSettings(character: Character | null | undefined, create = fals
     return created;
 }
 
+// Cooldown so rapid ChatRoomSync bursts don't spam AccountUpdate.
+let lastPresenceSyncTime = 0;
+const PRESENCE_SYNC_COOLDOWN_MS = 6_000; // 6 s between sends
+
 function syncPresenceMarker(): void {
     const shared = (Player.OnlineSharedSettings ??= {});
 
@@ -1925,16 +1938,20 @@ function syncPresenceMarker(): void {
     // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
     const settings = getAddonSettings(Player, true);
     if (settings) {
-        const alreadyStored = settings.presence?.version === MOD_VERSION;
+        const alreadyStored = settings.presence?.version === MOD_VERSION
+            && settings.presence?.isDev === (IS_DEV_BUILD ? true : undefined);
         if (!alreadyStored) {
             settings.presence = presence;
             ServerPlayerExtensionSettingsSync(MOD_NAME);
         }
     }
 
-    // Write to OnlineSharedSettings and always send AccountUpdate so that
-    // all fields (including isDev) are broadcast to current room members.
-    // One AccountUpdate per room join is well within BC's rate limits.
+    // Write to OnlineSharedSettings and send AccountUpdate so that all fields
+    // (including isDev) are broadcast to current room members. Rate-limited to
+    // once every 6 s so a burst of ChatRoomSync packets doesn't flood the server.
+    const now = Date.now();
+    if (now - lastPresenceSyncTime < PRESENCE_SYNC_COOLDOWN_MS) return;
+    lastPresenceSyncTime = now;
     shared[MOD_NAME] = { presence };
     ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
 }

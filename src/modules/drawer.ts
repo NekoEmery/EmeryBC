@@ -85,6 +85,7 @@ import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } 
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
+import { callBC } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -3537,7 +3538,7 @@ export class EBCDrawer {
         try {
             if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
             (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).tabPos = pos ?? null;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         } catch { /* ignore */ }
     }
 
@@ -3566,7 +3567,7 @@ export class EBCDrawer {
         try {
             if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
             (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).panelPos = pos ?? null;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         } catch { /* ignore */ }
     }
 
@@ -10797,20 +10798,20 @@ export class EBCDrawer {
 
             // ── Per-colour pickers ─────────────────────────────────────────────
             const colorFields: Array<{ key: keyof CoreColors; label: string; hint: string }> = [
-                { key: "bg",         label: "Panel BG",     hint: "Main drawer background" },
-                { key: "card",       label: "Card",         hint: "Section card backgrounds" },
-                { key: "cardMuted",  label: "Input BG",     hint: "Text inputs & textareas" },
-                { key: "border",     label: "Border",       hint: "All border lines" },
-                { key: "accent",     label: "Accent",       hint: "Buttons, highlights, active states" },
-                { key: "gold",       label: "Gold",         hint: "Yellow / gold highlights & labels" },
-                { key: "textBright", label: "Text",         hint: "Primary readable text" },
-                { key: "textSub",    label: "Text (sub)",   hint: "Secondary / label text" },
-                { key: "textMuted",  label: "Text (muted)", hint: "Inactive / placeholder text" },
+                { key: "bg",         label: "Drawer BG",  hint: "Main panel background" },
+                { key: "card",       label: "Card BG",    hint: "Section / card backgrounds" },
+                { key: "cardMuted",  label: "Inset BG",   hint: "Text inputs, textareas, recessed surfaces" },
+                { key: "border",     label: "Border",     hint: "All border lines" },
+                { key: "accent",     label: "Accent",     hint: "Buttons, highlights, active states" },
+                { key: "gold",       label: "Gold",       hint: "Gold highlights, notices & labels" },
+                { key: "textBright", label: "Text",       hint: "Primary readable text" },
+                { key: "textSub",    label: "Subtext",    hint: "Secondary / label text" },
+                { key: "textMuted",  label: "Dim Text",   hint: "Inactive, placeholder & muted text" },
             ];
 
             const subLbl = document.createElement("div");
             subLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;";
-            subLbl.textContent = "Individual colours";
+            subLbl.textContent = "Colour slots";
             cnt.appendChild(subLbl);
 
             const grid = document.createElement("div");
@@ -12325,12 +12326,12 @@ export class EBCDrawer {
             const initial = [...BUILTIN_BARKS, ...legacy];
             store.barks = initial;
             if (legacy.length > 0) { delete store.customBarks; }
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
             return initial;
         };
         const saveBarks = (barks: string[]): void => {
             getPuppyStore().barks = barks;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         };
 
         // Bark button

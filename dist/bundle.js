@@ -7781,7 +7781,7 @@
                 if (!Player.ExtensionSettings.EmeryBC)
                     Player.ExtensionSettings.EmeryBC = {};
                 Player.ExtensionSettings.EmeryBC.tabPos = pos !== null && pos !== void 0 ? pos : null;
-                ServerPlayerExtensionSettingsSync("EmeryBC");
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -7812,7 +7812,7 @@
                 if (!Player.ExtensionSettings.EmeryBC)
                     Player.ExtensionSettings.EmeryBC = {};
                 Player.ExtensionSettings.EmeryBC.panelPos = pos !== null && pos !== void 0 ? pos : null;
-                ServerPlayerExtensionSettingsSync("EmeryBC");
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -14877,19 +14877,19 @@
                 cnt.appendChild(presetRow);
                 // ── Per-colour pickers ─────────────────────────────────────────────
                 const colorFields = [
-                    { key: "bg", label: "Panel BG", hint: "Main drawer background" },
-                    { key: "card", label: "Card", hint: "Section card backgrounds" },
-                    { key: "cardMuted", label: "Input BG", hint: "Text inputs & textareas" },
+                    { key: "bg", label: "Drawer BG", hint: "Main panel background" },
+                    { key: "card", label: "Card BG", hint: "Section / card backgrounds" },
+                    { key: "cardMuted", label: "Inset BG", hint: "Text inputs, textareas, recessed surfaces" },
                     { key: "border", label: "Border", hint: "All border lines" },
                     { key: "accent", label: "Accent", hint: "Buttons, highlights, active states" },
-                    { key: "gold", label: "Gold", hint: "Yellow / gold highlights & labels" },
+                    { key: "gold", label: "Gold", hint: "Gold highlights, notices & labels" },
                     { key: "textBright", label: "Text", hint: "Primary readable text" },
-                    { key: "textSub", label: "Text (sub)", hint: "Secondary / label text" },
-                    { key: "textMuted", label: "Text (muted)", hint: "Inactive / placeholder text" },
+                    { key: "textSub", label: "Subtext", hint: "Secondary / label text" },
+                    { key: "textMuted", label: "Dim Text", hint: "Inactive, placeholder & muted text" },
                 ];
                 const subLbl = document.createElement("div");
                 subLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;";
-                subLbl.textContent = "Individual colours";
+                subLbl.textContent = "Colour slots";
                 cnt.appendChild(subLbl);
                 const grid = document.createElement("div");
                 grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px;";
@@ -16475,12 +16475,12 @@
                 if (legacy.length > 0) {
                     delete store.customBarks;
                 }
-                ServerPlayerExtensionSettingsSync("EmeryBC");
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
                 return initial;
             };
             const saveBarks = (barks) => {
                 getPuppyStore().barks = barks;
-                ServerPlayerExtensionSettingsSync("EmeryBC");
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
             };
             // Bark button
             const barkBtn = document.createElement("button");
@@ -17826,7 +17826,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.9.4";
+    const MOD_VERSION = "1.9.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17834,6 +17834,15 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "1.9.5",
+            changes: [
+                "Fix: presence sync rate-limited to 6 s to prevent AccountUpdate spam on rapid ChatRoomSync bursts.",
+                "Fix: isDev field now included in alreadyStored check so it's always re-saved if missing.",
+                "Fix: saveTabOffset, savePanelPosition, getBarks, saveBarks now use callBC() wrapper to safely handle async hook rejections from ServerPlayerExtensionSettingsSync.",
+                "UI: colour slot labels renamed for clarity — 'Input BG' → 'Inset BG', 'Text (sub)' → 'Subtext', 'Text (muted)' → 'Dim Text'.",
+            ],
+        },
         {
             version: "1.9.4",
             changes: [
@@ -19698,8 +19707,11 @@
         extensionSettings[MOD_NAME] = created;
         return created;
     }
+    // Cooldown so rapid ChatRoomSync bursts don't spam AccountUpdate.
+    let lastPresenceSyncTime = 0;
+    const PRESENCE_SYNC_COOLDOWN_MS = 6000; // 6 s between sends
     function syncPresenceMarker() {
-        var _a, _b;
+        var _a, _b, _c;
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
         // Always broadcast presence regardless of local display toggle —
         // the toggle only controls what YOU see, not what others see.
@@ -19708,15 +19720,20 @@
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
         if (settings) {
-            const alreadyStored = ((_b = settings.presence) === null || _b === void 0 ? void 0 : _b.version) === MOD_VERSION;
+            const alreadyStored = ((_b = settings.presence) === null || _b === void 0 ? void 0 : _b.version) === MOD_VERSION
+                && ((_c = settings.presence) === null || _c === void 0 ? void 0 : _c.isDev) === (true );
             if (!alreadyStored) {
                 settings.presence = presence;
                 ServerPlayerExtensionSettingsSync(MOD_NAME);
             }
         }
-        // Write to OnlineSharedSettings and always send AccountUpdate so that
-        // all fields (including isDev) are broadcast to current room members.
-        // One AccountUpdate per room join is well within BC's rate limits.
+        // Write to OnlineSharedSettings and send AccountUpdate so that all fields
+        // (including isDev) are broadcast to current room members. Rate-limited to
+        // once every 6 s so a burst of ChatRoomSync packets doesn't flood the server.
+        const now = Date.now();
+        if (now - lastPresenceSyncTime < PRESENCE_SYNC_COOLDOWN_MS)
+            return;
+        lastPresenceSyncTime = now;
         shared[MOD_NAME] = { presence };
         ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
     }
