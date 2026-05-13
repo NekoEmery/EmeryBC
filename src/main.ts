@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.8.0";
+const MOD_VERSION = "1.8.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -27,6 +27,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.8.1",
+        changes: [
+            "Tweak: AFK idle threshold input split into three boxes — hours, minutes, seconds (e.g. 00h 10m 00s). Zero fields pad to 00 on blur. Minimum effective threshold is 1 second.",
+        ],
+    },
     {
         version: "1.8.0",
         changes: [

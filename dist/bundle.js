@@ -13443,44 +13443,63 @@
             afkToggleRow.appendChild(afkToggleLbl);
             afkToggleRow.appendChild(afkToggleBtn);
             afkBody.appendChild(afkToggleRow);
-            // Threshold row
+            // Threshold row — h / m / s boxes
             const afkThreshRow = document.createElement("div");
-            afkThreshRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+            afkThreshRow.style.cssText = "display:flex;align-items:center;gap:5px;";
             const afkThreshLbl = document.createElement("span");
             afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
             afkThreshLbl.textContent = "Idle threshold";
-            const afkThreshInput = document.createElement("input");
-            afkThreshInput.type = "number";
-            afkThreshInput.min = "1";
-            afkThreshInput.max = "86400";
-            afkThreshInput.value = String(getAfkThreshold());
-            afkThreshInput.style.cssText = "width:62px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
-            const afkThreshUnit = document.createElement("span");
-            afkThreshUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;white-space:nowrap;flex-shrink:0;";
-            const updateThreshUnit = (secs) => {
-                if (secs < 60)
-                    afkThreshUnit.textContent = `sec`;
-                else if (secs < 3600)
-                    afkThreshUnit.textContent = `sec (${(secs / 60).toFixed(1).replace(/\.0$/, "")} min)`;
-                else
-                    afkThreshUnit.textContent = `sec (${(secs / 3600).toFixed(1).replace(/\.0$/, "")} hr)`;
+            const inputCss = "width:34px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
+            const unitCss = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;";
+            const makeTimeBox = (max) => {
+                const inp = document.createElement("input");
+                inp.type = "number";
+                inp.min = "0";
+                inp.max = String(max);
+                inp.style.cssText = inputCss;
+                // format as 2-digit on blur
+                inp.addEventListener("blur", () => {
+                    const v = Math.max(0, Math.min(max, parseInt(inp.value, 10) || 0));
+                    inp.value = String(v).padStart(2, "0");
+                });
+                return inp;
             };
-            updateThreshUnit(getAfkThreshold());
-            afkThreshInput.addEventListener("input", () => {
-                const v = parseInt(afkThreshInput.value, 10);
-                if (!isNaN(v) && v >= 1)
-                    updateThreshUnit(v);
-            });
-            afkThreshInput.addEventListener("change", () => {
-                const v = parseInt(afkThreshInput.value, 10);
-                if (!isNaN(v) && v >= 1) {
-                    setAfkThreshold(v);
-                    updateThreshUnit(v);
-                }
-            });
+            const totalSecs = getAfkThreshold();
+            const initH = Math.floor(totalSecs / 3600);
+            const initM = Math.floor((totalSecs % 3600) / 60);
+            const initS = totalSecs % 60;
+            const hInp = makeTimeBox(99);
+            hInp.value = String(initH).padStart(2, "0");
+            const hLbl = document.createElement("span");
+            hLbl.style.cssText = unitCss;
+            hLbl.textContent = "h";
+            const mInp = makeTimeBox(59);
+            mInp.value = String(initM).padStart(2, "0");
+            const mLbl = document.createElement("span");
+            mLbl.style.cssText = unitCss;
+            mLbl.textContent = "m";
+            const sInp = makeTimeBox(59);
+            sInp.value = String(initS).padStart(2, "0");
+            const sLbl = document.createElement("span");
+            sLbl.style.cssText = unitCss;
+            sLbl.textContent = "s";
+            const commitThreshold = () => {
+                const h = Math.max(0, parseInt(hInp.value, 10) || 0);
+                const m = Math.max(0, Math.min(59, parseInt(mInp.value, 10) || 0));
+                const s = Math.max(0, Math.min(59, parseInt(sInp.value, 10) || 0));
+                const total = h * 3600 + m * 60 + s;
+                setAfkThreshold(Math.max(1, total));
+            };
+            hInp.addEventListener("change", commitThreshold);
+            mInp.addEventListener("change", commitThreshold);
+            sInp.addEventListener("change", commitThreshold);
             afkThreshRow.appendChild(afkThreshLbl);
-            afkThreshRow.appendChild(afkThreshInput);
-            afkThreshRow.appendChild(afkThreshUnit);
+            afkThreshRow.appendChild(hInp);
+            afkThreshRow.appendChild(hLbl);
+            afkThreshRow.appendChild(mInp);
+            afkThreshRow.appendChild(mLbl);
+            afkThreshRow.appendChild(sInp);
+            afkThreshRow.appendChild(sLbl);
             afkBody.appendChild(afkThreshRow);
             // Message row
             const afkMsgLbl = document.createElement("div");
@@ -17607,7 +17626,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.8.0";
+    const MOD_VERSION = "1.8.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17616,6 +17635,12 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.8.1",
+            changes: [
+                "Tweak: AFK idle threshold input split into three boxes — hours, minutes, seconds (e.g. 00h 10m 00s). Zero fields pad to 00 on blur. Minimum effective threshold is 1 second.",
+            ],
+        },
         {
             version: "1.8.0",
             changes: [
