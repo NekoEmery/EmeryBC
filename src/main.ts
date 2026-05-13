@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.6.6";
+const MOD_VERSION = "1.6.7";
 
 let noticeShown = false;
 
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.6.7",
+        changes: [
+            "Fix: safeword enable toggle now re-reads its saved state every time the drawer opens (not just once on construction when ExtensionSettings might not be ready yet). setSafewordConfig now uses callBC to handle async rejections from mod hooks that wrap ServerPlayerExtensionSettingsSync.",
+        ],
+    },
     {
         version: "1.6.6",
         changes: [

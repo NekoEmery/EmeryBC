@@ -2474,6 +2474,7 @@ export class EBCDrawer {
     private version = "";
     private refreshBadgeRow: (() => void) | null = null;
     private refreshConfirmToggle: (() => void) | null = null;
+    private refreshSwEnableBtn: (() => void) | null = null;
     private beepWins = new Map<number, { el: HTMLElement; minimized: boolean }>();
     private beepUnread = new Map<number, number>();
     private friendsSectionEl: HTMLElement | null = null;
@@ -2988,6 +2989,7 @@ export class EBCDrawer {
             safewordRow.style.background  = on ? "rgba(12,4,10,0.6)" : "rgba(40,5,15,0.75)";
         };
         refreshSwEnable();
+        this.refreshSwEnableBtn = refreshSwEnable;
 
         swEnableBtn.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -3585,6 +3587,7 @@ export class EBCDrawer {
         // Re-read persisted settings — BC may restore ExtensionSettings after the
         // drawer is first built, so we refresh any toggles that depend on them.
         try { this.refreshConfirmToggle?.(); } catch { /* ignore */ }
+        try { this.refreshSwEnableBtn?.();   } catch { /* ignore */ }
     }
 
     // -- Tab switching ---------------------------------------------------------
@@ -12851,7 +12854,8 @@ export class EBCDrawer {
             this.panelEl.className = "ebc-open";
         }
         if (!this.positioned) this.syncToChat();
-        try { this.refreshBadgeRow?.(); } catch { /* ignore */ }
+        try { this.refreshBadgeRow?.();    } catch { /* ignore */ }
+        try { this.refreshSwEnableBtn?.(); } catch { /* ignore */ }
         // Show the DOM tab only for the creator
         const domTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-dom");
         if (domTabEl) domTabEl.style.display = isDomEnabled() ? "" : "none";

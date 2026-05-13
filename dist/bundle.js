@@ -3553,7 +3553,9 @@
             if (!store)
                 return;
             store.safeword = cfg;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            // Use callBC to handle async rejections — mod hooks on ServerPlayerExtensionSettingsSync
+            // may return a rejecting Promise that a bare call would silently swallow.
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -6610,6 +6612,7 @@
             this.version = "";
             this.refreshBadgeRow = null;
             this.refreshConfirmToggle = null;
+            this.refreshSwEnableBtn = null;
             this.beepWins = new Map();
             this.beepUnread = new Map();
             this.friendsSectionEl = null;
@@ -7082,6 +7085,7 @@
                 safewordRow.style.background = on ? "rgba(12,4,10,0.6)" : "rgba(40,5,15,0.75)";
             };
             refreshSwEnable();
+            this.refreshSwEnableBtn = refreshSwEnable;
             swEnableBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 setSafewordConfig(Object.assign(Object.assign({}, getSafewordConfig()), { enabled: !getSafewordConfig().enabled }));
@@ -7574,7 +7578,7 @@
         }
         // -- Visibility ------------------------------------------------------------
         updateVisibility() {
-            var _a, _b;
+            var _a, _b, _c;
             if (!this.rootEl || !this.panelEl)
                 return;
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
@@ -7607,7 +7611,7 @@
                     try {
                         this.openBeepWindow(num, true);
                     }
-                    catch ( /* ignore */_c) { /* ignore */ }
+                    catch ( /* ignore */_d) { /* ignore */ }
                 }
             }
             // Try to position; if the chat log isn't laid out yet, retry next frame
@@ -7637,7 +7641,11 @@
             try {
                 (_b = this.refreshConfirmToggle) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
+            try {
+                (_c = this.refreshSwEnableBtn) === null || _c === void 0 ? void 0 : _c.call(this);
+            }
+            catch ( /* ignore */_f) { /* ignore */ }
         }
         // -- Tab switching ---------------------------------------------------------
         stopDevLogPoller() {
@@ -16680,7 +16688,7 @@
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
@@ -16710,13 +16718,17 @@
             try {
                 (_b = this.refreshBadgeRow) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
+            try {
+                (_c = this.refreshSwEnableBtn) === null || _c === void 0 ? void 0 : _c.call(this);
+            }
+            catch ( /* ignore */_g) { /* ignore */ }
             // Show the DOM tab only for the creator
-            const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
+            const domTabEl = (_d = this.rootEl) === null || _d === void 0 ? void 0 : _d.querySelector("#ebc-tab-dom");
             if (domTabEl)
                 domTabEl.style.display = isDomEnabled() ? "" : "none";
             // Show the Puppy tab only for Lucy (#230466)
-            const puppyTabEl = (_d = this.rootEl) === null || _d === void 0 ? void 0 : _d.querySelector("#ebc-tab-puppy");
+            const puppyTabEl = (_e = this.rootEl) === null || _e === void 0 ? void 0 : _e.querySelector("#ebc-tab-puppy");
             if (puppyTabEl)
                 puppyTabEl.style.display = Player.MemberNumber === 230466 ? "" : "none";
             this.updateTimer();
@@ -16766,7 +16778,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.6.6";
+    const MOD_VERSION = "1.6.7";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -16774,6 +16786,12 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.6.7",
+            changes: [
+                "Fix: safeword enable toggle now re-reads its saved state every time the drawer opens (not just once on construction when ExtensionSettings might not be ready yet). setSafewordConfig now uses callBC to handle async rejections from mod hooks that wrap ServerPlayerExtensionSettingsSync.",
+            ],
+        },
         {
             version: "1.6.6",
             changes: [

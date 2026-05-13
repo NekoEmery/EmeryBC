@@ -80,7 +80,9 @@ export function setSafewordConfig(cfg: SafewordConfig): void {
         const store = getStore();
         if (!store) return;
         store.safeword = cfg;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        // Use callBC to handle async rejections — mod hooks on ServerPlayerExtensionSettingsSync
+        // may return a rejecting Promise that a bare call would silently swallow.
+        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
     } catch { /* ignore */ }
 }
 
