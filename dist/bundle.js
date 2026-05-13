@@ -412,9 +412,9 @@
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
         // Drag grip — minimal dark bar, dots indicate draggable
-        DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? "#3a1828" : "#0e0608");
-        DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accentSoft : "#221018", 1);
-        DrawTextFit("· · ·", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4, isDragging ? UI.accent : "#3a1828");
+        DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? "#3a1828" : "#1a0812");
+        DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accentSoft : "#4a2038", 1);
+        DrawTextFit("· · ·", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4, isDragging ? UI.accent : "#9a5878");
         // Collapse toggle — dark, unobtrusive; just a small arrow hint
         DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#100810");
         DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#2a1428", 1);
@@ -6931,6 +6931,12 @@
             titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
             title.appendChild(titleMain);
             title.appendChild(titleSub);
+            if (this.isDev) {
+                const devChip = document.createElement("span");
+                devChip.textContent = "DEV";
+                devChip.style.cssText = "font-size:8px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
+                title.appendChild(devChip);
+            }
             const headerBtns = document.createElement("div");
             headerBtns.className = "ebc-header-btns";
             const refreshBtn = document.createElement("button");

@@ -2674,6 +2674,13 @@ export class EBCDrawer {
         title.appendChild(titleMain);
         title.appendChild(titleSub);
 
+        if (this.isDev) {
+            const devChip = document.createElement("span");
+            devChip.textContent = "DEV";
+            devChip.style.cssText = "font-size:8px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
+            title.appendChild(devChip);
+        }
+
         const headerBtns = document.createElement("div");
         headerBtns.className = "ebc-header-btns";
 

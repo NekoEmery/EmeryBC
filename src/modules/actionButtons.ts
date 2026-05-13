@@ -419,11 +419,11 @@ export function drawActionButtons(): void {
 
     // Drag grip — minimal dark bar, dots indicate draggable
     DrawRect(sidebarX, gripY, CHIP_W, GRIP_H,
-        isDragging ? "#3a1828" : "#0e0608");
+        isDragging ? "#3a1828" : "#1a0812");
     DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H,
-        isDragging ? UI.accentSoft : "#221018", 1);
+        isDragging ? UI.accentSoft : "#4a2038", 1);
     DrawTextFit("· · ·", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4,
-        isDragging ? UI.accent : "#3a1828");
+        isDragging ? UI.accent : "#9a5878");
 
     // Collapse toggle — dark, unobtrusive; just a small arrow hint
     DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#100810");
