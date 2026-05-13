@@ -18667,7 +18667,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.5";
+    const MOD_VERSION = "2.2.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18675,6 +18675,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.6",
+            changes: [
+                "UI: badge x reverted to 100 (matches stable alignment under WCE), y kept at 72.",
+            ],
+        },
         {
             version: "2.2.5",
             changes: [
@@ -20813,7 +20819,7 @@
             ? (showVer ? Math.max(70, 78 * zoom) : Math.max(52, 58 * zoom))
             : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
         const height = Math.max(12, 14 * zoom);
-        const x = left + 272 * zoom; // centered under WCE numbers
+        const x = left + 100 * zoom; // same as stable — lines up under WCE
         const y = top + 72 * zoom; // below WCE name + version line
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
