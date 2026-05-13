@@ -493,10 +493,10 @@ export function drawActionButtons(): void {
     const btnStartY  = catChipY + CAT_CHIP_H + 4;
 
     // Semi-transparent background variants
-    const bgNormal   = withAlpha(UI.cardMuted,   0.70);
-    const bgActive   = withAlpha(UI.accentSoft,  0.70);
-    const bgChip     = withAlpha("#2a0e1e",       0.70);
-    const bgInactive = withAlpha("#1a0a14",       0.70);
+    const bgNormal   = withAlpha(UI.cardMuted,   0.88);
+    const bgActive   = withAlpha(UI.accentSoft,  0.88);
+    const bgChip     = withAlpha("#2a0e1e",       0.88);
+    const bgInactive = withAlpha("#1a0a14",       0.88);
 
     // Drag grip — hold & drag to reposition
     DrawRect(sidebarX, gripY, CHIP_W, GRIP_H,
@@ -556,7 +556,7 @@ export function drawActionButtons(): void {
         const btn = buttons[i];
         if (!btn?.enabled || !btn.label) continue;
         DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
-            btn.label, withAlpha(btn.color || "#c2185b", 0.72), "", btn.emote);
+            btn.label, withAlpha(btn.color || "#c2185b", 0.90), "", btn.emote);
     }
 }
 

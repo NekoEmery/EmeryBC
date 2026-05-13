@@ -1957,7 +1957,7 @@ const CSS = `
     position: fixed;
     width: 300px;
     height: 380px;
-    background: rgba(19,8,16,0.78);
+    background: rgba(19,8,16,0.55);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     border: 2px solid #cf6f98;
@@ -1977,7 +1977,7 @@ const CSS = `
     align-items: center;
     gap: 6px;
     padding: 7px 10px 6px;
-    background: rgba(30,13,26,0.82);
+    background: rgba(30,13,26,0.58);
     border-bottom: 1px solid #3a1928;
     cursor: grab;
     user-select: none;
@@ -1996,7 +1996,7 @@ const CSS = `
 }
 
 .ebc-beep-win-hbtn {
-    background: rgba(42,14,30,0.78);
+    background: rgba(42,14,30,0.58);
     border: 1px solid #4a2035;
     border-radius: 5px;
     color: #9a6878;
@@ -2031,13 +2031,13 @@ const CSS = `
 }
 .ebc-beep-msg.sent {
     align-self: flex-end;
-    background: rgba(58,16,40,0.82);
+    background: rgba(58,16,40,0.60);
     color: #f0c8d8;
     border-bottom-right-radius: 2px;
 }
 .ebc-beep-msg.received {
     align-self: flex-start;
-    background: rgba(30,13,26,0.82);
+    background: rgba(30,13,26,0.58);
     color: #e0c0cc;
     border: 1px solid #3a1928;
     border-bottom-left-radius: 2px;
@@ -2059,7 +2059,7 @@ const CSS = `
 
 .ebc-beep-win-input {
     flex: 1;
-    background: rgba(30,13,26,0.80);
+    background: rgba(30,13,26,0.58);
     border: 1px solid #5a2840;
     border-radius: 5px;
     color: #e8d0d8;
