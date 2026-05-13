@@ -6483,13 +6483,15 @@
     position: fixed;
     width: 300px;
     height: 380px;
-    background: #130810;
+    background: rgba(19,8,16,0.78);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     border: 2px solid #cf6f98;
     border-radius: 10px;
     display: flex;
     flex-direction: column;
     z-index: 999998;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.9);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     font-family: "Trebuchet MS", serif;
     bottom: 80px;
     right: 340px;
@@ -6501,7 +6503,7 @@
     align-items: center;
     gap: 6px;
     padding: 7px 10px 6px;
-    background: #1e0d1a;
+    background: rgba(30,13,26,0.82);
     border-bottom: 1px solid #3a1928;
     cursor: grab;
     user-select: none;
@@ -6520,7 +6522,7 @@
 }
 
 .ebc-beep-win-hbtn {
-    background: #2a0e1e;
+    background: rgba(42,14,30,0.78);
     border: 1px solid #4a2035;
     border-radius: 5px;
     color: #9a6878;
@@ -6531,8 +6533,8 @@
     flex-shrink: 0;
     transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.ebc-beep-win-hbtn:hover { background: #3a1028; color: #cf6f98; border-color: #cf6f98; }
-.ebc-beep-win-close.ebc-beep-win-hbtn:hover { background: #4a1020; color: #ff6080; border-color: #ff6080; }
+.ebc-beep-win-hbtn:hover { background: rgba(58,16,40,0.90); color: #cf6f98; border-color: #cf6f98; }
+.ebc-beep-win-close.ebc-beep-win-hbtn:hover { background: rgba(74,16,32,0.90); color: #ff6080; border-color: #ff6080; }
 .ebc-beep-win-mute.muted { color: #4a2a38; border-color: #3a1928; }
 
 .ebc-beep-win-history {
@@ -6555,13 +6557,13 @@
 }
 .ebc-beep-msg.sent {
     align-self: flex-end;
-    background: #3a1028;
+    background: rgba(58,16,40,0.82);
     color: #f0c8d8;
     border-bottom-right-radius: 2px;
 }
 .ebc-beep-msg.received {
     align-self: flex-start;
-    background: #1e0d1a;
+    background: rgba(30,13,26,0.82);
     color: #e0c0cc;
     border: 1px solid #3a1928;
     border-bottom-left-radius: 2px;
@@ -6583,7 +6585,7 @@
 
 .ebc-beep-win-input {
     flex: 1;
-    background: #1e0d1a;
+    background: rgba(30,13,26,0.80);
     border: 1px solid #5a2840;
     border-radius: 5px;
     color: #e8d0d8;
@@ -18662,7 +18664,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.1.9";
+    const MOD_VERSION = "2.2.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18670,6 +18672,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.0",
+            changes: [
+                "UI: beep/IM windows are now semi-transparent with backdrop blur, matching the action button sidebar style.",
+            ],
+        },
         {
             version: "2.1.9",
             changes: [
