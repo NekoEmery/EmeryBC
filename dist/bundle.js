@@ -17047,7 +17047,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.7.0";
+    const MOD_VERSION = "1.7.1";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -17055,6 +17055,13 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.7.1",
+            changes: [
+                "New: Copy Restraints from Member in Dev tab — select any room member, preview their restraints, and apply them to yourself with lock data stripped.",
+                "Fix: User Notes tab now live-updates when a note is saved from the friend expand panel.",
+            ],
+        },
         {
             version: "1.7.0",
             changes: [
