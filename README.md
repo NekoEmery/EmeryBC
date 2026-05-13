@@ -1,9 +1,34 @@
-# EmeryBC
+# EBC — EmeryBC
 
-A personal [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfits, action buttons, friends management, poses, scenes, palettes, and a bunch of quality-of-life tools packed into a sliding drawer on the right side of the chat screen.
+A [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfits, action buttons, friends management, poses, scenes, palettes, and a bunch of quality-of-life tools packed into a sliding drawer on the right side of the chat screen.
 
-**Install via Tampermonkey / Violentmonkey:**
-[loader.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)
+---
+
+## Installation
+
+### Tampermonkey / Violentmonkey
+
+1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
+2. Click the loader link for your channel:
+   - **Stable** → [loader.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)
+   - **Dev** → [loader-dev.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/dev/loader-dev.user.js)
+3. Confirm the install prompt
+4. Load Bondage Club — the EBC drawer appears on the right side of the chat screen
+
+### FUSAM
+
+EBC is listed in the [FUSAM](https://gitlab.com/Sidiousious/bc-addon-loader) addon registry. Install FUSAM and enable **EBC** from the addon list. Both stable and dev channels are available.
+
+---
+
+## Channels
+
+| Channel | Bundle | Updated on |
+|---------|--------|------------|
+| **Stable** | [nekoemery.github.io/EmeryBC/stable/bundle.js](https://nekoemery.github.io/EmeryBC/stable/bundle.js) | Push to `master` |
+| **Dev** | [nekoemery.github.io/EmeryBC/dev/bundle.js](https://nekoemery.github.io/EmeryBC/dev/bundle.js) | Push to `dev` |
+
+Builds are deployed automatically via GitHub Actions on every push.
 
 ---
 
@@ -63,17 +88,19 @@ Same options as outfits: command, display name, announce text, tags, reorder, ex
 
 ## 🔘 Action Buttons
 
-Up to 20 configurable quick-action buttons drawn on the left side of the chatroom, below the game's built-in buttons.
+Up to 20 configurable quick-action buttons drawn on the side of the chatroom.
 
-Each button sends a `/me` style emote to the room when clicked.
+Each button sends an action or emote to the room when clicked. The sidebar is draggable and collapsible.
 
 **Per-button settings**
 - Label (up to 6 characters shown on the button)
 - Hex color
 - Action text (what comes after your name, e.g. `waves goodbye`)
+- Style — `action` `( )`, `emote` `* *`, or `sequence`
 - Enable / disable toggle
+- **Name in announce** — include or exclude your name from the message (action style only)
 
-**Categories** — group buttons into named tabs and switch between them. Each category can have its own set of buttons. Reorder buttons and categories with arrows.
+**Categories** — group buttons into named tabs and switch between them with the arrow chips on the sidebar. Each category has its own set of buttons.
 
 ---
 
@@ -83,11 +110,11 @@ Found in the **Buttons** tab of the EBC drawer.
 
 | Toggle | What it does |
 |---|---|
-| **OOC Mode** | Prefixes every chat message with `(` so it reads as out-of-character. Commands, emotes (`*`), and already-OOC messages are never modified. |
-| **Safeword** | One-click safeword button. Configure the word in settings; state saves across sessions. |
-| **AFK Auto-Reply** | Sends a custom beep reply when someone messages you after X minutes of inactivity (default 10 min). Configurable threshold and message text. 30-minute cooldown per sender to avoid spam. |
+| **OOC Mode** | Prefixes every chat message with `(` so it reads as out-of-character. Commands, emotes, and already-OOC messages are never modified. |
+| **Safeword** | One-click safeword button. Configure the word in settings. |
+| **AFK Auto-Reply** | Sends a custom beep reply when someone messages you after X minutes of inactivity (default 10 min). 30-minute cooldown per sender to avoid spam. |
 | **Beep Mute** | Silences all incoming beeps without leaving the room. |
-| **Suppress Native Beep** | Stops plain beeps from also showing in BC's main chat log when EBC's IM handles them. Game beeps (friend requests etc.) always pass through. |
+| **Suppress Native Beep** | Stops plain beeps from also showing in BC's main chat log when EBC's IM handles them. |
 
 ---
 
@@ -96,9 +123,9 @@ Found in the **Buttons** tab of the EBC drawer.
 Automatically remove any restraint applied to you by someone else.
 
 - Toggle on/off from the **Buttons** tab
-- **Whitelist** — items on the whitelist are always kept, even if applied by others. Populate the whitelist by wearing the item and clicking **+ Add worn** in the settings, or add by name
-- **Confirm dialog** — when enabled, shows a prompt before auto-escaping so you can choose to accept the restraint instead of removing it
-- Covers all restraint slots including collar and neck (`ItemNeck`, `ItemNeckAccessories`, `ItemNeckRestraints`)
+- **Protected Items** — items on the whitelist are always kept, even if applied by others. Add items from the settings panel.
+- **Confirm dialog** — shows a prompt before auto-escaping so you can choose to accept the restraint
+- Covers all restraint slots including collar and neck
 - Retries removal up to 2 times per slot before giving up on locked items
 - Sends a glare emote to the room after a successful escape
 
@@ -149,18 +176,19 @@ The **Users** tab has three sections.
 Collapsible panel showing everyone currently in the chat room:
 - Green presence dot, name (nickname if set), member number
 - Relationship badge (Owner, Lover, etc.)
-- EBC version badge (if they're running EmeryBC)
+- EBC version badge (if they're running EBC)
 - Friend tags
 - **Profile** button — opens the BC information sheet
 - **Beep** button — opens the EBC IM window (friends only)
+- **Copy ID** button — copies the member number to clipboard
 
 ### Friends List
 Your BC friends list with expandable rows. Click a friend row to expand:
 
 - 🤝 **Friends since** date
 - 🕑 **Last seen** timestamp (tracked across sessions)
-- **Tags** — add custom colour-coded labels (e.g. "dominant", "close friend"). Tags appear as chips on the friend row.
-- **Note** — inline text editor for personal notes about this person. Auto-saves 800ms after you stop typing.
+- **Tags** — add custom colour-coded labels (e.g. "dominant", "close friend")
+- **Note** — inline text editor for personal notes. Auto-saves 800ms after you stop typing
 - **📌 Pin** — pin a friend to the top of the list
 
 Friends are sorted: pinned first → alphabetical. Unread beep badge shows on the friend row.
@@ -193,13 +221,13 @@ Everyone you've ever shared a room with — saved server-side and synced across 
 Found in the **Dev** tab (bottom of the drawer).
 
 ### EBC Users in Room
-Lists all room members currently running EmeryBC and their version number.
+Lists all room members currently running EBC and their version number.
 
 ### Copy Restraints from Member
 Copy another room member's current restraints onto yourself.
 - Select a member from the dropdown
 - Preview which restraints will be copied before confirming
-- Lock data (LockedBy, password, combination, etc.) is stripped — you own the items freely
+- Lock data is stripped — you own the items freely
 - Only the copied slots are replaced; your other restraints are untouched
 
 ### Character Inspector
@@ -209,12 +237,11 @@ Dump raw appearance and property data for any room member — useful for debuggi
 Lists all `bcModSdk` mods currently active in the session, with their version and hooked functions.
 
 ### Logs
-Three sub-sections, each collapsible:
 
 | Log | What it records |
 |---|---|
-| **Rooms Visited** | Room names, join/leave timestamps, time spent per room. Opt-in — disabled by default. |
-| **Restraint Log** | Every restraint added or removed from your character, with who did it and when. Opt-in — disabled by default. |
+| **Rooms Visited** | Room names, join/leave timestamps, time spent per room. Opt-in. |
+| **Restraint Log** | Every restraint added or removed from your character, with who did it and when. Opt-in. |
 | **Message Log** | Recent chat messages from the current session. |
 
 ---
@@ -225,62 +252,41 @@ Customisation options found in the **Dev** tab under *Drawer Appearance*.
 
 | Setting | What it does |
 |---|---|
-| **Colour theme** | Choose from Default (Pink), Purple, Blue, Green, Red, or Dark (Mono). The entire CSS palette — background, cards, borders, accent, text — updates instantly. |
-| **Tab visibility** | Hide tabs you never use. Each tab has a chip toggle; hidden tabs disappear from the tab bar and EBC falls back to the first visible tab automatically. |
-
-**Outfit search** — a text filter appears at the top of the Outfits tab so you can narrow a long list by name as you type.
+| **Colour theme** | Choose from Default (Pink), Purple, Blue, Green, Red, or Dark (Mono). |
+| **Tab visibility** | Hide tabs you never use. |
 
 ---
 
 ## ✨ Quality of Life
 
-**Overhead EBC badge**
-Broadcasts a small `EBC` tag above your character's head to other EBC users. Optionally show your version number in the badge. Both toggleable from Settings.
+**Overhead EBC badge** — broadcasts a small `EBC` tag above your character's head to other EBC users. Optionally show your version number. Both toggleable from Settings.
 
-**IM / Beep window**
-Threaded beep conversations with:
-- Message history per person
-- Unread badge on the friend row
-- Timestamps on each message
-- Opens from the friend row Beep button or People in Room panel
+**IM / Beep window** — threaded beep conversations with message history, unread badges, and timestamps per person.
 
-**Timers**
-Passive counters visible in the drawer:
+**Timers** — passive counters in the drawer:
 - ⏱ Time online this session
 - 🚪 Time in current room
-- ⛓ Time wearing current restraints (tracks the longest-worn item)
+- ⛓ Time wearing current restraints
 
-**Update notifications**
-EBC checks GitHub for a newer version 30 seconds after load, then every hour. If a room member is running a newer version, a local chat notice appears. Silence with `/ebc updates off`.
+**Update notifications** — EBC checks GitHub for a newer version 30 seconds after load, then every hour. Silence with `/ebc updates off`.
 
 ---
 
 ## ⌨️ Slash Commands
-
-Type these in the BC chat input.
 
 | Command | Aliases | What it does |
 |---|---|---|
 | `/ebc` | | Show all available commands |
 | `/ebc version` | `/ebc ver`, `/ebc v` | Print current EBC version |
 | `/ebc changelog` | `/ebc changes` | Show recent version history in local chat |
-| `/ebc release` | `/ebc free` | Remove all restraints from yourself instantly |
+| `/ebc release` | `/ebc free` | Remove all non-protected restraints from yourself |
 | `/ebc unlock` | | Remove all non-owner/lover locks from your items |
-| `/ebc ameter` | `/ebc arousal`, `/ebc lust` | Toggle the arousal/lust meter on and off |
+| `/ebc ameter` | `/ebc arousal`, `/ebc lust` | Toggle the arousal/lust meter |
 | `/ebc update` | `/ebc check` | Manually check GitHub for a newer version |
 | `/ebc updates on` | | Re-enable automatic update notifications |
 | `/ebc updates off` | | Silence automatic update notifications |
 
-Outfit and restraint set commands are defined per-item — type `/<command>` where `<command>` is whatever you saved.
-
----
-
-## Installation
-
-1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
-2. Click: **[loader.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)**
-3. Confirm the install prompt
-4. Load Bondage Club — the EBC drawer appears on the right side of the chat screen
+Outfit, restraint set, pose, and scene commands are defined per-item.
 
 ---
 
@@ -288,17 +294,31 @@ Outfit and restraint set commands are defined per-item — type `/<command>` whe
 
 ```bash
 npm install
-npm run build   # outputs dist/bundle.js
-npm run dev     # watch mode
+npm run build       # dev build
+npm run build:prod  # production build (minified)
+npm run dev         # watch mode
 ```
 
-Requires Node.js. Built with TypeScript + Rollup.
+Requires Node.js. Built with TypeScript + Rollup. `dist/` is gitignored — builds are handled by CI.
+
+### Deploying
+
+Use the included `deploy.sh` script:
+
+```bash
+./deploy.sh                              # bump patch, no changelog entry
+./deploy.sh patch "Fixed the thing"     # bump patch + add changelog message
+./deploy.sh minor "New feature"         # bump minor
+./deploy.sh major "Breaking change"     # bump major
+```
+
+The script bumps the version in all files, builds locally to catch errors, commits to `dev`, pushes, then prompts whether to also release to `stable`. GitHub Actions handles the actual deployment to GitHub Pages automatically on push.
 
 ---
 
 ## Credits
 
-The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin** — thank you for the open design! ♥
+The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin** — thank you for the open design and deploy workflow inspiration! ♥
 
 ---
 
