@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.9.5";
+const MOD_VERSION = "1.9.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.9.6",
+        changes: [
+            "UI: tablet/touch pass — all buttons bumped to comfortable tap targets; slot buttons 22→28px; added touch-action:manipulation globally to kill 300ms tap delay.",
+        ],
+    },
     {
         version: "1.9.5",
         changes: [

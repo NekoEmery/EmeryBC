@@ -4676,6 +4676,7 @@
 /* Catch-all hover brightening for any button that lacks its own :hover rule */
 .ebc-panel button:not([disabled]) {
     transition: filter 0.12s ease, background 0.14s, color 0.12s, border-color 0.12s, opacity 0.12s;
+    touch-action: manipulation; /* prevent 300ms tap delay on tablets/phones */
 }
 .ebc-panel button:not([disabled]):hover  { filter: brightness(1.18); }
 .ebc-panel button:not([disabled]):active { filter: brightness(0.88); transform: scale(0.97); }
@@ -4710,7 +4711,7 @@
     border-radius: 5px;
     color: #967281;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 5px 8px;
     font-size: 11px;
     line-height: 1.3;
     font-family: "Trebuchet MS", serif;
@@ -4840,7 +4841,7 @@
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     font-weight: bold;
-    padding: 3px 8px;
+    padding: 5px 9px;
     transition: background 0.14s, color 0.12s;
     white-space: nowrap;
 }
@@ -4858,7 +4859,7 @@
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
-    padding: 3px 6px;
+    padding: 5px 8px;
     transition: background 0.14s, color 0.12s, border-color 0.12s;
     white-space: nowrap;
 }
@@ -4879,7 +4880,7 @@
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
     font-weight: bold;
-    padding: 2px 6px;
+    padding: 4px 8px;
     border-radius: 3px;
     border: 1px solid #3a1928;
     background: #1b0d17;
@@ -4909,7 +4910,7 @@
     font-family: "Trebuchet MS", serif;
     font-size: 13px;
     line-height: 1;
-    padding: 2px 6px;
+    padding: 5px 7px;
     transition: background 0.14s, color 0.12s, border-color 0.12s;
     white-space: nowrap;
 }
@@ -5048,7 +5049,7 @@
 .ebc-slot-toggle {
     flex-shrink: 0;
     width: 26px;
-    height: 22px;
+    height: 28px;
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 4px;
@@ -5083,7 +5084,7 @@
 .ebc-slot-color {
     flex-shrink: 0;
     width: 28px;
-    height: 22px;
+    height: 28px;
     border-radius: 4px;
     border: 1px solid #4c2537;
     background: transparent;
@@ -5109,8 +5110,8 @@
 
 .ebc-slot-del {
     flex-shrink: 0;
-    width: 24px;
-    height: 22px;
+    width: 28px;
+    height: 28px;
     background: transparent;
     border: 1px solid #4c2537;
     border-radius: 4px;
@@ -5126,8 +5127,8 @@
 
 .ebc-slot-move {
     flex-shrink: 0;
-    width: 22px;
-    height: 22px;
+    width: 28px;
+    height: 28px;
     background: transparent;
     border: 1px solid #4c2537;
     border-radius: 4px;
@@ -5143,7 +5144,7 @@
 .ebc-slot-style {
     flex-shrink: 0;
     width: 32px;
-    height: 22px;
+    height: 28px;
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 4px;
@@ -5321,7 +5322,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 5px;
+    padding: 5px 7px;
     line-height: 1;
     transition: background 0.14s, color 0.12s, border-color 0.12s;
 }
@@ -5354,7 +5355,7 @@
     font-family: "Trebuchet MS", serif;
     font-size: 13px;
     line-height: 1;
-    padding: 2px 5px;
+    padding: 5px 7px;
     transition: background 0.14s, color 0.12s, border-color 0.12s;
 }
 
@@ -5512,7 +5513,7 @@
 .ebc-cat-pill {
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
-    padding: 3px 10px;
+    padding: 5px 11px;
     border-radius: 4px;
     cursor: pointer;
     transition: background 0.12s, color 0.12s, border-color 0.12s;
@@ -5799,7 +5800,7 @@
     border-radius: 3px;
     color: #9a6070;
     font-size: 10px;
-    padding: 1px 4px;
+    padding: 4px 6px;
     cursor: pointer;
     line-height: 1;
     flex-shrink: 0;
@@ -5828,7 +5829,7 @@
 
 .ebc-pose-add-btn {
     font-size: 10px;
-    padding: 2px 7px;
+    padding: 5px 8px;
     border-radius: 4px;
     border: 1px solid #3a1828;
     background: #1b0d17;
@@ -6223,7 +6224,7 @@
     cursor: pointer;
     font-size: 9px;
     line-height: 1;
-    padding: 1px 5px;
+    padding: 4px 7px;
     transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .ebc-reorder-btn:hover { background: #2a1421; color: #cf6f98; border-color: #cf6f98; }
@@ -6277,7 +6278,7 @@
     white-space: nowrap;
 }
 .ebc-zone-set {
-    padding: 1px 6px !important;
+    padding: 4px 7px !important;
     font-size: 8px !important;
     flex-shrink: 0;
 }
@@ -6349,7 +6350,7 @@
     font-size: 13px;
     cursor: pointer;
     line-height: 1;
-    padding: 3px 7px;
+    padding: 5px 8px;
     flex-shrink: 0;
     transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
@@ -6506,7 +6507,7 @@
     color: #5a3a4a;
     cursor: pointer;
     font-size: 9px;
-    padding: 1px 3px;
+    padding: 4px 6px;
     border-radius: 3px;
     margin-top: 2px;
     align-self: flex-end;
@@ -6530,7 +6531,7 @@
     border-radius: 5px;
     font-size: 14px;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 4px 7px;
     flex-shrink: 0;
     line-height: 1;
     transition: background 0.12s, border-color 0.12s;
@@ -6595,7 +6596,7 @@
     border-radius: 5px;
     color: #967281;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 5px 10px;
     font-size: 10px;
     font-family: "Trebuchet MS", serif;
     white-space: nowrap;
@@ -6713,7 +6714,7 @@
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
-    padding: 3px 0;
+    padding: 6px 0;
     margin-top: 2px;
     transition: background 0.14s, color 0.12s;
 }
@@ -7164,7 +7165,7 @@
                     "font-family:'Trebuchet MS',serif",
                     "font-size:9px",
                     "font-weight:bold",
-                    "padding:1px 8px",
+                    "padding:4px 10px",
                     "border-radius:4px",
                     "cursor:pointer",
                     "flex-shrink:0",
@@ -7344,7 +7345,7 @@
                     "font-family:'Trebuchet MS',serif",
                     "font-size:10px",
                     "font-weight:bold",
-                    "padding:2px 10px",
+                    "padding:5px 12px",
                     "border-radius:4px",
                     "cursor:pointer",
                     "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
@@ -8166,7 +8167,7 @@
             });
             nickInp.style.flex = "1";
             const nickSaveBtn = document.createElement("button");
-            nickSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+            nickSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:5px 10px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
             nickSaveBtn.textContent = "Save";
             nickSaveBtn.addEventListener("click", () => {
                 setDefaultNickname(nickInp.value);
@@ -14863,7 +14864,7 @@
                 const resetBtn = document.createElement("button");
                 resetBtn.textContent = "Reset";
                 resetBtn.title = "Reset to default theme";
-                resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;";
+                resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;";
                 resetBtn.addEventListener("click", () => {
                     liveColors = Object.assign({}, DEFAULT_COLORS);
                     saveCoreColors(liveColors);
@@ -17826,7 +17827,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.9.5";
+    const MOD_VERSION = "1.9.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17834,6 +17835,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "1.9.6",
+            changes: [
+                "UI: tablet/touch pass — all buttons bumped to comfortable tap targets; slot buttons 22→28px; added touch-action:manipulation globally to kill 300ms tap delay.",
+            ],
+        },
         {
             version: "1.9.5",
             changes: [
