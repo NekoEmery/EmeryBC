@@ -325,30 +325,61 @@ export function sendAction(emote: string, style: ActionStyle = "action"): void {
 
 // --- In-game sidebar ---------------------------------------------------------
 
-const BTN_X       = 0;
-const BTN_SIZE    = 45;
+const BTN_SIZE   = 45;
+const CHIP_W     = 45;
+const CHIP_H     = 28;
+const CAT_CHIP_H = 30;
+const CAT_ARR_W  = 22;
+const GRIP_H     = 14;  // drag handle above collapse toggle
 
-// Collapse toggle - shorter than action buttons so it reads as a control, not a content button
-const CHIP_X = 0;
-const CHIP_Y = 270;
-const CHIP_W = 45;
-const CHIP_H = 28;
+// Position — mutable, persisted to localStorage
+const SIDEBAR_POS_KEY = "EBC_sidebarPos";
+let sidebarX = 0;
+let sidebarY = 270;
+try {
+    const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
+    if (_saved) { const _p = JSON.parse(_saved) as { x?: number; y?: number }; sidebarX = _p.x ?? 0; sidebarY = _p.y ?? 270; }
+} catch { /* ignore */ }
+
+function saveSidebarPos(): void {
+    try { localStorage.setItem(SIDEBAR_POS_KEY, JSON.stringify({ x: sidebarX, y: sidebarY })); } catch { /* ignore */ }
+}
 
 let sidebarCollapsed = false;
 
-// Category chip — sits between the collapse toggle and the buttons
-const CAT_CHIP_Y = CHIP_Y + CHIP_H + 4;
-const CAT_CHIP_H = 30;
-// Prev/next arrows flanking the category name
-const CAT_ARR_W  = 22;
-
-// Buttons start immediately below the category chip
-const BTN_START_Y = CAT_CHIP_Y + CAT_CHIP_H + 4;
+// Drag state — "click to grab, click to drop"
+let isDragging = false;
+let dragAnchorMouseX = 0;
+let dragAnchorMouseY = 0;
+let dragAnchorPanelX = 0;
+let dragAnchorPanelY = 0;
 
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
 
-    DrawButton(CHIP_X, CHIP_Y, CHIP_W, CHIP_H,
+    // If dragging, track cursor delta and update panel position every frame
+    if (isDragging) {
+        const mx = (window as unknown as Record<string, number>).MouseX ?? 0;
+        const my = (window as unknown as Record<string, number>).MouseY ?? 0;
+        sidebarX = Math.max(0, Math.min(1955, dragAnchorPanelX + (mx - dragAnchorMouseX)));
+        sidebarY = Math.max(GRIP_H + 2, Math.min(900, dragAnchorPanelY + (my - dragAnchorMouseY)));
+    }
+
+    // Derived Y positions
+    const gripY      = sidebarY - GRIP_H - 2;
+    const catChipY   = sidebarY + CHIP_H + 4;
+    const btnStartY  = catChipY + CAT_CHIP_H + 4;
+
+    // Drag grip — small handle above the collapse toggle
+    DrawRect(sidebarX, gripY, CHIP_W, GRIP_H,
+        isDragging ? UI.accent : "#2a0e1e");
+    DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H,
+        isDragging ? "#1a0d14" : UI.accentSoft, 1);
+    DrawTextFit("✥", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4,
+        isDragging ? "#1a0d14" : UI.accentSoft);
+
+    // Collapse toggle
+    DrawButton(sidebarX, sidebarY, CHIP_W, CHIP_H,
         sidebarCollapsed ? "+" : "=",
         sidebarCollapsed ? UI.accentDeep : UI.accentSoft,
         "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
@@ -359,29 +390,27 @@ export function drawActionButtons(): void {
     const cats  = getCategories();
     const idx   = getActiveCategoryIndex();
     const label = cats.length > 1
-        ? cats[idx].name.slice(0, 5) // truncate so it fits
+        ? cats[idx].name.slice(0, 5)
         : cats[idx].name.slice(0, 7);
 
     const chipBg = "#2a0e1e";
-    // Left arrow (disabled at first category)
-    DrawButton(CHIP_X, CAT_CHIP_Y, CAT_ARR_W, CAT_CHIP_H,
+    DrawButton(sidebarX, catChipY, CAT_ARR_W, CAT_CHIP_H,
         "◀", idx > 0 ? chipBg : "#1a0a14", "", idx > 0 ? "Previous category" : "");
-    // Name label (full width minus arrows when multiple cats)
     if (cats.length > 1) {
-        DrawButton(CHIP_X + CAT_ARR_W, CAT_CHIP_Y, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H,
+        DrawButton(sidebarX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H,
             label, chipBg, "", cats[idx].name);
-        DrawButton(CHIP_X + CHIP_W - CAT_ARR_W, CAT_CHIP_Y, CAT_ARR_W, CAT_CHIP_H,
+        DrawButton(sidebarX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H,
             "▶", idx < cats.length - 1 ? chipBg : "#1a0a14", "",
             idx < cats.length - 1 ? "Next category" : "");
     } else {
-        DrawButton(CHIP_X, CAT_CHIP_Y, CHIP_W, CAT_CHIP_H, label, chipBg, "", cats[idx].name);
+        DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, chipBg, "", cats[idx].name);
     }
 
     const buttons = getButtons();
     for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
         if (!btn?.enabled || !btn.label) continue;
-        DrawButton(BTN_X, BTN_START_Y + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
+        DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
             btn.label, btn.color || "#c2185b", "", btn.emote);
     }
 }
@@ -389,9 +418,35 @@ export function drawActionButtons(): void {
 export function handleActionButtonClick(): boolean {
     if (CurrentScreen !== "ChatRoom") return false;
 
+    const mx = (window as unknown as Record<string, number>).MouseX ?? 0;
+    const my = (window as unknown as Record<string, number>).MouseY ?? 0;
+
+    // Derived Y positions (same as in draw)
+    const gripY     = sidebarY - GRIP_H - 2;
+    const catChipY  = sidebarY + CHIP_H + 4;
+    const btnStartY = catChipY + CAT_CHIP_H + 4;
+
+    // If currently dragging — any click drops the panel and saves position
+    if (isDragging) {
+        isDragging = false;
+        saveSidebarPos();
+        return true;
+    }
+
+    // Drag grip — click to grab
+    if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
+        my >= gripY     && my <= gripY + GRIP_H) {
+        isDragging = true;
+        dragAnchorMouseX = mx;
+        dragAnchorMouseY = my;
+        dragAnchorPanelX = sidebarX;
+        dragAnchorPanelY = sidebarY;
+        return true;
+    }
+
     // Collapse toggle
-    if (MouseX >= CHIP_X && MouseX <= CHIP_X + CHIP_W &&
-        MouseY >= CHIP_Y && MouseY <= CHIP_Y + CHIP_H) {
+    if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
+        my >= sidebarY  && my <= sidebarY + CHIP_H) {
         sidebarCollapsed = !sidebarCollapsed;
         return true;
     }
@@ -401,27 +456,27 @@ export function handleActionButtonClick(): boolean {
     // Category prev/next arrows
     const cats = getCategories();
     const idx  = getActiveCategoryIndex();
-    if (MouseY >= CAT_CHIP_Y && MouseY <= CAT_CHIP_Y + CAT_CHIP_H) {
+    if (my >= catChipY && my <= catChipY + CAT_CHIP_H) {
         if (cats.length > 1) {
-            if (MouseX >= CHIP_X && MouseX <= CHIP_X + CAT_ARR_W) {
+            if (mx >= sidebarX && mx <= sidebarX + CAT_ARR_W) {
                 if (idx > 0) setActiveCategoryIndex(idx - 1);
                 return true;
             }
-            if (MouseX >= CHIP_X + CHIP_W - CAT_ARR_W && MouseX <= CHIP_X + CHIP_W) {
+            if (mx >= sidebarX + CHIP_W - CAT_ARR_W && mx <= sidebarX + CHIP_W) {
                 if (idx < cats.length - 1) setActiveCategoryIndex(idx + 1);
                 return true;
             }
         }
-        return true; // click on label area — consume but do nothing
+        return true;
     }
 
     const buttons = getButtons();
     for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
         if (!btn?.enabled || !btn.label) continue;
-        const y = BTN_START_Y + i * BTN_SIZE;
-        if (MouseX >= BTN_X && MouseX <= BTN_X + BTN_SIZE &&
-            MouseY >= y    && MouseY <= y + BTN_SIZE) {
+        const y = btnStartY + i * BTN_SIZE;
+        if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
+            my >= y         && my <= y + BTN_SIZE) {
             const animOk = triggerLabelAnimation(btn.label);
             if (animOk) sendAction(btn.emote, btn.style ?? "action");
             return true;
