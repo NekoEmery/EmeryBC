@@ -1,20 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
-  <!-- Ears — drawn first so the face rect overlaps their base naturally -->
-  <polygon points="12,42 25,4 42,36" fill="#cf6f98"/>
-  <polygon points="48,36 65,4 78,42" fill="#cf6f98"/>
-  <!-- Inner ear -->
-  <polygon points="17,39 26,12 39,35" fill="#4a1828"/>
-  <polygon points="51,35 64,12 73,39" fill="#4a1828"/>
+  <!-- Outer ears -->
+  <path d="M18,38 L22,10 L40,34" fill="#cf6f98"/>
+  <path d="M50,34 L68,10 L72,38" fill="#cf6f98"/>
+  <!-- Inner ear detail -->
+  <path d="M22,35 L25,16 L38,33" fill="#7a2040"/>
+  <path d="M52,33 L65,16 L68,35" fill="#7a2040"/>
   <!-- Face -->
-  <rect x="8" y="22" width="74" height="62" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/>
-  <!-- Eyes -->
-  <circle cx="31" cy="47" r="8" fill="#f7e6ee"/>
-  <circle cx="59" cy="47" r="8" fill="#f7e6ee"/>
-  <!-- Pupils -->
-  <ellipse cx="31" cy="47" rx="3.5" ry="6" fill="#190b13"/>
-  <ellipse cx="59" cy="47" rx="3.5" ry="6" fill="#190b13"/>
+  <rect x="10" y="26" width="70" height="58" rx="20" fill="#2a1421" stroke="#cf6f98" stroke-width="3"/>
+  <!-- Eyes (white sclera) -->
+  <ellipse cx="31" cy="47" rx="8.5" ry="8" fill="#f0dce8"/>
+  <ellipse cx="59" cy="47" rx="8.5" ry="8" fill="#f0dce8"/>
+  <!-- Pupils (vertical cat slit) -->
+  <ellipse cx="31" cy="47" rx="3" ry="6.5" fill="#16090f"/>
+  <ellipse cx="59" cy="47" rx="3" ry="6.5" fill="#16090f"/>
+  <!-- Eye shine -->
+  <circle cx="33.5" cy="44" r="1.5" fill="white" opacity="0.7"/>
+  <circle cx="61.5" cy="44" r="1.5" fill="white" opacity="0.7"/>
   <!-- Nose -->
-  <path d="M42 58 L45 55 L48 58 Z" fill="#cf6f98"/>
-  <!-- Smile -->
-  <path d="M38 62 Q45 70 52 62" stroke="#f7e6ee" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M43,59 L45,56.5 L47,59 Q45,61 43,59 Z" fill="#cf6f98"/>
+  <!-- Mouth -->
+  <path d="M38,63 Q41.5,67.5 45,65 Q48.5,67.5 52,63" stroke="#e8b4c8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Whisker dots -->
+  <circle cx="25" cy="58" r="1.2" fill="#cf6f98" opacity="0.6"/>
+  <circle cx="25" cy="62" r="1.2" fill="#cf6f98" opacity="0.6"/>
+  <circle cx="65" cy="58" r="1.2" fill="#cf6f98" opacity="0.6"/>
+  <circle cx="65" cy="62" r="1.2" fill="#cf6f98" opacity="0.6"/>
 </svg>

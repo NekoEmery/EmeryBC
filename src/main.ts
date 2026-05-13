@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.8";
+const MOD_VERSION = "2.2.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.9",
+        changes: [
+            "Fix: overhead badge x corrected to left+500*zoom (true center of 1000px char canvas).",
+            "Fix: FUSAM icon redrawn — rounder face, proper ears, eye shine, whisker dots.",
+        ],
+    },
     {
         version: "2.2.8",
         changes: [
@@ -2209,7 +2216,7 @@ function drawPresenceMarker(args: unknown[]): void {
         : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
     const height = Math.max(12, 14 * zoom);
 
-    const x = left + 250 * zoom;  // horizontal center of the character's canvas slot
+    const x = left + 500 * zoom;  // horizontal center of the 1000px character canvas slot
     const y = top + 72 * zoom;   // below WCE name + version line
     const badgeLeft = x - width / 2;
     const badgeTop = y - height / 2;
