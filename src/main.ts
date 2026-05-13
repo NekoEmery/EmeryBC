@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.0";
+const MOD_VERSION = "2.2.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.1",
+        changes: [
+            "Fix: minimized beep windows now transparent (stacked header background was making them appear solid).",
+            "UI: overhead EBC badge is now semi-transparent.",
+        ],
+    },
     {
         version: "2.2.0",
         changes: [
@@ -2165,8 +2172,8 @@ function drawPresenceMarker(args: unknown[]): void {
     const badgeLeft = x - width / 2;
     const badgeTop = y - height / 2;
 
-    DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
-    DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
+    DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
+    DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
     DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
 }
 

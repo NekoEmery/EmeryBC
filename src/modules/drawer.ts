@@ -2089,6 +2089,9 @@ const CSS = `
     overflow: hidden;
     resize: none;
 }
+.ebc-beep-win.minimized .ebc-beep-win-header {
+    background: transparent; /* let the outer window rgba show through instead of stacking */
+}
 .ebc-beep-win.minimized .ebc-beep-win-history,
 .ebc-beep-win.minimized .ebc-beep-reply-bar,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
