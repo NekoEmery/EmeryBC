@@ -130,16 +130,16 @@ export function getDisplayName(): string {
 
 // --- Sequence runner ----------------------------------------------------------
 // Sequence steps are pipe-separated (|). Each step is one of:
-//   PoseName   â€" set BC pose (e.g. "HandsUp", "Yoked")
-//   _          â€" clear all active poses back to neutral
-//   !text      â€" send as (Name text) action message
-//   *text      â€" send as * Name text * emote message
+//   PoseName   - set BC pose (e.g. "HandsUp", "Yoked")
+//   _          - clear all active poses back to neutral
+//   !text      - send as (Name text) action message
+//   *text      - send as * Name text * emote message
 // Steps run 500 ms apart. Original poses are restored when done.
 
 let seqRunning = false;
 
 // Sends the current ActivePose to the room without triggering a full re-render on each step.
-// appearanceBundle should be pre-built once before the sequence starts and reused â€" sending
+// appearanceBundle should be pre-built once before the sequence starts and reused - sending
 // a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
 // time, which looks like flickering/glitching.
 function sendPoseUpdate(appearanceBundle: ReturnType<typeof ServerAppearanceBundle>): void {
@@ -159,7 +159,7 @@ function sendPoseUpdate(appearanceBundle: ReturnType<typeof ServerAppearanceBund
 
 function syncPoseToRoom(): void {
     // Used for one-shot pose syncs (outside of sequences).
-    // Capture desired pose BEFORE CharacterRefresh â€" BC may re-apply item-forced poses
+    // Capture desired pose BEFORE CharacterRefresh - BC may re-apply item-forced poses
     // during refresh and override what we just set.
     const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
         ? Player.ActivePose
@@ -200,18 +200,18 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
     const steps = rawSteps.map(r => parseStep(r, defaultStepMs));
 
     seqRunning = true;
-    // null means "no pose / neutral" in BC â€" store as null so we restore correctly.
+    // null means "no pose / neutral" in BC - store as null so we restore correctly.
     const originalPoses: string[] | null = (Player.ActivePose && Player.ActivePose.length > 0)
         ? [...Player.ActivePose]
         : null;
-    // Build appearance bundle ONCE â€" reusing it avoids re-render flicker on other clients.
+    // Build appearance bundle ONCE - reusing it avoids re-render flicker on other clients.
     const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
     let idx = 0;
 
     const next = (): void => {
         try {
             if (idx >= steps.length) {
-                // Sequence done â€" restore original pose, do a full sync + local refresh.
+                // Sequence done - restore original pose, do a full sync + local refresh.
                 Player.ActivePose = originalPoses;
                 syncPoseToRoom();
                 seqRunning = false;
@@ -286,7 +286,7 @@ const LABEL_ANIMATIONS: Map<string, () => boolean> = new Map([
     ["CHEERS", runCheerAnimation],
 ]);
 
-// Returns false if an animation was attempted but blocked â€" caller should suppress the chat message.
+// Returns false if an animation was attempted but blocked - caller should suppress the chat message.
 // Returns true if the animation ran fine, or if there is no animation for this label.
 function triggerLabelAnimation(label: string): boolean {
     const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
@@ -312,7 +312,7 @@ export function sendAction(emote: string, style: ActionStyle = "action"): void {
     // Action style: (Name text)
     // BC can't find the key in Interface.csv so it prepends "MISSING TEXT IN "Interface.csv": ".
     // We include the player's name directly in Content, then use the poison tag to strip the prefix,
-    // leaving only the zero-width char + text so it renders as  (â€‹Name text).
+    // leaving only the zero-width char + text so it renders as (Name text).
     ServerSend("ChatRoomChat", {
         Type: "Action",
         Content: getDisplayName() + " " + text,
