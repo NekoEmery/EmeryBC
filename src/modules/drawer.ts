@@ -10204,6 +10204,7 @@ export class EBCDrawer {
                             saveNote(num, name, noteTA.value);
                             noteHint.textContent = noteTA.value.trim() ? "saved" : "saves automatically";
                             window.setTimeout(() => { noteHint.textContent = "saves automatically"; }, 1500);
+                            try { if (this.currentTab === "notes") this.renderNotes(); } catch { /* ignore */ }
                         }, 800);
                     });
                 };
