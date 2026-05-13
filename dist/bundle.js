@@ -6910,20 +6910,24 @@
             const title = document.createElement("span");
             title.className = "ebc-title";
             title.style.display = "flex";
-            title.style.alignItems = "baseline";
+            title.style.alignItems = "center";
             title.style.gap = "5px";
+            // Vertical group: "EBC v1.x.x" on top, DEV badge directly below it
+            const titleGroup = document.createElement("div");
+            titleGroup.style.cssText = "display:flex;flex-direction:column;align-items:flex-start;gap:3px;line-height:1;";
             const titleMain = document.createElement("span");
             titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+            titleGroup.appendChild(titleMain);
             if (this.isDev) {
                 const devBadge = document.createElement("span");
                 devBadge.textContent = "DEV";
-                devBadge.style.cssText = "font-size:8px;background:#cf6f98;color:#1a0d14;padding:1px 6px;border-radius:3px;font-weight:bold;letter-spacing:0.8px;margin-left:4px;vertical-align:middle;font-family:'Trebuchet MS',serif;";
-                titleMain.appendChild(devBadge);
+                devBadge.style.cssText = "font-size:8px;background:#cf6f98;color:#1a0d14;padding:1px 6px;border-radius:3px;font-weight:bold;letter-spacing:0.8px;font-family:'Trebuchet MS',serif;";
+                titleGroup.appendChild(devBadge);
             }
             const titleSub = document.createElement("span");
             titleSub.textContent = "EmeryBC";
             titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
-            title.appendChild(titleMain);
+            title.appendChild(titleGroup);
             title.appendChild(titleSub);
             const headerBtns = document.createElement("div");
             headerBtns.className = "ebc-header-btns";
@@ -17626,7 +17630,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.8.1";
+    const MOD_VERSION = "1.8.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17635,6 +17639,13 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.8.2",
+            changes: [
+                "Tweak: drawer header DEV badge now sits below the version text (stacked) instead of inline, so the header reads cleaner.",
+                "Tweak: overhead badge in map/zoom-out view (zoom < 0.75) is now centered directly above the character's head instead of offset to the side.",
+            ],
+        },
         {
             version: "1.8.1",
             changes: [
@@ -19475,8 +19486,10 @@
                 ? (showVer ? Math.max(70, 78 * zoom) : Math.max(52, 58 * zoom))
                 : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom)));
         const height = isMapView ? Math.max(8, 10 * zoom) : Math.max(12, 14 * zoom);
-        const x = left + 197 * zoom;
-        const y = top + 26 * zoom;
+        // In map view, center badge directly above the character's head.
+        // In normal view, keep the original side-offset position.
+        const x = isMapView ? left + 105 * zoom : left + 197 * zoom;
+        const y = isMapView ? top + 28 * zoom : top + 26 * zoom;
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
         DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);

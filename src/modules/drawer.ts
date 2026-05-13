@@ -2661,24 +2661,29 @@ export class EBCDrawer {
         const title = document.createElement("span");
         title.className = "ebc-title";
         title.style.display = "flex";
-        title.style.alignItems = "baseline";
+        title.style.alignItems = "center";
         title.style.gap = "5px";
+
+        // Vertical group: "EBC v1.x.x" on top, DEV badge directly below it
+        const titleGroup = document.createElement("div");
+        titleGroup.style.cssText = "display:flex;flex-direction:column;align-items:flex-start;gap:3px;line-height:1;";
 
         const titleMain = document.createElement("span");
         titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+        titleGroup.appendChild(titleMain);
 
         if (this.isDev) {
             const devBadge = document.createElement("span");
             devBadge.textContent = "DEV";
-            devBadge.style.cssText = "font-size:8px;background:#cf6f98;color:#1a0d14;padding:1px 6px;border-radius:3px;font-weight:bold;letter-spacing:0.8px;margin-left:4px;vertical-align:middle;font-family:'Trebuchet MS',serif;";
-            titleMain.appendChild(devBadge);
+            devBadge.style.cssText = "font-size:8px;background:#cf6f98;color:#1a0d14;padding:1px 6px;border-radius:3px;font-weight:bold;letter-spacing:0.8px;font-family:'Trebuchet MS',serif;";
+            titleGroup.appendChild(devBadge);
         }
 
         const titleSub = document.createElement("span");
         titleSub.textContent = "EmeryBC";
         titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
 
-        title.appendChild(titleMain);
+        title.appendChild(titleGroup);
         title.appendChild(titleSub);
 
         const headerBtns = document.createElement("div");
