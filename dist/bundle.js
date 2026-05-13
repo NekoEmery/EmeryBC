@@ -14153,6 +14153,7 @@
                         nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                         nameEl.style.cssText += ";flex:1;min-width:0;";
                         nameRow.appendChild(nameEl);
+                        nameRow.appendChild(numEl);
                         if (relBadge) {
                             const badge = document.createElement("span");
                             badge.textContent = relBadge;
@@ -14162,7 +14163,6 @@
                         // Build metaRow
                         const metaRow = document.createElement("div");
                         metaRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;";
-                        metaRow.appendChild(numEl);
                         if (ebcVer) {
                             const ebcBadge = document.createElement("span");
                             ebcBadge.textContent = "EBC " + ebcVer;
@@ -14578,21 +14578,21 @@
                     });
                     tagArea.addEventListener("mouseleave", hideTooltip);
                     // ── Two-line layout assembly ───────────────────────────────
-                    // nameRow: nameEl + relBadge
+                    // nameRow: nameEl + numEl + relBadge
                     const nameRow = document.createElement("div");
                     nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     nameEl.style.flex = "1";
                     nameRow.appendChild(nameEl);
+                    nameRow.appendChild(numEl);
                     if (relBadge) {
                         const relBadgeEl = document.createElement("span");
                         relBadgeEl.textContent = relBadge;
                         relBadgeEl.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
                         nameRow.appendChild(relBadgeEl);
                     }
-                    // metaRow: numEl + roomTag/lsEl + ebcBadge + tagArea
+                    // metaRow: roomTag/lsEl + ebcBadge + tagArea
                     const metaRow = document.createElement("div");
                     metaRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;";
-                    metaRow.appendChild(numEl);
                     if (roomTagEl)
                         metaRow.appendChild(roomTagEl);
                     if (lsEl)
@@ -18236,7 +18236,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.0.3";
+    const MOD_VERSION = "2.0.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18244,6 +18244,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.0.4",
+            changes: [
+                "UI: member number now sits beside the name on the top line in the friends list.",
+            ],
+        },
         {
             version: "2.0.3",
             changes: [

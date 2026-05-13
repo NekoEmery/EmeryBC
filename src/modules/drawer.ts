@@ -10123,6 +10123,7 @@ export class EBCDrawer {
                     nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     nameEl.style.cssText += ";flex:1;min-width:0;";
                     nameRow.appendChild(nameEl);
+                    nameRow.appendChild(numEl);
                     if (relBadge) {
                         const badge = document.createElement("span");
                         badge.textContent = relBadge;
@@ -10133,7 +10134,6 @@ export class EBCDrawer {
                     // Build metaRow
                     const metaRow = document.createElement("div");
                     metaRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;";
-                    metaRow.appendChild(numEl);
 
                     if (ebcVer) {
                         const ebcBadge = document.createElement("span");
@@ -10532,11 +10532,12 @@ export class EBCDrawer {
                 tagArea.addEventListener("mouseleave", hideTooltip);
 
                 // ── Two-line layout assembly ───────────────────────────────
-                // nameRow: nameEl + relBadge
+                // nameRow: nameEl + numEl + relBadge
                 const nameRow = document.createElement("div");
                 nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                 nameEl.style.flex = "1";
                 nameRow.appendChild(nameEl);
+                nameRow.appendChild(numEl);
                 if (relBadge) {
                     const relBadgeEl = document.createElement("span");
                     relBadgeEl.textContent = relBadge;
@@ -10544,10 +10545,9 @@ export class EBCDrawer {
                     nameRow.appendChild(relBadgeEl);
                 }
 
-                // metaRow: numEl + roomTag/lsEl + ebcBadge + tagArea
+                // metaRow: roomTag/lsEl + ebcBadge + tagArea
                 const metaRow = document.createElement("div");
                 metaRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;";
-                metaRow.appendChild(numEl);
                 if (roomTagEl) metaRow.appendChild(roomTagEl);
                 if (lsEl) metaRow.appendChild(lsEl);
                 if (ebcBadge) metaRow.appendChild(ebcBadge);
