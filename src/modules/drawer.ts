@@ -2665,7 +2665,7 @@ export class EBCDrawer {
         title.style.gap = "5px";
 
         const titleMain = document.createElement("span");
-        titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
+        titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "") + (this.isDev ? " (dev)" : "");
 
         if (this.isDev) {
             const devBadge = document.createElement("span");
