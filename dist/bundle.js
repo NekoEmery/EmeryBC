@@ -14522,6 +14522,24 @@
                             }
                             catch ( /* ignore */_d) { /* ignore */ }
                         });
+                        // Copy ID button
+                        const COPY_SVG_R = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+                        const copyIdBtnR = document.createElement("button");
+                        copyIdBtnR.innerHTML = COPY_SVG_R;
+                        copyIdBtnR.title = `Copy ID: ${num}`;
+                        copyIdBtnR.style.cssText = "color:#cf6f98;background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                        copyIdBtnR.addEventListener("mouseenter", () => { copyIdBtnR.style.background = "#3a1428"; copyIdBtnR.style.borderColor = "#cf6f98"; });
+                        copyIdBtnR.addEventListener("mouseleave", () => { copyIdBtnR.style.background = "#2a0e1e"; copyIdBtnR.style.borderColor = "#4c2537"; copyIdBtnR.style.color = "#cf6f98"; });
+                        copyIdBtnR.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            try {
+                                navigator.clipboard.writeText(String(num));
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                            copyIdBtnR.style.color = "#a0d080";
+                            copyIdBtnR.style.borderColor = "#a0d080";
+                            window.setTimeout(() => { copyIdBtnR.style.color = "#cf6f98"; copyIdBtnR.style.borderColor = "#4c2537"; }, 1200);
+                        });
                         // Build btnCol
                         const btnCol = document.createElement("div");
                         btnCol.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;align-self:center;";
@@ -14551,6 +14569,7 @@
                             });
                             btnCol.appendChild(beepBtn);
                         }
+                        btnCol.appendChild(copyIdBtnR);
                         // Assemble row
                         dot.style.marginTop = "1px";
                         row.appendChild(dot);
@@ -14981,11 +15000,30 @@
                         }
                         catch ( /* ignore */_a) { /* ignore */ }
                     });
-                    // btnCol: friendProfBtn + beepBtn
+                    // Copy ID button
+                    const COPY_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;pointer-events:none;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+                    const copyIdBtn = document.createElement("button");
+                    copyIdBtn.innerHTML = COPY_SVG;
+                    copyIdBtn.title = `Copy ID: ${num}`;
+                    copyIdBtn.style.cssText = "color:#cf6f98;background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                    copyIdBtn.addEventListener("mouseenter", () => { copyIdBtn.style.background = "#3a1428"; copyIdBtn.style.borderColor = "#cf6f98"; });
+                    copyIdBtn.addEventListener("mouseleave", () => { copyIdBtn.style.background = "#2a0e1e"; copyIdBtn.style.borderColor = "#4c2537"; copyIdBtn.style.color = "#cf6f98"; });
+                    copyIdBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        try {
+                            navigator.clipboard.writeText(String(num));
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                        copyIdBtn.style.color = "#a0d080";
+                        copyIdBtn.style.borderColor = "#a0d080";
+                        window.setTimeout(() => { copyIdBtn.style.color = "#cf6f98"; copyIdBtn.style.borderColor = "#4c2537"; }, 1200);
+                    });
+                    // btnCol: friendProfBtn + beepBtn + copyIdBtn
                     const btnCol = document.createElement("div");
                     btnCol.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;align-self:center;";
                     btnCol.appendChild(friendProfBtn);
                     btnCol.appendChild(beepBtn);
+                    btnCol.appendChild(copyIdBtn);
                     // Assemble row
                     dot.style.marginTop = "1px";
                     pinDot.style.marginTop = "1px";
@@ -18546,7 +18584,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.1.2";
+    const MOD_VERSION = "2.1.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18554,6 +18592,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.1.3",
+            changes: [
+                "Feature: copy ID button (clipboard icon) on every friend row and every person-in-room row — turns green briefly on copy to confirm.",
+            ],
+        },
         {
             version: "2.1.2",
             changes: [
