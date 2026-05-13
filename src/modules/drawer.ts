@@ -9863,10 +9863,11 @@ export class EBCDrawer {
 
                     // Profile button — always available since they're in the room
                     const profBtn = document.createElement("button");
-                    profBtn.textContent = "Profile";
-                    profBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;margin-left:auto;";
-                    profBtn.addEventListener("mouseenter", () => { profBtn.style.color = "#cf6f98"; profBtn.style.borderColor = "#cf6f98"; });
-                    profBtn.addEventListener("mouseleave", () => { profBtn.style.color = "#7a5a6a"; profBtn.style.borderColor = "#3a1928"; });
+                    profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
+                    profBtn.title = "View profile";
+                    profBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;margin-left:auto;";
+                    profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#3a1428"; profBtn.style.borderColor = "#cf6f98"; });
+                    profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "#2a0e1e"; profBtn.style.borderColor = "#4c2537"; });
                     profBtn.addEventListener("click", (e) => {
                         e.stopPropagation();
                         const loadChar = w2.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
@@ -10229,11 +10230,53 @@ export class EBCDrawer {
 
                 if (getFriendTagList(num).length > 0 || getLockedTag(num)) row.appendChild(tagArea);
 
+                // Profile button — opens BC info sheet
+                const friendProfBtn = document.createElement("button");
+                friendProfBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
+                friendProfBtn.title = "View profile";
+                friendProfBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;margin-left:auto;";
+                friendProfBtn.addEventListener("mouseenter", () => { friendProfBtn.style.background = "#3a1428"; friendProfBtn.style.borderColor = "#cf6f98"; });
+                friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "#2a0e1e"; friendProfBtn.style.borderColor = "#4c2537"; });
+                friendProfBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const w2 = window as unknown as Record<string, unknown>;
+                    const loadChar   = w2.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
+                    const hideEls    = w2.ChatRoomHideElements as (() => void) | undefined;
+                    const loadOnline = w2.CharacterLoadOnline as ((d: unknown, n: number) => unknown) | undefined;
+                    const roomChars  = w2.ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
+                    const openProfile = (C: unknown): void => {
+                        this.close();
+                        if (w2.CurrentScreen === "ChatRoom") {
+                            try { hideEls?.(); } catch { /* ignore */ }
+                            try {
+                                const bgData = (w2.ChatRoomData as Record<string, unknown> | undefined)?.Background;
+                                if (bgData) w2.ChatRoomBackground = bgData;
+                            } catch { /* ignore */ }
+                        }
+                        loadChar!(C);
+                    };
+                    if (!loadChar || !loadOnline) {
+                        try { navigator.clipboard.writeText(String(num)); } catch { /* ignore */ }
+                        return;
+                    }
+                    const inRoom = Array.isArray(roomChars) ? roomChars.find(c => c.MemberNumber === num) : undefined;
+                    if (inRoom) { try { openProfile(inRoom); return; } catch { /* ignore */ } }
+                    const bundle = getCharacterBundle(num);
+                    if (bundle) {
+                        try {
+                            const C = loadOnline(bundle, num);
+                            if (C) { openProfile(C); return; }
+                        } catch { /* ignore */ }
+                    }
+                    try { navigator.clipboard.writeText(String(num)); } catch { /* ignore */ }
+                });
+                row.appendChild(friendProfBtn);
+
                 // Beep button — does NOT toggle expand
                 const unread = this.beepUnread.get(num) ?? 0;
                 const beepBtn = document.createElement("button");
                 beepBtn.className = "ebc-friend-btn";
-                beepBtn.style.cssText = "position:relative;margin-left:auto;flex-shrink:0;";
+                beepBtn.style.cssText = "position:relative;flex-shrink:0;";
                 beepBtn.textContent = "💬";
                 beepBtn.title = unread ? `${unread} unread` : "Open beep chat";
                 if (unread > 0) {
@@ -12160,10 +12203,11 @@ export class EBCDrawer {
                     // Profile button — opens BC info sheet if person is in current room,
                     // otherwise shows a quick popup with their stored info.
                     const profBtn = document.createElement("button");
-                    profBtn.textContent = "Profile";
-                    profBtn.style.cssText = `${PFONT}font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s,border-color 0.1s;`;
-                    profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#2a0f1a"; profBtn.style.borderColor = "#cf6f98"; });
-                    profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "transparent"; profBtn.style.borderColor = "#4c2537"; });
+                    profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
+                    profBtn.title = "View profile";
+                    profBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                    profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#3a1428"; profBtn.style.borderColor = "#cf6f98"; });
+                    profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "#2a0e1e"; profBtn.style.borderColor = "#4c2537"; });
                     profBtn.addEventListener("click", () => {
                         const w = window as unknown as Record<string, unknown>;
                         const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
