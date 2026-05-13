@@ -9196,7 +9196,7 @@
                 wornBody.style.display = wornOpen ? "flex" : "none";
                 wornBody.style.cssText = "flex-wrap:wrap;gap:4px;";
                 const updateWornToggle = () => {
-                    wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Currently wearing — click to protect";
+                    wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Current restraints — click to protect";
                 };
                 updateWornToggle();
                 const buildWornButtons = () => {
@@ -9208,6 +9208,8 @@
                     try {
                         for (const item of Player.Appearance) {
                             const group = item.Asset.Group.Name;
+                            if (!RESTRAINT_GROUPS.has(group))
+                                continue; // only show restraint slots
                             if (wl2.includes(group))
                                 continue; // already protected
                             const iDesc = ((_a = item.Asset.Description) === null || _a === void 0 ? void 0 : _a.trim()) || item.Asset.Name;
@@ -9230,7 +9232,7 @@
                     if (!anyShown) {
                         const hint = document.createElement("span");
                         hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
-                        hint.textContent = "Nothing worn that isn't already protected.";
+                        hint.textContent = "No unprotected restraints currently worn.";
                         wornBody.appendChild(hint);
                     }
                 };
@@ -18544,7 +18546,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.1.1";
+    const MOD_VERSION = "2.1.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18552,6 +18554,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.1.2",
+            changes: [
+                "Fix: overhead EBC badge moved lower (y+50 instead of y+26) so it no longer overlaps with WCE and other addon badges drawn at the top of the character.",
+                "Fix: Protected Items 'Current restraints' picker now only lists worn restraint slots — clothing and body items no longer appear.",
+            ],
+        },
         {
             version: "2.1.1",
             changes: [
@@ -20603,7 +20612,7 @@
             : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
         const height = Math.max(12, 14 * zoom);
         const x = left + 197 * zoom;
-        const y = top + 26 * zoom;
+        const y = top + 50 * zoom;
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
         DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);

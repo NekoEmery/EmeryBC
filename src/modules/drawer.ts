@@ -4801,7 +4801,7 @@ export class EBCDrawer {
             wornBody.style.cssText = "flex-wrap:wrap;gap:4px;";
 
             const updateWornToggle = (): void => {
-                wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Currently wearing — click to protect";
+                wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Current restraints — click to protect";
             };
             updateWornToggle();
 
@@ -4812,6 +4812,7 @@ export class EBCDrawer {
                 try {
                     for (const item of Player.Appearance) {
                         const group = item.Asset.Group.Name;
+                        if (!RESTRAINT_GROUPS.has(group)) continue; // only show restraint slots
                         if (wl2.includes(group)) continue; // already protected
                         const iDesc = ((item.Asset as unknown as Record<string, unknown>).Description as string | undefined)?.trim() || item.Asset.Name;
                         const gDesc = ((item.Asset.Group as unknown as Record<string, unknown>).Description as string | undefined)?.trim() || group.replace(/^Item/, "");
@@ -4832,7 +4833,7 @@ export class EBCDrawer {
                 if (!anyShown) {
                     const hint = document.createElement("span");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
-                    hint.textContent = "Nothing worn that isn't already protected.";
+                    hint.textContent = "No unprotected restraints currently worn.";
                     wornBody.appendChild(hint);
                 }
             };
