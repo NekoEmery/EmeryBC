@@ -9524,22 +9524,35 @@ export class EBCDrawer {
 
         // Threshold row
         const afkThreshRow = document.createElement("div");
-        afkThreshRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+        afkThreshRow.style.cssText = "display:flex;align-items:center;gap:6px;";
         const afkThreshLbl = document.createElement("span");
         afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        afkThreshLbl.textContent = "Idle threshold (seconds)";
+        afkThreshLbl.textContent = "Idle threshold";
         const afkThreshInput = document.createElement("input");
         afkThreshInput.type = "number";
         afkThreshInput.min = "1";
         afkThreshInput.max = "86400";
         afkThreshInput.value = String(getAfkThreshold());
         afkThreshInput.style.cssText = "width:62px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
+        const afkThreshUnit = document.createElement("span");
+        afkThreshUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;white-space:nowrap;flex-shrink:0;";
+        const updateThreshUnit = (secs: number): void => {
+            if (secs < 60) afkThreshUnit.textContent = `sec`;
+            else if (secs < 3600) afkThreshUnit.textContent = `sec (${(secs / 60).toFixed(1).replace(/\.0$/, "")} min)`;
+            else afkThreshUnit.textContent = `sec (${(secs / 3600).toFixed(1).replace(/\.0$/, "")} hr)`;
+        };
+        updateThreshUnit(getAfkThreshold());
+        afkThreshInput.addEventListener("input", () => {
+            const v = parseInt(afkThreshInput.value, 10);
+            if (!isNaN(v) && v >= 1) updateThreshUnit(v);
+        });
         afkThreshInput.addEventListener("change", () => {
             const v = parseInt(afkThreshInput.value, 10);
-            if (!isNaN(v) && v >= 1) setAfkThreshold(v);
+            if (!isNaN(v) && v >= 1) { setAfkThreshold(v); updateThreshUnit(v); }
         });
         afkThreshRow.appendChild(afkThreshLbl);
         afkThreshRow.appendChild(afkThreshInput);
+        afkThreshRow.appendChild(afkThreshUnit);
         afkBody.appendChild(afkThreshRow);
 
         // Message row

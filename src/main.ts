@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.7.7";
+const MOD_VERSION = "1.7.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -27,6 +27,14 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.7.8",
+        changes: [
+            "Fix: AFK mention-reply was using minutes multiplier instead of seconds — whisper now fires correctly.",
+            "Fix: AFK auto-reply beep is now recorded in beep history and refreshes the chat window so you can see it was sent.",
+            "Tweak: Idle threshold field now shows computed time next to seconds — e.g. '120 sec (2 min)' — updating live as you type.",
+        ],
+    },
     {
         version: "1.7.7",
         changes: [
@@ -1982,7 +1990,7 @@ function init(): void {
                     const nameMatch = myName && content.includes(myName) || (myNick && content.includes(myNick));
                     if (senderNum && senderNum !== Player.MemberNumber && nameMatch) {
                         const idleMs      = Date.now() - lastActivityTime;
-                        const thresholdMs = getAfkThreshold() * 60 * 1000;
+                        const thresholdMs = getAfkThreshold() * 1000;
                         const lastReply   = afkReplyCooldown.get(senderNum) ?? 0;
                         if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
                             afkReplyCooldown.set(senderNum, Date.now());
@@ -2156,14 +2164,17 @@ function init(): void {
                     const lastReply = afkReplyCooldown.get(fromNum) ?? 0;
                     if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
                         afkReplyCooldown.set(fromNum, Date.now());
-                        const replyMsg = getAfkMessage();
+                        const replyMsg = `[AFK] ${getAfkMessage()}`;
                         window.setTimeout(() => {
                             try {
                                 ServerSend("AccountBeep", {
                                     MemberNumber: fromNum,
-                                    Message: `[AFK] ${replyMsg}`,
+                                    Message: replyMsg,
                                     BeepType: "",
                                 });
+                                // Record the sent reply in beep history so it shows in the chat window
+                                addBeepEntry({ from: Player.MemberNumber ?? 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                                try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
                             } catch { /* ignore */ }
                         }, 500);
                     }

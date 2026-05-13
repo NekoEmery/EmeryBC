@@ -13445,23 +13445,42 @@
             afkBody.appendChild(afkToggleRow);
             // Threshold row
             const afkThreshRow = document.createElement("div");
-            afkThreshRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+            afkThreshRow.style.cssText = "display:flex;align-items:center;gap:6px;";
             const afkThreshLbl = document.createElement("span");
             afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            afkThreshLbl.textContent = "Idle threshold (seconds)";
+            afkThreshLbl.textContent = "Idle threshold";
             const afkThreshInput = document.createElement("input");
             afkThreshInput.type = "number";
             afkThreshInput.min = "1";
             afkThreshInput.max = "86400";
             afkThreshInput.value = String(getAfkThreshold());
             afkThreshInput.style.cssText = "width:62px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
-            afkThreshInput.addEventListener("change", () => {
+            const afkThreshUnit = document.createElement("span");
+            afkThreshUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;white-space:nowrap;flex-shrink:0;";
+            const updateThreshUnit = (secs) => {
+                if (secs < 60)
+                    afkThreshUnit.textContent = `sec`;
+                else if (secs < 3600)
+                    afkThreshUnit.textContent = `sec (${(secs / 60).toFixed(1).replace(/\.0$/, "")} min)`;
+                else
+                    afkThreshUnit.textContent = `sec (${(secs / 3600).toFixed(1).replace(/\.0$/, "")} hr)`;
+            };
+            updateThreshUnit(getAfkThreshold());
+            afkThreshInput.addEventListener("input", () => {
                 const v = parseInt(afkThreshInput.value, 10);
                 if (!isNaN(v) && v >= 1)
+                    updateThreshUnit(v);
+            });
+            afkThreshInput.addEventListener("change", () => {
+                const v = parseInt(afkThreshInput.value, 10);
+                if (!isNaN(v) && v >= 1) {
                     setAfkThreshold(v);
+                    updateThreshUnit(v);
+                }
             });
             afkThreshRow.appendChild(afkThreshLbl);
             afkThreshRow.appendChild(afkThreshInput);
+            afkThreshRow.appendChild(afkThreshUnit);
             afkBody.appendChild(afkThreshRow);
             // Message row
             const afkMsgLbl = document.createElement("div");
@@ -17588,7 +17607,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.7.7";
+    const MOD_VERSION = "1.7.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17597,6 +17616,14 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.7.8",
+            changes: [
+                "Fix: AFK mention-reply was using minutes multiplier instead of seconds — whisper now fires correctly.",
+                "Fix: AFK auto-reply beep is now recorded in beep history and refreshes the chat window so you can see it was sent.",
+                "Tweak: Idle threshold field now shows computed time next to seconds — e.g. '120 sec (2 min)' — updating live as you type.",
+            ],
+        },
         {
             version: "1.7.7",
             changes: [
@@ -19559,7 +19586,7 @@
                         const nameMatch = myName && content.includes(myName) || (myNick && content.includes(myNick));
                         if (senderNum && senderNum !== Player.MemberNumber && nameMatch) {
                             const idleMs = Date.now() - lastActivityTime;
-                            const thresholdMs = getAfkThreshold() * 60 * 1000;
+                            const thresholdMs = getAfkThreshold() * 1000;
                             const lastReply = (_c = afkReplyCooldown.get(senderNum)) !== null && _c !== void 0 ? _c : 0;
                             if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
                                 afkReplyCooldown.set(senderNum, Date.now());
@@ -19773,16 +19800,23 @@
                         const lastReply = (_a = afkReplyCooldown.get(fromNum)) !== null && _a !== void 0 ? _a : 0;
                         if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
                             afkReplyCooldown.set(fromNum, Date.now());
-                            const replyMsg = getAfkMessage();
+                            const replyMsg = `[AFK] ${getAfkMessage()}`;
                             window.setTimeout(() => {
+                                var _a;
                                 try {
                                     ServerSend("AccountBeep", {
                                         MemberNumber: fromNum,
-                                        Message: `[AFK] ${replyMsg}`,
+                                        Message: replyMsg,
                                         BeepType: "",
                                     });
+                                    // Record the sent reply in beep history so it shows in the chat window
+                                    addBeepEntry({ from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                                    try {
+                                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
+                                    }
+                                    catch ( /* ignore */_b) { /* ignore */ }
                                 }
-                                catch ( /* ignore */_a) { /* ignore */ }
+                                catch ( /* ignore */_c) { /* ignore */ }
                             }, 500);
                         }
                     }
