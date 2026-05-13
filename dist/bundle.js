@@ -17732,7 +17732,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.9.0";
+    const MOD_VERSION = "1.9.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17740,6 +17740,15 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "1.9.1",
+            changes: [
+                "Fix: quick-action sidebar can no longer be dragged behind the chat log panel (X clamped to 1150).",
+                "Fix: Reset pos button now also resets the sidebar to its default position.",
+                "New: profile button (person icon) added to beep window header — opens BC info sheet for that player.",
+                "Fix: other dev-branch users now show 'dev' above their head (isDev broadcast in presence data).",
+            ],
+        },
         {
             version: "1.9.0",
             changes: [
