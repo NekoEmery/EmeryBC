@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EBC — EmeryBC</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #190b13;
+      color: #f0d8e5;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 20px;
+      padding: 24px;
+    }
+    img { width: 90px; height: 90px; }
+    h1 { font-size: 2rem; color: #cf6f98; }
+    p { color: #c49ab0; text-align: center; max-width: 480px; line-height: 1.6; }
+    .links { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    a {
+      background: rgba(207,111,152,0.15);
+      border: 1px solid rgba(207,111,152,0.35);
+      color: #cf6f98;
+      padding: 8px 18px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: background 0.15s;
+    }
+    a:hover { background: rgba(207,111,152,0.28); }
+    .mono { font-family: monospace; font-size: 0.8rem; color: #9a6070; }
+  </style>
+</head>
+<body>
+  <img src="icon.svg" alt="EBC icon"/>
+  <h1>EBC</h1>
+  <p>A Bondage Club addon — outfits, action buttons, friends management, poses, scenes, palettes, and quality-of-life tools.</p>
+  <div class="links">
+    <a href="https://github.com/NekoEmery/EmeryBC">GitHub</a>
+    <a href="stable/bundle.js">Stable bundle</a>
+    <a href="dev/bundle.js">Dev bundle</a>
+  </div>
+  <p class="mono">stable/bundle.js &nbsp;·&nbsp; dev/bundle.js</p>
+</body>
+</html>
