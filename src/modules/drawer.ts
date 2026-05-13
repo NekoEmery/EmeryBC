@@ -4728,22 +4728,12 @@ export class EBCDrawer {
         let selectedColor: string | null = null;
 
         // Targeted updaters — assigned inside build(), called without full rebuild
-        let updateSelBar:    () => void = () => {};
-        let updateSwatchGrid: () => void = () => {};
+        let updateSelRow:    () => void = () => {};
+        let updateSwatchRow: () => void = () => {};
 
         // Custom picker handles — refreshed each time build() creates a new widget
         let pickerCleanup: (() => void) | null = null;
         let setPickerHex:  ((hex: string) => void) | null = null;
-        // Opens the MY COLOURS picker panel from zone row interactions
-        let openPicker:    () => void = () => {};
-
-        // Flash the selected-colour bar to prompt the user to pick a colour first
-        const flashSelBar = (): void => {
-            const el = container.querySelector<HTMLElement>(".ebc-sel-bar");
-            if (!el) return;
-            el.style.outline = "1px solid #cf6f98";
-            window.setTimeout(() => { el.style.outline = ""; }, 700);
-        };
 
         const build = (): void => {
             // Detach document-level drag listeners from previous picker instance
@@ -4751,28 +4741,42 @@ export class EBCDrawer {
             while (container.firstChild) container.removeChild(container.firstChild);
             if (collapsed) return;
 
-            // ── MY COLOURS ───────────────────────────────────────────────────
-            const myColLbl = document.createElement("div");
-            myColLbl.className = "ebc-mycolors-label";
-            myColLbl.textContent = "MY COLOURS";
-            container.appendChild(myColLbl);
+            // ── Colour picker (always visible) ────────────────────────────────
+            const pickerWidget = this.buildColorPickerWidget(selectedColor ?? "#cf6f98", (hex) => {
+                selectedColor = hex;
+                updateSelRow();
+                updateSwatchRow();
+            });
+            const pw = pickerWidget as unknown as Record<string, unknown>;
+            pickerCleanup = pw._cleanup as () => void;
+            setPickerHex  = pw._setValue as (hex: string) => void;
+            container.appendChild(pickerWidget);
 
-            // ── Compact always-visible selected-colour bar ────────────────────
-            // Shows current colour + hex, with Edit/Close toggle and Clear button.
-            const selBar = document.createElement("div");
-            selBar.className = "ebc-sel-bar";
+            // ── Selected colour bar + Save button ─────────────────────────────
+            const selRow = document.createElement("div");
+            selRow.style.cssText = "display:flex;align-items:center;gap:6px;margin:5px 0 6px;";
 
-            const selDot = document.createElement("span"); selDot.className = "ebc-sel-dot";
-            const selHex = document.createElement("span"); selHex.className = "ebc-sel-hex";
+            const selDot = document.createElement("span");
+            selDot.className = "ebc-sel-dot";
+            const selHex = document.createElement("span");
             selHex.style.cssText = "font-family:'Courier New',monospace;font-size:9px;color:#c48aa8;flex-shrink:0;";
             const selHint = document.createElement("span");
             selHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;flex:1;";
-            selHint.textContent = "No colour selected";
+            selHint.textContent = "Pick a colour above";
 
-            const editPickerBtn = document.createElement("button");
-            editPickerBtn.className = "ebc-wear-btn";
-            editPickerBtn.style.cssText = "font-size:8px;padding:1px 7px;flex-shrink:0;";
-            editPickerBtn.textContent = "🎨 Colour ▾";
+            const saveToMyBtn = document.createElement("button");
+            saveToMyBtn.className = "ebc-wear-btn";
+            saveToMyBtn.style.cssText += "padding:1px 8px;font-size:9px;flex-shrink:0;";
+            saveToMyBtn.textContent = "+ Save";
+            saveToMyBtn.title = "Save selected colour to My Colours";
+            saveToMyBtn.addEventListener("click", () => {
+                if (!selectedColor) return;
+                addCustomColor(selectedColor);
+                updateSwatchRow();
+                updateLabel();
+                saveToMyBtn.textContent = "Saved!";
+                window.setTimeout(() => { saveToMyBtn.textContent = "+ Save"; }, 1400);
+            });
 
             const clrBtn = document.createElement("button");
             clrBtn.textContent = "x";
@@ -4781,66 +4785,19 @@ export class EBCDrawer {
             clrBtn.addEventListener("click", () => {
                 selectedColor = null;
                 setPickerHex?.("#cf6f98");
-                updateSelBar();
-                updateSwatchGrid();
+                updateSelRow();
+                updateSwatchRow();
                 updateLabel();
             });
 
-            selBar.appendChild(selDot);
-            selBar.appendChild(selHex);
-            selBar.appendChild(selHint);
-            selBar.appendChild(editPickerBtn);
-            selBar.appendChild(clrBtn);
-            container.appendChild(selBar);
+            selRow.appendChild(selDot);
+            selRow.appendChild(selHex);
+            selRow.appendChild(selHint);
+            selRow.appendChild(saveToMyBtn);
+            selRow.appendChild(clrBtn);
+            container.appendChild(selRow);
 
-            // ── Collapsible picker panel (closed by default) ──────────────────
-            const pickerPanel = document.createElement("div");
-            pickerPanel.style.cssText = "display:none;flex-direction:column;gap:5px;padding:5px 0 3px;";
-
-            const pickerWidget = this.buildColorPickerWidget(selectedColor ?? "#cf6f98", (hex) => {
-                selectedColor = hex;
-                updateSelBar();
-                updateSwatchGrid();
-            });
-            const w = pickerWidget as unknown as Record<string, unknown>;
-            pickerCleanup = w._cleanup as () => void;
-            setPickerHex  = w._setValue as (hex: string) => void;
-            pickerPanel.appendChild(pickerWidget);
-
-            const saveColBtn = document.createElement("button");
-            saveColBtn.className = "ebc-wear-btn";
-            saveColBtn.style.cssText = "width:100%;margin-top:2px;";
-            saveColBtn.textContent = "+ Save to My Colours";
-            saveColBtn.title = "Save current colour to My Colours";
-            saveColBtn.addEventListener("click", () => {
-                if (!selectedColor) return;
-                addCustomColor(selectedColor);
-                updateSwatchGrid();
-                updateLabel();
-                saveColBtn.textContent = "Saved!";
-                window.setTimeout(() => { saveColBtn.textContent = "+ Save to My Colours"; }, 1400);
-            });
-            pickerPanel.appendChild(saveColBtn);
-            container.appendChild(pickerPanel);
-
-            // Toggle picker open/closed
-            let pickerOpen = false;
-            editPickerBtn.addEventListener("click", () => {
-                pickerOpen = !pickerOpen;
-                pickerPanel.style.display = pickerOpen ? "flex" : "none";
-                editPickerBtn.textContent = pickerOpen ? "▴ Close" : "🎨 Colour ▾";
-            });
-
-            // Exposed to zone rows so they can open the picker when no colour is selected
-            openPicker = (): void => {
-                if (!pickerOpen) {
-                    pickerOpen = true;
-                    pickerPanel.style.display = "flex";
-                    editPickerBtn.textContent = "▴ Close";
-                }
-            };
-
-            updateSelBar = (): void => {
+            updateSelRow = (): void => {
                 if (selectedColor) {
                     selDot.style.background = selectedColor;
                     selDot.style.display = "";
@@ -4855,25 +4812,27 @@ export class EBCDrawer {
                     clrBtn.style.display = "none";
                 }
             };
-            updateSelBar();
+            updateSelRow();
 
-            // ── Saved swatches (always visible) ───────────────────────────────
-            const swatchesLbl = document.createElement("div");
-            swatchesLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:600;color:#8a6070;letter-spacing:0.05em;margin:5px 0 3px;";
-            swatchesLbl.textContent = "SAVED COLOURS";
-            container.appendChild(swatchesLbl);
+            // Flash hint when user tries to apply without a colour selected
+            const flashHint = (): void => {
+                selHint.style.display = "";
+                selHint.style.color = "#cf6f98";
+                window.setTimeout(() => { selHint.style.color = "#9a7888"; updateSelRow(); }, 700);
+            };
 
-            const swatchGrid = document.createElement("div");
-            swatchGrid.className = "ebc-swatch-grid";
+            // ── My Colours swatches ───────────────────────────────────────────
+            const swatchesWrap = document.createElement("div");
+            swatchesWrap.className = "ebc-swatch-grid";
 
-            updateSwatchGrid = (): void => {
-                while (swatchGrid.firstChild) swatchGrid.removeChild(swatchGrid.firstChild);
+            updateSwatchRow = (): void => {
+                while (swatchesWrap.firstChild) swatchesWrap.removeChild(swatchesWrap.firstChild);
                 const saved = getCustomColors();
                 if (!saved.length) {
                     const hint = document.createElement("span");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
-                    hint.textContent = "None saved yet — open the picker above";
-                    swatchGrid.appendChild(hint);
+                    hint.textContent = "No saved colours yet — use + Save above";
+                    swatchesWrap.appendChild(hint);
                     return;
                 }
                 for (const c of saved) {
@@ -4884,8 +4843,8 @@ export class EBCDrawer {
                     sw.addEventListener("click", () => {
                         selectedColor = c;
                         setPickerHex?.(c);
-                        updateSelBar();
-                        updateSwatchGrid();
+                        updateSelRow();
+                        updateSwatchRow();
                     });
                     const rmBtn = document.createElement("span");
                     rmBtn.className = "ebc-cswatch-rm";
@@ -4893,28 +4852,28 @@ export class EBCDrawer {
                     rmBtn.addEventListener("click", (e) => {
                         e.stopPropagation();
                         removeCustomColor(c);
-                        if (selectedColor === c) { selectedColor = null; updateSelBar(); }
-                        updateSwatchGrid();
+                        if (selectedColor === c) { selectedColor = null; updateSelRow(); }
+                        updateSwatchRow();
                         updateLabel();
                     });
                     sw.addEventListener("mouseenter", () => { rmBtn.style.display = "flex"; });
                     sw.addEventListener("mouseleave", () => { rmBtn.style.display = "none"; });
                     sw.appendChild(rmBtn);
-                    swatchGrid.appendChild(sw);
+                    swatchesWrap.appendChild(sw);
                 }
             };
-            updateSwatchGrid();
-            container.appendChild(swatchGrid);
+            updateSwatchRow();
+            container.appendChild(swatchesWrap);
 
-            // ── Apply to restraint ────────────────────────────────────────────
+            // ── Apply to worn restraints ──────────────────────────────────────
             const div1 = document.createElement("div");
-            div1.className = "ebc-divider"; div1.style.margin = "2px 0 8px";
+            div1.className = "ebc-divider"; div1.style.margin = "6px 0 8px";
             container.appendChild(div1);
 
             const applyLbl = document.createElement("div");
             applyLbl.className = "ebc-import-hint";
             applyLbl.style.cssText = "font-weight:600;margin-bottom:5px;";
-            applyLbl.textContent = "APPLY TO RESTRAINT";
+            applyLbl.textContent = "APPLY TO WORN ITEMS";
             container.appendChild(applyLbl);
 
             const worn: Array<{ group: string; name: string }> = [];
@@ -4935,15 +4894,10 @@ export class EBCDrawer {
                 none.textContent = "No restraints currently worn.";
                 container.appendChild(none);
             } else {
-                // renderPresets() is declared after this loop — forward-declare so
-                // the saveBtn inside rebuildZones can reference it via closure.
-                let renderPresets: () => void = () => {};
-
-                for (const w of worn) {
+                for (const wItem of worn) {
                     const wWrap = document.createElement("div");
                     wWrap.style.cssText = "margin-bottom:3px;";
 
-                    // Header row: preview dots · name · All button · arrow
                     const wRow = document.createElement("div");
                     wRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;background:#130810;border:1px solid #2a1020;cursor:pointer;";
 
@@ -4951,7 +4905,7 @@ export class EBCDrawer {
                     previewDots.style.cssText = "display:inline-flex;gap:2px;flex-shrink:0;";
                     const refreshPreview = (): void => {
                         previewDots.innerHTML = "";
-                        for (const c of getGroupColors(w.group).slice(0, 8)) {
+                        for (const c of getGroupColors(wItem.group).slice(0, 8)) {
                             const d = document.createElement("span");
                             const isD = !c || c === "Default";
                             d.style.cssText = `display:inline-block;width:9px;height:9px;border-radius:2px;background:${isD ? "#3a2030" : c};border:1px solid rgba(255,255,255,0.12);flex-shrink:0;`;
@@ -4963,7 +4917,7 @@ export class EBCDrawer {
 
                     const wName = document.createElement("span");
                     wName.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c0a0b0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                    wName.textContent = w.name; wName.title = w.name;
+                    wName.textContent = wItem.name; wName.title = wItem.name;
 
                     const allBtn = document.createElement("button");
                     allBtn.className = "ebc-wear-btn";
@@ -4972,8 +4926,8 @@ export class EBCDrawer {
                     allBtn.title = "Apply selected colour to all zones";
                     allBtn.addEventListener("click", (e) => {
                         e.stopPropagation();
-                        if (!selectedColor) { flashSelBar(); return; }
-                        applyColorToGroup(w.group, selectedColor);
+                        if (!selectedColor) { flashHint(); return; }
+                        applyColorToGroup(wItem.group, selectedColor);
                         refreshPreview();
                         if (zonesPanel.style.display !== "none") rebuildZones();
                         allBtn.textContent = "✓";
@@ -4987,14 +4941,13 @@ export class EBCDrawer {
                     wRow.appendChild(previewDots); wRow.appendChild(wName);
                     wRow.appendChild(allBtn); wRow.appendChild(wArrow);
 
-                    // Zones panel (expandable)
                     const zonesPanel = document.createElement("div");
                     zonesPanel.style.cssText = "display:none;flex-direction:column;gap:2px;padding:5px 7px 6px;background:#0d060c;border:1px solid #2a1020;border-top:none;border-radius:0 0 5px 5px;";
 
                     const rebuildZones = (): void => {
                         while (zonesPanel.firstChild) zonesPanel.removeChild(zonesPanel.firstChild);
-                        const colors    = getGroupColors(w.group);
-                        const zoneNames = getGroupZoneNames(w.group);
+                        const colors    = getGroupColors(wItem.group);
+                        const zoneNames = getGroupZoneNames(wItem.group);
 
                         for (let zi = 0; zi < colors.length; zi++) {
                             const zc = colors[zi];
@@ -5004,38 +4957,34 @@ export class EBCDrawer {
                             const zRow = document.createElement("div");
                             zRow.className = "ebc-zone-row";
 
-                            // Colour dot — click to paste selected colour
                             const zDot = document.createElement("span");
                             zDot.className = "ebc-zone-dot";
                             zDot.style.background = isDefault ? "#3a2030" : zc;
                             zDot.title = isDefault ? "Default — click to apply selected" : `${(zc ?? "").toUpperCase()} — click to apply selected`;
                             zDot.addEventListener("click", () => {
-                                if (!selectedColor) { flashSelBar(); openPicker(); return; }
-                                applyColorZoneToGroup(w.group, zi, selectedColor);
+                                if (!selectedColor) { flashHint(); return; }
+                                applyColorZoneToGroup(wItem.group, zi, selectedColor);
                                 zDot.style.background = selectedColor;
                                 zHex.textContent = selectedColor.toUpperCase();
                                 zDot.title = selectedColor.toUpperCase();
                                 refreshPreview();
                             });
 
-                            // Hex readout
                             const zHex = document.createElement("span");
                             zHex.className = "ebc-zone-hex";
                             zHex.textContent = isDefault ? "Default" : (zc ?? "").toUpperCase();
 
-                            // Zone name
                             const zLabel = document.createElement("span");
                             zLabel.className = "ebc-zone-label";
                             zLabel.textContent = zn;
 
-                            // Set button — applies selected colour from MY COLOURS
                             const zSetBtn = document.createElement("button");
                             zSetBtn.className = "ebc-wear-btn ebc-zone-set";
                             zSetBtn.textContent = "Set";
                             zSetBtn.title = "Apply selected colour to this zone";
                             zSetBtn.addEventListener("click", () => {
-                                if (!selectedColor) { flashSelBar(); openPicker(); return; }
-                                applyColorZoneToGroup(w.group, zi, selectedColor);
+                                if (!selectedColor) { flashHint(); return; }
+                                applyColorZoneToGroup(wItem.group, zi, selectedColor);
                                 zDot.style.background = selectedColor;
                                 zHex.textContent = selectedColor.toUpperCase();
                                 zDot.title = selectedColor.toUpperCase();
@@ -5050,31 +4999,6 @@ export class EBCDrawer {
                             zRow.appendChild(zSetBtn);
                             zonesPanel.appendChild(zRow);
                         }
-
-                        // Save as preset footer
-                        const saveRow = document.createElement("div");
-                        saveRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:5px;border-top:1px solid #2a1020;padding-top:5px;";
-                        const saveInp = document.createElement("input");
-                        saveInp.type = "text"; saveInp.placeholder = "Preset name…";
-                        saveInp.maxLength = 30; saveInp.className = "ebc-form-input";
-                        saveInp.style.fontSize = "9px";
-                        const saveBtn = document.createElement("button");
-                        saveBtn.className = "ebc-wear-btn";
-                        saveBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
-                        saveBtn.textContent = "+ Preset";
-                        saveBtn.title = "Save current zone colours as a named preset";
-                        saveBtn.addEventListener("click", () => {
-                            const name = saveInp.value.trim();
-                            if (!name) { saveInp.style.borderColor = "#cf6f98"; return; }
-                            saveInp.style.borderColor = "";
-                            saveRestraintPreset(name, getGroupColors(w.group));
-                            saveInp.value = "";
-                            renderPresets();
-                            saveBtn.textContent = "✓ Saved";
-                            window.setTimeout(() => { saveBtn.textContent = "+ Preset"; }, 1400);
-                        });
-                        saveRow.appendChild(saveInp); saveRow.appendChild(saveBtn);
-                        zonesPanel.appendChild(saveRow);
                     };
 
                     wRow.addEventListener("click", () => {
@@ -5088,107 +5012,151 @@ export class EBCDrawer {
                     wWrap.appendChild(wRow); wWrap.appendChild(zonesPanel);
                     container.appendChild(wWrap);
                 }
-
-                // ── Restraint colour presets ──────────────────────────────────
-                const div3 = document.createElement("div");
-                div3.className = "ebc-divider"; div3.style.margin = "8px 0 4px";
-                container.appendChild(div3);
-
-                const presetsLbl = document.createElement("div");
-                presetsLbl.className = "ebc-import-hint";
-                presetsLbl.style.cssText = "font-weight:600;margin-bottom:3px;";
-                presetsLbl.textContent = "RESTRAINT PRESETS";
-                container.appendChild(presetsLbl);
-
-                const presetsHint = document.createElement("div");
-                presetsHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;margin-bottom:6px;";
-                presetsHint.textContent = "Save presets using + Preset inside any restraint's zone panel, then apply them here.";
-                container.appendChild(presetsHint);
-
-                const presetsContainer = document.createElement("div");
-                container.appendChild(presetsContainer);
-
-                renderPresets = (): void => {
-                    while (presetsContainer.firstChild) presetsContainer.removeChild(presetsContainer.firstChild);
-                    const presets = getRestraintPresets();
-                    if (!presets.length) {
-                        const none = document.createElement("div");
-                        none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
-                        none.textContent = "No presets saved yet.";
-                        presetsContainer.appendChild(none);
-                        return;
-                    }
-                    for (const preset of presets) {
-                        const pRow = document.createElement("div");
-                        pRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:3px;padding:4px 7px;border-radius:5px;background:#130810;border:1px solid #2a1020;";
-
-                        const swatches = document.createElement("span");
-                        swatches.style.cssText = "display:inline-flex;gap:2px;flex-shrink:0;";
-                        for (const c of preset.colors.slice(0, 8)) {
-                            const d = document.createElement("span");
-                            const isD = !c || c === "Default";
-                            d.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;background:${isD ? "#3a2030" : c};border:1px solid rgba(255,255,255,0.12);`;
-                            swatches.appendChild(d);
-                        }
-
-                        const nameInp = document.createElement("input");
-                        nameInp.value = preset.name; nameInp.maxLength = 30;
-                        nameInp.className = "ebc-form-input";
-                        nameInp.style.cssText = nameInp.style.cssText + ";font-size:9px;min-width:0;";
-                        nameInp.addEventListener("change", () => { renameRestraintPreset(preset.id, nameInp.value); });
-
-                        const applyToSel = document.createElement("select");
-                        applyToSel.className = "ebc-form-input";
-                        applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:9px;flex:none;width:auto;max-width:90px;";
-                        applyToSel.title = "Choose restraint to apply to";
-                        const phOpt = document.createElement("option");
-                        phOpt.value = ""; phOpt.textContent = "— pick —";
-                        applyToSel.appendChild(phOpt);
-                        for (const w of worn) {
-                            const opt = document.createElement("option");
-                            opt.value = w.group; opt.textContent = w.name;
-                            applyToSel.appendChild(opt);
-                        }
-
-                        const applyBtn = document.createElement("button");
-                        applyBtn.className = "ebc-wear-btn";
-                        applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
-                        applyBtn.textContent = "Apply";
-                        applyBtn.addEventListener("click", () => {
-                            const group = applyToSel.value;
-                            if (!group) { applyToSel.style.borderColor = "#cf6f98"; return; }
-                            applyToSel.style.borderColor = "";
-                            applyColorsToGroup(group, preset.colors);
-                            build(); // rebuild to refresh all zone previews
-                            applyBtn.textContent = "✓";
-                            window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1400);
-                        });
-
-                        let delPending = false;
-                        const delBtn = document.createElement("button");
-                        delBtn.className = "ebc-outfit-del"; delBtn.textContent = "×";
-                        delBtn.addEventListener("click", () => {
-                            if (!delPending) {
-                                delPending = true; delBtn.classList.add("confirm"); delBtn.textContent = "Sure?";
-                                window.setTimeout(() => { delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×"; }, 2500);
-                            } else {
-                                deleteRestraintPreset(preset.id);
-                                renderPresets();
-                            }
-                        });
-
-                        pRow.appendChild(swatches); pRow.appendChild(nameInp);
-                        pRow.appendChild(applyToSel); pRow.appendChild(applyBtn); pRow.appendChild(delBtn);
-                        presetsContainer.appendChild(pRow);
-                    }
-                };
-                renderPresets();
             }
 
-            // ── Saved palettes (collapsed toggle, secondary) ──────────────────
+            // ── Colour presets ────────────────────────────────────────────────
             const div2 = document.createElement("div");
-            div2.className = "ebc-divider"; div2.style.margin = "10px 0 4px";
+            div2.className = "ebc-divider"; div2.style.margin = "8px 0 6px";
             container.appendChild(div2);
+
+            const presetsLbl = document.createElement("div");
+            presetsLbl.className = "ebc-import-hint";
+            presetsLbl.style.cssText = "font-weight:600;margin-bottom:5px;";
+            presetsLbl.textContent = "COLOUR PRESETS";
+            container.appendChild(presetsLbl);
+
+            // Save-as-preset row: name + "from" dropdown + Save button
+            const savePresRow = document.createElement("div");
+            savePresRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
+            const savePresInp = document.createElement("input");
+            savePresInp.type = "text"; savePresInp.placeholder = "Preset name…";
+            savePresInp.maxLength = 30; savePresInp.className = "ebc-form-input";
+            savePresInp.style.fontSize = "9px";
+            savePresRow.appendChild(savePresInp);
+
+            // forward-declare so save button closure can call it after assignment below
+            let renderPresets: () => void = () => {};
+
+            if (worn.length) {
+                const savePresGroupSel = document.createElement("select");
+                savePresGroupSel.className = "ebc-form-input";
+                savePresGroupSel.style.cssText = "font-size:9px;flex:none;width:auto;max-width:90px;";
+                savePresGroupSel.title = "Capture colours from this worn item";
+                const phOpt = document.createElement("option");
+                phOpt.value = ""; phOpt.textContent = "— from —";
+                savePresGroupSel.appendChild(phOpt);
+                for (const wItem of worn) {
+                    const opt = document.createElement("option");
+                    opt.value = wItem.group; opt.textContent = wItem.name;
+                    savePresGroupSel.appendChild(opt);
+                }
+                savePresRow.appendChild(savePresGroupSel);
+
+                const savePresBtn = document.createElement("button");
+                savePresBtn.className = "ebc-wear-btn";
+                savePresBtn.style.cssText += "padding:1px 7px;font-size:9px;flex-shrink:0;";
+                savePresBtn.textContent = "+ Preset";
+                savePresBtn.title = "Save current zone colours as a named preset";
+                savePresBtn.addEventListener("click", () => {
+                    const name = savePresInp.value.trim();
+                    const group = savePresGroupSel.value;
+                    if (!name) { savePresInp.style.borderColor = "#cf6f98"; return; }
+                    if (!group) { savePresGroupSel.style.borderColor = "#cf6f98"; return; }
+                    savePresInp.style.borderColor = "";
+                    savePresGroupSel.style.borderColor = "";
+                    saveRestraintPreset(name, getGroupColors(group));
+                    savePresInp.value = "";
+                    renderPresets();
+                    savePresBtn.textContent = "✓ Saved";
+                    window.setTimeout(() => { savePresBtn.textContent = "+ Preset"; }, 1400);
+                });
+                savePresRow.appendChild(savePresBtn);
+            }
+            container.appendChild(savePresRow);
+
+            const presetsContainer = document.createElement("div");
+            container.appendChild(presetsContainer);
+
+            renderPresets = (): void => {
+                while (presetsContainer.firstChild) presetsContainer.removeChild(presetsContainer.firstChild);
+                const presets = getRestraintPresets();
+                if (!presets.length) {
+                    const none = document.createElement("div");
+                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+                    none.textContent = "No presets saved yet.";
+                    presetsContainer.appendChild(none);
+                    return;
+                }
+                for (const preset of presets) {
+                    const pRow = document.createElement("div");
+                    pRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:3px;padding:4px 7px;border-radius:5px;background:#130810;border:1px solid #2a1020;";
+
+                    const swatches = document.createElement("span");
+                    swatches.style.cssText = "display:inline-flex;gap:2px;flex-shrink:0;";
+                    for (const c of preset.colors.slice(0, 8)) {
+                        const d = document.createElement("span");
+                        const isD = !c || c === "Default";
+                        d.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;background:${isD ? "#3a2030" : c};border:1px solid rgba(255,255,255,0.12);`;
+                        swatches.appendChild(d);
+                    }
+
+                    const nameInp = document.createElement("input");
+                    nameInp.value = preset.name; nameInp.maxLength = 30;
+                    nameInp.className = "ebc-form-input";
+                    nameInp.style.cssText = nameInp.style.cssText + ";font-size:9px;min-width:0;";
+                    nameInp.addEventListener("change", () => { renameRestraintPreset(preset.id, nameInp.value); });
+
+                    const applyToSel = document.createElement("select");
+                    applyToSel.className = "ebc-form-input";
+                    applyToSel.style.cssText = applyToSel.style.cssText + ";font-size:9px;flex:none;width:auto;max-width:90px;";
+                    applyToSel.title = "Choose restraint to apply to";
+                    const phOpt2 = document.createElement("option");
+                    phOpt2.value = ""; phOpt2.textContent = "— pick —";
+                    applyToSel.appendChild(phOpt2);
+                    for (const wItem of worn) {
+                        const opt = document.createElement("option");
+                        opt.value = wItem.group; opt.textContent = wItem.name;
+                        applyToSel.appendChild(opt);
+                    }
+
+                    const applyBtn = document.createElement("button");
+                    applyBtn.className = "ebc-wear-btn";
+                    applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
+                    applyBtn.textContent = "Apply";
+                    applyBtn.addEventListener("click", () => {
+                        const group = applyToSel.value;
+                        if (!group) { applyToSel.style.borderColor = "#cf6f98"; return; }
+                        applyToSel.style.borderColor = "";
+                        applyColorsToGroup(group, preset.colors);
+                        build(); // rebuild to refresh all zone previews
+                        applyBtn.textContent = "✓";
+                        window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1400);
+                    });
+
+                    let delPending = false;
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "ebc-outfit-del"; delBtn.textContent = "×";
+                    delBtn.addEventListener("click", () => {
+                        if (!delPending) {
+                            delPending = true; delBtn.classList.add("confirm"); delBtn.textContent = "Sure?";
+                            window.setTimeout(() => { delPending = false; delBtn.classList.remove("confirm"); delBtn.textContent = "×"; }, 2500);
+                        } else {
+                            deleteRestraintPreset(preset.id);
+                            renderPresets();
+                        }
+                    });
+
+                    pRow.appendChild(swatches); pRow.appendChild(nameInp);
+                    pRow.appendChild(applyToSel); pRow.appendChild(applyBtn); pRow.appendChild(delBtn);
+                    presetsContainer.appendChild(pRow);
+                }
+            };
+            renderPresets();
+
+            // ── Saved palettes (collapsed toggle, secondary) ──────────────────
+            const div3 = document.createElement("div");
+            div3.className = "ebc-divider"; div3.style.margin = "10px 0 4px";
+            container.appendChild(div3);
 
             let palCollapsed = true;
             try { palCollapsed = localStorage.getItem("EBC_paletteCollapsed") !== "0"; } catch { /* ignore */ }
@@ -5250,6 +5218,7 @@ export class EBCDrawer {
             });
             container.appendChild(palToggle);
             container.appendChild(palContainer);
+            renderPal();
         };
 
         const updateLabel = (): void => {
@@ -12070,29 +12039,6 @@ export class EBCDrawer {
                             swatchRow.title = `Colors: ${validColors.join(", ")}`;
                             btmRow.appendChild(swatchRow);
 
-                            // Save-colours button
-                            const saveColBtn = document.createElement("button");
-                            saveColBtn.textContent = "💾";
-                            saveColBtn.title = "Save these colours as a named preset";
-                            saveColBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;line-height:1;";
-                            saveColBtn.addEventListener("mouseenter", () => { saveColBtn.style.color = "#cf6f98"; });
-                            saveColBtn.addEventListener("mouseleave", () => { saveColBtn.style.color = "#7a5a6a"; });
-                            saveColBtn.addEventListener("click", (ev) => {
-                                ev.stopPropagation();
-                                const uid2 = Math.random().toString(36).slice(2, 9);
-                                showNameInputOverlay(
-                                    `Save colours from "${entry.itemName}"`,
-                                    entry.craftName ?? entry.itemName,
-                                    "Save",
-                                    (name) => {
-                                        addColorPreset({ id: uid2, name, group: entry.group, itemName: entry.itemName, colors: entry.colors ?? [] });
-                                        saveColBtn.textContent = "✓";
-                                        saveColBtn.style.color = "#79a885";
-                                        setTimeout(() => { saveColBtn.textContent = "💾"; saveColBtn.style.color = "#7a5a6a"; }, 1500);
-                                    },
-                                );
-                            });
-                            btmRow.appendChild(saveColBtn);
                         }
 
                         // Lock badge

@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.0.5";
+const MOD_VERSION = "2.0.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.0.6",
+        changes: [
+            "UI: colours tab reworked — picker is always visible (no extra toggle click), + Save button inline, My Colours swatches compact below picker.",
+            "UX: save-as-preset row moved to top of COLOUR PRESETS section with a 'from' dropdown; no longer buried inside the zones panel.",
+            "Cleanup: removed 💾 save-colours button from restraint log entries.",
+        ],
+    },
     {
         version: "2.0.5",
         changes: [
