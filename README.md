@@ -21,6 +21,7 @@ A personal [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** �
 - [📝 Notes](#-notes)
 - [🌐 People Met](#-people-met)
 - [🛠️ Dev Tools](#️-dev-tools)
+- [🖼️ Drawer Appearance](#️-drawer-appearance)
 - [✨ Quality of Life](#-quality-of-life)
 - [⌨️ Slash Commands](#️-slash-commands)
 
@@ -215,6 +216,20 @@ Three sub-sections, each collapsible:
 | **Rooms Visited** | Room names, join/leave timestamps, time spent per room. Opt-in — disabled by default. |
 | **Restraint Log** | Every restraint added or removed from your character, with who did it and when. Opt-in — disabled by default. |
 | **Message Log** | Recent chat messages from the current session. |
+
+---
+
+## 🖼️ Drawer Appearance
+
+Customisation options found in the **Buttons** tab under *Drawer Appearance*.
+
+| Setting | What it does |
+|---|---|
+| **Accent color** | Change the default pink (`#cf6f98`) to any hex value. The CSS reloads instantly — a Reset button restores the original. |
+| **Tab visibility** | Hide tabs you never use. Each tab has a chip toggle; hidden tabs disappear from the tab bar and EBC falls back to the first visible tab automatically. |
+| **Drawer width** | Drag the left edge of the drawer to resize it (280–600 px). Width is saved to localStorage. |
+
+**Outfit search** — a text filter appears at the top of the Outfits tab so you can narrow a long list by name as you type.
 
 ---
 

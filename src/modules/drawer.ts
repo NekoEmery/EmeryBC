@@ -2356,7 +2356,57 @@ const CSS = `
     transition: background 0.14s, color 0.12s;
 }
 .ebc-seq-add-btn:hover { background: #1b0d17; color: #cf6f98; border-style: solid; }
+
+/* ── Resize handle ─────────────────────────────────────────────────────── */
+#ebc-resize-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 100;
+    background: transparent;
+    transition: background 0.15s;
+}
+#ebc-resize-handle:hover { background: rgba(207,111,152,0.22); }
 `;
+
+// ── Drawer appearance / layout helpers ───────────────────────────────────
+const EBC_ACCENT_KEY     = "EBC_accentColor";
+const EBC_WIDTH_KEY      = "EBC_drawerWidth";
+const EBC_HIDDEN_KEY     = "EBC_hiddenTabs";
+const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "thanks", "dev"] as const;
+const EBC_TAB_LABELS: Record<string, string> = {
+    outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
+    notes: "USERS", thanks: "CREDITS", dev: "DEV",
+};
+
+function getAccentColor(): string {
+    try { return localStorage.getItem(EBC_ACCENT_KEY) || "#cf6f98"; } catch { return "#cf6f98"; }
+}
+function setAccentColor(hex: string): void {
+    try { localStorage.setItem(EBC_ACCENT_KEY, hex); } catch { /* ignore */ }
+}
+function getDrawerWidth(): number {
+    try {
+        const v = parseInt(localStorage.getItem(EBC_WIDTH_KEY) || "360", 10);
+        return isNaN(v) ? 360 : Math.min(600, Math.max(280, v));
+    } catch { return 360; }
+}
+function setDrawerWidth(px: number): void {
+    try { localStorage.setItem(EBC_WIDTH_KEY, String(Math.round(Math.min(600, Math.max(280, px))))); } catch { /* ignore */ }
+}
+function getHiddenTabs(): string[] {
+    try { const v = localStorage.getItem(EBC_HIDDEN_KEY); return v ? JSON.parse(v) as string[] : []; } catch { return []; }
+}
+function setHiddenTabs(ids: string[]): void {
+    try { localStorage.setItem(EBC_HIDDEN_KEY, JSON.stringify(ids)); } catch { /* ignore */ }
+}
+function buildCSS(accent: string): string {
+    // Replace all accent color occurrences in the CSS string with the user's chosen color
+    return CSS.split("#cf6f98").join(accent);
+}
 
 // -- VIP members (highlighted in Notes tab when present in the room) -----------
 
@@ -2539,6 +2589,28 @@ export class EBCDrawer {
         const slideContainer = document.createElement("div");
         slideContainer.id = "emerybc-panel";
         slideContainer.className = "ebc-closed";
+        slideContainer.style.width = getDrawerWidth() + "px";
+
+        // Resize handle — dragging the left edge adjusts the panel width
+        const resizeHandle = document.createElement("div");
+        resizeHandle.id = "ebc-resize-handle";
+        resizeHandle.addEventListener("mousedown", (e: MouseEvent) => {
+            e.preventDefault();
+            const startX   = e.clientX;
+            const startW   = slideContainer.offsetWidth;
+            const onMove   = (ev: MouseEvent): void => {
+                const newW = Math.min(600, Math.max(280, startW + (startX - ev.clientX)));
+                slideContainer.style.width = newW + "px";
+            };
+            const onUp = (): void => {
+                document.removeEventListener("mousemove", onMove);
+                document.removeEventListener("mouseup",   onUp);
+                setDrawerWidth(slideContainer.offsetWidth);
+            };
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup",   onUp);
+        });
+        slideContainer.appendChild(resizeHandle);
 
         // Inner panel (visual content)
         const panel = document.createElement("div");
@@ -3325,12 +3397,29 @@ export class EBCDrawer {
         });
     }
 
+    private applyTabVisibility(): void {
+        if (!this.rootEl) return;
+        const hidden = getHiddenTabs();
+        for (const tabId of EBC_USER_TABS) {
+            const btn = this.rootEl.querySelector(`#ebc-tab-${tabId}`) as HTMLElement | null;
+            if (!btn) continue;
+            btn.style.display = hidden.includes(tabId) ? "none" : "";
+        }
+        // If the active tab was hidden, fall back to the first visible tab
+        if (hidden.includes(this.currentTab)) {
+            const first = EBC_USER_TABS.find(id => !hidden.includes(id)) ?? "outfits";
+            this.switchTab(first);
+        }
+    }
+
     private injectStyles(): void {
-        if (document.getElementById("emerybc-drawer-css")) return;
-        const s = document.createElement("style");
-        s.id = "emerybc-drawer-css";
-        s.textContent = CSS;
-        document.head.appendChild(s);
+        let s = document.getElementById("emerybc-drawer-css") as HTMLStyleElement | null;
+        if (!s) {
+            s = document.createElement("style");
+            s.id = "emerybc-drawer-css";
+            document.head.appendChild(s);
+        }
+        s.textContent = buildCSS(getAccentColor());
     }
 
     // -- Positioning -----------------------------------------------------------
@@ -3929,8 +4018,60 @@ export class EBCDrawer {
         outfitsHeaderRow.appendChild(outfitsChevron);
         body.appendChild(outfitsHeaderRow);
 
+        // ── Outfit search ─────────────────────────────────────────────────────
+        const searchRow = document.createElement("div");
+        searchRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
+        const searchInp = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input",
+            type: "text",
+            placeholder: "Filter outfits…",
+        }) as HTMLInputElement;
+        searchInp.style.flex = "1";
+        const clearSearchBtn = document.createElement("button");
+        clearSearchBtn.textContent = "×";
+        clearSearchBtn.title = "Clear filter";
+        clearSearchBtn.style.cssText = "background:transparent;border:1px solid #3a1928;border-radius:4px;color:#7a5060;cursor:pointer;font-size:12px;padding:0 7px;flex-shrink:0;display:none;";
+        searchRow.appendChild(searchInp);
+        searchRow.appendChild(clearSearchBtn);
+        body.appendChild(searchRow);
+
         const outfitsBody = document.createElement("div");
         outfitsBody.style.display = outfitsCollapsed ? "none" : "block";
+
+        const rebuildOutfitList = (filter = ""): void => {
+            while (outfitsBody.firstChild) outfitsBody.removeChild(outfitsBody.firstChild);
+            const q = filter.toLowerCase();
+            const filtered = q
+                ? outfits.filter(o => o.displayName.toLowerCase().includes(q) || o.command.toLowerCase().includes(q))
+                : outfits;
+            if (filtered.length > 0) {
+                for (const o of filtered) outfitsBody.appendChild(this.buildOutfitRow(o, outfitsBody));
+            } else {
+                const empty = document.createElement("div");
+                empty.className = "ebc-empty";
+                empty.textContent = q ? "No outfits match your filter." : "No outfits saved yet.";
+                if (!q) {
+                    const br = document.createElement("br");
+                    const hint = document.createElement("span");
+                    hint.style.color = "#4c2537";
+                    hint.textContent = "Use the form below to create one.";
+                    empty.appendChild(br); empty.appendChild(hint);
+                }
+                outfitsBody.appendChild(empty);
+            }
+        };
+
+        searchInp.addEventListener("input", () => {
+            const v = searchInp.value.trim();
+            clearSearchBtn.style.display = v ? "" : "none";
+            if (outfitsCollapsed) toggleOutfitsCollapsed();
+            rebuildOutfitList(v);
+        });
+        clearSearchBtn.addEventListener("click", () => {
+            searchInp.value = "";
+            clearSearchBtn.style.display = "none";
+            rebuildOutfitList();
+        });
 
         const toggleOutfitsCollapsed = (): void => {
             outfitsCollapsed = !outfitsCollapsed;
@@ -3941,22 +4082,7 @@ export class EBCDrawer {
 
         outfitsHeaderRow.addEventListener("click", toggleOutfitsCollapsed);
 
-        if (outfits.length > 0) {
-            for (const o of outfits) {
-                outfitsBody.appendChild(this.buildOutfitRow(o, outfitsBody));
-            }
-        } else {
-            const empty = document.createElement("div");
-            empty.className = "ebc-empty";
-            empty.textContent = "No outfits saved yet.";
-            const br = document.createElement("br");
-            const hint = document.createElement("span");
-            hint.style.color = "#4c2537";
-            hint.textContent = "Use the form below to create one.";
-            empty.appendChild(br);
-            empty.appendChild(hint);
-            outfitsBody.appendChild(empty);
-        }
+        rebuildOutfitList();
 
         this.buildNewOutfitSection(outfitsBody);
         body.appendChild(outfitsBody);
@@ -6951,6 +7077,78 @@ export class EBCDrawer {
             } catch { /* ignore */ }
         });
         body.appendChild(clearPoseBtn);
+
+        // ── Drawer Appearance ─────────────────────────────────────────────────
+        const appLbl = document.createElement("div");
+        appLbl.className = "ebc-section-label";
+        appLbl.style.marginTop = "14px";
+        appLbl.textContent = "Drawer Appearance";
+        body.appendChild(appLbl);
+
+        // Accent color
+        const accentRow = document.createElement("div");
+        accentRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
+        const accentTxtLbl = document.createElement("span");
+        accentTxtLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
+        accentTxtLbl.textContent = "Accent color";
+        const accentPicker = document.createElement("input");
+        accentPicker.type = "color";
+        accentPicker.value = getAccentColor();
+        accentPicker.style.cssText = "width:28px;height:24px;padding:0;border:1px solid #4c2537;border-radius:4px;background:transparent;cursor:pointer;flex-shrink:0;";
+        accentPicker.title = "Pick accent color";
+        const accentHex = Object.assign(document.createElement("input"), { type: "text", maxLength: 7, value: getAccentColor() }) as HTMLInputElement;
+        accentHex.style.cssText = "width:66px;font-family:'Courier New',monospace;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:2px 5px;flex-shrink:0;";
+        const accentResetBtn = document.createElement("button");
+        accentResetBtn.textContent = "Reset";
+        accentResetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;";
+        const applyAccent = (hex: string): void => {
+            const clean = hex.trim();
+            if (!/^#[0-9a-fA-F]{6}$/.test(clean)) return;
+            setAccentColor(clean);
+            accentPicker.value = clean;
+            accentHex.value = clean;
+            this.injectStyles(); // re-inject CSS with new accent
+        };
+        accentPicker.addEventListener("input", () => applyAccent(accentPicker.value));
+        accentHex.addEventListener("change", () => applyAccent(accentHex.value));
+        accentHex.addEventListener("keydown", e => { if (e.key === "Enter") applyAccent(accentHex.value); });
+        accentResetBtn.addEventListener("click", () => applyAccent("#cf6f98"));
+        accentRow.appendChild(accentTxtLbl);
+        accentRow.appendChild(accentPicker);
+        accentRow.appendChild(accentHex);
+        accentRow.appendChild(accentResetBtn);
+        body.appendChild(accentRow);
+
+        // Tab visibility
+        const tabVisLbl = document.createElement("div");
+        tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
+        tabVisLbl.textContent = "Visible tabs";
+        body.appendChild(tabVisLbl);
+        const tabVisGrid = document.createElement("div");
+        tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;";
+        const hiddenTabs = getHiddenTabs();
+        for (const tabId of EBC_USER_TABS) {
+            const isVisible = !hiddenTabs.includes(tabId);
+            const chip = document.createElement("button");
+            chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "#91405f" : "#3a1928"};background:${isVisible ? "#2a1421" : "transparent"};color:${isVisible ? "#cf6f98" : "#7a5a6a"};`;
+            chip.textContent = EBC_TAB_LABELS[tabId] ?? tabId.toUpperCase();
+            chip.dataset["tabId"] = tabId;
+            chip.addEventListener("click", () => {
+                const cur = getHiddenTabs();
+                const nowHidden = cur.includes(tabId) ? cur.filter(t => t !== tabId) : [...cur, tabId];
+                // Always keep at least one tab visible
+                const visible = EBC_USER_TABS.filter(t => !nowHidden.includes(t));
+                if (visible.length === 0) return;
+                setHiddenTabs(nowHidden);
+                const nowVis = !nowHidden.includes(tabId);
+                chip.style.borderColor  = nowVis ? "#91405f" : "#3a1928";
+                chip.style.background   = nowVis ? "#2a1421" : "transparent";
+                chip.style.color        = nowVis ? "#cf6f98" : "#7a5a6a";
+                this.applyTabVisibility();
+            });
+            tabVisGrid.appendChild(chip);
+        }
+        body.appendChild(tabVisGrid);
 
     }
 
@@ -13137,6 +13335,7 @@ export class EBCDrawer {
         const puppyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-puppy");
         if (puppyTabEl) puppyTabEl.style.display = Player.MemberNumber === 230466 ? "" : "none";
         this.updateTimer();
+        try { this.applyTabVisibility(); } catch { /* ignore */ }
         this.renderCurrentTab();
     }
 

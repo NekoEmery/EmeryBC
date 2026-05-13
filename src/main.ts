@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.7.2";
+const MOD_VERSION = "1.7.3";
 
 let noticeShown = false;
 
@@ -26,6 +26,15 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.7.3",
+        changes: [
+            "New: Drawer resize — drag the left edge of the EBC drawer to set a custom width (280–600 px), saved to localStorage.",
+            "New: Accent color picker in Buttons tab — change the pink highlight color to any hex value; the CSS reloads instantly. Reset button restores default.",
+            "New: Tab visibility settings in Buttons tab — hide tabs you never use to reduce clutter; hidden tabs are excluded from the tab bar and a fallback to the first visible tab is automatic.",
+            "New: Outfit search — text filter at the top of the Outfits tab narrows the list as you type.",
+        ],
+    },
     {
         version: "1.7.2",
         changes: [
