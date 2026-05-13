@@ -9103,10 +9103,59 @@ export class EBCDrawer {
             EBCDrawer.removeOpenBeepWindow(memberNumber);
         });
 
+        // Profile button — person icon, opens BC info sheet
+        const profileBtn = document.createElement("button");
+        profileBtn.className = "ebc-beep-win-hbtn";
+        profileBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+        profileBtn.title = "View profile";
+        profileBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;">
+            <circle cx="8" cy="5" r="3" fill="#cf6f98"/>
+            <path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/>
+        </svg>`;
+        profileBtn.addEventListener("mouseenter", () => { profileBtn.style.background = "#3a1020"; profileBtn.style.borderColor = "#cf6f98"; });
+        profileBtn.addEventListener("mouseleave", () => { profileBtn.style.background = "#2a0e1e"; profileBtn.style.borderColor = "#4c2537"; });
+        profileBtn.addEventListener("click", () => {
+            const w           = window as unknown as Record<string, unknown>;
+            const loadChar    = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
+            const hideEls     = w.ChatRoomHideElements          as (() => void) | undefined;
+            const loadOnline  = w.CharacterLoadOnline           as ((d: unknown, n: number) => unknown) | undefined;
+            const roomChars   = w.ChatRoomCharacter             as Array<Record<string, unknown>> | undefined;
+
+            const doOpen = (C: unknown): void => {
+                this.close();
+                if (w.CurrentScreen === "ChatRoom") {
+                    try { hideEls?.(); } catch { /* ignore */ }
+                    try {
+                        const bgData = (w.ChatRoomData as Record<string, unknown> | undefined)?.Background;
+                        if (bgData) w.ChatRoomBackground = bgData;
+                    } catch { /* ignore */ }
+                }
+                loadChar!(C);
+            };
+
+            if (!loadChar || !loadOnline) {
+                try { navigator.clipboard.writeText(String(memberNumber)); } catch { /* ignore */ }
+                return;
+            }
+
+            const inRoom = Array.isArray(roomChars)
+                ? roomChars.find(c => c.MemberNumber === memberNumber)
+                : undefined;
+            if (inRoom) { try { doOpen(inRoom); return; } catch { /* ignore */ } }
+
+            const bundle = getCharacterBundle(memberNumber);
+            if (bundle) {
+                try { const C = loadOnline(bundle, memberNumber); if (C) { doOpen(C); return; } } catch { /* ignore */ }
+            }
+
+            try { navigator.clipboard.writeText(String(memberNumber)); } catch { /* ignore */ }
+        });
+
         header.appendChild(dot);
         header.appendChild(titleArea);
         header.appendChild(unreadDot);
         header.appendChild(muteBtn);
+        header.appendChild(profileBtn);
         header.appendChild(suppressBtn);
         header.appendChild(minimizeBtn);
         header.appendChild(closeBtn);
