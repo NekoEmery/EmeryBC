@@ -2008,7 +2008,7 @@ const CSS = `
     padding: 8px 10px;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 4px;
 }
 
@@ -9238,6 +9238,12 @@ export class EBCDrawer {
 
         const renderHistory = (): void => {
             while (history.firstChild) history.removeChild(history.firstChild);
+            // Flex spacer: pushes messages to the bottom when there are few of them.
+            // Using flex-start + spacer instead of justify-content:flex-end avoids the
+            // well-known CSS bug where overflow-y:auto + flex-end makes content unreachable.
+            const spacer = document.createElement("div");
+            spacer.style.flex = "1";
+            history.appendChild(spacer);
             const entries = getConversation(memberNumber);
             const self = Player.MemberNumber ?? 0;
             if (entries.length === 0) {

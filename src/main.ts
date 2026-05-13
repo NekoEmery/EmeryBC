@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.9.6";
+const MOD_VERSION = "1.9.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.9.7",
+        changes: [
+            "Fix: beep window chat history now scrolls correctly — replaced justify-content:flex-end (CSS overflow bug) with a flex spacer that pushes messages to the bottom without breaking scroll.",
+            "Fix: suppress-native-beep now works for all friend beeps including metadata-only ones — the empty-message early-return was firing before the suppress check, leaking friend beeps into BC chat.",
+        ],
+    },
     {
         version: "1.9.6",
         changes: [
@@ -2265,9 +2272,14 @@ function init(): void {
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
             if (name) cacheName(fromNum, name);
 
-            // AFK auto-reply — before the !msg gate so it fires even for empty-message beeps
+            // Non-friend beeps (addon bots, update notices, etc.) always pass through
+            // to BC's native handler so they stay visible regardless of suppress setting.
+            const friendList = (Player.FriendList as number[] | undefined) ?? [];
+            const isFriendBeep = friendList.includes(fromNum);
+
+            // AFK auto-reply — runs for all plain beeps before any early-return
             try {
-                if (getAfkEnabled()
+                if (isFriendBeep && getAfkEnabled()
                     && Date.now() - lastActivityTime >= getAfkThreshold() * 1000
                     && Date.now() - (afkBeepCooldown.get(fromNum) ?? 0) > AFK_REPLY_COOLDOWN_MS) {
                     afkBeepCooldown.set(fromNum, Date.now());
@@ -2280,24 +2292,19 @@ function init(): void {
                 }
             } catch { /* ignore */ }
 
-            // IM system needs a non-empty message — skip display for metadata-only beeps
+            if (!isFriendBeep) return next(args);
+
+            // Strip metadata and add to IM if there is actual message content
             const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
-            if (!msg) return next(args);
+            if (msg) {
+                addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
+                if (!getBeepMuted()) { try { playBeepSound(); } catch { /* ignore */ } }
+                try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
+            }
 
-            // Only intercept beeps from BC friends into the EBC IM system.
-            // Beeps from non-friends (addon bots, update notifications, etc.) fall
-            // through to BC's native chat-log notification so they're still visible.
-            const friendList = (Player.FriendList as number[] | undefined) ?? [];
-            if (!friendList.includes(fromNum)) return next(args);
-            addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-            if (!getBeepMuted()) { try { playBeepSound(); } catch { /* ignore */ } }
-            try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
-
-            // Suppress BC's native chat-log notification when our IM handles it —
-            // BUT only when the tab is visible. When the page is hidden (user tabbed
-            // away), let BC's handler run so its persistent toast and any browser/OS
-            // notification still fire. EBC's own 5-second toast disappears before the
-            // user comes back, so suppressing BC while hidden = zero notification.
+            // Suppress BC's native chat-log notification for ALL friend beeps when
+            // the toggle is on — including metadata-only beeps that have no IM content.
+            // Only pass through when the tab is hidden so OS notifications still fire.
             if (getSuppressNativeBeep() && !document.hidden) return;
         } catch { /* ignore */ }
         return next(args);
