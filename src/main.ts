@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.9.2";
+const MOD_VERSION = "1.9.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.9.3",
+        changes: [
+            "Fix: dev badge now always shows above other dev-branch users — presence was silently skipping the AccountUpdate broadcast if the version matched a stale cached entry without isDev.",
+        ],
+    },
     {
         version: "1.9.2",
         changes: [
@@ -1920,16 +1926,11 @@ function syncPresenceMarker(): void {
         }
     }
 
-    // Write to OnlineSharedSettings - this IS broadcast to all room members
-    // via ChatRoomSync and CharacterUpdate packets, making the badge visible
-    // to every other EmeryBC user in the room.
-    const current = shared[MOD_NAME];
-    const alreadySynced = current && typeof current === "object" &&
-        (current as EmeryAddonSettings).presence?.version === MOD_VERSION;
-    if (!alreadySynced) {
-        shared[MOD_NAME] = { presence };
-        ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
-    }
+    // Write to OnlineSharedSettings and always send AccountUpdate so that
+    // all fields (including isDev) are broadcast to current room members.
+    // One AccountUpdate per room join is well within BC's rate limits.
+    shared[MOD_NAME] = { presence };
+    ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
 }
 
 function hasEmeryBC(character: Character | null | undefined): boolean {
