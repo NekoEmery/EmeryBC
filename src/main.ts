@@ -5,7 +5,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getAfkMentionReply, getOocEnabled, recordPersonMet } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -23,10 +23,8 @@ let noticeShown = false;
 
 // -- AFK auto-reply state -------------------------------------------------------
 let lastActivityTime = Date.now();
-// Separate cooldown maps so a mention-reply doesn't block a beep-reply and vice-versa
-const afkBeepCooldown    = new Map<number, number>(); // memberNumber → last beep-reply ts
-const afkMentionCooldown = new Map<number, number>(); // memberNumber → last mention-reply ts
-const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes per channel
+const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
+const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "1.8.9",
@@ -2063,25 +2061,6 @@ function init(): void {
         try {
             const [data] = args as [Record<string, unknown>];
             logMessage(data);
-
-            // AFK mention-reply: whisper back if someone says our name in room chat
-            if ((data.Type === "Chat" || data.Type === "Emote") && getAfkEnabled() && getAfkMentionReply()) {
-                try {
-                    const rawNum    = data.MemberNumber;
-                    const senderNum = typeof rawNum === "number" ? rawNum
-                        : typeof rawNum === "string" ? (parseInt(rawNum, 10) || 0) : 0;
-                    const content   = typeof data.Content === "string" ? data.Content.toLowerCase() : "";
-                    const myName    = (Player.Name ?? "").toLowerCase();
-                    const myNick    = ((Player as unknown as Record<string, unknown>).Nickname as string | undefined ?? "").toLowerCase();
-                    const nameMatch = (myName && content.includes(myName)) || (myNick && content.includes(myNick));
-                    if (senderNum > 0 && senderNum !== Player.MemberNumber && nameMatch
-                        && Date.now() - lastActivityTime >= getAfkThreshold() * 1000
-                        && Date.now() - (afkMentionCooldown.get(senderNum) ?? 0) > AFK_REPLY_COOLDOWN_MS) {
-                        afkMentionCooldown.set(senderNum, Date.now());
-                        ServerSend("ChatRoomChat", { Content: `[AFK] ${getAfkMessage()}`, Type: "Chat" });
-                    }
-                } catch { /* ignore */ }
-            }
 
             if (data.Type !== "Action") return result;
             const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;

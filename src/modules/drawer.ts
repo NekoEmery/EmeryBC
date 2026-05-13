@@ -78,7 +78,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getAfkMentionReply, setAfkMentionReply, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -9584,39 +9584,11 @@ export class EBCDrawer {
         afkMsgArea.addEventListener("change", () => { setAfkMessage(afkMsgArea.value); });
         afkBody.appendChild(afkMsgArea);
 
-        // Mention-reply toggle
-        const afkMentionRow = document.createElement("div");
-        afkMentionRow.style.cssText = "display:flex;align-items:center;gap:8px;";
-        const afkMentionLbl = document.createElement("span");
-        afkMentionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        afkMentionLbl.textContent = "Reply in chat when name is mentioned";
-        const afkMentionBtn = document.createElement("button");
-        const refreshAfkMention = (): void => {
-            const on = getAfkMentionReply();
-            afkMentionBtn.textContent = on ? "ON" : "OFF";
-            afkMentionBtn.style.cssText = [
-                "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
-                "padding:2px 8px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
-                on ? "border:1px solid #cf6f98;background:#3a1020;color:#f7cce0;"
-                   : "border:1px solid #4c2537;background:transparent;color:#7a5a6a;",
-            ].join(";");
-        };
-        refreshAfkMention();
-        afkMentionBtn.addEventListener("click", () => { setAfkMentionReply(!getAfkMentionReply()); refreshAfkMention(); });
-        afkMentionRow.appendChild(afkMentionLbl);
-        afkMentionRow.appendChild(afkMentionBtn);
-        afkBody.appendChild(afkMentionRow);
-
-        // Hints
+        // Hint
         const afkHintBeep = document.createElement("div");
         afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-        afkHintBeep.textContent = "Beep reply: fires when someone beeps you directly.";
+        afkHintBeep.textContent = "Sends a beep reply when someone beeps you directly.";
         afkBody.appendChild(afkHintBeep);
-
-        const afkHintMention = document.createElement("div");
-        afkHintMention.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-        afkHintMention.textContent = "Mention reply: sends a chat message if your name appears in room chat.";
-        afkBody.appendChild(afkHintMention);
 
         const afkHint = document.createElement("div");
         afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
