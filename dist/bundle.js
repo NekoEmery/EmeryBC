@@ -2805,6 +2805,19 @@
             return false;
         return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
     }
+    // Returns true if this item's slot is in the user's outfit whitelist.
+    function isWhitelisted(item) {
+        try {
+            return getOutfitWhitelist().includes(item.Asset.Group.Name);
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    // Combined guard: skip if owner/lover/family locked OR in outfit whitelist.
+    function isUntouchable(item) {
+        return isProtectedLock(item) || isWhitelisted(item);
+    }
     function localNotice(msg, color = UI.accent) {
         const log = document.getElementById("TextAreaChatLog");
         if (!log)
@@ -2823,13 +2836,13 @@
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
     }
-    // /ebc release - removes restraint items, skips protected locks
+    // /ebc release - removes restraint items, skips protected locks and whitelisted slots
     function releaseRestraints() {
-        const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item));
-        const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isProtectedLock(item));
+        const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item));
+        const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item));
         if (toRemove.length === 0) {
             localNotice(skipped.length > 0
-                ? "All restraints are owner/lover/family locked - none removed."
+                ? "All restraints are locked or protected — none removed."
                 : "No restraints found to remove.", UI.textMuted);
             return;
         }
@@ -2847,7 +2860,7 @@
     // Returns un-protected restraint items currently worn by the player.
     function getPlayerRestraints() {
         return Player.Appearance
-            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item))
+            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
             .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
     }
     // Returns locked (non-protected) items currently worn by the player.
@@ -2897,7 +2910,7 @@
         }
         return count;
     }
-    // /ebc unlock - strips lock data from items, skips protected locks
+    // /ebc unlock - strips lock data from items, skips protected locks and whitelisted slots
     function unlockItems() {
         var _a;
         let unlocked = 0;
@@ -2905,7 +2918,7 @@
         for (const item of Player.Appearance) {
             if (!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy))
                 continue;
-            if (isProtectedLock(item)) {
+            if (isUntouchable(item)) {
                 skipped++;
                 continue;
             }
@@ -18608,7 +18621,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.1.4";
+    const MOD_VERSION = "2.1.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18616,6 +18629,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.1.5",
+            changes: [
+                "Fix: Protected Items whitelist now respected by Release Restraints, Unlock, and the self-picker — whitelisted slots are skipped just like owner/lover locks.",
+            ],
+        },
         {
             version: "2.1.4",
             changes: [
