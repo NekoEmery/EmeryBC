@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.0.7";
+const MOD_VERSION = "2.0.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.0.8",
+        changes: [
+            "Fix: overhead badge now always shows the correct running version — was reading stale cached presence data (e.g. 1.9.12) instead of the actual MOD_VERSION.",
+        ],
+    },
     {
         version: "2.0.7",
         changes: [
@@ -2059,7 +2065,8 @@ function drawPresenceMarker(args: unknown[]): void {
 
     const presence = getSharedPresence(character);
     const showVer  = getShowVersionBadge();
-    const verStr   = presence?.version ?? MOD_VERSION;
+    // For self, always use the live MOD_VERSION — cached presence may be stale.
+    const verStr   = isSelf ? MOD_VERSION : (presence?.version ?? "?");
     const isDevUser = isSelf ? IS_DEV_BUILD : (presence?.isDev === true);
     const label = isDevUser
         ? (showVer ? "dev | v" + verStr : "dev | EBC")

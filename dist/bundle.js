@@ -18228,7 +18228,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.0.7";
+    const MOD_VERSION = "2.0.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18236,6 +18236,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.0.8",
+            changes: [
+                "Fix: overhead badge now always shows the correct running version — was reading stale cached presence data (e.g. 1.9.12) instead of the actual MOD_VERSION.",
+            ],
+        },
         {
             version: "2.0.7",
             changes: [
@@ -20245,7 +20251,8 @@
             return;
         const presence = getSharedPresence(character);
         const showVer = getShowVersionBadge();
-        const verStr = (_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : MOD_VERSION;
+        // For self, always use the live MOD_VERSION — cached presence may be stale.
+        const verStr = isSelf ? MOD_VERSION : ((_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : "?");
         const isDevUser = isSelf ? IS_DEV_BUILD : ((presence === null || presence === void 0 ? void 0 : presence.isDev) === true);
         const label = isDevUser
             ? (showVer ? "dev | v" + verStr : "dev | EBC")
