@@ -16,8 +16,8 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.1.4";
-const IS_DEV_BUILD = false; // true on dev branch, false on master
+const MOD_VERSION = "2.1.5";
+const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
 
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.1.5",
+        changes: [
+            "Fix: Protected Items whitelist now respected by Release Restraints, Unlock, and the self-picker — whitelisted slots are skipped just like owner/lover locks.",
+        ],
+    },
     {
         version: "2.1.4",
         changes: [

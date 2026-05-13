@@ -2,13 +2,23 @@
 
 import { UI } from "./ui";
 import { callBC } from "./bcUtils";
-import { RESTRAINT_GROUPS } from "./outfitManager";
+import { RESTRAINT_GROUPS, getOutfitWhitelist } from "./outfitManager";
 
 // Locks that must never be touched regardless of the operation.
 function isProtectedLock(item: Item): boolean {
     const lock = (item.Property?.LockedBy as string | undefined ?? "").toLowerCase();
     if (!lock) return false;
     return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
+}
+
+// Returns true if this item's slot is in the user's outfit whitelist.
+function isWhitelisted(item: Item): boolean {
+    try { return getOutfitWhitelist().includes(item.Asset.Group.Name); } catch { return false; }
+}
+
+// Combined guard: skip if owner/lover/family locked OR in outfit whitelist.
+function isUntouchable(item: Item): boolean {
+    return isProtectedLock(item) || isWhitelisted(item);
 }
 
 function localNotice(msg: string, color = UI.accent): void {
@@ -29,19 +39,19 @@ function localNotice(msg: string, color = UI.accent): void {
     log.scrollTop = log.scrollHeight;
 }
 
-// /ebc release - removes restraint items, skips protected locks
+// /ebc release - removes restraint items, skips protected locks and whitelisted slots
 export function releaseRestraints(): void {
     const toRemove = Player.Appearance.filter(
-        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item)
+        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item)
     );
     const skipped = Player.Appearance.filter(
-        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isProtectedLock(item)
+        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item)
     );
 
     if (toRemove.length === 0) {
         localNotice(
             skipped.length > 0
-                ? "All restraints are owner/lover/family locked - none removed."
+                ? "All restraints are locked or protected — none removed."
                 : "No restraints found to remove.",
             UI.textMuted
         );
@@ -64,7 +74,7 @@ export function releaseRestraints(): void {
 // Returns un-protected restraint items currently worn by the player.
 export function getPlayerRestraints(): Array<{ group: string; name: string }> {
     return Player.Appearance
-        .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item))
+        .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
         .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
 }
 
@@ -113,14 +123,14 @@ export function unlockPlayerSpecificItems(groups: string[]): number {
     return count;
 }
 
-// /ebc unlock - strips lock data from items, skips protected locks
+// /ebc unlock - strips lock data from items, skips protected locks and whitelisted slots
 export function unlockItems(): void {
     let unlocked = 0;
     let skipped = 0;
 
     for (const item of Player.Appearance) {
         if (!(item.Property?.LockedBy)) continue;
-        if (isProtectedLock(item)) { skipped++; continue; }
+        if (isUntouchable(item)) { skipped++; continue; }
 
         if (item.Property) {
             delete item.Property["LockedBy"];
