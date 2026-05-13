@@ -9615,7 +9615,7 @@ export class EBCDrawer {
 
         const afkHintMention = document.createElement("div");
         afkHintMention.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-        afkHintMention.textContent = "Mention reply: whispers back if your name appears in room chat.";
+        afkHintMention.textContent = "Mention reply: sends a chat message if your name appears in room chat.";
         afkBody.appendChild(afkHintMention);
 
         const afkHint = document.createElement("div");

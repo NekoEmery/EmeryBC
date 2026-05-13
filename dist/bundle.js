@@ -13570,7 +13570,7 @@
             afkBody.appendChild(afkHintBeep);
             const afkHintMention = document.createElement("div");
             afkHintMention.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-            afkHintMention.textContent = "Mention reply: whispers back if your name appears in room chat.";
+            afkHintMention.textContent = "Mention reply: sends a chat message if your name appears in room chat.";
             afkBody.appendChild(afkHintMention);
             const afkHint = document.createElement("div");
             afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
@@ -17653,7 +17653,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.8.8";
+    const MOD_VERSION = "1.8.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17663,6 +17663,14 @@
     const afkMentionCooldown = new Map(); // memberNumber → last mention-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes per channel
     const CHANGELOG = [
+        {
+            version: "1.8.9",
+            changes: [
+                "Fix: AFK beep and mention-reply now show diagnostic feedback in local chat — one of three messages: not idle yet (with countdown), cooldown active, or reply sent.",
+                "New: /ebc afk command — shows current AFK state, idle time, threshold, and whether a reply would fire right now.",
+                "Fix: drawer hint text for mention-reply corrected to 'sends a chat message' (was 'whispers back').",
+            ],
+        },
         {
             version: "1.8.8",
             changes: [
@@ -19364,7 +19372,17 @@
             }
             return true;
         }
-        appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off", UI.gold);
+        if (subcommand === "afk") {
+            const enabled = getAfkEnabled();
+            const threshSec = getAfkThreshold();
+            const idleSec = Math.floor((Date.now() - lastActivityTime) / 1000);
+            const readyIn = Math.max(0, threshSec - idleSec);
+            appendLocalLogLine(`[AFK] Enabled: ${enabled ? "YES" : "NO"}`, enabled ? UI.gold : UI.textMuted);
+            appendLocalLogLine(`[AFK] Idle: ${idleSec}s  |  Threshold: ${threshSec}s  |  ${readyIn === 0 ? "READY to reply" : `${readyIn}s until ready`}`, UI.gold);
+            appendLocalLogLine(`[AFK] Mention reply: ${getAfkMentionReply() ? "ON" : "OFF"}`, UI.gold);
+            return true;
+        }
+        appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
         return true;
     }
     // -- Update notification -------------------------------------------------------
@@ -19709,15 +19727,22 @@
                         const nameMatch = (myName && content.includes(myName)) || (myNick && content.includes(myNick));
                         if (senderNum > 0 && senderNum !== Player.MemberNumber && nameMatch) {
                             const idleMs = Date.now() - lastActivityTime;
-                            const thresholdMs = getAfkThreshold() * 1000;
+                            const threshMs = getAfkThreshold() * 1000;
                             const lastReply = (_c = afkMentionCooldown.get(senderNum)) !== null && _c !== void 0 ? _c : 0;
-                            if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
+                            const roomChars = (_d = window.ChatRoomCharacter) !== null && _d !== void 0 ? _d : [];
+                            const senderName = (_f = (_e = roomChars.find(c => c.MemberNumber === senderNum)) === null || _e === void 0 ? void 0 : _e.Name) !== null && _f !== void 0 ? _f : String(senderNum);
+                            if (idleMs < threshMs) {
+                                const idleSec = Math.floor(idleMs / 1000);
+                                const needSec = Math.ceil(threshMs / 1000);
+                                appendLocalLogLine(`[AFK] Mentioned by ${senderName} — not idle yet (${idleSec}s / ${needSec}s threshold)`, UI.textSoft);
+                            }
+                            else if (Date.now() - lastReply <= AFK_REPLY_COOLDOWN_MS) {
+                                appendLocalLogLine(`[AFK] Mentioned by ${senderName} — 30 min cooldown active, skipping reply`, UI.textSoft);
+                            }
+                            else {
                                 afkMentionCooldown.set(senderNum, Date.now());
-                                const replyMsg = getAfkMessage();
-                                const roomChars = (_d = window.ChatRoomCharacter) !== null && _d !== void 0 ? _d : [];
-                                const senderName = (_f = (_e = roomChars.find(c => c.MemberNumber === senderNum)) === null || _e === void 0 ? void 0 : _e.Name) !== null && _f !== void 0 ? _f : String(senderNum);
                                 ServerSend("ChatRoomChat", {
-                                    Content: `[AFK] ${replyMsg}`,
+                                    Content: `[AFK] ${getAfkMessage()}`,
                                     Type: "Chat",
                                 });
                                 appendLocalLogLine(`[AFK] Auto-replied in chat (mention by ${senderName})`, UI.gold);
@@ -19899,7 +19924,7 @@
         // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
         // Only handle plain beeps (BeepType === "" or undefined) — skip game/friend-request beeps.
         tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             try {
                 const [beep] = args;
                 // Non-chat beeps (friend requests, etc.) always pass through unchanged.
@@ -19915,32 +19940,36 @@
                 try {
                     if (getAfkEnabled()) {
                         const idleMs = Date.now() - lastActivityTime;
-                        const thresholdMs = getAfkThreshold() * 1000;
+                        const threshMs = getAfkThreshold() * 1000;
                         const lastReply = (_a = afkBeepCooldown.get(fromNum)) !== null && _a !== void 0 ? _a : 0;
-                        if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
+                        const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName)
+                            ? beep.MemberName : String(fromNum);
+                        if (idleMs < threshMs) {
+                            const idleSec = Math.floor(idleMs / 1000);
+                            const needSec = Math.ceil(threshMs / 1000);
+                            appendLocalLogLine(`[AFK] Beep from ${senderLabel} — not idle yet (${idleSec}s / ${needSec}s threshold)`, UI.textSoft);
+                        }
+                        else if (Date.now() - lastReply <= AFK_REPLY_COOLDOWN_MS) {
+                            appendLocalLogLine(`[AFK] Beep from ${senderLabel} — 30 min cooldown active, skipping reply`, UI.textSoft);
+                        }
+                        else {
                             afkBeepCooldown.set(fromNum, Date.now());
                             const replyMsg = `[AFK] ${getAfkMessage()}`;
-                            window.setTimeout(() => {
-                                var _a;
-                                try {
-                                    ServerSend("AccountBeep", {
-                                        MemberNumber: fromNum,
-                                        Message: replyMsg,
-                                        BeepType: "",
-                                    });
-                                    // Record the sent reply in beep history so it shows in the chat window
-                                    addBeepEntry({ from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, to: fromNum, message: replyMsg, ts: Date.now() });
-                                    try {
-                                        drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
-                                    }
-                                    catch ( /* ignore */_b) { /* ignore */ }
-                                }
-                                catch ( /* ignore */_c) { /* ignore */ }
-                            }, 500);
+                            ServerSend("AccountBeep", {
+                                MemberNumber: fromNum,
+                                Message: replyMsg,
+                                BeepType: "",
+                            });
+                            addBeepEntry({ from: (_b = Player.MemberNumber) !== null && _b !== void 0 ? _b : 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                            appendLocalLogLine(`[AFK] Beep reply sent to ${senderLabel}`, UI.gold);
+                            try {
+                                drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
+                            }
+                            catch ( /* ignore */_e) { /* ignore */ }
                         }
                     }
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
+                catch ( /* ignore */_f) { /* ignore */ }
                 // IM system needs a non-empty message — skip display for metadata-only beeps
                 const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
                 if (!msg)
@@ -19948,20 +19977,20 @@
                 // Only intercept beeps from BC friends into the EBC IM system.
                 // Beeps from non-friends (addon bots, update notifications, etc.) fall
                 // through to BC's native chat-log notification so they're still visible.
-                const friendList = (_b = Player.FriendList) !== null && _b !== void 0 ? _b : [];
+                const friendList = (_c = Player.FriendList) !== null && _c !== void 0 ? _c : [];
                 if (!friendList.includes(fromNum))
                     return next(args);
-                addBeepEntry({ from: fromNum, to: (_c = Player.MemberNumber) !== null && _c !== void 0 ? _c : 0, message: msg, ts: Date.now() });
+                addBeepEntry({ from: fromNum, to: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, message: msg, ts: Date.now() });
                 if (!getBeepMuted()) {
                     try {
                         playBeepSound();
                     }
-                    catch ( /* ignore */_e) { /* ignore */ }
+                    catch ( /* ignore */_g) { /* ignore */ }
                 }
                 try {
                     drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                 }
-                catch ( /* ignore */_f) { /* ignore */ }
+                catch ( /* ignore */_h) { /* ignore */ }
                 // Suppress BC's native chat-log notification when our IM handles it —
                 // BUT only when the tab is visible. When the page is hidden (user tabbed
                 // away), let BC's handler run so its persistent toast and any browser/OS
@@ -19970,7 +19999,7 @@
                 if (getSuppressNativeBeep() && !document.hidden)
                     return;
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_j) { /* ignore */ }
             return next(args);
         });
         // Cache friend names whenever BC notifies us a friend came online.
