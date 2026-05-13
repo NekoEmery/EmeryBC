@@ -52,6 +52,7 @@ import {
     getOutfitWhitelist,
     addToOutfitWhitelist,
     removeFromOutfitWhitelist,
+    setOutfitNameInAnnounce,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -5410,6 +5411,7 @@ export class EBCDrawer {
 
         const isPreserving = o.preserveRestraints !== false;
         const isPreservingClothing = !!o.preserveClothing;
+        const isNameInAnnounce = o.nameInAnnounce !== false;
 
         // Labeled toggle chips — live inside the info column so they're readable without hover
         const flagsRow = document.createElement("div");
@@ -5423,8 +5425,13 @@ export class EBCDrawer {
         preserveClothingBtn.className = "ebc-flag-chip" + (isPreservingClothing ? " on" : "");
         preserveClothingBtn.textContent = isPreservingClothing ? "👗 Keep clothes" : "👗 Swap clothes";
 
+        const nameInAnnounceBtn = document.createElement("button");
+        nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
+        nameInAnnounceBtn.textContent = isNameInAnnounce ? "👤 With name" : "👤 No name";
+
         flagsRow.appendChild(preserveBtn);
         flagsRow.appendChild(preserveClothingBtn);
+        flagsRow.appendChild(nameInAnnounceBtn);
 
         info.appendChild(nameEl);
         info.appendChild(cmdEl);
@@ -5665,6 +5672,13 @@ export class EBCDrawer {
             preserveClothingBtn.textContent = next ? "👗 Keep clothes" : "👗 Swap clothes";
             setOutfitPreserveClothing(o.id, next);
             ePreserveClothingCheck.checked = next;
+        });
+
+        nameInAnnounceBtn.addEventListener("click", () => {
+            const next = !nameInAnnounceBtn.classList.contains("on");
+            nameInAnnounceBtn.className = "ebc-flag-chip" + (next ? " on" : "");
+            nameInAnnounceBtn.textContent = next ? "👤 With name" : "👤 No name";
+            setOutfitNameInAnnounce(o.id, next);
         });
 
         wearBtn.addEventListener("click", () => {
@@ -6424,6 +6438,22 @@ export class EBCDrawer {
 
         info.appendChild(nameEl);
         info.appendChild(cmdEl);
+
+        // Name-in-announce flag chip
+        const rIsNameInAnnounce = r.nameInAnnounce !== false;
+        const rFlagsRow = document.createElement("div");
+        rFlagsRow.className = "ebc-outfit-flags";
+        const rNameInAnnounceBtn = document.createElement("button");
+        rNameInAnnounceBtn.className = "ebc-flag-chip" + (rIsNameInAnnounce ? " on" : "");
+        rNameInAnnounceBtn.textContent = rIsNameInAnnounce ? "👤 With name" : "👤 No name";
+        rNameInAnnounceBtn.addEventListener("click", () => {
+            const next = !rNameInAnnounceBtn.classList.contains("on");
+            rNameInAnnounceBtn.className = "ebc-flag-chip" + (next ? " on" : "");
+            rNameInAnnounceBtn.textContent = next ? "👤 With name" : "👤 No name";
+            setOutfitNameInAnnounce(r.id, next);
+        });
+        rFlagsRow.appendChild(rNameInAnnounceBtn);
+        info.appendChild(rFlagsRow);
 
         if (r.items.length === 0) {
             const emptyHint = document.createElement("span");

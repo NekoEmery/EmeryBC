@@ -747,6 +747,8 @@
             preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
             // Default false — opt-in; restraints-only imports set this to true automatically
             preserveClothing: typeof outfit.preserveClothing === "boolean" ? outfit.preserveClothing : false,
+            // Default true — existing outfits always included the name
+            nameInAnnounce: typeof outfit.nameInAnnounce === "boolean" ? outfit.nameInAnnounce : true,
             items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
         };
     }
@@ -915,9 +917,12 @@
                     // Poison trick: Content won't be found in Interface.csv, so BC prepends
                     // "MISSING TEXT IN "Interface.csv": ". We strip that prefix with the poison
                     // tag (replaced by a zero-width non-joiner), leaving (​Name text).
+                    const announceContent = outfit.nameInAnnounce !== false
+                        ? getDisplayName() + " " + outfit.announceText.trim()
+                        : outfit.announceText.trim();
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
-                        Content: getDisplayName() + " " + outfit.announceText.trim(),
+                        Content: announceContent,
                         Dictionary: [
                             { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                             { SourceCharacter: Player.MemberNumber },
@@ -963,6 +968,7 @@
             includeRestraints,
             preserveRestraints,
             preserveClothing,
+            nameInAnnounce: true,
             items: captureAppearance(includeRestraints),
         };
         saveOutfits([...getOutfits(), outfit]);
@@ -986,6 +992,22 @@
             return;
         outfit.preserveClothing = value;
         saveOutfits(outfits);
+    }
+    // Toggle nameInAnnounce on a saved outfit OR restraint set
+    function setOutfitNameInAnnounce(id, value) {
+        const outfits = getOutfits();
+        const outfit = outfits.find(o => o.id === id);
+        if (outfit) {
+            outfit.nameInAnnounce = value;
+            saveOutfits(outfits);
+            return;
+        }
+        const restraints = getRestraints();
+        const restraint = restraints.find(r => r.id === id);
+        if (restraint) {
+            restraint.nameInAnnounce = value;
+            saveRestraints(restraints);
+        }
     }
     function getOutfitTags() {
         const raw = getAddon$1().outfitTags;
@@ -1259,9 +1281,12 @@
         window.setTimeout(() => {
             try {
                 if (restraint.announceText.trim()) {
+                    const rAnnounceContent = restraint.nameInAnnounce !== false
+                        ? getDisplayName() + " " + restraint.announceText.trim()
+                        : restraint.announceText.trim();
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
-                        Content: getDisplayName() + " " + restraint.announceText.trim(),
+                        Content: rAnnounceContent,
                         Dictionary: [
                             { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                             { SourceCharacter: Player.MemberNumber },
@@ -1294,6 +1319,7 @@
             includeRestraints: true,
             preserveRestraints: false,
             preserveClothing: true,
+            nameInAnnounce: true,
             items: captureRestraints(),
         };
         saveRestraints([...getRestraints(), restraint]);
@@ -1467,6 +1493,7 @@
             includeRestraints: includesRestraints,
             preserveRestraints: mode === "outfit", // outfit-only: keep existing restraints
             preserveClothing: mode === "restraints", // restraints-only: keep existing clothing
+            nameInAnnounce: true,
             items,
         });
         saveOutfits([...existing, outfit]);
@@ -9855,6 +9882,7 @@
             cmdEl.textContent = "/" + o.command;
             const isPreserving = o.preserveRestraints !== false;
             const isPreservingClothing = !!o.preserveClothing;
+            const isNameInAnnounce = o.nameInAnnounce !== false;
             // Labeled toggle chips — live inside the info column so they're readable without hover
             const flagsRow = document.createElement("div");
             flagsRow.className = "ebc-outfit-flags";
@@ -9864,8 +9892,12 @@
             const preserveClothingBtn = document.createElement("button");
             preserveClothingBtn.className = "ebc-flag-chip" + (isPreservingClothing ? " on" : "");
             preserveClothingBtn.textContent = isPreservingClothing ? "👗 Keep clothes" : "👗 Swap clothes";
+            const nameInAnnounceBtn = document.createElement("button");
+            nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
+            nameInAnnounceBtn.textContent = isNameInAnnounce ? "👤 With name" : "👤 No name";
             flagsRow.appendChild(preserveBtn);
             flagsRow.appendChild(preserveClothingBtn);
+            flagsRow.appendChild(nameInAnnounceBtn);
             info.appendChild(nameEl);
             info.appendChild(cmdEl);
             info.appendChild(flagsRow);
@@ -10087,6 +10119,12 @@
                 preserveClothingBtn.textContent = next ? "👗 Keep clothes" : "👗 Swap clothes";
                 setOutfitPreserveClothing(o.id, next);
                 ePreserveClothingCheck.checked = next;
+            });
+            nameInAnnounceBtn.addEventListener("click", () => {
+                const next = !nameInAnnounceBtn.classList.contains("on");
+                nameInAnnounceBtn.className = "ebc-flag-chip" + (next ? " on" : "");
+                nameInAnnounceBtn.textContent = next ? "👤 With name" : "👤 No name";
+                setOutfitNameInAnnounce(o.id, next);
             });
             wearBtn.addEventListener("click", () => {
                 const fresh = getOutfits().find(x => x.id === o.id);
@@ -10770,6 +10808,21 @@
             cmdEl.textContent = "/" + r.command;
             info.appendChild(nameEl);
             info.appendChild(cmdEl);
+            // Name-in-announce flag chip
+            const rIsNameInAnnounce = r.nameInAnnounce !== false;
+            const rFlagsRow = document.createElement("div");
+            rFlagsRow.className = "ebc-outfit-flags";
+            const rNameInAnnounceBtn = document.createElement("button");
+            rNameInAnnounceBtn.className = "ebc-flag-chip" + (rIsNameInAnnounce ? " on" : "");
+            rNameInAnnounceBtn.textContent = rIsNameInAnnounce ? "👤 With name" : "👤 No name";
+            rNameInAnnounceBtn.addEventListener("click", () => {
+                const next = !rNameInAnnounceBtn.classList.contains("on");
+                rNameInAnnounceBtn.className = "ebc-flag-chip" + (next ? " on" : "");
+                rNameInAnnounceBtn.textContent = next ? "👤 With name" : "👤 No name";
+                setOutfitNameInAnnounce(r.id, next);
+            });
+            rFlagsRow.appendChild(rNameInAnnounceBtn);
+            info.appendChild(rFlagsRow);
             if (r.items.length === 0) {
                 const emptyHint = document.createElement("span");
                 emptyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#cf6f98;font-style:italic;";
@@ -18491,7 +18544,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.1.0";
+    const MOD_VERSION = "2.1.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18499,6 +18552,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.1.1",
+            changes: [
+                "Feature: per-outfit and per-restraint-set toggle to include or exclude your name from the announce text. 👤 With name / 👤 No name chip on each row.",
+            ],
+        },
         {
             version: "2.1.0",
             changes: [
