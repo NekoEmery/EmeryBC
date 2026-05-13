@@ -49,6 +49,9 @@ import {
     saveCurrentAppearanceToRestraint,
     setRestraintTagIds,
     applyColorPresetToRestraint,
+    getOutfitWhitelist,
+    addToOutfitWhitelist,
+    removeFromOutfitWhitelist,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -2371,7 +2374,7 @@ const CSS = `
 // ── Generic confirm overlay ───────────────────────────────────────────────
 // Same style as the anti-restraint escape prompt. Used for any destructive
 // action that needs a "are you sure?" before proceeding.
-function showConfirmOverlay(
+export function showConfirmOverlay(
     message: string,
     cancelLabel: string,
     confirmLabel: string,
@@ -4079,6 +4082,7 @@ export class EBCDrawer {
         body.appendChild(defTitleRow);
 
         this.renderRestraintInfo(body);
+        this.renderOutfitWhitelist(body);
         this.renderPalettes(body);
 
         // ── Tag management ───────────────────────────────────────────────────────────
@@ -4713,6 +4717,152 @@ export class EBCDrawer {
 
         render(true); // initial paint
         return wrap;
+    }
+
+    private renderOutfitWhitelist(body: HTMLElement): void {
+        const wl = getOutfitWhitelist();
+
+        const section = document.createElement("div");
+        section.style.marginBottom = "6px";
+
+        const hdr = document.createElement("div");
+        hdr.className = "ebc-section-label";
+        hdr.style.cssText += "cursor:pointer;user-select:none;";
+
+        let open = false;
+        try { open = localStorage.getItem("EBC_outfitWLOpen") === "1"; } catch { /* ignore */ }
+
+        const updateHdr = (): void => {
+            const n = getOutfitWhitelist().length;
+            hdr.textContent = (open ? "▼" : "▶") + ` PROTECTED ITEMS${n ? ` (${n})` : ""}`;
+        };
+        updateHdr();
+
+        const inner = document.createElement("div");
+        inner.style.display = open ? "block" : "none";
+
+        const rebuild = (): void => {
+            while (inner.firstChild) inner.removeChild(inner.firstChild);
+            const current = getOutfitWhitelist();
+
+            // ── Active chips ──────────────────────────────────────────────────
+            if (current.length) {
+                const chipsWrap = document.createElement("div");
+                chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;";
+                for (const group of current) {
+                    // Resolve a readable label: try current worn item, fallback to cleaned group name
+                    let chipLabel = group.replace(/^Item/, "");
+                    try {
+                        const worn = Player.Appearance.find((i: Item) => i.Asset.Group.Name === group);
+                        if (worn) {
+                            const iDesc = ((worn.Asset as unknown as Record<string, unknown>).Description as string | undefined)?.trim();
+                            const gDesc = ((worn.Asset.Group as unknown as Record<string, unknown>).Description as string | undefined)?.trim();
+                            if (iDesc && gDesc) chipLabel = `${iDesc} · ${gDesc}`;
+                            else if (iDesc) chipLabel = iDesc;
+                            else if (gDesc) chipLabel = gDesc;
+                        }
+                    } catch { /* ignore */ }
+
+                    const chip = document.createElement("span");
+                    chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#1a0c16;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;font-family:'Trebuchet MS',serif;font-size:9px;color:#c48aa8;";
+                    const chipTxt = document.createElement("span");
+                    chipTxt.textContent = chipLabel;
+                    const rmBtn = document.createElement("span");
+                    rmBtn.textContent = "×";
+                    rmBtn.style.cssText = "cursor:pointer;color:#8a6070;font-size:10px;line-height:1;";
+                    rmBtn.title = "Remove from protected items";
+                    rmBtn.addEventListener("mouseenter", () => { rmBtn.style.color = "#cf6f98"; });
+                    rmBtn.addEventListener("mouseleave", () => { rmBtn.style.color = "#8a6070"; });
+                    rmBtn.addEventListener("click", () => {
+                        removeFromOutfitWhitelist(group);
+                        rebuild();
+                        updateHdr();
+                    });
+                    chip.appendChild(chipTxt);
+                    chip.appendChild(rmBtn);
+                    chipsWrap.appendChild(chip);
+                }
+                inner.appendChild(chipsWrap);
+            } else {
+                const empty = document.createElement("div");
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;margin-bottom:6px;";
+                empty.textContent = "No protected items — add some from the list below.";
+                inner.appendChild(empty);
+            }
+
+            // ── Currently wearing picker (collapsible) ────────────────────────
+            let wornOpen = false;
+            try { wornOpen = localStorage.getItem("EBC_outfitWLWornOpen") === "1"; } catch { /* ignore */ }
+            const wornToggle = document.createElement("div");
+            wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;cursor:pointer;user-select:none;margin-bottom:3px;";
+            const wornBody = document.createElement("div");
+            wornBody.style.display = wornOpen ? "flex" : "none";
+            wornBody.style.cssText = "flex-wrap:wrap;gap:4px;";
+
+            const updateWornToggle = (): void => {
+                wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Currently wearing — click to protect";
+            };
+            updateWornToggle();
+
+            const buildWornButtons = (): void => {
+                while (wornBody.firstChild) wornBody.removeChild(wornBody.firstChild);
+                const wl2 = getOutfitWhitelist();
+                let anyShown = false;
+                try {
+                    for (const item of Player.Appearance) {
+                        const group = item.Asset.Group.Name;
+                        if (wl2.includes(group)) continue; // already protected
+                        const iDesc = ((item.Asset as unknown as Record<string, unknown>).Description as string | undefined)?.trim() || item.Asset.Name;
+                        const gDesc = ((item.Asset.Group as unknown as Record<string, unknown>).Description as string | undefined)?.trim() || group.replace(/^Item/, "");
+                        const btn = document.createElement("button");
+                        btn.className = "ebc-wear-btn";
+                        btn.style.cssText += "font-size:9px;padding:2px 7px;";
+                        btn.textContent = `${iDesc} · ${gDesc}`;
+                        btn.title = `Protect this slot (${group})`;
+                        btn.addEventListener("click", () => {
+                            addToOutfitWhitelist(group);
+                            rebuild();
+                            updateHdr();
+                        });
+                        wornBody.appendChild(btn);
+                        anyShown = true;
+                    }
+                } catch { /* ignore */ }
+                if (!anyShown) {
+                    const hint = document.createElement("span");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
+                    hint.textContent = "Nothing worn that isn't already protected.";
+                    wornBody.appendChild(hint);
+                }
+            };
+
+            wornToggle.addEventListener("click", () => {
+                wornOpen = !wornOpen;
+                try { localStorage.setItem("EBC_outfitWLWornOpen", wornOpen ? "1" : "0"); } catch { /* ignore */ }
+                wornBody.style.display = wornOpen ? "flex" : "none";
+                updateWornToggle();
+                if (wornOpen) buildWornButtons();
+            });
+            if (wornOpen) buildWornButtons();
+
+            inner.appendChild(wornToggle);
+            inner.appendChild(wornBody);
+        };
+
+        hdr.addEventListener("click", () => {
+            open = !open;
+            try { localStorage.setItem("EBC_outfitWLOpen", open ? "1" : "0"); } catch { /* ignore */ }
+            inner.style.display = open ? "block" : "none";
+            updateHdr();
+            if (open) rebuild();
+        });
+
+        if (open) rebuild();
+        section.appendChild(hdr);
+        section.appendChild(inner);
+        body.appendChild(section);
+
+        void wl; // suppress unused-variable warning — length tracked via getOutfitWhitelist() calls
     }
 
     private renderPalettes(body: HTMLElement): void {
