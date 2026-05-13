@@ -450,10 +450,22 @@
                 DrawRect(dotStartX + col * dotGapX, dotStartY + row * dotGapY, dotSize, dotSize, dotCol);
             }
         }
-        // Collapse toggle — dark, unobtrusive; just a small arrow hint
-        DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#100810");
-        DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#2a1428", 1);
-        DrawTextFit(sidebarCollapsed ? "▶" : "▼", sidebarX + CHIP_W / 2, sidebarY + CHIP_H / 2 + 1, CHIP_W - 6, sidebarCollapsed ? UI.accentSoft : "#3d1f2e");
+        // Collapse toggle — three horizontal bars (open) or one bar (collapsed)
+        DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? "#2a0e1e" : "#100810");
+        DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? UI.accentSoft : "#2a1428", 1);
+        const barCol = sidebarCollapsed ? UI.accentSoft : "#5a2a44";
+        const barW = CHIP_W - 12;
+        const barH = 2;
+        const barX = sidebarX + 6;
+        const midY = sidebarY + CHIP_H / 2;
+        if (sidebarCollapsed) {
+            DrawRect(barX, midY - barH / 2, barW, barH, barCol);
+        }
+        else {
+            DrawRect(barX, midY - 4, barW, barH, barCol);
+            DrawRect(barX, midY - barH / 2, barW, barH, barCol);
+            DrawRect(barX, midY + 3, barW, barH, barCol);
+        }
         if (sidebarCollapsed)
             return;
         // Category switcher chip: [◀] Name [▶]
