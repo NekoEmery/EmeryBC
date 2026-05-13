@@ -19291,9 +19291,8 @@
         const y = top + 26 * zoom;
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
-        DrawRect(badgeLeft + 1, badgeTop + 1, width, height, "rgba(0, 0, 0, 0.28)");
-        DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
-        DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
+        DrawRect(badgeLeft, badgeTop, width, height, "rgba(16, 6, 12, 0.55)");
+        DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(207, 111, 152, 0.45)", 1);
         DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 6, UI.accent);
     }
     function showRoomLoadNotice() {
