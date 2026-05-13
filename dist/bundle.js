@@ -14451,8 +14451,17 @@
                     setTheme(themeSel.value);
                     this.injectStyles();
                 });
+                const themeResetBtn = document.createElement("button");
+                themeResetBtn.textContent = "Reset";
+                themeResetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;";
+                themeResetBtn.addEventListener("click", () => {
+                    themeSel.value = "default";
+                    setTheme("default");
+                    this.injectStyles();
+                });
                 themeRow.appendChild(themeLbl);
                 themeRow.appendChild(themeSel);
+                themeRow.appendChild(themeResetBtn);
                 cnt.appendChild(themeRow);
                 // Tab visibility
                 const tabVisLbl = document.createElement("div");
