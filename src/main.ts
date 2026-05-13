@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.7.1";
+const MOD_VERSION = "1.7.2";
 
 let noticeShown = false;
 
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.7.2",
+        changes: [
+            "Fix: Release Restraints (/ebc release) and related functions now cover collar and neck slots — was using BC's IsRestraint flag which excludes those groups. Switched to RESTRAINT_GROUPS throughout restraints.ts.",
+            "Rework: Copy Restraints from Member now exports a BC outfit code instead of directly applying — load a member's restraints, pick individual items via checkboxes, generate the code, and copy to clipboard for BC wardrobe import.",
+        ],
+    },
     {
         version: "1.7.1",
         changes: [

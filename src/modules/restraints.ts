@@ -2,6 +2,7 @@
 
 import { UI } from "./ui";
 import { callBC } from "./bcUtils";
+import { RESTRAINT_GROUPS } from "./outfitManager";
 
 // Locks that must never be touched regardless of the operation.
 function isProtectedLock(item: Item): boolean {
@@ -31,10 +32,10 @@ function localNotice(msg: string, color = UI.accent): void {
 // /ebc release - removes restraint items, skips protected locks
 export function releaseRestraints(): void {
     const toRemove = Player.Appearance.filter(
-        item => item.Asset.Group.IsRestraint && !isProtectedLock(item)
+        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item)
     );
     const skipped = Player.Appearance.filter(
-        item => item.Asset.Group.IsRestraint && isProtectedLock(item)
+        item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isProtectedLock(item)
     );
 
     if (toRemove.length === 0) {
@@ -63,7 +64,7 @@ export function releaseRestraints(): void {
 // Returns un-protected restraint items currently worn by the player.
 export function getPlayerRestraints(): Array<{ group: string; name: string }> {
     return Player.Appearance
-        .filter(item => item.Asset.Group.IsRestraint && !isProtectedLock(item))
+        .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item))
         .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
 }
 

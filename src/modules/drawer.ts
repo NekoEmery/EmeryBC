@@ -48,7 +48,6 @@ import {
     moveRestraint,
     saveCurrentAppearanceToRestraint,
     setRestraintTagIds,
-    copyRestraintsFromChar,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -10632,9 +10631,10 @@ export class EBCDrawer {
         makeSection("COPY RESTRAINTS FROM MEMBER", "EBC_devCopyRestrCollapsed", true, (cnt) => {
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
-            hint.textContent = "Copy another room member's current restraints onto yourself. Lock data is stripped — you own the items freely.";
+            hint.textContent = "Export a room member's restraints as a BC outfit code. Choose which items to include, then import via BC's wardrobe.";
             cnt.appendChild(hint);
 
+            // ── Member picker row ──────────────────────────────────────────────
             const pickRow = document.createElement("div");
             pickRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
 
@@ -10647,8 +10647,7 @@ export class EBCDrawer {
                 const others = room.filter(c => c.MemberNumber !== Player.MemberNumber);
                 if (others.length === 0) {
                     const opt = document.createElement("option");
-                    opt.value = "";
-                    opt.textContent = "No other members in room";
+                    opt.value = ""; opt.textContent = "No other members in room";
                     memberSelect.appendChild(opt);
                     return;
                 }
@@ -10662,116 +10661,198 @@ export class EBCDrawer {
             };
             populateSelect();
 
-            const refreshSelBtn = document.createElement("button");
-            refreshSelBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;transition:border-color 0.12s,color 0.12s;";
-            refreshSelBtn.textContent = "↻";
-            refreshSelBtn.title = "Refresh member list";
-            refreshSelBtn.addEventListener("mouseenter", () => { refreshSelBtn.style.borderColor = "#cf6f98"; refreshSelBtn.style.color = "#cf6f98"; });
-            refreshSelBtn.addEventListener("mouseleave", () => { refreshSelBtn.style.borderColor = "#4c2537"; refreshSelBtn.style.color = "#7a5a6a"; });
-            refreshSelBtn.addEventListener("click", populateSelect);
+            const mkBtn = (label: string, primary = false): HTMLButtonElement => {
+                const b = document.createElement("button");
+                b.textContent = label;
+                b.style.cssText = primary
+                    ? "flex-shrink:0;background:#2a1421;border:1px solid #91405f;border-radius:4px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:3px 10px;transition:background 0.12s,color 0.12s;"
+                    : "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 7px;transition:border-color 0.12s,color 0.12s;";
+                b.addEventListener("mouseenter", () => {
+                    b.style.background = primary ? "#91405f" : "transparent";
+                    b.style.borderColor = "#cf6f98"; b.style.color = primary ? "#f7e6ee" : "#cf6f98";
+                });
+                b.addEventListener("mouseleave", () => {
+                    b.style.background = primary ? "#2a1421" : "transparent";
+                    b.style.borderColor = primary ? "#91405f" : "#4c2537"; b.style.color = primary ? "#cf6f98" : "#7a5a6a";
+                });
+                return b;
+            };
 
-            const copyBtn = document.createElement("button");
-            copyBtn.style.cssText = "flex-shrink:0;background:#2a1421;border:1px solid #91405f;border-radius:4px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:3px 12px;transition:background 0.12s,color 0.12s;";
-            copyBtn.textContent = "Copy";
-            copyBtn.addEventListener("mouseenter", () => { copyBtn.style.background = "#91405f"; copyBtn.style.color = "#f7e6ee"; });
-            copyBtn.addEventListener("mouseleave", () => { copyBtn.style.background = "#2a1421"; copyBtn.style.color = "#cf6f98"; });
+            const refreshSelBtn = mkBtn("↻");
+            refreshSelBtn.title = "Refresh member list";
+            refreshSelBtn.addEventListener("click", () => { populateSelect(); clearChecklist(); });
+
+            const loadBtn = mkBtn("Load", true);
+            loadBtn.title = "Load this member's restraints";
 
             pickRow.appendChild(memberSelect);
             pickRow.appendChild(refreshSelBtn);
-            pickRow.appendChild(copyBtn);
+            pickRow.appendChild(loadBtn);
             cnt.appendChild(pickRow);
+
+            // ── Item checklist (shown after Load) ──────────────────────────────
+            const checklistWrap = document.createElement("div");
+            checklistWrap.style.cssText = "display:none;flex-direction:column;gap:2px;margin-bottom:6px;";
+            cnt.appendChild(checklistWrap);
+
+            const checklistHeader = document.createElement("div");
+            checklistHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;";
+            const checklistLbl = document.createElement("span");
+            checklistLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+            const allBtn  = mkBtn("All");
+            const noneBtn = mkBtn("None");
+            allBtn.style.cssText  += "font-size:9px;padding:1px 6px;";
+            noneBtn.style.cssText += "font-size:9px;padding:1px 6px;";
+            checklistHeader.appendChild(checklistLbl);
+            checklistHeader.appendChild(allBtn);
+            checklistHeader.appendChild(noneBtn);
+            checklistWrap.appendChild(checklistHeader);
+
+            const checklistItems = document.createElement("div");
+            checklistItems.style.cssText = "display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto;padding-right:2px;";
+            checklistWrap.appendChild(checklistItems);
+
+            let loadedItems: Array<{ item: Item; checkbox: HTMLInputElement }> = [];
+
+            const clearChecklist = (): void => {
+                checklistItems.innerHTML = "";
+                loadedItems = [];
+                checklistWrap.style.display = "none";
+                codeWrap.style.display = "none";
+                codeTA.value = "";
+                statusEl.textContent = "";
+            };
+
+            allBtn.addEventListener("click",  () => { loadedItems.forEach(e => { e.checkbox.checked = true; }); });
+            noneBtn.addEventListener("click", () => { loadedItems.forEach(e => { e.checkbox.checked = false; }); });
+
+            // ── Code output area ───────────────────────────────────────────────
+            const codeWrap = document.createElement("div");
+            codeWrap.style.cssText = "display:none;flex-direction:column;gap:4px;margin-bottom:4px;";
+            cnt.appendChild(codeWrap);
+
+            const codeTA = document.createElement("textarea");
+            codeTA.readOnly = true;
+            codeTA.rows = 3;
+            codeTA.style.cssText = "width:100%;box-sizing:border-box;resize:none;background:#100810;border:1px solid #3a1928;border-radius:4px;color:#cf6f98;font-family:'Courier New',monospace;font-size:8.5px;padding:4px 6px;";
+
+            const codeBtnRow = document.createElement("div");
+            codeBtnRow.style.cssText = "display:flex;gap:4px;";
+            const genBtn  = mkBtn("Generate Code", true);
+            const clipBtn = mkBtn("Copy to Clipboard");
+            genBtn.style.cssText  = genBtn.style.cssText.replace("padding:3px 10px", "padding:3px 8px") + "flex:1;";
+            clipBtn.style.cssText = clipBtn.style.cssText + "flex:1;";
+
+            codeBtnRow.appendChild(genBtn);
+            codeBtnRow.appendChild(clipBtn);
+            codeWrap.appendChild(codeBtnRow);
+            codeWrap.appendChild(codeTA);
 
             const statusEl = document.createElement("div");
             statusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;min-height:14px;";
             cnt.appendChild(statusEl);
 
-            copyBtn.addEventListener("click", () => {
+            // ── Load handler ───────────────────────────────────────────────────
+            loadBtn.addEventListener("click", () => {
                 const num = parseInt(memberSelect.value, 10);
-                if (isNaN(num)) { statusEl.textContent = "No member selected."; statusEl.style.color = "#9a7080"; return; }
+                if (isNaN(num)) { statusEl.textContent = "No member selected."; return; }
                 const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
                 const char = room.find(c => c.MemberNumber === num);
                 if (!char) { statusEl.textContent = "Character not found in room."; statusEl.style.color = "#ff6b6b"; return; }
 
-                // Preview what will be copied before confirming
-                const preview = char.Appearance.filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
-                if (preview.length === 0) {
-                    statusEl.textContent = "This character has no restraints to copy.";
+                const items = char.Appearance.filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+                if (items.length === 0) {
+                    statusEl.textContent = "This character has no restraints.";
                     statusEl.style.color = "#9a7080";
+                    clearChecklist();
                     return;
                 }
 
+                clearChecklist();
                 const charName = ((char as unknown as Record<string, unknown>).Nickname as string | undefined)?.trim() || char.Name;
-                const itemNames = preview.map((i: Item) => {
-                    const craft = i.Craft as { Name?: string } | undefined;
+                checklistLbl.textContent = `${items.length} restraint(s) from ${charName} — pick what to export:`;
+
+                for (const item of items) {
+                    const craft = item.Craft as { Name?: string } | undefined;
                     const craftName = craft?.Name?.trim();
-                    const baseName = (i.Asset as unknown as Record<string, unknown>).Description as string || i.Asset.Name;
-                    return craftName ? `${craftName} (${baseName})` : baseName;
-                });
+                    const baseName = (item.Asset as unknown as Record<string, unknown>).Description as string || item.Asset.Name;
+                    const label = craftName ? `${craftName} (${baseName})` : baseName;
+                    const group = item.Asset.Group.Name;
 
-                // Confirm overlay
-                const overlay = document.createElement("div");
-                overlay.style.cssText = [
-                    "position:fixed", "top:50%", "left:50%",
-                    "transform:translate(-50%,-50%)",
-                    "background:#130810", "border:2px solid #cf6f98",
-                    "border-radius:10px", "padding:18px 22px",
-                    "z-index:999999", "font-family:'Trebuchet MS',serif",
-                    "min-width:260px", "max-width:340px",
-                    "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
-                    "display:flex", "flex-direction:column", "gap:10px",
-                ].join(";");
-
-                const titleEl = document.createElement("div");
-                titleEl.style.cssText = "font-size:12px;color:#cf6f98;font-weight:bold;";
-                titleEl.textContent = `Copy restraints from ${charName}?`;
-                overlay.appendChild(titleEl);
-
-                const listEl = document.createElement("ul");
-                listEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;margin:0;padding-left:16px;max-height:130px;overflow-y:auto;";
-                for (const n of itemNames) {
-                    const li = document.createElement("li");
-                    li.textContent = n;
-                    listEl.appendChild(li);
+                    const row = document.createElement("label");
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;cursor:pointer;";
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox"; cb.checked = true;
+                    cb.style.cssText = "accent-color:#cf6f98;flex-shrink:0;cursor:pointer;";
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameEl.textContent = label;
+                    nameEl.title = label;
+                    const grpEl = document.createElement("span");
+                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                    grpEl.textContent = group;
+                    row.appendChild(cb); row.appendChild(nameEl); row.appendChild(grpEl);
+                    checklistItems.appendChild(row);
+                    loadedItems.push({ item, checkbox: cb });
                 }
-                overlay.appendChild(listEl);
 
-                const noteEl = document.createElement("div");
-                noteEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;line-height:1.5;";
-                noteEl.textContent = "Locks will be stripped. Existing restraints in these slots will be replaced.";
-                overlay.appendChild(noteEl);
+                checklistWrap.style.display = "flex";
+                codeWrap.style.display = "flex";
+                statusEl.textContent = "";
+            });
 
-                const btns = document.createElement("div");
-                btns.style.cssText = "display:flex;gap:8px;";
+            // ── Generate BC code ───────────────────────────────────────────────
+            genBtn.addEventListener("click", () => {
+                const selected = loadedItems.filter(e => e.checkbox.checked).map(e => e.item);
+                if (selected.length === 0) {
+                    statusEl.textContent = "Select at least one item.";
+                    statusEl.style.color = "#9a7080";
+                    return;
+                }
+                try {
+                    const LZ = (window as unknown as Record<string, unknown>).LZString as
+                        { compressToBase64?: (s: string) => string } | undefined;
+                    if (!LZ?.compressToBase64) throw new Error("LZString not available.");
 
-                const cancelBtn = document.createElement("button");
-                cancelBtn.textContent = "Cancel";
-                cancelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #4c2537;background:#1b0d17;color:#9a7080;";
-                cancelBtn.addEventListener("click", () => overlay.remove());
-
-                const confirmBtn = document.createElement("button");
-                confirmBtn.textContent = "Apply";
-                confirmBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
-                confirmBtn.addEventListener("click", () => {
-                    overlay.remove();
-                    try {
-                        const result = copyRestraintsFromChar(char);
-                        if (result.count > 0) {
-                            statusEl.textContent = `✔ Copied ${result.count} restraint(s) from ${charName}.`;
-                            statusEl.style.color = "#79a885";
-                        } else {
-                            statusEl.textContent = "Nothing was copied (no valid assets found).";
-                            statusEl.style.color = "#9a7080";
+                    const bundle = selected.map(item => {
+                        const prop = item.Property ? { ...(item.Property as Record<string, unknown>) } : undefined;
+                        if (prop) {
+                            delete prop["LockedBy"]; delete prop["LockMemberNumber"];
+                            delete prop["CombinationNumber"]; delete prop["Password"];
+                            delete prop["MemberNumberListKeys"]; delete prop["TimerPasswordPadlock"];
                         }
-                    } catch (e) {
-                        statusEl.textContent = "Error: " + String(e);
-                        statusEl.style.color = "#ff6b6b";
-                    }
-                });
+                        return {
+                            Group: item.Asset.Group.Name,
+                            Name:  item.Asset.Name,
+                            Color: item.Color,
+                            Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
+                            Property: prop,
+                            Craft: item.Craft ?? undefined,
+                        };
+                    });
 
-                btns.appendChild(cancelBtn);
-                btns.appendChild(confirmBtn);
-                overlay.appendChild(btns);
-                document.body.appendChild(overlay);
+                    codeTA.value = LZ.compressToBase64(JSON.stringify(bundle));
+                    statusEl.textContent = `✔ Code generated for ${selected.length} item(s). Import via BC wardrobe.`;
+                    statusEl.style.color = "#79a885";
+                } catch (e) {
+                    statusEl.textContent = "Error: " + String(e);
+                    statusEl.style.color = "#ff6b6b";
+                }
+            });
+
+            // ── Copy to clipboard ──────────────────────────────────────────────
+            clipBtn.addEventListener("click", () => {
+                if (!codeTA.value) { statusEl.textContent = "Generate a code first."; statusEl.style.color = "#9a7080"; return; }
+                try {
+                    navigator.clipboard.writeText(codeTA.value).then(() => {
+                        statusEl.textContent = "✔ Copied to clipboard!";
+                        statusEl.style.color = "#79a885";
+                    }).catch(() => {
+                        codeTA.select(); document.execCommand("copy");
+                        statusEl.textContent = "✔ Copied to clipboard!";
+                        statusEl.style.color = "#79a885";
+                    });
+                } catch { codeTA.select(); document.execCommand("copy"); }
             });
         });
 
