@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.7.6";
+const MOD_VERSION = "1.7.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -27,6 +27,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.7.7",
+        changes: [
+            "Fix: overhead presence badge restored to solid style — reverted accidental transparency, made it smaller instead.",
+        ],
+    },
     {
         version: "1.7.6",
         changes: [
@@ -1845,16 +1851,16 @@ function drawPresenceMarker(args: unknown[]): void {
     const showVer = getShowVersionBadge();
     const verStr = presence?.version ?? MOD_VERSION;
     const label = showVer ? ("v" + verStr) : "EBC";
-    const width = showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom);
-    const height = Math.max(12, 14 * zoom);
+    const width = showVer ? Math.max(32, 36 * zoom) : Math.max(22, 26 * zoom);
+    const height = Math.max(9, 10 * zoom);
     const x = left + 197 * zoom;
     const y = top + 26 * zoom;
     const badgeLeft = x - width / 2;
     const badgeTop = y - height / 2;
 
-    DrawRect(badgeLeft, badgeTop, width, height, "rgba(16, 6, 12, 0.55)");
-    DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(207, 111, 152, 0.45)", 1);
-    DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 6, UI.accent);
+    DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
+    DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
+    DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
 }
 
 function showRoomLoadNotice(): void {
