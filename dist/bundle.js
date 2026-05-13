@@ -15449,11 +15449,11 @@
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
                     const hdr = document.createElement("div");
-                    hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;margin-bottom:2px;";
+                    hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:6px 0;margin-bottom:2px;";
                     const chev = document.createElement("span");
-                    chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:8px;";
+                    chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:8px;";
                     const lbl = document.createElement("span");
-                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;flex:1;";
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;flex:1;";
                     lbl.textContent = labelText;
                     hdr.appendChild(chev);
                     hdr.appendChild(lbl);
@@ -15574,7 +15574,7 @@
                 // Opt-in persistent history of past rooms.
                 const roomClearBtn = document.createElement("button");
                 roomClearBtn.textContent = "Clear";
-                roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                 roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
                 roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
                 makeInner("Rooms Visited", "EBC_roomHistoryCollapsed", true, (c) => {
@@ -15713,7 +15713,7 @@
                 // ── Restraint Log ─────────────────────────────────────────────────
                 const rlogClearBtn = document.createElement("button");
                 rlogClearBtn.textContent = "Clear";
-                rlogClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                rlogClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                 rlogClearBtn.addEventListener("mouseenter", () => { rlogClearBtn.style.color = "#cf6f98"; rlogClearBtn.style.borderColor = "#cf6f98"; });
                 rlogClearBtn.addEventListener("mouseleave", () => { rlogClearBtn.style.color = "#7a5a6a"; rlogClearBtn.style.borderColor = "#3a1928"; });
                 makeInner("Restraint Log", "EBC_restraintLogCollapsed", true, (c) => {
@@ -15882,7 +15882,7 @@
                     msgRefreshBtn2.title = "Refresh log";
                     const msgClearBtn = document.createElement("button");
                     msgClearBtn.className = "ebc-icon-btn";
-                    msgClearBtn.style.cssText = "font-size:10px;padding:5px 9px;";
+                    msgClearBtn.style.cssText = "font-size:11px;padding:5px 10px;";
                     msgClearBtn.textContent = "Clear";
                     const logToggleWrap = document.createElement("label");
                     logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
@@ -16306,7 +16306,7 @@
                 searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
                 const clearBtn = document.createElement("button");
                 clearBtn.textContent = "Clear All";
-                clearBtn.style.cssText = `${PFONT}font-size:10px;padding:5px 9px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
+                clearBtn.style.cssText = `${PFONT}font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
                 clearBtn.addEventListener("mouseenter", () => { clearBtn.style.color = "#e05070"; clearBtn.style.borderColor = "#e05070"; });
                 clearBtn.addEventListener("mouseleave", () => { clearBtn.style.color = "#7a5a6a"; clearBtn.style.borderColor = "#4c2537"; });
                 ctrlRow.appendChild(countLbl);
@@ -17833,7 +17833,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.9.8";
+    const MOD_VERSION = "1.9.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17841,6 +17841,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "1.9.9",
+            changes: [
+                "UI: log channel section headers bumped from 9px → 11px font; clear buttons bumped to 11px font so they're readable and tappable.",
+            ],
+        },
         {
             version: "1.9.8",
             changes: [
