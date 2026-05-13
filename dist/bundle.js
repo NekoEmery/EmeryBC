@@ -6527,76 +6527,62 @@
 
 `;
     // ── Drawer appearance / layout helpers ───────────────────────────────────
-    const EBC_THEME_KEY = "EBC_theme";
+    const EBC_COLORS_KEY = "EBC_colors";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
     const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
         outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
         notes: "USERS", thanks: "CREDITS", dev: "DEV",
     };
-    const EBC_THEMES = {
-        default: {
-            name: "Default (Pink)",
-            bg: "#1a0d14", card: "#23101d", cardMuted: "#1b0d17",
-            bgDark: "#130810", bgDarker: "#100810", bgMid: "#2d1422",
-            border: "#3a1928", borderLight: "#4c2537",
-            accent: "#cf6f98", accentHover: "#e085ad", accentDim: "#a85678",
-            textMuted: "#7a5a6a", textSub: "#c09098", textBright: "#f7e6ee",
-        },
-        purple: {
-            name: "Purple",
-            bg: "#0e0d1a", card: "#13102a", cardMuted: "#110d20",
-            bgDark: "#0c0814", bgDarker: "#090810", bgMid: "#1e1438",
-            border: "#241940", borderLight: "#332552",
-            accent: "#9b6fcf", accentHover: "#b185e0", accentDim: "#7a56a8",
-            textMuted: "#5a5a7a", textSub: "#9890c0", textBright: "#ece6f7",
-        },
-        blue: {
-            name: "Blue",
-            bg: "#0d1220", card: "#101b2e", cardMuted: "#0d1525",
-            bgDark: "#08101a", bgDarker: "#080d14", bgMid: "#142038",
-            border: "#1e3050", borderLight: "#284068",
-            accent: "#6fa8cf", accentHover: "#85bee0", accentDim: "#5678a8",
-            textMuted: "#5a6a7a", textSub: "#90a8c0", textBright: "#e6eff7",
-        },
-        green: {
-            name: "Green",
-            bg: "#0d1a10", card: "#102312", cardMuted: "#0d1b0f",
-            bgDark: "#081309", bgDarker: "#081009", bgMid: "#142d17",
-            border: "#193a20", borderLight: "#254c2a",
-            accent: "#6fcf88", accentHover: "#85e09a", accentDim: "#56a86a",
-            textMuted: "#5a7a5e", textSub: "#90c098", textBright: "#e6f7e8",
-        },
-        red: {
-            name: "Red",
-            bg: "#1a0d0d", card: "#231010", cardMuted: "#1b0d0d",
-            bgDark: "#130808", bgDarker: "#100808", bgMid: "#2d1414",
-            border: "#3a1919", borderLight: "#4c2525",
-            accent: "#cf6f6f", accentHover: "#e08585", accentDim: "#a85656",
-            textMuted: "#7a5a5a", textSub: "#c09090", textBright: "#f7e6e6",
-        },
-        dark: {
-            name: "Dark (Mono)",
-            bg: "#141414", card: "#1e1e1e", cardMuted: "#181818",
-            bgDark: "#111111", bgDarker: "#0e0e0e", bgMid: "#242424",
-            border: "#2e2e2e", borderLight: "#3a3a3a",
-            accent: "#a0a0a0", accentHover: "#c0c0c0", accentDim: "#808080",
-            textMuted: "#666666", textSub: "#999999", textBright: "#e0e0e0",
-        },
+    const DEFAULT_COLORS = {
+        bg: "#1a0d14",
+        card: "#23101d",
+        cardMuted: "#1b0d17",
+        border: "#3a1928",
+        accent: "#cf6f98",
+        textBright: "#f7e6ee",
+        textSub: "#c09098",
+        textMuted: "#7a5a6a",
+        gold: "#c9ab72",
     };
-    function getTheme() {
-        var _a;
+    const EBC_THEME_PRESETS = {
+        default: { name: "Default (Pink)", colors: DEFAULT_COLORS },
+        purple: { name: "Purple", colors: { bg: "#0e0d1a", card: "#13102a", cardMuted: "#110d20", border: "#241940", accent: "#9b6fcf", textBright: "#ece6f7", textSub: "#9890c0", textMuted: "#5a5a7a", gold: "#c9c07a" } },
+        blue: { name: "Blue", colors: { bg: "#0d1220", card: "#101b2e", cardMuted: "#0d1525", border: "#1e3050", accent: "#6fa8cf", textBright: "#e6eff7", textSub: "#90a8c0", textMuted: "#5a6a7a", gold: "#c9c47a" } },
+        green: { name: "Green", colors: { bg: "#0d1a10", card: "#102312", cardMuted: "#0d1b0f", border: "#193a20", accent: "#6fcf88", textBright: "#e6f7e8", textSub: "#90c098", textMuted: "#5a7a5e", gold: "#c9c47a" } },
+        red: { name: "Red", colors: { bg: "#1a0d0d", card: "#231010", cardMuted: "#1b0d0d", border: "#3a1919", accent: "#cf6f6f", textBright: "#f7e6e6", textSub: "#c09090", textMuted: "#7a5a5a", gold: "#c9ab72" } },
+        dark: { name: "Dark (Mono)", colors: { bg: "#141414", card: "#1e1e1e", cardMuted: "#181818", border: "#2e2e2e", accent: "#a0a0a0", textBright: "#e0e0e0", textSub: "#999999", textMuted: "#666666", gold: "#a89050" } },
+    };
+    // ── Colour math helpers ───────────────────────────────────────────────────
+    function hexToRgb(hex) {
+        return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+    }
+    function rgbToHex(r, g, b) {
+        return "#" + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+    }
+    function lighten(hex, pct) {
+        const [r, g, b] = hexToRgb(hex);
+        return rgbToHex(r + (255 - r) * pct, g + (255 - g) * pct, b + (255 - b) * pct);
+    }
+    function darken(hex, pct) {
+        const [r, g, b] = hexToRgb(hex);
+        return rgbToHex(r * (1 - pct), g * (1 - pct), b * (1 - pct));
+    }
+    // Storage
+    function getCoreColors() {
         try {
-            const key = localStorage.getItem(EBC_THEME_KEY) || "default";
-            return (_a = EBC_THEMES[key]) !== null && _a !== void 0 ? _a : EBC_THEMES["default"];
+            const stored = localStorage.getItem(EBC_COLORS_KEY);
+            if (!stored)
+                return Object.assign({}, DEFAULT_COLORS);
+            return Object.assign(Object.assign({}, DEFAULT_COLORS), JSON.parse(stored));
         }
-        catch (_b) {
-            return EBC_THEMES["default"];
+        catch (_a) {
+            return Object.assign({}, DEFAULT_COLORS);
         }
     }
-    function setTheme(key) {
+    function saveCoreColors(c) {
         try {
-            localStorage.setItem(EBC_THEME_KEY, key);
+            localStorage.setItem(EBC_COLORS_KEY, JSON.stringify(c));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -6615,22 +6601,30 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    function buildCSS(theme) {
+    function buildCSS(c) {
+        // Derive secondary colours from the 9 user-facing ones
+        const bgDark = darken(c.bg, 0.18);
+        const bgDarker = darken(c.bg, 0.30);
+        const bgMid = lighten(c.bg, 0.45);
+        const borderLight = lighten(c.border, 0.35);
+        const accentHover = lighten(c.accent, 0.15);
+        const accentDim = darken(c.accent, 0.20);
         let css = CSS;
-        css = css.split("#1a0d14").join(theme.bg);
-        css = css.split("#23101d").join(theme.card);
-        css = css.split("#1b0d17").join(theme.cardMuted);
-        css = css.split("#130810").join(theme.bgDark);
-        css = css.split("#100810").join(theme.bgDarker);
-        css = css.split("#2d1422").join(theme.bgMid);
-        css = css.split("#3a1928").join(theme.border);
-        css = css.split("#4c2537").join(theme.borderLight);
-        css = css.split("#cf6f98").join(theme.accent);
-        css = css.split("#e085ad").join(theme.accentHover);
-        css = css.split("#a85678").join(theme.accentDim);
-        css = css.split("#7a5a6a").join(theme.textMuted);
-        css = css.split("#c09098").join(theme.textSub);
-        css = css.split("#f7e6ee").join(theme.textBright);
+        css = css.split("#1a0d14").join(c.bg);
+        css = css.split("#23101d").join(c.card);
+        css = css.split("#1b0d17").join(c.cardMuted);
+        css = css.split("#130810").join(bgDark);
+        css = css.split("#100810").join(bgDarker);
+        css = css.split("#2d1422").join(bgMid);
+        css = css.split("#3a1928").join(c.border);
+        css = css.split("#4c2537").join(borderLight);
+        css = css.split("#cf6f98").join(c.accent);
+        css = css.split("#e085ad").join(accentHover);
+        css = css.split("#a85678").join(accentDim);
+        css = css.split("#7a5a6a").join(c.textMuted);
+        css = css.split("#c09098").join(c.textSub);
+        css = css.split("#f7e6ee").join(c.textBright);
+        css = css.split("#c9ab72").join(c.gold);
         return css;
     }
     // -- VIP members (highlighted in Notes tab when present in the room) -----------
@@ -7520,7 +7514,7 @@
                 s.id = "emerybc-drawer-css";
                 document.head.appendChild(s);
             }
-            s.textContent = buildCSS(getTheme());
+            s.textContent = buildCSS(getCoreColors());
         }
         // -- Positioning -----------------------------------------------------------
         // Aligned to the right edge of TextAreaChatLog.
@@ -14423,49 +14417,99 @@
             // ── Drawer Appearance ─────────────────────────────────────────────────
             makeSection("DRAWER APPEARANCE", "EBC_devAppearanceCollapsed", false, (cnt) => {
                 var _a;
-                // Theme dropdown row
-                const themeRow = document.createElement("div");
-                themeRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
-                const themeLbl = document.createElement("span");
-                themeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
-                themeLbl.textContent = "Colour theme";
-                const themeSel = document.createElement("select");
-                themeSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
-                const currentKey = (() => {
-                    try {
-                        return localStorage.getItem(EBC_THEME_KEY) || "default";
-                    }
-                    catch (_a) {
-                        return "default";
-                    }
-                })();
-                for (const [key, t] of Object.entries(EBC_THEMES)) {
+                // Working copy of colours — mutated by pickers, written to storage on every change
+                let liveColors = getCoreColors();
+                // Helper: rebuild all picker values after a preset load / reset
+                const pickerSyncers = [];
+                const syncAllPickers = (c) => { for (const fn of pickerSyncers)
+                    fn(c); };
+                // ── Preset dropdown ────────────────────────────────────────────────
+                const presetRow = document.createElement("div");
+                presetRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
+                const presetLbl = document.createElement("span");
+                presetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
+                presetLbl.textContent = "Quick preset";
+                const presetSel = document.createElement("select");
+                presetSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
+                const blankOpt = document.createElement("option");
+                blankOpt.value = "";
+                blankOpt.textContent = "— choose preset —";
+                presetSel.appendChild(blankOpt);
+                for (const [key, preset] of Object.entries(EBC_THEME_PRESETS)) {
                     const opt = document.createElement("option");
                     opt.value = key;
-                    opt.textContent = t.name;
-                    if (key === currentKey)
-                        opt.selected = true;
-                    themeSel.appendChild(opt);
+                    opt.textContent = preset.name;
+                    presetSel.appendChild(opt);
                 }
-                themeSel.addEventListener("change", () => {
-                    setTheme(themeSel.value);
+                presetSel.addEventListener("change", () => {
+                    const preset = EBC_THEME_PRESETS[presetSel.value];
+                    if (!preset)
+                        return;
+                    liveColors = Object.assign({}, preset.colors);
+                    saveCoreColors(liveColors);
+                    syncAllPickers(liveColors);
+                    this.injectStyles();
+                    presetSel.value = ""; // reset dropdown back to placeholder
+                });
+                const resetBtn = document.createElement("button");
+                resetBtn.textContent = "Reset";
+                resetBtn.title = "Reset to default theme";
+                resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;";
+                resetBtn.addEventListener("click", () => {
+                    liveColors = Object.assign({}, DEFAULT_COLORS);
+                    saveCoreColors(liveColors);
+                    syncAllPickers(liveColors);
+                    presetSel.value = "";
                     this.injectStyles();
                 });
-                const themeResetBtn = document.createElement("button");
-                themeResetBtn.textContent = "Reset";
-                themeResetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;";
-                themeResetBtn.addEventListener("click", () => {
-                    themeSel.value = "default";
-                    setTheme("default");
-                    this.injectStyles();
-                });
-                themeRow.appendChild(themeLbl);
-                themeRow.appendChild(themeSel);
-                themeRow.appendChild(themeResetBtn);
-                cnt.appendChild(themeRow);
-                // Tab visibility
+                presetRow.appendChild(presetLbl);
+                presetRow.appendChild(presetSel);
+                presetRow.appendChild(resetBtn);
+                cnt.appendChild(presetRow);
+                // ── Per-colour pickers ─────────────────────────────────────────────
+                const colorFields = [
+                    { key: "bg", label: "Panel BG", hint: "Main drawer background" },
+                    { key: "card", label: "Card", hint: "Section card backgrounds" },
+                    { key: "cardMuted", label: "Input BG", hint: "Text inputs & textareas" },
+                    { key: "border", label: "Border", hint: "All border lines" },
+                    { key: "accent", label: "Accent", hint: "Buttons, highlights, active states" },
+                    { key: "gold", label: "Gold", hint: "Yellow / gold highlights & labels" },
+                    { key: "textBright", label: "Text", hint: "Primary readable text" },
+                    { key: "textSub", label: "Text (sub)", hint: "Secondary / label text" },
+                    { key: "textMuted", label: "Text (muted)", hint: "Inactive / placeholder text" },
+                ];
+                const subLbl = document.createElement("div");
+                subLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;";
+                subLbl.textContent = "Individual colours";
+                cnt.appendChild(subLbl);
+                const grid = document.createElement("div");
+                grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px;";
+                for (const { key, label, hint } of colorFields) {
+                    const cell = document.createElement("div");
+                    cell.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 7px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:5px;";
+                    const picker = document.createElement("input");
+                    picker.type = "color";
+                    picker.value = liveColors[key];
+                    picker.title = hint;
+                    picker.style.cssText = "width:24px;height:20px;padding:0;border:1px solid #4c2537;border-radius:3px;background:transparent;cursor:pointer;flex-shrink:0;";
+                    const lbl = document.createElement("span");
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    lbl.textContent = label;
+                    picker.addEventListener("input", () => {
+                        liveColors = Object.assign(Object.assign({}, liveColors), { [key]: picker.value });
+                        saveCoreColors(liveColors);
+                        this.injectStyles();
+                    });
+                    // Register a syncer so preset/reset can update this picker's displayed value
+                    pickerSyncers.push((c) => { picker.value = c[key]; });
+                    cell.appendChild(picker);
+                    cell.appendChild(lbl);
+                    grid.appendChild(cell);
+                }
+                cnt.appendChild(grid);
+                // ── Tab visibility ─────────────────────────────────────────────────
                 const tabVisLbl = document.createElement("div");
-                tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin:4px 0 4px 2px;";
+                tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
                 tabVisLbl.textContent = "Visible tabs";
                 cnt.appendChild(tabVisLbl);
                 const tabVisGrid = document.createElement("div");
@@ -17319,7 +17363,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.7.4";
+    const MOD_VERSION = "1.7.5";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -17327,6 +17371,14 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.7.5",
+            changes: [
+                "Rework: Drawer Appearance now has individual colour pickers for every UI element — Panel BG, Card, Input BG, Border, Accent, Gold, Text, Text (sub), Text (muted). Each picker updates the CSS instantly and is saved to localStorage.",
+                "Keep: Quick preset dropdown still works as a one-click starting point; Reset button restores all 9 colours to Default (Pink).",
+                "Fix: Gold / yellow highlight colour (#c9ab72) is now part of the theme system and can be customised.",
+            ],
+        },
         {
             version: "1.7.4",
             changes: [

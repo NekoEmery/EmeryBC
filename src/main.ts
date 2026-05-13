@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.7.4";
+const MOD_VERSION = "1.7.5";
 
 let noticeShown = false;
 
@@ -26,6 +26,14 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.7.5",
+        changes: [
+            "Rework: Drawer Appearance now has individual colour pickers for every UI element — Panel BG, Card, Input BG, Border, Accent, Gold, Text, Text (sub), Text (muted). Each picker updates the CSS instantly and is saved to localStorage.",
+            "Keep: Quick preset dropdown still works as a one-click starting point; Reset button restores all 9 colours to Default (Pink).",
+            "Fix: Gold / yellow highlight colour (#c9ab72) is now part of the theme system and can be customised.",
+        ],
+    },
     {
         version: "1.7.4",
         changes: [
