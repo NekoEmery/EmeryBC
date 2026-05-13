@@ -18228,7 +18228,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.0.6";
+    const MOD_VERSION = "2.0.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18236,6 +18236,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.0.7",
+            changes: [
+                "Fix: overhead badge now reliably broadcasts to room members on join — the rate-limit clock was being consumed at module load (before any room was joined), causing the first ChatRoomSync broadcast to be silently skipped.",
+            ],
+        },
         {
             version: "2.0.6",
             changes: [
@@ -20205,8 +20211,12 @@
             }
         }
         // Write to OnlineSharedSettings and send AccountUpdate so that all fields
-        // (including isDev) are broadcast to current room members. Rate-limited to
-        // once every 6 s so a burst of ChatRoomSync packets doesn't flood the server.
+        // (including isDev) are broadcast to current room members. Only meaningful
+        // when actually in a ChatRoom — skip entirely if called at module load (no
+        // room joined yet) so the rate-limit clock isn't consumed before the first
+        // real room-join broadcast. Rate-limited to once every 6 s to prevent spam.
+        if (CurrentScreen !== "ChatRoom")
+            return;
         const now = Date.now();
         if (now - lastPresenceSyncTime < PRESENCE_SYNC_COOLDOWN_MS)
             return;
