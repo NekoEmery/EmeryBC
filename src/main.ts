@@ -1846,6 +1846,7 @@ function startUpdateChecker(): void {
 interface EmeryPresence {
     version: string;
     marker: string;
+    isDev?: boolean;
 }
 
 interface EmeryAddonSettings {
@@ -1890,7 +1891,7 @@ function syncPresenceMarker(): void {
 
     // Always broadcast presence regardless of local display toggle —
     // the toggle only controls what YOU see, not what others see.
-    const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC" };
+    const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC", ...(IS_DEV_BUILD ? { isDev: true } : {}) };
 
     // Write to ExtensionSettings only if presence isn't already recorded —
     // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
@@ -1933,9 +1934,10 @@ function drawPresenceMarker(args: unknown[]): void {
     if (!isSelf && !hasEmeryBC(character)) return;
 
     const presence = getSharedPresence(character);
-    const showVer = getShowVersionBadge();
-    const verStr = presence?.version ?? MOD_VERSION;
-    const label = IS_DEV_BUILD && isSelf
+    const showVer  = getShowVersionBadge();
+    const verStr   = presence?.version ?? MOD_VERSION;
+    const isDevUser = isSelf ? IS_DEV_BUILD : (presence?.isDev === true);
+    const label = isDevUser
         ? (showVer ? "dev | v" + verStr : "dev | EBC")
         : (showVer ? "v" + verStr : "EBC");
 
@@ -1943,7 +1945,7 @@ function drawPresenceMarker(args: unknown[]): void {
     // but stay well above 0.3, so only skip true map-view zoom.
     if (zoom < 0.3) return;
 
-    const isDevLabel = IS_DEV_BUILD && isSelf;
+    const isDevLabel = isDevUser;
     const width  = isDevLabel
         ? (showVer ? Math.max(70, 78 * zoom) : Math.max(52, 58 * zoom))
         : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));

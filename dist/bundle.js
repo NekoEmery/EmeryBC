@@ -19496,7 +19496,7 @@
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
         // Always broadcast presence regardless of local display toggle —
         // the toggle only controls what YOU see, not what others see.
-        const presence = { version: MOD_VERSION, marker: "EBC" };
+        const presence = Object.assign({ version: MOD_VERSION, marker: "EBC" }, ({ isDev: true } ));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
@@ -19540,14 +19540,15 @@
         const presence = getSharedPresence(character);
         const showVer = getShowVersionBadge();
         const verStr = (_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : MOD_VERSION;
-        const label = isSelf
+        const isDevUser = isSelf ? IS_DEV_BUILD : ((presence === null || presence === void 0 ? void 0 : presence.isDev) === true);
+        const label = isDevUser
             ? (showVer ? "dev | v" + verStr : "dev | EBC")
             : (showVer ? "v" + verStr : "EBC");
         // Hide in map/bird's-eye view (very low zoom). Crowded rooms reduce zoom too
         // but stay well above 0.3, so only skip true map-view zoom.
         if (zoom < 0.3)
             return;
-        const isDevLabel = isSelf;
+        const isDevLabel = isDevUser;
         const width = isDevLabel
             ? (showVer ? Math.max(70, 78 * zoom) : Math.max(52, 58 * zoom))
             : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
