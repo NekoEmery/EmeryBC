@@ -27,6 +27,7 @@ export interface ConfiguredOutfit {
     includeRestraints: boolean;
     preserveRestraints: boolean; // keep existing restraints when applying (default: true)
     preserveClothing: boolean;   // keep existing clothing (non-restraint) when applying (default: false)
+    nameInAnnounce: boolean;     // whether to prepend the player name to the announce text (default: true)
     items: SerializedItem[];
 }
 
@@ -210,6 +211,8 @@ function sanitizeOutfit(outfit: ConfiguredOutfit): ConfiguredOutfit {
         preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
         // Default false — opt-in; restraints-only imports set this to true automatically
         preserveClothing: typeof outfit.preserveClothing === "boolean" ? outfit.preserveClothing : false,
+        // Default true — existing outfits always included the name
+        nameInAnnounce: typeof outfit.nameInAnnounce === "boolean" ? outfit.nameInAnnounce : true,
         items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
     };
 }
@@ -378,9 +381,12 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
                 // Poison trick: Content won't be found in Interface.csv, so BC prepends
                 // "MISSING TEXT IN "Interface.csv": ". We strip that prefix with the poison
                 // tag (replaced by a zero-width non-joiner), leaving (​Name text).
+                const announceContent = outfit.nameInAnnounce !== false
+                    ? getDisplayName() + " " + outfit.announceText.trim()
+                    : outfit.announceText.trim();
                 ServerSend("ChatRoomChat", {
                     Type: "Action",
-                    Content: getDisplayName() + " " + outfit.announceText.trim(),
+                    Content: announceContent,
                     Dictionary: [
                         { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                         { SourceCharacter: Player.MemberNumber },
@@ -435,6 +441,7 @@ export function createOutfitFromCurrent(
         includeRestraints,
         preserveRestraints,
         preserveClothing,
+        nameInAnnounce: true,
         items: captureAppearance(includeRestraints),
     };
     saveOutfits([...getOutfits(), outfit]);
@@ -458,6 +465,23 @@ export function setOutfitPreserveClothing(id: string, value: boolean): void {
     if (!outfit) return;
     outfit.preserveClothing = value;
     saveOutfits(outfits);
+}
+
+// Toggle nameInAnnounce on a saved outfit OR restraint set
+export function setOutfitNameInAnnounce(id: string, value: boolean): void {
+    const outfits = getOutfits();
+    const outfit = outfits.find(o => o.id === id);
+    if (outfit) {
+        outfit.nameInAnnounce = value;
+        saveOutfits(outfits);
+        return;
+    }
+    const restraints = getRestraints();
+    const restraint = restraints.find(r => r.id === id);
+    if (restraint) {
+        restraint.nameInAnnounce = value;
+        saveRestraints(restraints);
+    }
 }
 
 export function getOutfitTags(): OutfitTag[] {
@@ -780,9 +804,12 @@ export function applyRestraintSet(restraint: ConfiguredOutfit): void {
     window.setTimeout(() => {
         try {
             if (restraint.announceText.trim()) {
+                const rAnnounceContent = restraint.nameInAnnounce !== false
+                    ? getDisplayName() + " " + restraint.announceText.trim()
+                    : restraint.announceText.trim();
                 ServerSend("ChatRoomChat", {
                     Type: "Action",
-                    Content: getDisplayName() + " " + restraint.announceText.trim(),
+                    Content: rAnnounceContent,
                     Dictionary: [
                         { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                         { SourceCharacter: Player.MemberNumber },
@@ -819,6 +846,7 @@ export function createRestraintFromCurrent(
         includeRestraints: true,
         preserveRestraints: false,
         preserveClothing: true,
+        nameInAnnounce: true,
         items: captureRestraints(),
     };
     saveRestraints([...getRestraints(), restraint]);
@@ -996,6 +1024,7 @@ export function importOutfitFromBCCode(
         includeRestraints: includesRestraints,
         preserveRestraints: mode === "outfit",      // outfit-only: keep existing restraints
         preserveClothing:   mode === "restraints",  // restraints-only: keep existing clothing
+        nameInAnnounce:    true,
         items,
     });
     saveOutfits([...existing, outfit]);
