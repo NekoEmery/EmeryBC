@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.1.9";
+const MOD_VERSION = "2.2.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,49 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.6",
+        changes: [
+            "UI: badge x reverted to 100 (matches stable alignment under WCE), y kept at 72.",
+        ],
+    },
+    {
+        version: "2.2.5",
+        changes: [
+            "UI: badge shifted left to x=272 to center under WCE text.",
+        ],
+    },
+    {
+        version: "2.2.4",
+        changes: [
+            "UI: badge moved right (x=320) and lower (y=72) to sit below WCE version numbers.",
+        ],
+    },
+    {
+        version: "2.2.3",
+        changes: [
+            "UI: overhead badge repositioned to center (x=250) below WCE instead of far left.",
+        ],
+    },
+    {
+        version: "2.2.2",
+        changes: [
+            "UI: beep windows more transparent (~55%), action buttons less transparent (~90%) for better readability.",
+        ],
+    },
+    {
+        version: "2.2.1",
+        changes: [
+            "Fix: minimized beep windows now transparent (stacked header background was making them appear solid).",
+            "UI: overhead EBC badge is now semi-transparent.",
+        ],
+    },
+    {
+        version: "2.2.0",
+        changes: [
+            "UI: beep/IM windows are now semi-transparent with backdrop blur, matching the action button sidebar style.",
+        ],
+    },
     {
         version: "2.1.9",
         changes: [
@@ -2154,13 +2197,13 @@ function drawPresenceMarker(args: unknown[]): void {
         : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
     const height = Math.max(12, 14 * zoom);
 
-    const x = left + 100 * zoom;
-    const y = top + 55 * zoom;
+    const x = left + 100 * zoom;  // same as stable — lines up under WCE
+    const y = top + 72 * zoom;   // below WCE name + version line
     const badgeLeft = x - width / 2;
     const badgeTop = y - height / 2;
 
-    DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
-    DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
+    DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
+    DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
     DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
 }
 
