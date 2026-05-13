@@ -15707,7 +15707,8 @@
                             c.appendChild(card);
                         }
                     };
-                    roomClearBtn.addEventListener("click", () => { clearRoomHistory(); renderRoomsVisited(); });
+                    roomClearBtn.addEventListener("click", () => { if (!window.confirm("Clear the entire room visit history?"))
+                        return; clearRoomHistory(); renderRoomsVisited(); });
                     renderRoomsVisited();
                 }, roomClearBtn);
                 // ── Restraint Log ─────────────────────────────────────────────────
@@ -15850,7 +15851,8 @@
                             c.appendChild(card);
                         }
                     };
-                    rlogClearBtn.addEventListener("click", () => { clearRestraintLog(); renderRlog(); });
+                    rlogClearBtn.addEventListener("click", () => { if (!window.confirm("Clear the entire restraint log?"))
+                        return; clearRestraintLog(); renderRlog(); });
                     renderRlog();
                 }, rlogClearBtn);
                 // ── Message Log ───────────────────────────────────────────────────
@@ -15997,7 +15999,8 @@
                     });
                     renderMsgLog();
                     msgRefreshBtn2.addEventListener("click", renderMsgLog);
-                    msgClearBtn.addEventListener("click", () => { clearDevLog(); renderMsgLog(); });
+                    msgClearBtn.addEventListener("click", () => { if (!window.confirm("Clear the entire message log?"))
+                        return; clearDevLog(); renderMsgLog(); });
                 });
             });
             // ── Stat Editor (credited members only) ───────────────────────────────
@@ -17833,7 +17836,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.9.9";
+    const MOD_VERSION = "1.9.10";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17841,6 +17844,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "1.9.10",
+            changes: [
+                "UX: all log-channel clear buttons now show a confirm dialog before wiping data (rooms visited, restraint log, message log, people met).",
+            ],
+        },
         {
             version: "1.9.9",
             changes: [

@@ -11575,7 +11575,7 @@ export class EBCDrawer {
                         c.appendChild(card);
                     }
                 };
-                roomClearBtn.addEventListener("click", () => { clearRoomHistory(); renderRoomsVisited(); });
+                roomClearBtn.addEventListener("click", () => { if (!window.confirm("Clear the entire room visit history?")) return; clearRoomHistory(); renderRoomsVisited(); });
                 renderRoomsVisited();
             }, roomClearBtn);
 
@@ -11721,7 +11721,7 @@ export class EBCDrawer {
                         c.appendChild(card);
                     }
                 };
-                rlogClearBtn.addEventListener("click", () => { clearRestraintLog(); renderRlog(); });
+                rlogClearBtn.addEventListener("click", () => { if (!window.confirm("Clear the entire restraint log?")) return; clearRestraintLog(); renderRlog(); });
                 renderRlog();
             }, rlogClearBtn);
 
@@ -11842,7 +11842,7 @@ export class EBCDrawer {
                 });
                 renderMsgLog();
                 msgRefreshBtn2.addEventListener("click", renderMsgLog);
-                msgClearBtn.addEventListener("click", () => { clearDevLog(); renderMsgLog(); });
+                msgClearBtn.addEventListener("click", () => { if (!window.confirm("Clear the entire message log?")) return; clearDevLog(); renderMsgLog(); });
             });
         });
 
