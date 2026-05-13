@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.9.13";
+const MOD_VERSION = "2.0.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -27,7 +27,7 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "1.9.13",
+        version: "2.0.3",
         changes: [
             "UI: dev tab is now locked — it can never be toggled off in the visible tabs list; existing hidden state is repaired on load.",
             "UI: menu hotkey — assign any key (e.g. F2) in the Dev tab to open/close the EBC panel without clicking the tab button.",

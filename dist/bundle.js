@@ -5939,9 +5939,9 @@
 
 .ebc-friend-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 5px;
-    padding: 4px 6px;
+    padding: 5px 6px;
     border-radius: 5px;
     background: #130810;
     cursor: pointer;
@@ -14148,21 +14148,27 @@
                             catch ( /* ignore */_b) { /* ignore */ }
                             return getEBCVersion(num);
                         })();
-                        row.appendChild(dot);
-                        row.appendChild(nameEl);
+                        // Build nameRow
+                        const nameRow = document.createElement("div");
+                        nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                        nameEl.style.cssText += ";flex:1;min-width:0;";
+                        nameRow.appendChild(nameEl);
                         if (relBadge) {
                             const badge = document.createElement("span");
                             badge.textContent = relBadge;
                             badge.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
-                            row.appendChild(badge);
+                            nameRow.appendChild(badge);
                         }
-                        row.appendChild(numEl);
+                        // Build metaRow
+                        const metaRow = document.createElement("div");
+                        metaRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;";
+                        metaRow.appendChild(numEl);
                         if (ebcVer) {
                             const ebcBadge = document.createElement("span");
                             ebcBadge.textContent = "EBC " + ebcVer;
                             ebcBadge.title = "Uses EmeryBC v" + ebcVer;
                             ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
-                            row.appendChild(ebcBadge);
+                            metaRow.appendChild(ebcBadge);
                         }
                         // Tag chips from friend list (if any)
                         const tl = getFriendTagList(num);
@@ -14186,13 +14192,18 @@
                                 more.textContent = "+" + (tl.length - 1);
                                 tagArea.appendChild(more);
                             }
-                            row.appendChild(tagArea);
+                            metaRow.appendChild(tagArea);
                         }
+                        // Build infoCol
+                        const infoCol = document.createElement("div");
+                        infoCol.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;";
+                        infoCol.appendChild(nameRow);
+                        infoCol.appendChild(metaRow);
                         // Profile button — always available since they're in the room
                         const profBtn = document.createElement("button");
                         profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                         profBtn.title = "View profile";
-                        profBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;margin-left:auto;";
+                        profBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
                         profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#3a1428"; profBtn.style.borderColor = "#cf6f98"; });
                         profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "#2a0e1e"; profBtn.style.borderColor = "#4c2537"; });
                         profBtn.addEventListener("click", (e) => {
@@ -14220,7 +14231,10 @@
                             }
                             catch ( /* ignore */_d) { /* ignore */ }
                         });
-                        row.appendChild(profBtn);
+                        // Build btnCol
+                        const btnCol = document.createElement("div");
+                        btnCol.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;align-self:center;";
+                        btnCol.appendChild(profBtn);
                         // Beep button — only for friends
                         if (friendList.includes(num)) {
                             const unread = (_a = this.beepUnread.get(num)) !== null && _a !== void 0 ? _a : 0;
@@ -14244,8 +14258,13 @@
                                 }
                                 catch ( /* ignore */_a) { /* ignore */ }
                             });
-                            row.appendChild(beepBtn);
+                            btnCol.appendChild(beepBtn);
                         }
+                        // Assemble row
+                        dot.style.marginTop = "1px";
+                        row.appendChild(dot);
+                        row.appendChild(infoCol);
+                        row.appendChild(btnCol);
                         wrap.appendChild(row);
                         container.appendChild(wrap);
                     };
@@ -14405,8 +14424,9 @@
                     const numEl = document.createElement("span");
                     numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a9ab8;flex-shrink:0;";
                     numEl.textContent = "#" + num;
-                    // Room info tag
+                    // Room info tag (built here, appended to metaRow below)
                     const info = status !== "away" ? getFriendOnlineInfo(num) : undefined;
+                    let roomTagEl = null;
                     if (info) {
                         const isPrivate = info.roomPrivate;
                         const isLocked = info.roomLocked;
@@ -14432,43 +14452,22 @@
                         const label = roomName
                             ? (isFull ? "full · " : "") + roomName
                             : isLocked ? "locked room" : isPrivate ? "private room" : "online";
-                        const roomTag = document.createElement("span");
-                        roomTag.textContent = icon + " " + label;
-                        roomTag.title = roomName
+                        roomTagEl = document.createElement("span");
+                        roomTagEl.textContent = icon + " " + label;
+                        roomTagEl.title = roomName
                             ? roomName + (isPrivate ? " (private)" : " (public)") + (isFull ? " · full" : "")
                             : isLocked ? "In a locked room" : isPrivate ? "In a private room" : "Online";
-                        roomTag.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
-                        row.appendChild(dot);
-                        row.appendChild(pinDot);
-                        row.appendChild(nameEl);
-                        if (relBadge) {
-                            const badge = document.createElement("span");
-                            badge.textContent = relBadge;
-                            badge.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
-                            row.appendChild(badge);
-                        }
-                        row.appendChild(numEl);
-                        row.appendChild(roomTag);
+                        roomTagEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 4px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;background:${bg};color:${color};border:1px solid ${border};`;
                     }
-                    else {
-                        row.appendChild(dot);
-                        row.appendChild(pinDot);
-                        row.appendChild(nameEl);
-                        if (relBadge) {
-                            const badge = document.createElement("span");
-                            badge.textContent = relBadge;
-                            badge.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
-                            row.appendChild(badge);
-                        }
-                        row.appendChild(numEl);
-                        // Last-seen timestamp for offline friends
+                    // Last-seen timestamp for away/offline friends
+                    let lsEl = null;
+                    if (status === "away") {
                         const lsTs = getLastSeen(num);
                         if (lsTs !== null) {
-                            const lsEl = document.createElement("span");
+                            lsEl = document.createElement("span");
                             lsEl.textContent = formatLastSeen(lsTs);
                             lsEl.title = `Last seen: ${new Date(lsTs).toLocaleString()}`;
-                            lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a06878;flex-shrink:0;margin-left:auto;";
-                            row.appendChild(lsEl);
+                            lsEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#a06878;flex-shrink:0;";
                         }
                     }
                     // EBC badge
@@ -14494,12 +14493,12 @@
                         catch ( /* ignore */_a) { /* ignore */ }
                         return getEBCVersion(num);
                     })();
+                    let ebcBadge = null;
                     if (ebcVer) {
-                        const ebcBadge = document.createElement("span");
+                        ebcBadge = document.createElement("span");
                         ebcBadge.textContent = "EBC " + ebcVer;
                         ebcBadge.title = "Uses EmeryBC v" + ebcVer;
                         ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
-                        row.appendChild(ebcBadge);
                     }
                     // ── Tag display area (first tag + "+N more", hover = tooltip) ──
                     const tagArea = document.createElement("span");
@@ -14578,13 +14577,40 @@
                         document.addEventListener("mousemove", moveHandler, true);
                     });
                     tagArea.addEventListener("mouseleave", hideTooltip);
+                    // ── Two-line layout assembly ───────────────────────────────
+                    // nameRow: nameEl + relBadge
+                    const nameRow = document.createElement("div");
+                    nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    nameEl.style.flex = "1";
+                    nameRow.appendChild(nameEl);
+                    if (relBadge) {
+                        const relBadgeEl = document.createElement("span");
+                        relBadgeEl.textContent = relBadge;
+                        relBadgeEl.style.cssText = "font-size:10px;flex-shrink:0;line-height:1;";
+                        nameRow.appendChild(relBadgeEl);
+                    }
+                    // metaRow: numEl + roomTag/lsEl + ebcBadge + tagArea
+                    const metaRow = document.createElement("div");
+                    metaRow.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;";
+                    metaRow.appendChild(numEl);
+                    if (roomTagEl)
+                        metaRow.appendChild(roomTagEl);
+                    if (lsEl)
+                        metaRow.appendChild(lsEl);
+                    if (ebcBadge)
+                        metaRow.appendChild(ebcBadge);
                     if (getFriendTagList(num).length > 0 || getLockedTag(num))
-                        row.appendChild(tagArea);
+                        metaRow.appendChild(tagArea);
+                    // infoCol: nameRow + metaRow
+                    const infoCol = document.createElement("div");
+                    infoCol.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;";
+                    infoCol.appendChild(nameRow);
+                    infoCol.appendChild(metaRow);
                     // Profile button — opens BC info sheet
                     const friendProfBtn = document.createElement("button");
                     friendProfBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                     friendProfBtn.title = "View profile";
-                    friendProfBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;margin-left:auto;";
+                    friendProfBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
                     friendProfBtn.addEventListener("mouseenter", () => { friendProfBtn.style.background = "#3a1428"; friendProfBtn.style.borderColor = "#cf6f98"; });
                     friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "#2a0e1e"; friendProfBtn.style.borderColor = "#4c2537"; });
                     friendProfBtn.addEventListener("click", (e) => {
@@ -14642,7 +14668,6 @@
                         }
                         catch ( /* ignore */_d) { /* ignore */ }
                     });
-                    row.appendChild(friendProfBtn);
                     // Beep button — does NOT toggle expand
                     const unread = (_a = this.beepUnread.get(num)) !== null && _a !== void 0 ? _a : 0;
                     const beepBtn = document.createElement("button");
@@ -14665,7 +14690,18 @@
                         }
                         catch ( /* ignore */_a) { /* ignore */ }
                     });
-                    row.appendChild(beepBtn);
+                    // btnCol: friendProfBtn + beepBtn
+                    const btnCol = document.createElement("div");
+                    btnCol.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;align-self:center;";
+                    btnCol.appendChild(friendProfBtn);
+                    btnCol.appendChild(beepBtn);
+                    // Assemble row
+                    dot.style.marginTop = "1px";
+                    pinDot.style.marginTop = "1px";
+                    row.appendChild(dot);
+                    row.appendChild(pinDot);
+                    row.appendChild(infoCol);
+                    row.appendChild(btnCol);
                     // ── Expand panel (lazy — DOM built on first click) ─────────
                     const expand = document.createElement("div");
                     expand.className = "ebc-friend-expand";
@@ -18200,7 +18236,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.9.13";
+    const MOD_VERSION = "2.0.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18209,7 +18245,7 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "1.9.13",
+            version: "2.0.3",
             changes: [
                 "UI: dev tab is now locked — it can never be toggled off in the visible tabs list; existing hidden state is repaired on load.",
                 "UI: menu hotkey — assign any key (e.g. F2) in the Dev tab to open/close the EBC panel without clicking the tab button.",
