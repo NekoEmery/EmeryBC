@@ -328,7 +328,7 @@
     const CHIP_H = 28;
     const CAT_CHIP_H = 30;
     const CAT_ARR_W = 22;
-    const GRIP_H = 14; // drag handle above collapse toggle
+    const GRIP_H = 22; // drag handle above collapse toggle — tall enough to tap
     // Position — mutable, persisted to localStorage
     const SIDEBAR_POS_KEY = "EBC_sidebarPos";
     let sidebarX = 0;
@@ -349,23 +349,64 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
     let sidebarCollapsed = false;
-    // Drag state — "click to grab, click to drop"
+    // Drag state — DOM mousemove/touchmove based so it works reliably
     let isDragging = false;
-    let dragAnchorMouseX = 0;
+    let dragAnchorMouseX = 0; // canvas-coord mouse position when drag started
     let dragAnchorMouseY = 0;
-    let dragAnchorPanelX = 0;
+    let dragAnchorPanelX = 0; // panel position when drag started
     let dragAnchorPanelY = 0;
+    function getCanvasScale() {
+        const canvas = document.getElementById("MainCanvas");
+        if (!canvas)
+            return { scaleX: 1, scaleY: 1, left: 0, top: 0 };
+        const rect = canvas.getBoundingClientRect();
+        return {
+            scaleX: 2000 / (rect.width || 2000),
+            scaleY: 1000 / (rect.height || 1000),
+            left: rect.left,
+            top: rect.top,
+        };
+    }
+    function screenToCanvas(clientX, clientY) {
+        const { scaleX, scaleY, left, top } = getCanvasScale();
+        return { x: (clientX - left) * scaleX, y: (clientY - top) * scaleY };
+    }
+    let _dragMoveHandler = null;
+    let _dragEndHandler = null;
+    function startDrag(canvasMouseX, canvasMouseY) {
+        isDragging = true;
+        dragAnchorMouseX = canvasMouseX;
+        dragAnchorMouseY = canvasMouseY;
+        dragAnchorPanelX = sidebarX;
+        dragAnchorPanelY = sidebarY;
+        _dragMoveHandler = (e) => {
+            const pt = "touches" in e ? e.touches[0] : e;
+            const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
+            sidebarX = Math.max(0, Math.min(1955, dragAnchorPanelX + (x - dragAnchorMouseX)));
+            sidebarY = Math.max(GRIP_H + 2, Math.min(900, dragAnchorPanelY + (y - dragAnchorMouseY)));
+        };
+        _dragEndHandler = () => {
+            isDragging = false;
+            saveSidebarPos();
+            if (_dragMoveHandler) {
+                document.removeEventListener("mousemove", _dragMoveHandler);
+                document.removeEventListener("touchmove", _dragMoveHandler);
+            }
+            if (_dragEndHandler) {
+                document.removeEventListener("mouseup", _dragEndHandler);
+                document.removeEventListener("touchend", _dragEndHandler);
+            }
+            _dragMoveHandler = null;
+            _dragEndHandler = null;
+        };
+        document.addEventListener("mousemove", _dragMoveHandler);
+        document.addEventListener("touchmove", _dragMoveHandler, { passive: true });
+        document.addEventListener("mouseup", _dragEndHandler);
+        document.addEventListener("touchend", _dragEndHandler);
+    }
     function drawActionButtons() {
-        var _a, _b;
         if (CurrentScreen !== "ChatRoom")
             return;
-        // If dragging, track cursor delta and update panel position every frame
-        if (isDragging) {
-            const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
-            const my = (_b = window.MouseY) !== null && _b !== void 0 ? _b : 0;
-            sidebarX = Math.max(0, Math.min(1955, dragAnchorPanelX + (mx - dragAnchorMouseX)));
-            sidebarY = Math.max(GRIP_H + 2, Math.min(900, dragAnchorPanelY + (my - dragAnchorMouseY)));
-        }
         // Derived Y positions
         const gripY = sidebarY - GRIP_H - 2;
         const catChipY = sidebarY + CHIP_H + 4;
@@ -413,20 +454,10 @@
         const gripY = sidebarY - GRIP_H - 2;
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
-        // If currently dragging — any click drops the panel and saves position
-        if (isDragging) {
-            isDragging = false;
-            saveSidebarPos();
-            return true;
-        }
-        // Drag grip — click to grab
+        // Drag grip — mousedown starts the DOM-based drag (release anywhere drops)
         if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
             my >= gripY && my <= gripY + GRIP_H) {
-            isDragging = true;
-            dragAnchorMouseX = mx;
-            dragAnchorMouseY = my;
-            dragAnchorPanelX = sidebarX;
-            dragAnchorPanelY = sidebarY;
+            startDrag(mx, my);
             return true;
         }
         // Collapse toggle
@@ -1874,10 +1905,10 @@
     function getAfkMentionReply() {
         var _a;
         try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkMentionReply) === true;
+            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkMentionReply) !== false;
         }
         catch (_b) {
-            return false;
+            return true;
         }
     }
     function setAfkMentionReply(v) {
@@ -17622,7 +17653,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.8.6";
+    const MOD_VERSION = "1.8.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17631,6 +17662,13 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.8.7",
+            changes: [
+                "Fix: sidebar drag now uses DOM mousemove/mouseup + touchmove/touchend events — hold grip and release anywhere to drop; works on tablet too. Grip height increased to 22px.",
+                "Fix: AFK chat mention-reply now defaults to ON (was opt-in, so it never fired unless you explicitly enabled the sub-toggle).",
+            ],
+        },
         {
             version: "1.8.6",
             changes: [

@@ -181,7 +181,7 @@ export function setAfkMessage(msg: string): void {
 // When enabled, EBC also whispers the AFK message to anyone who mentions the
 // player's name in room chat while AFK (same cooldown as beep replies).
 export function getAfkMentionReply(): boolean {
-    try { return getStore()?.afkMentionReply === true; } catch { return false; }
+    try { return getStore()?.afkMentionReply !== false; } catch { return true; }
 }
 export function setAfkMentionReply(v: boolean): void {
     try { const s = getStore(); if (s) { s.afkMentionReply = v; callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC")); } } catch { /* ignore */ }

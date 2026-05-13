@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.8.6";
+const MOD_VERSION = "1.8.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -27,6 +27,13 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.8.7",
+        changes: [
+            "Fix: sidebar drag now uses DOM mousemove/mouseup + touchmove/touchend events — hold grip and release anywhere to drop; works on tablet too. Grip height increased to 22px.",
+            "Fix: AFK chat mention-reply now defaults to ON (was opt-in, so it never fired unless you explicitly enabled the sub-toggle).",
+        ],
+    },
     {
         version: "1.8.6",
         changes: [

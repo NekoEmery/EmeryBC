@@ -330,7 +330,7 @@ const CHIP_W     = 45;
 const CHIP_H     = 28;
 const CAT_CHIP_H = 30;
 const CAT_ARR_W  = 22;
-const GRIP_H     = 14;  // drag handle above collapse toggle
+const GRIP_H     = 22;  // drag handle above collapse toggle — tall enough to tap
 
 // Position — mutable, persisted to localStorage
 const SIDEBAR_POS_KEY = "EBC_sidebarPos";
@@ -347,23 +347,70 @@ function saveSidebarPos(): void {
 
 let sidebarCollapsed = false;
 
-// Drag state — "click to grab, click to drop"
+// Drag state — DOM mousemove/touchmove based so it works reliably
 let isDragging = false;
-let dragAnchorMouseX = 0;
+let dragAnchorMouseX = 0;   // canvas-coord mouse position when drag started
 let dragAnchorMouseY = 0;
-let dragAnchorPanelX = 0;
+let dragAnchorPanelX = 0;   // panel position when drag started
 let dragAnchorPanelY = 0;
+
+function getCanvasScale(): { scaleX: number; scaleY: number; left: number; top: number } {
+    const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
+    if (!canvas) return { scaleX: 1, scaleY: 1, left: 0, top: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+        scaleX: 2000 / (rect.width  || 2000),
+        scaleY: 1000 / (rect.height || 1000),
+        left: rect.left,
+        top:  rect.top,
+    };
+}
+
+function screenToCanvas(clientX: number, clientY: number): { x: number; y: number } {
+    const { scaleX, scaleY, left, top } = getCanvasScale();
+    return { x: (clientX - left) * scaleX, y: (clientY - top) * scaleY };
+}
+
+let _dragMoveHandler: ((e: MouseEvent | TouchEvent) => void) | null = null;
+let _dragEndHandler:  ((e: MouseEvent | TouchEvent) => void) | null = null;
+
+function startDrag(canvasMouseX: number, canvasMouseY: number): void {
+    isDragging = true;
+    dragAnchorMouseX = canvasMouseX;
+    dragAnchorMouseY = canvasMouseY;
+    dragAnchorPanelX = sidebarX;
+    dragAnchorPanelY = sidebarY;
+
+    _dragMoveHandler = (e: MouseEvent | TouchEvent) => {
+        const pt = "touches" in e ? e.touches[0] : e as MouseEvent;
+        const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
+        sidebarX = Math.max(0,         Math.min(1955, dragAnchorPanelX + (x - dragAnchorMouseX)));
+        sidebarY = Math.max(GRIP_H + 2, Math.min(900, dragAnchorPanelY + (y - dragAnchorMouseY)));
+    };
+
+    _dragEndHandler = () => {
+        isDragging = false;
+        saveSidebarPos();
+        if (_dragMoveHandler) {
+            document.removeEventListener("mousemove",  _dragMoveHandler as EventListener);
+            document.removeEventListener("touchmove",  _dragMoveHandler as EventListener);
+        }
+        if (_dragEndHandler) {
+            document.removeEventListener("mouseup",    _dragEndHandler as EventListener);
+            document.removeEventListener("touchend",   _dragEndHandler as EventListener);
+        }
+        _dragMoveHandler = null;
+        _dragEndHandler  = null;
+    };
+
+    document.addEventListener("mousemove", _dragMoveHandler as EventListener);
+    document.addEventListener("touchmove",  _dragMoveHandler as EventListener, { passive: true });
+    document.addEventListener("mouseup",    _dragEndHandler  as EventListener);
+    document.addEventListener("touchend",   _dragEndHandler  as EventListener);
+}
 
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
-
-    // If dragging, track cursor delta and update panel position every frame
-    if (isDragging) {
-        const mx = (window as unknown as Record<string, number>).MouseX ?? 0;
-        const my = (window as unknown as Record<string, number>).MouseY ?? 0;
-        sidebarX = Math.max(0, Math.min(1955, dragAnchorPanelX + (mx - dragAnchorMouseX)));
-        sidebarY = Math.max(GRIP_H + 2, Math.min(900, dragAnchorPanelY + (my - dragAnchorMouseY)));
-    }
 
     // Derived Y positions
     const gripY      = sidebarY - GRIP_H - 2;
@@ -426,21 +473,10 @@ export function handleActionButtonClick(): boolean {
     const catChipY  = sidebarY + CHIP_H + 4;
     const btnStartY = catChipY + CAT_CHIP_H + 4;
 
-    // If currently dragging — any click drops the panel and saves position
-    if (isDragging) {
-        isDragging = false;
-        saveSidebarPos();
-        return true;
-    }
-
-    // Drag grip — click to grab
+    // Drag grip — mousedown starts the DOM-based drag (release anywhere drops)
     if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
         my >= gripY     && my <= gripY + GRIP_H) {
-        isDragging = true;
-        dragAnchorMouseX = mx;
-        dragAnchorMouseY = my;
-        dragAnchorPanelX = sidebarX;
-        dragAnchorPanelY = sidebarY;
+        startDrag(mx, my);
         return true;
     }
 
