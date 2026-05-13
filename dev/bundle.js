@@ -484,10 +484,10 @@
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
         // Semi-transparent background variants
-        const bgNormal = withAlpha(UI.cardMuted, 0.70);
-        const bgActive = withAlpha(UI.accentSoft, 0.70);
-        const bgChip = withAlpha("#2a0e1e", 0.70);
-        const bgInactive = withAlpha("#1a0a14", 0.70);
+        const bgNormal = withAlpha(UI.cardMuted, 0.88);
+        const bgActive = withAlpha(UI.accentSoft, 0.88);
+        const bgChip = withAlpha("#2a0e1e", 0.88);
+        const bgInactive = withAlpha("#1a0a14", 0.88);
         // Drag grip — hold & drag to reposition
         DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? bgActive : bgNormal);
         DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accent : UI.panelEdge, 1);
@@ -535,7 +535,7 @@
             const btn = buttons[i];
             if (!(btn === null || btn === void 0 ? void 0 : btn.enabled) || !btn.label)
                 continue;
-            DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.72), "", btn.emote);
+            DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90), "", btn.emote);
         }
     }
     function handleActionButtonClick() {
@@ -6483,7 +6483,7 @@
     position: fixed;
     width: 300px;
     height: 380px;
-    background: rgba(19,8,16,0.78);
+    background: rgba(19,8,16,0.55);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     border: 2px solid #cf6f98;
@@ -6503,7 +6503,7 @@
     align-items: center;
     gap: 6px;
     padding: 7px 10px 6px;
-    background: rgba(30,13,26,0.82);
+    background: rgba(30,13,26,0.58);
     border-bottom: 1px solid #3a1928;
     cursor: grab;
     user-select: none;
@@ -6522,7 +6522,7 @@
 }
 
 .ebc-beep-win-hbtn {
-    background: rgba(42,14,30,0.78);
+    background: rgba(42,14,30,0.58);
     border: 1px solid #4a2035;
     border-radius: 5px;
     color: #9a6878;
@@ -6557,13 +6557,13 @@
 }
 .ebc-beep-msg.sent {
     align-self: flex-end;
-    background: rgba(58,16,40,0.82);
+    background: rgba(58,16,40,0.60);
     color: #f0c8d8;
     border-bottom-right-radius: 2px;
 }
 .ebc-beep-msg.received {
     align-self: flex-start;
-    background: rgba(30,13,26,0.82);
+    background: rgba(30,13,26,0.58);
     color: #e0c0cc;
     border: 1px solid #3a1928;
     border-bottom-left-radius: 2px;
@@ -6585,7 +6585,7 @@
 
 .ebc-beep-win-input {
     flex: 1;
-    background: rgba(30,13,26,0.80);
+    background: rgba(30,13,26,0.58);
     border: 1px solid #5a2840;
     border-radius: 5px;
     color: #e8d0d8;
@@ -18667,7 +18667,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.1";
+    const MOD_VERSION = "2.2.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18675,6 +18675,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.2",
+            changes: [
+                "UI: beep windows more transparent (~55%), action buttons less transparent (~90%) for better readability.",
+            ],
+        },
         {
             version: "2.2.1",
             changes: [
