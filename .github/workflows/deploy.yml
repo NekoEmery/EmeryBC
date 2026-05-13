@@ -1,0 +1,58 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set channel
+        id: channel
+        run: |
+          if [ "${{ github.ref_name }}" = "master" ]; then
+            echo "name=stable" >> $GITHUB_OUTPUT
+            echo "prod=true"  >> $GITHUB_OUTPUT
+          else
+            echo "name=dev"   >> $GITHUB_OUTPUT
+            echo "prod=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Patch IS_DEV_BUILD for production
+        if: steps.channel.outputs.prod == 'true'
+        run: sed -i 's/const IS_DEV_BUILD = true/const IS_DEV_BUILD = false/' src/main.ts
+
+      - name: Build
+        run: |
+          if [ "${{ steps.channel.outputs.prod }}" = "true" ]; then
+            npm run build:prod
+          else
+            npm run build
+          fi
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          destination_dir: ${{ steps.channel.outputs.name }}
+          keep_files: true
+          commit_message: "deploy(${{ steps.channel.outputs.name }}): ${{ github.event.head_commit.message }}"
