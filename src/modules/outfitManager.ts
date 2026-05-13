@@ -812,6 +812,18 @@ export function moveRestraint(id: string, direction: "up" | "down"): void {
     saveRestraints(restraints);
 }
 
+export function applyColorPresetToRestraint(restraintId: string, fullGroup: string, colors: string | string[]): boolean {
+    const restraints = getRestraints();
+    const restraint = restraints.find(r => r.id === restraintId);
+    if (!restraint) return false;
+    const item = restraint.items.find(i => i.Group === fullGroup);
+    if (!item) return false;
+    item.Color = colors;
+    saveRestraints(restraints);
+    localNotice(`Updated colours in "${restraint.displayName}".`);
+    return true;
+}
+
 export function handleRestraintCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;

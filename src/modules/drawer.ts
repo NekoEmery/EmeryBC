@@ -48,6 +48,7 @@ import {
     moveRestraint,
     saveCurrentAppearanceToRestraint,
     setRestraintTagIds,
+    applyColorPresetToRestraint,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -2411,6 +2412,98 @@ function showConfirmOverlay(
     document.body.appendChild(overlay);
 }
 
+// ── Colour presets ────────────────────────────────────────────────────────
+// Saved colour configurations from restraint log entries.
+// Stored in localStorage (device-local). group is the stripped name (e.g. "Arms").
+interface EBCColorPreset {
+    id: string;
+    name: string;
+    group: string;
+    itemName: string;
+    colors: string | string[];
+}
+const EBC_COLOR_PRESETS_KEY = "EBC_colorPresets";
+function getColorPresets(): EBCColorPreset[] {
+    try { const raw = localStorage.getItem(EBC_COLOR_PRESETS_KEY); return raw ? JSON.parse(raw) as EBCColorPreset[] : []; } catch { return []; }
+}
+function saveColorPresets(list: EBCColorPreset[]): void {
+    try { localStorage.setItem(EBC_COLOR_PRESETS_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+}
+function addColorPreset(p: EBCColorPreset): void { saveColorPresets([...getColorPresets(), p]); }
+function removeColorPreset(id: string): void { saveColorPresets(getColorPresets().filter(p => p.id !== id)); }
+function renameColorPreset(id: string, name: string): void {
+    const list = getColorPresets();
+    const p = list.find(x => x.id === id);
+    if (p) { p.name = name; saveColorPresets(list); }
+}
+
+// Shows an overlay with a text input and confirm/cancel buttons.
+// Used for save-colour-preset naming.
+function showNameInputOverlay(
+    title: string,
+    defaultValue: string,
+    confirmLabel: string,
+    onConfirm: (value: string) => void,
+): void {
+    const overlay = document.createElement("div");
+    overlay.style.cssText = [
+        "position:fixed", "top:50%", "left:50%",
+        "transform:translate(-50%,-50%)",
+        "background:#130810", "border:2px solid #cf6f98",
+        "border-radius:10px", "padding:18px 22px",
+        "z-index:999999", "font-family:'Trebuchet MS',serif",
+        "min-width:260px", "max-width:320px",
+        "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
+        "display:flex", "flex-direction:column", "gap:10px",
+    ].join(";");
+
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.4;";
+    lbl.textContent = title;
+    overlay.appendChild(lbl);
+
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.value = defaultValue;
+    inp.maxLength = 40;
+    inp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:5px 8px;width:100%;box-sizing:border-box;outline:none;";
+    overlay.appendChild(inp);
+
+    const btns = document.createElement("div");
+    btns.style.cssText = "display:flex;gap:8px;";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #79a885;background:#0f2a1a;color:#79a885;";
+    cancelBtn.addEventListener("click", () => overlay.remove());
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.textContent = confirmLabel;
+    confirmBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
+    confirmBtn.addEventListener("click", () => {
+        const v = inp.value.trim();
+        if (!v) { inp.style.borderColor = "#e05070"; return; }
+        overlay.remove();
+        onConfirm(v);
+    });
+
+    inp.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); confirmBtn.click(); }
+        if (e.key === "Escape") { e.preventDefault(); overlay.remove(); }
+    });
+
+    btns.appendChild(cancelBtn);
+    btns.appendChild(confirmBtn);
+    overlay.appendChild(btns);
+    document.body.appendChild(overlay);
+    setTimeout(() => inp.select(), 30);
+}
+
+// ── Menu hotkey ───────────────────────────────────────────────────────────
+const EBC_MENU_HOTKEY_KEY = "EBC_menuHotkey";
+function getMenuHotkey(): string { try { return localStorage.getItem(EBC_MENU_HOTKEY_KEY) ?? ""; } catch { return ""; } }
+function setMenuHotkey(key: string): void { try { if (key) localStorage.setItem(EBC_MENU_HOTKEY_KEY, key); else localStorage.removeItem(EBC_MENU_HOTKEY_KEY); } catch { /* ignore */ } }
+
 // ── Drawer appearance / layout helpers ───────────────────────────────────
 const EBC_COLORS_KEY = "EBC_colors";
 const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
@@ -3492,17 +3585,29 @@ export class EBCDrawer {
         puppyTabBtn.addEventListener("click",    () => this.switchTab("puppy"));
 
         document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && this.isOpen) this.close();
+            if (e.key === "Escape" && this.isOpen) { this.close(); return; }
+            const hotkey = getMenuHotkey();
+            if (hotkey && e.code === hotkey) {
+                const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+                if (tag === "input" || tag === "textarea" || tag === "select") return;
+                e.preventDefault();
+                this.toggle();
+            }
         });
     }
 
     private applyTabVisibility(): void {
         if (!this.rootEl) return;
         const hidden = getHiddenTabs();
+        // dev tab can never be hidden — repair if it somehow got stored as hidden
+        if (hidden.includes("dev")) {
+            setHiddenTabs(hidden.filter(t => t !== "dev"));
+            return this.applyTabVisibility();
+        }
         for (const tabId of EBC_USER_TABS) {
             const btn = this.rootEl.querySelector(`#ebc-tab-${tabId}`) as HTMLElement | null;
             if (!btn) continue;
-            btn.style.display = hidden.includes(tabId) ? "none" : "";
+            btn.style.display = (tabId === "dev" || !hidden.includes(tabId)) ? "" : "none";
         }
         // If the active tab was hidden, fall back to the first visible tab
         if (hidden.includes(this.currentTab)) {
@@ -6030,6 +6135,143 @@ export class EBCDrawer {
                     createBtn.textContent = "Save as New Restraint Set";
                 }
             });
+
+            // ── Colour Presets ───────────────────────────────────────────────────────
+            const cpDivider = document.createElement("div");
+            cpDivider.className = "ebc-divider";
+            cpDivider.style.margin = "10px 0 6px";
+            sectionBody.appendChild(cpDivider);
+
+            const cpHeader = document.createElement("div");
+            cpHeader.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:5px;";
+            const cpLbl = document.createElement("div");
+            cpLbl.className = "ebc-section-label";
+            cpLbl.style.cssText += ";margin:0;flex:1;font-size:10px;";
+            cpLbl.textContent = "Colour Presets";
+            const cpHintEl = document.createElement("span");
+            cpHintEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;flex-shrink:0;";
+            cpHintEl.textContent = "saved from restraint log";
+            cpHeader.appendChild(cpLbl);
+            cpHeader.appendChild(cpHintEl);
+            sectionBody.appendChild(cpHeader);
+
+            const cpContainer = document.createElement("div");
+            sectionBody.appendChild(cpContainer);
+
+            const renderColorPresets = (): void => {
+                while (cpContainer.firstChild) cpContainer.removeChild(cpContainer.firstChild);
+                const presets = getColorPresets();
+                if (presets.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.className = "ebc-empty";
+                    empty.textContent = "No colour presets yet — use 💾 in the restraint log to save one.";
+                    cpContainer.appendChild(empty);
+                    return;
+                }
+                for (const preset of presets) {
+                    const card = document.createElement("div");
+                    card.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:5px;margin-bottom:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;";
+
+                    // Colour swatches
+                    const colArr: string[] = Array.isArray(preset.colors) ? preset.colors : (preset.colors ? [preset.colors as string] : []);
+                    const validCols = colArr.filter(c => typeof c === "string" && c.startsWith("#")).slice(0, 6);
+                    const sw = document.createElement("span");
+                    sw.style.cssText = "display:flex;align-items:center;gap:2px;flex-shrink:0;";
+                    for (const col of validCols) {
+                        const dot = document.createElement("span");
+                        dot.style.cssText = `width:9px;height:9px;border-radius:50%;background:${col};border:1px solid #3a1928;display:inline-block;flex-shrink:0;`;
+                        sw.appendChild(dot);
+                    }
+                    card.appendChild(sw);
+
+                    // Name (editable)
+                    const nameEl2 = document.createElement("span");
+                    nameEl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f0d8ec;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;";
+                    nameEl2.textContent = preset.name;
+                    nameEl2.title = `${preset.group} · ${preset.itemName} — click to rename`;
+                    nameEl2.addEventListener("click", () => {
+                        showNameInputOverlay(`Rename "${preset.name}"`, preset.name, "Rename", (newName) => {
+                            renameColorPreset(preset.id, newName);
+                            renderColorPresets();
+                        });
+                    });
+                    card.appendChild(nameEl2);
+
+                    // Group label
+                    const grpEl = document.createElement("span");
+                    grpEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;flex-shrink:0;white-space:nowrap;";
+                    grpEl.textContent = preset.group;
+                    card.appendChild(grpEl);
+
+                    // Apply to set button
+                    const applyPresetBtn = document.createElement("button");
+                    applyPresetBtn.textContent = "▶ Set";
+                    applyPresetBtn.title = "Apply these colours to a restraint set item";
+                    applyPresetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;white-space:nowrap;";
+                    applyPresetBtn.addEventListener("mouseenter", () => { applyPresetBtn.style.color = "#cf6f98"; applyPresetBtn.style.borderColor = "#cf6f98"; });
+                    applyPresetBtn.addEventListener("mouseleave", () => { applyPresetBtn.style.color = "#7a5a6a"; applyPresetBtn.style.borderColor = "#4c2537"; });
+                    applyPresetBtn.addEventListener("click", () => {
+                        const fullGroup = "Item" + preset.group;
+                        const matching = getRestraints().filter(r => r.items.some(i => i.Group === fullGroup));
+                        if (matching.length === 0) {
+                            showConfirmOverlay(`No restraint set has an item in slot "${preset.group}". Save a set while wearing something in that slot first.`, "OK", "OK", () => {});
+                            return;
+                        }
+                        // Build picker overlay
+                        const pickOverlay = document.createElement("div");
+                        pickOverlay.style.cssText = [
+                            "position:fixed","top:50%","left:50%",
+                            "transform:translate(-50%,-50%)",
+                            "background:#130810","border:2px solid #cf6f98",
+                            "border-radius:10px","padding:16px 20px",
+                            "z-index:999999","font-family:'Trebuchet MS',serif",
+                            "min-width:240px","max-width:300px",
+                            "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
+                            "display:flex","flex-direction:column","gap:8px",
+                        ].join(";");
+                        const pickLbl = document.createElement("div");
+                        pickLbl.style.cssText = "font-size:12px;color:#cf6f98;";
+                        pickLbl.textContent = `Apply "${preset.name}" colours to which set?`;
+                        pickOverlay.appendChild(pickLbl);
+                        for (const rs of matching) {
+                            const btn2 = document.createElement("button");
+                            btn2.textContent = rs.displayName;
+                            btn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 8px;border-radius:5px;border:1px solid #4c2537;background:transparent;color:#f0d8ec;cursor:pointer;text-align:left;";
+                            btn2.addEventListener("mouseenter", () => { btn2.style.borderColor = "#cf6f98"; btn2.style.color = "#cf6f98"; });
+                            btn2.addEventListener("mouseleave", () => { btn2.style.borderColor = "#4c2537"; btn2.style.color = "#f0d8ec"; });
+                            btn2.addEventListener("click", () => {
+                                pickOverlay.remove();
+                                applyColorPresetToRestraint(rs.id, fullGroup, preset.colors);
+                                renderRestraintList();
+                            });
+                            pickOverlay.appendChild(btn2);
+                        }
+                        const cancelBtn2 = document.createElement("button");
+                        cancelBtn2.textContent = "Cancel";
+                        cancelBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #79a885;background:#0f2a1a;color:#79a885;margin-top:4px;";
+                        cancelBtn2.addEventListener("click", () => pickOverlay.remove());
+                        pickOverlay.appendChild(cancelBtn2);
+                        document.body.appendChild(pickOverlay);
+                    });
+                    card.appendChild(applyPresetBtn);
+
+                    // Delete button
+                    const delBtn2 = document.createElement("button");
+                    delBtn2.textContent = "×";
+                    delBtn2.title = "Delete this colour preset";
+                    delBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;padding:0 5px;border:none;background:transparent;color:#4c2537;cursor:pointer;flex-shrink:0;line-height:1;";
+                    delBtn2.addEventListener("mouseenter", () => { delBtn2.style.color = "#e05070"; });
+                    delBtn2.addEventListener("mouseleave", () => { delBtn2.style.color = "#4c2537"; });
+                    delBtn2.addEventListener("click", () => {
+                        removeColorPreset(preset.id);
+                        renderColorPresets();
+                    });
+                    card.appendChild(delBtn2);
+
+                    cpContainer.appendChild(card);
+                }
+            };
+            renderColorPresets();
         };
 
         renderRestraintList();
@@ -10907,6 +11149,15 @@ export class EBCDrawer {
             tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;";
             const hiddenTabs = getHiddenTabs();
             for (const tabId of EBC_USER_TABS) {
+                if (tabId === "dev") {
+                    const chip = document.createElement("button");
+                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
+                    chip.textContent = (EBC_TAB_LABELS[tabId] ?? "DEV") + " 🔒";
+                    chip.title = "Dev tab is always visible and cannot be hidden";
+                    chip.disabled = true;
+                    tabVisGrid.appendChild(chip);
+                    continue;
+                }
                 const isVisible = !hiddenTabs.includes(tabId);
                 const chip = document.createElement("button");
                 chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "#91405f" : "#3a1928"};background:${isVisible ? "#2a1421" : "transparent"};color:${isVisible ? "#cf6f98" : "#7a5a6a"};`;
@@ -10927,6 +11178,57 @@ export class EBCDrawer {
                 tabVisGrid.appendChild(chip);
             }
             cnt.appendChild(tabVisGrid);
+
+            // ── Menu hotkey ────────────────────────────────────────────────────────
+            const hotkeyRow = document.createElement("div");
+            hotkeyRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-top:6px;";
+            const hotkeyLbl = document.createElement("span");
+            hotkeyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+            hotkeyLbl.textContent = "Menu hotkey";
+            const hotkeyDisplay = document.createElement("span");
+            const refreshHotkeyDisplay = (): void => {
+                const k = getMenuHotkey();
+                hotkeyDisplay.textContent = k || "None";
+                hotkeyDisplay.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;border:1px solid #3a1928;background:#1b0d17;color:${k ? "#cf6f98" : "#4c2537"};min-width:36px;text-align:center;`;
+            };
+            refreshHotkeyDisplay();
+            const setHotkeyBtn = document.createElement("button");
+            setHotkeyBtn.textContent = "Set key";
+            setHotkeyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            const clearHotkeyBtn = document.createElement("button");
+            clearHotkeyBtn.textContent = "Clear";
+            clearHotkeyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            let capturingHotkey = false;
+            setHotkeyBtn.addEventListener("click", () => {
+                if (capturingHotkey) return;
+                capturingHotkey = true;
+                setHotkeyBtn.textContent = "Press key…";
+                setHotkeyBtn.style.color = "#cf6f98";
+                setHotkeyBtn.style.borderColor = "#cf6f98";
+                const capture = (ev: KeyboardEvent): void => {
+                    if (ev.key === "Control" || ev.key === "Shift" || ev.key === "Alt" || ev.key === "Meta") return;
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (ev.key === "Escape") {
+                        // cancel capture
+                    } else {
+                        setMenuHotkey(ev.code);
+                    }
+                    capturingHotkey = false;
+                    setHotkeyBtn.textContent = "Set key";
+                    setHotkeyBtn.style.color = "#7a5a6a";
+                    setHotkeyBtn.style.borderColor = "#4c2537";
+                    document.removeEventListener("keydown", capture, true);
+                    refreshHotkeyDisplay();
+                };
+                document.addEventListener("keydown", capture, true);
+            });
+            clearHotkeyBtn.addEventListener("click", () => { setMenuHotkey(""); refreshHotkeyDisplay(); });
+            hotkeyRow.appendChild(hotkeyLbl);
+            hotkeyRow.appendChild(hotkeyDisplay);
+            hotkeyRow.appendChild(setHotkeyBtn);
+            hotkeyRow.appendChild(clearHotkeyBtn);
+            cnt.appendChild(hotkeyRow);
         });
 
         // ── EBC Users In This Room ─────────────────────────────────────────────
@@ -11725,6 +12027,30 @@ export class EBCDrawer {
                             }
                             swatchRow.title = `Colors: ${validColors.join(", ")}`;
                             btmRow.appendChild(swatchRow);
+
+                            // Save-colours button
+                            const saveColBtn = document.createElement("button");
+                            saveColBtn.textContent = "💾";
+                            saveColBtn.title = "Save these colours as a named preset";
+                            saveColBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;line-height:1;";
+                            saveColBtn.addEventListener("mouseenter", () => { saveColBtn.style.color = "#cf6f98"; });
+                            saveColBtn.addEventListener("mouseleave", () => { saveColBtn.style.color = "#7a5a6a"; });
+                            saveColBtn.addEventListener("click", (ev) => {
+                                ev.stopPropagation();
+                                const uid2 = Math.random().toString(36).slice(2, 9);
+                                showNameInputOverlay(
+                                    `Save colours from "${entry.itemName}"`,
+                                    entry.craftName ?? entry.itemName,
+                                    "Save",
+                                    (name) => {
+                                        addColorPreset({ id: uid2, name, group: entry.group, itemName: entry.itemName, colors: entry.colors ?? [] });
+                                        saveColBtn.textContent = "✓";
+                                        saveColBtn.style.color = "#79a885";
+                                        setTimeout(() => { saveColBtn.textContent = "💾"; saveColBtn.style.color = "#7a5a6a"; }, 1500);
+                                    },
+                                );
+                            });
+                            btmRow.appendChild(saveColBtn);
                         }
 
                         // Lock badge
