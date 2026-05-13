@@ -474,6 +474,16 @@ export function initDragListener(): void {
     canvas.addEventListener("touchstart", onDown as EventListener, { passive: false });
 }
 
+/** Converts a 6-digit hex color to rgba() with the given alpha (0–1). */
+function withAlpha(hex: string, alpha: number): string {
+    const h = hex.replace("#", "");
+    if (h.length !== 6) return hex;
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
 
@@ -482,9 +492,15 @@ export function drawActionButtons(): void {
     const catChipY   = sidebarY + CHIP_H + 4;
     const btnStartY  = catChipY + CAT_CHIP_H + 4;
 
+    // Semi-transparent background variants
+    const bgNormal   = withAlpha(UI.cardMuted,   0.70);
+    const bgActive   = withAlpha(UI.accentSoft,  0.70);
+    const bgChip     = withAlpha("#2a0e1e",       0.70);
+    const bgInactive = withAlpha("#1a0a14",       0.70);
+
     // Drag grip — hold & drag to reposition
     DrawRect(sidebarX, gripY, CHIP_W, GRIP_H,
-        isDragging ? UI.accentSoft : UI.cardMuted);
+        isDragging ? bgActive : bgNormal);
     DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H,
         isDragging ? UI.accent : UI.panelEdge, 1);
     // 2×3 dot grid
@@ -502,7 +518,7 @@ export function drawActionButtons(): void {
 
     // Collapse toggle — same palette as grip; lit pink when collapsed so user knows it's there
     DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H,
-        sidebarCollapsed ? UI.accentSoft : UI.cardMuted);
+        sidebarCollapsed ? bgActive : bgNormal);
     DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H,
         sidebarCollapsed ? UI.accent : UI.panelEdge, 1);
     // Two short bars centered — subtle when open, bright when closed
@@ -523,17 +539,16 @@ export function drawActionButtons(): void {
         ? cats[idx].name.slice(0, 5)
         : cats[idx].name.slice(0, 7);
 
-    const chipBg = "#2a0e1e";
     DrawButton(sidebarX, catChipY, CAT_ARR_W, CAT_CHIP_H,
-        "◀", idx > 0 ? chipBg : "#1a0a14", "", idx > 0 ? "Previous category" : "");
+        "◀", idx > 0 ? bgChip : bgInactive, "", idx > 0 ? "Previous category" : "");
     if (cats.length > 1) {
         DrawButton(sidebarX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H,
-            label, chipBg, "", cats[idx].name);
+            label, bgChip, "", cats[idx].name);
         DrawButton(sidebarX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H,
-            "▶", idx < cats.length - 1 ? chipBg : "#1a0a14", "",
+            "▶", idx < cats.length - 1 ? bgChip : bgInactive, "",
             idx < cats.length - 1 ? "Next category" : "");
     } else {
-        DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, chipBg, "", cats[idx].name);
+        DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", cats[idx].name);
     }
 
     const buttons = getButtons();
@@ -541,7 +556,7 @@ export function drawActionButtons(): void {
         const btn = buttons[i];
         if (!btn?.enabled || !btn.label) continue;
         DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
-            btn.label, btn.color || "#c2185b", "", btn.emote);
+            btn.label, withAlpha(btn.color || "#c2185b", 0.72), "", btn.emote);
     }
 }
 
