@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.2";
+const MOD_VERSION = "2.2.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.3",
+        changes: [
+            "UI: overhead badge repositioned to center (x=250) below WCE instead of far left.",
+        ],
+    },
     {
         version: "2.2.2",
         changes: [
@@ -2173,8 +2179,8 @@ function drawPresenceMarker(args: unknown[]): void {
         : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
     const height = Math.max(12, 14 * zoom);
 
-    const x = left + 100 * zoom;
-    const y = top + 55 * zoom;
+    const x = left + 250 * zoom;  // horizontally centered under WCE
+    const y = top + 52 * zoom;   // just below WCE badge
     const badgeLeft = x - width / 2;
     const badgeTop = y - height / 2;
 
