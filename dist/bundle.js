@@ -17864,7 +17864,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.9.11";
+    const MOD_VERSION = "1.9.12";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17872,6 +17872,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "1.9.12",
+            changes: [
+                "Fix: suppress-native-beep now reliably blocks friend beeps from BC chat — addBeepEntry exceptions could fall through to next(args) and leak the beep; inner try/catch now isolates message handling from the suppress gate.",
+                "Fix: removed document.hidden guard from suppress check — OS notifications come via FriendListBeep, not ServerAccountBeep, so the hidden-tab exception was causing beeps to slip through whenever the window lost focus.",
+            ],
+        },
         {
             version: "1.9.11",
             changes: [
@@ -20210,28 +20217,32 @@
                 catch ( /* ignore */_f) { /* ignore */ }
                 if (!isFriendBeep)
                     return next(args);
-                // Strip metadata and add to IM if there is actual message content
-                const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
-                if (msg) {
-                    addBeepEntry({ from: fromNum, to: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, message: msg, ts: Date.now() });
-                    if (!getBeepMuted()) {
-                        try {
-                            playBeepSound();
+                // Strip metadata and add to IM — isolated in its own try so any
+                // exception here can never cause fall-through to return next(args).
+                try {
+                    const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
+                    if (msg) {
+                        addBeepEntry({ from: fromNum, to: (_d = Player.MemberNumber) !== null && _d !== void 0 ? _d : 0, message: msg, ts: Date.now() });
+                        if (!getBeepMuted()) {
+                            try {
+                                playBeepSound();
+                            }
+                            catch ( /* ignore */_g) { /* ignore */ }
                         }
-                        catch ( /* ignore */_g) { /* ignore */ }
+                        try {
+                            drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
+                        }
+                        catch ( /* ignore */_h) { /* ignore */ }
                     }
-                    try {
-                        drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
-                    }
-                    catch ( /* ignore */_h) { /* ignore */ }
                 }
+                catch ( /* ignore */_j) { /* ignore */ }
                 // Suppress BC's native chat-log notification for ALL friend beeps when
-                // the toggle is on — including metadata-only beeps that have no IM content.
-                // Only pass through when the tab is hidden so OS notifications still fire.
-                if (getSuppressNativeBeep() && !document.hidden)
+                // the toggle is on. document.hidden is intentionally NOT checked here —
+                // OS-level notifications come through FriendListBeep, not this path.
+                if (getSuppressNativeBeep())
                     return;
             }
-            catch ( /* ignore */_j) { /* ignore */ }
+            catch ( /* ignore */_k) { /* ignore */ }
             return next(args);
         });
         // Cache friend names whenever BC notifies us a friend came online.
