@@ -10636,10 +10636,10 @@ export class EBCDrawer {
             cnt.appendChild(hint);
 
             const pickRow = document.createElement("div");
-            pickRow.style.cssText = "display:flex;gap:4px;margin-bottom:6px;";
+            pickRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
 
             const memberSelect = document.createElement("select");
-            memberSelect.style.cssText = "flex:1;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;";
+            memberSelect.style.cssText = "flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;";
 
             const populateSelect = (): void => {
                 while (memberSelect.firstChild) memberSelect.removeChild(memberSelect.firstChild);
@@ -10663,15 +10663,18 @@ export class EBCDrawer {
             populateSelect();
 
             const refreshSelBtn = document.createElement("button");
-            refreshSelBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 7px;flex-shrink:0;";
+            refreshSelBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;transition:border-color 0.12s,color 0.12s;";
             refreshSelBtn.textContent = "↻";
             refreshSelBtn.title = "Refresh member list";
+            refreshSelBtn.addEventListener("mouseenter", () => { refreshSelBtn.style.borderColor = "#cf6f98"; refreshSelBtn.style.color = "#cf6f98"; });
+            refreshSelBtn.addEventListener("mouseleave", () => { refreshSelBtn.style.borderColor = "#4c2537"; refreshSelBtn.style.color = "#7a5a6a"; });
             refreshSelBtn.addEventListener("click", populateSelect);
 
             const copyBtn = document.createElement("button");
-            copyBtn.className = "ebc-create-btn";
-            copyBtn.style.cssText = "margin:0;padding:2px 12px;font-size:10px;flex-shrink:0;";
+            copyBtn.style.cssText = "flex-shrink:0;background:#2a1421;border:1px solid #91405f;border-radius:4px;color:#cf6f98;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:3px 12px;transition:background 0.12s,color 0.12s;";
             copyBtn.textContent = "Copy";
+            copyBtn.addEventListener("mouseenter", () => { copyBtn.style.background = "#91405f"; copyBtn.style.color = "#f7e6ee"; });
+            copyBtn.addEventListener("mouseleave", () => { copyBtn.style.background = "#2a1421"; copyBtn.style.color = "#cf6f98"; });
 
             pickRow.appendChild(memberSelect);
             pickRow.appendChild(refreshSelBtn);
