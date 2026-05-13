@@ -9,9 +9,9 @@ A [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfit
 ### Tampermonkey / Violentmonkey
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
-2. Click the loader link for your channel:
-   - **Stable** → [loader.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)
-   - **Dev** → [loader-dev.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/dev/loader-dev.user.js)
+2. Click your channel to install:
+   - **Stable** → [Install EBC](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)
+   - **Dev** → [Install EBC (dev)](https://raw.githubusercontent.com/NekoEmery/EmeryBC/dev/loader-dev.user.js)
 3. Confirm the install prompt
 4. Load Bondage Club — the EBC drawer appears on the right side of the chat screen
 
