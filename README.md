@@ -158,7 +158,7 @@ Your BC friends list with expandable rows. Click a friend row to expand:
 
 - 🤝 **Friends since** date
 - 🕑 **Last seen** timestamp (tracked across sessions)
-- **Tags** — add custom colour-coded labels (e.g. "dominant", "close friend"). Tags appear as chips on the friend row. Cannot be removed once marked as locked.
+- **Tags** — add custom colour-coded labels (e.g. "dominant", "close friend"). Tags appear as chips on the friend row.
 - **Note** — inline text editor for personal notes about this person. Auto-saves 800ms after you stop typing.
 - **📌 Pin** — pin a friend to the top of the list
 
