@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      0.1.8
+// @version      0.1.9
 // @description  EmeryBC addon for Bondage Club
 // @downloadURL  https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js
 // @updateURL    https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js
@@ -11,13 +11,13 @@
 // @match        https://*.bondage-asia.com/club/R*
 // @run-at       document-end
 // @grant        GM_xmlhttpRequest
-// @connect      cdn.jsdelivr.net
+// @connect      nekoemery.github.io
 // ==/UserScript==
 
-// jsDelivr serves GitHub content with application/javascript — no MIME-type block.
+// Served from GitHub Pages — correct MIME type, no CDN cache surprises.
 GM_xmlhttpRequest({
     method: "GET",
-    url: "https://cdn.jsdelivr.net/gh/NekoEmery/EmeryBC@master/dist/bundle.js?v=" + Date.now(),
+    url: "https://nekoemery.github.io/EmeryBC/stable/bundle.js?v=" + Date.now(),
     onload: function (res) {
         const script = document.createElement("script");
         script.textContent = res.responseText;
