@@ -6615,6 +6615,9 @@
     overflow: hidden;
     resize: none;
 }
+.ebc-beep-win.minimized .ebc-beep-win-header {
+    background: transparent; /* let the outer window rgba show through instead of stacking */
+}
 .ebc-beep-win.minimized .ebc-beep-win-history,
 .ebc-beep-win.minimized .ebc-beep-reply-bar,
 .ebc-beep-win.minimized .ebc-beep-win-footer { display: none !important; }
@@ -18664,7 +18667,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.0";
+    const MOD_VERSION = "2.2.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18672,6 +18675,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.1",
+            changes: [
+                "Fix: minimized beep windows now transparent (stacked header background was making them appear solid).",
+                "UI: overhead EBC badge is now semi-transparent.",
+            ],
+        },
         {
             version: "2.2.0",
             changes: [
@@ -20783,8 +20793,8 @@
         const y = top + 55 * zoom;
         const badgeLeft = x - width / 2;
         const badgeTop = y - height / 2;
-        DrawRect(badgeLeft, badgeTop, width, height, UI.cardMuted);
-        DrawEmptyRect(badgeLeft, badgeTop, width, height, UI.panelEdge, 1);
+        DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
+        DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
         DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
     }
     function showRoomLoadNotice() {
