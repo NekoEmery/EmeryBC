@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.6.7";
+const MOD_VERSION = "1.6.8";
 
 let noticeShown = false;
 
@@ -26,6 +26,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.6.8",
+        changes: [
+            "Fix: auto-escape now covers collar and neck slots (ItemNeck / ItemNeckAccessories / ItemNeckRestraints) — previously only groups with BC's IsRestraint flag were monitored, which excluded those slots. Now uses the same RESTRAINT_GROUPS set as the outfit manager.",
+        ],
+    },
     {
         version: "1.6.7",
         changes: [

@@ -6,6 +6,7 @@
 
 import { getAntiRestraintEnabled, getAntiRestraintWhitelist, getAntiRestraintConfirm } from "./settings";
 import { callBC } from "./bcUtils";
+import { RESTRAINT_GROUPS } from "./outfitManager";
 
 // Compute a stable identity key for a restraint item.
 // Uses asset name + craft name (if any) so that e.g. two different crafted
@@ -97,7 +98,7 @@ export function snapshotPlayerRestraints(): void {
     try {
         knownRestraints = new Set(
             Player.Appearance
-                .filter((i: Item) => i.Asset.Group.IsRestraint)
+                .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
                 .map((i: Item) => i.Asset.Group.Name)
         );
         failAttempts.clear();
@@ -109,7 +110,7 @@ export function snapshotPlayerRestraints(): void {
 function mergeCurrentRestraints(): void {
     try {
         Player.Appearance
-            .filter((i: Item) => i.Asset.Group.IsRestraint && !failAttempts.has(i.Asset.Group.Name))
+            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !failAttempts.has(i.Asset.Group.Name))
             .forEach((i: Item) => knownRestraints.add(i.Asset.Group.Name));
     } catch { /* ignore */ }
 }
@@ -120,7 +121,7 @@ export function antiRestraintOnPlayerRefresh(): void {
 
     try {
         const whitelist = getAntiRestraintWhitelist();
-        const current = Player.Appearance.filter((i: Item) => i.Asset.Group.IsRestraint);
+        const current = Player.Appearance.filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
         // Whitelist is now item-key based ("AssetName" or "AssetName|CraftName")
         const candidates = current.filter((i: Item) =>
             !knownRestraints.has(i.Asset.Group.Name) &&
@@ -182,7 +183,7 @@ function doEscape(newItems: Item[], restrainer: string | null, itemName: string)
 
     const stillPresent = new Set(
         Player.Appearance
-            .filter((i: Item) => i.Asset.Group.IsRestraint)
+            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
             .map((i: Item) => i.Asset.Group.Name)
     );
 

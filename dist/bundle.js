@@ -2019,7 +2019,7 @@
     function snapshotPlayerRestraints() {
         try {
             knownRestraints = new Set(Player.Appearance
-                .filter((i) => i.Asset.Group.IsRestraint)
+                .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
                 .map((i) => i.Asset.Group.Name));
             failAttempts.clear();
         }
@@ -2030,7 +2030,7 @@
     function mergeCurrentRestraints() {
         try {
             Player.Appearance
-                .filter((i) => i.Asset.Group.IsRestraint && !failAttempts.has(i.Asset.Group.Name))
+                .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !failAttempts.has(i.Asset.Group.Name))
                 .forEach((i) => knownRestraints.add(i.Asset.Group.Name));
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -2042,7 +2042,7 @@
             return;
         try {
             const whitelist = getAntiRestraintWhitelist();
-            const current = Player.Appearance.filter((i) => i.Asset.Group.IsRestraint);
+            const current = Player.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
             // Whitelist is now item-key based ("AssetName" or "AssetName|CraftName")
             const candidates = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name) &&
                 !whitelist.includes(getItemKey(i)));
@@ -2089,7 +2089,7 @@
             catch ( /* ignore */_b) { /* ignore */ }
         }
         const stillPresent = new Set(Player.Appearance
-            .filter((i) => i.Asset.Group.IsRestraint)
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
             .map((i) => i.Asset.Group.Name));
         let anySucceeded = false;
         for (const item of newItems) {
@@ -16778,7 +16778,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.6.7";
+    const MOD_VERSION = "1.6.8";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -16786,6 +16786,12 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.6.8",
+            changes: [
+                "Fix: auto-escape now covers collar and neck slots (ItemNeck / ItemNeckAccessories / ItemNeckRestraints) — previously only groups with BC's IsRestraint flag were monitored, which excluded those slots. Now uses the same RESTRAINT_GROUPS set as the outfit manager.",
+            ],
+        },
         {
             version: "1.6.7",
             changes: [
