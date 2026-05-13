@@ -2,7 +2,7 @@
   "name": "emerybc",
   "version": "1.7.0",
   "description": "Bondage Club addon - action buttons & outfit manager",
-  "license": "GPL-2.0",
+  "license": "MIT",
   "scripts": {
     "build": "rollup -c",
     "dev": "rollup -c -w"

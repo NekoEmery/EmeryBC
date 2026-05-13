@@ -1,56 +1,99 @@
 # EmeryBC
 
-A personal Bondage Club addon.
+A personal [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfits, action buttons, friends management, poses, scenes, palettes, and a bunch of quality-of-life tools packed into a sliding drawer.
 
-## Features
-
-### Action Buttons
-Configurable quick-action buttons drawn on the left side of the chatroom screen, below BCAR's ear/tail/wings buttons.
-
-Each button sends a `/me` style emote when clicked — e.g. a button set to `waves goodbye` sends `* Name waves goodbye *` to the room.
-
-Configure in **Preferences → Extensions → EmeryBC → Action Buttons tab:**
-- Toggle each button on/off
-- Set the label shown on the button (up to 6 characters)
-- Set the hex color of the button
-- Set the action text (what comes after `/me`)
+**Install via Tampermonkey / Violentmonkey:**
+[loader.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)
 
 ---
 
-### Outfit Commands
-Save full outfits and load them with a custom slash command.
+## Features
 
-#### Setting up an outfit
-1. Dress your character how you want (clothes, accessories, restraints — whatever you want saved)
-2. Open **Preferences → Extensions → EmeryBC → Outfits tab**
-3. Fill in:
-   - **Command** — the slash command to use, e.g. `dom` (type `/dom` in chat to load it)
-   - **Name** — a display name, e.g. `Dom Clothes`
-   - **Include restraints** — tick this if you want restraint items saved too
-   - **Announce text** — emote sent to the room when the outfit loads, e.g. `switches to dom mode`
-4. Click **+ Save Current Appearance as New Outfit**
+### 🎽 Outfits
+- Save full outfit sets (clothing, accessories, restraints) and load them with a custom `/command` in chat
+- Per-outfit options: announce text sent to the room on load, nickname & title override, preserve/replace restraints
+- **Restraint Sets** — save and load restraint-only presets separately from clothing
+- **Outfit Schedules** — automatically apply an outfit at a set time of day
+- Import / export outfits via JSON or BC outfit codes
 
-#### Using an outfit
-Type your command in chat — e.g. `/dom` — and it loads instantly and announces to the room.
+### 🔘 Action Buttons
+- Up to 20 quick-action buttons drawn on the left side of the chatroom
+- Each sends a `/me` style emote on click — fully configurable label, color, and action text
+- Organize buttons into named categories and reorder them by drag or arrow
 
-#### Updating an outfit
-Dress up the way you want → go back to the Outfits tab → click **Save Current** on that outfit row.
+### 💬 Buttons & Toggles
+- **OOC Mode** — prefix every chat message with `(` automatically so it reads as out-of-character
+- **Safeword** — one-click safeword button with configurable word, saved across sessions
+- **AFK Auto-Reply** — send a custom beep reply when a message arrives after X minutes of inactivity
+- **Beep Mute** — silence all incoming beeps without leaving the room
+- **Anti-Restraint** — automatically remove any restraint applied by someone else; whitelist items you want to keep; optional confirm dialog before escaping
 
-#### Notes on restraints
-- When **Include restraints** is off: only clothing and accessories are loaded. Any locked restraints you're currently wearing are left alone.
-- When **Include restraints** is on: restraint items from the saved outfit are applied, but lock data is stripped so they can always be removed after loading.
+### 🧍 Poses
+- Quick-access pose combo buttons — apply a full set of poses in one click
+- Create, rename, and delete custom pose combos
+
+### 🎨 Palettes
+- Save and apply color palettes across your outfit
+- Outfit-specific and restraint-specific palette presets
+- Custom color swatch library
+
+### 🎬 Scenes
+- Build scripted multi-step sequences (emotes, outfit swaps, pose changes, delays)
+- Run scenes from the drawer or via slash command
+
+### 👥 Users
+- **People in Room** — collapsible panel listing everyone in the current room with their name, member number, relationship badges, EBC version tag, friend tags, Profile button, and Beep button
+- **Friends** — full friends list with expandable rows showing:
+  - Friends-since date and last-seen timestamp
+  - Custom color tags (add, remove, color-pick)
+  - Inline note editor — write and auto-save notes directly from the row
+  - Pin friends to the top of the list
+- **User Notes** — dedicated tab for browsing and editing all saved character notes
+- **People Met** — everyone you've shared a room with, saved server-side across devices (up to 2 000 entries)
+
+### 🛠️ Dev Tools
+- **Character Inspector** — dump raw appearance and property data for any room member
+- **Copy Restraints from Member** — copy another person's current restraints onto yourself with locks stripped, with a confirm preview before applying
+- **EBC Users in Room** — see which room members are running EmeryBC and their version
+- **Addons Loaded** — list all bcModSdk mods active in the current session
+- **Logs** — room history, restraint change log, and message log
+
+### ✨ Quality of Life
+- Overhead **EBC badge** broadcast to other EBC users (toggle on/off, optionally show version number)
+- **Update notifications** — local chat notice when a room member is running a newer EBC version
+- **IM / Beep window** — threaded beep chat with unread badge, message history, and timestamps
+- **Timers** — track time online, time in current room, and time wearing current restraints
+- **`/ebc` commands** — control most features from chat: `/ebc help`, `/ebc update`, `/ebc afk on`, `/ebc ooc on`, etc.
 
 ---
 
 ## Installation
 
-Install via Tampermonkey / Violentmonkey:
+1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
+2. Click the install link: **[loader.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)**
+3. Confirm the install prompt
+4. Load Bondage Club — the EBC drawer appears on the right side of the chat screen
 
-[loader.user.js](https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader.user.js)
+---
+
+## Building from source
+
+```bash
+npm install
+npm run build   # outputs dist/bundle.js
+npm run dev     # watch mode
+```
+
+Requires Node.js. Built with TypeScript + Rollup.
 
 ---
 
 ## Credits
 
-The sliding drawer UI pattern in this addon is inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin**.
-Thank you Sin for building such a clean open-source addon and allowing the concept to be reused! ♥
+The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin** — thank you for the open design! ♥
+
+---
+
+## License
+
+[MIT](LICENSE) — © Emery
