@@ -333,16 +333,17 @@
     const SIDEBAR_POS_KEY = "EBC_sidebarPos";
     const SIDEBAR_DEFAULT_X = 0;
     const SIDEBAR_DEFAULT_Y = 270;
-    // BC's chat log DOM panel starts at roughly canvas X 1210 — keep the sidebar left of that.
-    const SIDEBAR_MAX_X = 1150;
+    // BC's game area occupies roughly the left 55% of the canvas (≈1100px).
+    // Clamp hard so the sidebar can never slide behind the chat log.
+    const SIDEBAR_MAX_X = 900;
     let sidebarX = SIDEBAR_DEFAULT_X;
     let sidebarY = SIDEBAR_DEFAULT_Y;
     try {
         const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
         if (_saved) {
             const _p = JSON.parse(_saved);
-            sidebarX = (_a = _p.x) !== null && _a !== void 0 ? _a : SIDEBAR_DEFAULT_X;
-            sidebarY = (_b = _p.y) !== null && _b !== void 0 ? _b : SIDEBAR_DEFAULT_Y;
+            sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X, (_a = _p.x) !== null && _a !== void 0 ? _a : SIDEBAR_DEFAULT_X));
+            sidebarY = Math.max(GRIP_H + 2, Math.min(900, (_b = _p.y) !== null && _b !== void 0 ? _b : SIDEBAR_DEFAULT_Y));
         }
     }
     catch ( /* ignore */_c) { /* ignore */ }
