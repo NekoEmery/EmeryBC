@@ -9527,16 +9527,16 @@ export class EBCDrawer {
         afkThreshRow.style.cssText = "display:flex;align-items:center;gap:8px;";
         const afkThreshLbl = document.createElement("span");
         afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        afkThreshLbl.textContent = "Idle threshold (minutes)";
+        afkThreshLbl.textContent = "Idle threshold (seconds)";
         const afkThreshInput = document.createElement("input");
         afkThreshInput.type = "number";
         afkThreshInput.min = "1";
-        afkThreshInput.max = "120";
+        afkThreshInput.max = "86400";
         afkThreshInput.value = String(getAfkThreshold());
-        afkThreshInput.style.cssText = "width:52px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
+        afkThreshInput.style.cssText = "width:62px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
         afkThreshInput.addEventListener("change", () => {
             const v = parseInt(afkThreshInput.value, 10);
-            if (!isNaN(v)) setAfkThreshold(v);
+            if (!isNaN(v) && v >= 1) setAfkThreshold(v);
         });
         afkThreshRow.appendChild(afkThreshLbl);
         afkThreshRow.appendChild(afkThreshInput);
@@ -9592,7 +9592,7 @@ export class EBCDrawer {
 
         const afkHint = document.createElement("div");
         afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
-        afkHint.textContent = "Sends once per person every 30 min. Prefix [AFK] added automatically.";
+        afkHint.textContent = "One reply per person per 30 min. [AFK] prefix added automatically.";
         afkBody.appendChild(afkHint);
 
         const toggleAfkCollapsed = (): void => {

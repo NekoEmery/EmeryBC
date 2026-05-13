@@ -1826,21 +1826,22 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // Threshold stored in SECONDS (key afkThresholdSec). Default 600 s = 10 min.
     function getAfkThreshold() {
         var _a;
         try {
-            const v = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkThreshold;
-            return typeof v === "number" && v >= 1 ? v : 10;
+            const v = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
+            return typeof v === "number" && v >= 1 ? v : 600;
         }
         catch (_b) {
-            return 10;
+            return 600;
         }
     }
     function setAfkThreshold(n) {
         try {
             const s = getStore$5();
             if (s) {
-                s.afkThreshold = Math.max(1, Math.min(120, Math.round(n)));
+                s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n)));
                 callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
             }
         }
@@ -13447,16 +13448,16 @@
             afkThreshRow.style.cssText = "display:flex;align-items:center;gap:8px;";
             const afkThreshLbl = document.createElement("span");
             afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            afkThreshLbl.textContent = "Idle threshold (minutes)";
+            afkThreshLbl.textContent = "Idle threshold (seconds)";
             const afkThreshInput = document.createElement("input");
             afkThreshInput.type = "number";
             afkThreshInput.min = "1";
-            afkThreshInput.max = "120";
+            afkThreshInput.max = "86400";
             afkThreshInput.value = String(getAfkThreshold());
-            afkThreshInput.style.cssText = "width:52px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
+            afkThreshInput.style.cssText = "width:62px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
             afkThreshInput.addEventListener("change", () => {
                 const v = parseInt(afkThreshInput.value, 10);
-                if (!isNaN(v))
+                if (!isNaN(v) && v >= 1)
                     setAfkThreshold(v);
             });
             afkThreshRow.appendChild(afkThreshLbl);
@@ -13508,7 +13509,7 @@
             afkBody.appendChild(afkHintMention);
             const afkHint = document.createElement("div");
             afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
-            afkHint.textContent = "Sends once per person every 30 min. Prefix [AFK] added automatically.";
+            afkHint.textContent = "One reply per person per 30 min. [AFK] prefix added automatically.";
             afkBody.appendChild(afkHint);
             const toggleAfkCollapsed = () => {
                 afkCollapsed = !afkCollapsed;
@@ -19758,29 +19759,12 @@
                 const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
                 if (name)
                     cacheName(fromNum, name);
-                // Only intercept beeps from BC friends into the EBC IM system.
-                // Beeps from non-friends (addon bots, update notifications, etc.) fall
-                // through to BC's native chat-log notification so they're still visible.
-                const friendList = (_a = Player.FriendList) !== null && _a !== void 0 ? _a : [];
-                if (!friendList.includes(fromNum))
-                    return next(args);
-                addBeepEntry({ from: fromNum, to: (_b = Player.MemberNumber) !== null && _b !== void 0 ? _b : 0, message: msg, ts: Date.now() });
-                if (!getBeepMuted()) {
-                    try {
-                        playBeepSound();
-                    }
-                    catch ( /* ignore */_d) { /* ignore */ }
-                }
-                try {
-                    drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
-                }
-                catch ( /* ignore */_e) { /* ignore */ }
-                // AFK auto-reply
+                // AFK auto-reply — runs for ANY sender, before the friend-list gate
                 try {
                     if (getAfkEnabled()) {
                         const idleMs = Date.now() - lastActivityTime;
-                        const thresholdMs = getAfkThreshold() * 60 * 1000;
-                        const lastReply = (_c = afkReplyCooldown.get(fromNum)) !== null && _c !== void 0 ? _c : 0;
+                        const thresholdMs = getAfkThreshold() * 1000;
+                        const lastReply = (_a = afkReplyCooldown.get(fromNum)) !== null && _a !== void 0 ? _a : 0;
                         if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
                             afkReplyCooldown.set(fromNum, Date.now());
                             const replyMsg = getAfkMessage();
@@ -19796,6 +19780,23 @@
                             }, 500);
                         }
                     }
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
+                // Only intercept beeps from BC friends into the EBC IM system.
+                // Beeps from non-friends (addon bots, update notifications, etc.) fall
+                // through to BC's native chat-log notification so they're still visible.
+                const friendList = (_b = Player.FriendList) !== null && _b !== void 0 ? _b : [];
+                if (!friendList.includes(fromNum))
+                    return next(args);
+                addBeepEntry({ from: fromNum, to: (_c = Player.MemberNumber) !== null && _c !== void 0 ? _c : 0, message: msg, ts: Date.now() });
+                if (!getBeepMuted()) {
+                    try {
+                        playBeepSound();
+                    }
+                    catch ( /* ignore */_e) { /* ignore */ }
+                }
+                try {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.onIncomingBeep(fromNum);
                 }
                 catch ( /* ignore */_f) { /* ignore */ }
                 // Suppress BC's native chat-log notification when our IM handles it —

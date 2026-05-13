@@ -2141,20 +2141,12 @@ function init(): void {
             if (!fromNum || !msg) return next(args);
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
             if (name) cacheName(fromNum, name);
-            // Only intercept beeps from BC friends into the EBC IM system.
-            // Beeps from non-friends (addon bots, update notifications, etc.) fall
-            // through to BC's native chat-log notification so they're still visible.
-            const friendList = (Player.FriendList as number[] | undefined) ?? [];
-            if (!friendList.includes(fromNum)) return next(args);
-            addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
-            if (!getBeepMuted()) { try { playBeepSound(); } catch { /* ignore */ } }
-            try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
 
-            // AFK auto-reply
+            // AFK auto-reply — runs for ANY sender, before the friend-list gate
             try {
                 if (getAfkEnabled()) {
                     const idleMs = Date.now() - lastActivityTime;
-                    const thresholdMs = getAfkThreshold() * 60 * 1000;
+                    const thresholdMs = getAfkThreshold() * 1000;
                     const lastReply = afkReplyCooldown.get(fromNum) ?? 0;
                     if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
                         afkReplyCooldown.set(fromNum, Date.now());
@@ -2171,6 +2163,15 @@ function init(): void {
                     }
                 }
             } catch { /* ignore */ }
+
+            // Only intercept beeps from BC friends into the EBC IM system.
+            // Beeps from non-friends (addon bots, update notifications, etc.) fall
+            // through to BC's native chat-log notification so they're still visible.
+            const friendList = (Player.FriendList as number[] | undefined) ?? [];
+            if (!friendList.includes(fromNum)) return next(args);
+            addBeepEntry({ from: fromNum, to: Player.MemberNumber ?? 0, message: msg, ts: Date.now() });
+            if (!getBeepMuted()) { try { playBeepSound(); } catch { /* ignore */ } }
+            try { drawer?.onIncomingBeep(fromNum); } catch { /* ignore */ }
 
             // Suppress BC's native chat-log notification when our IM handles it —
             // BUT only when the tab is visible. When the page is hidden (user tabbed
