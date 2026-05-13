@@ -2366,6 +2366,51 @@ const CSS = `
 
 `;
 
+// ── Generic confirm overlay ───────────────────────────────────────────────
+// Same style as the anti-restraint escape prompt. Used for any destructive
+// action that needs a "are you sure?" before proceeding.
+function showConfirmOverlay(
+    message: string,
+    cancelLabel: string,
+    confirmLabel: string,
+    onConfirm: () => void,
+): void {
+    const overlay = document.createElement("div");
+    overlay.style.cssText = [
+        "position:fixed", "top:50%", "left:50%",
+        "transform:translate(-50%,-50%)",
+        "background:#130810", "border:2px solid #cf6f98",
+        "border-radius:10px", "padding:18px 22px",
+        "z-index:999999", "font-family:'Trebuchet MS',serif",
+        "min-width:250px", "max-width:320px",
+        "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
+        "display:flex", "flex-direction:column", "gap:12px",
+    ].join(";");
+
+    const msg = document.createElement("div");
+    msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;";
+    msg.textContent = message;
+    overlay.appendChild(msg);
+
+    const btns = document.createElement("div");
+    btns.style.cssText = "display:flex;gap:8px;";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #79a885;background:#0f2a1a;color:#79a885;";
+    cancelBtn.addEventListener("click", () => overlay.remove());
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.textContent = confirmLabel;
+    confirmBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
+    confirmBtn.addEventListener("click", () => { overlay.remove(); onConfirm(); });
+
+    btns.appendChild(cancelBtn);
+    btns.appendChild(confirmBtn);
+    overlay.appendChild(btns);
+    document.body.appendChild(overlay);
+}
+
 // ── Drawer appearance / layout helpers ───────────────────────────────────
 const EBC_COLORS_KEY = "EBC_colors";
 const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
@@ -11575,7 +11620,7 @@ export class EBCDrawer {
                         c.appendChild(card);
                     }
                 };
-                roomClearBtn.addEventListener("click", () => { if (!window.confirm("Clear the entire room visit history?")) return; clearRoomHistory(); renderRoomsVisited(); });
+                roomClearBtn.addEventListener("click", () => { showConfirmOverlay("Clear the entire room visit history? This cannot be undone.", "Cancel", "Clear", () => { clearRoomHistory(); renderRoomsVisited(); }); });
                 renderRoomsVisited();
             }, roomClearBtn);
 
@@ -11721,7 +11766,7 @@ export class EBCDrawer {
                         c.appendChild(card);
                     }
                 };
-                rlogClearBtn.addEventListener("click", () => { if (!window.confirm("Clear the entire restraint log?")) return; clearRestraintLog(); renderRlog(); });
+                rlogClearBtn.addEventListener("click", () => { showConfirmOverlay("Clear the entire restraint log? This cannot be undone.", "Cancel", "Clear", () => { clearRestraintLog(); renderRlog(); }); });
                 renderRlog();
             }, rlogClearBtn);
 
@@ -11842,7 +11887,7 @@ export class EBCDrawer {
                 });
                 renderMsgLog();
                 msgRefreshBtn2.addEventListener("click", renderMsgLog);
-                msgClearBtn.addEventListener("click", () => { if (!window.confirm("Clear the entire message log?")) return; clearDevLog(); renderMsgLog(); });
+                msgClearBtn.addEventListener("click", () => { showConfirmOverlay("Clear the entire message log? This cannot be undone.", "Cancel", "Clear", () => { clearDevLog(); renderMsgLog(); }); });
             });
         });
 
@@ -12278,9 +12323,7 @@ export class EBCDrawer {
             renderList();
             searchInp.addEventListener("input", renderList);
             clearBtn.addEventListener("click", () => {
-                if (!window.confirm("Clear the entire People Met list?")) return;
-                clearPeopleMet();
-                renderList();
+                showConfirmOverlay("Clear the entire People Met list? This cannot be undone.", "Cancel", "Clear All", () => { clearPeopleMet(); renderList(); });
             });
         });
 
