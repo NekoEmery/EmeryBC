@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.8.3";
+const MOD_VERSION = "1.8.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -27,6 +27,14 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.8.4",
+        changes: [
+            "Fix: AFK mention-reply whisper now fires correctly — removed silent error suppression around ServerSend, made member-number parsing more robust, and added a local gold log line confirming the whisper was sent.",
+            "Tweak: DEV chip removed from drawer title — the overhead badge already says 'dev | v...' for dev builds.",
+            "Tweak: AFK idle threshold inputs now have their label on a separate line with more spacing between the h/m/s boxes.",
+        ],
+    },
     {
         version: "1.8.3",
         changes: [
@@ -2025,27 +2033,28 @@ function init(): void {
             // AFK mention-reply: whisper back if someone says our name in room chat
             if ((data.Type === "Chat" || data.Type === "Emote") && getAfkEnabled() && getAfkMentionReply()) {
                 try {
-                    const senderNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+                    const rawNum    = data.MemberNumber;
+                    const senderNum = typeof rawNum === "number" ? rawNum
+                        : typeof rawNum === "string" ? (parseInt(rawNum, 10) || 0) : 0;
                     const content   = typeof data.Content === "string" ? data.Content.toLowerCase() : "";
                     const myName    = (Player.Name ?? "").toLowerCase();
                     const myNick    = ((Player as unknown as Record<string, unknown>).Nickname as string | undefined ?? "").toLowerCase();
-                    const nameMatch = myName && content.includes(myName) || (myNick && content.includes(myNick));
-                    if (senderNum && senderNum !== Player.MemberNumber && nameMatch) {
+                    const nameMatch = (myName && content.includes(myName)) || (myNick && content.includes(myNick));
+                    if (senderNum > 0 && senderNum !== Player.MemberNumber && nameMatch) {
                         const idleMs      = Date.now() - lastActivityTime;
                         const thresholdMs = getAfkThreshold() * 1000;
                         const lastReply   = afkReplyCooldown.get(senderNum) ?? 0;
                         if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
                             afkReplyCooldown.set(senderNum, Date.now());
                             const replyMsg = getAfkMessage();
-                            window.setTimeout(() => {
-                                try {
-                                    ServerSend("ChatRoomChat", {
-                                        Content: `[AFK] ${replyMsg}`,
-                                        Type: "Whisper",
-                                        Target: senderNum,
-                                    });
-                                } catch { /* ignore */ }
-                            }, 500);
+                            const roomChars = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+                            const senderName = roomChars.find(c => c.MemberNumber === senderNum)?.Name ?? String(senderNum);
+                            ServerSend("ChatRoomChat", {
+                                Content: `[AFK] ${replyMsg}`,
+                                Type: "Whisper",
+                                Target: senderNum,
+                            });
+                            appendLocalLogLine(`[AFK] Whispered to ${senderName}: ${replyMsg}`, UI.gold);
                         }
                     }
                 } catch { /* ignore */ }

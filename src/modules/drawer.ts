@@ -2661,29 +2661,17 @@ export class EBCDrawer {
         const title = document.createElement("span");
         title.className = "ebc-title";
         title.style.display = "flex";
-        title.style.alignItems = "center";
+        title.style.alignItems = "baseline";
         title.style.gap = "5px";
-
-        // Vertical group: "EBC v1.x.x" on top, DEV badge directly below it
-        const titleGroup = document.createElement("div");
-        titleGroup.style.cssText = "display:flex;flex-direction:column;align-items:flex-start;gap:3px;line-height:1;";
 
         const titleMain = document.createElement("span");
         titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
-        titleGroup.appendChild(titleMain);
-
-        if (this.isDev) {
-            const devBadge = document.createElement("span");
-            devBadge.textContent = "DEV";
-            devBadge.style.cssText = "font-size:8px;background:#cf6f98;color:#1a0d14;padding:1px 6px;border-radius:3px;font-weight:bold;letter-spacing:0.8px;font-family:'Trebuchet MS',serif;";
-            titleGroup.appendChild(devBadge);
-        }
 
         const titleSub = document.createElement("span");
         titleSub.textContent = "EmeryBC";
         titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
 
-        title.appendChild(titleGroup);
+        title.appendChild(titleMain);
         title.appendChild(titleSub);
 
         const headerBtns = document.createElement("div");
@@ -9527,15 +9515,16 @@ export class EBCDrawer {
         afkToggleRow.appendChild(afkToggleBtn);
         afkBody.appendChild(afkToggleRow);
 
-        // Threshold row — h / m / s boxes
-        const afkThreshRow = document.createElement("div");
-        afkThreshRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-        const afkThreshLbl = document.createElement("span");
-        afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+        // Threshold — label row + h/m/s inputs on separate row
+        const afkThreshLbl = document.createElement("div");
+        afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;margin-bottom:4px;";
         afkThreshLbl.textContent = "Idle threshold";
 
-        const inputCss = "width:34px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
-        const unitCss  = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;";
+        const afkThreshRow = document.createElement("div");
+        afkThreshRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:4px;";
+
+        const inputCss = "width:42px;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
+        const unitCss  = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
 
         const makeTimeBox = (max: number): HTMLInputElement => {
             const inp = document.createElement("input") as HTMLInputElement;
@@ -9575,10 +9564,10 @@ export class EBCDrawer {
         mInp.addEventListener("change", commitThreshold);
         sInp.addEventListener("change", commitThreshold);
 
-        afkThreshRow.appendChild(afkThreshLbl);
         afkThreshRow.appendChild(hInp); afkThreshRow.appendChild(hLbl);
         afkThreshRow.appendChild(mInp); afkThreshRow.appendChild(mLbl);
         afkThreshRow.appendChild(sInp); afkThreshRow.appendChild(sLbl);
+        afkBody.appendChild(afkThreshLbl);
         afkBody.appendChild(afkThreshRow);
 
         // Message row

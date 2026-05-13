@@ -6910,24 +6910,14 @@
             const title = document.createElement("span");
             title.className = "ebc-title";
             title.style.display = "flex";
-            title.style.alignItems = "center";
+            title.style.alignItems = "baseline";
             title.style.gap = "5px";
-            // Vertical group: "EBC v1.x.x" on top, DEV badge directly below it
-            const titleGroup = document.createElement("div");
-            titleGroup.style.cssText = "display:flex;flex-direction:column;align-items:flex-start;gap:3px;line-height:1;";
             const titleMain = document.createElement("span");
             titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
-            titleGroup.appendChild(titleMain);
-            if (this.isDev) {
-                const devBadge = document.createElement("span");
-                devBadge.textContent = "DEV";
-                devBadge.style.cssText = "font-size:8px;background:#cf6f98;color:#1a0d14;padding:1px 6px;border-radius:3px;font-weight:bold;letter-spacing:0.8px;font-family:'Trebuchet MS',serif;";
-                titleGroup.appendChild(devBadge);
-            }
             const titleSub = document.createElement("span");
             titleSub.textContent = "EmeryBC";
             titleSub.style.cssText = "font-size:9px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
-            title.appendChild(titleGroup);
+            title.appendChild(titleMain);
             title.appendChild(titleSub);
             const headerBtns = document.createElement("div");
             headerBtns.className = "ebc-header-btns";
@@ -13447,14 +13437,14 @@
             afkToggleRow.appendChild(afkToggleLbl);
             afkToggleRow.appendChild(afkToggleBtn);
             afkBody.appendChild(afkToggleRow);
-            // Threshold row — h / m / s boxes
-            const afkThreshRow = document.createElement("div");
-            afkThreshRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-            const afkThreshLbl = document.createElement("span");
-            afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+            // Threshold — label row + h/m/s inputs on separate row
+            const afkThreshLbl = document.createElement("div");
+            afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;margin-bottom:4px;";
             afkThreshLbl.textContent = "Idle threshold";
-            const inputCss = "width:34px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
-            const unitCss = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-right:4px;";
+            const afkThreshRow = document.createElement("div");
+            afkThreshRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:4px;";
+            const inputCss = "width:42px;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
+            const unitCss = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
             const makeTimeBox = (max) => {
                 const inp = document.createElement("input");
                 inp.type = "number";
@@ -13497,13 +13487,13 @@
             hInp.addEventListener("change", commitThreshold);
             mInp.addEventListener("change", commitThreshold);
             sInp.addEventListener("change", commitThreshold);
-            afkThreshRow.appendChild(afkThreshLbl);
             afkThreshRow.appendChild(hInp);
             afkThreshRow.appendChild(hLbl);
             afkThreshRow.appendChild(mInp);
             afkThreshRow.appendChild(mLbl);
             afkThreshRow.appendChild(sInp);
             afkThreshRow.appendChild(sLbl);
+            afkBody.appendChild(afkThreshLbl);
             afkBody.appendChild(afkThreshRow);
             // Message row
             const afkMsgLbl = document.createElement("div");
@@ -17630,7 +17620,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.8.3";
+    const MOD_VERSION = "1.8.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17639,6 +17629,14 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.8.4",
+            changes: [
+                "Fix: AFK mention-reply whisper now fires correctly — removed silent error suppression around ServerSend, made member-number parsing more robust, and added a local gold log line confirming the whisper was sent.",
+                "Tweak: DEV chip removed from drawer title — the overhead badge already says 'dev | v...' for dev builds.",
+                "Tweak: AFK idle threshold inputs now have their label on a separate line with more spacing between the h/m/s boxes.",
+            ],
+        },
         {
             version: "1.8.3",
             changes: [
@@ -19634,7 +19632,7 @@
         // can name them. BC sends an Action message with SourceCharacter / TargetCharacter
         // in the Dictionary whenever someone uses an item on another character.
         tryHookFunction(modAPI, "ChatRoomMessage", 3, (args, next) => {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e, _f, _g;
             const result = next(args);
             try {
                 const [data] = args;
@@ -19642,32 +19640,32 @@
                 // AFK mention-reply: whisper back if someone says our name in room chat
                 if ((data.Type === "Chat" || data.Type === "Emote") && getAfkEnabled() && getAfkMentionReply()) {
                     try {
-                        const senderNum = typeof data.MemberNumber === "number" ? data.MemberNumber : 0;
+                        const rawNum = data.MemberNumber;
+                        const senderNum = typeof rawNum === "number" ? rawNum
+                            : typeof rawNum === "string" ? (parseInt(rawNum, 10) || 0) : 0;
                         const content = typeof data.Content === "string" ? data.Content.toLowerCase() : "";
                         const myName = ((_a = Player.Name) !== null && _a !== void 0 ? _a : "").toLowerCase();
                         const myNick = ((_b = Player.Nickname) !== null && _b !== void 0 ? _b : "").toLowerCase();
-                        const nameMatch = myName && content.includes(myName) || (myNick && content.includes(myNick));
-                        if (senderNum && senderNum !== Player.MemberNumber && nameMatch) {
+                        const nameMatch = (myName && content.includes(myName)) || (myNick && content.includes(myNick));
+                        if (senderNum > 0 && senderNum !== Player.MemberNumber && nameMatch) {
                             const idleMs = Date.now() - lastActivityTime;
                             const thresholdMs = getAfkThreshold() * 1000;
                             const lastReply = (_c = afkReplyCooldown.get(senderNum)) !== null && _c !== void 0 ? _c : 0;
                             if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
                                 afkReplyCooldown.set(senderNum, Date.now());
                                 const replyMsg = getAfkMessage();
-                                window.setTimeout(() => {
-                                    try {
-                                        ServerSend("ChatRoomChat", {
-                                            Content: `[AFK] ${replyMsg}`,
-                                            Type: "Whisper",
-                                            Target: senderNum,
-                                        });
-                                    }
-                                    catch ( /* ignore */_a) { /* ignore */ }
-                                }, 500);
+                                const roomChars = (_d = window.ChatRoomCharacter) !== null && _d !== void 0 ? _d : [];
+                                const senderName = (_f = (_e = roomChars.find(c => c.MemberNumber === senderNum)) === null || _e === void 0 ? void 0 : _e.Name) !== null && _f !== void 0 ? _f : String(senderNum);
+                                ServerSend("ChatRoomChat", {
+                                    Content: `[AFK] ${replyMsg}`,
+                                    Type: "Whisper",
+                                    Target: senderNum,
+                                });
+                                appendLocalLogLine(`[AFK] Whispered to ${senderName}: ${replyMsg}`, UI.gold);
                             }
                         }
                     }
-                    catch ( /* ignore */_e) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                 }
                 if (data.Type !== "Action")
                     return result;
@@ -19694,12 +19692,12 @@
                     // Also stash the name for the restraint log — it flushes any
                     // pending additions that are waiting on the applier name.
                     try {
-                        setPendingLogApplier((_d = getLastRestrainerName()) !== null && _d !== void 0 ? _d : `#${sourceNum}`, sourceNum);
+                        setPendingLogApplier((_g = getLastRestrainerName()) !== null && _g !== void 0 ? _g : `#${sourceNum}`, sourceNum);
                     }
-                    catch ( /* ignore */_f) { /* ignore */ }
+                    catch ( /* ignore */_j) { /* ignore */ }
                 }
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_k) { /* ignore */ }
             return result;
         });
         // Capture raw server-format character bundles for offline profile viewing.
