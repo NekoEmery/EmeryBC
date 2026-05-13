@@ -1846,13 +1846,14 @@ const CSS = `
 .ebc-tag-chip {
     display: inline-flex;
     align-items: center;
-    padding: 1px 7px;
-    border-radius: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
     font-family: 'Trebuchet MS', serif;
     font-size: 8px;
     font-weight: 700;
     color: #fff;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 3px rgba(0,0,0,0.3);
     flex-shrink: 0;
     white-space: nowrap;
     cursor: default;
@@ -4103,71 +4104,74 @@ export class EBCDrawer {
         const renderTagMgmt = (): void => {
             while (tagMgmtBody.firstChild) tagMgmtBody.removeChild(tagMgmtBody.firstChild);
             const tags = getOutfitTags();
-            tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` Tags (${tags.length} saved)`;
+            tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` TAGS${tags.length ? ` (${tags.length})` : ""}`;
 
-            // Existing tags list
-            for (const tag of tags) {
-                const trow = document.createElement("div");
-                trow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
+            // ── Existing tags as interactive chips ────────────────────────────
+            if (tags.length) {
+                const chipsWrap = document.createElement("div");
+                chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px;";
+                for (const tag of tags) {
+                    const chip = document.createElement("div");
+                    chip.style.cssText = `display:inline-flex;align-items:center;gap:4px;padding:3px 7px 3px 5px;border-radius:20px;background:${tag.color};box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 1px 3px rgba(0,0,0,0.35);`;
 
-                const swatch = document.createElement("span");
-                swatch.style.cssText = `display:inline-block;width:12px;height:12px;border-radius:3px;background:${tag.color};flex-shrink:0;border:1px solid rgba(255,255,255,0.15);`;
+                    // Color dot = native color input styled as a dot
+                    const colorDot = document.createElement("input");
+                    colorDot.type = "color";
+                    colorDot.value = tag.color;
+                    colorDot.title = "Change color";
+                    colorDot.style.cssText = "width:10px;height:10px;padding:0;border:1px solid rgba(255,255,255,0.35);border-radius:50%;cursor:pointer;flex-shrink:0;outline:none;";
+                    colorDot.addEventListener("input", () => {
+                        updateOutfitTag(tag.id, tag.name, colorDot.value);
+                        tag.color = colorDot.value;
+                        chip.style.background = colorDot.value;
+                    });
 
-                const nameSpan = document.createElement("span");
-                nameSpan.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                nameSpan.textContent = tag.name;
+                    const nameSpan = document.createElement("span");
+                    nameSpan.textContent = tag.name;
+                    nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
 
-                // Inline color edit
-                const colorInp = document.createElement("input");
-                colorInp.type = "color";
-                colorInp.value = tag.color;
-                colorInp.style.cssText = "width:22px;height:22px;padding:0;border:none;background:transparent;cursor:pointer;flex-shrink:0;";
-                colorInp.title = "Change color";
-                colorInp.addEventListener("input", () => {
-                    updateOutfitTag(tag.id, tag.name, colorInp.value);
-                    tag.color = colorInp.value;
-                    swatch.style.background = colorInp.value;
-                });
+                    const delSpan = document.createElement("span");
+                    delSpan.textContent = "×";
+                    delSpan.title = "Delete tag (click twice)";
+                    delSpan.style.cssText = "font-size:11px;line-height:1;color:rgba(255,255,255,0.65);cursor:pointer;flex-shrink:0;transition:color 0.1s;";
+                    delSpan.addEventListener("mouseenter", () => { delSpan.style.color = "#fff"; });
+                    delSpan.addEventListener("mouseleave", () => { if (delSpan.textContent === "×") delSpan.style.color = "rgba(255,255,255,0.65)"; });
+                    let delConfirm = false;
+                    delSpan.addEventListener("click", () => {
+                        if (!delConfirm) {
+                            delConfirm = true;
+                            delSpan.textContent = "?";
+                            delSpan.style.color = "#fff";
+                            window.setTimeout(() => {
+                                if (delConfirm) { delConfirm = false; delSpan.textContent = "×"; delSpan.style.color = "rgba(255,255,255,0.65)"; }
+                            }, 2000);
+                        } else {
+                            deleteOutfitTag(tag.id);
+                            this.renderOutfits();
+                        }
+                    });
 
-                const delTagBtn = document.createElement("button");
-                delTagBtn.style.cssText = "background:transparent;border:1px solid #3a1928;border-radius:3px;color:#7a5060;cursor:pointer;font-size:9px;padding:1px 5px;flex-shrink:0;";
-                delTagBtn.textContent = "×";
-                delTagBtn.title = "Delete tag";
-                let delConfirm = false;
-                delTagBtn.addEventListener("click", () => {
-                    if (!delConfirm) {
-                        delConfirm = true;
-                        delTagBtn.textContent = "Sure?";
-                        delTagBtn.style.color = "#cf6f98";
-                        window.setTimeout(() => { delConfirm = false; delTagBtn.textContent = "×"; delTagBtn.style.color = "#7a5060"; }, 2500);
-                    } else {
-                        deleteOutfitTag(tag.id);
-                        this.renderOutfits();
-                    }
-                });
-
-                trow.appendChild(swatch);
-                trow.appendChild(nameSpan);
-                trow.appendChild(colorInp);
-                trow.appendChild(delTagBtn);
-                tagMgmtBody.appendChild(trow);
-            }
-
-            if (tags.length === 0) {
+                    chip.appendChild(colorDot);
+                    chip.appendChild(nameSpan);
+                    chip.appendChild(delSpan);
+                    chipsWrap.appendChild(chip);
+                }
+                tagMgmtBody.appendChild(chipsWrap);
+            } else {
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;padding:2px 0 4px;";
-                hint.textContent = "No tags yet.";
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;padding:2px 0 5px;";
+                hint.textContent = "No tags yet — add one below.";
                 tagMgmtBody.appendChild(hint);
             }
 
-            // New tag form
+            // ── New tag row ───────────────────────────────────────────────────
             const newTagRow = document.createElement("div");
-            newTagRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-top:4px;";
+            newTagRow.style.cssText = "display:flex;align-items:center;gap:4px;";
 
             const newTagInp = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input",
                 type: "text",
-                placeholder: "Tag name",
+                placeholder: "New tag name",
                 maxLength: 20,
             });
             newTagInp.style.flex = "1";
@@ -4175,15 +4179,17 @@ export class EBCDrawer {
             const newTagColor = document.createElement("input");
             newTagColor.type = "color";
             newTagColor.value = "#cf6f98";
-            newTagColor.style.cssText = "width:28px;height:28px;padding:0;border:none;background:transparent;cursor:pointer;flex-shrink:0;";
-            newTagColor.title = "Pick tag color";
+            newTagColor.style.cssText = "width:24px;height:24px;padding:0;border:1px solid #4c2537;border-radius:4px;background:transparent;cursor:pointer;flex-shrink:0;";
+            newTagColor.title = "Pick color";
 
             const addTagBtn = document.createElement("button");
-            addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;";
+            addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
             addTagBtn.textContent = "+ Add";
+            addTagBtn.addEventListener("mouseenter", () => { addTagBtn.style.background = "#2a0e1e"; });
+            addTagBtn.addEventListener("mouseleave", () => { addTagBtn.style.background = "transparent"; });
             addTagBtn.addEventListener("click", () => {
                 if (!newTagInp.value.trim()) return;
-                createOutfitTag(newTagInp.value, newTagColor.value);
+                createOutfitTag(newTagInp.value.trim(), newTagColor.value);
                 newTagInp.value = "";
                 renderTagMgmt();
             });
