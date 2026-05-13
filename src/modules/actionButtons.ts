@@ -370,19 +370,19 @@ export function drawActionButtons(): void {
     const catChipY   = sidebarY + CHIP_H + 4;
     const btnStartY  = catChipY + CAT_CHIP_H + 4;
 
-    // Drag grip — small handle above the collapse toggle
+    // Drag grip — minimal dark bar, dots indicate draggable
     DrawRect(sidebarX, gripY, CHIP_W, GRIP_H,
-        isDragging ? UI.accent : "#2a0e1e");
+        isDragging ? "#3a1828" : "#0e0608");
     DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H,
-        isDragging ? "#1a0d14" : UI.accentSoft, 1);
-    DrawTextFit("✥", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4,
-        isDragging ? "#1a0d14" : UI.accentSoft);
+        isDragging ? UI.accentSoft : "#221018", 1);
+    DrawTextFit("· · ·", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4,
+        isDragging ? UI.accent : "#3a1828");
 
-    // Collapse toggle
-    DrawButton(sidebarX, sidebarY, CHIP_W, CHIP_H,
-        sidebarCollapsed ? "+" : "=",
-        sidebarCollapsed ? UI.accentDeep : UI.accentSoft,
-        "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
+    // Collapse toggle — dark, unobtrusive; just a small arrow hint
+    DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#100810");
+    DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#2a1428", 1);
+    DrawTextFit(sidebarCollapsed ? "▶" : "▼", sidebarX + CHIP_W / 2, sidebarY + CHIP_H / 2 + 1,
+        CHIP_W - 6, sidebarCollapsed ? UI.accentSoft : "#3d1f2e");
 
     if (sidebarCollapsed) return;
 

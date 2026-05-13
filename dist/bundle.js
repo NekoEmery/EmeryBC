@@ -370,12 +370,14 @@
         const gripY = sidebarY - GRIP_H - 2;
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
-        // Drag grip — small handle above the collapse toggle
-        DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accent : "#2a0e1e");
-        DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? "#1a0d14" : UI.accentSoft, 1);
-        DrawTextFit("✥", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4, isDragging ? "#1a0d14" : UI.accentSoft);
-        // Collapse toggle
-        DrawButton(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? "+" : "=", sidebarCollapsed ? UI.accentDeep : UI.accentSoft, "", sidebarCollapsed ? "Show quick actions" : "Hide quick actions");
+        // Drag grip — minimal dark bar, dots indicate draggable
+        DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? "#3a1828" : "#0e0608");
+        DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accentSoft : "#221018", 1);
+        DrawTextFit("· · ·", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4, isDragging ? UI.accent : "#3a1828");
+        // Collapse toggle — dark, unobtrusive; just a small arrow hint
+        DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#100810");
+        DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#2a1428", 1);
+        DrawTextFit(sidebarCollapsed ? "▶" : "▼", sidebarX + CHIP_W / 2, sidebarY + CHIP_H / 2 + 1, CHIP_W - 6, sidebarCollapsed ? UI.accentSoft : "#3d1f2e");
         if (sidebarCollapsed)
             return;
         // Category switcher chip: [◀] Name [▶]
@@ -17620,7 +17622,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.8.5";
+    const MOD_VERSION = "1.8.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17629,6 +17631,12 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.8.6",
+            changes: [
+                "Tweak: sidebar grip and collapse toggle are now dark and minimal — no more big pink block; grip shows '· · ·' dots, collapse shows a dim ▶/▼ arrow.",
+            ],
+        },
         {
             version: "1.8.5",
             changes: [

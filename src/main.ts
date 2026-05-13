@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.8.5";
+const MOD_VERSION = "1.8.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -27,6 +27,12 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.8.6",
+        changes: [
+            "Tweak: sidebar grip and collapse toggle are now dark and minimal — no more big pink block; grip shows '· · ·' dots, collapse shows a dim ▶/▼ arrow.",
+        ],
+    },
     {
         version: "1.8.5",
         changes: [
