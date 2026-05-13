@@ -1,4 +1,4 @@
-﻿import { drawActionButtons, handleActionButtonClick } from "./modules/actionButtons";
+﻿import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { EBCDrawer } from "./modules/drawer";
 import { handleOutfitCommand, handleRestraintCommand } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
@@ -1934,8 +1934,9 @@ function drawPresenceMarker(args: unknown[]): void {
         ? (showVer ? "dev | v" + verStr : "dev | EBC")
         : (showVer ? "v" + verStr : "EBC");
 
-    // Badge is only meaningful at normal room zoom — skip entirely in map/zoom-out view.
-    if (zoom < 0.75) return;
+    // Hide in map/bird's-eye view (very low zoom). Crowded rooms reduce zoom too
+    // but stay well above 0.3, so only skip true map-view zoom.
+    if (zoom < 0.3) return;
 
     const isDevLabel = IS_DEV_BUILD && isSelf;
     const width  = isDevLabel
@@ -1996,6 +1997,9 @@ function init(): void {
         try { if (handleActionButtonClick()) return; } catch { /* ignore */ }
         return next(args);
     });
+
+    // Attach hold-to-drag for the grip handle (mousedown/touchstart on canvas)
+    try { initDragListener(); } catch { /* ignore */ }
 
     // DOM drawer - outfit switcher panel beside the chat log
     let drawer: EBCDrawer | null = null;

@@ -349,11 +349,11 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
     let sidebarCollapsed = false;
-    // Drag state — DOM mousemove/touchmove based so it works reliably
+    // Drag state
     let isDragging = false;
-    let dragAnchorMouseX = 0; // canvas-coord mouse position when drag started
+    let dragAnchorMouseX = 0;
     let dragAnchorMouseY = 0;
-    let dragAnchorPanelX = 0; // panel position when drag started
+    let dragAnchorPanelX = 0;
     let dragAnchorPanelY = 0;
     function getCanvasScale() {
         const canvas = document.getElementById("MainCanvas");
@@ -371,38 +371,55 @@
         const { scaleX, scaleY, left, top } = getCanvasScale();
         return { x: (clientX - left) * scaleX, y: (clientY - top) * scaleY };
     }
-    let _dragMoveHandler = null;
-    let _dragEndHandler = null;
-    function startDrag(canvasMouseX, canvasMouseY) {
+    function isInGrip(cx, cy) {
+        const gripY = sidebarY - GRIP_H - 2;
+        return cx >= sidebarX && cx <= sidebarX + CHIP_W &&
+            cy >= gripY && cy <= gripY + GRIP_H;
+    }
+    function startDrag(cx, cy) {
         isDragging = true;
-        dragAnchorMouseX = canvasMouseX;
-        dragAnchorMouseY = canvasMouseY;
+        dragAnchorMouseX = cx;
+        dragAnchorMouseY = cy;
         dragAnchorPanelX = sidebarX;
         dragAnchorPanelY = sidebarY;
-        _dragMoveHandler = (e) => {
+        const onMove = (e) => {
             const pt = "touches" in e ? e.touches[0] : e;
             const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
             sidebarX = Math.max(0, Math.min(1955, dragAnchorPanelX + (x - dragAnchorMouseX)));
             sidebarY = Math.max(GRIP_H + 2, Math.min(900, dragAnchorPanelY + (y - dragAnchorMouseY)));
         };
-        _dragEndHandler = () => {
+        const onEnd = () => {
             isDragging = false;
             saveSidebarPos();
-            if (_dragMoveHandler) {
-                document.removeEventListener("mousemove", _dragMoveHandler);
-                document.removeEventListener("touchmove", _dragMoveHandler);
-            }
-            if (_dragEndHandler) {
-                document.removeEventListener("mouseup", _dragEndHandler);
-                document.removeEventListener("touchend", _dragEndHandler);
-            }
-            _dragMoveHandler = null;
-            _dragEndHandler = null;
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("touchmove", onMove);
+            document.removeEventListener("mouseup", onEnd);
+            document.removeEventListener("touchend", onEnd);
         };
-        document.addEventListener("mousemove", _dragMoveHandler);
-        document.addEventListener("touchmove", _dragMoveHandler, { passive: true });
-        document.addEventListener("mouseup", _dragEndHandler);
-        document.addEventListener("touchend", _dragEndHandler);
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("touchmove", onMove, { passive: true });
+        document.addEventListener("mouseup", onEnd);
+        document.addEventListener("touchend", onEnd);
+    }
+    // Attach hold-to-drag directly on the canvas via mousedown/touchstart so the
+    // drag begins while the button is held — not on click (which would fire after release).
+    function initDragListener() {
+        const canvas = document.getElementById("MainCanvas");
+        if (!canvas) {
+            // Canvas not ready yet — retry shortly
+            window.setTimeout(initDragListener, 200);
+            return;
+        }
+        const onDown = (e) => {
+            const pt = "touches" in e ? e.touches[0] : e;
+            const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
+            if (isInGrip(x, y)) {
+                e.preventDefault();
+                startDrag(x, y);
+            }
+        };
+        canvas.addEventListener("mousedown", onDown);
+        canvas.addEventListener("touchstart", onDown, { passive: false });
     }
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
@@ -411,10 +428,10 @@
         const gripY = sidebarY - GRIP_H - 2;
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
-        // Drag grip — minimal dark bar, dots indicate draggable
-        DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? "#3a1828" : "#1a0812");
-        DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accentSoft : "#4a2038", 1);
-        DrawTextFit("· · ·", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4, isDragging ? UI.accent : "#9a5878");
+        // Drag grip — hold & drag to reposition
+        DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? "#3d1a2a" : "#1e0e18");
+        DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accent : "#5a2a44", 1);
+        DrawTextFit("⠿", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 6, isDragging ? UI.accent : "#b06080");
         // Collapse toggle — dark, unobtrusive; just a small arrow hint
         DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#100810");
         DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#2a1428", 1);
@@ -451,15 +468,8 @@
         const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
         const my = (_b = window.MouseY) !== null && _b !== void 0 ? _b : 0;
         // Derived Y positions (same as in draw)
-        const gripY = sidebarY - GRIP_H - 2;
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
-        // Drag grip — mousedown starts the DOM-based drag (release anywhere drops)
-        if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
-            my >= gripY && my <= gripY + GRIP_H) {
-            startDrag(mx, my);
-            return true;
-        }
         // Collapse toggle
         if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
             my >= sidebarY && my <= sidebarY + CHIP_H) {
@@ -19503,8 +19513,9 @@
         const label = isSelf
             ? (showVer ? "dev | v" + verStr : "dev | EBC")
             : (showVer ? "v" + verStr : "EBC");
-        // Badge is only meaningful at normal room zoom — skip entirely in map/zoom-out view.
-        if (zoom < 0.75)
+        // Hide in map/bird's-eye view (very low zoom). Crowded rooms reduce zoom too
+        // but stay well above 0.3, so only skip true map-view zoom.
+        if (zoom < 0.3)
             return;
         const isDevLabel = isSelf;
         const width = isDevLabel
@@ -19559,6 +19570,11 @@
             catch ( /* ignore */_a) { /* ignore */ }
             return next(args);
         });
+        // Attach hold-to-drag for the grip handle (mousedown/touchstart on canvas)
+        try {
+            initDragListener();
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
@@ -19949,7 +19965,7 @@
                 catch ( /* ignore */_d) { /* ignore */ }
             });
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
         // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
         // Typing *text (or * text) in the chat box sends a BC Emote message so it
         // renders as *Name text* in chat without going through gag processing.
@@ -20058,7 +20074,7 @@
         try {
             syncPresenceMarker();
         }
-        catch (_c) {
+        catch (_d) {
             // Ignore early sync failures.
         }
         startUpdateChecker();

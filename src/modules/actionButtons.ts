@@ -347,11 +347,11 @@ function saveSidebarPos(): void {
 
 let sidebarCollapsed = false;
 
-// Drag state — DOM mousemove/touchmove based so it works reliably
+// Drag state
 let isDragging = false;
-let dragAnchorMouseX = 0;   // canvas-coord mouse position when drag started
+let dragAnchorMouseX = 0;
 let dragAnchorMouseY = 0;
-let dragAnchorPanelX = 0;   // panel position when drag started
+let dragAnchorPanelX = 0;
 let dragAnchorPanelY = 0;
 
 function getCanvasScale(): { scaleX: number; scaleY: number; left: number; top: number } {
@@ -371,42 +371,59 @@ function screenToCanvas(clientX: number, clientY: number): { x: number; y: numbe
     return { x: (clientX - left) * scaleX, y: (clientY - top) * scaleY };
 }
 
-let _dragMoveHandler: ((e: MouseEvent | TouchEvent) => void) | null = null;
-let _dragEndHandler:  ((e: MouseEvent | TouchEvent) => void) | null = null;
+function isInGrip(cx: number, cy: number): boolean {
+    const gripY = sidebarY - GRIP_H - 2;
+    return cx >= sidebarX && cx <= sidebarX + CHIP_W &&
+           cy >= gripY    && cy <= gripY + GRIP_H;
+}
 
-function startDrag(canvasMouseX: number, canvasMouseY: number): void {
+function startDrag(cx: number, cy: number): void {
     isDragging = true;
-    dragAnchorMouseX = canvasMouseX;
-    dragAnchorMouseY = canvasMouseY;
+    dragAnchorMouseX = cx;
+    dragAnchorMouseY = cy;
     dragAnchorPanelX = sidebarX;
     dragAnchorPanelY = sidebarY;
 
-    _dragMoveHandler = (e: MouseEvent | TouchEvent) => {
+    const onMove = (e: MouseEvent | TouchEvent): void => {
         const pt = "touches" in e ? e.touches[0] : e as MouseEvent;
         const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
-        sidebarX = Math.max(0,         Math.min(1955, dragAnchorPanelX + (x - dragAnchorMouseX)));
-        sidebarY = Math.max(GRIP_H + 2, Math.min(900, dragAnchorPanelY + (y - dragAnchorMouseY)));
+        sidebarX = Math.max(0,          Math.min(1955, dragAnchorPanelX + (x - dragAnchorMouseX)));
+        sidebarY = Math.max(GRIP_H + 2, Math.min(900,  dragAnchorPanelY + (y - dragAnchorMouseY)));
     };
-
-    _dragEndHandler = () => {
+    const onEnd = (): void => {
         isDragging = false;
         saveSidebarPos();
-        if (_dragMoveHandler) {
-            document.removeEventListener("mousemove",  _dragMoveHandler as EventListener);
-            document.removeEventListener("touchmove",  _dragMoveHandler as EventListener);
-        }
-        if (_dragEndHandler) {
-            document.removeEventListener("mouseup",    _dragEndHandler as EventListener);
-            document.removeEventListener("touchend",   _dragEndHandler as EventListener);
-        }
-        _dragMoveHandler = null;
-        _dragEndHandler  = null;
+        document.removeEventListener("mousemove", onMove as EventListener);
+        document.removeEventListener("touchmove",  onMove as EventListener);
+        document.removeEventListener("mouseup",    onEnd);
+        document.removeEventListener("touchend",   onEnd);
     };
 
-    document.addEventListener("mousemove", _dragMoveHandler as EventListener);
-    document.addEventListener("touchmove",  _dragMoveHandler as EventListener, { passive: true });
-    document.addEventListener("mouseup",    _dragEndHandler  as EventListener);
-    document.addEventListener("touchend",   _dragEndHandler  as EventListener);
+    document.addEventListener("mousemove", onMove as EventListener);
+    document.addEventListener("touchmove",  onMove as EventListener, { passive: true });
+    document.addEventListener("mouseup",    onEnd);
+    document.addEventListener("touchend",   onEnd);
+}
+
+// Attach hold-to-drag directly on the canvas via mousedown/touchstart so the
+// drag begins while the button is held — not on click (which would fire after release).
+export function initDragListener(): void {
+    const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
+    if (!canvas) {
+        // Canvas not ready yet — retry shortly
+        window.setTimeout(initDragListener, 200);
+        return;
+    }
+    const onDown = (e: MouseEvent | TouchEvent): void => {
+        const pt = "touches" in e ? (e as TouchEvent).touches[0] : e as MouseEvent;
+        const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
+        if (isInGrip(x, y)) {
+            e.preventDefault();
+            startDrag(x, y);
+        }
+    };
+    canvas.addEventListener("mousedown",  onDown as EventListener);
+    canvas.addEventListener("touchstart", onDown as EventListener, { passive: false });
 }
 
 export function drawActionButtons(): void {
@@ -417,13 +434,13 @@ export function drawActionButtons(): void {
     const catChipY   = sidebarY + CHIP_H + 4;
     const btnStartY  = catChipY + CAT_CHIP_H + 4;
 
-    // Drag grip — minimal dark bar, dots indicate draggable
+    // Drag grip — hold & drag to reposition
     DrawRect(sidebarX, gripY, CHIP_W, GRIP_H,
-        isDragging ? "#3a1828" : "#1a0812");
+        isDragging ? "#3d1a2a" : "#1e0e18");
     DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H,
-        isDragging ? UI.accentSoft : "#4a2038", 1);
-    DrawTextFit("· · ·", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 4,
-        isDragging ? UI.accent : "#9a5878");
+        isDragging ? UI.accent : "#5a2a44", 1);
+    DrawTextFit("⠿", sidebarX + CHIP_W / 2, gripY + GRIP_H / 2 + 1, CHIP_W - 6,
+        isDragging ? UI.accent : "#b06080");
 
     // Collapse toggle — dark, unobtrusive; just a small arrow hint
     DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, "#100810");
@@ -469,16 +486,8 @@ export function handleActionButtonClick(): boolean {
     const my = (window as unknown as Record<string, number>).MouseY ?? 0;
 
     // Derived Y positions (same as in draw)
-    const gripY     = sidebarY - GRIP_H - 2;
     const catChipY  = sidebarY + CHIP_H + 4;
     const btnStartY = catChipY + CAT_CHIP_H + 4;
-
-    // Drag grip — mousedown starts the DOM-based drag (release anywhere drops)
-    if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
-        my >= gripY     && my <= gripY + GRIP_H) {
-        startDrag(mx, my);
-        return true;
-    }
 
     // Collapse toggle
     if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
