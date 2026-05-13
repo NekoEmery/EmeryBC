@@ -7159,8 +7159,21 @@ export class EBCDrawer {
                 emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
                 emoteInp.style.display = isSeq ? "none" : "";
 
+                // Name-in-announce chip — only meaningful for ( ) action style
+                const nameIncluded = btn.includeNameInAnnounce !== false;
+                const nameChip = document.createElement("button");
+                nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
+                nameChip.textContent = nameIncluded ? "name" : "anon";
+                nameChip.title = nameIncluded
+                    ? "Your name is included — click to send anonymously"
+                    : "Sending without name — click to include name";
+                nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
+                // only show for action style (emote always has name; seq not applicable)
+                nameChip.style.display = (currentStyle === "action") ? "" : "none";
+
                 botLine.appendChild(styleBtn);
                 botLine.appendChild(seqBadge);
+                botLine.appendChild(nameChip);
                 botLine.appendChild(emoteInp);
 
                 row.appendChild(topLine);
@@ -7216,6 +7229,16 @@ export class EBCDrawer {
                     btns[idx].emote = emoteInp.value;
                 });
 
+                nameChip.addEventListener("click", () => {
+                    const next = btns[idx].includeNameInAnnounce === false; // toggle
+                    btns[idx].includeNameInAnnounce = next;
+                    nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
+                    nameChip.textContent = next ? "name" : "anon";
+                    nameChip.title = next
+                        ? "Your name is included — click to send anonymously"
+                        : "Sending without name — click to include name";
+                });
+
                 styleBtn.addEventListener("click", () => {
                     const cur: ActionStyle = btns[idx].style ?? "action";
                     if (cur === "seq") return; // seq buttons don't cycle through styles
@@ -7229,6 +7252,8 @@ export class EBCDrawer {
                     emoteInp.title = next === "emote"
                         ? "Text sent as * Name text *"
                         : "Text sent as ( Name text )";
+                    // name chip only applies to action style
+                    nameChip.style.display = next === "action" ? "" : "none";
                 });
 
                 let slotDelPending = false;

@@ -296,7 +296,7 @@
     }
     // --- Send chat message --------------------------------------------------------
     // "action" -> (Name text)   "emote" -> * Name text *   "seq" -> runSequence
-    function sendAction(emote, style = "action") {
+    function sendAction(emote, style = "action", includeName = true) {
         const text = emote.trim();
         if (!text)
             return;
@@ -309,13 +309,14 @@
             ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
             return;
         }
-        // Action style: (Name text)
+        // Action style: (Name text) or (text) when name is excluded
         // BC can't find the key in Interface.csv so it prepends "MISSING TEXT IN "Interface.csv": ".
         // We include the player's name directly in Content, then use the poison tag to strip the prefix,
         // leaving only the zero-width char + text so it renders as (Name text).
+        const actionContent = includeName ? getDisplayName() + " " + text : text;
         ServerSend("ChatRoomChat", {
             Type: "Action",
-            Content: getDisplayName() + " " + text,
+            Content: actionContent,
             Dictionary: [
                 { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                 { SourceCharacter: Player.MemberNumber },
@@ -568,7 +569,7 @@
                 my >= y && my <= y + BTN_SIZE) {
                 const animOk = triggerLabelAnimation(btn.label);
                 if (animOk)
-                    sendAction(btn.emote, (_c = btn.style) !== null && _c !== void 0 ? _c : "action");
+                    sendAction(btn.emote, (_c = btn.style) !== null && _c !== void 0 ? _c : "action", btn.includeNameInAnnounce !== false);
                 return true;
             }
         }
@@ -11491,8 +11492,20 @@
                     emoteInp.value = btn.emote;
                     emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
                     emoteInp.style.display = isSeq ? "none" : "";
+                    // Name-in-announce chip — only meaningful for ( ) action style
+                    const nameIncluded = btn.includeNameInAnnounce !== false;
+                    const nameChip = document.createElement("button");
+                    nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
+                    nameChip.textContent = nameIncluded ? "name" : "anon";
+                    nameChip.title = nameIncluded
+                        ? "Your name is included — click to send anonymously"
+                        : "Sending without name — click to include name";
+                    nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
+                    // only show for action style (emote always has name; seq not applicable)
+                    nameChip.style.display = (currentStyle === "action") ? "" : "none";
                     botLine.appendChild(styleBtn);
                     botLine.appendChild(seqBadge);
+                    botLine.appendChild(nameChip);
                     botLine.appendChild(emoteInp);
                     row.appendChild(topLine);
                     row.appendChild(botLine);
@@ -11542,6 +11555,15 @@
                     emoteInp.addEventListener("input", () => {
                         btns[idx].emote = emoteInp.value;
                     });
+                    nameChip.addEventListener("click", () => {
+                        const next = btns[idx].includeNameInAnnounce === false; // toggle
+                        btns[idx].includeNameInAnnounce = next;
+                        nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
+                        nameChip.textContent = next ? "name" : "anon";
+                        nameChip.title = next
+                            ? "Your name is included — click to send anonymously"
+                            : "Sending without name — click to include name";
+                    });
                     styleBtn.addEventListener("click", () => {
                         var _a;
                         const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action";
@@ -11557,6 +11579,8 @@
                         emoteInp.title = next === "emote"
                             ? "Text sent as * Name text *"
                             : "Text sent as ( Name text )";
+                        // name chip only applies to action style
+                        nameChip.style.display = next === "action" ? "" : "none";
                     });
                     let slotDelPending = false;
                     let slotDelTimer = null;
@@ -18584,7 +18608,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.1.3";
+    const MOD_VERSION = "2.1.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18592,6 +18616,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.1.4",
+            changes: [
+                "Feature: per-button name toggle on action buttons — a 'name'/'anon' chip in the button editor lets you choose whether your name appears in the ( action ) text. Only applies to ( ) style; * emote * always includes the name via BC.",
+            ],
+        },
         {
             version: "2.1.3",
             changes: [
