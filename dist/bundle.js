@@ -17607,7 +17607,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.7.9";
+    const MOD_VERSION = "1.8.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17616,6 +17616,12 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.8.0",
+            changes: [
+                "Tweak: dev overhead badge format changed from D-v1.x.x to 'dev | v1.x.x' for clarity.",
+            ],
+        },
         {
             version: "1.7.9",
             changes: [
@@ -19432,13 +19438,17 @@
         const presence = getSharedPresence(character);
         const showVer = getShowVersionBadge();
         const verStr = (_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : MOD_VERSION;
-        const devPrefix = isSelf ? "D-" : "";
-        const label = showVer ? (devPrefix + "v" + verStr) : (devPrefix + "EBC");
+        const label = isSelf
+            ? (showVer ? "dev | v" + verStr : "dev | EBC")
+            : (showVer ? "v" + verStr : "EBC");
         // Small size in map/zoomed-out view (zoom < 0.75), full size in normal room
         const isMapView = zoom < 0.75;
+        const isDevLabel = isSelf;
         const width = isMapView
             ? (showVer ? Math.max(28, 32 * zoom) : Math.max(18, 22 * zoom))
-            : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
+            : (isDevLabel
+                ? (showVer ? Math.max(70, 78 * zoom) : Math.max(52, 58 * zoom))
+                : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom)));
         const height = isMapView ? Math.max(8, 10 * zoom) : Math.max(12, 14 * zoom);
         const x = left + 197 * zoom;
         const y = top + 26 * zoom;
