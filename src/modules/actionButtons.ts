@@ -336,9 +336,8 @@ const GRIP_H     = 22;  // drag handle above collapse toggle — tall enough to 
 const SIDEBAR_POS_KEY = "EBC_sidebarPos";
 const SIDEBAR_DEFAULT_X = 0;
 const SIDEBAR_DEFAULT_Y = 270;
-// BC's game area occupies roughly the left 55% of the canvas (≈1100px).
-// Clamp hard so the sidebar can never slide behind the chat log.
-const SIDEBAR_MAX_X = 900;
+// Fallback hard cap — overridden at drag time by the live DOM check below.
+const SIDEBAR_MAX_X_FALLBACK = 700;
 
 let sidebarX = SIDEBAR_DEFAULT_X;
 let sidebarY = SIDEBAR_DEFAULT_Y;
@@ -346,7 +345,7 @@ try {
     const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
     if (_saved) {
         const _p = JSON.parse(_saved) as { x?: number; y?: number };
-        sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X, _p.x ?? SIDEBAR_DEFAULT_X));
+        sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X_FALLBACK, _p.x ?? SIDEBAR_DEFAULT_X));
         sidebarY = Math.max(GRIP_H + 2, Math.min(900, _p.y ?? SIDEBAR_DEFAULT_Y));
     }
 } catch { /* ignore */ }
@@ -393,6 +392,29 @@ function isInGrip(cx: number, cy: number): boolean {
            cy >= gripY    && cy <= gripY + GRIP_H;
 }
 
+/** Returns the maximum canvas-X the sidebar left edge may reach before overlapping the chat. */
+function getSidebarMaxX(): number {
+    // Try to read the left edge of BC's chat log (or EBC drawer) in real time.
+    // "#TextAreaChatLog" is BC's native chat log element; we also check the EBC drawer.
+    const candidates = [
+        document.getElementById("TextAreaChatLog"),
+        document.getElementById("TextAreaChatInput"),
+        document.querySelector(".ebc-panel") as HTMLElement | null,
+    ];
+    const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
+    if (canvas) {
+        const { left: cLeft, width: cWidth } = canvas.getBoundingClientRect();
+        const scaleX = 2000 / (cWidth || 2000);
+        for (const el of candidates) {
+            if (!el) continue;
+            const elLeft = el.getBoundingClientRect().left;
+            const canvasX = (elLeft - cLeft) * scaleX;
+            if (canvasX > 50) return Math.max(0, canvasX - CHIP_W - 8);
+        }
+    }
+    return SIDEBAR_MAX_X_FALLBACK;
+}
+
 function startDrag(cx: number, cy: number): void {
     isDragging = true;
     dragAnchorMouseX = cx;
@@ -400,11 +422,12 @@ function startDrag(cx: number, cy: number): void {
     dragAnchorPanelX = sidebarX;
     dragAnchorPanelY = sidebarY;
     let hasMoved = false;
+    const maxX = getSidebarMaxX();
 
     const onMove = (e: MouseEvent | TouchEvent): void => {
         const pt = "touches" in e ? e.touches[0] : e as MouseEvent;
         const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
-        sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X, dragAnchorPanelX + (x - dragAnchorMouseX)));
+        sidebarX = Math.max(0, Math.min(maxX, dragAnchorPanelX + (x - dragAnchorMouseX)));
         sidebarY = Math.max(GRIP_H + 2, Math.min(900,  dragAnchorPanelY + (y - dragAnchorMouseY)));
         hasMoved = true;
     };
