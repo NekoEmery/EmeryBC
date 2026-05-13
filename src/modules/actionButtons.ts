@@ -13,6 +13,7 @@ export interface ActionButton {
     color:   string;
     enabled: boolean;
     style:   ActionStyle;
+    includeNameInAnnounce?: boolean; // default true; only applies to "action" style
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
@@ -297,7 +298,7 @@ function triggerLabelAnimation(label: string): boolean {
 // --- Send chat message --------------------------------------------------------
 // "action" -> (Name text)   "emote" -> * Name text *   "seq" -> runSequence
 
-export function sendAction(emote: string, style: ActionStyle = "action"): void {
+export function sendAction(emote: string, style: ActionStyle = "action", includeName = true): void {
     const text = emote.trim();
     if (!text) return;
 
@@ -309,13 +310,14 @@ export function sendAction(emote: string, style: ActionStyle = "action"): void {
         return;
     }
 
-    // Action style: (Name text)
+    // Action style: (Name text) or (text) when name is excluded
     // BC can't find the key in Interface.csv so it prepends "MISSING TEXT IN "Interface.csv": ".
     // We include the player's name directly in Content, then use the poison tag to strip the prefix,
     // leaving only the zero-width char + text so it renders as (Name text).
+    const actionContent = includeName ? getDisplayName() + " " + text : text;
     ServerSend("ChatRoomChat", {
         Type: "Action",
-        Content: getDisplayName() + " " + text,
+        Content: actionContent,
         Dictionary: [
             { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
             { SourceCharacter: Player.MemberNumber },
@@ -587,7 +589,7 @@ export function handleActionButtonClick(): boolean {
         if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
             my >= y         && my <= y + BTN_SIZE) {
             const animOk = triggerLabelAnimation(btn.label);
-            if (animOk) sendAction(btn.emote, btn.style ?? "action");
+            if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
             return true;
         }
     }
