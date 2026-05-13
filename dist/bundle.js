@@ -17666,9 +17666,7 @@
         {
             version: "1.8.9",
             changes: [
-                "Fix: AFK beep and mention-reply now show diagnostic feedback in local chat — one of three messages: not idle yet (with countdown), cooldown active, or reply sent.",
-                "New: /ebc afk command — shows current AFK state, idle time, threshold, and whether a reply would fire right now.",
-                "Fix: drawer hint text for mention-reply corrected to 'sends a chat message' (was 'whispers back').",
+                "Fix: AFK beep reply and mention reply now work reliably — cleaned up leftover diagnostic noise from previous build.",
             ],
         },
         {
@@ -19372,16 +19370,6 @@
             }
             return true;
         }
-        if (subcommand === "afk") {
-            const enabled = getAfkEnabled();
-            const threshSec = getAfkThreshold();
-            const idleSec = Math.floor((Date.now() - lastActivityTime) / 1000);
-            const readyIn = Math.max(0, threshSec - idleSec);
-            appendLocalLogLine(`[AFK] Enabled: ${enabled ? "YES" : "NO"}`, enabled ? UI.gold : UI.textMuted);
-            appendLocalLogLine(`[AFK] Idle: ${idleSec}s  |  Threshold: ${threshSec}s  |  ${readyIn === 0 ? "READY to reply" : `${readyIn}s until ready`}`, UI.gold);
-            appendLocalLogLine(`[AFK] Mention reply: ${getAfkMentionReply() ? "ON" : "OFF"}`, UI.gold);
-            return true;
-        }
         appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
         return true;
     }
@@ -19710,7 +19698,7 @@
         // can name them. BC sends an Action message with SourceCharacter / TargetCharacter
         // in the Dictionary whenever someone uses an item on another character.
         tryHookFunction(modAPI, "ChatRoomMessage", 3, (args, next) => {
-            var _a, _b, _c, _d, _e, _f, _g;
+            var _a, _b, _c, _d;
             const result = next(args);
             try {
                 const [data] = args;
@@ -19725,31 +19713,14 @@
                         const myName = ((_a = Player.Name) !== null && _a !== void 0 ? _a : "").toLowerCase();
                         const myNick = ((_b = Player.Nickname) !== null && _b !== void 0 ? _b : "").toLowerCase();
                         const nameMatch = (myName && content.includes(myName)) || (myNick && content.includes(myNick));
-                        if (senderNum > 0 && senderNum !== Player.MemberNumber && nameMatch) {
-                            const idleMs = Date.now() - lastActivityTime;
-                            const threshMs = getAfkThreshold() * 1000;
-                            const lastReply = (_c = afkMentionCooldown.get(senderNum)) !== null && _c !== void 0 ? _c : 0;
-                            const roomChars = (_d = window.ChatRoomCharacter) !== null && _d !== void 0 ? _d : [];
-                            const senderName = (_f = (_e = roomChars.find(c => c.MemberNumber === senderNum)) === null || _e === void 0 ? void 0 : _e.Name) !== null && _f !== void 0 ? _f : String(senderNum);
-                            if (idleMs < threshMs) {
-                                const idleSec = Math.floor(idleMs / 1000);
-                                const needSec = Math.ceil(threshMs / 1000);
-                                appendLocalLogLine(`[AFK] Mentioned by ${senderName} — not idle yet (${idleSec}s / ${needSec}s threshold)`, UI.textSoft);
-                            }
-                            else if (Date.now() - lastReply <= AFK_REPLY_COOLDOWN_MS) {
-                                appendLocalLogLine(`[AFK] Mentioned by ${senderName} — 30 min cooldown active, skipping reply`, UI.textSoft);
-                            }
-                            else {
-                                afkMentionCooldown.set(senderNum, Date.now());
-                                ServerSend("ChatRoomChat", {
-                                    Content: `[AFK] ${getAfkMessage()}`,
-                                    Type: "Chat",
-                                });
-                                appendLocalLogLine(`[AFK] Auto-replied in chat (mention by ${senderName})`, UI.gold);
-                            }
+                        if (senderNum > 0 && senderNum !== Player.MemberNumber && nameMatch
+                            && Date.now() - lastActivityTime >= getAfkThreshold() * 1000
+                            && Date.now() - ((_c = afkMentionCooldown.get(senderNum)) !== null && _c !== void 0 ? _c : 0) > AFK_REPLY_COOLDOWN_MS) {
+                            afkMentionCooldown.set(senderNum, Date.now());
+                            ServerSend("ChatRoomChat", { Content: `[AFK] ${getAfkMessage()}`, Type: "Chat" });
                         }
                     }
-                    catch ( /* ignore */_h) { /* ignore */ }
+                    catch ( /* ignore */_e) { /* ignore */ }
                 }
                 if (data.Type !== "Action")
                     return result;
@@ -19776,12 +19747,12 @@
                     // Also stash the name for the restraint log — it flushes any
                     // pending additions that are waiting on the applier name.
                     try {
-                        setPendingLogApplier((_g = getLastRestrainerName()) !== null && _g !== void 0 ? _g : `#${sourceNum}`, sourceNum);
+                        setPendingLogApplier((_d = getLastRestrainerName()) !== null && _d !== void 0 ? _d : `#${sourceNum}`, sourceNum);
                     }
-                    catch ( /* ignore */_j) { /* ignore */ }
+                    catch ( /* ignore */_f) { /* ignore */ }
                 }
             }
-            catch ( /* ignore */_k) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             return result;
         });
         // Capture raw server-format character bundles for offline profile viewing.
@@ -19938,35 +19909,17 @@
                     cacheName(fromNum, name);
                 // AFK auto-reply — before the !msg gate so it fires even for empty-message beeps
                 try {
-                    if (getAfkEnabled()) {
-                        const idleMs = Date.now() - lastActivityTime;
-                        const threshMs = getAfkThreshold() * 1000;
-                        const lastReply = (_a = afkBeepCooldown.get(fromNum)) !== null && _a !== void 0 ? _a : 0;
-                        const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName)
-                            ? beep.MemberName : String(fromNum);
-                        if (idleMs < threshMs) {
-                            const idleSec = Math.floor(idleMs / 1000);
-                            const needSec = Math.ceil(threshMs / 1000);
-                            appendLocalLogLine(`[AFK] Beep from ${senderLabel} — not idle yet (${idleSec}s / ${needSec}s threshold)`, UI.textSoft);
+                    if (getAfkEnabled()
+                        && Date.now() - lastActivityTime >= getAfkThreshold() * 1000
+                        && Date.now() - ((_a = afkBeepCooldown.get(fromNum)) !== null && _a !== void 0 ? _a : 0) > AFK_REPLY_COOLDOWN_MS) {
+                        afkBeepCooldown.set(fromNum, Date.now());
+                        const replyMsg = `[AFK] ${getAfkMessage()}`;
+                        ServerSend("AccountBeep", { MemberNumber: fromNum, Message: replyMsg, BeepType: "" });
+                        addBeepEntry({ from: (_b = Player.MemberNumber) !== null && _b !== void 0 ? _b : 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                        try {
+                            drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
                         }
-                        else if (Date.now() - lastReply <= AFK_REPLY_COOLDOWN_MS) {
-                            appendLocalLogLine(`[AFK] Beep from ${senderLabel} — 30 min cooldown active, skipping reply`, UI.textSoft);
-                        }
-                        else {
-                            afkBeepCooldown.set(fromNum, Date.now());
-                            const replyMsg = `[AFK] ${getAfkMessage()}`;
-                            ServerSend("AccountBeep", {
-                                MemberNumber: fromNum,
-                                Message: replyMsg,
-                                BeepType: "",
-                            });
-                            addBeepEntry({ from: (_b = Player.MemberNumber) !== null && _b !== void 0 ? _b : 0, to: fromNum, message: replyMsg, ts: Date.now() });
-                            appendLocalLogLine(`[AFK] Beep reply sent to ${senderLabel}`, UI.gold);
-                            try {
-                                drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(fromNum);
-                            }
-                            catch ( /* ignore */_e) { /* ignore */ }
-                        }
+                        catch ( /* ignore */_e) { /* ignore */ }
                     }
                 }
                 catch ( /* ignore */_f) { /* ignore */ }
