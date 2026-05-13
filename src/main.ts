@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.8.9";
+const MOD_VERSION = "1.9.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -27,9 +27,14 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "1.8.9",
+        version: "1.9.0",
         changes: [
-            "Fix: AFK beep reply and mention reply now work reliably — cleaned up leftover diagnostic noise from previous build.",
+            "Fix: overhead EBC badge now shows in crowded rooms — was incorrectly hidden when BC reduced zoom to fit many characters.",
+            "Fix: quick-action grip is now hold-to-drag — press and hold to move, release to drop. Dropping no longer accidentally clicks characters.",
+            "Fix: grip icon replaced with a proper 2×3 dot grid drawn with filled rects (braille glyph didn't render in BC's font).",
+            "Fix: DEV chip restored to drawer header title on dev builds.",
+            "Fix: AFK beep reply logs one confirmation line when it fires.",
+            "Fix: AFK chat mention-reply removed (was unreliable); beep-only reply remains.",
         ],
     },
     {
