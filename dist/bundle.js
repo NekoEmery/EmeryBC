@@ -17653,15 +17653,23 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.8.7";
+    const MOD_VERSION = "1.8.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
-    // memberNumber → last AFK reply timestamp (avoid spamming the same person)
-    const afkReplyCooldown = new Map();
-    const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+    // Separate cooldown maps so a mention-reply doesn't block a beep-reply and vice-versa
+    const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
+    const afkMentionCooldown = new Map(); // memberNumber → last mention-reply ts
+    const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes per channel
     const CHANGELOG = [
+        {
+            version: "1.8.8",
+            changes: [
+                "Fix: AFK beep reply and AFK mention reply now use separate 30-min cooldown maps — a mention reply to person A no longer blocks a beep reply from person A (this was introduced when mention reply defaulted to ON in 1.8.7).",
+                "Fix: AFK beep check now runs before the empty-message early-return so it fires even when beep has no text.",
+            ],
+        },
         {
             version: "1.8.7",
             changes: [
@@ -19702,9 +19710,9 @@
                         if (senderNum > 0 && senderNum !== Player.MemberNumber && nameMatch) {
                             const idleMs = Date.now() - lastActivityTime;
                             const thresholdMs = getAfkThreshold() * 1000;
-                            const lastReply = (_c = afkReplyCooldown.get(senderNum)) !== null && _c !== void 0 ? _c : 0;
+                            const lastReply = (_c = afkMentionCooldown.get(senderNum)) !== null && _c !== void 0 ? _c : 0;
                             if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
-                                afkReplyCooldown.set(senderNum, Date.now());
+                                afkMentionCooldown.set(senderNum, Date.now());
                                 const replyMsg = getAfkMessage();
                                 const roomChars = (_d = window.ChatRoomCharacter) !== null && _d !== void 0 ? _d : [];
                                 const senderName = (_f = (_e = roomChars.find(c => c.MemberNumber === senderNum)) === null || _e === void 0 ? void 0 : _e.Name) !== null && _f !== void 0 ? _f : String(senderNum);
@@ -19898,20 +19906,19 @@
                 if (beep.BeepType)
                     return next(args);
                 const fromNum = typeof beep.MemberNumber === "number" ? beep.MemberNumber : 0;
-                const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
-                if (!fromNum || !msg)
+                if (!fromNum)
                     return next(args);
                 const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
                 if (name)
                     cacheName(fromNum, name);
-                // AFK auto-reply — runs for ANY sender, before the friend-list gate
+                // AFK auto-reply — before the !msg gate so it fires even for empty-message beeps
                 try {
                     if (getAfkEnabled()) {
                         const idleMs = Date.now() - lastActivityTime;
                         const thresholdMs = getAfkThreshold() * 1000;
-                        const lastReply = (_a = afkReplyCooldown.get(fromNum)) !== null && _a !== void 0 ? _a : 0;
+                        const lastReply = (_a = afkBeepCooldown.get(fromNum)) !== null && _a !== void 0 ? _a : 0;
                         if (idleMs >= thresholdMs && Date.now() - lastReply > AFK_REPLY_COOLDOWN_MS) {
-                            afkReplyCooldown.set(fromNum, Date.now());
+                            afkBeepCooldown.set(fromNum, Date.now());
                             const replyMsg = `[AFK] ${getAfkMessage()}`;
                             window.setTimeout(() => {
                                 var _a;
@@ -19934,6 +19941,10 @@
                     }
                 }
                 catch ( /* ignore */_d) { /* ignore */ }
+                // IM system needs a non-empty message — skip display for metadata-only beeps
+                const msg = stripBeepMetadata(typeof beep.Message === "string" ? beep.Message : "");
+                if (!msg)
+                    return next(args);
                 // Only intercept beeps from BC friends into the EBC IM system.
                 // Beeps from non-friends (addon bots, update notifications, etc.) fall
                 // through to BC's native chat-log notification so they're still visible.
