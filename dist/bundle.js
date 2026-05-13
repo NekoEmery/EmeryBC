@@ -6525,55 +6525,78 @@
 }
 .ebc-seq-add-btn:hover { background: #1b0d17; color: #cf6f98; border-style: solid; }
 
-/* ── Resize handle ─────────────────────────────────────────────────────── */
-#ebc-resize-handle {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 5px;
-    height: 100%;
-    cursor: col-resize;
-    z-index: 100;
-    background: transparent;
-    transition: background 0.15s;
-}
-#ebc-resize-handle:hover { background: rgba(207,111,152,0.22); }
 `;
     // ── Drawer appearance / layout helpers ───────────────────────────────────
-    const EBC_ACCENT_KEY = "EBC_accentColor";
-    const EBC_WIDTH_KEY = "EBC_drawerWidth";
+    const EBC_THEME_KEY = "EBC_theme";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
     const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
         outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
         notes: "USERS", thanks: "CREDITS", dev: "DEV",
     };
-    function getAccentColor() {
+    const EBC_THEMES = {
+        default: {
+            name: "Default (Pink)",
+            bg: "#1a0d14", card: "#23101d", cardMuted: "#1b0d17",
+            bgDark: "#130810", bgDarker: "#100810", bgMid: "#2d1422",
+            border: "#3a1928", borderLight: "#4c2537",
+            accent: "#cf6f98", accentHover: "#e085ad", accentDim: "#a85678",
+            textMuted: "#7a5a6a", textSub: "#c09098", textBright: "#f7e6ee",
+        },
+        purple: {
+            name: "Purple",
+            bg: "#0e0d1a", card: "#13102a", cardMuted: "#110d20",
+            bgDark: "#0c0814", bgDarker: "#090810", bgMid: "#1e1438",
+            border: "#241940", borderLight: "#332552",
+            accent: "#9b6fcf", accentHover: "#b185e0", accentDim: "#7a56a8",
+            textMuted: "#5a5a7a", textSub: "#9890c0", textBright: "#ece6f7",
+        },
+        blue: {
+            name: "Blue",
+            bg: "#0d1220", card: "#101b2e", cardMuted: "#0d1525",
+            bgDark: "#08101a", bgDarker: "#080d14", bgMid: "#142038",
+            border: "#1e3050", borderLight: "#284068",
+            accent: "#6fa8cf", accentHover: "#85bee0", accentDim: "#5678a8",
+            textMuted: "#5a6a7a", textSub: "#90a8c0", textBright: "#e6eff7",
+        },
+        green: {
+            name: "Green",
+            bg: "#0d1a10", card: "#102312", cardMuted: "#0d1b0f",
+            bgDark: "#081309", bgDarker: "#081009", bgMid: "#142d17",
+            border: "#193a20", borderLight: "#254c2a",
+            accent: "#6fcf88", accentHover: "#85e09a", accentDim: "#56a86a",
+            textMuted: "#5a7a5e", textSub: "#90c098", textBright: "#e6f7e8",
+        },
+        red: {
+            name: "Red",
+            bg: "#1a0d0d", card: "#231010", cardMuted: "#1b0d0d",
+            bgDark: "#130808", bgDarker: "#100808", bgMid: "#2d1414",
+            border: "#3a1919", borderLight: "#4c2525",
+            accent: "#cf6f6f", accentHover: "#e08585", accentDim: "#a85656",
+            textMuted: "#7a5a5a", textSub: "#c09090", textBright: "#f7e6e6",
+        },
+        dark: {
+            name: "Dark (Mono)",
+            bg: "#141414", card: "#1e1e1e", cardMuted: "#181818",
+            bgDark: "#111111", bgDarker: "#0e0e0e", bgMid: "#242424",
+            border: "#2e2e2e", borderLight: "#3a3a3a",
+            accent: "#a0a0a0", accentHover: "#c0c0c0", accentDim: "#808080",
+            textMuted: "#666666", textSub: "#999999", textBright: "#e0e0e0",
+        },
+    };
+    function getTheme() {
+        var _a;
         try {
-            return localStorage.getItem(EBC_ACCENT_KEY) || "#cf6f98";
+            const key = localStorage.getItem(EBC_THEME_KEY) || "default";
+            return (_a = EBC_THEMES[key]) !== null && _a !== void 0 ? _a : EBC_THEMES["default"];
         }
-        catch (_a) {
-            return "#cf6f98";
+        catch (_b) {
+            return EBC_THEMES["default"];
         }
     }
-    function setAccentColor(hex) {
+    function setTheme(key) {
         try {
-            localStorage.setItem(EBC_ACCENT_KEY, hex);
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function getDrawerWidth() {
-        try {
-            const v = parseInt(localStorage.getItem(EBC_WIDTH_KEY) || "360", 10);
-            return isNaN(v) ? 360 : Math.min(600, Math.max(280, v));
-        }
-        catch (_a) {
-            return 360;
-        }
-    }
-    function setDrawerWidth(px) {
-        try {
-            localStorage.setItem(EBC_WIDTH_KEY, String(Math.round(Math.min(600, Math.max(280, px)))));
+            localStorage.setItem(EBC_THEME_KEY, key);
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -6592,9 +6615,23 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    function buildCSS(accent) {
-        // Replace all accent color occurrences in the CSS string with the user's chosen color
-        return CSS.split("#cf6f98").join(accent);
+    function buildCSS(theme) {
+        let css = CSS;
+        css = css.split("#1a0d14").join(theme.bg);
+        css = css.split("#23101d").join(theme.card);
+        css = css.split("#1b0d17").join(theme.cardMuted);
+        css = css.split("#130810").join(theme.bgDark);
+        css = css.split("#100810").join(theme.bgDarker);
+        css = css.split("#2d1422").join(theme.bgMid);
+        css = css.split("#3a1928").join(theme.border);
+        css = css.split("#4c2537").join(theme.borderLight);
+        css = css.split("#cf6f98").join(theme.accent);
+        css = css.split("#e085ad").join(theme.accentHover);
+        css = css.split("#a85678").join(theme.accentDim);
+        css = css.split("#7a5a6a").join(theme.textMuted);
+        css = css.split("#c09098").join(theme.textSub);
+        css = css.split("#f7e6ee").join(theme.textBright);
+        return css;
     }
     // -- VIP members (highlighted in Notes tab when present in the room) -----------
     const VIP_MEMBERS = {
@@ -6762,27 +6799,6 @@
             const slideContainer = document.createElement("div");
             slideContainer.id = "emerybc-panel";
             slideContainer.className = "ebc-closed";
-            slideContainer.style.width = getDrawerWidth() + "px";
-            // Resize handle — dragging the left edge adjusts the panel width
-            const resizeHandle = document.createElement("div");
-            resizeHandle.id = "ebc-resize-handle";
-            resizeHandle.addEventListener("mousedown", (e) => {
-                e.preventDefault();
-                const startX = e.clientX;
-                const startW = slideContainer.offsetWidth;
-                const onMove = (ev) => {
-                    const newW = Math.min(600, Math.max(280, startW + (startX - ev.clientX)));
-                    slideContainer.style.width = newW + "px";
-                };
-                const onUp = () => {
-                    document.removeEventListener("mousemove", onMove);
-                    document.removeEventListener("mouseup", onUp);
-                    setDrawerWidth(slideContainer.offsetWidth);
-                };
-                document.addEventListener("mousemove", onMove);
-                document.addEventListener("mouseup", onUp);
-            });
-            slideContainer.appendChild(resizeHandle);
             // Inner panel (visual content)
             const panel = document.createElement("div");
             panel.className = "ebc-panel";
@@ -7504,7 +7520,7 @@
                 s.id = "emerybc-drawer-css";
                 document.head.appendChild(s);
             }
-            s.textContent = buildCSS(getAccentColor());
+            s.textContent = buildCSS(getTheme());
         }
         // -- Positioning -----------------------------------------------------------
         // Aligned to the right edge of TextAreaChatLog.
@@ -10416,7 +10432,7 @@
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a, _b;
+            var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -11081,78 +11097,6 @@
                 catch ( /* ignore */_a) { /* ignore */ }
             });
             body.appendChild(clearPoseBtn);
-            // ── Drawer Appearance ─────────────────────────────────────────────────
-            const appLbl = document.createElement("div");
-            appLbl.className = "ebc-section-label";
-            appLbl.style.marginTop = "14px";
-            appLbl.textContent = "Drawer Appearance";
-            body.appendChild(appLbl);
-            // Accent color
-            const accentRow = document.createElement("div");
-            accentRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
-            const accentTxtLbl = document.createElement("span");
-            accentTxtLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
-            accentTxtLbl.textContent = "Accent color";
-            const accentPicker = document.createElement("input");
-            accentPicker.type = "color";
-            accentPicker.value = getAccentColor();
-            accentPicker.style.cssText = "width:28px;height:24px;padding:0;border:1px solid #4c2537;border-radius:4px;background:transparent;cursor:pointer;flex-shrink:0;";
-            accentPicker.title = "Pick accent color";
-            const accentHex = Object.assign(document.createElement("input"), { type: "text", maxLength: 7, value: getAccentColor() });
-            accentHex.style.cssText = "width:66px;font-family:'Courier New',monospace;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:2px 5px;flex-shrink:0;";
-            const accentResetBtn = document.createElement("button");
-            accentResetBtn.textContent = "Reset";
-            accentResetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;";
-            const applyAccent = (hex) => {
-                const clean = hex.trim();
-                if (!/^#[0-9a-fA-F]{6}$/.test(clean))
-                    return;
-                setAccentColor(clean);
-                accentPicker.value = clean;
-                accentHex.value = clean;
-                this.injectStyles(); // re-inject CSS with new accent
-            };
-            accentPicker.addEventListener("input", () => applyAccent(accentPicker.value));
-            accentHex.addEventListener("change", () => applyAccent(accentHex.value));
-            accentHex.addEventListener("keydown", e => { if (e.key === "Enter")
-                applyAccent(accentHex.value); });
-            accentResetBtn.addEventListener("click", () => applyAccent("#cf6f98"));
-            accentRow.appendChild(accentTxtLbl);
-            accentRow.appendChild(accentPicker);
-            accentRow.appendChild(accentHex);
-            accentRow.appendChild(accentResetBtn);
-            body.appendChild(accentRow);
-            // Tab visibility
-            const tabVisLbl = document.createElement("div");
-            tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
-            tabVisLbl.textContent = "Visible tabs";
-            body.appendChild(tabVisLbl);
-            const tabVisGrid = document.createElement("div");
-            tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;";
-            const hiddenTabs = getHiddenTabs();
-            for (const tabId of EBC_USER_TABS) {
-                const isVisible = !hiddenTabs.includes(tabId);
-                const chip = document.createElement("button");
-                chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "#91405f" : "#3a1928"};background:${isVisible ? "#2a1421" : "transparent"};color:${isVisible ? "#cf6f98" : "#7a5a6a"};`;
-                chip.textContent = (_b = EBC_TAB_LABELS[tabId]) !== null && _b !== void 0 ? _b : tabId.toUpperCase();
-                chip.dataset["tabId"] = tabId;
-                chip.addEventListener("click", () => {
-                    const cur = getHiddenTabs();
-                    const nowHidden = cur.includes(tabId) ? cur.filter(t => t !== tabId) : [...cur, tabId];
-                    // Always keep at least one tab visible
-                    const visible = EBC_USER_TABS.filter(t => !nowHidden.includes(t));
-                    if (visible.length === 0)
-                        return;
-                    setHiddenTabs(nowHidden);
-                    const nowVis = !nowHidden.includes(tabId);
-                    chip.style.borderColor = nowVis ? "#91405f" : "#3a1928";
-                    chip.style.background = nowVis ? "#2a1421" : "transparent";
-                    chip.style.color = nowVis ? "#cf6f98" : "#7a5a6a";
-                    this.applyTabVisibility();
-                });
-                tabVisGrid.appendChild(chip);
-            }
-            body.appendChild(tabVisGrid);
         }
         // -- Appearance diff -------------------------------------------------------
         renderDiff(panel, outfit) {
@@ -14476,6 +14420,71 @@
                 div.className = "ebc-divider";
                 body.appendChild(div);
             };
+            // ── Drawer Appearance ─────────────────────────────────────────────────
+            makeSection("DRAWER APPEARANCE", "EBC_devAppearanceCollapsed", false, (cnt) => {
+                var _a;
+                // Theme dropdown row
+                const themeRow = document.createElement("div");
+                themeRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
+                const themeLbl = document.createElement("span");
+                themeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
+                themeLbl.textContent = "Colour theme";
+                const themeSel = document.createElement("select");
+                themeSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
+                const currentKey = (() => {
+                    try {
+                        return localStorage.getItem(EBC_THEME_KEY) || "default";
+                    }
+                    catch (_a) {
+                        return "default";
+                    }
+                })();
+                for (const [key, t] of Object.entries(EBC_THEMES)) {
+                    const opt = document.createElement("option");
+                    opt.value = key;
+                    opt.textContent = t.name;
+                    if (key === currentKey)
+                        opt.selected = true;
+                    themeSel.appendChild(opt);
+                }
+                themeSel.addEventListener("change", () => {
+                    setTheme(themeSel.value);
+                    this.injectStyles();
+                });
+                themeRow.appendChild(themeLbl);
+                themeRow.appendChild(themeSel);
+                cnt.appendChild(themeRow);
+                // Tab visibility
+                const tabVisLbl = document.createElement("div");
+                tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin:4px 0 4px 2px;";
+                tabVisLbl.textContent = "Visible tabs";
+                cnt.appendChild(tabVisLbl);
+                const tabVisGrid = document.createElement("div");
+                tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;";
+                const hiddenTabs = getHiddenTabs();
+                for (const tabId of EBC_USER_TABS) {
+                    const isVisible = !hiddenTabs.includes(tabId);
+                    const chip = document.createElement("button");
+                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "#91405f" : "#3a1928"};background:${isVisible ? "#2a1421" : "transparent"};color:${isVisible ? "#cf6f98" : "#7a5a6a"};`;
+                    chip.textContent = (_a = EBC_TAB_LABELS[tabId]) !== null && _a !== void 0 ? _a : tabId.toUpperCase();
+                    chip.dataset["tabId"] = tabId;
+                    chip.addEventListener("click", () => {
+                        const cur = getHiddenTabs();
+                        const nowHidden = cur.includes(tabId) ? cur.filter(t => t !== tabId) : [...cur, tabId];
+                        const visible = EBC_USER_TABS.filter(t => !nowHidden.includes(t));
+                        if (visible.length === 0)
+                            return;
+                        setHiddenTabs(nowHidden);
+                        const nowVis = !nowHidden.includes(tabId);
+                        chip.style.borderColor = nowVis ? "#91405f" : "#3a1928";
+                        chip.style.background = nowVis ? "#2a1421" : "transparent";
+                        chip.style.color = nowVis ? "#cf6f98" : "#7a5a6a";
+                        this.applyTabVisibility();
+                    });
+                    tabVisGrid.appendChild(chip);
+                }
+                cnt.appendChild(tabVisGrid);
+            });
             // ── EBC Users In This Room ─────────────────────────────────────────────
             makeSection("EBC USERS IN THIS ROOM", "EBC_devEbcUsersCollapsed", true, (cnt) => {
                 const presListEl = document.createElement("div");
@@ -17301,7 +17310,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.7.3";
+    const MOD_VERSION = "1.7.4";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -17309,6 +17318,14 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.7.4",
+            changes: [
+                "Rework: Drawer Appearance moved to Dev tab as a collapsible section.",
+                "Rework: Accent color picker replaced with a full colour theme dropdown — choose from Default (Pink), Purple, Blue, Green, Red, or Dark (Mono). Changing the theme rewrites the entire CSS palette instantly.",
+                "Remove: drawer resize handle removed.",
+            ],
+        },
         {
             version: "1.7.3",
             changes: [

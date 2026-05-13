@@ -221,13 +221,12 @@ Three sub-sections, each collapsible:
 
 ## 🖼️ Drawer Appearance
 
-Customisation options found in the **Buttons** tab under *Drawer Appearance*.
+Customisation options found in the **Dev** tab under *Drawer Appearance*.
 
 | Setting | What it does |
 |---|---|
-| **Accent color** | Change the default pink (`#cf6f98`) to any hex value. The CSS reloads instantly — a Reset button restores the original. |
+| **Colour theme** | Choose from Default (Pink), Purple, Blue, Green, Red, or Dark (Mono). The entire CSS palette — background, cards, borders, accent, text — updates instantly. |
 | **Tab visibility** | Hide tabs you never use. Each tab has a chip toggle; hidden tabs disappear from the tab bar and EBC falls back to the first visible tab automatically. |
-| **Drawer width** | Drag the left edge of the drawer to resize it (280–600 px). Width is saved to localStorage. |
 
 **Outfit search** — a text filter appears at the top of the Outfits tab so you can narrow a long list by name as you type.
 

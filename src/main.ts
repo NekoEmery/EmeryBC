@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.7.3";
+const MOD_VERSION = "1.7.4";
 
 let noticeShown = false;
 
@@ -26,6 +26,14 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.7.4",
+        changes: [
+            "Rework: Drawer Appearance moved to Dev tab as a collapsible section.",
+            "Rework: Accent color picker replaced with a full colour theme dropdown — choose from Default (Pink), Purple, Blue, Green, Red, or Dark (Mono). Changing the theme rewrites the entire CSS palette instantly.",
+            "Remove: drawer resize handle removed.",
+        ],
+    },
     {
         version: "1.7.3",
         changes: [
