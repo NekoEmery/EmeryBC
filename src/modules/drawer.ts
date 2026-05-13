@@ -11905,7 +11905,7 @@ export class EBCDrawer {
             }
             try {
                 const wornItems = Player.Appearance
-                    .filter((i: Item) => i.Asset.Group.IsRestraint && !whitelist.includes(getItemKey(i)));
+                    .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !whitelist.includes(getItemKey(i)));
                 if (wornItems.length > 0) {
                     const addLabel = document.createElement("span");
                     addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;margin-right:4px;align-self:center;width:100%;margin-bottom:2px;";

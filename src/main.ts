@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.6.8";
+const MOD_VERSION = "1.6.9";
 
 let noticeShown = false;
 
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.6.9",
+        changes: [
+            "Fix: OOC toggle and anti-restraint whitelist (add/remove) now save correctly — all set* functions in settings.ts were calling ServerPlayerExtensionSettingsSync bare, missing async rejections from mod hooks. Wrapped with callBC across the board.",
+            "Fix: whitelist 'currently wearing' picker now shows collar and neck items (same IsRestraint flag gap as the escape logic, now uses RESTRAINT_GROUPS).",
+        ],
+    },
     {
         version: "1.6.8",
         changes: [

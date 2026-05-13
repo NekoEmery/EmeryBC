@@ -1604,7 +1604,7 @@
             if (!store)
                 return;
             store.badgeEnabled = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1626,7 +1626,7 @@
             if (!store)
                 return;
             store.showVersionBadge = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1648,7 +1648,7 @@
             if (!store)
                 return;
             store.antiRestraint = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1671,7 +1671,7 @@
             if (!store)
                 return;
             store.antiRestraintWhitelist = groups;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1701,7 +1701,7 @@
             if (!store)
                 return;
             store.antiRestraintConfirm = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1723,7 +1723,7 @@
             if (!store)
                 return;
             store.suppressNativeBeep = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1746,7 +1746,7 @@
             if (!store)
                 return;
             store.updateNotify = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1767,7 +1767,7 @@
             const s = getStore$5();
             if (s) {
                 s.afkEnabled = v;
-                ServerPlayerExtensionSettingsSync("EmeryBC");
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
             }
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -1787,7 +1787,7 @@
             const s = getStore$5();
             if (s) {
                 s.afkThreshold = Math.max(1, Math.min(120, Math.round(n)));
-                ServerPlayerExtensionSettingsSync("EmeryBC");
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
             }
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -1807,7 +1807,7 @@
             const s = getStore$5();
             if (s) {
                 s.afkMessage = msg.slice(0, 200).trim();
-                ServerPlayerExtensionSettingsSync("EmeryBC");
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
             }
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -1831,7 +1831,7 @@
             if (!store)
                 return;
             store.oocEnabled = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1852,7 +1852,7 @@
             if (!store)
                 return;
             store.roomHistoryEnabled = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1873,7 +1873,7 @@
             if (!store)
                 return;
             store.restraintLogEnabled = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1893,7 +1893,7 @@
             if (!store)
                 return;
             store.beepMuted = value;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1924,7 +1924,7 @@
                 list.push({ n: memberNumber, name });
             }
             store.peopleMet = list;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1934,7 +1934,7 @@
             if (!store)
                 return;
             store.peopleMet = [];
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -15796,7 +15796,7 @@
                 }
                 try {
                     const wornItems = Player.Appearance
-                        .filter((i) => i.Asset.Group.IsRestraint && !whitelist.includes(getItemKey(i)));
+                        .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !whitelist.includes(getItemKey(i)));
                     if (wornItems.length > 0) {
                         const addLabel = document.createElement("span");
                         addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;margin-right:4px;align-self:center;width:100%;margin-bottom:2px;";
@@ -16778,7 +16778,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.6.8";
+    const MOD_VERSION = "1.6.9";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -16786,6 +16786,13 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.6.9",
+            changes: [
+                "Fix: OOC toggle and anti-restraint whitelist (add/remove) now save correctly — all set* functions in settings.ts were calling ServerPlayerExtensionSettingsSync bare, missing async rejections from mod hooks. Wrapped with callBC across the board.",
+                "Fix: whitelist 'currently wearing' picker now shows collar and neck items (same IsRestraint flag gap as the escape logic, now uses RESTRAINT_GROUPS).",
+            ],
+        },
         {
             version: "1.6.8",
             changes: [
