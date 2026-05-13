@@ -6,13 +6,18 @@
 // Whitelisted items (anti-restraint whitelist) are never logged.
 
 export interface RestraintLogEntry {
-    id:            string;
-    itemName:      string;
-    group:         string;  // asset group with "Item" prefix stripped
-    applier:       string;  // display name or "#number"
-    applierNumber: number | null;
-    appliedAt:     number;  // unix ms
-    removedAt:     number | null;
+    id:             string;
+    itemName:       string;
+    craftName:      string | null;
+    group:          string;          // asset group with "Item" prefix stripped
+    applier:        string;          // display name or "#number"
+    applierNumber:  number | null;
+    appliedAt:      number;          // unix ms
+    removedAt:      number | null;
+    colors:         string | string[] | null;  // item.Color at time of application
+    lockType:       string | null;   // "Lock" | "Combo" | "Pwd" | "Key" — null if unlocked
+    lockedByName:   string | null;   // resolved at capture time
+    lockedByNumber: number | null;
 }
 
 import { getRestraintLogEnabled, getAntiRestraintWhitelist } from "./settings";
@@ -31,7 +36,17 @@ let knownGroups = new Set<string>();
 // applier's name. We queue detected additions and flush them once the name
 // arrives (or after a 400 ms timeout if it never does).
 
-interface PendingEntry { id: string; itemName: string; group: string; appliedAt: number; }
+interface PendingEntry {
+    id:             string;
+    itemName:       string;
+    group:          string;
+    appliedAt:      number;
+    craftName:      string | null;
+    colors:         string | string[] | null;
+    lockType:       string | null;
+    lockedByName:   string | null;
+    lockedByNumber: number | null;
+}
 const pendingEntries: PendingEntry[] = [];
 let pendingApplier:       string | null = null;
 let pendingApplierNumber: number | null = null;
@@ -57,13 +72,18 @@ function flushPending(applierName: string, applierNumber: number | null = null):
     const log = loadLog();
     for (const p of pendingEntries.splice(0)) {
         log.unshift({
-            id:            p.id,
-            itemName:      p.itemName,
-            group:         p.group,
-            applier:       applierName || "Unknown",
-            applierNumber: applierNumber,
-            appliedAt:     p.appliedAt,
-            removedAt:     null,
+            id:             p.id,
+            itemName:       p.itemName,
+            craftName:      p.craftName,
+            group:          p.group,
+            applier:        applierName || "Unknown",
+            applierNumber:  applierNumber,
+            appliedAt:      p.appliedAt,
+            removedAt:      null,
+            colors:         p.colors,
+            lockType:       p.lockType,
+            lockedByName:   p.lockedByName,
+            lockedByNumber: p.lockedByNumber,
         });
     }
     saveLog(log);
@@ -144,11 +164,39 @@ export function checkRestraintChanges(): void {
                     || item.Asset.Name;
                 const id = uid();
                 activeIds.set(group, id);
+
+                // Capture lock state at time of application
+                const prop = item.Property as Record<string, unknown> | undefined;
+                const lockedByNum = prop?.LockedBy as number | undefined;
+                let lockedByName: string | null = null;
+                if (lockedByNum !== undefined) {
+                    const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                        Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
+                    const locker = chars?.find(c => c.MemberNumber === lockedByNum);
+                    lockedByName = locker
+                        ? ((locker.Nickname || locker.Name) ?? `#${lockedByNum}`)
+                        : `#${lockedByNum}`;
+                }
+                const lockType = lockedByNum !== undefined
+                    ? (prop?.CombinationNumber ? "Combo"
+                        : prop?.Password       ? "Pwd"
+                        : prop?.MemberNumberListKeys ? "Key"
+                        : "Lock")
+                    : null;
+
+                // Craft name (custom item name set by the creator)
+                const craft = item.Craft as { Name?: string } | undefined;
+
                 pendingEntries.push({
                     id,
                     itemName,
-                    group: group.replace(/^Item/, ""),
-                    appliedAt: Date.now(),
+                    group:          group.replace(/^Item/, ""),
+                    appliedAt:      Date.now(),
+                    craftName:      craft?.Name ?? null,
+                    colors:         item.Color ?? null,
+                    lockType,
+                    lockedByName,
+                    lockedByNumber: lockedByNum ?? null,
                 });
                 hasNew = true;
             }

@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.7.5";
+const MOD_VERSION = "1.7.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -27,6 +27,14 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.7.6",
+        changes: [
+            "New: Restraint log now captures colours, lock type, locker name, and craft name at time of application — shown as colour swatches, a lock badge, and gold italic craft name per entry.",
+            "New: SAVED COMBOS and SCENES sections in the Anims tab are now collapsible (▼/▶) with state saved to localStorage.",
+            "Tweak: Tab buttons are taller (10 px padding) and slightly larger font for easier tapping on tablets.",
+        ],
+    },
     {
         version: "1.7.5",
         changes: [

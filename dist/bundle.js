@@ -2822,11 +2822,16 @@
             log.unshift({
                 id: p.id,
                 itemName: p.itemName,
+                craftName: p.craftName,
                 group: p.group,
                 applier: applierName || "Unknown",
                 applierNumber: applierNumber,
                 appliedAt: p.appliedAt,
                 removedAt: null,
+                colors: p.colors,
+                lockType: p.lockType,
+                lockedByName: p.lockedByName,
+                lockedByNumber: p.lockedByNumber,
             });
         }
         saveLog(log);
@@ -2874,6 +2879,7 @@
     // Removals are written immediately. Additions are queued and flushed once the
     // applier name arrives via setPendingLogApplier (or after 400 ms timeout).
     function checkRestraintChanges() {
+        var _a, _b, _c;
         if (!getRestraintLogEnabled())
             return;
         try {
@@ -2909,11 +2915,35 @@
                         || item.Asset.Name;
                     const id = uid$1();
                     activeIds.set(group, id);
+                    // Capture lock state at time of application
+                    const prop = item.Property;
+                    const lockedByNum = prop === null || prop === void 0 ? void 0 : prop.LockedBy;
+                    let lockedByName = null;
+                    if (lockedByNum !== undefined) {
+                        const chars = window.ChatRoomCharacter;
+                        const locker = chars === null || chars === void 0 ? void 0 : chars.find(c => c.MemberNumber === lockedByNum);
+                        lockedByName = locker
+                            ? ((_a = (locker.Nickname || locker.Name)) !== null && _a !== void 0 ? _a : `#${lockedByNum}`)
+                            : `#${lockedByNum}`;
+                    }
+                    const lockType = lockedByNum !== undefined
+                        ? ((prop === null || prop === void 0 ? void 0 : prop.CombinationNumber) ? "Combo"
+                            : (prop === null || prop === void 0 ? void 0 : prop.Password) ? "Pwd"
+                                : (prop === null || prop === void 0 ? void 0 : prop.MemberNumberListKeys) ? "Key"
+                                    : "Lock")
+                        : null;
+                    // Craft name (custom item name set by the creator)
+                    const craft = item.Craft;
                     pendingEntries.push({
                         id,
                         itemName,
                         group: group.replace(/^Item/, ""),
                         appliedAt: Date.now(),
+                        craftName: (_b = craft === null || craft === void 0 ? void 0 : craft.Name) !== null && _b !== void 0 ? _b : null,
+                        colors: (_c = item.Color) !== null && _c !== void 0 ? _c : null,
+                        lockType,
+                        lockedByName,
+                        lockedByNumber: lockedByNum !== null && lockedByNum !== void 0 ? lockedByNum : null,
                     });
                     hasNew = true;
                 }
@@ -2938,7 +2968,7 @@
                 }
             }
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
     }
     function getRestraintLog() { return loadLog(); }
     function clearRestraintLog() {
@@ -4560,10 +4590,10 @@
     color: #9a7888;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: bold;
     letter-spacing: 0.01em;
-    padding: 6px 1px;
+    padding: 10px 2px;
     transition: color 0.14s, border-color 0.14s;
 }
 
@@ -11158,6 +11188,45 @@
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const currentPoses = getCurrentPoses();
+            // ── Collapsible section helper ────────────────────────────────────────
+            const makeCollapse = (title, lsKey, defaultCollapsed) => {
+                let collapsed = defaultCollapsed;
+                try {
+                    const v = localStorage.getItem(lsKey);
+                    if (v !== null)
+                        collapsed = v === "1";
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                const divider = document.createElement("div");
+                divider.className = "ebc-divider";
+                body.appendChild(divider);
+                const hdr = document.createElement("div");
+                hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:4px 0 3px;";
+                const chev = document.createElement("span");
+                chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
+                chev.textContent = collapsed ? "▶" : "▼";
+                const lbl = document.createElement("span");
+                lbl.className = "ebc-section-label";
+                lbl.style.margin = "0";
+                lbl.textContent = title;
+                hdr.appendChild(chev);
+                hdr.appendChild(lbl);
+                body.appendChild(hdr);
+                const cnt = document.createElement("div");
+                cnt.style.paddingBottom = "4px";
+                cnt.style.display = collapsed ? "none" : "";
+                body.appendChild(cnt);
+                hdr.addEventListener("click", () => {
+                    collapsed = !collapsed;
+                    try {
+                        localStorage.setItem(lsKey, collapsed ? "1" : "0");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    chev.textContent = collapsed ? "▶" : "▼";
+                    cnt.style.display = collapsed ? "none" : "";
+                });
+                return cnt;
+            };
             // ── POSES ─────────────────────────────────────────────────────────────
             // Helper: true when a pose key is currently active
             const isPoseActive = (key) => currentPoses.includes(key);
@@ -11479,21 +11548,15 @@
                     grid.appendChild(btn);
                 }
             }
-            // ── Saved Combos ──────────────────────────────────────────────────────
-            const divEl = document.createElement("div");
-            divEl.className = "ebc-divider";
-            body.appendChild(divEl);
-            const combosLbl = document.createElement("div");
-            combosLbl.className = "ebc-section-label";
-            combosLbl.textContent = "SAVED COMBOS";
-            body.appendChild(combosLbl);
+            // ── Saved Combos (collapsible) ────────────────────────────────────────
+            const combosCnt = makeCollapse("SAVED COMBOS", "EBC_combosCollapsed", false);
             const combos = getPoseCombos();
             if (combos.length === 0) {
                 const none = document.createElement("div");
                 none.className = "ebc-empty";
                 none.style.padding = "4px 0 6px";
                 none.textContent = "No combos yet — create one below.";
-                body.appendChild(none);
+                combosCnt.appendChild(none);
             }
             for (const combo of combos) {
                 const wrapper = document.createElement("div");
@@ -11641,19 +11704,19 @@
                 });
                 wrapper.appendChild(row);
                 wrapper.appendChild(editor);
-                body.appendChild(wrapper);
+                combosCnt.appendChild(wrapper);
             }
             // ── New combo form ────────────────────────────────────────────────────
             const div2 = document.createElement("div");
             div2.className = "ebc-divider";
-            body.appendChild(div2);
+            combosCnt.appendChild(div2);
             const newComboToggle = document.createElement("button");
             newComboToggle.className = "ebc-new-outfit-btn";
             newComboToggle.textContent = "+ New Pose Combo";
-            body.appendChild(newComboToggle);
+            combosCnt.appendChild(newComboToggle);
             const newComboForm = document.createElement("div");
             newComboForm.className = "ebc-new-form";
-            body.appendChild(newComboForm);
+            combosCnt.appendChild(newComboForm);
             // Name
             const ncNameRow = document.createElement("div");
             ncNameRow.className = "ebc-form-row";
@@ -11715,8 +11778,9 @@
                     window.setTimeout(() => newComboToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
                 }
             });
-            // ── SCENES ────────────────────────────────────────────────────────────
-            this.renderScenes(body);
+            // ── SCENES (collapsible) ─────────────────────────────────────────────
+            const scenesCnt = makeCollapse("SCENES", "EBC_scenesCollapsed", false);
+            this.renderScenes(scenesCnt);
         }
         renderScenes(body) {
             var _a, _b, _c, _d, _e;
@@ -12411,13 +12475,6 @@
                 return { getSteps: () => entries.map(e => e.getStep()) };
             };
             // ── Scene list ─────────────────────────────────────────────────────────
-            const sceneDivider = document.createElement("div");
-            sceneDivider.className = "ebc-divider";
-            body.appendChild(sceneDivider);
-            const scenesLbl = document.createElement("div");
-            scenesLbl.className = "ebc-section-label";
-            scenesLbl.textContent = "SCENES";
-            body.appendChild(scenesLbl);
             const scenesHint = document.createElement("div");
             scenesHint.className = "ebc-import-hint";
             scenesHint.style.marginBottom = "6px";
@@ -15331,6 +15388,7 @@
                     rlToggleRow.appendChild(rlToggleBtn);
                     c.appendChild(rlToggleRow);
                     renderRlog = () => {
+                        var _a;
                         while (rlToggleRow.nextSibling)
                             c.removeChild(rlToggleRow.nextSibling);
                         if (!getRestraintLogEnabled()) {
@@ -15349,32 +15407,19 @@
                             return;
                         }
                         for (const entry of entries) {
-                            const row = document.createElement("div");
-                            row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 4px;border-bottom:1px solid #2a1421;";
-                            // Item name + group
+                            const card = document.createElement("div");
+                            card.style.cssText = "padding:5px 4px 4px;border-bottom:1px solid #2a1421;";
+                            // ── Top row: name + craft + group + duration ──────────
+                            const topRow = document.createElement("div");
+                            topRow.style.cssText = "display:flex;align-items:baseline;gap:5px;margin-bottom:2px;";
                             const nameEl = document.createElement("span");
                             nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d8ec;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                             nameEl.textContent = entry.itemName;
-                            nameEl.title = `${entry.itemName} (${entry.group})  ·  ${new Date(entry.appliedAt).toLocaleString()}`;
-                            row.appendChild(nameEl);
-                            // Applier name + member number
-                            const applierWrap = document.createElement("span");
-                            applierWrap.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;";
-                            const applierEl = document.createElement("span");
-                            applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#e890b8;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                            applierEl.textContent = entry.applier;
-                            applierWrap.appendChild(applierEl);
-                            if (entry.applierNumber != null) {
-                                const numEl = document.createElement("span");
-                                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7090;white-space:nowrap;";
-                                numEl.textContent = `#${entry.applierNumber}`;
-                                applierWrap.appendChild(numEl);
-                            }
-                            applierWrap.title = `Applied by: ${entry.applier}${entry.applierNumber != null ? ` #${entry.applierNumber}` : ""}`;
-                            row.appendChild(applierWrap);
-                            // Duration / status
+                            const groupEl = document.createElement("span");
+                            groupEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;white-space:nowrap;";
+                            groupEl.textContent = entry.group;
                             const durEl = document.createElement("span");
-                            durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;flex-shrink:0;min-width:42px;text-align:right;";
+                            durEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;flex-shrink:0;white-space:nowrap;";
                             if (entry.removedAt !== null) {
                                 durEl.textContent = fmtDuration(entry.removedAt - entry.appliedAt);
                                 durEl.style.color = "#9a7090";
@@ -15385,8 +15430,73 @@
                                 durEl.style.color = "#79a885";
                                 durEl.title = "Still wearing";
                             }
-                            row.appendChild(durEl);
-                            c.appendChild(row);
+                            topRow.appendChild(nameEl);
+                            topRow.appendChild(groupEl);
+                            topRow.appendChild(durEl);
+                            card.appendChild(topRow);
+                            // Craft name subtitle (if present)
+                            if (entry.craftName) {
+                                const craftEl = document.createElement("div");
+                                craftEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c9ab72;font-style:italic;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                                craftEl.textContent = `"${entry.craftName}"`;
+                                craftEl.title = `Craft name: ${entry.craftName}`;
+                                card.appendChild(craftEl);
+                            }
+                            // ── Bottom row: colors + lock + applier ───────────────
+                            const btmRow = document.createElement("div");
+                            btmRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+                            // Color swatches
+                            const rawColors = entry.colors;
+                            const colorArr = rawColors == null ? []
+                                : Array.isArray(rawColors) ? rawColors
+                                    : [rawColors];
+                            const validColors = colorArr.filter(c => typeof c === "string" && c.startsWith("#")).slice(0, 8);
+                            if (validColors.length > 0) {
+                                const swatchRow = document.createElement("span");
+                                swatchRow.style.cssText = "display:flex;align-items:center;gap:2px;flex-shrink:0;";
+                                for (const col of validColors) {
+                                    const dot = document.createElement("span");
+                                    dot.style.cssText = `display:inline-block;width:8px;height:8px;border-radius:50%;background:${col};border:1px solid #3a1928;flex-shrink:0;`;
+                                    dot.title = col;
+                                    swatchRow.appendChild(dot);
+                                }
+                                swatchRow.title = `Colors: ${validColors.join(", ")}`;
+                                btmRow.appendChild(swatchRow);
+                            }
+                            // Lock badge
+                            if (entry.lockType !== null) {
+                                const lockEl = document.createElement("span");
+                                lockEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#2a1020;border:1px solid #5a2040;color:#e890b8;padding:0 4px;border-radius:3px;flex-shrink:0;white-space:nowrap;";
+                                const lockerLabel = (_a = entry.lockedByName) !== null && _a !== void 0 ? _a : (entry.lockedByNumber != null ? `#${entry.lockedByNumber}` : null);
+                                lockEl.textContent = lockerLabel
+                                    ? `🔒 ${entry.lockType} · ${lockerLabel}`
+                                    : `🔒 ${entry.lockType}`;
+                                lockEl.title = lockerLabel
+                                    ? `Lock: ${entry.lockType}  ·  Locked by: ${lockerLabel}`
+                                    : `Lock: ${entry.lockType}`;
+                                btmRow.appendChild(lockEl);
+                            }
+                            // Spacer
+                            const spacer = document.createElement("span");
+                            spacer.style.flex = "1";
+                            btmRow.appendChild(spacer);
+                            // Applier
+                            const applierWrap = document.createElement("span");
+                            applierWrap.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;";
+                            const applierEl = document.createElement("span");
+                            applierEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#e890b8;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                            applierEl.textContent = entry.applier;
+                            applierWrap.appendChild(applierEl);
+                            if (entry.applierNumber != null) {
+                                const numEl = document.createElement("span");
+                                numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7090;white-space:nowrap;";
+                                numEl.textContent = `#${entry.applierNumber}`;
+                                applierWrap.appendChild(numEl);
+                            }
+                            applierWrap.title = `Applied by: ${entry.applier}${entry.applierNumber != null ? ` #${entry.applierNumber}` : ""}  ·  ${new Date(entry.appliedAt).toLocaleString()}`;
+                            btmRow.appendChild(applierWrap);
+                            card.appendChild(btmRow);
+                            c.appendChild(card);
                         }
                     };
                     rlogClearBtn.addEventListener("click", () => { clearRestraintLog(); renderRlog(); });
@@ -17371,7 +17481,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.7.5";
+    const MOD_VERSION = "1.7.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17380,6 +17490,14 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.7.6",
+            changes: [
+                "New: Restraint log now captures colours, lock type, locker name, and craft name at time of application — shown as colour swatches, a lock badge, and gold italic craft name per entry.",
+                "New: SAVED COMBOS and SCENES sections in the Anims tab are now collapsible (▼/▶) with state saved to localStorage.",
+                "Tweak: Tab buttons are taller (10 px padding) and slightly larger font for easier tapping on tablets.",
+            ],
+        },
         {
             version: "1.7.5",
             changes: [
