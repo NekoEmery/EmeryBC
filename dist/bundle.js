@@ -1194,6 +1194,67 @@
         localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
         return outfit;
     }
+    // Copy restraints from a room member onto the player. Lock data is stripped so
+    // the player owns the items freely. Existing restraints in the copied slots are
+    // replaced; all other slots are untouched.
+    function copyRestraintsFromChar(char) {
+        var _a;
+        const restraintItems = char.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+        if (restraintItems.length === 0)
+            return { count: 0, names: [] };
+        const names = [];
+        const slotsBeingCopied = new Set(restraintItems.map((i) => i.Asset.Group.Name));
+        const nextAppearance = [];
+        // Preserve non-restraint items unchanged
+        for (const item of Player.Appearance) {
+            if (!RESTRAINT_GROUPS.has(item.Asset.Group.Name)) {
+                const cloned = cloneAppearanceItem(item);
+                if (cloned)
+                    nextAppearance.push(cloned);
+            }
+        }
+        // Preserve existing restraints NOT being overwritten
+        for (const item of Player.Appearance) {
+            const group = item.Asset.Group.Name;
+            if (RESTRAINT_GROUPS.has(group) && !slotsBeingCopied.has(group)) {
+                const cloned = cloneAppearanceItem(item);
+                if (cloned)
+                    nextAppearance.push(cloned);
+            }
+        }
+        // Apply copied restraints — strip all lock-related property keys
+        for (const item of restraintItems) {
+            const asset = AssetGet(Player.AssetFamily, item.Asset.Group.Name, item.Asset.Name);
+            if (!asset)
+                continue;
+            const rawProp = item.Property
+                ? Object.assign({}, item.Property) : undefined;
+            if (rawProp) {
+                delete rawProp["LockedBy"];
+                delete rawProp["LockMemberNumber"];
+                delete rawProp["CombinationNumber"];
+                delete rawProp["Password"];
+                delete rawProp["MemberNumberListKeys"];
+                delete rawProp["TimerPasswordPadlock"];
+            }
+            const craft = item.Craft;
+            const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
+            const baseName = asset.Description || asset.Name;
+            names.push(craftName ? `${craftName} (${baseName})` : baseName);
+            nextAppearance.push({
+                Asset: asset,
+                Color: sanitizeColor(item.Color),
+                Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
+                Property: rawProp,
+                Craft: item.Craft ? sanitizeCraft(item.Craft) : undefined,
+            });
+        }
+        Player.Appearance = nextAppearance;
+        sanitizeLiveAppearance();
+        sendRoomAppearanceUpdate();
+        scheduleAppearanceRefresh();
+        return { count: names.length, names };
+    }
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
@@ -14487,6 +14548,145 @@
                 hookRefreshBtn.textContent = "↻ Refresh";
                 hookRefreshBtn.addEventListener("click", renderHooks);
                 cnt.appendChild(hookRefreshBtn);
+            });
+            // ── Copy Restraints from Room Member ──────────────────────────────────
+            makeSection("COPY RESTRAINTS FROM MEMBER", "EBC_devCopyRestrCollapsed", true, (cnt) => {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
+                hint.textContent = "Copy another room member's current restraints onto yourself. Lock data is stripped — you own the items freely.";
+                cnt.appendChild(hint);
+                const pickRow = document.createElement("div");
+                pickRow.style.cssText = "display:flex;gap:4px;margin-bottom:6px;";
+                const memberSelect = document.createElement("select");
+                memberSelect.style.cssText = "flex:1;background:#1b0d17;border:1px solid #4c2537;color:#f7e6ee;border-radius:4px;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 4px;";
+                const populateSelect = () => {
+                    var _a;
+                    while (memberSelect.firstChild)
+                        memberSelect.removeChild(memberSelect.firstChild);
+                    const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+                    const others = room.filter(c => c.MemberNumber !== Player.MemberNumber);
+                    if (others.length === 0) {
+                        const opt = document.createElement("option");
+                        opt.value = "";
+                        opt.textContent = "No other members in room";
+                        memberSelect.appendChild(opt);
+                        return;
+                    }
+                    for (const c of others) {
+                        const opt = document.createElement("option");
+                        opt.value = String(c.MemberNumber);
+                        const nick = c.Nickname;
+                        opt.textContent = `${(nick === null || nick === void 0 ? void 0 : nick.trim()) || c.Name} (#${c.MemberNumber})`;
+                        memberSelect.appendChild(opt);
+                    }
+                };
+                populateSelect();
+                const refreshSelBtn = document.createElement("button");
+                refreshSelBtn.style.cssText = "background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 7px;flex-shrink:0;";
+                refreshSelBtn.textContent = "↻";
+                refreshSelBtn.title = "Refresh member list";
+                refreshSelBtn.addEventListener("click", populateSelect);
+                const copyBtn = document.createElement("button");
+                copyBtn.className = "ebc-create-btn";
+                copyBtn.style.cssText = "margin:0;padding:2px 12px;font-size:10px;flex-shrink:0;";
+                copyBtn.textContent = "Copy";
+                pickRow.appendChild(memberSelect);
+                pickRow.appendChild(refreshSelBtn);
+                pickRow.appendChild(copyBtn);
+                cnt.appendChild(pickRow);
+                const statusEl = document.createElement("div");
+                statusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;min-height:14px;";
+                cnt.appendChild(statusEl);
+                copyBtn.addEventListener("click", () => {
+                    var _a, _b;
+                    const num = parseInt(memberSelect.value, 10);
+                    if (isNaN(num)) {
+                        statusEl.textContent = "No member selected.";
+                        statusEl.style.color = "#9a7080";
+                        return;
+                    }
+                    const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+                    const char = room.find(c => c.MemberNumber === num);
+                    if (!char) {
+                        statusEl.textContent = "Character not found in room.";
+                        statusEl.style.color = "#ff6b6b";
+                        return;
+                    }
+                    // Preview what will be copied before confirming
+                    const preview = char.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+                    if (preview.length === 0) {
+                        statusEl.textContent = "This character has no restraints to copy.";
+                        statusEl.style.color = "#9a7080";
+                        return;
+                    }
+                    const charName = ((_b = char.Nickname) === null || _b === void 0 ? void 0 : _b.trim()) || char.Name;
+                    const itemNames = preview.map((i) => {
+                        var _a;
+                        const craft = i.Craft;
+                        const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
+                        const baseName = i.Asset.Description || i.Asset.Name;
+                        return craftName ? `${craftName} (${baseName})` : baseName;
+                    });
+                    // Confirm overlay
+                    const overlay = document.createElement("div");
+                    overlay.style.cssText = [
+                        "position:fixed", "top:50%", "left:50%",
+                        "transform:translate(-50%,-50%)",
+                        "background:#130810", "border:2px solid #cf6f98",
+                        "border-radius:10px", "padding:18px 22px",
+                        "z-index:999999", "font-family:'Trebuchet MS',serif",
+                        "min-width:260px", "max-width:340px",
+                        "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
+                        "display:flex", "flex-direction:column", "gap:10px",
+                    ].join(";");
+                    const titleEl = document.createElement("div");
+                    titleEl.style.cssText = "font-size:12px;color:#cf6f98;font-weight:bold;";
+                    titleEl.textContent = `Copy restraints from ${charName}?`;
+                    overlay.appendChild(titleEl);
+                    const listEl = document.createElement("ul");
+                    listEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;margin:0;padding-left:16px;max-height:130px;overflow-y:auto;";
+                    for (const n of itemNames) {
+                        const li = document.createElement("li");
+                        li.textContent = n;
+                        listEl.appendChild(li);
+                    }
+                    overlay.appendChild(listEl);
+                    const noteEl = document.createElement("div");
+                    noteEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;line-height:1.5;";
+                    noteEl.textContent = "Locks will be stripped. Existing restraints in these slots will be replaced.";
+                    overlay.appendChild(noteEl);
+                    const btns = document.createElement("div");
+                    btns.style.cssText = "display:flex;gap:8px;";
+                    const cancelBtn = document.createElement("button");
+                    cancelBtn.textContent = "Cancel";
+                    cancelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #4c2537;background:#1b0d17;color:#9a7080;";
+                    cancelBtn.addEventListener("click", () => overlay.remove());
+                    const confirmBtn = document.createElement("button");
+                    confirmBtn.textContent = "Apply";
+                    confirmBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
+                    confirmBtn.addEventListener("click", () => {
+                        overlay.remove();
+                        try {
+                            const result = copyRestraintsFromChar(char);
+                            if (result.count > 0) {
+                                statusEl.textContent = `✔ Copied ${result.count} restraint(s) from ${charName}.`;
+                                statusEl.style.color = "#79a885";
+                            }
+                            else {
+                                statusEl.textContent = "Nothing was copied (no valid assets found).";
+                                statusEl.style.color = "#9a7080";
+                            }
+                        }
+                        catch (e) {
+                            statusEl.textContent = "Error: " + String(e);
+                            statusEl.style.color = "#ff6b6b";
+                        }
+                    });
+                    btns.appendChild(cancelBtn);
+                    btns.appendChild(confirmBtn);
+                    overlay.appendChild(btns);
+                    document.body.appendChild(overlay);
+                });
             });
             // ── LOG ───────────────────────────────────────────────────────────────
             // Hoisted so the auto-refresh poller can reference them without

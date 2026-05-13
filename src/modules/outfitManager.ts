@@ -890,3 +890,70 @@ export function importOutfitFromBCCode(
     localNotice(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
     return outfit;
 }
+
+// Copy restraints from a room member onto the player. Lock data is stripped so
+// the player owns the items freely. Existing restraints in the copied slots are
+// replaced; all other slots are untouched.
+export function copyRestraintsFromChar(char: Character): { count: number; names: string[] } {
+    const restraintItems = char.Appearance.filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+    if (restraintItems.length === 0) return { count: 0, names: [] };
+
+    const names: string[] = [];
+    const slotsBeingCopied = new Set(restraintItems.map((i: Item) => i.Asset.Group.Name));
+    const nextAppearance: Item[] = [];
+
+    // Preserve non-restraint items unchanged
+    for (const item of Player.Appearance) {
+        if (!RESTRAINT_GROUPS.has(item.Asset.Group.Name)) {
+            const cloned = cloneAppearanceItem(item);
+            if (cloned) nextAppearance.push(cloned);
+        }
+    }
+
+    // Preserve existing restraints NOT being overwritten
+    for (const item of Player.Appearance) {
+        const group = item.Asset.Group.Name;
+        if (RESTRAINT_GROUPS.has(group) && !slotsBeingCopied.has(group)) {
+            const cloned = cloneAppearanceItem(item);
+            if (cloned) nextAppearance.push(cloned);
+        }
+    }
+
+    // Apply copied restraints — strip all lock-related property keys
+    for (const item of restraintItems) {
+        const asset = AssetGet(Player.AssetFamily, item.Asset.Group.Name, item.Asset.Name);
+        if (!asset) continue;
+
+        const rawProp = item.Property
+            ? { ...(item.Property as Record<string, unknown>) }
+            : undefined;
+        if (rawProp) {
+            delete rawProp["LockedBy"];
+            delete rawProp["LockMemberNumber"];
+            delete rawProp["CombinationNumber"];
+            delete rawProp["Password"];
+            delete rawProp["MemberNumberListKeys"];
+            delete rawProp["TimerPasswordPadlock"];
+        }
+
+        const craft = item.Craft as { Name?: string } | undefined;
+        const craftName = craft?.Name?.trim();
+        const baseName = (asset as unknown as Record<string, unknown>).Description as string || asset.Name;
+        names.push(craftName ? `${craftName} (${baseName})` : baseName);
+
+        nextAppearance.push({
+            Asset: asset,
+            Color: sanitizeColor(item.Color),
+            Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
+            Property: rawProp,
+            Craft: item.Craft ? sanitizeCraft(item.Craft as CraftingItem) : undefined,
+        });
+    }
+
+    Player.Appearance = nextAppearance;
+    sanitizeLiveAppearance();
+    sendRoomAppearanceUpdate();
+    scheduleAppearanceRefresh();
+
+    return { count: names.length, names };
+}
