@@ -6913,7 +6913,7 @@
             title.style.alignItems = "baseline";
             title.style.gap = "5px";
             const titleMain = document.createElement("span");
-            titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "") + (this.isDev ? " (dev)" : "");
+            titleMain.textContent = "EBC" + (this.version ? " v" + this.version : "");
             if (this.isDev) {
                 const devBadge = document.createElement("span");
                 devBadge.textContent = "DEV";
@@ -17607,7 +17607,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.7.8";
+    const MOD_VERSION = "1.7.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -17616,6 +17616,14 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.7.9",
+            changes: [
+                "Tweak: overhead presence badge uses full size in normal room view; shrinks only when zoomed out (map/overview, zoom < 0.75).",
+                "Tweak: on dev build your own badge shows D-v1.7.9 (or D-EBC) so it's clear you're on dev.",
+                "Tweak: removed redundant '(dev)' text from drawer title — the pink DEV chip is already there.",
+            ],
+        },
         {
             version: "1.7.8",
             changes: [
@@ -19424,9 +19432,14 @@
         const presence = getSharedPresence(character);
         const showVer = getShowVersionBadge();
         const verStr = (_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : MOD_VERSION;
-        const label = showVer ? ("v" + verStr) : "EBC";
-        const width = showVer ? Math.max(32, 36 * zoom) : Math.max(22, 26 * zoom);
-        const height = Math.max(9, 10 * zoom);
+        const devPrefix = isSelf ? "D-" : "";
+        const label = showVer ? (devPrefix + "v" + verStr) : (devPrefix + "EBC");
+        // Small size in map/zoomed-out view (zoom < 0.75), full size in normal room
+        const isMapView = zoom < 0.75;
+        const width = isMapView
+            ? (showVer ? Math.max(28, 32 * zoom) : Math.max(18, 22 * zoom))
+            : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
+        const height = isMapView ? Math.max(8, 10 * zoom) : Math.max(12, 14 * zoom);
         const x = left + 197 * zoom;
         const y = top + 26 * zoom;
         const badgeLeft = x - width / 2;
