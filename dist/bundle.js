@@ -18491,7 +18491,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.0.9";
+    const MOD_VERSION = "2.1.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18499,6 +18499,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.1.0",
+            changes: [
+                "Fix: EBC badge invisible on other players — OnlineSharedSettings was no longer populated before entering a room, so the room-join packet carried empty data and nobody saw your badge. Presence is now always written to OnlineSharedSettings regardless of screen; only the AccountUpdate broadcast is gated to ChatRoom.",
+            ],
+        },
         {
             version: "2.0.9",
             changes: [
@@ -20486,18 +20492,19 @@
                 ServerPlayerExtensionSettingsSync(MOD_NAME);
             }
         }
-        // Write to OnlineSharedSettings and send AccountUpdate so that all fields
-        // (including isDev) are broadcast to current room members. Only meaningful
-        // when actually in a ChatRoom — skip entirely if called at module load (no
-        // room joined yet) so the rate-limit clock isn't consumed before the first
-        // real room-join broadcast. Rate-limited to once every 6 s to prevent spam.
+        // Always keep OnlineSharedSettings populated — BC includes it in the room-join
+        // packet so other players see your badge immediately when you enter. Without this,
+        // the join packet has empty OnlineSharedSettings and nobody sees the badge until
+        // a follow-up AccountUpdate arrives.
+        shared[MOD_NAME] = { presence };
+        // Send AccountUpdate to notify people already in the room. Only meaningful in a
+        // ChatRoom, and rate-limited to once every 6 s to prevent spam on rapid syncs.
         if (CurrentScreen !== "ChatRoom")
             return;
         const now = Date.now();
         if (now - lastPresenceSyncTime < PRESENCE_SYNC_COOLDOWN_MS)
             return;
         lastPresenceSyncTime = now;
-        shared[MOD_NAME] = { presence };
         ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
     }
     function hasEmeryBC(character) {
