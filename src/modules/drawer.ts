@@ -181,7 +181,7 @@ const CSS = `
     background: rgba(42, 20, 33, 0.85);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(207, 111, 152, 0.2);
+    border: 1px solid #cf6f9833;
     border-right: none;
     border-radius: 8px 0 0 8px;
     display: flex;
@@ -195,7 +195,7 @@ const CSS = `
     transition: background 0.18s;
 }
 
-#ebc-tab:hover { background: rgba(76, 37, 55, 0.97); }
+#ebc-tab:hover { background: #4c2537f7; }
 #ebc-tab:active { cursor: grabbing; }
 
 #ebc-tab-unread-dot {
@@ -233,7 +233,7 @@ const CSS = `
     background: #130810;
     border: 1.5px solid #cf6f98;
     border-radius: 10px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.85), 0 0 12px rgba(207,111,152,0.25);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.85), 0 0 12px #cf6f9840;
     font-family: "Trebuchet MS", serif;
     z-index: 1000000;
     overflow: hidden;
@@ -303,7 +303,7 @@ const CSS = `
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
-    background: rgba(27, 13, 23, 0.97);
+    background: #1b0d17f7;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border-left: 2px solid #4c2537;
@@ -1502,7 +1502,7 @@ const CSS = `
 
 /* -- Scene step cards -- */
 .ebc-scene-step {
-    background: #1a0d15;
+    background: #1a0d14;
     border: 1px solid #3a1928;
     border-radius: 6px;
     padding: 6px 8px;
