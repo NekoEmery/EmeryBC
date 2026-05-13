@@ -17,7 +17,7 @@ import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/s
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "2.0.9";
-const IS_DEV_BUILD = true; // true on dev branch, false on master
+const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
 
