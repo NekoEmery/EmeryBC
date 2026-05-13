@@ -318,7 +318,7 @@ The script bumps the version in all files, builds locally to catch errors, commi
 
 ## Credits
 
-The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin** — thank you for the open design and deploy workflow inspiration! ♥
+The sliding drawer UI was inspired by **[CRABS](https://github.com/sin-1337/CRABS)** by **Sin** — thank you for the open design! ♥
 
 ---
 
