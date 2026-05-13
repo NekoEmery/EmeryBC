@@ -69,6 +69,7 @@ import {
     type ActionButton,
     type ActionStyle,
     type ButtonCategory,
+    resetSidebarPos,
 } from "./actionButtons";
 import {
     releaseRestraints,
@@ -3419,6 +3420,8 @@ export class EBCDrawer {
             tab.style.top  = "";
             this.saveTabOffset(null);
             this.updateCrabsPosition();
+            // Reset canvas quick-action sidebar to default position
+            try { resetSidebarPos(); } catch { /* ignore */ }
         });
 
         closeBtn.addEventListener("click", () => this.close());

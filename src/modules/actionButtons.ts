@@ -334,15 +334,26 @@ const GRIP_H     = 22;  // drag handle above collapse toggle — tall enough to 
 
 // Position — mutable, persisted to localStorage
 const SIDEBAR_POS_KEY = "EBC_sidebarPos";
-let sidebarX = 0;
-let sidebarY = 270;
+const SIDEBAR_DEFAULT_X = 0;
+const SIDEBAR_DEFAULT_Y = 270;
+// BC's chat log DOM panel starts at roughly canvas X 1210 — keep the sidebar left of that.
+const SIDEBAR_MAX_X = 1150;
+
+let sidebarX = SIDEBAR_DEFAULT_X;
+let sidebarY = SIDEBAR_DEFAULT_Y;
 try {
     const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
-    if (_saved) { const _p = JSON.parse(_saved) as { x?: number; y?: number }; sidebarX = _p.x ?? 0; sidebarY = _p.y ?? 270; }
+    if (_saved) { const _p = JSON.parse(_saved) as { x?: number; y?: number }; sidebarX = _p.x ?? SIDEBAR_DEFAULT_X; sidebarY = _p.y ?? SIDEBAR_DEFAULT_Y; }
 } catch { /* ignore */ }
 
 function saveSidebarPos(): void {
     try { localStorage.setItem(SIDEBAR_POS_KEY, JSON.stringify({ x: sidebarX, y: sidebarY })); } catch { /* ignore */ }
+}
+
+export function resetSidebarPos(): void {
+    sidebarX = SIDEBAR_DEFAULT_X;
+    sidebarY = SIDEBAR_DEFAULT_Y;
+    try { localStorage.removeItem(SIDEBAR_POS_KEY); } catch { /* ignore */ }
 }
 
 let sidebarCollapsed = false;
@@ -388,7 +399,7 @@ function startDrag(cx: number, cy: number): void {
     const onMove = (e: MouseEvent | TouchEvent): void => {
         const pt = "touches" in e ? e.touches[0] : e as MouseEvent;
         const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
-        sidebarX = Math.max(0,          Math.min(1955, dragAnchorPanelX + (x - dragAnchorMouseX)));
+        sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X, dragAnchorPanelX + (x - dragAnchorMouseX)));
         sidebarY = Math.max(GRIP_H + 2, Math.min(900,  dragAnchorPanelY + (y - dragAnchorMouseY)));
         hasMoved = true;
     };

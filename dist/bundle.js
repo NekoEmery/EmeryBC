@@ -331,20 +331,32 @@
     const GRIP_H = 22; // drag handle above collapse toggle — tall enough to tap
     // Position — mutable, persisted to localStorage
     const SIDEBAR_POS_KEY = "EBC_sidebarPos";
-    let sidebarX = 0;
-    let sidebarY = 270;
+    const SIDEBAR_DEFAULT_X = 0;
+    const SIDEBAR_DEFAULT_Y = 270;
+    // BC's chat log DOM panel starts at roughly canvas X 1210 — keep the sidebar left of that.
+    const SIDEBAR_MAX_X = 1150;
+    let sidebarX = SIDEBAR_DEFAULT_X;
+    let sidebarY = SIDEBAR_DEFAULT_Y;
     try {
         const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
         if (_saved) {
             const _p = JSON.parse(_saved);
-            sidebarX = (_a = _p.x) !== null && _a !== void 0 ? _a : 0;
-            sidebarY = (_b = _p.y) !== null && _b !== void 0 ? _b : 270;
+            sidebarX = (_a = _p.x) !== null && _a !== void 0 ? _a : SIDEBAR_DEFAULT_X;
+            sidebarY = (_b = _p.y) !== null && _b !== void 0 ? _b : SIDEBAR_DEFAULT_Y;
         }
     }
     catch ( /* ignore */_c) { /* ignore */ }
     function saveSidebarPos() {
         try {
             localStorage.setItem(SIDEBAR_POS_KEY, JSON.stringify({ x: sidebarX, y: sidebarY }));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function resetSidebarPos() {
+        sidebarX = SIDEBAR_DEFAULT_X;
+        sidebarY = SIDEBAR_DEFAULT_Y;
+        try {
+            localStorage.removeItem(SIDEBAR_POS_KEY);
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -386,7 +398,7 @@
         const onMove = (e) => {
             const pt = "touches" in e ? e.touches[0] : e;
             const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
-            sidebarX = Math.max(0, Math.min(1955, dragAnchorPanelX + (x - dragAnchorMouseX)));
+            sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X, dragAnchorPanelX + (x - dragAnchorMouseX)));
             sidebarY = Math.max(GRIP_H + 2, Math.min(900, dragAnchorPanelY + (y - dragAnchorMouseY)));
             hasMoved = true;
         };
@@ -7631,6 +7643,11 @@
                 tab.style.top = "";
                 this.saveTabOffset(null);
                 this.updateCrabsPosition();
+                // Reset canvas quick-action sidebar to default position
+                try {
+                    resetSidebarPos();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
             });
             closeBtn.addEventListener("click", () => this.close());
             refreshBtn.addEventListener("click", () => {
