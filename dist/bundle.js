@@ -436,10 +436,10 @@
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
         // Drag grip — hold & drag to reposition
-        DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? "#3d1a2a" : "#1e0e18");
-        DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accent : "#5a2a44", 1);
-        // 2×3 dot grid drag-handle icon
-        const dotCol = isDragging ? UI.accent : "#c06888";
+        DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accentSoft : UI.cardMuted);
+        DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accent : UI.panelEdge, 1);
+        // 2×3 dot grid
+        const dotCol = isDragging ? UI.accent : UI.accentDeep;
         const dotSize = 3;
         const dotGapX = 6;
         const dotGapY = 5;
@@ -450,22 +450,17 @@
                 DrawRect(dotStartX + col * dotGapX, dotStartY + row * dotGapY, dotSize, dotSize, dotCol);
             }
         }
-        // Collapse toggle — three horizontal bars (open) or one bar (collapsed)
-        DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? "#2a0e1e" : "#100810");
-        DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? UI.accentSoft : "#2a1428", 1);
-        const barCol = sidebarCollapsed ? UI.accentSoft : "#5a2a44";
-        const barW = CHIP_W - 12;
-        const barH = 2;
-        const barX = sidebarX + 6;
-        const midY = sidebarY + CHIP_H / 2;
-        if (sidebarCollapsed) {
-            DrawRect(barX, midY - barH / 2, barW, barH, barCol);
-        }
-        else {
-            DrawRect(barX, midY - 4, barW, barH, barCol);
-            DrawRect(barX, midY - barH / 2, barW, barH, barCol);
-            DrawRect(barX, midY + 3, barW, barH, barCol);
-        }
+        // Collapse toggle — same palette as grip; lit pink when collapsed so user knows it's there
+        DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? UI.accentSoft : UI.cardMuted);
+        DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? UI.accent : UI.panelEdge, 1);
+        // Two short bars centered — subtle when open, bright when closed
+        const bCol = sidebarCollapsed ? UI.accent : UI.accentSoft;
+        const bW = Math.floor(CHIP_W * 0.55);
+        const bH = 2;
+        const bX = sidebarX + Math.floor((CHIP_W - bW) / 2);
+        const bMid = sidebarY + Math.floor(CHIP_H / 2);
+        DrawRect(bX, bMid - 4, bW, bH, bCol);
+        DrawRect(bX, bMid + 2, bW, bH, bCol);
         if (sidebarCollapsed)
             return;
         // Category switcher chip: [◀] Name [▶]
