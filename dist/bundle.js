@@ -5974,7 +5974,8 @@
 .ebc-friend-dot.away   { background: #555; }
 
 .ebc-friend-name {
-    flex: 1;
+    flex: 0 1 auto;
+    min-width: 0;
     font-size: 11px;
     color: #e8d0d8;
     font-family: "Trebuchet MS", serif;
@@ -14151,7 +14152,7 @@
                         // Build nameRow
                         const nameRow = document.createElement("div");
                         nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                        nameEl.style.cssText += ";flex:1;min-width:0;";
+                        // nameEl uses .ebc-friend-name flex:0 1 auto — no override needed
                         nameRow.appendChild(nameEl);
                         nameRow.appendChild(numEl);
                         if (relBadge) {
@@ -14581,7 +14582,7 @@
                     // nameRow: nameEl + numEl + relBadge
                     const nameRow = document.createElement("div");
                     nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    nameEl.style.flex = "1";
+                    // nameEl uses .ebc-friend-name flex:0 1 auto — no override needed
                     nameRow.appendChild(nameEl);
                     nameRow.appendChild(numEl);
                     if (relBadge) {
@@ -17206,11 +17207,41 @@
             wlTitle.style.cssText = "display:block;font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;";
             wlTitle.textContent = "Escape whitelist — specific items auto-escape will never remove";
             whitelistSection.appendChild(wlTitle);
-            const domMakeChip = (label, onRemove) => {
+            // Stored custom labels for whitelist chips: itemKey → display name override
+            const WL_LABELS_KEY = "EBC_wlLabels";
+            const getWlLabels = () => { try {
+                const r = localStorage.getItem(WL_LABELS_KEY);
+                return r ? JSON.parse(r) : {};
+            }
+            catch (_a) {
+                return {};
+            } };
+            const setWlLabel = (key, label) => { try {
+                const m = getWlLabels();
+                if (label)
+                    m[key] = label;
+                else
+                    delete m[key];
+                localStorage.setItem(WL_LABELS_KEY, JSON.stringify(m));
+            }
+            catch ( /* ignore */_a) { /* ignore */ } };
+            const domMakeChip = (key, fallbackLabel, onRemove) => {
+                var _a;
                 const chip = document.createElement("div");
                 chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#3a1928;border:1px solid #6b3048;border-radius:10px;padding:2px 7px 2px 8px;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;margin:2px 2px 2px 0;";
                 const txt = document.createElement("span");
-                txt.textContent = label;
+                const labels = getWlLabels();
+                txt.textContent = (_a = labels[key]) !== null && _a !== void 0 ? _a : fallbackLabel;
+                txt.title = "Click to rename";
+                txt.style.cssText = "cursor:pointer;border-bottom:1px dashed #6b3048;";
+                txt.addEventListener("click", (e) => {
+                    var _a;
+                    e.stopPropagation();
+                    showNameInputOverlay(`Rename "${txt.textContent}"`, (_a = txt.textContent) !== null && _a !== void 0 ? _a : fallbackLabel, "Rename", (newName) => {
+                        setWlLabel(key, newName);
+                        txt.textContent = newName;
+                    });
+                });
                 const x = document.createElement("button");
                 x.textContent = "×";
                 x.title = "Remove from whitelist";
@@ -17239,10 +17270,10 @@
                         // Display the key in a friendly way:
                         // "AssetName|CraftName" → "CraftName" ; "AssetName" → AssetName (stripped of camelCase)
                         const parts = key.split("|");
-                        const displayLabel = parts.length > 1
+                        const fallback = parts.length > 1
                             ? parts[1] // craft name is already human-readable
                             : parts[0].replace(/([A-Z])/g, " $1").trim();
-                        wlChips.appendChild(domMakeChip(displayLabel, () => {
+                        wlChips.appendChild(domMakeChip(key, fallback, () => {
                             removeFromAntiRestraintWhitelist(key);
                             refreshWhitelistUI();
                         }));
@@ -17252,24 +17283,33 @@
                     const wornItems = Player.Appearance
                         .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !whitelist.includes(getItemKey(i)));
                     if (wornItems.length > 0) {
-                        const addLabel = document.createElement("span");
-                        addLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;margin-right:4px;align-self:center;width:100%;margin-bottom:2px;";
-                        addLabel.textContent = "Currently wearing — click to whitelist:";
-                        wlAddRow.appendChild(addLabel);
+                        // Collapsible "add from worn" toggle
+                        const wornToggle = document.createElement("button");
+                        wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:transparent;border:1px solid #3a1928;border-radius:4px;color:#9a7888;padding:3px 9px;cursor:pointer;display:flex;align-items:center;gap:5px;width:100%;margin-bottom:2px;transition:border-color 0.12s,color 0.12s;";
+                        const wornList = document.createElement("div");
+                        wornList.style.cssText = "display:none;flex-wrap:wrap;gap:3px;margin-bottom:2px;";
+                        let wornOpen = false;
+                        const refreshWornToggle = () => {
+                            wornToggle.textContent = (wornOpen ? "▼" : "▶") + "  Currently wearing — click to whitelist";
+                            wornList.style.display = wornOpen ? "flex" : "none";
+                        };
+                        refreshWornToggle();
+                        wornToggle.addEventListener("mouseenter", () => { wornToggle.style.color = "#cf6f98"; wornToggle.style.borderColor = "#6b3048"; });
+                        wornToggle.addEventListener("mouseleave", () => { wornToggle.style.color = "#9a7888"; wornToggle.style.borderColor = "#3a1928"; });
+                        wornToggle.addEventListener("click", () => { wornOpen = !wornOpen; refreshWornToggle(); });
                         for (const item of wornItems) {
                             const btn = document.createElement("button");
                             const displayName = getItemDisplayName(item);
                             btn.textContent = "+ " + displayName;
-                            btn.title = `Whitelist this specific item — auto-escape will keep it`;
+                            btn.title = `Whitelist this item — auto-escape will keep it`;
                             btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #4c2537;border-radius:10px;color:#9a7888;padding:2px 8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
                             btn.addEventListener("mouseenter", () => { btn.style.color = "#cf6f98"; btn.style.borderColor = "#6b3048"; });
                             btn.addEventListener("mouseleave", () => { btn.style.color = "#9a7888"; btn.style.borderColor = "#4c2537"; });
-                            btn.addEventListener("click", () => {
-                                addToAntiRestraintWhitelist(getItemKey(item));
-                                refreshWhitelistUI();
-                            });
-                            wlAddRow.appendChild(btn);
+                            btn.addEventListener("click", () => { addToAntiRestraintWhitelist(getItemKey(item)); refreshWhitelistUI(); });
+                            wornList.appendChild(btn);
                         }
+                        wlAddRow.appendChild(wornToggle);
+                        wlAddRow.appendChild(wornList);
                     }
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
@@ -18236,7 +18276,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.0.4";
+    const MOD_VERSION = "2.0.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18244,6 +18284,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.0.5",
+            changes: [
+                "UI: member number now sits directly beside the name (no longer pushed to the far right).",
+                "UX: 'Currently wearing' whitelist picker is now a collapsible dropdown — ▶ to open, ▼ to close.",
+                "UX: whitelist chip labels are now renameable — click the text on any chip to give it a custom name.",
+            ],
+        },
         {
             version: "2.0.4",
             changes: [
