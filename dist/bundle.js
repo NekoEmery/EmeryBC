@@ -2446,27 +2446,46 @@
 
     // Private character notes — stored locally in Player.ExtensionSettings, never shared.
     function getStore$3() {
-        if (!Player.ExtensionSettings.EmeryBC)
-            Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC;
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
     }
     function getNotes() {
-        const raw = getStore$3().characterNotes;
-        return (raw && typeof raw === "object" && !Array.isArray(raw))
-            ? raw
-            : {};
+        var _a;
+        try {
+            const raw = (_a = getStore$3()) === null || _a === void 0 ? void 0 : _a.characterNotes;
+            return (raw && typeof raw === "object" && !Array.isArray(raw))
+                ? raw
+                : {};
+        }
+        catch (_b) {
+            return {};
+        }
     }
     function saveNote(memberNumber, name, note) {
-        const notes = getNotes();
-        const key = String(memberNumber);
-        if (note.trim()) {
-            notes[key] = { name, note: note.trim(), updatedAt: Date.now() };
+        try {
+            const store = getStore$3();
+            if (!store)
+                return;
+            const notes = getNotes();
+            const key = String(memberNumber);
+            if (note.trim()) {
+                notes[key] = { name, note: note.trim(), updatedAt: Date.now() };
+            }
+            else {
+                delete notes[key];
+            }
+            store.characterNotes = notes;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
-        else {
-            delete notes[key];
-        }
-        getStore$3().characterNotes = notes;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        catch ( /* ignore */_a) { /* ignore */ }
     }
 
     // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
@@ -13788,6 +13807,7 @@
                     expand.className = "ebc-friend-expand";
                     let expandBuilt = false;
                     let newTagInputRef = null;
+                    let refreshExpandNote = null;
                     const buildExpandPanel = () => {
                         if (expandBuilt)
                             return;
@@ -13983,14 +14003,58 @@
                         pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
                         actRow.appendChild(pinBtn);
                         expand.appendChild(actRow);
+                        // ── Inline note editor ─────────────────────────────────────
+                        const noteLbl = document.createElement("div");
+                        noteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:6px;margin-bottom:2px;";
+                        noteLbl.textContent = "Note";
+                        expand.appendChild(noteLbl);
+                        const noteWrap = document.createElement("div");
+                        noteWrap.style.cssText = "position:relative;";
+                        const noteTA = document.createElement("textarea");
+                        noteTA.className = "ebc-notes-textarea";
+                        noteTA.placeholder = "Notes about this person...";
+                        noteTA.rows = 3;
+                        noteTA.style.cssText += "width:100%;box-sizing:border-box;resize:vertical;";
+                        // Load current note value fresh each time the panel is opened
+                        const refreshNoteTA = () => {
+                            var _a, _b;
+                            try {
+                                noteTA.value = (_b = (_a = getNotes()[String(num)]) === null || _a === void 0 ? void 0 : _a.note) !== null && _b !== void 0 ? _b : "";
+                            }
+                            catch ( /* ignore */_c) { /* ignore */ }
+                        };
+                        refreshExpandNote = refreshNoteTA;
+                        refreshNoteTA();
+                        const noteHint = document.createElement("div");
+                        noteHint.className = "ebc-notes-save-hint";
+                        noteHint.textContent = "saves automatically";
+                        noteWrap.appendChild(noteTA);
+                        noteWrap.appendChild(noteHint);
+                        expand.appendChild(noteWrap);
+                        let noteSaveTimer = null;
+                        noteTA.addEventListener("input", () => {
+                            if (noteSaveTimer)
+                                window.clearTimeout(noteSaveTimer);
+                            noteHint.textContent = "saving...";
+                            noteSaveTimer = window.setTimeout(() => {
+                                saveNote(num, name, noteTA.value);
+                                noteHint.textContent = noteTA.value.trim() ? "saved" : "saves automatically";
+                                window.setTimeout(() => { noteHint.textContent = "saves automatically"; }, 1500);
+                            }, 800);
+                        });
                     };
                     // Toggle expand on row click — build panel on first open
                     row.addEventListener("click", () => {
                         buildExpandPanel();
                         const open = expand.classList.toggle("visible");
                         row.classList.toggle("expanded", open);
-                        if (open)
+                        if (open) {
+                            try {
+                                refreshExpandNote === null || refreshExpandNote === void 0 ? void 0 : refreshExpandNote();
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
                             window.setTimeout(() => newTagInputRef === null || newTagInputRef === void 0 ? void 0 : newTagInputRef.focus(), 50);
+                        }
                     });
                     wrap.appendChild(row);
                     wrap.appendChild(expand);
@@ -16778,7 +16842,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "1.6.9";
+    const MOD_VERSION = "1.7.0";
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
@@ -16786,6 +16850,13 @@
     const afkReplyCooldown = new Map();
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
     const CHANGELOG = [
+        {
+            version: "1.7.0",
+            changes: [
+                "Fix: friend notes now save reliably — notes.ts getStore() was not null-safe and saveNote/deleteNote used bare ServerPlayerExtensionSettingsSync calls; wrapped with callBC and added null guards.",
+                "Fix: notes can now be added directly from the Friends list expand panel — each friend row now includes an inline note editor that auto-saves, so you no longer need to visit the User Notes tab to write a note for the first time.",
+            ],
+        },
         {
             version: "1.6.9",
             changes: [

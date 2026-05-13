@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "1.6.9";
+const MOD_VERSION = "1.7.0";
 
 let noticeShown = false;
 
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkReplyCooldown = new Map<number, number>();
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "1.7.0",
+        changes: [
+            "Fix: friend notes now save reliably — notes.ts getStore() was not null-safe and saveNote/deleteNote used bare ServerPlayerExtensionSettingsSync calls; wrapped with callBC and added null guards.",
+            "Fix: notes can now be added directly from the Friends list expand panel — each friend row now includes an inline note editor that auto-saves, so you no longer need to visit the User Notes tab to write a note for the first time.",
+        ],
+    },
     {
         version: "1.6.9",
         changes: [

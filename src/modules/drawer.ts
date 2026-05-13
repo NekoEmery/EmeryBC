@@ -9975,6 +9975,7 @@ export class EBCDrawer {
 
                 let expandBuilt = false;
                 let newTagInputRef: HTMLInputElement | null = null;
+                let refreshExpandNote: (() => void) | null = null;
 
                 const buildExpandPanel = (): void => {
                     if (expandBuilt) return;
@@ -10165,6 +10166,46 @@ export class EBCDrawer {
                     pinBtn.addEventListener("click", () => { togglePinFriend(num); refreshPinBtn(); });
                     actRow.appendChild(pinBtn);
                     expand.appendChild(actRow);
+
+                    // ── Inline note editor ─────────────────────────────────────
+                    const noteLbl = document.createElement("div");
+                    noteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:6px;margin-bottom:2px;";
+                    noteLbl.textContent = "Note";
+                    expand.appendChild(noteLbl);
+
+                    const noteWrap = document.createElement("div");
+                    noteWrap.style.cssText = "position:relative;";
+
+                    const noteTA = document.createElement("textarea");
+                    noteTA.className = "ebc-notes-textarea";
+                    noteTA.placeholder = "Notes about this person...";
+                    noteTA.rows = 3;
+                    noteTA.style.cssText += "width:100%;box-sizing:border-box;resize:vertical;";
+                    // Load current note value fresh each time the panel is opened
+                    const refreshNoteTA = (): void => {
+                        try { noteTA.value = getNotes()[String(num)]?.note ?? ""; } catch { /* ignore */ }
+                    };
+                    refreshExpandNote = refreshNoteTA;
+                    refreshNoteTA();
+
+                    const noteHint = document.createElement("div");
+                    noteHint.className = "ebc-notes-save-hint";
+                    noteHint.textContent = "saves automatically";
+
+                    noteWrap.appendChild(noteTA);
+                    noteWrap.appendChild(noteHint);
+                    expand.appendChild(noteWrap);
+
+                    let noteSaveTimer: ReturnType<typeof window.setTimeout> | null = null;
+                    noteTA.addEventListener("input", () => {
+                        if (noteSaveTimer) window.clearTimeout(noteSaveTimer);
+                        noteHint.textContent = "saving...";
+                        noteSaveTimer = window.setTimeout(() => {
+                            saveNote(num, name, noteTA.value);
+                            noteHint.textContent = noteTA.value.trim() ? "saved" : "saves automatically";
+                            window.setTimeout(() => { noteHint.textContent = "saves automatically"; }, 1500);
+                        }, 800);
+                    });
                 };
 
                 // Toggle expand on row click — build panel on first open
@@ -10172,7 +10213,10 @@ export class EBCDrawer {
                     buildExpandPanel();
                     const open = expand.classList.toggle("visible");
                     row.classList.toggle("expanded", open);
-                    if (open) window.setTimeout(() => newTagInputRef?.focus(), 50);
+                    if (open) {
+                        try { refreshExpandNote?.(); } catch { /* ignore */ }
+                        window.setTimeout(() => newTagInputRef?.focus(), 50);
+                    }
                 });
 
                 wrap.appendChild(row);
