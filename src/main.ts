@@ -1,5 +1,5 @@
 ﻿import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
-import { EBCDrawer } from "./modules/drawer";
+import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
 import { handleOutfitCommand, handleRestraintCommand } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
@@ -16,8 +16,8 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.0.8";
-const IS_DEV_BUILD = false; // true on dev branch, false on master
+const MOD_VERSION = "2.0.9";
+const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
 
@@ -26,6 +26,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.0.9",
+        changes: [
+            "Feature: outfit/restraint-set commands now show a confirm dialog if the outfit would remove or replace currently worn restraints.",
+            "Feature: PROTECTED ITEMS section in the outfits tab — whitelist any worn item slot so outfits and restraint sets can never touch it.",
+        ],
+    },
     {
         version: "2.0.8",
         changes: [
@@ -2468,8 +2475,8 @@ function init(): void {
             if (!raw.trim()) return;
             if (checkSafeword(raw)
                 || handleMetaCommand(raw)
-                || handleRestraintCommand(raw)
-                || handleOutfitCommand(raw)
+                || handleRestraintCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
+                || handleOutfitCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                 || handlePoseComboCommand(raw)
                 || handleSceneCommand(raw)
                 || handleDomCommand(raw)
@@ -2490,8 +2497,8 @@ function init(): void {
                 if (input?.value.trim() && (
                     checkSafeword(input.value)
                     || handleMetaCommand(input.value)
-                    || handleRestraintCommand(input.value)
-                    || handleOutfitCommand(input.value)
+                    || handleRestraintCommand(input.value, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
+                    || handleOutfitCommand(input.value, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                     || handlePoseComboCommand(input.value)
                     || handleSceneCommand(input.value)
                     || handleDomCommand(input.value)
@@ -2513,8 +2520,8 @@ function init(): void {
             if (raw.trim() && (
                 checkSafeword(raw)
                 || handleMetaCommand(raw)
-                || handleRestraintCommand(raw)
-                || handleOutfitCommand(raw)
+                || handleRestraintCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
+                || handleOutfitCommand(raw, (msg, cb) => showConfirmOverlay(msg, "Cancel", "Apply", cb))
                 || handlePoseComboCommand(raw)
                 || handleSceneCommand(raw)
                 || handleDomCommand(raw)

@@ -41,6 +41,39 @@ export const RESTRAINT_GROUPS = new Set([
     "ItemEars", "ItemNose", "ItemMisc",
 ]);
 
+// Returns a warning message if applying this outfit would remove/replace worn restraints,
+// or null if no restraints would be affected.
+export function getOutfitRestraintWarning(outfit: ConfiguredOutfit): string | null {
+    try {
+        const currentRestraints = Player.Appearance.filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+        if (!currentRestraints.length) return null;
+        const outfitRestraintGroups = new Set(outfit.items.filter(i => RESTRAINT_GROUPS.has(i.Group)).map(i => i.Group));
+        let removed = 0, replaced = 0;
+        for (const item of currentRestraints) {
+            const group = item.Asset.Group.Name;
+            if (outfitRestraintGroups.has(group)) replaced++;
+            else if (!outfit.preserveRestraints) removed++;
+        }
+        if (removed === 0 && replaced === 0) return null;
+        const parts: string[] = [];
+        if (removed > 0) parts.push(`remove ${removed} restraint${removed !== 1 ? "s" : ""}`);
+        if (replaced > 0) parts.push(`replace ${replaced} restraint${replaced !== 1 ? "s" : ""}`);
+        return `"${outfit.displayName}" will ${parts.join(" and ")}. Continue?`;
+    } catch { return null; }
+}
+
+// Returns a warning message if applying this restraint set would replace currently worn restraints.
+export function getRestraintSetWarning(set: ConfiguredOutfit): string | null {
+    try {
+        const setGroups = new Set(set.items.map(i => i.Group));
+        const clashing = Player.Appearance.filter((i: Item) =>
+            RESTRAINT_GROUPS.has(i.Asset.Group.Name) && setGroups.has(i.Asset.Group.Name)
+        );
+        if (!clashing.length) return null;
+        return `"${set.displayName}" will replace ${clashing.length} worn restraint${clashing.length !== 1 ? "s" : ""}. Continue?`;
+    } catch { return null; }
+}
+
 const MAX_SERIALIZE_DEPTH = 12;
 let outfitApplyPending = false;
 let refreshScheduled = false;
@@ -294,6 +327,20 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
         if (built) nextAppearance.push(built);
     }
 
+    // Enforce outfit whitelist — protected slots always keep their current item
+    const _wl = getOutfitWhitelist();
+    if (_wl.length) {
+        for (const _grp of _wl) {
+            const _orig = Player.Appearance.find((i: Item) => i.Asset.Group.Name === _grp);
+            if (!_orig) continue;
+            const _cloned = cloneAppearanceItem(_orig);
+            if (!_cloned) continue;
+            const _idx = nextAppearance.findIndex(i => i.Asset.Group.Name === _grp);
+            if (_idx >= 0) nextAppearance.splice(_idx, 1, _cloned);
+            else nextAppearance.push(_cloned);
+        }
+    }
+
     Player.Appearance = nextAppearance;
     sanitizeLiveAppearance();
     sendRoomAppearanceUpdate();
@@ -461,7 +508,10 @@ export function moveOutfit(id: string, direction: "up" | "down"): void {
     saveOutfits(outfits);
 }
 
-export function handleOutfitCommand(inputValue: string): boolean {
+export function handleOutfitCommand(
+    inputValue: string,
+    confirmFn?: (msg: string, onConfirm: () => void) => void,
+): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;
 
@@ -474,7 +524,12 @@ export function handleOutfitCommand(inputValue: string): boolean {
         return true;
     }
 
-    applyOutfit(outfit);
+    const warning = getOutfitRestraintWarning(outfit);
+    if (warning && confirmFn) {
+        confirmFn(warning, () => applyOutfit(outfit));
+    } else {
+        applyOutfit(outfit);
+    }
     return true;
 }
 
@@ -703,6 +758,20 @@ export function applyRestraintSet(restraint: ConfiguredOutfit): void {
         if (built) nextAppearance.push(built);
     }
 
+    // Enforce outfit whitelist — protected slots always keep their current item
+    const _wl2 = getOutfitWhitelist();
+    if (_wl2.length) {
+        for (const _grp of _wl2) {
+            const _orig = Player.Appearance.find((i: Item) => i.Asset.Group.Name === _grp);
+            if (!_orig) continue;
+            const _cloned = cloneAppearanceItem(_orig);
+            if (!_cloned) continue;
+            const _idx = nextAppearance.findIndex(i => i.Asset.Group.Name === _grp);
+            if (_idx >= 0) nextAppearance.splice(_idx, 1, _cloned);
+            else nextAppearance.push(_cloned);
+        }
+    }
+
     Player.Appearance = nextAppearance;
     sanitizeLiveAppearance();
     sendRoomAppearanceUpdate();
@@ -824,7 +893,33 @@ export function applyColorPresetToRestraint(restraintId: string, fullGroup: stri
     return true;
 }
 
-export function handleRestraintCommand(inputValue: string): boolean {
+// -- Outfit protected-items whitelist -----------------------------------------
+// Group names (slot keys) whose current item should never be touched by any
+// outfit or restraint-set apply. Stored in ExtensionSettings server-side.
+
+export function getOutfitWhitelist(): string[] {
+    const raw = getAddon().outfitWhitelist;
+    return Array.isArray(raw) ? (raw as string[]) : [];
+}
+
+export function setOutfitWhitelist(groups: string[]): void {
+    getAddon().outfitWhitelist = groups;
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+export function addToOutfitWhitelist(group: string): void {
+    const list = getOutfitWhitelist();
+    if (!list.includes(group)) setOutfitWhitelist([...list, group]);
+}
+
+export function removeFromOutfitWhitelist(group: string): void {
+    setOutfitWhitelist(getOutfitWhitelist().filter(g => g !== group));
+}
+
+export function handleRestraintCommand(
+    inputValue: string,
+    confirmFn?: (msg: string, onConfirm: () => void) => void,
+): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;
     const command = trimmed.slice(1).toLowerCase();
@@ -834,7 +929,12 @@ export function handleRestraintCommand(inputValue: string): boolean {
         localNotice(`Restraint set "/${restraint.command}" has no saved items yet.`, "#ffb7c7");
         return true;
     }
-    applyRestraintSet(restraint);
+    const warning = getRestraintSetWarning(restraint);
+    if (warning && confirmFn) {
+        confirmFn(warning, () => applyRestraintSet(restraint));
+    } else {
+        applyRestraintSet(restraint);
+    }
     return true;
 }
 
