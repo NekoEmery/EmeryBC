@@ -14656,7 +14656,20 @@
                         lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
                         lbl.textContent = `People in Room`;
                         const cnt = document.createElement("span");
-                        cnt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;";
+                        cnt.style.cssText = [
+                            "font-family:'Trebuchet MS',serif",
+                            "font-size:10px",
+                            "font-weight:bold",
+                            "color:#e8b4c4",
+                            "background:rgba(192,100,130,0.18)",
+                            "border:1px solid rgba(192,100,130,0.35)",
+                            "border-radius:10px",
+                            "padding:0 7px",
+                            "line-height:16px",
+                            "min-width:18px",
+                            "text-align:center",
+                            "flex-shrink:0",
+                        ].join(";");
                         cnt.textContent = String(roomList.length);
                         roomToggle.appendChild(arrow);
                         roomToggle.appendChild(lbl);
@@ -18649,7 +18662,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.1.7";
+    const MOD_VERSION = "2.1.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // -- AFK auto-reply state -------------------------------------------------------
@@ -18657,6 +18670,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.1.8",
+            changes: [
+                "UI: People in Room counter is now a proper pill badge — bright, readable, and clearly styled.",
+            ],
+        },
         {
             version: "2.1.7",
             changes: [
