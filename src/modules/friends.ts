@@ -42,8 +42,13 @@ function getStore(): Record<string, unknown> {
     return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
 }
 
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
 function sync(): void {
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    if (syncTimer !== null) return; // already queued
+    syncTimer = setTimeout(() => {
+        syncTimer = null;
+        try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+    }, 2000);
 }
 
 // -- Name cache ----------------------------------------------------------------
@@ -497,11 +502,12 @@ export function storeRawBundle(data: unknown): void {
         // Shallow-clone and strip large fields
         const bundle: Record<string, unknown> = { ...d };
         for (const f of BUNDLE_STRIP_FIELDS) delete bundle[f];
-        // JSON round-trip: plain data object, no live BC references or non-serialisable values
+        // Serialize for localStorage. Input is already a plain deep-copied object
+        // (caller passed JSON.parse(JSON.stringify(c))), so skip the redundant second
+        // JSON.parse — use the in-memory bundle object directly for the session cache.
         const serialized = JSON.stringify(bundle);
-        const parsed = JSON.parse(serialized) as unknown;
         // Tier 1: session memory
-        sessionCharacterBundles.set(num, parsed);
+        sessionCharacterBundles.set(num, bundle);
         // Tier 2: localStorage for cross-session persistence
         try {
             localStorage.setItem(`${BUNDLE_LS_PREFIX}${num}`, serialized);
