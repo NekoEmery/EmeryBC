@@ -16,16 +16,28 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.10";
+const MOD_VERSION = "2.2.11";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
+
+// Members already recorded in "people met" this session — avoids redundant server syncs
+// on repeated CharacterRefresh calls for the same person in a large room.
+const seenThisSession = new Set<number>();
 
 // -- AFK auto-reply state -------------------------------------------------------
 let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.11",
+        changes: [
+            "Fix: large-room server timeout — timerCheckRestraints throttled to once/500ms (was once per character per frame).",
+            "Fix: recordPersonMet now batches server sync with 3s debounce and skips unchanged entries.",
+            "Fix: CharacterRefresh people-met recording deduplicated per session — was firing N server syncs for N people on room join.",
+        ],
+    },
     {
         version: "2.2.10",
         changes: [
@@ -2430,12 +2442,17 @@ function init(): void {
                 try { checkRestraintChanges(); } catch { /* ignore */ }
                 antiRestraintOnPlayerRefresh();
             } else if (C?.MemberNumber != null && C.MemberNumber !== Player.MemberNumber) {
-                // Record this person in the persistent "people met" list
-                try {
-                    const displayName = (C as unknown as Record<string, unknown>).Nickname as string | undefined;
-                    const name = (displayName?.trim()) || (C.Name ?? "") || String(C.MemberNumber);
-                    recordPersonMet(C.MemberNumber, name);
-                } catch { /* ignore */ }
+                // Record this person in the persistent "people met" list.
+                // seenThisSession guard prevents repeated syncs when CharacterRefresh
+                // fires many times for the same person in a large room.
+                if (!seenThisSession.has(C.MemberNumber)) {
+                    seenThisSession.add(C.MemberNumber);
+                    try {
+                        const displayName = (C as unknown as Record<string, unknown>).Nickname as string | undefined;
+                        const name = (displayName?.trim()) || (C.Name ?? "") || String(C.MemberNumber);
+                        recordPersonMet(C.MemberNumber, name);
+                    } catch { /* ignore */ }
+                }
             }
         } catch { /* ignore */ }
         return result;
