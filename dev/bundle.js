@@ -2295,40 +2295,6 @@
         const baseName = item.Asset.Description || item.Asset.Name;
         return craftName ? `${craftName} (${baseName})` : baseName;
     }
-    // Show a custom in-game overlay rather than window.confirm (which can be
-    // suppressed by some browsers / userscript sandboxes).
-    function showEscapePrompt(itemName, restrainer, onKeep, onEscape) {
-        const overlay = document.createElement("div");
-        overlay.style.cssText = [
-            "position:fixed", "top:50%", "left:50%",
-            "transform:translate(-50%,-50%)",
-            "background:#130810", "border:2px solid #cf6f98",
-            "border-radius:10px", "padding:18px 22px",
-            "z-index:999999", "font-family:'Trebuchet MS',serif",
-            "min-width:250px", "max-width:320px",
-            "box-shadow:0 6px 32px rgba(0,0,0,0.85)",
-            "display:flex", "flex-direction:column", "gap:12px",
-        ].join(";");
-        const who = restrainer ? `<b style="color:#f7e6ee">${restrainer}</b> is` : "Someone is";
-        const msg = document.createElement("div");
-        msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;";
-        msg.innerHTML = `${who} applying <b style="color:#f7e6ee">${itemName}</b> on you.<br>What would you like to do?`;
-        overlay.appendChild(msg);
-        const btns = document.createElement("div");
-        btns.style.cssText = "display:flex;gap:8px;";
-        const keepBtn = document.createElement("button");
-        keepBtn.textContent = "Keep it";
-        keepBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #79a885;background:#0f2a1a;color:#79a885;";
-        keepBtn.addEventListener("click", () => { overlay.remove(); onKeep(); });
-        const escBtn = document.createElement("button");
-        escBtn.textContent = "Escape!";
-        escBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
-        escBtn.addEventListener("click", () => { overlay.remove(); onEscape(); });
-        btns.appendChild(keepBtn);
-        btns.appendChild(escBtn);
-        overlay.appendChild(btns);
-        document.body.appendChild(overlay);
-    }
     let lastRestrainerName = null;
     function getLastRestrainerName() { return lastRestrainerName; }
     function recordRestrainer(sourceMemberNumber) {
@@ -2395,19 +2361,6 @@
                 || "restraint";
             const restrainer = lastRestrainerName;
             lastRestrainerName = null;
-            // Confirm dialog — show a custom overlay and handle accept/escape via callbacks.
-            if (getAntiRestraintConfirm()) {
-                showEscapePrompt(itemName, restrainer, () => {
-                    // Keep — add to known so anti-escape ignores them
-                    for (const item of newItems)
-                        knownRestraints.add(item.Asset.Group.Name);
-                    escaping = false;
-                }, () => {
-                    // Escape — proceed with removal
-                    doEscape(newItems, restrainer, itemName);
-                });
-                return; // escaping stays true until one of the callbacks fires
-            }
             doEscape(newItems, restrainer, itemName);
         }
         catch (_a) {
@@ -18695,7 +18648,7 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.12";
+    const MOD_VERSION = "2.2.13";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -18706,6 +18659,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.13",
+            changes: [
+                "Fix: auto-escape no longer shows a confirm popup — restraints are removed immediately regardless of the confirm setting.",
+            ],
+        },
         {
             version: "2.2.12",
             changes: [
