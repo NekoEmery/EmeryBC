@@ -16,7 +16,7 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.11";
+const MOD_VERSION = "2.2.12";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -30,6 +30,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.12",
+        changes: [
+            "Fix: ChatRoomSync no longer blocks on localStorage I/O — bundle writes deferred to async after BC finishes processing.",
+            "Fix: storeRawBundle eliminates redundant second JSON.parse (halves JSON work per character).",
+            "Fix: friends sync() debounced to 2s — was calling ServerPlayerExtensionSettingsSync immediately with no rate limit.",
+        ],
+    },
     {
         version: "2.2.11",
         changes: [
@@ -2390,20 +2398,29 @@ function init(): void {
     // Appearance arrays with loaded Asset objects). Capturing after next() gives corrupted data.
     // Mirrors WCE's saveProfile approach exactly.
     tryHookFunction(modAPI, "ChatRoomSync", 11, (args, next) => {
+        // Deep-copy BEFORE next() because BC mutates character objects in place.
+        // localStorage writes are deferred to a setTimeout so they don't block
+        // BC's own sync processing and can't trigger a server timeout.
+        const copies: Record<string, unknown>[] = [];
         try {
             const [data] = args as [Record<string, unknown>];
             const chars = data?.Character;
             if (Array.isArray(chars)) {
                 for (const c of chars as Record<string, unknown>[]) {
                     const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
-                    // Deep-copy via JSON before BC mutates the objects
                     if (num && num !== Player.MemberNumber) {
-                        try { storeRawBundle(JSON.parse(JSON.stringify(c))); } catch { /* ignore */ }
+                        try { copies.push(JSON.parse(JSON.stringify(c))); } catch { /* ignore */ }
                     }
                 }
             }
         } catch { /* ignore */ }
-        return next(args);
+        const result = next(args);
+        if (copies.length > 0) {
+            window.setTimeout(() => {
+                for (const copy of copies) try { storeRawBundle(copy); } catch { /* ignore */ }
+            }, 0);
+        }
+        return result;
     });
     tryHookFunction(modAPI, "ChatRoomSyncSingle", 11, (args, next) => {
         try {
