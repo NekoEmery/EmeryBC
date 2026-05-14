@@ -4,7 +4,7 @@
 // Whitelist entries are item keys: "AssetName" or "AssetName|CraftName".
 // Removal is attempted up to 2 times per group before giving up (locked items).
 
-import { getAntiRestraintEnabled, getAntiRestraintWhitelist, getAntiRestraintConfirm } from "./settings";
+import { getAntiRestraintEnabled, getAntiRestraintWhitelist } from "./settings";
 import { callBC } from "./bcUtils";
 import { RESTRAINT_GROUPS } from "./outfitManager";
 
@@ -150,24 +150,6 @@ export function antiRestraintOnPlayerRefresh(): void {
 
         const restrainer = lastRestrainerName;
         lastRestrainerName = null;
-
-        // Confirm dialog — show a custom overlay and handle accept/escape via callbacks.
-        if (getAntiRestraintConfirm()) {
-            showEscapePrompt(
-                itemName,
-                restrainer,
-                () => {
-                    // Keep — add to known so anti-escape ignores them
-                    for (const item of newItems) knownRestraints.add(item.Asset.Group.Name);
-                    escaping = false;
-                },
-                () => {
-                    // Escape — proceed with removal
-                    doEscape(newItems, restrainer, itemName);
-                },
-            );
-            return; // escaping stays true until one of the callbacks fires
-        }
 
         doEscape(newItems, restrainer, itemName);
 
