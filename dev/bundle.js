@@ -2220,6 +2220,16 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
     const PEOPLE_MET_CAP = 2000;
+    // Debounce handle for batching multiple recordPersonMet calls into one server sync.
+    let peopleMetSyncTimer = null;
+    function schedulePeopleMetSync() {
+        if (peopleMetSyncTimer !== null)
+            return; // already queued
+        peopleMetSyncTimer = setTimeout(() => {
+            peopleMetSyncTimer = null;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }, 3000); // wait 3 s then send one sync for all changes
+    }
     function getPeopleMet() {
         var _a;
         try {
@@ -2238,7 +2248,9 @@
             const list = getPeopleMet();
             const existing = list.find(p => p.n === memberNumber);
             if (existing) {
-                existing.name = name; // update display name
+                if (existing.name === name)
+                    return; // nothing changed — skip sync entirely
+                existing.name = name;
             }
             else {
                 if (list.length >= PEOPLE_MET_CAP)
@@ -2246,7 +2258,7 @@
                 list.push({ n: memberNumber, name });
             }
             store.peopleMet = list;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            schedulePeopleMetSync(); // batch — one server sync covers all changes in a 3 s window
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -2657,6 +2669,7 @@
     let roomEnterTime = null;
     let restraintStartTime = null; // overall "am I restrained" timer
     let savePending = false;
+    let lastTimerCheckTs = 0; // throttle — only run once per 500 ms
     function getAddon() {
         try {
             if (!Player.ExtensionSettings.EmeryBC)
@@ -2703,7 +2716,12 @@
         restraintStartTime = null;
     }
     // Called from DrawCharacter hook. Keeps per-item and overall timers in sync.
+    // Throttled — only runs once per 500 ms regardless of how many characters are drawn per frame.
     function timerCheckRestraints() {
+        const now = Date.now();
+        if (now - lastTimerCheckTs < 500)
+            return;
+        lastTimerCheckTs = now;
         try {
             if (!(Player === null || Player === void 0 ? void 0 : Player.Appearance))
                 return;
@@ -18667,14 +18685,25 @@
     EBCDrawer._instance = null;
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.10";
+    const MOD_VERSION = "2.2.11";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
+    // Members already recorded in "people met" this session — avoids redundant server syncs
+    // on repeated CharacterRefresh calls for the same person in a large room.
+    const seenThisSession = new Set();
     // -- AFK auto-reply state -------------------------------------------------------
     let lastActivityTime = Date.now();
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.11",
+            changes: [
+                "Fix: large-room server timeout — timerCheckRestraints throttled to once/500ms (was once per character per frame).",
+                "Fix: recordPersonMet now batches server sync with 3s debounce and skips unchanged entries.",
+                "Fix: CharacterRefresh people-met recording deduplicated per session — was firing N server syncs for N people on room join.",
+            ],
+        },
         {
             version: "2.2.10",
             changes: [
@@ -21105,13 +21134,18 @@
                     antiRestraintOnPlayerRefresh();
                 }
                 else if ((C === null || C === void 0 ? void 0 : C.MemberNumber) != null && C.MemberNumber !== Player.MemberNumber) {
-                    // Record this person in the persistent "people met" list
-                    try {
-                        const displayName = C.Nickname;
-                        const name = (displayName === null || displayName === void 0 ? void 0 : displayName.trim()) || ((_a = C.Name) !== null && _a !== void 0 ? _a : "") || String(C.MemberNumber);
-                        recordPersonMet(C.MemberNumber, name);
+                    // Record this person in the persistent "people met" list.
+                    // seenThisSession guard prevents repeated syncs when CharacterRefresh
+                    // fires many times for the same person in a large room.
+                    if (!seenThisSession.has(C.MemberNumber)) {
+                        seenThisSession.add(C.MemberNumber);
+                        try {
+                            const displayName = C.Nickname;
+                            const name = (displayName === null || displayName === void 0 ? void 0 : displayName.trim()) || ((_a = C.Name) !== null && _a !== void 0 ? _a : "") || String(C.MemberNumber);
+                            recordPersonMet(C.MemberNumber, name);
+                        }
+                        catch ( /* ignore */_c) { /* ignore */ }
                     }
-                    catch ( /* ignore */_c) { /* ignore */ }
                 }
             }
             catch ( /* ignore */_d) { /* ignore */ }
