@@ -16,6 +16,7 @@ let roomEnterTime: number | null = null;
 let restraintStartTime: number | null = null; // overall "am I restrained" timer
 
 let savePending = false;
+let lastTimerCheckTs = 0; // throttle — only run once per 500 ms
 
 function getAddon(): Record<string, unknown> {
     try {
@@ -57,7 +58,11 @@ export function timerOnRoomLeave(): void {
 }
 
 // Called from DrawCharacter hook. Keeps per-item and overall timers in sync.
+// Throttled — only runs once per 500 ms regardless of how many characters are drawn per frame.
 export function timerCheckRestraints(): void {
+    const now = Date.now();
+    if (now - lastTimerCheckTs < 500) return;
+    lastTimerCheckTs = now;
     try {
         if (!Player?.Appearance) return;
 

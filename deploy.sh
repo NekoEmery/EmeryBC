@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e  # Abort on any failure — never push a broken build
 
-VERSION=2.2.10
+VERSION=2.2.11
 # ──────────────────────────────────────────────────────────────────────────────
 # Usage:
 #   ./deploy.sh                                 bump patch, no changelog entry

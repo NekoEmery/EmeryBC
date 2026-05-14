@@ -263,6 +263,17 @@ export interface PersonMet {
 
 const PEOPLE_MET_CAP = 2000;
 
+// Debounce handle for batching multiple recordPersonMet calls into one server sync.
+let peopleMetSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+function schedulePeopleMetSync(): void {
+    if (peopleMetSyncTimer !== null) return; // already queued
+    peopleMetSyncTimer = setTimeout(() => {
+        peopleMetSyncTimer = null;
+        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+    }, 3000); // wait 3 s then send one sync for all changes
+}
+
 export function getPeopleMet(): PersonMet[] {
     try {
         const raw = getStore()?.peopleMet;
@@ -277,13 +288,14 @@ export function recordPersonMet(memberNumber: number, name: string): void {
         const list = getPeopleMet();
         const existing = list.find(p => p.n === memberNumber);
         if (existing) {
-            existing.name = name; // update display name
+            if (existing.name === name) return; // nothing changed — skip sync entirely
+            existing.name = name;
         } else {
             if (list.length >= PEOPLE_MET_CAP) list.splice(0, list.length - PEOPLE_MET_CAP + 1);
             list.push({ n: memberNumber, name });
         }
         store.peopleMet = list;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        schedulePeopleMetSync(); // batch — one server sync covers all changes in a 3 s window
     } catch { /* ignore */ }
 }
 
