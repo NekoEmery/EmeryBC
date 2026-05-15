@@ -2,6 +2,8 @@
 // All data stored in Player.ExtensionSettings.EmeryBC and synced to server
 // so it's available across devices on next login.
 
+import { db } from "./db";
+
 /**
  * Some BC mods (WCE, FBC, etc.) append metadata to beep messages in two forms:
  *   1. A JSON blob:  "hiya {"messageType":"Message","messageColor":"#EFB0E2"}"
@@ -470,67 +472,44 @@ const BUNDLE_STRIP_FIELDS = [
     "ActivePose", "ArousalSettings", "OnlineSharedSettings",
     "WhiteList", "BlackList", "Crafting",
 ];
-const BUNDLE_LS_PREFIX  = "EBC_bundle_";
-const BUNDLE_LS_META    = "EBC_bundleMeta"; // {[memberNumber]: seenTimestamp}
-const BUNDLE_LS_CAP     = 150;              // max localStorage entries
 
+// Tier 1: fast in-memory cache for the current session.
 const sessionCharacterBundles = new Map<number, unknown>();
-
-function evictBundleCache(meta: Record<string, number>): void {
-    const entries = Object.entries(meta);
-    if (entries.length <= BUNDLE_LS_CAP) return;
-    entries.sort((a, b) => a[1] - b[1]); // oldest first
-    const toEvict = entries.length - BUNDLE_LS_CAP;
-    for (let i = 0; i < toEvict; i++) {
-        const key = entries[i][0];
-        delete meta[key];
-        try { localStorage.removeItem(`${BUNDLE_LS_PREFIX}${key}`); } catch { /* ignore */ }
-    }
-    try { localStorage.setItem(BUNDLE_LS_META, JSON.stringify(meta)); } catch { /* ignore */ }
-}
 
 /**
  * Store the raw server bundle for an online character.
- * Pass the first argument of CharacterLoadOnline (the raw server data object),
- * NOT a constructed Character object.
+ * Input must already be a plain deep-copied object (caller used structuredClone).
+ * Session cache is updated synchronously; IndexedDB write is fire-and-forget async.
  */
 export function storeRawBundle(data: unknown): void {
     try {
         const d = data as Record<string, unknown>;
         const num = typeof d.MemberNumber === "number" ? d.MemberNumber : 0;
         if (!num) return;
-        // Shallow-clone and strip large fields
+        // Shallow-clone and strip large/sensitive fields before storing
         const bundle: Record<string, unknown> = { ...d };
         for (const f of BUNDLE_STRIP_FIELDS) delete bundle[f];
-        // Serialize for localStorage. Input is already a plain deep-copied object
-        // (caller passed JSON.parse(JSON.stringify(c))), so skip the redundant second
-        // JSON.parse — use the in-memory bundle object directly for the session cache.
-        const serialized = JSON.stringify(bundle);
-        // Tier 1: session memory
+        // Tier 1: session memory (sync — always available immediately)
         sessionCharacterBundles.set(num, bundle);
-        // Tier 2: localStorage for cross-session persistence
-        try {
-            localStorage.setItem(`${BUNDLE_LS_PREFIX}${num}`, serialized);
-            const rawMeta = localStorage.getItem(BUNDLE_LS_META);
-            const meta: Record<string, number> = (rawMeta ? JSON.parse(rawMeta) : {}) as Record<string, number>;
-            meta[String(num)] = Date.now();
-            evictBundleCache(meta);
-            localStorage.setItem(BUNDLE_LS_META, JSON.stringify(meta));
-        } catch { /* localStorage quota exceeded or unavailable — session cache still works */ }
+        // Tier 2: IndexedDB via Dexie (async, fire-and-forget — no localStorage quota risk)
+        db.bundles.put({ num, data: bundle, ts: Date.now() }).catch(() => {});
     } catch { /* ignore */ }
 }
 
-export function getCharacterBundle(memberNumber: number): unknown | null {
-    // Tier 1: check session memory
+/**
+ * Retrieve a stored bundle. Checks the session cache first (sync-fast path),
+ * then falls back to IndexedDB for bundles from previous sessions.
+ */
+export async function getCharacterBundle(memberNumber: number): Promise<unknown | null> {
+    // Tier 1: session memory
     const mem = sessionCharacterBundles.get(memberNumber);
     if (mem != null) return mem;
-    // Tier 2: check localStorage (previous sessions)
+    // Tier 2: IndexedDB (previous sessions)
     try {
-        const raw = localStorage.getItem(`${BUNDLE_LS_PREFIX}${memberNumber}`);
-        if (raw) {
-            const bundle = JSON.parse(raw) as unknown;
-            sessionCharacterBundles.set(memberNumber, bundle); // promote to memory cache
-            return bundle;
+        const row = await db.bundles.get(memberNumber);
+        if (row) {
+            sessionCharacterBundles.set(memberNumber, row.data); // promote to session cache
+            return row.data;
         }
     } catch { /* ignore */ }
     return null;

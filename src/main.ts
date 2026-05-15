@@ -13,10 +13,11 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
+import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.13";
+const MOD_VERSION = "2.2.14";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -30,6 +31,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.14",
+        changes: [
+            "Perf: character bundles moved from localStorage to IndexedDB via Dexie — no 5MB quota, async I/O won't block BC event loop.",
+            "Perf: deep-clone now uses structuredClone() instead of JSON.parse(JSON.stringify()) — faster and handles more types.",
+            "Dev: added ts-reset to tighten TypeScript built-in types (JSON.parse → unknown, filter(Boolean) → non-nullable).",
+        ],
+    },
     {
         version: "2.2.13",
         changes: [
@@ -2315,6 +2324,8 @@ function init(): void {
         // Bootstrap room history in case the addon loaded while already in a room
         // (ChatRoomSync won't fire again so we seed the current visit manually).
         window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); } catch { /* ignore */ } }, 600);
+        // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
+        migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => {});
     } catch (err) {
         console.warn("[EBC] Drawer failed to initialise:", err);
     }
@@ -2415,7 +2426,7 @@ function init(): void {
                 for (const c of chars as Record<string, unknown>[]) {
                     const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
                     if (num && num !== Player.MemberNumber) {
-                        try { copies.push(JSON.parse(JSON.stringify(c))); } catch { /* ignore */ }
+                        try { copies.push(structuredClone(c)); } catch { /* ignore */ }
                     }
                 }
             }
@@ -2434,7 +2445,7 @@ function init(): void {
             const c = data?.Character as Record<string, unknown> | undefined;
             const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
             if (num && num !== Player.MemberNumber) {
-                try { storeRawBundle(JSON.parse(JSON.stringify(c))); } catch { /* ignore */ }
+                try { storeRawBundle(structuredClone(c)); } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
         return next(args);
@@ -2445,7 +2456,7 @@ function init(): void {
             const c = data?.Character as Record<string, unknown> | undefined;
             const num = typeof c?.MemberNumber === "number" ? c.MemberNumber : 0;
             if (num && num !== Player.MemberNumber) {
-                try { storeRawBundle(JSON.parse(JSON.stringify(c))); } catch { /* ignore */ }
+                try { storeRawBundle(structuredClone(c)); } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
         return next(args);
