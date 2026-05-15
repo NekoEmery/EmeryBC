@@ -10,9 +10,11 @@
 // @match        https://bondage-europe.com/*
 // @match        https://www.bondageprojects.elementfx.com/*
 // @match        https://www.bondageprojects.com/*
-// @run-at       document-idle
+// @run-at       document-start
+// @inject-into  page
 // @grant        none
 // ==/UserScript==
+console.log("[EmeryBC] userscript injected, waiting for BC...");
 (function () {
     'use strict';
 
