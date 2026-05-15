@@ -15,9 +15,10 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
+import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.15";
+const MOD_VERSION = "2.2.16";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -31,6 +32,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.16",
+        changes: [
+            "Fix: addon now loads without FUSAM — startup was waiting for window.bcModSDK (uppercase, FUSAM-provided) but the bundled SDK registers as window.bcModSdk (lowercase). Now imports SDK directly and waits for BC's own ChatRoomMenuDraw instead.",
+        ],
+    },
     {
         version: "2.2.15",
         changes: [
@@ -2293,7 +2300,7 @@ function tryHookFunction(
 }
 
 function init(): void {
-    const modAPI = bcModSDK.registerMod(
+    const modAPI = bcModSdk.registerMod(
         { name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION },
         { allowReplace: true }
     );
@@ -2743,7 +2750,7 @@ function init(): void {
 }
 
 const readyInterval = setInterval(() => {
-    if (typeof bcModSDK !== "undefined") {
+    if (typeof ChatRoomMenuDraw !== "undefined") {
         clearInterval(readyInterval);
         init();
     }
