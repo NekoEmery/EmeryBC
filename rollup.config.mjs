@@ -1,5 +1,6 @@
 import typescript from "@rollup/plugin-typescript";
 import resolve from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
 
 // Pass --environment BUILD:production to minify (used by npm run build:prod)
@@ -14,6 +15,7 @@ export default {
     },
     plugins: [
         resolve({ browser: true }),
+        commonjs(),
         typescript(),
         ...(isProd ? [terser()] : []),
     ],

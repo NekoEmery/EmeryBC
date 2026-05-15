@@ -9597,7 +9597,7 @@ export class EBCDrawer {
         </svg>`;
         profileBtn.addEventListener("mouseenter", () => { profileBtn.style.background = "#3a1020"; profileBtn.style.borderColor = "#cf6f98"; });
         profileBtn.addEventListener("mouseleave", () => { profileBtn.style.background = "#2a0e1e"; profileBtn.style.borderColor = "#4c2537"; });
-        profileBtn.addEventListener("click", () => {
+        profileBtn.addEventListener("click", async () => {
             const w           = window as unknown as Record<string, unknown>;
             const loadChar    = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
             const hideEls     = w.ChatRoomHideElements          as (() => void) | undefined;
@@ -9626,7 +9626,7 @@ export class EBCDrawer {
                 : undefined;
             if (inRoom) { try { doOpen(inRoom); return; } catch { /* ignore */ } }
 
-            const bundle = getCharacterBundle(memberNumber);
+            const bundle = await getCharacterBundle(memberNumber);
             if (bundle) {
                 try { const C = loadOnline(bundle, memberNumber); if (C) { doOpen(C); return; } } catch { /* ignore */ }
             }
@@ -10783,7 +10783,7 @@ export class EBCDrawer {
                 friendProfBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
                 friendProfBtn.addEventListener("mouseenter", () => { friendProfBtn.style.background = "#3a1428"; friendProfBtn.style.borderColor = "#cf6f98"; });
                 friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "#2a0e1e"; friendProfBtn.style.borderColor = "#4c2537"; });
-                friendProfBtn.addEventListener("click", (e) => {
+                friendProfBtn.addEventListener("click", async (e) => {
                     e.stopPropagation();
                     const w2 = window as unknown as Record<string, unknown>;
                     const loadChar   = w2.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
@@ -10807,7 +10807,7 @@ export class EBCDrawer {
                     }
                     const inRoom = Array.isArray(roomChars) ? roomChars.find(c => c.MemberNumber === num) : undefined;
                     if (inRoom) { try { openProfile(inRoom); return; } catch { /* ignore */ } }
-                    const bundle = getCharacterBundle(num);
+                    const bundle = await getCharacterBundle(num);
                     if (bundle) {
                         try {
                             const C = loadOnline(bundle, num);
@@ -12843,7 +12843,7 @@ export class EBCDrawer {
                     profBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
                     profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#3a1428"; profBtn.style.borderColor = "#cf6f98"; });
                     profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "#2a0e1e"; profBtn.style.borderColor = "#4c2537"; });
-                    profBtn.addEventListener("click", () => {
+                    profBtn.addEventListener("click", async () => {
                         const w = window as unknown as Record<string, unknown>;
                         const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
                         const hideEls    = w.ChatRoomHideElements as (() => void) | undefined;
@@ -12879,7 +12879,7 @@ export class EBCDrawer {
                         }
 
                         // Reconstruct from stored bundle (WCE-style offline profile)
-                        const bundle = getCharacterBundle(person.n);
+                        const bundle = await getCharacterBundle(person.n);
                         if (bundle) {
                             try {
                                 const C = loadOnline(bundle, person.n);
