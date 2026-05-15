@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         EmeryBC (stable)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      1.0.0
+// @version      1.0.1
 // @description  EmeryBC addon for Bondage Club — stable channel
 // @downloadURL  https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader-stable.user.js
 // @updateURL    https://raw.githubusercontent.com/NekoEmery/EmeryBC/master/loader-stable.user.js
@@ -10,19 +10,14 @@
 // @match        https://*.bondageprojects.com/R*/*
 // @match        https://*.bondage-asia.com/club/R*
 // @run-at       document-end
-// @grant        GM_xmlhttpRequest
-// @connect      nekoemery.github.io
+// @grant        none
 // ==/UserScript==
 
-GM_xmlhttpRequest({
-    method: "GET",
-    url: "https://nekoemery.github.io/EmeryBC/stable/bundle.js?v=" + Date.now(),
-    onload: function (res) {
-        const script = document.createElement("script");
-        script.textContent = res.responseText;
-        document.head.appendChild(script);
-    },
-    onerror: function () {
-        console.error("[EmeryBC] Failed to load stable bundle");
-    }
-});
+(function () {
+    console.log("[EmeryBC] Loader: injecting stable bundle...");
+    const script = document.createElement("script");
+    script.src = "https://nekoemery.github.io/EmeryBC/stable/bundle.js?v=" + Date.now();
+    script.onload = function () { console.log("[EmeryBC] Loader: bundle injected OK"); };
+    script.onerror = function () { console.error("[EmeryBC] Loader: FAILED to fetch bundle"); };
+    document.head.appendChild(script);
+})();
