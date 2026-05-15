@@ -1,3 +1,18 @@
+// ==UserScript==
+// @name         EmeryBC (dev)
+// @namespace    https://github.com/NekoEmery/EmeryBC
+// @version      2.2.15
+// @description  EmeryBC addon for Bondage Club — dev channel
+// @author       Emery
+// @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
+// @updateURL    https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
+// @match        https://www.bondage-europe.com/*
+// @match        https://bondage-europe.com/*
+// @match        https://www.bondageprojects.elementfx.com/*
+// @match        https://www.bondageprojects.com/*
+// @run-at       document-idle
+// @grant        none
+// ==/UserScript==
 (function () {
     'use strict';
 
