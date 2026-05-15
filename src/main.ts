@@ -17,7 +17,7 @@ import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.14";
+const MOD_VERSION = "2.2.15";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -31,6 +31,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.15",
+        changes: [
+            "Infra: build now generates bundle.user.js — a self-contained Violentmonkey/Tampermonkey userscript with correct @match patterns and auto-update URL. No separate loader script needed.",
+        ],
+    },
     {
         version: "2.2.14",
         changes: [
