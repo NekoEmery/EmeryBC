@@ -17838,6 +17838,8 @@
                     const { content, delay } = parseStep(r, DEFAULT_DELAY);
                     if (content === "_")
                         return { type: "reset", text: "", delay };
+                    if (content.toLowerCase() === "leaveroom")
+                        return { type: "leaveroom", text: "", delay };
                     if (content.startsWith("!"))
                         return { type: "action", text: content.slice(1), delay };
                     if (content.startsWith("*"))
@@ -17850,13 +17852,15 @@
                     let content = "";
                     if (s.type === "reset")
                         content = "_";
+                    else if (s.type === "leaveroom")
+                        content = "leaveroom";
                     else if (s.type === "action")
                         content = "!" + s.text;
                     else if (s.type === "emote")
                         content = "*" + s.text;
                     else
                         content = s.text;
-                    return `${content}@${s.delay}`;
+                    return s.type === "leaveroom" ? content : `${content}@${s.delay}`;
                 }).join("|");
             };
             let steps = parseSteps(btns[idx].emote);
@@ -17880,6 +17884,7 @@
                         { value: "emote", label: "Emote *" },
                         { value: "pose", label: "Pose" },
                         { value: "reset", label: "Reset _" },
+                        { value: "leaveroom", label: "Leave Room 🚪" },
                     ].forEach(opt => {
                         const o = document.createElement("option");
                         o.value = opt.value;
@@ -17888,15 +17893,19 @@
                             o.selected = true;
                         typeSelect.appendChild(o);
                     });
+                    const noText = step.type === "reset" || step.type === "leaveroom";
+                    const noDelay = step.type === "leaveroom";
                     // Text input
                     const textInp = document.createElement("input");
                     textInp.className = "ebc-seq-text-inp";
                     textInp.type = "text";
                     textInp.value = step.text;
                     textInp.placeholder = step.type === "pose" ? "e.g. HandsUp" : "text...";
-                    textInp.disabled = step.type === "reset";
+                    textInp.disabled = noText;
                     textInp.maxLength = 200;
-                    // Delay input (ms)
+                    if (noText)
+                        textInp.style.opacity = "0.35";
+                    // Delay input (ms) — hidden for leaveroom since nothing follows
                     const delayInp = document.createElement("input");
                     delayInp.className = "ebc-seq-delay-inp";
                     delayInp.type = "number";
@@ -17905,6 +17914,8 @@
                     delayInp.step = "100";
                     delayInp.value = String(step.delay);
                     delayInp.title = "Delay after this step (ms)";
+                    if (noDelay)
+                        delayInp.style.visibility = "hidden";
                     // Delete button
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-seq-step-del";
@@ -17920,8 +17931,12 @@
                     typeSelect.addEventListener("change", () => {
                         const t = typeSelect.value;
                         steps[sidx].type = t;
-                        textInp.disabled = t === "reset";
-                        if (t === "reset") {
+                        const noTxt = t === "reset" || t === "leaveroom";
+                        const noDly = t === "leaveroom";
+                        textInp.disabled = noTxt;
+                        textInp.style.opacity = noTxt ? "0.35" : "";
+                        delayInp.style.visibility = noDly ? "hidden" : "";
+                        if (noTxt) {
                             steps[sidx].text = "";
                             textInp.value = "";
                         }
@@ -17944,7 +17959,23 @@
                 }
             };
             renderSteps();
-            // + Add step button
+            // Button row: template shortcut + add step
+            const seqBtnRow = document.createElement("div");
+            seqBtnRow.style.cssText = "display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;";
+            const templateBtn = document.createElement("button");
+            templateBtn.className = "ebc-seq-add-btn";
+            templateBtn.textContent = "📤 Slow Leave template";
+            templateBtn.title = "Fill with a ready-made slow leave (edit messages to your liking)";
+            templateBtn.addEventListener("click", () => {
+                steps = [
+                    { type: "emote", text: "smiles softly and gives a little wave.", delay: 3000 },
+                    { type: "emote", text: "slips quietly toward the door...", delay: 3000 },
+                    { type: "leaveroom", text: "", delay: 0 },
+                ];
+                btns[idx].emote = serializeSteps(steps);
+                renderSteps();
+            });
+            seqBtnRow.appendChild(templateBtn);
             const addBtn = document.createElement("button");
             addBtn.className = "ebc-seq-add-btn";
             addBtn.textContent = "+ Add step";
@@ -17953,7 +17984,8 @@
                 btns[idx].emote = serializeSteps(steps);
                 renderSteps();
             });
-            wrapper.appendChild(addBtn);
+            seqBtnRow.appendChild(addBtn);
+            wrapper.appendChild(seqBtnRow);
             return wrapper;
         }
         // -- Buttons tab -----------------------------------------------------------
@@ -25382,7 +25414,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.20";
+    const MOD_VERSION = "2.2.21";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25393,6 +25425,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.21",
+            changes: [
+                "Seq builder: 'Leave Room 🚪' is now a selectable step type — no raw syntax needed.",
+                "Seq builder: '📤 Slow Leave template' button pre-fills a ready-made 2-message slow leave.",
+            ],
+        },
         {
             version: "2.2.20",
             changes: [
