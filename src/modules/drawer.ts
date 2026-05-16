@@ -7039,7 +7039,7 @@ export class EBCDrawer {
         let btns: ActionButton[] = cats[activeCatIdx].buttons.map(b => ({ ...b }));
         let slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
         while (btns.length < slotCount) {
-            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
         }
 
         // ── Build accordion ───────────────────────────────────────────────────
@@ -7152,7 +7152,7 @@ export class EBCDrawer {
         addCatBtn.addEventListener("click", () => {
             const name = window.prompt("Category name (e.g. RP, Casual):") ?? "";
             if (!name.trim()) return;
-            cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" }], slotCount: 1 });
+            cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" }], slotCount: 1 });
             const newIdx = cats.length - 1;
             saveCategories([...cats], newIdx);
             this.renderButtons();
@@ -7168,7 +7168,7 @@ export class EBCDrawer {
         const renderSlots = (): void => {
             // Always ensure btns has a real object for every slot — prevents "undefined" crashes
             while (btns.length < slotCount) {
-                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
             }
             while (slotList.firstChild) slotList.removeChild(slotList.firstChild);
 
@@ -7291,15 +7291,15 @@ export class EBCDrawer {
                 const isSeq = currentStyle === "seq";
 
                 const styleBtn = document.createElement("button");
-                const styleBtnLabels: Record<ActionStyle, string> = { action: "( )", emote: "* *", seq: "✨", macro: "🔧" };
+                const styleBtnLabels: Record<ActionStyle, string> = { action: "💬", emote: "💬", seq: "✨", macro: "🔧" };
                 const styleBtnTitles: Record<ActionStyle, string> = {
-                    action: "Style: ( action ) — click to switch",
-                    emote:  "Style: * emote * — click to switch",
-                    seq:    "Style: ✨ sequence — click to switch",
-                    macro:  "Style: 🔧 macro — click to switch",
+                    action: "Legacy chat style — click to convert to macro",
+                    emote:  "Legacy chat style — click to convert to macro",
+                    seq:    "Style: ✨ sequence — click to switch to macro",
+                    macro:  "Style: 🔧 macro — click to switch to sequence",
                 };
                 styleBtn.className = "ebc-slot-style" + (currentStyle !== "action" ? " emote" : "");
-                styleBtn.textContent = styleBtnLabels[currentStyle] ?? "( )";
+                styleBtn.textContent = styleBtnLabels[currentStyle] ?? "🔧";
                 styleBtn.title = styleBtnTitles[currentStyle] ?? "";
 
                 // seqBadge kept in DOM for layout but no longer used for display
@@ -7399,20 +7399,15 @@ export class EBCDrawer {
                 });
 
                 styleBtn.addEventListener("click", () => {
-                    const cur: ActionStyle = btns[idx].style ?? "action";
-                    const next: ActionStyle = cur === "action" ? "emote" : cur === "emote" ? "seq" : cur === "seq" ? "macro" : "action";
+                    const cur: ActionStyle = btns[idx].style ?? "macro";
+                    // action/emote are legacy — clicking converts them to macro
+                    // active cycle is seq ↔ macro
+                    const next: ActionStyle = (cur === "action" || cur === "emote") ? "macro"
+                        : cur === "seq" ? "macro" : "seq";
                     btns[idx].style = next;
-                    // Entering/leaving seq or macro: rebuild so editors appear/disappear
-                    if (cur === "seq" || next === "seq" || cur === "macro" || next === "macro") {
-                        renderSlots();
-                        updateFooterState();
-                        return;
-                    }
-                    styleBtn.className = "ebc-slot-style" + (next !== "action" ? " emote" : "");
-                    styleBtn.textContent = styleBtnLabels[next] ?? "( )";
-                    styleBtn.title = styleBtnTitles[next] ?? "";
-                    emoteInp.title = next === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                    nameChip.style.display = next === "action" ? "" : "none";
+                    // Always rebuild — seq/macro editors need to appear/disappear
+                    renderSlots();
+                    updateFooterState();
                 });
 
                 let slotDelPending = false;
@@ -7432,7 +7427,7 @@ export class EBCDrawer {
                     } else {
                         if (slotDelTimer !== null) window.clearTimeout(slotDelTimer);
                         btns.splice(idx, 1);
-                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
                         slotCount = Math.max(1, slotCount - 1);
                         renderSlots();
                         updateFooterState();
@@ -7665,7 +7660,7 @@ export class EBCDrawer {
                 btns = imported;
                 slotCount = newCount;
                 while (btns.length < slotCount) {
-                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
                 }
 
                 saveButtons([...btns], slotCount);

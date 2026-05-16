@@ -18,7 +18,7 @@ import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/s
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.26";
+const MOD_VERSION = "2.2.27";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -32,6 +32,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.27",
+        changes: [
+            "Button style cycle is now seq ↔ macro only — chat emote/action styles removed.",
+            "All new button slots default to 🔧 macro style.",
+            "Existing emote/action buttons show 💬 and convert to macro on first style click.",
+        ],
+    },
     {
         version: "2.2.26",
         changes: [

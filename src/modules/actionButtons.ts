@@ -19,13 +19,13 @@ export interface ActionButton {
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
-    { label: "NOD",    emote: "nods.",              color: "#c2185b", enabled: true,  style: "action" },
-    { label: "SHAKE",  emote: "shakes their head.", color: "#c2185b", enabled: true,  style: "action" },
-    { label: "WAVE",   emote: "waves.",             color: "#c2185b", enabled: true,  style: "action" },
-    { label: "CHEER",  emote: "cheers!",            color: "#c2185b", enabled: true,  style: "action" },
-    { label: "POUT",   emote: "pouts.",             color: "#c2185b", enabled: true,  style: "emote"  },
-    { label: "GIGGLE", emote: "giggles.",           color: "#c2185b", enabled: true,  style: "emote"  },
-    { label: "",       emote: "",                   color: "#c2185b", enabled: false, style: "action" },
+    { label: "", emote: "leaveroom",   color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "releaseself", color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "wardrobe",    color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
 ];
 
 export const ABSOLUTE_MAX  = 12;
