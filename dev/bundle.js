@@ -25562,7 +25562,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.29";
+    const MOD_VERSION = "2.2.30";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25573,6 +25573,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.30",
+            changes: [
+                "Fix: Leave Room crash — BC clears ChatRoomData before the screen transition, causing ChatRoomCustomizationRun to null-crash on the next frame. EBC now guards ChatRoomRun at priority 500 (ahead of CRABS/BCOM) and skips the frame when room data is gone.",
+            ],
+        },
         {
             version: "2.2.29",
             changes: [
@@ -27907,6 +27913,15 @@
                 lastArousalActive = active;
         }
         catch ( /* ignore */_a) { /* ignore */ }
+        // Guard: when ChatRoomLeave() is called, BC clears ChatRoomData synchronously but
+        // delays the screen transition until the server ack.  The next animation frame still
+        // fires ChatRoomRun → ChatRoomCustomizationRun which reads ChatRoomData.Custom → crash.
+        // Running at priority 500 puts us ahead of CRABS/BCOM/BCX so we can bail early.
+        modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
+            if (window.ChatRoomData == null)
+                return;
+            return next(args);
+        });
         // Canvas sidebar action buttons
         modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
             next(args);
