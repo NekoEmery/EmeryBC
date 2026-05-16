@@ -2,7 +2,7 @@
 // Handles all BC/EBC built-in actions so actionButtons.ts stays dependency-free.
 
 import { callBC } from "./bcUtils";
-import { releaseRestraints, unlockItems } from "./restraints";
+import { releaseRestraints } from "./restraints";
 import { applyOutfit, getOutfits } from "./outfitManager";
 import { runScene, getScenes } from "./scenes";
 
@@ -47,12 +47,10 @@ export function executeMacro(cmd: string): void {
                 releaseRestraints();
                 break;
 
-            case "unlockself":
-                unlockItems();
-                break;
-
             case "leaveroom":
-                callBC(() => ChatRoomLeave());
+                // Defer by one tick — calling ChatRoomLeave() mid-frame causes other
+                // mods' ChatRoomRun hooks to fire with null room data on the same frame.
+                window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
                 break;
         }
     } catch { /* ignore */ }

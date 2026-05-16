@@ -218,10 +218,11 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
             } else if (step.toLowerCase() === "leaveroom") {
-                // Restore pose then exit — sequence ends here regardless of remaining steps.
+                // Restore pose then defer leave by one tick — calling ChatRoomLeave()
+                // mid-frame causes other mods' ChatRoomRun hooks to fire with null room data.
                 Player.ActivePose = originalPoses;
                 seqRunning = false;
-                callBC(() => ChatRoomLeave());
+                window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
                 return;
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");

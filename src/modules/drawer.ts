@@ -6885,12 +6885,11 @@ export class EBCDrawer {
     // -- Macro editor (shown below a slot when style === "macro") ---------------
 
     private buildMacroEditor(btns: ActionButton[], idx: number): HTMLElement {
-        type MacroType = "leaveroom" | "releaseself" | "unlockself" | "wardrobe" | "outfit" | "scene" | "beep";
+        type MacroType = "leaveroom" | "releaseself" | "wardrobe" | "outfit" | "scene" | "beep";
 
         const ALL_TYPES: { value: MacroType; label: string; hasArg: boolean }[] = [
             { value: "leaveroom",   label: "🚪 Leave Room",         hasArg: false },
             { value: "releaseself", label: "🔓 Release Restraints", hasArg: false },
-            { value: "unlockself",  label: "🔑 Unlock Items",       hasArg: false },
             { value: "wardrobe",    label: "👗 Open Wardrobe",      hasArg: false },
             { value: "outfit",      label: "✨ Apply Outfit",       hasArg: true  },
             { value: "scene",       label: "🎬 Play Scene",         hasArg: true  },

@@ -18,7 +18,7 @@ import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/s
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.24";
+const MOD_VERSION = "2.2.25";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -32,6 +32,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.25",
+        changes: [
+            "Fix: Leave Room now defers by one tick to avoid crashing other mods' draw hooks.",
+            "Remove 'Unlock Items' from macro options.",
+        ],
+    },
     {
         version: "2.2.24",
         changes: [
