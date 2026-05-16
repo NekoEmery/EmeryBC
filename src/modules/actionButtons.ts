@@ -2,8 +2,9 @@
 import { UI } from "./ui";
 import { callBC } from "./bcUtils";
 import { getActionButtonsVisible } from "./settings";
+import { executeMacro } from "./macros";
 
-export type ActionStyle = "action" | "emote" | "seq";
+export type ActionStyle = "action" | "emote" | "seq" | "macro";
 // "action" = (Name text)
 // "emote"  = * Name text *
 // "seq"    = pose/action sequence (pipe-separated steps)
@@ -611,8 +612,12 @@ export function handleActionButtonClick(): boolean {
         const y = btnStartY + i * BTN_SIZE;
         if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
             my >= y         && my <= y + BTN_SIZE) {
-            const animOk = triggerLabelAnimation(btn.label);
-            if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
+            if (btn.style === "macro") {
+                executeMacro(btn.emote);
+            } else {
+                const animOk = triggerLabelAnimation(btn.label);
+                if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
+            }
             return true;
         }
     }

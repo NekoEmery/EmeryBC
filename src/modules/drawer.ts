@@ -90,6 +90,7 @@ import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } 
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
+import { registerOpenBeepCallback } from "./macros";
 import { callBC } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -2772,6 +2773,7 @@ export class EBCDrawer {
         EBCDrawer._instance = this;
         this.version = version;
         this.isDev   = isDev;
+        registerOpenBeepCallback((n) => this.openBeepWindow(n));
         if (document.body) {
             this.setup();
         } else {
@@ -6880,6 +6882,138 @@ export class EBCDrawer {
         return wrapper;
     }
 
+    // -- Macro editor (shown below a slot when style === "macro") ---------------
+
+    private buildMacroEditor(btns: ActionButton[], idx: number): HTMLElement {
+        type MacroType = "leaveroom" | "releaseself" | "unlockself" | "wardrobe" | "outfit" | "scene" | "beep";
+
+        const ALL_TYPES: { value: MacroType; label: string; hasArg: boolean }[] = [
+            { value: "leaveroom",   label: "🚪 Leave Room",         hasArg: false },
+            { value: "releaseself", label: "🔓 Release Restraints", hasArg: false },
+            { value: "unlockself",  label: "🔑 Unlock Items",       hasArg: false },
+            { value: "wardrobe",    label: "👗 Open Wardrobe",      hasArg: false },
+            { value: "outfit",      label: "✨ Apply Outfit",       hasArg: true  },
+            { value: "scene",       label: "🎬 Play Scene",         hasArg: true  },
+            { value: "beep",        label: "💬 Open Beep / IM",     hasArg: true  },
+        ];
+
+        const parseMacro = (cmd: string): { type: MacroType; arg: string } => {
+            const col = cmd.indexOf(":");
+            const rawType = (col >= 0 ? cmd.slice(0, col) : cmd).toLowerCase().trim();
+            const arg = col >= 0 ? cmd.slice(col + 1).trim() : "";
+            const valid = ALL_TYPES.map(t => t.value);
+            return { type: valid.includes(rawType as MacroType) ? (rawType as MacroType) : "leaveroom", arg };
+        };
+
+        const serialize = (type: MacroType, arg: string): string => arg ? `${type}:${arg}` : type;
+
+        let { type, arg } = parseMacro(btns[idx].emote || "leaveroom");
+
+        const INP_CSS = "background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 4px;outline:none;min-width:0;";
+        const LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+
+        const wrapper = document.createElement("div");
+        wrapper.style.cssText = "padding:5px 6px;background:rgba(12,4,10,0.5);border-top:1px solid #2a1020;display:flex;flex-direction:column;gap:4px;";
+
+        // Type dropdown row
+        const typeRow = document.createElement("div");
+        typeRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+        const typeLabel = document.createElement("span");
+        typeLabel.style.cssText = LBL_CSS;
+        typeLabel.textContent = "Action:";
+        const typeSelect = document.createElement("select");
+        typeSelect.className = "ebc-seq-type-select";
+        typeSelect.style.width = "160px";
+        ALL_TYPES.forEach(opt => {
+            const o = document.createElement("option");
+            o.value = opt.value; o.textContent = opt.label;
+            if (opt.value === type) o.selected = true;
+            typeSelect.appendChild(o);
+        });
+        typeRow.appendChild(typeLabel);
+        typeRow.appendChild(typeSelect);
+        wrapper.appendChild(typeRow);
+
+        // Arg row (shown only for types that need an argument)
+        const argRow = document.createElement("div");
+        argRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+
+        const buildArgRow = (curType: MacroType, curArg: string): void => {
+            while (argRow.firstChild) argRow.removeChild(argRow.firstChild);
+            if (argRow.parentElement) argRow.remove();
+            const meta = ALL_TYPES.find(t => t.value === curType);
+            if (!meta?.hasArg) return;
+
+            const argLabel = document.createElement("span");
+            argLabel.style.cssText = LBL_CSS;
+
+            if (curType === "outfit") {
+                argLabel.textContent = "Outfit:";
+                const outfits = getOutfits();
+                if (!outfits.length) {
+                    const note = document.createElement("span");
+                    note.style.cssText = LBL_CSS + "font-style:italic;";
+                    note.textContent = "No outfits saved yet";
+                    argRow.appendChild(argLabel); argRow.appendChild(note);
+                } else {
+                    const sel = document.createElement("select");
+                    sel.style.cssText = INP_CSS + "flex:1;";
+                    outfits.forEach(o => {
+                        const opt = document.createElement("option");
+                        opt.value = o.command; opt.textContent = o.displayName;
+                        if (o.command === curArg) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    if (!curArg) btns[idx].emote = serialize(curType, outfits[0].command);
+                    sel.addEventListener("change", () => { btns[idx].emote = serialize(curType, sel.value); });
+                    argRow.appendChild(argLabel); argRow.appendChild(sel);
+                }
+            } else if (curType === "scene") {
+                argLabel.textContent = "Scene:";
+                const scenes = getScenes();
+                if (!scenes.length) {
+                    const note = document.createElement("span");
+                    note.style.cssText = LBL_CSS + "font-style:italic;";
+                    note.textContent = "No scenes saved yet";
+                    argRow.appendChild(argLabel); argRow.appendChild(note);
+                } else {
+                    const sel = document.createElement("select");
+                    sel.style.cssText = INP_CSS + "flex:1;";
+                    scenes.forEach(s => {
+                        const opt = document.createElement("option");
+                        opt.value = s.name; opt.textContent = s.name;
+                        if (s.name === curArg) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    if (!curArg) btns[idx].emote = serialize(curType, scenes[0].name);
+                    sel.addEventListener("change", () => { btns[idx].emote = serialize(curType, sel.value); });
+                    argRow.appendChild(argLabel); argRow.appendChild(sel);
+                }
+            } else if (curType === "beep") {
+                argLabel.textContent = "Member #:";
+                const inp = document.createElement("input");
+                inp.style.cssText = INP_CSS + "width:90px;";
+                inp.type = "text"; inp.placeholder = "e.g. 12345";
+                inp.value = curArg; inp.maxLength = 12;
+                inp.addEventListener("input", () => { btns[idx].emote = serialize(curType, inp.value.trim()); });
+                argRow.appendChild(argLabel); argRow.appendChild(inp);
+            }
+
+            wrapper.appendChild(argRow);
+        };
+
+        buildArgRow(type, arg);
+
+        typeSelect.addEventListener("change", () => {
+            type = typeSelect.value as MacroType;
+            arg = "";
+            btns[idx].emote = serialize(type, arg);
+            buildArgRow(type, arg);
+        });
+
+        return wrapper;
+    }
+
     // -- Buttons tab -----------------------------------------------------------
 
     private renderButtons(): void {
@@ -7178,13 +7312,14 @@ export class EBCDrawer {
                 const isSeq = currentStyle === "seq";
 
                 const styleBtn = document.createElement("button");
-                const styleBtnLabels: Record<ActionStyle, string> = { action: "( )", emote: "* *", seq: "✨" };
+                const styleBtnLabels: Record<ActionStyle, string> = { action: "( )", emote: "* *", seq: "✨", macro: "🔧" };
                 const styleBtnTitles: Record<ActionStyle, string> = {
                     action: "Style: ( action ) — click to switch",
                     emote:  "Style: * emote * — click to switch",
-                    seq:    "Style: ✨ sequence — click to switch back to action",
+                    seq:    "Style: ✨ sequence — click to switch",
+                    macro:  "Style: 🔧 macro — click to switch",
                 };
-                styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : currentStyle === "seq" ? " emote" : "");
+                styleBtn.className = "ebc-slot-style" + (currentStyle !== "action" ? " emote" : "");
                 styleBtn.textContent = styleBtnLabels[currentStyle] ?? "( )";
                 styleBtn.title = styleBtnTitles[currentStyle] ?? "";
 
@@ -7199,7 +7334,7 @@ export class EBCDrawer {
                 emoteInp.placeholder = "e.g. nods.";
                 emoteInp.value = btn.emote;
                 emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                emoteInp.style.display = isSeq ? "none" : "";
+                emoteInp.style.display = (isSeq || currentStyle === "macro") ? "none" : "";
 
                 // Name-in-announce chip — only meaningful for ( ) action style
                 const nameIncluded = btn.includeNameInAnnounce !== false;
@@ -7210,7 +7345,7 @@ export class EBCDrawer {
                     ? "Your name is included — click to send anonymously"
                     : "Sending without name — click to include name";
                 nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
-                // only show for action style (emote always has name; seq not applicable)
+                // only show for action style (emote always has name; seq/macro not applicable)
                 nameChip.style.display = (currentStyle === "action") ? "" : "none";
 
                 botLine.appendChild(styleBtn);
@@ -7222,10 +7357,13 @@ export class EBCDrawer {
                 row.appendChild(botLine);
                 slotList.appendChild(row);
 
-                // -- Seq step builder (only for seq style) --
+                // -- Seq step builder / Macro editor --
                 if (isSeq) {
                     const builderEl = this.buildSeqStepBuilder(btns, i);
                     slotList.appendChild(builderEl);
+                } else if (currentStyle === "macro") {
+                    const macroEl = this.buildMacroEditor(btns, i);
+                    slotList.appendChild(macroEl);
                 }
 
                 // -- Events (capture i) --
@@ -7283,15 +7421,15 @@ export class EBCDrawer {
 
                 styleBtn.addEventListener("click", () => {
                     const cur: ActionStyle = btns[idx].style ?? "action";
-                    const next: ActionStyle = cur === "action" ? "emote" : cur === "emote" ? "seq" : "action";
+                    const next: ActionStyle = cur === "action" ? "emote" : cur === "emote" ? "seq" : cur === "seq" ? "macro" : "action";
                     btns[idx].style = next;
-                    // When entering or leaving seq, rebuild so the step builder appears/disappears
-                    if (cur === "seq" || next === "seq") {
+                    // Entering/leaving seq or macro: rebuild so editors appear/disappear
+                    if (cur === "seq" || next === "seq" || cur === "macro" || next === "macro") {
                         renderSlots();
                         updateFooterState();
                         return;
                     }
-                    styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
+                    styleBtn.className = "ebc-slot-style" + (next !== "action" ? " emote" : "");
                     styleBtn.textContent = styleBtnLabels[next] ?? "( )";
                     styleBtn.title = styleBtnTitles[next] ?? "";
                     emoteInp.title = next === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
