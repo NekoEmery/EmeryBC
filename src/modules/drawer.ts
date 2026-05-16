@@ -7178,20 +7178,19 @@ export class EBCDrawer {
                 const isSeq = currentStyle === "seq";
 
                 const styleBtn = document.createElement("button");
-                styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
-                styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
-                styleBtn.title = currentStyle === "emote"
-                    ? "Style: * emote * — click to switch"
-                    : "Style: ( action ) — click to switch";
-                // Seq buttons don't show the style toggle — animation is internal
-                styleBtn.style.display = isSeq ? "none" : "";
+                const styleBtnLabels: Record<ActionStyle, string> = { action: "( )", emote: "* *", seq: "✨" };
+                const styleBtnTitles: Record<ActionStyle, string> = {
+                    action: "Style: ( action ) — click to switch",
+                    emote:  "Style: * emote * — click to switch",
+                    seq:    "Style: ✨ sequence — click to switch back to action",
+                };
+                styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : currentStyle === "seq" ? " emote" : "");
+                styleBtn.textContent = styleBtnLabels[currentStyle] ?? "( )";
+                styleBtn.title = styleBtnTitles[currentStyle] ?? "";
 
-                // For seq buttons, show a small non-interactive badge instead
+                // seqBadge kept in DOM for layout but no longer used for display
                 const seqBadge = document.createElement("span");
-                seqBadge.className = "ebc-slot-seq-badge";
-                seqBadge.textContent = "✨";
-                seqBadge.title = "Animation button — edit the sequence below";
-                seqBadge.style.display = isSeq ? "inline" : "none";
+                seqBadge.style.display = "none";
 
                 const emoteInp = document.createElement("input");
                 emoteInp.className = "ebc-slot-emote";
@@ -7284,18 +7283,18 @@ export class EBCDrawer {
 
                 styleBtn.addEventListener("click", () => {
                     const cur: ActionStyle = btns[idx].style ?? "action";
-                    if (cur === "seq") return; // seq buttons don't cycle through styles
-                    const next: "action" | "emote" = cur === "action" ? "emote" : "action";
+                    const next: ActionStyle = cur === "action" ? "emote" : cur === "emote" ? "seq" : "action";
                     btns[idx].style = next;
+                    // When entering or leaving seq, rebuild so the step builder appears/disappears
+                    if (cur === "seq" || next === "seq") {
+                        renderSlots();
+                        updateFooterState();
+                        return;
+                    }
                     styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
-                    styleBtn.textContent = next === "emote" ? "* *" : "( )";
-                    styleBtn.title = next === "emote"
-                        ? "Style: * emote * — click to switch"
-                        : "Style: ( action ) — click to switch";
-                    emoteInp.title = next === "emote"
-                        ? "Text sent as * Name text *"
-                        : "Text sent as ( Name text )";
-                    // name chip only applies to action style
+                    styleBtn.textContent = styleBtnLabels[next] ?? "( )";
+                    styleBtn.title = styleBtnTitles[next] ?? "";
+                    emoteInp.title = next === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
                     nameChip.style.display = next === "action" ? "" : "none";
                 });
 
