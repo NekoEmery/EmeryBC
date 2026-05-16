@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.28
+// @version      2.2.29
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -17976,8 +17976,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 { value: "releaseself", label: "🔓 Release Restraints", hasArg: false },
                 { value: "wardrobe", label: "👗 Open Wardrobe", hasArg: false },
                 { value: "outfit", label: "✨ Apply Outfit", hasArg: true },
-                { value: "scene", label: "🎬 Play Scene", hasArg: true },
-                { value: "beep", label: "💬 Open Beep / IM", hasArg: true },
             ];
             const parseMacro = (cmd) => {
                 const col = cmd.indexOf(":");
@@ -25581,7 +25579,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.28";
+    const MOD_VERSION = "2.2.29";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25592,6 +25590,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.29",
+            changes: [
+                "Macro button: removed Play Scene and Open Beep/IM from action dropdown — options are now Leave Room, Release Restraints, Open Wardrobe, Apply Outfit.",
+            ],
+        },
         {
             version: "2.2.28",
             changes: [
