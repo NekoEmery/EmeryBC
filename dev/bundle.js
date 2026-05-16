@@ -2058,13 +2058,13 @@
 
     var _a, _b;
     const DEFAULT_BUTTONS = [
-        { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
-        { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true, style: "action" },
-        { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true, style: "action" },
-        { label: "CHEER", emote: "cheers!", color: "#c2185b", enabled: true, style: "action" },
-        { label: "POUT", emote: "pouts.", color: "#c2185b", enabled: true, style: "emote" },
-        { label: "GIGGLE", emote: "giggles.", color: "#c2185b", enabled: true, style: "emote" },
-        { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
+        { label: "", emote: "leaveroom", color: "#c2185b", enabled: false, style: "macro" },
+        { label: "", emote: "releaseself", color: "#c2185b", enabled: false, style: "macro" },
+        { label: "", emote: "wardrobe", color: "#c2185b", enabled: false, style: "macro" },
+        { label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" },
+        { label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" },
+        { label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" },
+        { label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" },
     ];
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
@@ -18135,7 +18135,7 @@
             let btns = cats[activeCatIdx].buttons.map(b => (Object.assign({}, b)));
             let slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
             while (btns.length < slotCount) {
-                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
             }
             // ── Build accordion ───────────────────────────────────────────────────
             // One section per category. The active one is expanded; others collapsed.
@@ -18243,7 +18243,7 @@
                 const name = (_a = window.prompt("Category name (e.g. RP, Casual):")) !== null && _a !== void 0 ? _a : "";
                 if (!name.trim())
                     return;
-                cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" }], slotCount: 1 });
+                cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" }], slotCount: 1 });
                 const newIdx = cats.length - 1;
                 saveCategories([...cats], newIdx);
                 this.renderButtons();
@@ -18258,7 +18258,7 @@
                 var _a, _b, _c;
                 // Always ensure btns has a real object for every slot — prevents "undefined" crashes
                 while (btns.length < slotCount) {
-                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
                 }
                 while (slotList.firstChild)
                     slotList.removeChild(slotList.firstChild);
@@ -18372,15 +18372,15 @@
                     const currentStyle = (_a = btn.style) !== null && _a !== void 0 ? _a : "action";
                     const isSeq = currentStyle === "seq";
                     const styleBtn = document.createElement("button");
-                    const styleBtnLabels = { action: "( )", emote: "* *", seq: "✨", macro: "🔧" };
+                    const styleBtnLabels = { action: "💬", emote: "💬", seq: "✨", macro: "🔧" };
                     const styleBtnTitles = {
-                        action: "Style: ( action ) — click to switch",
-                        emote: "Style: * emote * — click to switch",
-                        seq: "Style: ✨ sequence — click to switch",
-                        macro: "Style: 🔧 macro — click to switch",
+                        action: "Legacy chat style — click to convert to macro",
+                        emote: "Legacy chat style — click to convert to macro",
+                        seq: "Style: ✨ sequence — click to switch to macro",
+                        macro: "Style: 🔧 macro — click to switch to sequence",
                     };
                     styleBtn.className = "ebc-slot-style" + (currentStyle !== "action" ? " emote" : "");
-                    styleBtn.textContent = (_b = styleBtnLabels[currentStyle]) !== null && _b !== void 0 ? _b : "( )";
+                    styleBtn.textContent = (_b = styleBtnLabels[currentStyle]) !== null && _b !== void 0 ? _b : "🔧";
                     styleBtn.title = (_c = styleBtnTitles[currentStyle]) !== null && _c !== void 0 ? _c : "";
                     // seqBadge kept in DOM for layout but no longer used for display
                     const seqBadge = document.createElement("span");
@@ -18470,21 +18470,16 @@
                             : "Sending without name — click to include name";
                     });
                     styleBtn.addEventListener("click", () => {
-                        var _a, _b, _c;
-                        const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action";
-                        const next = cur === "action" ? "emote" : cur === "emote" ? "seq" : cur === "seq" ? "macro" : "action";
+                        var _a;
+                        const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "macro";
+                        // action/emote are legacy — clicking converts them to macro
+                        // active cycle is seq ↔ macro
+                        const next = (cur === "action" || cur === "emote") ? "macro"
+                            : cur === "seq" ? "macro" : "seq";
                         btns[idx].style = next;
-                        // Entering/leaving seq or macro: rebuild so editors appear/disappear
-                        if (cur === "seq" || next === "seq" || cur === "macro" || next === "macro") {
-                            renderSlots();
-                            updateFooterState();
-                            return;
-                        }
-                        styleBtn.className = "ebc-slot-style" + (next !== "action" ? " emote" : "");
-                        styleBtn.textContent = (_b = styleBtnLabels[next]) !== null && _b !== void 0 ? _b : "( )";
-                        styleBtn.title = (_c = styleBtnTitles[next]) !== null && _c !== void 0 ? _c : "";
-                        emoteInp.title = next === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                        nameChip.style.display = next === "action" ? "" : "none";
+                        // Always rebuild — seq/macro editors need to appear/disappear
+                        renderSlots();
+                        updateFooterState();
                     });
                     let slotDelPending = false;
                     let slotDelTimer = null;
@@ -18505,7 +18500,7 @@
                             if (slotDelTimer !== null)
                                 window.clearTimeout(slotDelTimer);
                             btns.splice(idx, 1);
-                            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
                             slotCount = Math.max(1, slotCount - 1);
                             renderSlots();
                             updateFooterState();
@@ -18724,7 +18719,7 @@
                     btns = imported;
                     slotCount = newCount;
                     while (btns.length < slotCount) {
-                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
                     }
                     saveButtons([...btns], slotCount);
                     importPanel.classList.remove("open");
@@ -25569,7 +25564,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.26";
+    const MOD_VERSION = "2.2.27";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25580,6 +25575,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.27",
+            changes: [
+                "Button style cycle is now seq ↔ macro only — chat emote/action styles removed.",
+                "All new button slots default to 🔧 macro style.",
+                "Existing emote/action buttons show 💬 and convert to macro on first style click.",
+            ],
+        },
         {
             version: "2.2.26",
             changes: [
