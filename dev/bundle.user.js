@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.25
+// @version      2.2.26
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15346,18 +15346,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 outfitsCollapsed = localStorage.getItem("EBC_outfitsCollapsed") === "1";
             }
             catch ( /* ignore */_c) { /* ignore */ }
-            const outfitsHeaderRow = document.createElement("div");
-            outfitsHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const outfitLbl = document.createElement("div");
             outfitLbl.className = "ebc-section-label";
-            outfitLbl.style.margin = "0";
-            outfitLbl.textContent = "Saved Outfits";
-            const outfitsChevron = document.createElement("span");
-            outfitsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
-            outfitsChevron.textContent = outfitsCollapsed ? "▲" : "▼";
-            outfitsHeaderRow.appendChild(outfitLbl);
-            outfitsHeaderRow.appendChild(outfitsChevron);
-            body.appendChild(outfitsHeaderRow);
+            outfitLbl.style.cssText = "cursor:pointer;user-select:none;";
+            outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
+            body.appendChild(outfitLbl);
             // ── Outfit search ─────────────────────────────────────────────────────
             const searchRow = document.createElement("div");
             searchRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
@@ -15417,13 +15410,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const toggleOutfitsCollapsed = () => {
                 outfitsCollapsed = !outfitsCollapsed;
                 outfitsBody.style.display = outfitsCollapsed ? "none" : "block";
-                outfitsChevron.textContent = outfitsCollapsed ? "▲" : "▼";
+                outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
                 try {
                     localStorage.setItem("EBC_outfitsCollapsed", outfitsCollapsed ? "1" : "0");
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
             };
-            outfitsHeaderRow.addEventListener("click", toggleOutfitsCollapsed);
+            outfitLbl.addEventListener("click", toggleOutfitsCollapsed);
             rebuildOutfitList();
             this.buildNewOutfitSection(outfitsBody);
             body.appendChild(outfitsBody);
@@ -17201,30 +17194,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 restraintsCollapsed = localStorage.getItem("EBC_restraintsCollapsed") === "1";
             }
             catch ( /* ignore */_a) { /* ignore */ }
-            const headerRow = document.createElement("div");
-            headerRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
-            lbl.style.margin = "0";
-            lbl.textContent = "Saved Restraints";
-            const chevron = document.createElement("span");
-            chevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
-            chevron.textContent = restraintsCollapsed ? "▲" : "▼";
-            headerRow.appendChild(lbl);
-            headerRow.appendChild(chevron);
-            body.appendChild(headerRow);
+            lbl.style.cssText = "cursor:pointer;user-select:none;";
+            lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
+            body.appendChild(lbl);
             const sectionBody = document.createElement("div");
             sectionBody.style.display = restraintsCollapsed ? "none" : "block";
             const toggleCollapsed = () => {
                 restraintsCollapsed = !restraintsCollapsed;
                 sectionBody.style.display = restraintsCollapsed ? "none" : "block";
-                chevron.textContent = restraintsCollapsed ? "▲" : "▼";
+                lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
                 try {
                     localStorage.setItem("EBC_restraintsCollapsed", restraintsCollapsed ? "1" : "0");
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
             };
-            headerRow.addEventListener("click", toggleCollapsed);
+            lbl.addEventListener("click", toggleCollapsed);
             const renderRestraintList = () => {
                 while (sectionBody.firstChild)
                     sectionBody.removeChild(sectionBody.firstChild);
@@ -25600,7 +25586,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.25";
+    const MOD_VERSION = "2.2.26";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25611,6 +25597,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.26",
+            changes: [
+                "Saved Outfits and Saved Restraints headers now match the arrow style of the other collapsible sections.",
+            ],
+        },
         {
             version: "2.2.25",
             changes: [
