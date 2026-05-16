@@ -18,7 +18,7 @@ import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/s
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.16";
+const MOD_VERSION = "2.2.17";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -32,6 +32,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.17",
+        changes: [
+            "Fix: disabling the EBC badge now actually hides it from other users — presence was always broadcast regardless of the badge setting.",
+        ],
+    },
     {
         version: "2.2.16",
         changes: [
@@ -2203,8 +2209,18 @@ const PRESENCE_SYNC_COOLDOWN_MS = 6_000; // 6 s between sends
 function syncPresenceMarker(): void {
     const shared = (Player.OnlineSharedSettings ??= {});
 
-    // Always broadcast presence regardless of local display toggle —
-    // the toggle only controls what YOU see, not what others see.
+    // If badge is disabled, clear our presence so other EBC users don't render
+    // a tag above our head. Send an AccountUpdate if we had presence before.
+    if (!getBadgeEnabled()) {
+        if (shared[MOD_NAME] !== undefined) {
+            delete (shared as Record<string, unknown>)[MOD_NAME];
+            if (CurrentScreen === "ChatRoom") {
+                ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
+            }
+        }
+        return;
+    }
+
     const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC", ...(IS_DEV_BUILD ? { isDev: true } : {}) };
 
     // Write to ExtensionSettings only if presence isn't already recorded —
@@ -2219,10 +2235,8 @@ function syncPresenceMarker(): void {
         }
     }
 
-    // Always keep OnlineSharedSettings populated — BC includes it in the room-join
-    // packet so other players see your badge immediately when you enter. Without this,
-    // the join packet has empty OnlineSharedSettings and nobody sees the badge until
-    // a follow-up AccountUpdate arrives.
+    // Keep OnlineSharedSettings populated — BC includes it in the room-join
+    // packet so other players see your badge immediately when you enter.
     shared[MOD_NAME] = { presence };
 
     // Send AccountUpdate to notify people already in the room. Only meaningful in a
