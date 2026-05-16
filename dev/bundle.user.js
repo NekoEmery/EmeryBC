@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.22
+// @version      2.2.23
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -18096,7 +18096,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slotList.id = "ebc-slot-list";
             activeBodyEl.appendChild(slotList);
             const renderSlots = () => {
-                var _a;
+                var _a, _b, _c;
                 // Always ensure btns has a real object for every slot — prevents "undefined" crashes
                 while (btns.length < slotCount) {
                     btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
@@ -18213,19 +18213,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const currentStyle = (_a = btn.style) !== null && _a !== void 0 ? _a : "action";
                     const isSeq = currentStyle === "seq";
                     const styleBtn = document.createElement("button");
-                    styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
-                    styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
-                    styleBtn.title = currentStyle === "emote"
-                        ? "Style: * emote * — click to switch"
-                        : "Style: ( action ) — click to switch";
-                    // Seq buttons don't show the style toggle — animation is internal
-                    styleBtn.style.display = isSeq ? "none" : "";
-                    // For seq buttons, show a small non-interactive badge instead
+                    const styleBtnLabels = { action: "( )", emote: "* *", seq: "✨" };
+                    const styleBtnTitles = {
+                        action: "Style: ( action ) — click to switch",
+                        emote: "Style: * emote * — click to switch",
+                        seq: "Style: ✨ sequence — click to switch back to action",
+                    };
+                    styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : currentStyle === "seq" ? " emote" : "");
+                    styleBtn.textContent = (_b = styleBtnLabels[currentStyle]) !== null && _b !== void 0 ? _b : "( )";
+                    styleBtn.title = (_c = styleBtnTitles[currentStyle]) !== null && _c !== void 0 ? _c : "";
+                    // seqBadge kept in DOM for layout but no longer used for display
                     const seqBadge = document.createElement("span");
-                    seqBadge.className = "ebc-slot-seq-badge";
-                    seqBadge.textContent = "✨";
-                    seqBadge.title = "Animation button — edit the sequence below";
-                    seqBadge.style.display = isSeq ? "inline" : "none";
+                    seqBadge.style.display = "none";
                     const emoteInp = document.createElement("input");
                     emoteInp.className = "ebc-slot-emote";
                     emoteInp.type = "text";
@@ -18307,21 +18306,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             : "Sending without name — click to include name";
                     });
                     styleBtn.addEventListener("click", () => {
-                        var _a;
+                        var _a, _b, _c;
                         const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action";
-                        if (cur === "seq")
-                            return; // seq buttons don't cycle through styles
-                        const next = cur === "action" ? "emote" : "action";
+                        const next = cur === "action" ? "emote" : cur === "emote" ? "seq" : "action";
                         btns[idx].style = next;
+                        // When entering or leaving seq, rebuild so the step builder appears/disappears
+                        if (cur === "seq" || next === "seq") {
+                            renderSlots();
+                            updateFooterState();
+                            return;
+                        }
                         styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
-                        styleBtn.textContent = next === "emote" ? "* *" : "( )";
-                        styleBtn.title = next === "emote"
-                            ? "Style: * emote * — click to switch"
-                            : "Style: ( action ) — click to switch";
-                        emoteInp.title = next === "emote"
-                            ? "Text sent as * Name text *"
-                            : "Text sent as ( Name text )";
-                        // name chip only applies to action style
+                        styleBtn.textContent = (_b = styleBtnLabels[next]) !== null && _b !== void 0 ? _b : "( )";
+                        styleBtn.title = (_c = styleBtnTitles[next]) !== null && _c !== void 0 ? _c : "";
+                        emoteInp.title = next === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
                         nameChip.style.display = next === "action" ? "" : "none";
                     });
                     let slotDelPending = false;
@@ -25407,7 +25405,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.22";
+    const MOD_VERSION = "2.2.23";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25418,6 +25416,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.23",
+            changes: [
+                "Buttons tab: style toggle now cycles ( ) → * * → ✨ seq so you can create sequence buttons directly from the UI.",
+            ],
+        },
         {
             version: "2.2.22",
             changes: [
