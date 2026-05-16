@@ -2738,7 +2738,6 @@ export class EBCDrawer {
     private hasBeenShown = false;
     private version = "";
     private isDev   = false;
-    private refreshBadgeRow: (() => void) | null = null;
     private refreshConfirmToggle: (() => void) | null = null;
     private refreshSwEnableBtn: (() => void) | null = null;
     private beepWins = new Map<number, { el: HTMLElement; minimized: boolean }>();
@@ -3181,84 +3180,6 @@ export class EBCDrawer {
         });
 
         // Badge visibility toggle row (below the danger buttons)
-        const badgeRow = document.createElement("div");
-        badgeRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
-
-        const badgeLbl = document.createElement("span");
-        badgeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-        badgeLbl.textContent = "Show EBC tags";
-
-        const badgeToggle = document.createElement("button");
-        const updateBadgeToggle = (): void => {
-            const on = getBadgeEnabled();
-            badgeToggle.textContent = on ? "ON" : "OFF";
-            badgeToggle.style.cssText = [
-                "font-family:'Trebuchet MS',serif",
-                "font-size:10px",
-                "font-weight:bold",
-                "padding:5px 12px",
-                "border-radius:4px",
-                "cursor:pointer",
-                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                "background:" + (on ? "#6b3048" : "#1b0d17"),
-                "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                "transition:background 0.14s,color 0.14s,border-color 0.14s",
-            ].join(";");
-            badgeToggle.title = on
-                ? "EBC tags visible — click to hide them on your screen"
-                : "EBC tags hidden — click to show them on your screen";
-        };
-        this.refreshBadgeRow = updateBadgeToggle;
-        try { updateBadgeToggle(); } catch { /* Player may not be ready yet — synced on first open */ }
-
-        badgeToggle.addEventListener("click", () => {
-            // Client-side only — toggle just controls what YOU see locally.
-            // Your own presence is always broadcast regardless of this setting.
-            setBadgeEnabled(!getBadgeEnabled());
-            updateBadgeToggle();
-        });
-
-        badgeRow.appendChild(badgeLbl);
-        badgeRow.appendChild(badgeToggle);
-
-        // Action buttons sidebar toggle row
-        const abRow = document.createElement("div");
-        abRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
-
-        const abLbl = document.createElement("span");
-        abLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-        abLbl.textContent = "Show action buttons";
-
-        const abToggle = document.createElement("button");
-        const updateAbToggle = (): void => {
-            const on = getActionButtonsVisible();
-            abToggle.textContent = on ? "ON" : "OFF";
-            abToggle.style.cssText = [
-                "font-family:'Trebuchet MS',serif",
-                "font-size:10px",
-                "font-weight:bold",
-                "padding:5px 12px",
-                "border-radius:4px",
-                "cursor:pointer",
-                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                "background:" + (on ? "#6b3048" : "#1b0d17"),
-                "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                "transition:background 0.14s,color 0.14s,border-color 0.14s",
-            ].join(";");
-            abToggle.title = on
-                ? "Action buttons visible — click to hide the sidebar"
-                : "Action buttons hidden — click to show the sidebar";
-        };
-        try { updateAbToggle(); } catch { /* Player may not be ready yet */ }
-
-        abToggle.addEventListener("click", () => {
-            setActionButtonsVisible(!getActionButtonsVisible());
-            updateAbToggle();
-        });
-
-        abRow.appendChild(abLbl);
-        abRow.appendChild(abToggle);
-
         // Safeword permanent row (always visible, any tab)
         const safewordRow = document.createElement("div");
         safewordRow.style.cssText = "display:flex;flex-direction:column;flex-shrink:0;border-top:1px solid #2a1421;background:rgba(12,4,10,0.6);";
@@ -3538,8 +3459,6 @@ export class EBCDrawer {
         panel.appendChild(tabBar);
         panel.appendChild(quickActions);
         panel.appendChild(selfPickPanel);
-        panel.appendChild(badgeRow);
-        panel.appendChild(abRow);
         panel.appendChild(safewordRow);
         panel.appendChild(body);
         panel.appendChild(footer);
@@ -6967,6 +6886,32 @@ export class EBCDrawer {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
+
+        // ── Show action buttons toggle ────────────────────────────────────────
+        const abToggleRow = document.createElement("div");
+        abToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+        const abLbl2 = document.createElement("span");
+        abLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+        abLbl2.textContent = "Show action buttons sidebar";
+        const abToggle2 = document.createElement("button");
+        const updateAbToggle2 = (): void => {
+            const on = getActionButtonsVisible();
+            abToggle2.textContent = on ? "ON" : "OFF";
+            abToggle2.style.cssText = [
+                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                "padding:5px 12px", "border-radius:4px", "cursor:pointer",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+            abToggle2.title = on ? "Sidebar visible — click to hide" : "Sidebar hidden — click to show";
+        };
+        try { updateAbToggle2(); } catch { /* ignore */ }
+        abToggle2.addEventListener("click", () => { setActionButtonsVisible(!getActionButtonsVisible()); updateAbToggle2(); });
+        abToggleRow.appendChild(abLbl2);
+        abToggleRow.appendChild(abToggle2);
+        body.appendChild(abToggleRow);
 
         // Working category state
         const cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
@@ -11363,6 +11308,32 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        // ── Show EBC tags toggle ──────────────────────────────────────────────
+        const badgeToggleRow = document.createElement("div");
+        badgeToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+        const badgeLbl2 = document.createElement("span");
+        badgeLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+        badgeLbl2.textContent = "Show EBC tags above players";
+        const badgeToggle2 = document.createElement("button");
+        const updateBadgeToggle2 = (): void => {
+            const on = getBadgeEnabled();
+            badgeToggle2.textContent = on ? "ON" : "OFF";
+            badgeToggle2.style.cssText = [
+                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                "padding:5px 12px", "border-radius:4px", "cursor:pointer",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+            badgeToggle2.title = on ? "EBC tags visible — click to hide" : "EBC tags hidden — click to show";
+        };
+        try { updateBadgeToggle2(); } catch { /* ignore */ }
+        badgeToggle2.addEventListener("click", () => { setBadgeEnabled(!getBadgeEnabled()); updateBadgeToggle2(); });
+        badgeToggleRow.appendChild(badgeLbl2);
+        badgeToggleRow.appendChild(badgeToggle2);
+        body.appendChild(badgeToggleRow);
+
         // Helper: collapsible section wrapper
         const makeSection = (
             labelText: string,
@@ -14394,7 +14365,7 @@ export class EBCDrawer {
             this.panelEl.className = "ebc-open";
         }
         if (!this.positioned) this.syncToChat();
-        try { this.refreshBadgeRow?.();    } catch { /* ignore */ }
+        // badge toggle now lives in the DEV tab and refreshes on render
         try { this.refreshSwEnableBtn?.(); } catch { /* ignore */ }
         // Show the DOM tab only for the creator
         const domTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-dom");
