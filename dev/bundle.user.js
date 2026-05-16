@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.17
+// @version      2.2.18
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13866,6 +13866,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.currentTab = "outfits";
             this.resizeObserver = null;
             this.positioned = false;
+            this.hasBeenShown = false;
             this.version = "";
             this.isDev = false;
             this.refreshBadgeRow = null;
@@ -14920,13 +14921,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             // Try to position; if the chat log isn't laid out yet, retry next frame
             const synced = this.syncToChat();
+            const showPanel = (el) => {
+                // Suppress the slide transition for the very first reveal — switching
+                // from display:none to display:block can cause the browser to animate
+                // the transform from an unrendered state, making the panel flash visible.
+                if (!this.hasBeenShown) {
+                    this.hasBeenShown = true;
+                    if (this.panelEl)
+                        this.panelEl.style.transition = "none";
+                    el.style.display = "block";
+                    requestAnimationFrame(() => {
+                        if (this.panelEl)
+                            this.panelEl.style.transition = "";
+                    });
+                }
+                else {
+                    el.style.display = "block";
+                }
+            };
             if (synced) {
-                this.rootEl.style.display = "block";
+                showPanel(this.rootEl);
             }
             else {
                 requestAnimationFrame(() => {
                     if (this.syncToChat() && this.rootEl) {
-                        this.rootEl.style.display = "block";
+                        showPanel(this.rootEl);
                     }
                 });
             }
@@ -25313,7 +25332,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.17";
+    const MOD_VERSION = "2.2.18";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25324,6 +25343,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.18",
+            changes: [
+                "Fix: drawer no longer flashes visible on the first room entry — transition is suppressed on initial display:none→block reveal.",
+            ],
+        },
         {
             version: "2.2.17",
             changes: [
