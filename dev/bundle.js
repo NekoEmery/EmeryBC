@@ -21346,7 +21346,7 @@
                         const ebcVer = (() => {
                             var _a;
                             try {
-                                const sh = (_a = char.OnlineSharedSettings) === null || _a === void 0 ? void 0 : _a.EmeryBC;
+                                const sh = (_a = char.OnlineSharedSettings) === null || _a === void 0 ? void 0 : _a["EBC"];
                                 if (sh && typeof sh === "object") {
                                     const p = sh.presence;
                                     if (p && typeof p === "object") {
@@ -21722,7 +21722,7 @@
                             const room = window.ChatRoomCharacter;
                             const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === num);
                             if (char === null || char === void 0 ? void 0 : char.OnlineSharedSettings) {
-                                const sh = char.OnlineSharedSettings["EmeryBC"];
+                                const sh = char.OnlineSharedSettings["EBC"];
                                 if (sh && typeof sh === "object") {
                                     const p = sh.presence;
                                     if (p && typeof p === "object") {
@@ -22652,7 +22652,7 @@
                             found.push({ gameName, nickname, id: memberNum !== null && memberNum !== void 0 ? memberNum : 0, version: "self", isSelf: true });
                             continue;
                         }
-                        const shared = (_d = c.OnlineSharedSettings) === null || _d === void 0 ? void 0 : _d["EmeryBC"];
+                        const shared = (_d = c.OnlineSharedSettings) === null || _d === void 0 ? void 0 : _d["EBC"];
                         const presence = shared === null || shared === void 0 ? void 0 : shared["presence"];
                         if ((presence === null || presence === void 0 ? void 0 : presence["marker"]) === "EBC")
                             found.push({ gameName, nickname, id: memberNum !== null && memberNum !== void 0 ? memberNum : 0, version: String((_e = presence["version"]) !== null && _e !== void 0 ? _e : "?"), isSelf: false });
@@ -25564,7 +25564,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.27";
+    const MOD_VERSION = "2.2.28";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25575,6 +25575,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.28",
+            changes: [
+                "Fix: EBC user detection used wrong OnlineSharedSettings key ('EmeryBC' instead of 'EBC') — EBC badges in friend list and Dev panel now show correctly for all users regardless of build.",
+            ],
+        },
         {
             version: "2.2.27",
             changes: [
