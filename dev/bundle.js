@@ -628,6 +628,13 @@
                     Player.ActivePose = originalPoses;
                     sendPoseUpdate(appearanceBundle);
                 }
+                else if (step.toLowerCase() === "leaveroom") {
+                    // Restore pose then exit — sequence ends here regardless of remaining steps.
+                    Player.ActivePose = originalPoses;
+                    seqRunning = false;
+                    callBC(() => ChatRoomLeave());
+                    return;
+                }
                 else if (step.startsWith("!")) {
                     sendAction(step.slice(1), "action");
                 }
@@ -25375,7 +25382,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.19";
+    const MOD_VERSION = "2.2.20";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25386,6 +25393,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.20",
+            changes: [
+                "Seq buttons: add 'leaveroom' step token — put it at the end of a sequence to leave the room after your messages play out.",
+            ],
+        },
         {
             version: "2.2.19",
             changes: [
