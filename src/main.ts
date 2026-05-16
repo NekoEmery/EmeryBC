@@ -18,7 +18,7 @@ import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/s
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.29";
+const MOD_VERSION = "2.2.30";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -32,6 +32,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.30",
+        changes: [
+            "Fix: Leave Room crash — BC clears ChatRoomData before the screen transition, causing ChatRoomCustomizationRun to null-crash on the next frame. EBC now guards ChatRoomRun at priority 500 (ahead of CRABS/BCOM) and skips the frame when room data is gone.",
+        ],
+    },
     {
         version: "2.2.29",
         changes: [
@@ -2404,6 +2410,15 @@ function init(): void {
         const active = arousal?.Active as string | undefined;
         if (active && active !== "Inactive") lastArousalActive = active;
     } catch { /* ignore */ }
+
+    // Guard: when ChatRoomLeave() is called, BC clears ChatRoomData synchronously but
+    // delays the screen transition until the server ack.  The next animation frame still
+    // fires ChatRoomRun → ChatRoomCustomizationRun which reads ChatRoomData.Custom → crash.
+    // Running at priority 500 puts us ahead of CRABS/BCOM/BCX so we can bail early.
+    modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
+        if ((window as unknown as Record<string, unknown>).ChatRoomData == null) return;
+        return next(args);
+    });
 
     // Canvas sidebar action buttons
     modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
