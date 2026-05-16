@@ -6872,8 +6872,6 @@ export class EBCDrawer {
             { value: "releaseself", label: "🔓 Release Restraints", hasArg: false },
             { value: "wardrobe",    label: "👗 Open Wardrobe",      hasArg: false },
             { value: "outfit",      label: "✨ Apply Outfit",       hasArg: true  },
-            { value: "scene",       label: "🎬 Play Scene",         hasArg: true  },
-            { value: "beep",        label: "💬 Open Beep / IM",     hasArg: true  },
         ];
 
         const parseMacro = (cmd: string): { type: MacroType; arg: string } => {
