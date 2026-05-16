@@ -59,6 +59,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    /** Returns the player's display name (nickname if set, otherwise Name). */
+    function getDisplayName() {
+        const nickFn = window.CharacterNickname;
+        if (typeof nickFn === "function")
+            return nickFn(Player);
+        return Player.Nickname || Player.Name || "Player";
+    }
 
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
     function getStore$8() {
@@ -2152,14 +2159,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return `#${r}${r}${g}${g}${b}${b}`;
         }
         return fallback;
-    }
-    // --- Display name helper -----------------------------------------------------
-    function getDisplayName() {
-        // CharacterNickname is a BC global not always in the type declarations
-        const nickFn = window.CharacterNickname;
-        if (typeof nickFn === "function")
-            return nickFn(Player);
-        return Player.Nickname || Player.Name || "Player";
     }
     // --- Sequence runner ----------------------------------------------------------
     // Sequence steps are pipe-separated (|). Each step is one of:
