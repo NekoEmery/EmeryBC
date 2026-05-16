@@ -4199,21 +4199,11 @@ export class EBCDrawer {
         let outfitsCollapsed = false;
         try { outfitsCollapsed = localStorage.getItem("EBC_outfitsCollapsed") === "1"; } catch { /* ignore */ }
 
-        const outfitsHeaderRow = document.createElement("div");
-        outfitsHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
-
         const outfitLbl = document.createElement("div");
         outfitLbl.className = "ebc-section-label";
-        outfitLbl.style.margin = "0";
-        outfitLbl.textContent = "Saved Outfits";
-
-        const outfitsChevron = document.createElement("span");
-        outfitsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
-        outfitsChevron.textContent = outfitsCollapsed ? "▲" : "▼";
-
-        outfitsHeaderRow.appendChild(outfitLbl);
-        outfitsHeaderRow.appendChild(outfitsChevron);
-        body.appendChild(outfitsHeaderRow);
+        outfitLbl.style.cssText = "cursor:pointer;user-select:none;";
+        outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
+        body.appendChild(outfitLbl);
 
         // ── Outfit search ─────────────────────────────────────────────────────
         const searchRow = document.createElement("div");
@@ -4273,11 +4263,11 @@ export class EBCDrawer {
         const toggleOutfitsCollapsed = (): void => {
             outfitsCollapsed = !outfitsCollapsed;
             outfitsBody.style.display = outfitsCollapsed ? "none" : "block";
-            outfitsChevron.textContent = outfitsCollapsed ? "▲" : "▼";
+            outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
             try { localStorage.setItem("EBC_outfitsCollapsed", outfitsCollapsed ? "1" : "0"); } catch { /* ignore */ }
         };
 
-        outfitsHeaderRow.addEventListener("click", toggleOutfitsCollapsed);
+        outfitLbl.addEventListener("click", toggleOutfitsCollapsed);
 
         rebuildOutfitList();
 
@@ -6034,21 +6024,11 @@ export class EBCDrawer {
         let restraintsCollapsed = false;
         try { restraintsCollapsed = localStorage.getItem("EBC_restraintsCollapsed") === "1"; } catch { /* ignore */ }
 
-        const headerRow = document.createElement("div");
-        headerRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
-
         const lbl = document.createElement("div");
         lbl.className = "ebc-section-label";
-        lbl.style.margin = "0";
-        lbl.textContent = "Saved Restraints";
-
-        const chevron = document.createElement("span");
-        chevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
-        chevron.textContent = restraintsCollapsed ? "▲" : "▼";
-
-        headerRow.appendChild(lbl);
-        headerRow.appendChild(chevron);
-        body.appendChild(headerRow);
+        lbl.style.cssText = "cursor:pointer;user-select:none;";
+        lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
+        body.appendChild(lbl);
 
         const sectionBody = document.createElement("div");
         sectionBody.style.display = restraintsCollapsed ? "none" : "block";
@@ -6056,10 +6036,10 @@ export class EBCDrawer {
         const toggleCollapsed = (): void => {
             restraintsCollapsed = !restraintsCollapsed;
             sectionBody.style.display = restraintsCollapsed ? "none" : "block";
-            chevron.textContent = restraintsCollapsed ? "▲" : "▼";
+            lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
             try { localStorage.setItem("EBC_restraintsCollapsed", restraintsCollapsed ? "1" : "0"); } catch { /* ignore */ }
         };
-        headerRow.addEventListener("click", toggleCollapsed);
+        lbl.addEventListener("click", toggleCollapsed);
 
         const renderRestraintList = (): void => {
             while (sectionBody.firstChild) sectionBody.removeChild(sectionBody.firstChild);
