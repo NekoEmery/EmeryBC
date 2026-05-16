@@ -225,6 +225,12 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
             if (step === "_") {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
+            } else if (step.toLowerCase() === "leaveroom") {
+                // Restore pose then exit — sequence ends here regardless of remaining steps.
+                Player.ActivePose = originalPoses;
+                seqRunning = false;
+                callBC(() => ChatRoomLeave());
+                return;
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");
             } else if (step.startsWith("*")) {
