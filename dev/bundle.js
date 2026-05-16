@@ -2046,11 +2046,10 @@
                 case "releaseself":
                     releaseRestraints();
                     break;
-                case "unlockself":
-                    unlockItems();
-                    break;
                 case "leaveroom":
-                    callBC(() => ChatRoomLeave());
+                    // Defer by one tick — calling ChatRoomLeave() mid-frame causes other
+                    // mods' ChatRoomRun hooks to fire with null room data on the same frame.
+                    window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
                     break;
             }
         }
@@ -2234,10 +2233,11 @@
                     sendPoseUpdate(appearanceBundle);
                 }
                 else if (step.toLowerCase() === "leaveroom") {
-                    // Restore pose then exit — sequence ends here regardless of remaining steps.
+                    // Restore pose then defer leave by one tick — calling ChatRoomLeave()
+                    // mid-frame causes other mods' ChatRoomRun hooks to fire with null room data.
                     Player.ActivePose = originalPoses;
                     seqRunning = false;
-                    callBC(() => ChatRoomLeave());
+                    window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
                     return;
                 }
                 else if (step.startsWith("!")) {
@@ -17971,7 +17971,6 @@
             const ALL_TYPES = [
                 { value: "leaveroom", label: "🚪 Leave Room", hasArg: false },
                 { value: "releaseself", label: "🔓 Release Restraints", hasArg: false },
-                { value: "unlockself", label: "🔑 Unlock Items", hasArg: false },
                 { value: "wardrobe", label: "👗 Open Wardrobe", hasArg: false },
                 { value: "outfit", label: "✨ Apply Outfit", hasArg: true },
                 { value: "scene", label: "🎬 Play Scene", hasArg: true },
@@ -25584,7 +25583,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.24";
+    const MOD_VERSION = "2.2.25";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25595,6 +25594,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.25",
+            changes: [
+                "Fix: Leave Room now defers by one tick to avoid crashing other mods' draw hooks.",
+                "Remove 'Unlock Items' from macro options.",
+            ],
+        },
         {
             version: "2.2.24",
             changes: [
