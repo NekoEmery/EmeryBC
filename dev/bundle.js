@@ -444,6 +444,1612 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
 
+    const RESTRAINT_GROUPS = new Set([
+        "ItemArms", "ItemHands", "ItemLegs", "ItemFeet", "ItemBoots",
+        "ItemMouth", "ItemMouthAccessory", "ItemHead", "ItemHood",
+        "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
+        "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
+        "ItemTorso", "ItemTorso2", "ItemBody",
+        "ItemDevices", // cages, kennels, lockers, X-crosses, wooden boxes
+        "ItemAddon", // ceiling ropes, ceiling chains
+        "ItemEars", "ItemNose", "ItemMisc",
+    ]);
+    // Returns a warning message if applying this outfit would remove/replace worn restraints,
+    // or null if no restraints would be affected.
+    function getOutfitRestraintWarning(outfit) {
+        try {
+            const currentRestraints = Player.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+            if (!currentRestraints.length)
+                return null;
+            const outfitRestraintGroups = new Set(outfit.items.filter(i => RESTRAINT_GROUPS.has(i.Group)).map(i => i.Group));
+            let removed = 0, replaced = 0;
+            for (const item of currentRestraints) {
+                const group = item.Asset.Group.Name;
+                if (outfitRestraintGroups.has(group))
+                    replaced++;
+                else if (!outfit.preserveRestraints)
+                    removed++;
+            }
+            if (removed === 0 && replaced === 0)
+                return null;
+            const parts = [];
+            if (removed > 0)
+                parts.push(`remove ${removed} restraint${removed !== 1 ? "s" : ""}`);
+            if (replaced > 0)
+                parts.push(`replace ${replaced} restraint${replaced !== 1 ? "s" : ""}`);
+            return `"${outfit.displayName}" will ${parts.join(" and ")}. Continue?`;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    // Returns a warning message if applying this restraint set would replace currently worn restraints.
+    function getRestraintSetWarning(set) {
+        try {
+            const setGroups = new Set(set.items.map(i => i.Group));
+            const clashing = Player.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && setGroups.has(i.Asset.Group.Name));
+            if (!clashing.length)
+                return null;
+            return `"${set.displayName}" will replace ${clashing.length} worn restraint${clashing.length !== 1 ? "s" : ""}. Continue?`;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    const MAX_SERIALIZE_DEPTH = 12;
+    let outfitApplyPending = false;
+    let refreshScheduled = false;
+    let cachedOutfits = null;
+    function getAddon$1() {
+        if (!Player.ExtensionSettings.EmeryBC) {
+            Player.ExtensionSettings.EmeryBC = {};
+        }
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function loadOutfitsFromSettings() {
+        const list = getAddon$1().outfits;
+        const outfits = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
+        cachedOutfits = outfits;
+        return outfits;
+    }
+    function getOutfits() {
+        return cachedOutfits !== null && cachedOutfits !== void 0 ? cachedOutfits : loadOutfitsFromSettings();
+    }
+    function getDefaultNickname() {
+        const raw = getAddon$1().defaultNickname;
+        return typeof raw === "string" ? raw : "";
+    }
+    function setDefaultNickname(nick) {
+        getAddon$1().defaultNickname = nick.trim();
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function getDefaultTitle() {
+        const raw = getAddon$1().defaultTitle;
+        return typeof raw === "string" ? raw : "";
+    }
+    function setDefaultTitle(title) {
+        getAddon$1().defaultTitle = title;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function saveOutfits(list) {
+        const sanitized = list.map(sanitizeOutfit);
+        cachedOutfits = sanitized;
+        getAddon$1().outfits = sanitized;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function sanitizeSerializable(value, seen = new WeakSet(), depth = 0) {
+        if (value == null)
+            return value;
+        if (depth > MAX_SERIALIZE_DEPTH)
+            return undefined;
+        const valueType = typeof value;
+        if (valueType === "string" || valueType === "number" || valueType === "boolean") {
+            return value;
+        }
+        if (Array.isArray(value)) {
+            return value
+                .map(entry => sanitizeSerializable(entry, seen, depth + 1))
+                .filter(entry => entry !== undefined);
+        }
+        if (valueType !== "object")
+            return undefined;
+        const obj = value;
+        if (seen.has(obj))
+            return undefined;
+        seen.add(obj);
+        const proto = Object.getPrototypeOf(obj);
+        if (proto !== Object.prototype && proto !== null) {
+            seen.delete(obj);
+            return undefined;
+        }
+        const clone = {};
+        for (const [key, entry] of Object.entries(obj)) {
+            const sanitized = sanitizeSerializable(entry, seen, depth + 1);
+            if (sanitized !== undefined) {
+                clone[key] = sanitized;
+            }
+        }
+        seen.delete(obj);
+        return clone;
+    }
+    function sanitizeColor(color) {
+        if (typeof color === "string")
+            return color;
+        if (Array.isArray(color)) {
+            return color.filter((entry) => typeof entry === "string");
+        }
+        return undefined;
+    }
+    function sanitizeCraft(craft) {
+        const sanitized = sanitizeSerializable(craft);
+        return sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
+            ? sanitized
+            : undefined;
+    }
+    function sanitizeProperty(property) {
+        const sanitized = sanitizeSerializable(property);
+        return sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
+            ? sanitized
+            : undefined;
+    }
+    function sanitizeItem(item) {
+        return {
+            Group: item.Group,
+            Name: item.Name,
+            Color: sanitizeColor(item.Color),
+            Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
+            Property: sanitizeProperty(item.Property),
+            Craft: sanitizeCraft(item.Craft),
+        };
+    }
+    function sanitizeOutfit(outfit) {
+        return {
+            id: outfit.id,
+            command: outfit.command,
+            displayName: outfit.displayName,
+            announceText: outfit.announceText,
+            nickname: typeof outfit.nickname === "string" ? outfit.nickname.trim() || null : null,
+            title: typeof outfit.title === "string" ? outfit.title.trim() || null : null,
+            tagIds: Array.isArray(outfit.tagIds) ? outfit.tagIds.filter((t) => typeof t === "string") : [],
+            includeRestraints: !!outfit.includeRestraints,
+            // Default true (preserve) for existing outfits that don't have this field yet
+            preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
+            // Default false — opt-in; restraints-only imports set this to true automatically
+            preserveClothing: typeof outfit.preserveClothing === "boolean" ? outfit.preserveClothing : false,
+            // Default true — existing outfits always included the name
+            nameInAnnounce: typeof outfit.nameInAnnounce === "boolean" ? outfit.nameInAnnounce : true,
+            items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
+        };
+    }
+    function sanitizeLiveAppearance() {
+        for (const item of Player.Appearance) {
+            item.Color = sanitizeColor(item.Color);
+            item.Property = sanitizeProperty(item.Property);
+            item.Craft = sanitizeCraft(item.Craft);
+        }
+    }
+    function cloneAppearanceItem(item) {
+        const asset = AssetGet(Player.AssetFamily, item.Asset.Group.Name, item.Asset.Name);
+        if (!asset)
+            return null;
+        return {
+            Asset: asset,
+            Color: sanitizeColor(item.Color),
+            Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
+            Property: sanitizeProperty(item.Property),
+            Craft: sanitizeCraft(item.Craft),
+        };
+    }
+    function buildAppearanceItem(saved) {
+        const asset = AssetGet(Player.AssetFamily, saved.Group, saved.Name);
+        if (!asset)
+            return null;
+        const property = saved.Property ? Object.assign({}, saved.Property) : undefined;
+        if (property) {
+            delete property["LockedBy"];
+            delete property["LockMemberNumber"];
+            delete property["CombinationNumber"];
+            delete property["Password"];
+            delete property["MemberNumberListKeys"];
+        }
+        return {
+            Asset: asset,
+            Color: saved.Color,
+            Difficulty: saved.Difficulty,
+            Property: property,
+            Craft: saved.Craft ? Object.assign({}, saved.Craft) : undefined,
+        };
+    }
+    function sendRoomAppearanceUpdate() {
+        var _a;
+        if (Player.OnlineID == null)
+            return;
+        ServerSend("ChatRoomCharacterUpdate", {
+            ID: Player.OnlineID,
+            ActivePose: (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : null,
+            Appearance: ServerAppearanceBundle(Player.Appearance),
+        });
+    }
+    function scheduleAppearanceRefresh() {
+        if (refreshScheduled)
+            return;
+        refreshScheduled = true;
+        window.setTimeout(() => {
+            try {
+                CharacterRefresh(Player, false, false);
+            }
+            finally {
+                refreshScheduled = false;
+            }
+        }, 0);
+    }
+    function captureAppearance(includeRestraints) {
+        return Player.Appearance
+            .filter(item => includeRestraints || !RESTRAINT_GROUPS.has(item.Asset.Group.Name))
+            .map(item => sanitizeItem({
+            Group: item.Asset.Group.Name,
+            Name: item.Asset.Name,
+            Color: item.Color,
+            Difficulty: item.Difficulty,
+            Property: item.Property,
+            Craft: item.Craft,
+        }));
+    }
+    function applyOutfit(outfit) {
+        var _a, _b;
+        if (outfitApplyPending) {
+            localNotice$2("An outfit swap is already in progress.", "#ffb7c7");
+            return;
+        }
+        outfitApplyPending = true;
+        const nextAppearance = [];
+        const outfitGroups = new Set(outfit.items.map(i => i.Group));
+        // If preserveClothing is on, carry over all current non-restraint items —
+        // but skip any group the outfit itself provides (no conflicts).
+        if (outfit.preserveClothing) {
+            for (const currentItem of Player.Appearance) {
+                const group = currentItem.Asset.Group.Name;
+                if (RESTRAINT_GROUPS.has(group) || outfitGroups.has(group))
+                    continue;
+                const cloned = cloneAppearanceItem(currentItem);
+                if (cloned)
+                    nextAppearance.push(cloned);
+            }
+        }
+        // If preserveRestraints is on, copy the player's current restraints across —
+        // but skip any group that the outfit itself already has an item for (no conflicts).
+        if (outfit.preserveRestraints) {
+            for (const currentItem of Player.Appearance) {
+                const group = currentItem.Asset.Group.Name;
+                if (!RESTRAINT_GROUPS.has(group) || outfitGroups.has(group))
+                    continue;
+                const cloned = cloneAppearanceItem(currentItem);
+                if (cloned)
+                    nextAppearance.push(cloned);
+            }
+        }
+        for (const saved of outfit.items) {
+            const built = buildAppearanceItem(saved);
+            if (built)
+                nextAppearance.push(built);
+        }
+        // Enforce outfit whitelist — protected slots always keep their current item
+        const _wl = getOutfitWhitelist();
+        if (_wl.length) {
+            for (const _grp of _wl) {
+                const _orig = Player.Appearance.find((i) => i.Asset.Group.Name === _grp);
+                if (!_orig)
+                    continue;
+                const _cloned = cloneAppearanceItem(_orig);
+                if (!_cloned)
+                    continue;
+                const _idx = nextAppearance.findIndex(i => i.Asset.Group.Name === _grp);
+                if (_idx >= 0)
+                    nextAppearance.splice(_idx, 1, _cloned);
+                else
+                    nextAppearance.push(_cloned);
+            }
+        }
+        Player.Appearance = nextAppearance;
+        sanitizeLiveAppearance();
+        sendRoomAppearanceUpdate();
+        scheduleAppearanceRefresh();
+        // Apply nickname — outfit-specific takes priority, falls back to default
+        const nickToApply = outfit.nickname || getDefaultNickname();
+        if (nickToApply) {
+            try {
+                Player.Nickname = nickToApply;
+                const updater = window.ServerAccountUpdate;
+                if (updater === null || updater === void 0 ? void 0 : updater.QueueData)
+                    updater.QueueData({ Nickname: nickToApply });
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
+        }
+        // Apply title — outfit-specific takes priority, falls back to default title
+        // "__clear__" sentinel = explicitly remove the title (set to "")
+        // ""  = no preference configured → don't touch the title
+        const titleRaw = (_b = (_a = outfit.title) !== null && _a !== void 0 ? _a : getDefaultTitle()) !== null && _b !== void 0 ? _b : "";
+        if (titleRaw) {
+            try {
+                const bcTitle = titleRaw === "__clear__" ? "" : titleRaw;
+                Player.Title = bcTitle;
+                const updater2 = window.ServerAccountUpdate;
+                if (updater2 === null || updater2 === void 0 ? void 0 : updater2.QueueData)
+                    updater2.QueueData({ Title: bcTitle });
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+        }
+        // Let the appearance update hit the send queue before we add the optional emote.
+        window.setTimeout(() => {
+            try {
+                if (outfit.announceText.trim()) {
+                    // Poison trick: Content won't be found in Interface.csv, so BC prepends
+                    // "MISSING TEXT IN "Interface.csv": ". We strip that prefix with the poison
+                    // tag (replaced by a zero-width non-joiner), leaving (​Name text).
+                    const announceContent = outfit.nameInAnnounce !== false
+                        ? getDisplayName() + " " + outfit.announceText.trim()
+                        : outfit.announceText.trim();
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: announceContent,
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+            }
+            finally {
+                outfitApplyPending = false;
+            }
+        }, 80);
+        localNotice$2(`Loaded "${outfit.displayName}" (/${outfit.command})`);
+    }
+    // Called from the drawer to snapshot current appearance into an existing outfit slot
+    function saveCurrentAppearanceToOutfit(id) {
+        const outfits = getOutfits();
+        const outfit = outfits.find(o => o.id === id);
+        if (!outfit)
+            return false;
+        outfit.items = captureAppearance(outfit.includeRestraints);
+        saveOutfits(outfits);
+        localNotice$2(`Saved current look to "${outfit.displayName}".`);
+        return true;
+    }
+    // Called from the drawer to create a brand new outfit from current appearance
+    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "") {
+        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+        if (!cmd || !displayName.trim())
+            return null;
+        // Block duplicate commands
+        if (getOutfits().some(o => o.command === cmd)) {
+            localNotice$2(`Command "/${cmd}" is already used by another outfit.`, "#ffb7c7");
+            return null;
+        }
+        const outfit = {
+            id: uid$6(),
+            command: cmd,
+            displayName: displayName.trim(),
+            announceText: announceText.trim(),
+            nickname: nickname.trim() || null,
+            title: title.trim() || null,
+            tagIds: [],
+            includeRestraints,
+            preserveRestraints,
+            preserveClothing,
+            nameInAnnounce: true,
+            items: captureAppearance(includeRestraints),
+        };
+        saveOutfits([...getOutfits(), outfit]);
+        localNotice$2(`Created outfit "${outfit.displayName}" (/${outfit.command}).`);
+        return outfit;
+    }
+    // Toggle preserveRestraints on a saved outfit
+    function setOutfitPreserveRestraints(id, value) {
+        const outfits = getOutfits();
+        const outfit = outfits.find(o => o.id === id);
+        if (!outfit)
+            return;
+        outfit.preserveRestraints = value;
+        saveOutfits(outfits);
+    }
+    // Toggle preserveClothing on a saved outfit
+    function setOutfitPreserveClothing(id, value) {
+        const outfits = getOutfits();
+        const outfit = outfits.find(o => o.id === id);
+        if (!outfit)
+            return;
+        outfit.preserveClothing = value;
+        saveOutfits(outfits);
+    }
+    // Toggle nameInAnnounce on a saved outfit OR restraint set
+    function setOutfitNameInAnnounce(id, value) {
+        const outfits = getOutfits();
+        const outfit = outfits.find(o => o.id === id);
+        if (outfit) {
+            outfit.nameInAnnounce = value;
+            saveOutfits(outfits);
+            return;
+        }
+        const restraints = getRestraints();
+        const restraint = restraints.find(r => r.id === id);
+        if (restraint) {
+            restraint.nameInAnnounce = value;
+            saveRestraints(restraints);
+        }
+    }
+    function getOutfitTags() {
+        const raw = getAddon$1().outfitTags;
+        return Array.isArray(raw) ? raw : [];
+    }
+    function saveOutfitTags(tags) {
+        getAddon$1().outfitTags = tags;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function createOutfitTag(name, color) {
+        const tag = { id: uid$6(), name: name.trim() || "Tag", color: color || "#cf6f98" };
+        saveOutfitTags([...getOutfitTags(), tag]);
+        return tag;
+    }
+    function deleteOutfitTag(tagId) {
+        saveOutfitTags(getOutfitTags().filter(t => t.id !== tagId));
+        // Remove from all outfits
+        const outfits = getOutfits().map(o => { var _a; return (Object.assign(Object.assign({}, o), { tagIds: ((_a = o.tagIds) !== null && _a !== void 0 ? _a : []).filter(id => id !== tagId) })); });
+        saveOutfits(outfits);
+    }
+    function updateOutfitTag(tagId, name, color) {
+        const tags = getOutfitTags().map(t => t.id === tagId ? Object.assign(Object.assign({}, t), { name: name.trim() || t.name, color: color || t.color }) : t);
+        saveOutfitTags(tags);
+    }
+    function setOutfitTagIds(outfitId, tagIds) {
+        const outfits = getOutfits();
+        const outfit = outfits.find(o => o.id === outfitId);
+        if (!outfit)
+            return;
+        outfit.tagIds = tagIds;
+        saveOutfits(outfits);
+    }
+    function moveOutfit(id, direction) {
+        const outfits = getOutfits();
+        const idx = outfits.findIndex(o => o.id === id);
+        if (idx < 0)
+            return;
+        const newIdx = direction === "up" ? idx - 1 : idx + 1;
+        if (newIdx < 0 || newIdx >= outfits.length)
+            return;
+        [outfits[idx], outfits[newIdx]] = [outfits[newIdx], outfits[idx]];
+        saveOutfits(outfits);
+    }
+    function handleOutfitCommand(inputValue, confirmFn) {
+        const trimmed = inputValue.trim();
+        if (!trimmed.startsWith("/"))
+            return false;
+        const command = trimmed.slice(1).toLowerCase();
+        const outfit = getOutfits().find(entry => entry.command.toLowerCase() === command);
+        if (!outfit)
+            return false;
+        if (!outfit.items.length) {
+            localNotice$2(`Outfit "/${outfit.command}" has no saved appearance yet. Use the EBC drawer to save it.`, "#ffb7c7");
+            return true;
+        }
+        const warning = getOutfitRestraintWarning(outfit);
+        if (warning && confirmFn) {
+            confirmFn(warning, () => applyOutfit(outfit));
+        }
+        else {
+            applyOutfit(outfit);
+        }
+        return true;
+    }
+    function localNotice$2(msg, color = UI.accent) {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log)
+            return;
+        const div = document.createElement("div");
+        div.style.cssText = [
+            `color:${color}`,
+            `background:${UI.cardMuted}`,
+            `border-left:3px solid ${UI.accent}`,
+            "font-style:italic",
+            "font-size:12px",
+            "padding:2px 8px",
+            "margin:1px 0",
+        ].join(";");
+        div.textContent = `[EBC] ${msg}`;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
+    function deleteOutfit(id) {
+        const outfits = getOutfits().filter(o => o.id !== id);
+        saveOutfits(outfits);
+    }
+    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "") {
+        const outfits = getOutfits();
+        const outfit = outfits.find(o => o.id === id);
+        if (!outfit)
+            return false;
+        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+        if (!cmd || !displayName.trim())
+            return false;
+        // Block duplicate commands (excluding this outfit itself)
+        if (outfits.some(o => o.id !== id && o.command === cmd)) {
+            localNotice$2(`Command "/${cmd}" is already used by another outfit.`, "#ffb7c7");
+            return false;
+        }
+        outfit.command = cmd;
+        outfit.displayName = displayName.trim();
+        outfit.announceText = announceText.trim();
+        outfit.nickname = nickname.trim() || null;
+        outfit.title = title.trim() || null;
+        outfit.includeRestraints = includeRestraints;
+        outfit.preserveRestraints = preserveRestraints;
+        outfit.preserveClothing = preserveClothing;
+        saveOutfits(outfits);
+        localNotice$2(`Updated "${outfit.displayName}" (/${outfit.command}).`);
+        return true;
+    }
+    // -- Export / Import -------------------------------------------------------
+    function exportOutfitById(id) {
+        const outfit = getOutfits().find(o => o.id === id);
+        if (!outfit)
+            return null;
+        return JSON.stringify({ ebc: 1, type: "outfit", outfit: sanitizeOutfit(outfit) });
+    }
+    function importOutfitFromJSON(json) {
+        const data = JSON.parse(json);
+        if (data.ebc !== 1 || data.type !== "outfit")
+            throw new Error("Not a valid EBC outfit export.");
+        const raw = data.outfit;
+        if (!(raw === null || raw === void 0 ? void 0 : raw.command) || !(raw === null || raw === void 0 ? void 0 : raw.displayName))
+            throw new Error("Missing required outfit fields.");
+        // Deduplicate command — append suffix until unique
+        const existing = getOutfits();
+        const baseCmd = raw.command.toLowerCase().trim().replace(/\s+/g, "");
+        let finalCmd = baseCmd;
+        let suffix = 2;
+        while (existing.some(o => o.command === finalCmd))
+            finalCmd = baseCmd + suffix++;
+        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$6(), command: finalCmd }));
+        saveOutfits([...existing, outfit]);
+        localNotice$2(`Imported "${outfit.displayName}" (/${outfit.command}).`);
+        return outfit;
+    }
+    function uid$6() {
+        return Math.random().toString(36).slice(2, 9);
+    }
+    function getSchedules() {
+        const list = getAddon$1().outfitSchedules;
+        return Array.isArray(list) ? list : [];
+    }
+    function saveSchedules(schedules) {
+        getAddon$1().outfitSchedules = schedules;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function addSchedule(outfitId, time) {
+        const schedule = { id: uid$6(), outfitId, time, enabled: true };
+        saveSchedules([...getSchedules(), schedule]);
+        return schedule;
+    }
+    function removeSchedule(id) {
+        saveSchedules(getSchedules().filter(s => s.id !== id));
+    }
+    function toggleSchedule(id) {
+        const schedules = getSchedules().map(s => s.id === id ? Object.assign(Object.assign({}, s), { enabled: !s.enabled }) : s);
+        saveSchedules(schedules);
+    }
+    // Map of scheduleId -> last-applied HH:MM to avoid re-applying in the same minute
+    const _lastApplied = new Map();
+    function checkAndApplySchedules() {
+        try {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, "0");
+            const mm = String(now.getMinutes()).padStart(2, "0");
+            const current = `${hh}:${mm}`;
+            for (const schedule of getSchedules()) {
+                if (!schedule.enabled)
+                    continue;
+                if (schedule.time !== current)
+                    continue;
+                if (_lastApplied.get(schedule.id) === current)
+                    continue;
+                const outfit = getOutfits().find(o => o.id === schedule.outfitId);
+                if (!outfit)
+                    continue;
+                _lastApplied.set(schedule.id, current);
+                applyOutfit(outfit);
+            }
+        }
+        catch ( /* ignore — Player may not be ready */_a) { /* ignore — Player may not be ready */ }
+    }
+    // Import an outfit from BC's native LZString-compressed appearance bundle.
+    // mode: "restraints" = restraint slots only (⛓)
+    //       "outfit"     = non-restraint clothing/body slots only
+    //       "both"       = entire appearance
+    // -- Restraint Sets -----------------------------------------------------------
+    let cachedRestraints = null;
+    function loadRestraintsFromSettings() {
+        const list = getAddon$1().restraints;
+        const restraints = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
+        cachedRestraints = restraints;
+        return restraints;
+    }
+    function getRestraints() {
+        return cachedRestraints !== null && cachedRestraints !== void 0 ? cachedRestraints : loadRestraintsFromSettings();
+    }
+    function saveRestraints(list) {
+        const sanitized = list.map(sanitizeOutfit);
+        cachedRestraints = sanitized;
+        getAddon$1().restraints = sanitized;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function captureRestraints() {
+        return Player.Appearance
+            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name))
+            .map(item => sanitizeItem({
+            Group: item.Asset.Group.Name,
+            Name: item.Asset.Name,
+            Color: item.Color,
+            Difficulty: item.Difficulty,
+            Property: item.Property,
+            Craft: item.Craft,
+        }));
+    }
+    function applyRestraintSet(restraint) {
+        if (outfitApplyPending) {
+            localNotice$2("An outfit swap is already in progress.", "#ffb7c7");
+            return;
+        }
+        outfitApplyPending = true;
+        const restraintGroups = new Set(restraint.items.map(i => i.Group));
+        const nextAppearance = [];
+        // Preserve all current non-restraint items (clothing, body, etc.)
+        for (const currentItem of Player.Appearance) {
+            const group = currentItem.Asset.Group.Name;
+            if (RESTRAINT_GROUPS.has(group))
+                continue;
+            const cloned = cloneAppearanceItem(currentItem);
+            if (cloned)
+                nextAppearance.push(cloned);
+        }
+        // Preserve any current restraints NOT being replaced by this set
+        for (const currentItem of Player.Appearance) {
+            const group = currentItem.Asset.Group.Name;
+            if (!RESTRAINT_GROUPS.has(group) || restraintGroups.has(group))
+                continue;
+            const cloned = cloneAppearanceItem(currentItem);
+            if (cloned)
+                nextAppearance.push(cloned);
+        }
+        // Apply the saved restraint items
+        for (const saved of restraint.items) {
+            const built = buildAppearanceItem(saved);
+            if (built)
+                nextAppearance.push(built);
+        }
+        // Enforce outfit whitelist — protected slots always keep their current item
+        const _wl2 = getOutfitWhitelist();
+        if (_wl2.length) {
+            for (const _grp of _wl2) {
+                const _orig = Player.Appearance.find((i) => i.Asset.Group.Name === _grp);
+                if (!_orig)
+                    continue;
+                const _cloned = cloneAppearanceItem(_orig);
+                if (!_cloned)
+                    continue;
+                const _idx = nextAppearance.findIndex(i => i.Asset.Group.Name === _grp);
+                if (_idx >= 0)
+                    nextAppearance.splice(_idx, 1, _cloned);
+                else
+                    nextAppearance.push(_cloned);
+            }
+        }
+        Player.Appearance = nextAppearance;
+        sanitizeLiveAppearance();
+        sendRoomAppearanceUpdate();
+        scheduleAppearanceRefresh();
+        window.setTimeout(() => {
+            try {
+                if (restraint.announceText.trim()) {
+                    const rAnnounceContent = restraint.nameInAnnounce !== false
+                        ? getDisplayName() + " " + restraint.announceText.trim()
+                        : restraint.announceText.trim();
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: rAnnounceContent,
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+            }
+            finally {
+                outfitApplyPending = false;
+            }
+        }, 80);
+        localNotice$2(`Applied restraint set "${restraint.displayName}" (/${restraint.command})`);
+    }
+    function createRestraintFromCurrent(command, displayName, announceText) {
+        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+        if (!cmd || !displayName.trim())
+            return null;
+        if (getOutfits().some(o => o.command === cmd) || getRestraints().some(r => r.command === cmd)) {
+            localNotice$2(`Command "/${cmd}" is already in use.`, "#ffb7c7");
+            return null;
+        }
+        const restraint = {
+            id: uid$6(),
+            command: cmd,
+            displayName: displayName.trim(),
+            announceText: announceText.trim(),
+            nickname: null,
+            title: null,
+            tagIds: [],
+            includeRestraints: true,
+            preserveRestraints: false,
+            preserveClothing: true,
+            nameInAnnounce: true,
+            items: captureRestraints(),
+        };
+        saveRestraints([...getRestraints(), restraint]);
+        localNotice$2(`Created restraint set "${restraint.displayName}" (/${restraint.command}).`);
+        return restraint;
+    }
+    function saveCurrentAppearanceToRestraint(id) {
+        const restraints = getRestraints();
+        const restraint = restraints.find(r => r.id === id);
+        if (!restraint)
+            return false;
+        restraint.items = captureRestraints();
+        saveRestraints(restraints);
+        localNotice$2(`Saved current restraints to "${restraint.displayName}".`);
+        return true;
+    }
+    function deleteRestraint(id) {
+        saveRestraints(getRestraints().filter(r => r.id !== id));
+    }
+    function editRestraint(id, command, displayName, announceText) {
+        const restraints = getRestraints();
+        const restraint = restraints.find(r => r.id === id);
+        if (!restraint)
+            return false;
+        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
+        if (!cmd || !displayName.trim())
+            return false;
+        if (getOutfits().some(o => o.command === cmd) || restraints.some(r => r.id !== id && r.command === cmd)) {
+            localNotice$2(`Command "/${cmd}" is already in use.`, "#ffb7c7");
+            return false;
+        }
+        restraint.command = cmd;
+        restraint.displayName = displayName.trim();
+        restraint.announceText = announceText.trim();
+        saveRestraints(restraints);
+        localNotice$2(`Updated restraint set "${restraint.displayName}" (/${restraint.command}).`);
+        return true;
+    }
+    function setRestraintTagIds(id, tagIds) {
+        const restraints = getRestraints();
+        const restraint = restraints.find(r => r.id === id);
+        if (!restraint)
+            return;
+        restraint.tagIds = tagIds;
+        saveRestraints(restraints);
+    }
+    function moveRestraint(id, direction) {
+        const restraints = getRestraints();
+        const idx = restraints.findIndex(r => r.id === id);
+        if (idx < 0)
+            return;
+        const newIdx = direction === "up" ? idx - 1 : idx + 1;
+        if (newIdx < 0 || newIdx >= restraints.length)
+            return;
+        [restraints[idx], restraints[newIdx]] = [restraints[newIdx], restraints[idx]];
+        saveRestraints(restraints);
+    }
+    function applyColorPresetToRestraint(restraintId, fullGroup, colors) {
+        const restraints = getRestraints();
+        const restraint = restraints.find(r => r.id === restraintId);
+        if (!restraint)
+            return false;
+        const item = restraint.items.find(i => i.Group === fullGroup);
+        if (!item)
+            return false;
+        item.Color = colors;
+        saveRestraints(restraints);
+        localNotice$2(`Updated colours in "${restraint.displayName}".`);
+        return true;
+    }
+    // -- Outfit protected-items whitelist -----------------------------------------
+    // Group names (slot keys) whose current item should never be touched by any
+    // outfit or restraint-set apply. Stored in ExtensionSettings server-side.
+    function getOutfitWhitelist() {
+        const raw = getAddon$1().outfitWhitelist;
+        return Array.isArray(raw) ? raw : [];
+    }
+    function setOutfitWhitelist(groups) {
+        getAddon$1().outfitWhitelist = groups;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function addToOutfitWhitelist(group) {
+        const list = getOutfitWhitelist();
+        if (!list.includes(group))
+            setOutfitWhitelist([...list, group]);
+    }
+    function removeFromOutfitWhitelist(group) {
+        setOutfitWhitelist(getOutfitWhitelist().filter(g => g !== group));
+    }
+    function handleRestraintCommand(inputValue, confirmFn) {
+        const trimmed = inputValue.trim();
+        if (!trimmed.startsWith("/"))
+            return false;
+        const command = trimmed.slice(1).toLowerCase();
+        const restraint = getRestraints().find(r => r.command.toLowerCase() === command);
+        if (!restraint)
+            return false;
+        if (!restraint.items.length) {
+            localNotice$2(`Restraint set "/${restraint.command}" has no saved items yet.`, "#ffb7c7");
+            return true;
+        }
+        const warning = getRestraintSetWarning(restraint);
+        if (warning && confirmFn) {
+            confirmFn(warning, () => applyRestraintSet(restraint));
+        }
+        else {
+            applyRestraintSet(restraint);
+        }
+        return true;
+    }
+    function importOutfitFromBCCode(code, displayName, command, mode = "restraints") {
+        const LZ = window.LZString;
+        if (!(LZ === null || LZ === void 0 ? void 0 : LZ.decompressFromBase64))
+            throw new Error("LZString not found — make sure you are on the BC page.");
+        const json = LZ.decompressFromBase64(code.trim());
+        if (!json)
+            throw new Error("Could not decompress — is this a valid BC outfit code?");
+        let raw;
+        try {
+            raw = JSON.parse(json);
+        }
+        catch (_a) {
+            throw new Error("Decoded data is not valid JSON.");
+        }
+        if (!Array.isArray(raw))
+            throw new Error("Unexpected format — expected an appearance array.");
+        const toItem = (i) => {
+            var _a, _b;
+            return sanitizeItem({
+                Group: String((_a = i.Group) !== null && _a !== void 0 ? _a : ""),
+                Name: String((_b = i.Name) !== null && _b !== void 0 ? _b : ""),
+                Color: i.Color,
+                Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
+                Property: typeof i.Property === "object" && i.Property !== null
+                    ? i.Property : undefined,
+                Craft: i.Craft,
+            });
+        };
+        const all = raw;
+        let items;
+        if (mode === "restraints") {
+            items = all.filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group)).map(toItem);
+            if (items.length === 0)
+                throw new Error("No restraint items found in this BC outfit code.");
+        }
+        else if (mode === "outfit") {
+            items = all.filter(i => typeof i.Group === "string" && !RESTRAINT_GROUPS.has(i.Group)).map(toItem);
+            if (items.length === 0)
+                throw new Error("No outfit (non-restraint) items found in this BC outfit code.");
+        }
+        else {
+            items = all.filter(i => typeof i.Group === "string").map(toItem);
+            if (items.length === 0)
+                throw new Error("No items found in this BC outfit code.");
+        }
+        const existing = getOutfits();
+        const baseCmd = command.toLowerCase().trim().replace(/\s+/g, "") || "imported";
+        let finalCmd = baseCmd;
+        let sfx = 2;
+        while (existing.some(o => o.command === finalCmd))
+            finalCmd = baseCmd + sfx++;
+        const includesRestraints = mode !== "outfit";
+        const outfit = sanitizeOutfit({
+            id: uid$6(),
+            command: finalCmd,
+            displayName: displayName.trim() || "Imported Outfit",
+            announceText: "",
+            nickname: null,
+            title: null,
+            tagIds: [],
+            includeRestraints: includesRestraints,
+            preserveRestraints: mode === "outfit", // outfit-only: keep existing restraints
+            preserveClothing: mode === "restraints", // restraints-only: keep existing clothing
+            nameInAnnounce: true,
+            items,
+        });
+        saveOutfits([...existing, outfit]);
+        localNotice$2(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
+        return outfit;
+    }
+
+    // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
+    // Locks that must never be touched regardless of the operation.
+    function isProtectedLock$1(item) {
+        var _a, _b;
+        const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
+        if (!lock)
+            return false;
+        return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
+    }
+    // Returns true if this item's slot is in the user's outfit whitelist.
+    function isWhitelisted(item) {
+        try {
+            return getOutfitWhitelist().includes(item.Asset.Group.Name);
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    // Combined guard: skip if owner/lover/family locked OR in outfit whitelist.
+    function isUntouchable(item) {
+        return isProtectedLock$1(item) || isWhitelisted(item);
+    }
+    function localNotice$1(msg, color = UI.accent) {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log)
+            return;
+        const div = document.createElement("div");
+        div.style.cssText = [
+            `color:${color}`,
+            `background:${UI.cardMuted}`,
+            `border-left:3px solid ${UI.accent}`,
+            "font-style:italic",
+            "font-size:12px",
+            "padding:2px 8px",
+            "margin:1px 0",
+        ].join(";");
+        div.textContent = "[EBC] " + msg;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
+    // /ebc release - removes restraint items, skips protected locks and whitelisted slots
+    function releaseRestraints() {
+        const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item));
+        const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item));
+        if (toRemove.length === 0) {
+            localNotice$1(skipped.length > 0
+                ? "All restraints are locked or protected — none removed."
+                : "No restraints found to remove.", UI.textMuted);
+            return;
+        }
+        for (const item of toRemove) {
+            InventoryRemove(Player, item.Asset.Group.Name, false);
+        }
+        if (skipped.length > 0) {
+            localNotice$1(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
+        }
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
+        localNotice$1(`Released ${toRemove.length} restraint(s).`, UI.gold);
+    }
+    // Returns un-protected restraint items currently worn by the player.
+    function getPlayerRestraints() {
+        return Player.Appearance
+            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
+            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
+    }
+    // Returns locked (non-protected) items currently worn by the player.
+    function getPlayerLockedItems() {
+        return Player.Appearance
+            .filter(item => { var _a; return !!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) && !isProtectedLock$1(item); })
+            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
+    }
+    // Removes specific items by group name from the player. Returns count removed.
+    function removePlayerSpecificItems(groups) {
+        let count = 0;
+        for (const group of groups) {
+            try {
+                InventoryRemove(Player, group, false);
+                count++;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        if (count > 0) {
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
+        }
+        return count;
+    }
+    // Unlocks specific items by group name on the player. Returns count unlocked.
+    function unlockPlayerSpecificItems(groups) {
+        let count = 0;
+        for (const group of groups) {
+            const item = Player.Appearance.find(a => a.Asset.Group.Name === group);
+            if (!(item === null || item === void 0 ? void 0 : item.Property) || isProtectedLock$1(item))
+                continue;
+            delete item.Property["LockedBy"];
+            delete item.Property["LockMemberNumber"];
+            delete item.Property["CombinationNumber"];
+            delete item.Property["Password"];
+            delete item.Property["MemberNumberListKeys"];
+            delete item.Property["RemoveItem"];
+            delete item.Property["ShowTimer"];
+            delete item.Property["EnableRandomInput"];
+            count++;
+        }
+        if (count > 0) {
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
+        }
+        return count;
+    }
+    // /ebc unlock - strips lock data from items, skips protected locks and whitelisted slots
+    function unlockItems() {
+        var _a;
+        let unlocked = 0;
+        let skipped = 0;
+        for (const item of Player.Appearance) {
+            if (!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy))
+                continue;
+            if (isUntouchable(item)) {
+                skipped++;
+                continue;
+            }
+            if (item.Property) {
+                delete item.Property["LockedBy"];
+                delete item.Property["LockMemberNumber"];
+                delete item.Property["CombinationNumber"];
+                delete item.Property["Password"];
+                delete item.Property["MemberNumberListKeys"];
+                delete item.Property["RemoveItem"];
+                delete item.Property["ShowTimer"];
+                delete item.Property["EnableRandomInput"];
+            }
+            unlocked++;
+        }
+        if (unlocked === 0) {
+            localNotice$1(skipped > 0
+                ? "All locks are owner/lover/family protected - none removed."
+                : "No locks found to remove.", UI.textMuted);
+            return;
+        }
+        if (skipped > 0) {
+            localNotice$1(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
+        }
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
+        localNotice$1(`Removed ${unlocked} lock(s).`, UI.gold);
+    }
+
+    // BC pose application and user-configurable pose combos.
+    // Poses require matching equipped items to visually render — BC handles
+    // validation server-side and silently ignores inapplicable poses.
+    // Well-known BC pose names grouped by type.
+    // Body and arm poses can be freely combined (e.g. Kneel + BackCuffs).
+    const KNOWN_POSES = [
+        {
+            group: "Body",
+            poses: [
+                { key: "", label: "Stand" },
+                { key: "Kneel", label: "Kneel" },
+                { key: "KneelingSpread", label: "Kneel Wide" },
+                { key: "AllFours", label: "All Fours" },
+                { key: "Hogtied", label: "Hogtied" },
+                { key: "Spread", label: "Spread" },
+            ],
+        },
+        {
+            group: "Arms",
+            poses: [
+                { key: "", label: "Relaxed" },
+                { key: "OverTheHead", label: "Arms Up" },
+                { key: "BackCuffs", label: "Arms Back" },
+                { key: "BackBoxTie", label: "Box Tie" },
+                { key: "Yoked", label: "Yoked" },
+            ],
+        },
+    ];
+    function applyPoses(poses) {
+        const filtered = poses.filter(Boolean);
+        try {
+            Player.ActivePose = filtered;
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
+    }
+    // Apply poses one-by-one in the given order with a delay between each step.
+    // Respects the exact order provided — the user controls sequencing via the editor.
+    // e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
+    function applyPosesSequential(poses, stepDelayMs = 420) {
+        const steps = poses.filter(Boolean);
+        if (steps.length <= 1) {
+            applyPoses(steps);
+            return;
+        }
+        for (let i = 0; i < steps.length; i++) {
+            const subset = steps.slice(0, i + 1);
+            window.setTimeout(() => applyPoses(subset), i * stepDelayMs);
+        }
+    }
+    function getCurrentPoses() {
+        var _a;
+        try {
+            return [...((_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [])];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    // -- Combo storage -------------------------------------------------------
+    function getStore$7() {
+        if (!Player.ExtensionSettings.EmeryBC)
+            Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function uid$5() { return Math.random().toString(36).slice(2, 9); }
+    function load$2() {
+        const list = getStore$7().poseCombos;
+        return Array.isArray(list) ? list : [];
+    }
+    function saveCombos(list) {
+        getStore$7().poseCombos = list;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function getPoseCombos() { return load$2(); }
+    function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
+        const combo = {
+            id: uid$5(),
+            name: name.trim() || "Combo",
+            poses: poses.filter(Boolean),
+            stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
+            command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
+            announceText: announceText.trim() || undefined,
+        };
+        saveCombos([...load$2(), combo]);
+        return combo;
+    }
+    function updateCombo(id, name, poses, command = "", announceText = "", stepDelayMs = 420) {
+        const list = load$2();
+        const combo = list.find(c => c.id === id);
+        if (!combo)
+            return;
+        combo.name = name.trim() || combo.name;
+        combo.poses = poses.filter(Boolean);
+        combo.stepDelayMs = Math.max(50, Math.min(3000, stepDelayMs));
+        combo.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
+        combo.announceText = announceText.trim() || undefined;
+        saveCombos(list);
+    }
+    function deleteCombo(id) {
+        saveCombos(load$2().filter(c => c.id !== id));
+    }
+    // Apply a combo (animation + announce text). Used by both the chat command handler
+    // and the ▶ apply button in the drawer so announce always fires either way.
+    function applyCombo(combo) {
+        var _a, _b;
+        const delay = (_a = combo.stepDelayMs) !== null && _a !== void 0 ? _a : 420;
+        applyPosesSequential(combo.poses, delay);
+        const totalMs = combo.poses.length > 1 ? (combo.poses.length - 1) * delay + 80 : 80;
+        if ((_b = combo.announceText) === null || _b === void 0 ? void 0 : _b.trim()) {
+            window.setTimeout(() => {
+                try {
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: getDisplayName() + " " + combo.announceText.trim(),
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }, totalMs);
+        }
+    }
+    // Handle a chat command and apply the matching pose combo if found.
+    function handlePoseComboCommand(inputValue) {
+        const trimmed = inputValue.trim();
+        if (!trimmed.startsWith("/"))
+            return false;
+        const command = trimmed.slice(1).toLowerCase();
+        const combo = load$2().find(c => c.command && c.command.toLowerCase() === command);
+        if (!combo)
+            return false;
+        applyCombo(combo);
+        return true;
+    }
+
+    // Anti-restraint — when enabled, any restraint applied to the player by
+    // another character is immediately removed and a glare emote is sent.
+    // Whitelisted items are always kept even if applied by others.
+    // Whitelist entries are item keys: "AssetName" or "AssetName|CraftName".
+    // Removal is attempted up to 2 times per group before giving up (locked items).
+    // Compute a stable identity key for a restraint item.
+    // Uses asset name + craft name (if any) so that e.g. two different crafted
+    // collars in the same slot can be whitelisted independently.
+    function getItemKey(item) {
+        var _a;
+        const craft = item.Craft;
+        const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
+        return craftName ? `${item.Asset.Name}|${craftName}` : item.Asset.Name;
+    }
+    // Human-readable label for a restraint item (shown in whitelist chips).
+    function getItemDisplayName(item) {
+        var _a;
+        const craft = item.Craft;
+        const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
+        const baseName = item.Asset.Description || item.Asset.Name;
+        return craftName ? `${craftName} (${baseName})` : baseName;
+    }
+    let lastRestrainerName = null;
+    function getLastRestrainerName() { return lastRestrainerName; }
+    function recordRestrainer(sourceMemberNumber) {
+        var _a;
+        try {
+            const room = window.ChatRoomCharacter;
+            const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === sourceMemberNumber);
+            if (!char)
+                return;
+            lastRestrainerName =
+                ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) ||
+                    char.Name ||
+                    null;
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    let knownRestraints = new Set();
+    let escaping = false;
+    // Tracks failed removal attempts per group. Items here are NOT merged into
+    // knownRestraints so they remain detectable for a retry.
+    const failAttempts = new Map();
+    function snapshotPlayerRestraints() {
+        try {
+            knownRestraints = new Set(Player.Appearance
+                .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
+                .map((i) => i.Asset.Group.Name));
+            failAttempts.clear();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // Merge currently worn restraint groups into knownRestraints, but skip groups
+    // that still have pending retry attempts — they need to stay detectable.
+    function mergeCurrentRestraints() {
+        try {
+            Player.Appearance
+                .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !failAttempts.has(i.Asset.Group.Name))
+                .forEach((i) => knownRestraints.add(i.Asset.Group.Name));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function antiRestraintOnPlayerRefresh() {
+        if (escaping)
+            return;
+        if (!getAntiRestraintEnabled())
+            return;
+        try {
+            const whitelist = getAntiRestraintWhitelist();
+            const current = Player.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+            // Whitelist is now item-key based ("AssetName" or "AssetName|CraftName")
+            const candidates = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name) &&
+                !whitelist.includes(getItemKey(i)));
+            // Promote items that have hit the retry limit: add to known and drop them.
+            for (const item of candidates.filter(i => { var _a; return ((_a = failAttempts.get(i.Asset.Group.Name)) !== null && _a !== void 0 ? _a : 0) >= 2; })) {
+                knownRestraints.add(item.Asset.Group.Name);
+                failAttempts.delete(item.Asset.Group.Name);
+            }
+            const newItems = candidates.filter((i) => !knownRestraints.has(i.Asset.Group.Name));
+            if (newItems.length === 0)
+                return;
+            escaping = true;
+            const firstItem = newItems[0];
+            const itemName = firstItem.Asset.Description
+                || firstItem.Asset.Name
+                || "restraint";
+            const restrainer = lastRestrainerName;
+            lastRestrainerName = null;
+            doEscape(newItems, restrainer, itemName);
+        }
+        catch (_a) {
+            escaping = false;
+        }
+    }
+    function doEscape(newItems, restrainer, itemName) {
+        var _a;
+        for (const item of newItems) {
+            try {
+                InventoryRemove(Player, item.Asset.Group.Name, false);
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        const stillPresent = new Set(Player.Appearance
+            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
+            .map((i) => i.Asset.Group.Name));
+        let anySucceeded = false;
+        for (const item of newItems) {
+            const group = item.Asset.Group.Name;
+            if (stillPresent.has(group)) {
+                failAttempts.set(group, ((_a = failAttempts.get(group)) !== null && _a !== void 0 ? _a : 0) + 1);
+            }
+            else {
+                anySucceeded = true;
+                failAttempts.delete(group);
+            }
+        }
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
+        mergeCurrentRestraints();
+        window.setTimeout(() => {
+            try {
+                if (anySucceeded) {
+                    const text = restrainer
+                        ? `glares at ${restrainer} as the ${itemName} falls away.`
+                        : `glares ahead as the ${itemName} falls away.`;
+                    ServerSend("ChatRoomChat", {
+                        Type: "Action",
+                        Content: Player.Name + " " + text,
+                        Dictionary: [
+                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                            { SourceCharacter: Player.MemberNumber },
+                        ],
+                    });
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            escaping = false;
+        }, 200);
+    }
+
+    // Scene sequencer — chain pose changes, item equips/unequips, emotes and
+    // waits into a named sequence that plays back step by step with per-step timing.
+    function getStore$6() {
+        if (!Player.ExtensionSettings.EmeryBC)
+            Player.ExtensionSettings.EmeryBC = {};
+        return Player.ExtensionSettings.EmeryBC;
+    }
+    function uid$4() { return Math.random().toString(36).slice(2, 9); }
+    function load$1() {
+        const raw = getStore$6().scenes;
+        return Array.isArray(raw) ? raw : [];
+    }
+    function saveScenes(list) {
+        getStore$6().scenes = list;
+        ServerPlayerExtensionSettingsSync("EmeryBC");
+    }
+    function getScenes() { return load$1(); }
+    function createScene(name, steps, command = "") {
+        const scene = {
+            id: uid$4(),
+            name: name.trim() || "Scene",
+            steps,
+            command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
+        };
+        saveScenes([...load$1(), scene]);
+        return scene;
+    }
+    function updateScene(id, name, steps, command = "") {
+        const list = load$1();
+        const scene = list.find(s => s.id === id);
+        if (!scene)
+            return;
+        scene.name = name.trim() || scene.name;
+        scene.steps = steps;
+        scene.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
+        saveScenes(list);
+    }
+    function deleteScene(id) {
+        saveScenes(load$1().filter(s => s.id !== id));
+    }
+    function executeStep(step) {
+        var _a, _b, _c;
+        try {
+            switch (step.type) {
+                case "pose":
+                    applyPoses((_a = step.poses) !== null && _a !== void 0 ? _a : []);
+                    break;
+                case "equip":
+                case "equip-restraint":
+                case "equip-clothes":
+                    if (step.group && step.assetName) {
+                        // InventoryWear actually puts the item on the character;
+                        // InventoryAdd only adds to the wardrobe (never appears worn).
+                        const color = step.color;
+                        InventoryWear(Player, step.assetName, step.group, color, undefined, Player.MemberNumber);
+                        // Apply state/type (e.g. "Tight", "Wrist", "Double") if specified
+                        if (step.propertyType || step.heightModifier !== undefined) {
+                            const worn = InventoryGet(Player, step.group);
+                            if (worn) {
+                                if (!worn.Property)
+                                    worn.Property = {};
+                                if (step.propertyType) {
+                                    // Legacy compat — some BC systems still read Type
+                                    worn.Property.Type = step.propertyType;
+                                    const getFn = window.TypedItemGetOptions;
+                                    if (typeof getFn === "function") {
+                                        try {
+                                            const opts = getFn(step.group, step.assetName);
+                                            if (opts) {
+                                                const idx = opts.findIndex(o => o.Name === step.propertyType);
+                                                if (idx >= 0)
+                                                    worn.Property.TypeRecord = { typed: idx };
+                                            }
+                                        }
+                                        catch ( /* ignore */_d) { /* ignore */ }
+                                    }
+                                }
+                                if (step.heightModifier !== undefined)
+                                    worn.Property.HeightModifier = step.heightModifier;
+                            }
+                        }
+                        // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
+                        // see the newly-added restraint as "unknown" and immediately strip it.
+                        snapshotPlayerRestraints();
+                        callBC(() => CharacterRefresh(Player, false));
+                        callBC(() => ChatRoomCharacterUpdate(Player));
+                        callBC(() => ServerPlayerAppearanceSync());
+                    }
+                    break;
+                case "unequip":
+                    if (step.group) {
+                        InventoryRemove(Player, step.group, false);
+                        callBC(() => CharacterRefresh(Player, false));
+                        callBC(() => ChatRoomCharacterUpdate(Player));
+                        callBC(() => ServerPlayerAppearanceSync());
+                    }
+                    break;
+                case "emote":
+                    if ((_b = step.text) === null || _b === void 0 ? void 0 : _b.trim()) {
+                        ServerSend("ChatRoomChat", {
+                            Type: "Action",
+                            Content: getDisplayName() + " " + step.text.trim(),
+                            Dictionary: [
+                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                                { SourceCharacter: Player.MemberNumber },
+                            ],
+                        });
+                    }
+                    break;
+                case "chat":
+                    if ((_c = step.text) === null || _c === void 0 ? void 0 : _c.trim()) {
+                        const txt = step.text.trim();
+                        if (step.chatFormat === "*") {
+                            // Emote — BC Type:"Emote" auto-prepends the sender's name and wraps
+                            // in *...*. Send only the raw text so it renders as *Name text*.
+                            ServerSend("ChatRoomChat", {
+                                Type: "Emote",
+                                Content: txt,
+                            });
+                        }
+                        else if (step.chatFormat === "(") {
+                            // OOC — Type:"Action" already wraps the content in ( ) when rendered.
+                            // Don't add our own parens or they double up: ((text)).
+                            // Action messages bypass gag speech processing.
+                            ServerSend("ChatRoomChat", {
+                                Type: "Action",
+                                Content: getDisplayName() + " " + txt,
+                                Dictionary: [
+                                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
+                                    { SourceCharacter: Player.MemberNumber },
+                                ],
+                            });
+                        }
+                        else {
+                            // Plain speech — goes through normal chat (gag effects apply)
+                            ServerSend("ChatRoomChat", { Type: "Chat", Content: txt });
+                        }
+                    }
+                    break;
+                case "wait":
+                    break; // delay alone is the effect
+            }
+        }
+        catch ( /* ignore */_e) { /* ignore */ }
+    }
+    function runScene(scene) {
+        let elapsed = 0;
+        for (const step of scene.steps) {
+            elapsed += step.delayMs;
+            const s = step;
+            window.setTimeout(() => executeStep(s), elapsed);
+        }
+    }
+    // -- Export / Import -----------------------------------------------------------
+    function exportScene(id) {
+        const scene = load$1().find(s => s.id === id);
+        if (!scene)
+            return null;
+        return JSON.stringify(scene);
+    }
+    function importScene(json) {
+        let parsed;
+        try {
+            parsed = JSON.parse(json);
+        }
+        catch (_a) {
+            throw new Error("Invalid JSON.");
+        }
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+            throw new Error("Not a valid scene object.");
+        const obj = parsed;
+        if (typeof obj.name !== "string" || !Array.isArray(obj.steps))
+            throw new Error("Missing required fields (name, steps).");
+        const scene = {
+            id: uid$4(),
+            name: obj.name.trim() || "Imported Scene",
+            steps: obj.steps,
+            command: typeof obj.command === "string"
+                ? obj.command.toLowerCase().trim().replace(/\s+/g, "") || undefined
+                : undefined,
+        };
+        saveScenes([...load$1(), scene]);
+        return scene;
+    }
+    function handleSceneCommand(inputValue) {
+        const trimmed = inputValue.trim();
+        if (!trimmed.startsWith("/"))
+            return false;
+        const command = trimmed.slice(1).toLowerCase();
+        const scene = load$1().find(s => s.command && s.command.toLowerCase() === command);
+        if (!scene)
+            return false;
+        runScene(scene);
+        return true;
+    }
+
+    // Macro execution — triggered when a "macro" style action button is clicked.
+    // Handles all BC/EBC built-in actions so actionButtons.ts stays dependency-free.
+    // Registered by EBCDrawer at construction time — avoids a circular import.
+    let _openBeepCb = null;
+    function registerOpenBeepCallback(fn) {
+        _openBeepCb = fn;
+    }
+    function executeMacro(cmd) {
+        if (!(cmd === null || cmd === void 0 ? void 0 : cmd.trim()))
+            return;
+        try {
+            const colonIdx = cmd.indexOf(":");
+            const type = (colonIdx >= 0 ? cmd.slice(0, colonIdx) : cmd).toLowerCase().trim();
+            const arg = colonIdx >= 0 ? cmd.slice(colonIdx + 1).trim() : "";
+            switch (type) {
+                case "wardrobe":
+                    callBC(() => CommonSetScreen("Character", "Wardrobe"));
+                    break;
+                case "outfit": {
+                    const o = getOutfits().find(x => x.command === arg || x.displayName === arg);
+                    if (o)
+                        applyOutfit(o);
+                    break;
+                }
+                case "scene": {
+                    const s = getScenes().find(x => x.name === arg);
+                    if (s)
+                        runScene(s);
+                    break;
+                }
+                case "beep": {
+                    const n = parseInt(arg, 10);
+                    if (!isNaN(n) && n > 0)
+                        _openBeepCb === null || _openBeepCb === void 0 ? void 0 : _openBeepCb(n);
+                    break;
+                }
+                case "releaseself":
+                    releaseRestraints();
+                    break;
+                case "unlockself":
+                    unlockItems();
+                    break;
+                case "leaveroom":
+                    callBC(() => ChatRoomLeave());
+                    break;
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+
     var _a, _b;
     const DEFAULT_BUTTONS = [
         { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
@@ -457,14 +2063,14 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$7() {
+    function getStore$5() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     /** Returns all categories, migrating from old flat format if needed. */
     function getCategories() {
-        const store = getStore$7();
+        const store = getStore$5();
         // Migrate old flat actionButtons → first category "Default"
         if (!store.buttonCategories && store.actionButtons) {
             const migrated = [{
@@ -484,7 +2090,7 @@
         return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
     }
     function getActiveCategoryIndex() {
-        const store = getStore$7();
+        const store = getStore$5();
         const cats = getCategories();
         const idx = store.activeCategoryIndex;
         if (typeof idx === "number" && idx >= 0 && idx < cats.length)
@@ -492,7 +2098,7 @@
         return 0;
     }
     function setActiveCategoryIndex(idx) {
-        const store = getStore$7();
+        const store = getStore$5();
         store.activeCategoryIndex = idx;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
@@ -505,7 +2111,7 @@
         return getActiveCategory().buttons;
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$7();
+        const store = getStore$5();
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         cats[idx].buttons = buttons;
@@ -514,7 +2120,7 @@
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function saveCategories(categories, activeIndex) {
-        const store = getStore$7();
+        const store = getStore$5();
         store.buttonCategories = categories;
         store.activeCategoryIndex = activeIndex;
         ServerPlayerExtensionSettingsSync("EmeryBC");
@@ -662,7 +2268,7 @@
         // ItemHands covers paws/mittens/gloves which don't lock arm movement, so we skip it.
         return Player.Appearance.some(item => item.Asset.Group.Name === "ItemArms");
     }
-    function localNotice$2(msg) {
+    function localNotice(msg) {
         const log = document.getElementById("TextAreaChatLog");
         if (!log)
             return;
@@ -683,7 +2289,7 @@
     // Returns true if the animation ran (or will run), false if it was blocked.
     function runCheerAnimation() {
         if (isArmRestrained()) {
-            localNotice$2("Your arms are restrained -- can't cheer right now!");
+            localNotice("Your arms are restrained -- can't cheer right now!");
             return false;
         }
         // Yoked (arms out) -> OverTheHead (arms fully above head) -> repeat -> neutral
@@ -991,964 +2597,43 @@
             const y = btnStartY + i * BTN_SIZE;
             if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
                 my >= y && my <= y + BTN_SIZE) {
-                const animOk = triggerLabelAnimation(btn.label);
-                if (animOk)
-                    sendAction(btn.emote, (_c = btn.style) !== null && _c !== void 0 ? _c : "action", btn.includeNameInAnnounce !== false);
+                if (btn.style === "macro") {
+                    executeMacro(btn.emote);
+                }
+                else {
+                    const animOk = triggerLabelAnimation(btn.label);
+                    if (animOk)
+                        sendAction(btn.emote, (_c = btn.style) !== null && _c !== void 0 ? _c : "action", btn.includeNameInAnnounce !== false);
+                }
                 return true;
             }
         }
         return false;
     }
 
-    const RESTRAINT_GROUPS = new Set([
-        "ItemArms", "ItemHands", "ItemLegs", "ItemFeet", "ItemBoots",
-        "ItemMouth", "ItemMouthAccessory", "ItemHead", "ItemHood",
-        "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
-        "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
-        "ItemTorso", "ItemTorso2", "ItemBody",
-        "ItemDevices", // cages, kennels, lockers, X-crosses, wooden boxes
-        "ItemAddon", // ceiling ropes, ceiling chains
-        "ItemEars", "ItemNose", "ItemMisc",
-    ]);
-    // Returns a warning message if applying this outfit would remove/replace worn restraints,
-    // or null if no restraints would be affected.
-    function getOutfitRestraintWarning(outfit) {
-        try {
-            const currentRestraints = Player.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
-            if (!currentRestraints.length)
-                return null;
-            const outfitRestraintGroups = new Set(outfit.items.filter(i => RESTRAINT_GROUPS.has(i.Group)).map(i => i.Group));
-            let removed = 0, replaced = 0;
-            for (const item of currentRestraints) {
-                const group = item.Asset.Group.Name;
-                if (outfitRestraintGroups.has(group))
-                    replaced++;
-                else if (!outfit.preserveRestraints)
-                    removed++;
-            }
-            if (removed === 0 && replaced === 0)
-                return null;
-            const parts = [];
-            if (removed > 0)
-                parts.push(`remove ${removed} restraint${removed !== 1 ? "s" : ""}`);
-            if (replaced > 0)
-                parts.push(`replace ${replaced} restraint${replaced !== 1 ? "s" : ""}`);
-            return `"${outfit.displayName}" will ${parts.join(" and ")}. Continue?`;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    // Returns a warning message if applying this restraint set would replace currently worn restraints.
-    function getRestraintSetWarning(set) {
-        try {
-            const setGroups = new Set(set.items.map(i => i.Group));
-            const clashing = Player.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && setGroups.has(i.Asset.Group.Name));
-            if (!clashing.length)
-                return null;
-            return `"${set.displayName}" will replace ${clashing.length} worn restraint${clashing.length !== 1 ? "s" : ""}. Continue?`;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    const MAX_SERIALIZE_DEPTH = 12;
-    let outfitApplyPending = false;
-    let refreshScheduled = false;
-    let cachedOutfits = null;
-    function getAddon$1() {
-        if (!Player.ExtensionSettings.EmeryBC) {
-            Player.ExtensionSettings.EmeryBC = {};
-        }
-        return Player.ExtensionSettings.EmeryBC;
-    }
-    function loadOutfitsFromSettings() {
-        const list = getAddon$1().outfits;
-        const outfits = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
-        cachedOutfits = outfits;
-        return outfits;
-    }
-    function getOutfits() {
-        return cachedOutfits !== null && cachedOutfits !== void 0 ? cachedOutfits : loadOutfitsFromSettings();
-    }
-    function getDefaultNickname() {
-        const raw = getAddon$1().defaultNickname;
-        return typeof raw === "string" ? raw : "";
-    }
-    function setDefaultNickname(nick) {
-        getAddon$1().defaultNickname = nick.trim();
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    }
-    function getDefaultTitle() {
-        const raw = getAddon$1().defaultTitle;
-        return typeof raw === "string" ? raw : "";
-    }
-    function setDefaultTitle(title) {
-        getAddon$1().defaultTitle = title;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    }
-    function saveOutfits(list) {
-        const sanitized = list.map(sanitizeOutfit);
-        cachedOutfits = sanitized;
-        getAddon$1().outfits = sanitized;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    }
-    function sanitizeSerializable(value, seen = new WeakSet(), depth = 0) {
-        if (value == null)
-            return value;
-        if (depth > MAX_SERIALIZE_DEPTH)
-            return undefined;
-        const valueType = typeof value;
-        if (valueType === "string" || valueType === "number" || valueType === "boolean") {
-            return value;
-        }
-        if (Array.isArray(value)) {
-            return value
-                .map(entry => sanitizeSerializable(entry, seen, depth + 1))
-                .filter(entry => entry !== undefined);
-        }
-        if (valueType !== "object")
-            return undefined;
-        const obj = value;
-        if (seen.has(obj))
-            return undefined;
-        seen.add(obj);
-        const proto = Object.getPrototypeOf(obj);
-        if (proto !== Object.prototype && proto !== null) {
-            seen.delete(obj);
-            return undefined;
-        }
-        const clone = {};
-        for (const [key, entry] of Object.entries(obj)) {
-            const sanitized = sanitizeSerializable(entry, seen, depth + 1);
-            if (sanitized !== undefined) {
-                clone[key] = sanitized;
-            }
-        }
-        seen.delete(obj);
-        return clone;
-    }
-    function sanitizeColor(color) {
-        if (typeof color === "string")
-            return color;
-        if (Array.isArray(color)) {
-            return color.filter((entry) => typeof entry === "string");
-        }
-        return undefined;
-    }
-    function sanitizeCraft(craft) {
-        const sanitized = sanitizeSerializable(craft);
-        return sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
-            ? sanitized
-            : undefined;
-    }
-    function sanitizeProperty(property) {
-        const sanitized = sanitizeSerializable(property);
-        return sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
-            ? sanitized
-            : undefined;
-    }
-    function sanitizeItem(item) {
-        return {
-            Group: item.Group,
-            Name: item.Name,
-            Color: sanitizeColor(item.Color),
-            Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
-            Property: sanitizeProperty(item.Property),
-            Craft: sanitizeCraft(item.Craft),
-        };
-    }
-    function sanitizeOutfit(outfit) {
-        return {
-            id: outfit.id,
-            command: outfit.command,
-            displayName: outfit.displayName,
-            announceText: outfit.announceText,
-            nickname: typeof outfit.nickname === "string" ? outfit.nickname.trim() || null : null,
-            title: typeof outfit.title === "string" ? outfit.title.trim() || null : null,
-            tagIds: Array.isArray(outfit.tagIds) ? outfit.tagIds.filter((t) => typeof t === "string") : [],
-            includeRestraints: !!outfit.includeRestraints,
-            // Default true (preserve) for existing outfits that don't have this field yet
-            preserveRestraints: typeof outfit.preserveRestraints === "boolean" ? outfit.preserveRestraints : true,
-            // Default false — opt-in; restraints-only imports set this to true automatically
-            preserveClothing: typeof outfit.preserveClothing === "boolean" ? outfit.preserveClothing : false,
-            // Default true — existing outfits always included the name
-            nameInAnnounce: typeof outfit.nameInAnnounce === "boolean" ? outfit.nameInAnnounce : true,
-            items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
-        };
-    }
-    function sanitizeLiveAppearance() {
-        for (const item of Player.Appearance) {
-            item.Color = sanitizeColor(item.Color);
-            item.Property = sanitizeProperty(item.Property);
-            item.Craft = sanitizeCraft(item.Craft);
-        }
-    }
-    function cloneAppearanceItem(item) {
-        const asset = AssetGet(Player.AssetFamily, item.Asset.Group.Name, item.Asset.Name);
-        if (!asset)
-            return null;
-        return {
-            Asset: asset,
-            Color: sanitizeColor(item.Color),
-            Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined,
-            Property: sanitizeProperty(item.Property),
-            Craft: sanitizeCraft(item.Craft),
-        };
-    }
-    function buildAppearanceItem(saved) {
-        const asset = AssetGet(Player.AssetFamily, saved.Group, saved.Name);
-        if (!asset)
-            return null;
-        const property = saved.Property ? Object.assign({}, saved.Property) : undefined;
-        if (property) {
-            delete property["LockedBy"];
-            delete property["LockMemberNumber"];
-            delete property["CombinationNumber"];
-            delete property["Password"];
-            delete property["MemberNumberListKeys"];
-        }
-        return {
-            Asset: asset,
-            Color: saved.Color,
-            Difficulty: saved.Difficulty,
-            Property: property,
-            Craft: saved.Craft ? Object.assign({}, saved.Craft) : undefined,
-        };
-    }
-    function sendRoomAppearanceUpdate() {
-        var _a;
-        if (Player.OnlineID == null)
-            return;
-        ServerSend("ChatRoomCharacterUpdate", {
-            ID: Player.OnlineID,
-            ActivePose: (_a = Player.ActivePose) !== null && _a !== void 0 ? _a : null,
-            Appearance: ServerAppearanceBundle(Player.Appearance),
-        });
-    }
-    function scheduleAppearanceRefresh() {
-        if (refreshScheduled)
-            return;
-        refreshScheduled = true;
-        window.setTimeout(() => {
-            try {
-                CharacterRefresh(Player, false, false);
-            }
-            finally {
-                refreshScheduled = false;
-            }
-        }, 0);
-    }
-    function captureAppearance(includeRestraints) {
-        return Player.Appearance
-            .filter(item => includeRestraints || !RESTRAINT_GROUPS.has(item.Asset.Group.Name))
-            .map(item => sanitizeItem({
-            Group: item.Asset.Group.Name,
-            Name: item.Asset.Name,
-            Color: item.Color,
-            Difficulty: item.Difficulty,
-            Property: item.Property,
-            Craft: item.Craft,
-        }));
-    }
-    function applyOutfit(outfit) {
-        var _a, _b;
-        if (outfitApplyPending) {
-            localNotice$1("An outfit swap is already in progress.", "#ffb7c7");
-            return;
-        }
-        outfitApplyPending = true;
-        const nextAppearance = [];
-        const outfitGroups = new Set(outfit.items.map(i => i.Group));
-        // If preserveClothing is on, carry over all current non-restraint items —
-        // but skip any group the outfit itself provides (no conflicts).
-        if (outfit.preserveClothing) {
-            for (const currentItem of Player.Appearance) {
-                const group = currentItem.Asset.Group.Name;
-                if (RESTRAINT_GROUPS.has(group) || outfitGroups.has(group))
-                    continue;
-                const cloned = cloneAppearanceItem(currentItem);
-                if (cloned)
-                    nextAppearance.push(cloned);
-            }
-        }
-        // If preserveRestraints is on, copy the player's current restraints across —
-        // but skip any group that the outfit itself already has an item for (no conflicts).
-        if (outfit.preserveRestraints) {
-            for (const currentItem of Player.Appearance) {
-                const group = currentItem.Asset.Group.Name;
-                if (!RESTRAINT_GROUPS.has(group) || outfitGroups.has(group))
-                    continue;
-                const cloned = cloneAppearanceItem(currentItem);
-                if (cloned)
-                    nextAppearance.push(cloned);
-            }
-        }
-        for (const saved of outfit.items) {
-            const built = buildAppearanceItem(saved);
-            if (built)
-                nextAppearance.push(built);
-        }
-        // Enforce outfit whitelist — protected slots always keep their current item
-        const _wl = getOutfitWhitelist();
-        if (_wl.length) {
-            for (const _grp of _wl) {
-                const _orig = Player.Appearance.find((i) => i.Asset.Group.Name === _grp);
-                if (!_orig)
-                    continue;
-                const _cloned = cloneAppearanceItem(_orig);
-                if (!_cloned)
-                    continue;
-                const _idx = nextAppearance.findIndex(i => i.Asset.Group.Name === _grp);
-                if (_idx >= 0)
-                    nextAppearance.splice(_idx, 1, _cloned);
-                else
-                    nextAppearance.push(_cloned);
-            }
-        }
-        Player.Appearance = nextAppearance;
-        sanitizeLiveAppearance();
-        sendRoomAppearanceUpdate();
-        scheduleAppearanceRefresh();
-        // Apply nickname — outfit-specific takes priority, falls back to default
-        const nickToApply = outfit.nickname || getDefaultNickname();
-        if (nickToApply) {
-            try {
-                Player.Nickname = nickToApply;
-                const updater = window.ServerAccountUpdate;
-                if (updater === null || updater === void 0 ? void 0 : updater.QueueData)
-                    updater.QueueData({ Nickname: nickToApply });
-            }
-            catch ( /* ignore */_c) { /* ignore */ }
-        }
-        // Apply title — outfit-specific takes priority, falls back to default title
-        // "__clear__" sentinel = explicitly remove the title (set to "")
-        // ""  = no preference configured → don't touch the title
-        const titleRaw = (_b = (_a = outfit.title) !== null && _a !== void 0 ? _a : getDefaultTitle()) !== null && _b !== void 0 ? _b : "";
-        if (titleRaw) {
-            try {
-                const bcTitle = titleRaw === "__clear__" ? "" : titleRaw;
-                Player.Title = bcTitle;
-                const updater2 = window.ServerAccountUpdate;
-                if (updater2 === null || updater2 === void 0 ? void 0 : updater2.QueueData)
-                    updater2.QueueData({ Title: bcTitle });
-            }
-            catch ( /* ignore */_d) { /* ignore */ }
-        }
-        // Let the appearance update hit the send queue before we add the optional emote.
-        window.setTimeout(() => {
-            try {
-                if (outfit.announceText.trim()) {
-                    // Poison trick: Content won't be found in Interface.csv, so BC prepends
-                    // "MISSING TEXT IN "Interface.csv": ". We strip that prefix with the poison
-                    // tag (replaced by a zero-width non-joiner), leaving (​Name text).
-                    const announceContent = outfit.nameInAnnounce !== false
-                        ? getDisplayName() + " " + outfit.announceText.trim()
-                        : outfit.announceText.trim();
-                    ServerSend("ChatRoomChat", {
-                        Type: "Action",
-                        Content: announceContent,
-                        Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-                            { SourceCharacter: Player.MemberNumber },
-                        ],
-                    });
-                }
-            }
-            finally {
-                outfitApplyPending = false;
-            }
-        }, 80);
-        localNotice$1(`Loaded "${outfit.displayName}" (/${outfit.command})`);
-    }
-    // Called from the drawer to snapshot current appearance into an existing outfit slot
-    function saveCurrentAppearanceToOutfit(id) {
-        const outfits = getOutfits();
-        const outfit = outfits.find(o => o.id === id);
-        if (!outfit)
-            return false;
-        outfit.items = captureAppearance(outfit.includeRestraints);
-        saveOutfits(outfits);
-        localNotice$1(`Saved current look to "${outfit.displayName}".`);
-        return true;
-    }
-    // Called from the drawer to create a brand new outfit from current appearance
-    function createOutfitFromCurrent(command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "") {
-        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
-        if (!cmd || !displayName.trim())
-            return null;
-        // Block duplicate commands
-        if (getOutfits().some(o => o.command === cmd)) {
-            localNotice$1(`Command "/${cmd}" is already used by another outfit.`, "#ffb7c7");
-            return null;
-        }
-        const outfit = {
-            id: uid$6(),
-            command: cmd,
-            displayName: displayName.trim(),
-            announceText: announceText.trim(),
-            nickname: nickname.trim() || null,
-            title: title.trim() || null,
-            tagIds: [],
-            includeRestraints,
-            preserveRestraints,
-            preserveClothing,
-            nameInAnnounce: true,
-            items: captureAppearance(includeRestraints),
-        };
-        saveOutfits([...getOutfits(), outfit]);
-        localNotice$1(`Created outfit "${outfit.displayName}" (/${outfit.command}).`);
-        return outfit;
-    }
-    // Toggle preserveRestraints on a saved outfit
-    function setOutfitPreserveRestraints(id, value) {
-        const outfits = getOutfits();
-        const outfit = outfits.find(o => o.id === id);
-        if (!outfit)
-            return;
-        outfit.preserveRestraints = value;
-        saveOutfits(outfits);
-    }
-    // Toggle preserveClothing on a saved outfit
-    function setOutfitPreserveClothing(id, value) {
-        const outfits = getOutfits();
-        const outfit = outfits.find(o => o.id === id);
-        if (!outfit)
-            return;
-        outfit.preserveClothing = value;
-        saveOutfits(outfits);
-    }
-    // Toggle nameInAnnounce on a saved outfit OR restraint set
-    function setOutfitNameInAnnounce(id, value) {
-        const outfits = getOutfits();
-        const outfit = outfits.find(o => o.id === id);
-        if (outfit) {
-            outfit.nameInAnnounce = value;
-            saveOutfits(outfits);
-            return;
-        }
-        const restraints = getRestraints();
-        const restraint = restraints.find(r => r.id === id);
-        if (restraint) {
-            restraint.nameInAnnounce = value;
-            saveRestraints(restraints);
-        }
-    }
-    function getOutfitTags() {
-        const raw = getAddon$1().outfitTags;
-        return Array.isArray(raw) ? raw : [];
-    }
-    function saveOutfitTags(tags) {
-        getAddon$1().outfitTags = tags;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    }
-    function createOutfitTag(name, color) {
-        const tag = { id: uid$6(), name: name.trim() || "Tag", color: color || "#cf6f98" };
-        saveOutfitTags([...getOutfitTags(), tag]);
-        return tag;
-    }
-    function deleteOutfitTag(tagId) {
-        saveOutfitTags(getOutfitTags().filter(t => t.id !== tagId));
-        // Remove from all outfits
-        const outfits = getOutfits().map(o => { var _a; return (Object.assign(Object.assign({}, o), { tagIds: ((_a = o.tagIds) !== null && _a !== void 0 ? _a : []).filter(id => id !== tagId) })); });
-        saveOutfits(outfits);
-    }
-    function updateOutfitTag(tagId, name, color) {
-        const tags = getOutfitTags().map(t => t.id === tagId ? Object.assign(Object.assign({}, t), { name: name.trim() || t.name, color: color || t.color }) : t);
-        saveOutfitTags(tags);
-    }
-    function setOutfitTagIds(outfitId, tagIds) {
-        const outfits = getOutfits();
-        const outfit = outfits.find(o => o.id === outfitId);
-        if (!outfit)
-            return;
-        outfit.tagIds = tagIds;
-        saveOutfits(outfits);
-    }
-    function moveOutfit(id, direction) {
-        const outfits = getOutfits();
-        const idx = outfits.findIndex(o => o.id === id);
-        if (idx < 0)
-            return;
-        const newIdx = direction === "up" ? idx - 1 : idx + 1;
-        if (newIdx < 0 || newIdx >= outfits.length)
-            return;
-        [outfits[idx], outfits[newIdx]] = [outfits[newIdx], outfits[idx]];
-        saveOutfits(outfits);
-    }
-    function handleOutfitCommand(inputValue, confirmFn) {
-        const trimmed = inputValue.trim();
-        if (!trimmed.startsWith("/"))
-            return false;
-        const command = trimmed.slice(1).toLowerCase();
-        const outfit = getOutfits().find(entry => entry.command.toLowerCase() === command);
-        if (!outfit)
-            return false;
-        if (!outfit.items.length) {
-            localNotice$1(`Outfit "/${outfit.command}" has no saved appearance yet. Use the EBC drawer to save it.`, "#ffb7c7");
-            return true;
-        }
-        const warning = getOutfitRestraintWarning(outfit);
-        if (warning && confirmFn) {
-            confirmFn(warning, () => applyOutfit(outfit));
-        }
-        else {
-            applyOutfit(outfit);
-        }
-        return true;
-    }
-    function localNotice$1(msg, color = UI.accent) {
-        const log = document.getElementById("TextAreaChatLog");
-        if (!log)
-            return;
-        const div = document.createElement("div");
-        div.style.cssText = [
-            `color:${color}`,
-            `background:${UI.cardMuted}`,
-            `border-left:3px solid ${UI.accent}`,
-            "font-style:italic",
-            "font-size:12px",
-            "padding:2px 8px",
-            "margin:1px 0",
-        ].join(";");
-        div.textContent = `[EBC] ${msg}`;
-        log.appendChild(div);
-        log.scrollTop = log.scrollHeight;
-    }
-    function deleteOutfit(id) {
-        const outfits = getOutfits().filter(o => o.id !== id);
-        saveOutfits(outfits);
-    }
-    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "") {
-        const outfits = getOutfits();
-        const outfit = outfits.find(o => o.id === id);
-        if (!outfit)
-            return false;
-        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
-        if (!cmd || !displayName.trim())
-            return false;
-        // Block duplicate commands (excluding this outfit itself)
-        if (outfits.some(o => o.id !== id && o.command === cmd)) {
-            localNotice$1(`Command "/${cmd}" is already used by another outfit.`, "#ffb7c7");
-            return false;
-        }
-        outfit.command = cmd;
-        outfit.displayName = displayName.trim();
-        outfit.announceText = announceText.trim();
-        outfit.nickname = nickname.trim() || null;
-        outfit.title = title.trim() || null;
-        outfit.includeRestraints = includeRestraints;
-        outfit.preserveRestraints = preserveRestraints;
-        outfit.preserveClothing = preserveClothing;
-        saveOutfits(outfits);
-        localNotice$1(`Updated "${outfit.displayName}" (/${outfit.command}).`);
-        return true;
-    }
-    // -- Export / Import -------------------------------------------------------
-    function exportOutfitById(id) {
-        const outfit = getOutfits().find(o => o.id === id);
-        if (!outfit)
-            return null;
-        return JSON.stringify({ ebc: 1, type: "outfit", outfit: sanitizeOutfit(outfit) });
-    }
-    function importOutfitFromJSON(json) {
-        const data = JSON.parse(json);
-        if (data.ebc !== 1 || data.type !== "outfit")
-            throw new Error("Not a valid EBC outfit export.");
-        const raw = data.outfit;
-        if (!(raw === null || raw === void 0 ? void 0 : raw.command) || !(raw === null || raw === void 0 ? void 0 : raw.displayName))
-            throw new Error("Missing required outfit fields.");
-        // Deduplicate command — append suffix until unique
-        const existing = getOutfits();
-        const baseCmd = raw.command.toLowerCase().trim().replace(/\s+/g, "");
-        let finalCmd = baseCmd;
-        let suffix = 2;
-        while (existing.some(o => o.command === finalCmd))
-            finalCmd = baseCmd + suffix++;
-        const outfit = sanitizeOutfit(Object.assign(Object.assign({}, raw), { id: uid$6(), command: finalCmd }));
-        saveOutfits([...existing, outfit]);
-        localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}).`);
-        return outfit;
-    }
-    function uid$6() {
-        return Math.random().toString(36).slice(2, 9);
-    }
-    function getSchedules() {
-        const list = getAddon$1().outfitSchedules;
-        return Array.isArray(list) ? list : [];
-    }
-    function saveSchedules(schedules) {
-        getAddon$1().outfitSchedules = schedules;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    }
-    function addSchedule(outfitId, time) {
-        const schedule = { id: uid$6(), outfitId, time, enabled: true };
-        saveSchedules([...getSchedules(), schedule]);
-        return schedule;
-    }
-    function removeSchedule(id) {
-        saveSchedules(getSchedules().filter(s => s.id !== id));
-    }
-    function toggleSchedule(id) {
-        const schedules = getSchedules().map(s => s.id === id ? Object.assign(Object.assign({}, s), { enabled: !s.enabled }) : s);
-        saveSchedules(schedules);
-    }
-    // Map of scheduleId -> last-applied HH:MM to avoid re-applying in the same minute
-    const _lastApplied = new Map();
-    function checkAndApplySchedules() {
-        try {
-            const now = new Date();
-            const hh = String(now.getHours()).padStart(2, "0");
-            const mm = String(now.getMinutes()).padStart(2, "0");
-            const current = `${hh}:${mm}`;
-            for (const schedule of getSchedules()) {
-                if (!schedule.enabled)
-                    continue;
-                if (schedule.time !== current)
-                    continue;
-                if (_lastApplied.get(schedule.id) === current)
-                    continue;
-                const outfit = getOutfits().find(o => o.id === schedule.outfitId);
-                if (!outfit)
-                    continue;
-                _lastApplied.set(schedule.id, current);
-                applyOutfit(outfit);
-            }
-        }
-        catch ( /* ignore — Player may not be ready */_a) { /* ignore — Player may not be ready */ }
-    }
-    // Import an outfit from BC's native LZString-compressed appearance bundle.
-    // mode: "restraints" = restraint slots only (⛓)
-    //       "outfit"     = non-restraint clothing/body slots only
-    //       "both"       = entire appearance
-    // -- Restraint Sets -----------------------------------------------------------
-    let cachedRestraints = null;
-    function loadRestraintsFromSettings() {
-        const list = getAddon$1().restraints;
-        const restraints = Array.isArray(list) ? list.map(sanitizeOutfit) : [];
-        cachedRestraints = restraints;
-        return restraints;
-    }
-    function getRestraints() {
-        return cachedRestraints !== null && cachedRestraints !== void 0 ? cachedRestraints : loadRestraintsFromSettings();
-    }
-    function saveRestraints(list) {
-        const sanitized = list.map(sanitizeOutfit);
-        cachedRestraints = sanitized;
-        getAddon$1().restraints = sanitized;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    }
-    function captureRestraints() {
-        return Player.Appearance
-            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name))
-            .map(item => sanitizeItem({
-            Group: item.Asset.Group.Name,
-            Name: item.Asset.Name,
-            Color: item.Color,
-            Difficulty: item.Difficulty,
-            Property: item.Property,
-            Craft: item.Craft,
-        }));
-    }
-    function applyRestraintSet(restraint) {
-        if (outfitApplyPending) {
-            localNotice$1("An outfit swap is already in progress.", "#ffb7c7");
-            return;
-        }
-        outfitApplyPending = true;
-        const restraintGroups = new Set(restraint.items.map(i => i.Group));
-        const nextAppearance = [];
-        // Preserve all current non-restraint items (clothing, body, etc.)
-        for (const currentItem of Player.Appearance) {
-            const group = currentItem.Asset.Group.Name;
-            if (RESTRAINT_GROUPS.has(group))
-                continue;
-            const cloned = cloneAppearanceItem(currentItem);
-            if (cloned)
-                nextAppearance.push(cloned);
-        }
-        // Preserve any current restraints NOT being replaced by this set
-        for (const currentItem of Player.Appearance) {
-            const group = currentItem.Asset.Group.Name;
-            if (!RESTRAINT_GROUPS.has(group) || restraintGroups.has(group))
-                continue;
-            const cloned = cloneAppearanceItem(currentItem);
-            if (cloned)
-                nextAppearance.push(cloned);
-        }
-        // Apply the saved restraint items
-        for (const saved of restraint.items) {
-            const built = buildAppearanceItem(saved);
-            if (built)
-                nextAppearance.push(built);
-        }
-        // Enforce outfit whitelist — protected slots always keep their current item
-        const _wl2 = getOutfitWhitelist();
-        if (_wl2.length) {
-            for (const _grp of _wl2) {
-                const _orig = Player.Appearance.find((i) => i.Asset.Group.Name === _grp);
-                if (!_orig)
-                    continue;
-                const _cloned = cloneAppearanceItem(_orig);
-                if (!_cloned)
-                    continue;
-                const _idx = nextAppearance.findIndex(i => i.Asset.Group.Name === _grp);
-                if (_idx >= 0)
-                    nextAppearance.splice(_idx, 1, _cloned);
-                else
-                    nextAppearance.push(_cloned);
-            }
-        }
-        Player.Appearance = nextAppearance;
-        sanitizeLiveAppearance();
-        sendRoomAppearanceUpdate();
-        scheduleAppearanceRefresh();
-        window.setTimeout(() => {
-            try {
-                if (restraint.announceText.trim()) {
-                    const rAnnounceContent = restraint.nameInAnnounce !== false
-                        ? getDisplayName() + " " + restraint.announceText.trim()
-                        : restraint.announceText.trim();
-                    ServerSend("ChatRoomChat", {
-                        Type: "Action",
-                        Content: rAnnounceContent,
-                        Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-                            { SourceCharacter: Player.MemberNumber },
-                        ],
-                    });
-                }
-            }
-            finally {
-                outfitApplyPending = false;
-            }
-        }, 80);
-        localNotice$1(`Applied restraint set "${restraint.displayName}" (/${restraint.command})`);
-    }
-    function createRestraintFromCurrent(command, displayName, announceText) {
-        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
-        if (!cmd || !displayName.trim())
-            return null;
-        if (getOutfits().some(o => o.command === cmd) || getRestraints().some(r => r.command === cmd)) {
-            localNotice$1(`Command "/${cmd}" is already in use.`, "#ffb7c7");
-            return null;
-        }
-        const restraint = {
-            id: uid$6(),
-            command: cmd,
-            displayName: displayName.trim(),
-            announceText: announceText.trim(),
-            nickname: null,
-            title: null,
-            tagIds: [],
-            includeRestraints: true,
-            preserveRestraints: false,
-            preserveClothing: true,
-            nameInAnnounce: true,
-            items: captureRestraints(),
-        };
-        saveRestraints([...getRestraints(), restraint]);
-        localNotice$1(`Created restraint set "${restraint.displayName}" (/${restraint.command}).`);
-        return restraint;
-    }
-    function saveCurrentAppearanceToRestraint(id) {
-        const restraints = getRestraints();
-        const restraint = restraints.find(r => r.id === id);
-        if (!restraint)
-            return false;
-        restraint.items = captureRestraints();
-        saveRestraints(restraints);
-        localNotice$1(`Saved current restraints to "${restraint.displayName}".`);
-        return true;
-    }
-    function deleteRestraint(id) {
-        saveRestraints(getRestraints().filter(r => r.id !== id));
-    }
-    function editRestraint(id, command, displayName, announceText) {
-        const restraints = getRestraints();
-        const restraint = restraints.find(r => r.id === id);
-        if (!restraint)
-            return false;
-        const cmd = command.toLowerCase().trim().replace(/\s+/g, "");
-        if (!cmd || !displayName.trim())
-            return false;
-        if (getOutfits().some(o => o.command === cmd) || restraints.some(r => r.id !== id && r.command === cmd)) {
-            localNotice$1(`Command "/${cmd}" is already in use.`, "#ffb7c7");
-            return false;
-        }
-        restraint.command = cmd;
-        restraint.displayName = displayName.trim();
-        restraint.announceText = announceText.trim();
-        saveRestraints(restraints);
-        localNotice$1(`Updated restraint set "${restraint.displayName}" (/${restraint.command}).`);
-        return true;
-    }
-    function setRestraintTagIds(id, tagIds) {
-        const restraints = getRestraints();
-        const restraint = restraints.find(r => r.id === id);
-        if (!restraint)
-            return;
-        restraint.tagIds = tagIds;
-        saveRestraints(restraints);
-    }
-    function moveRestraint(id, direction) {
-        const restraints = getRestraints();
-        const idx = restraints.findIndex(r => r.id === id);
-        if (idx < 0)
-            return;
-        const newIdx = direction === "up" ? idx - 1 : idx + 1;
-        if (newIdx < 0 || newIdx >= restraints.length)
-            return;
-        [restraints[idx], restraints[newIdx]] = [restraints[newIdx], restraints[idx]];
-        saveRestraints(restraints);
-    }
-    function applyColorPresetToRestraint(restraintId, fullGroup, colors) {
-        const restraints = getRestraints();
-        const restraint = restraints.find(r => r.id === restraintId);
-        if (!restraint)
-            return false;
-        const item = restraint.items.find(i => i.Group === fullGroup);
-        if (!item)
-            return false;
-        item.Color = colors;
-        saveRestraints(restraints);
-        localNotice$1(`Updated colours in "${restraint.displayName}".`);
-        return true;
-    }
-    // -- Outfit protected-items whitelist -----------------------------------------
-    // Group names (slot keys) whose current item should never be touched by any
-    // outfit or restraint-set apply. Stored in ExtensionSettings server-side.
-    function getOutfitWhitelist() {
-        const raw = getAddon$1().outfitWhitelist;
-        return Array.isArray(raw) ? raw : [];
-    }
-    function setOutfitWhitelist(groups) {
-        getAddon$1().outfitWhitelist = groups;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    }
-    function addToOutfitWhitelist(group) {
-        const list = getOutfitWhitelist();
-        if (!list.includes(group))
-            setOutfitWhitelist([...list, group]);
-    }
-    function removeFromOutfitWhitelist(group) {
-        setOutfitWhitelist(getOutfitWhitelist().filter(g => g !== group));
-    }
-    function handleRestraintCommand(inputValue, confirmFn) {
-        const trimmed = inputValue.trim();
-        if (!trimmed.startsWith("/"))
-            return false;
-        const command = trimmed.slice(1).toLowerCase();
-        const restraint = getRestraints().find(r => r.command.toLowerCase() === command);
-        if (!restraint)
-            return false;
-        if (!restraint.items.length) {
-            localNotice$1(`Restraint set "/${restraint.command}" has no saved items yet.`, "#ffb7c7");
-            return true;
-        }
-        const warning = getRestraintSetWarning(restraint);
-        if (warning && confirmFn) {
-            confirmFn(warning, () => applyRestraintSet(restraint));
-        }
-        else {
-            applyRestraintSet(restraint);
-        }
-        return true;
-    }
-    function importOutfitFromBCCode(code, displayName, command, mode = "restraints") {
-        const LZ = window.LZString;
-        if (!(LZ === null || LZ === void 0 ? void 0 : LZ.decompressFromBase64))
-            throw new Error("LZString not found — make sure you are on the BC page.");
-        const json = LZ.decompressFromBase64(code.trim());
-        if (!json)
-            throw new Error("Could not decompress — is this a valid BC outfit code?");
-        let raw;
-        try {
-            raw = JSON.parse(json);
-        }
-        catch (_a) {
-            throw new Error("Decoded data is not valid JSON.");
-        }
-        if (!Array.isArray(raw))
-            throw new Error("Unexpected format — expected an appearance array.");
-        const toItem = (i) => {
-            var _a, _b;
-            return sanitizeItem({
-                Group: String((_a = i.Group) !== null && _a !== void 0 ? _a : ""),
-                Name: String((_b = i.Name) !== null && _b !== void 0 ? _b : ""),
-                Color: i.Color,
-                Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
-                Property: typeof i.Property === "object" && i.Property !== null
-                    ? i.Property : undefined,
-                Craft: i.Craft,
-            });
-        };
-        const all = raw;
-        let items;
-        if (mode === "restraints") {
-            items = all.filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group)).map(toItem);
-            if (items.length === 0)
-                throw new Error("No restraint items found in this BC outfit code.");
-        }
-        else if (mode === "outfit") {
-            items = all.filter(i => typeof i.Group === "string" && !RESTRAINT_GROUPS.has(i.Group)).map(toItem);
-            if (items.length === 0)
-                throw new Error("No outfit (non-restraint) items found in this BC outfit code.");
-        }
-        else {
-            items = all.filter(i => typeof i.Group === "string").map(toItem);
-            if (items.length === 0)
-                throw new Error("No items found in this BC outfit code.");
-        }
-        const existing = getOutfits();
-        const baseCmd = command.toLowerCase().trim().replace(/\s+/g, "") || "imported";
-        let finalCmd = baseCmd;
-        let sfx = 2;
-        while (existing.some(o => o.command === finalCmd))
-            finalCmd = baseCmd + sfx++;
-        const includesRestraints = mode !== "outfit";
-        const outfit = sanitizeOutfit({
-            id: uid$6(),
-            command: finalCmd,
-            displayName: displayName.trim() || "Imported Outfit",
-            announceText: "",
-            nickname: null,
-            title: null,
-            tagIds: [],
-            includeRestraints: includesRestraints,
-            preserveRestraints: mode === "outfit", // outfit-only: keep existing restraints
-            preserveClothing: mode === "restraints", // restraints-only: keep existing clothing
-            nameInAnnounce: true,
-            items,
-        });
-        saveOutfits([...existing, outfit]);
-        localNotice$1(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
-        return outfit;
-    }
-
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function getStore$6() {
+    function getStore$4() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
-    function load$2() {
-        const list = getStore$6().palettes;
+    function load() {
+        const list = getStore$4().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getStore$6().palettes = list;
+        getStore$4().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
-    function uid$5() {
+    function uid$3() {
         return Math.random().toString(36).slice(2, 9);
     }
     function getPalettesByType(type) {
-        return load$2().filter(p => p.type === type);
+        return load().filter(p => p.type === type);
     }
     // Snapshot current appearance colors as a new named palette (all slots).
     function captureCurrentPalette(name) {
@@ -1958,8 +2643,8 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$5(), name: name.trim() || "Palette", type: "outfit", colorMap };
-        save([...load$2(), palette]);
+        const palette = { id: uid$3(), name: name.trim() || "Palette", type: "outfit", colorMap };
+        save([...load(), palette]);
         return palette;
     }
     // Snapshot only the colors of active restraint items as a named palette.
@@ -1970,8 +2655,8 @@
                 colorMap[item.Asset.Group.Name] = item.Color;
             }
         }
-        const palette = { id: uid$5(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
-        save([...load$2(), palette]);
+        const palette = { id: uid$3(), name: name.trim() || "Restraint Palette", type: "restraint", colorMap };
+        save([...load(), palette]);
         return palette;
     }
     // Locks that block color edits — owner/exclusive/high-security tiers.
@@ -1980,7 +2665,7 @@
         "MistressPadlock", "MistressTimerPadlock",
         "LoversPadlock", "LoversTimerPadlock",
     ]);
-    function isProtectedLock$1(item) {
+    function isProtectedLock(item) {
         var _a;
         try {
             const lock = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy;
@@ -1994,14 +2679,14 @@
     // the palette are updated; everything else is left as-is.
     // For restraint palettes, items with owner/exclusive/high-security locks are skipped.
     function applyPalette(id) {
-        const palette = load$2().find(p => p.id === id);
+        const palette = load().find(p => p.id === id);
         if (!palette)
             return false;
         for (const item of Player.Appearance) {
             const saved = palette.colorMap[item.Asset.Group.Name];
             if (saved === undefined)
                 continue;
-            if (palette.type === "restraint" && isProtectedLock$1(item))
+            if (palette.type === "restraint" && isProtectedLock(item))
                 continue;
             item.Color = saved;
         }
@@ -2014,10 +2699,10 @@
         return true;
     }
     function deletePalette(id) {
-        save(load$2().filter(p => p.id !== id));
+        save(load().filter(p => p.id !== id));
     }
     function renamePalette(id, name) {
-        const list = load$2();
+        const list = load();
         const p = list.find(x => x.id === id);
         if (p && name.trim()) {
             p.name = name.trim();
@@ -2027,11 +2712,11 @@
     // -- Custom color swatches --------------------------------------------------
     // A flat list of user-saved hex colors for the direct picker workflow.
     function saveCustomColors(list) {
-        getStore$6().customColors = list;
+        getStore$4().customColors = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getCustomColors() {
-        const v = getStore$6().customColors;
+        const v = getStore$4().customColors;
         return Array.isArray(v) ? v : [];
     }
     function addCustomColor(hex) {
@@ -2139,15 +2824,15 @@
         });
     }
     function saveRestraintPresets(list) {
-        getStore$6().restraintPresets = list;
+        getStore$4().restraintPresets = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getRestraintPresets() {
-        const v = getStore$6().restraintPresets;
+        const v = getStore$4().restraintPresets;
         return Array.isArray(v) ? v : [];
     }
     function saveRestraintPreset(name, colors) {
-        const p = { id: uid$5(), name: name.trim() || "Preset", colors: [...colors] };
+        const p = { id: uid$3(), name: name.trim() || "Preset", colors: [...colors] };
         saveRestraintPresets([...getRestraintPresets(), p]);
         return p;
     }
@@ -2161,483 +2846,6 @@
             p.name = name.trim();
             saveRestraintPresets(list);
         }
-    }
-
-    // BC pose application and user-configurable pose combos.
-    // Poses require matching equipped items to visually render — BC handles
-    // validation server-side and silently ignores inapplicable poses.
-    // Well-known BC pose names grouped by type.
-    // Body and arm poses can be freely combined (e.g. Kneel + BackCuffs).
-    const KNOWN_POSES = [
-        {
-            group: "Body",
-            poses: [
-                { key: "", label: "Stand" },
-                { key: "Kneel", label: "Kneel" },
-                { key: "KneelingSpread", label: "Kneel Wide" },
-                { key: "AllFours", label: "All Fours" },
-                { key: "Hogtied", label: "Hogtied" },
-                { key: "Spread", label: "Spread" },
-            ],
-        },
-        {
-            group: "Arms",
-            poses: [
-                { key: "", label: "Relaxed" },
-                { key: "OverTheHead", label: "Arms Up" },
-                { key: "BackCuffs", label: "Arms Back" },
-                { key: "BackBoxTie", label: "Box Tie" },
-                { key: "Yoked", label: "Yoked" },
-            ],
-        },
-    ];
-    function applyPoses(poses) {
-        const filtered = poses.filter(Boolean);
-        try {
-            Player.ActivePose = filtered;
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-        callBC(() => CharacterRefresh(Player, false));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
-    }
-    // Apply poses one-by-one in the given order with a delay between each step.
-    // Respects the exact order provided — the user controls sequencing via the editor.
-    // e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
-    function applyPosesSequential(poses, stepDelayMs = 420) {
-        const steps = poses.filter(Boolean);
-        if (steps.length <= 1) {
-            applyPoses(steps);
-            return;
-        }
-        for (let i = 0; i < steps.length; i++) {
-            const subset = steps.slice(0, i + 1);
-            window.setTimeout(() => applyPoses(subset), i * stepDelayMs);
-        }
-    }
-    function getCurrentPoses() {
-        var _a;
-        try {
-            return [...((_a = Player.ActivePose) !== null && _a !== void 0 ? _a : [])];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    // -- Combo storage -------------------------------------------------------
-    function getStore$5() {
-        if (!Player.ExtensionSettings.EmeryBC)
-            Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC;
-    }
-    function uid$4() { return Math.random().toString(36).slice(2, 9); }
-    function load$1() {
-        const list = getStore$5().poseCombos;
-        return Array.isArray(list) ? list : [];
-    }
-    function saveCombos(list) {
-        getStore$5().poseCombos = list;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    }
-    function getPoseCombos() { return load$1(); }
-    function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
-        const combo = {
-            id: uid$4(),
-            name: name.trim() || "Combo",
-            poses: poses.filter(Boolean),
-            stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
-            command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
-            announceText: announceText.trim() || undefined,
-        };
-        saveCombos([...load$1(), combo]);
-        return combo;
-    }
-    function updateCombo(id, name, poses, command = "", announceText = "", stepDelayMs = 420) {
-        const list = load$1();
-        const combo = list.find(c => c.id === id);
-        if (!combo)
-            return;
-        combo.name = name.trim() || combo.name;
-        combo.poses = poses.filter(Boolean);
-        combo.stepDelayMs = Math.max(50, Math.min(3000, stepDelayMs));
-        combo.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
-        combo.announceText = announceText.trim() || undefined;
-        saveCombos(list);
-    }
-    function deleteCombo(id) {
-        saveCombos(load$1().filter(c => c.id !== id));
-    }
-    // Apply a combo (animation + announce text). Used by both the chat command handler
-    // and the ▶ apply button in the drawer so announce always fires either way.
-    function applyCombo(combo) {
-        var _a, _b;
-        const delay = (_a = combo.stepDelayMs) !== null && _a !== void 0 ? _a : 420;
-        applyPosesSequential(combo.poses, delay);
-        const totalMs = combo.poses.length > 1 ? (combo.poses.length - 1) * delay + 80 : 80;
-        if ((_b = combo.announceText) === null || _b === void 0 ? void 0 : _b.trim()) {
-            window.setTimeout(() => {
-                try {
-                    ServerSend("ChatRoomChat", {
-                        Type: "Action",
-                        Content: getDisplayName() + " " + combo.announceText.trim(),
-                        Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-                            { SourceCharacter: Player.MemberNumber },
-                        ],
-                    });
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            }, totalMs);
-        }
-    }
-    // Handle a chat command and apply the matching pose combo if found.
-    function handlePoseComboCommand(inputValue) {
-        const trimmed = inputValue.trim();
-        if (!trimmed.startsWith("/"))
-            return false;
-        const command = trimmed.slice(1).toLowerCase();
-        const combo = load$1().find(c => c.command && c.command.toLowerCase() === command);
-        if (!combo)
-            return false;
-        applyCombo(combo);
-        return true;
-    }
-
-    // Anti-restraint — when enabled, any restraint applied to the player by
-    // another character is immediately removed and a glare emote is sent.
-    // Whitelisted items are always kept even if applied by others.
-    // Whitelist entries are item keys: "AssetName" or "AssetName|CraftName".
-    // Removal is attempted up to 2 times per group before giving up (locked items).
-    // Compute a stable identity key for a restraint item.
-    // Uses asset name + craft name (if any) so that e.g. two different crafted
-    // collars in the same slot can be whitelisted independently.
-    function getItemKey(item) {
-        var _a;
-        const craft = item.Craft;
-        const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
-        return craftName ? `${item.Asset.Name}|${craftName}` : item.Asset.Name;
-    }
-    // Human-readable label for a restraint item (shown in whitelist chips).
-    function getItemDisplayName(item) {
-        var _a;
-        const craft = item.Craft;
-        const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
-        const baseName = item.Asset.Description || item.Asset.Name;
-        return craftName ? `${craftName} (${baseName})` : baseName;
-    }
-    let lastRestrainerName = null;
-    function getLastRestrainerName() { return lastRestrainerName; }
-    function recordRestrainer(sourceMemberNumber) {
-        var _a;
-        try {
-            const room = window.ChatRoomCharacter;
-            const char = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === sourceMemberNumber);
-            if (!char)
-                return;
-            lastRestrainerName =
-                ((_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) ||
-                    char.Name ||
-                    null;
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
-    }
-    let knownRestraints = new Set();
-    let escaping = false;
-    // Tracks failed removal attempts per group. Items here are NOT merged into
-    // knownRestraints so they remain detectable for a retry.
-    const failAttempts = new Map();
-    function snapshotPlayerRestraints() {
-        try {
-            knownRestraints = new Set(Player.Appearance
-                .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
-                .map((i) => i.Asset.Group.Name));
-            failAttempts.clear();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // Merge currently worn restraint groups into knownRestraints, but skip groups
-    // that still have pending retry attempts — they need to stay detectable.
-    function mergeCurrentRestraints() {
-        try {
-            Player.Appearance
-                .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !failAttempts.has(i.Asset.Group.Name))
-                .forEach((i) => knownRestraints.add(i.Asset.Group.Name));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function antiRestraintOnPlayerRefresh() {
-        if (escaping)
-            return;
-        if (!getAntiRestraintEnabled())
-            return;
-        try {
-            const whitelist = getAntiRestraintWhitelist();
-            const current = Player.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
-            // Whitelist is now item-key based ("AssetName" or "AssetName|CraftName")
-            const candidates = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name) &&
-                !whitelist.includes(getItemKey(i)));
-            // Promote items that have hit the retry limit: add to known and drop them.
-            for (const item of candidates.filter(i => { var _a; return ((_a = failAttempts.get(i.Asset.Group.Name)) !== null && _a !== void 0 ? _a : 0) >= 2; })) {
-                knownRestraints.add(item.Asset.Group.Name);
-                failAttempts.delete(item.Asset.Group.Name);
-            }
-            const newItems = candidates.filter((i) => !knownRestraints.has(i.Asset.Group.Name));
-            if (newItems.length === 0)
-                return;
-            escaping = true;
-            const firstItem = newItems[0];
-            const itemName = firstItem.Asset.Description
-                || firstItem.Asset.Name
-                || "restraint";
-            const restrainer = lastRestrainerName;
-            lastRestrainerName = null;
-            doEscape(newItems, restrainer, itemName);
-        }
-        catch (_a) {
-            escaping = false;
-        }
-    }
-    function doEscape(newItems, restrainer, itemName) {
-        var _a;
-        for (const item of newItems) {
-            try {
-                InventoryRemove(Player, item.Asset.Group.Name, false);
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
-        }
-        const stillPresent = new Set(Player.Appearance
-            .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
-            .map((i) => i.Asset.Group.Name));
-        let anySucceeded = false;
-        for (const item of newItems) {
-            const group = item.Asset.Group.Name;
-            if (stillPresent.has(group)) {
-                failAttempts.set(group, ((_a = failAttempts.get(group)) !== null && _a !== void 0 ? _a : 0) + 1);
-            }
-            else {
-                anySucceeded = true;
-                failAttempts.delete(group);
-            }
-        }
-        callBC(() => CharacterRefresh(Player, false));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
-        mergeCurrentRestraints();
-        window.setTimeout(() => {
-            try {
-                if (anySucceeded) {
-                    const text = restrainer
-                        ? `glares at ${restrainer} as the ${itemName} falls away.`
-                        : `glares ahead as the ${itemName} falls away.`;
-                    ServerSend("ChatRoomChat", {
-                        Type: "Action",
-                        Content: Player.Name + " " + text,
-                        Dictionary: [
-                            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                            { SourceCharacter: Player.MemberNumber },
-                        ],
-                    });
-                }
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            escaping = false;
-        }, 200);
-    }
-
-    // Scene sequencer — chain pose changes, item equips/unequips, emotes and
-    // waits into a named sequence that plays back step by step with per-step timing.
-    function getStore$4() {
-        if (!Player.ExtensionSettings.EmeryBC)
-            Player.ExtensionSettings.EmeryBC = {};
-        return Player.ExtensionSettings.EmeryBC;
-    }
-    function uid$3() { return Math.random().toString(36).slice(2, 9); }
-    function load() {
-        const raw = getStore$4().scenes;
-        return Array.isArray(raw) ? raw : [];
-    }
-    function saveScenes(list) {
-        getStore$4().scenes = list;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
-    }
-    function getScenes() { return load(); }
-    function createScene(name, steps, command = "") {
-        const scene = {
-            id: uid$3(),
-            name: name.trim() || "Scene",
-            steps,
-            command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
-        };
-        saveScenes([...load(), scene]);
-        return scene;
-    }
-    function updateScene(id, name, steps, command = "") {
-        const list = load();
-        const scene = list.find(s => s.id === id);
-        if (!scene)
-            return;
-        scene.name = name.trim() || scene.name;
-        scene.steps = steps;
-        scene.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
-        saveScenes(list);
-    }
-    function deleteScene(id) {
-        saveScenes(load().filter(s => s.id !== id));
-    }
-    function executeStep(step) {
-        var _a, _b, _c;
-        try {
-            switch (step.type) {
-                case "pose":
-                    applyPoses((_a = step.poses) !== null && _a !== void 0 ? _a : []);
-                    break;
-                case "equip":
-                case "equip-restraint":
-                case "equip-clothes":
-                    if (step.group && step.assetName) {
-                        // InventoryWear actually puts the item on the character;
-                        // InventoryAdd only adds to the wardrobe (never appears worn).
-                        const color = step.color;
-                        InventoryWear(Player, step.assetName, step.group, color, undefined, Player.MemberNumber);
-                        // Apply state/type (e.g. "Tight", "Wrist", "Double") if specified
-                        if (step.propertyType || step.heightModifier !== undefined) {
-                            const worn = InventoryGet(Player, step.group);
-                            if (worn) {
-                                if (!worn.Property)
-                                    worn.Property = {};
-                                if (step.propertyType) {
-                                    // Legacy compat — some BC systems still read Type
-                                    worn.Property.Type = step.propertyType;
-                                    const getFn = window.TypedItemGetOptions;
-                                    if (typeof getFn === "function") {
-                                        try {
-                                            const opts = getFn(step.group, step.assetName);
-                                            if (opts) {
-                                                const idx = opts.findIndex(o => o.Name === step.propertyType);
-                                                if (idx >= 0)
-                                                    worn.Property.TypeRecord = { typed: idx };
-                                            }
-                                        }
-                                        catch ( /* ignore */_d) { /* ignore */ }
-                                    }
-                                }
-                                if (step.heightModifier !== undefined)
-                                    worn.Property.HeightModifier = step.heightModifier;
-                            }
-                        }
-                        // Snapshot BEFORE CharacterRefresh so the anti-restraint hook doesn't
-                        // see the newly-added restraint as "unknown" and immediately strip it.
-                        snapshotPlayerRestraints();
-                        callBC(() => CharacterRefresh(Player, false));
-                        callBC(() => ChatRoomCharacterUpdate(Player));
-                        callBC(() => ServerPlayerAppearanceSync());
-                    }
-                    break;
-                case "unequip":
-                    if (step.group) {
-                        InventoryRemove(Player, step.group, false);
-                        callBC(() => CharacterRefresh(Player, false));
-                        callBC(() => ChatRoomCharacterUpdate(Player));
-                        callBC(() => ServerPlayerAppearanceSync());
-                    }
-                    break;
-                case "emote":
-                    if ((_b = step.text) === null || _b === void 0 ? void 0 : _b.trim()) {
-                        ServerSend("ChatRoomChat", {
-                            Type: "Action",
-                            Content: getDisplayName() + " " + step.text.trim(),
-                            Dictionary: [
-                                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-                                { SourceCharacter: Player.MemberNumber },
-                            ],
-                        });
-                    }
-                    break;
-                case "chat":
-                    if ((_c = step.text) === null || _c === void 0 ? void 0 : _c.trim()) {
-                        const txt = step.text.trim();
-                        if (step.chatFormat === "*") {
-                            // Emote — BC Type:"Emote" auto-prepends the sender's name and wraps
-                            // in *...*. Send only the raw text so it renders as *Name text*.
-                            ServerSend("ChatRoomChat", {
-                                Type: "Emote",
-                                Content: txt,
-                            });
-                        }
-                        else if (step.chatFormat === "(") {
-                            // OOC — Type:"Action" already wraps the content in ( ) when rendered.
-                            // Don't add our own parens or they double up: ((text)).
-                            // Action messages bypass gag speech processing.
-                            ServerSend("ChatRoomChat", {
-                                Type: "Action",
-                                Content: getDisplayName() + " " + txt,
-                                Dictionary: [
-                                    { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
-                                    { SourceCharacter: Player.MemberNumber },
-                                ],
-                            });
-                        }
-                        else {
-                            // Plain speech — goes through normal chat (gag effects apply)
-                            ServerSend("ChatRoomChat", { Type: "Chat", Content: txt });
-                        }
-                    }
-                    break;
-                case "wait":
-                    break; // delay alone is the effect
-            }
-        }
-        catch ( /* ignore */_e) { /* ignore */ }
-    }
-    function runScene(scene) {
-        let elapsed = 0;
-        for (const step of scene.steps) {
-            elapsed += step.delayMs;
-            const s = step;
-            window.setTimeout(() => executeStep(s), elapsed);
-        }
-    }
-    // -- Export / Import -----------------------------------------------------------
-    function exportScene(id) {
-        const scene = load().find(s => s.id === id);
-        if (!scene)
-            return null;
-        return JSON.stringify(scene);
-    }
-    function importScene(json) {
-        let parsed;
-        try {
-            parsed = JSON.parse(json);
-        }
-        catch (_a) {
-            throw new Error("Invalid JSON.");
-        }
-        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
-            throw new Error("Not a valid scene object.");
-        const obj = parsed;
-        if (typeof obj.name !== "string" || !Array.isArray(obj.steps))
-            throw new Error("Missing required fields (name, steps).");
-        const scene = {
-            id: uid$3(),
-            name: obj.name.trim() || "Imported Scene",
-            steps: obj.steps,
-            command: typeof obj.command === "string"
-                ? obj.command.toLowerCase().trim().replace(/\s+/g, "") || undefined
-                : undefined,
-        };
-        saveScenes([...load(), scene]);
-        return scene;
-    }
-    function handleSceneCommand(inputValue) {
-        const trimmed = inputValue.trim();
-        if (!trimmed.startsWith("/"))
-            return false;
-        const command = trimmed.slice(1).toLowerCase();
-        const scene = load().find(s => s.command && s.command.toLowerCase() === command);
-        if (!scene)
-            return false;
-        runScene(scene);
-        return true;
     }
 
     // Room and restraint timer — tracks how long you have been in the current
@@ -2809,159 +3017,6 @@
             callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
-    }
-
-    // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
-    // Locks that must never be touched regardless of the operation.
-    function isProtectedLock(item) {
-        var _a, _b;
-        const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
-        if (!lock)
-            return false;
-        return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
-    }
-    // Returns true if this item's slot is in the user's outfit whitelist.
-    function isWhitelisted(item) {
-        try {
-            return getOutfitWhitelist().includes(item.Asset.Group.Name);
-        }
-        catch (_a) {
-            return false;
-        }
-    }
-    // Combined guard: skip if owner/lover/family locked OR in outfit whitelist.
-    function isUntouchable(item) {
-        return isProtectedLock(item) || isWhitelisted(item);
-    }
-    function localNotice(msg, color = UI.accent) {
-        const log = document.getElementById("TextAreaChatLog");
-        if (!log)
-            return;
-        const div = document.createElement("div");
-        div.style.cssText = [
-            `color:${color}`,
-            `background:${UI.cardMuted}`,
-            `border-left:3px solid ${UI.accent}`,
-            "font-style:italic",
-            "font-size:12px",
-            "padding:2px 8px",
-            "margin:1px 0",
-        ].join(";");
-        div.textContent = "[EBC] " + msg;
-        log.appendChild(div);
-        log.scrollTop = log.scrollHeight;
-    }
-    // /ebc release - removes restraint items, skips protected locks and whitelisted slots
-    function releaseRestraints() {
-        const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item));
-        const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item));
-        if (toRemove.length === 0) {
-            localNotice(skipped.length > 0
-                ? "All restraints are locked or protected — none removed."
-                : "No restraints found to remove.", UI.textMuted);
-            return;
-        }
-        for (const item of toRemove) {
-            InventoryRemove(Player, item.Asset.Group.Name, false);
-        }
-        if (skipped.length > 0) {
-            localNotice(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
-        }
-        callBC(() => CharacterRefresh(Player, false));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
-        localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
-    }
-    // Returns un-protected restraint items currently worn by the player.
-    function getPlayerRestraints() {
-        return Player.Appearance
-            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
-            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
-    }
-    // Returns locked (non-protected) items currently worn by the player.
-    function getPlayerLockedItems() {
-        return Player.Appearance
-            .filter(item => { var _a; return !!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) && !isProtectedLock(item); })
-            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
-    }
-    // Removes specific items by group name from the player. Returns count removed.
-    function removePlayerSpecificItems(groups) {
-        let count = 0;
-        for (const group of groups) {
-            try {
-                InventoryRemove(Player, group, false);
-                count++;
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-        }
-        if (count > 0) {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-        }
-        return count;
-    }
-    // Unlocks specific items by group name on the player. Returns count unlocked.
-    function unlockPlayerSpecificItems(groups) {
-        let count = 0;
-        for (const group of groups) {
-            const item = Player.Appearance.find(a => a.Asset.Group.Name === group);
-            if (!(item === null || item === void 0 ? void 0 : item.Property) || isProtectedLock(item))
-                continue;
-            delete item.Property["LockedBy"];
-            delete item.Property["LockMemberNumber"];
-            delete item.Property["CombinationNumber"];
-            delete item.Property["Password"];
-            delete item.Property["MemberNumberListKeys"];
-            delete item.Property["RemoveItem"];
-            delete item.Property["ShowTimer"];
-            delete item.Property["EnableRandomInput"];
-            count++;
-        }
-        if (count > 0) {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-        }
-        return count;
-    }
-    // /ebc unlock - strips lock data from items, skips protected locks and whitelisted slots
-    function unlockItems() {
-        var _a;
-        let unlocked = 0;
-        let skipped = 0;
-        for (const item of Player.Appearance) {
-            if (!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy))
-                continue;
-            if (isUntouchable(item)) {
-                skipped++;
-                continue;
-            }
-            if (item.Property) {
-                delete item.Property["LockedBy"];
-                delete item.Property["LockMemberNumber"];
-                delete item.Property["CombinationNumber"];
-                delete item.Property["Password"];
-                delete item.Property["MemberNumberListKeys"];
-                delete item.Property["RemoveItem"];
-                delete item.Property["ShowTimer"];
-                delete item.Property["EnableRandomInput"];
-            }
-            unlocked++;
-        }
-        if (unlocked === 0) {
-            localNotice(skipped > 0
-                ? "All locks are owner/lover/family protected - none removed."
-                : "No locks found to remove.", UI.textMuted);
-            return;
-        }
-        if (skipped > 0) {
-            localNotice(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
-        }
-        callBC(() => CharacterRefresh(Player, false));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
-        localNotice(`Removed ${unlocked} lock(s).`, UI.gold);
     }
 
     // Room history — two independent features:
@@ -13914,6 +13969,7 @@
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
+            registerOpenBeepCallback((n) => this.openBeepWindow(n));
             if (document.body) {
                 this.setup();
             }
@@ -17911,6 +17967,142 @@
             wrapper.appendChild(seqBtnRow);
             return wrapper;
         }
+        // -- Macro editor (shown below a slot when style === "macro") ---------------
+        buildMacroEditor(btns, idx) {
+            const ALL_TYPES = [
+                { value: "leaveroom", label: "🚪 Leave Room", hasArg: false },
+                { value: "releaseself", label: "🔓 Release Restraints", hasArg: false },
+                { value: "unlockself", label: "🔑 Unlock Items", hasArg: false },
+                { value: "wardrobe", label: "👗 Open Wardrobe", hasArg: false },
+                { value: "outfit", label: "✨ Apply Outfit", hasArg: true },
+                { value: "scene", label: "🎬 Play Scene", hasArg: true },
+                { value: "beep", label: "💬 Open Beep / IM", hasArg: true },
+            ];
+            const parseMacro = (cmd) => {
+                const col = cmd.indexOf(":");
+                const rawType = (col >= 0 ? cmd.slice(0, col) : cmd).toLowerCase().trim();
+                const arg = col >= 0 ? cmd.slice(col + 1).trim() : "";
+                const valid = ALL_TYPES.map(t => t.value);
+                return { type: valid.includes(rawType) ? rawType : "leaveroom", arg };
+            };
+            const serialize = (type, arg) => arg ? `${type}:${arg}` : type;
+            let { type, arg } = parseMacro(btns[idx].emote || "leaveroom");
+            const INP_CSS = "background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 4px;outline:none;min-width:0;";
+            const LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+            const wrapper = document.createElement("div");
+            wrapper.style.cssText = "padding:5px 6px;background:rgba(12,4,10,0.5);border-top:1px solid #2a1020;display:flex;flex-direction:column;gap:4px;";
+            // Type dropdown row
+            const typeRow = document.createElement("div");
+            typeRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+            const typeLabel = document.createElement("span");
+            typeLabel.style.cssText = LBL_CSS;
+            typeLabel.textContent = "Action:";
+            const typeSelect = document.createElement("select");
+            typeSelect.className = "ebc-seq-type-select";
+            typeSelect.style.width = "160px";
+            ALL_TYPES.forEach(opt => {
+                const o = document.createElement("option");
+                o.value = opt.value;
+                o.textContent = opt.label;
+                if (opt.value === type)
+                    o.selected = true;
+                typeSelect.appendChild(o);
+            });
+            typeRow.appendChild(typeLabel);
+            typeRow.appendChild(typeSelect);
+            wrapper.appendChild(typeRow);
+            // Arg row (shown only for types that need an argument)
+            const argRow = document.createElement("div");
+            argRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+            const buildArgRow = (curType, curArg) => {
+                while (argRow.firstChild)
+                    argRow.removeChild(argRow.firstChild);
+                if (argRow.parentElement)
+                    argRow.remove();
+                const meta = ALL_TYPES.find(t => t.value === curType);
+                if (!(meta === null || meta === void 0 ? void 0 : meta.hasArg))
+                    return;
+                const argLabel = document.createElement("span");
+                argLabel.style.cssText = LBL_CSS;
+                if (curType === "outfit") {
+                    argLabel.textContent = "Outfit:";
+                    const outfits = getOutfits();
+                    if (!outfits.length) {
+                        const note = document.createElement("span");
+                        note.style.cssText = LBL_CSS + "font-style:italic;";
+                        note.textContent = "No outfits saved yet";
+                        argRow.appendChild(argLabel);
+                        argRow.appendChild(note);
+                    }
+                    else {
+                        const sel = document.createElement("select");
+                        sel.style.cssText = INP_CSS + "flex:1;";
+                        outfits.forEach(o => {
+                            const opt = document.createElement("option");
+                            opt.value = o.command;
+                            opt.textContent = o.displayName;
+                            if (o.command === curArg)
+                                opt.selected = true;
+                            sel.appendChild(opt);
+                        });
+                        if (!curArg)
+                            btns[idx].emote = serialize(curType, outfits[0].command);
+                        sel.addEventListener("change", () => { btns[idx].emote = serialize(curType, sel.value); });
+                        argRow.appendChild(argLabel);
+                        argRow.appendChild(sel);
+                    }
+                }
+                else if (curType === "scene") {
+                    argLabel.textContent = "Scene:";
+                    const scenes = getScenes();
+                    if (!scenes.length) {
+                        const note = document.createElement("span");
+                        note.style.cssText = LBL_CSS + "font-style:italic;";
+                        note.textContent = "No scenes saved yet";
+                        argRow.appendChild(argLabel);
+                        argRow.appendChild(note);
+                    }
+                    else {
+                        const sel = document.createElement("select");
+                        sel.style.cssText = INP_CSS + "flex:1;";
+                        scenes.forEach(s => {
+                            const opt = document.createElement("option");
+                            opt.value = s.name;
+                            opt.textContent = s.name;
+                            if (s.name === curArg)
+                                opt.selected = true;
+                            sel.appendChild(opt);
+                        });
+                        if (!curArg)
+                            btns[idx].emote = serialize(curType, scenes[0].name);
+                        sel.addEventListener("change", () => { btns[idx].emote = serialize(curType, sel.value); });
+                        argRow.appendChild(argLabel);
+                        argRow.appendChild(sel);
+                    }
+                }
+                else if (curType === "beep") {
+                    argLabel.textContent = "Member #:";
+                    const inp = document.createElement("input");
+                    inp.style.cssText = INP_CSS + "width:90px;";
+                    inp.type = "text";
+                    inp.placeholder = "e.g. 12345";
+                    inp.value = curArg;
+                    inp.maxLength = 12;
+                    inp.addEventListener("input", () => { btns[idx].emote = serialize(curType, inp.value.trim()); });
+                    argRow.appendChild(argLabel);
+                    argRow.appendChild(inp);
+                }
+                wrapper.appendChild(argRow);
+            };
+            buildArgRow(type, arg);
+            typeSelect.addEventListener("change", () => {
+                type = typeSelect.value;
+                arg = "";
+                btns[idx].emote = serialize(type, arg);
+                buildArgRow(type, arg);
+            });
+            return wrapper;
+        }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
             var _a;
@@ -18196,13 +18388,14 @@
                     const currentStyle = (_a = btn.style) !== null && _a !== void 0 ? _a : "action";
                     const isSeq = currentStyle === "seq";
                     const styleBtn = document.createElement("button");
-                    const styleBtnLabels = { action: "( )", emote: "* *", seq: "✨" };
+                    const styleBtnLabels = { action: "( )", emote: "* *", seq: "✨", macro: "🔧" };
                     const styleBtnTitles = {
                         action: "Style: ( action ) — click to switch",
                         emote: "Style: * emote * — click to switch",
-                        seq: "Style: ✨ sequence — click to switch back to action",
+                        seq: "Style: ✨ sequence — click to switch",
+                        macro: "Style: 🔧 macro — click to switch",
                     };
-                    styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : currentStyle === "seq" ? " emote" : "");
+                    styleBtn.className = "ebc-slot-style" + (currentStyle !== "action" ? " emote" : "");
                     styleBtn.textContent = (_b = styleBtnLabels[currentStyle]) !== null && _b !== void 0 ? _b : "( )";
                     styleBtn.title = (_c = styleBtnTitles[currentStyle]) !== null && _c !== void 0 ? _c : "";
                     // seqBadge kept in DOM for layout but no longer used for display
@@ -18215,7 +18408,7 @@
                     emoteInp.placeholder = "e.g. nods.";
                     emoteInp.value = btn.emote;
                     emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                    emoteInp.style.display = isSeq ? "none" : "";
+                    emoteInp.style.display = (isSeq || currentStyle === "macro") ? "none" : "";
                     // Name-in-announce chip — only meaningful for ( ) action style
                     const nameIncluded = btn.includeNameInAnnounce !== false;
                     const nameChip = document.createElement("button");
@@ -18225,7 +18418,7 @@
                         ? "Your name is included — click to send anonymously"
                         : "Sending without name — click to include name";
                     nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
-                    // only show for action style (emote always has name; seq not applicable)
+                    // only show for action style (emote always has name; seq/macro not applicable)
                     nameChip.style.display = (currentStyle === "action") ? "" : "none";
                     botLine.appendChild(styleBtn);
                     botLine.appendChild(seqBadge);
@@ -18234,10 +18427,14 @@
                     row.appendChild(topLine);
                     row.appendChild(botLine);
                     slotList.appendChild(row);
-                    // -- Seq step builder (only for seq style) --
+                    // -- Seq step builder / Macro editor --
                     if (isSeq) {
                         const builderEl = this.buildSeqStepBuilder(btns, i);
                         slotList.appendChild(builderEl);
+                    }
+                    else if (currentStyle === "macro") {
+                        const macroEl = this.buildMacroEditor(btns, i);
+                        slotList.appendChild(macroEl);
                     }
                     // -- Events (capture i) --
                     const idx = i;
@@ -18291,15 +18488,15 @@
                     styleBtn.addEventListener("click", () => {
                         var _a, _b, _c;
                         const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action";
-                        const next = cur === "action" ? "emote" : cur === "emote" ? "seq" : "action";
+                        const next = cur === "action" ? "emote" : cur === "emote" ? "seq" : cur === "seq" ? "macro" : "action";
                         btns[idx].style = next;
-                        // When entering or leaving seq, rebuild so the step builder appears/disappears
-                        if (cur === "seq" || next === "seq") {
+                        // Entering/leaving seq or macro: rebuild so editors appear/disappear
+                        if (cur === "seq" || next === "seq" || cur === "macro" || next === "macro") {
                             renderSlots();
                             updateFooterState();
                             return;
                         }
-                        styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
+                        styleBtn.className = "ebc-slot-style" + (next !== "action" ? " emote" : "");
                         styleBtn.textContent = (_b = styleBtnLabels[next]) !== null && _b !== void 0 ? _b : "( )";
                         styleBtn.title = (_c = styleBtnTitles[next]) !== null && _c !== void 0 ? _c : "";
                         emoteInp.title = next === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
@@ -25388,7 +25585,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.23";
+    const MOD_VERSION = "2.2.24";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25399,6 +25596,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.24",
+            changes: [
+                "Action buttons are now full macros — new 🔧 style supports: Leave Room, Release Restraints, Unlock Items, Open Wardrobe, Apply Outfit, Play Scene, Open Beep/IM.",
+                "Style toggle cycles ( ) → * * → ✨ seq → 🔧 macro.",
+            ],
+        },
         {
             version: "2.2.23",
             changes: [
