@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.16
+// @version      2.2.17
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25313,7 +25313,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.16";
+    const MOD_VERSION = "2.2.17";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25324,6 +25324,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.17",
+            changes: [
+                "Fix: disabling the EBC badge now actually hides it from other users — presence was always broadcast regardless of the badge setting.",
+            ],
+        },
         {
             version: "2.2.16",
             changes: [
@@ -27470,8 +27476,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function syncPresenceMarker() {
         var _a, _b, _c;
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
-        // Always broadcast presence regardless of local display toggle —
-        // the toggle only controls what YOU see, not what others see.
+        // If badge is disabled, clear our presence so other EBC users don't render
+        // a tag above our head. Send an AccountUpdate if we had presence before.
+        if (!getBadgeEnabled()) {
+            if (shared[MOD_NAME] !== undefined) {
+                delete shared[MOD_NAME];
+                if (CurrentScreen === "ChatRoom") {
+                    ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
+                }
+            }
+            return;
+        }
         const presence = Object.assign({ version: MOD_VERSION, marker: "EBC" }, ({ isDev: true } ));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
@@ -27484,10 +27499,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ServerPlayerExtensionSettingsSync(MOD_NAME);
             }
         }
-        // Always keep OnlineSharedSettings populated — BC includes it in the room-join
-        // packet so other players see your badge immediately when you enter. Without this,
-        // the join packet has empty OnlineSharedSettings and nobody sees the badge until
-        // a follow-up AccountUpdate arrives.
+        // Keep OnlineSharedSettings populated — BC includes it in the room-join
+        // packet so other players see your badge immediately when you enter.
         shared[MOD_NAME] = { presence };
         // Send AccountUpdate to notify people already in the room. Only meaningful in a
         // ChatRoom, and rate-limited to once every 6 s to prevent spam on rapid syncs.
