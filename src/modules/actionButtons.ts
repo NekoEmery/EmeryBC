@@ -1,6 +1,7 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
 import { callBC } from "./bcUtils";
+import { getActionButtonsVisible } from "./settings";
 
 export type ActionStyle = "action" | "emote" | "seq";
 // "action" = (Name text)
@@ -486,6 +487,7 @@ function withAlpha(hex: string, alpha: number): string {
 
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
+    if (!getActionButtonsVisible()) return;
 
     // Derived Y positions
     const gripY      = sidebarY - GRIP_H - 2;

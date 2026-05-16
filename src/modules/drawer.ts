@@ -84,7 +84,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getActionButtonsVisible, setActionButtonsVisible } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -3221,6 +3221,44 @@ export class EBCDrawer {
         badgeRow.appendChild(badgeLbl);
         badgeRow.appendChild(badgeToggle);
 
+        // Action buttons sidebar toggle row
+        const abRow = document.createElement("div");
+        abRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
+
+        const abLbl = document.createElement("span");
+        abLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+        abLbl.textContent = "Show action buttons";
+
+        const abToggle = document.createElement("button");
+        const updateAbToggle = (): void => {
+            const on = getActionButtonsVisible();
+            abToggle.textContent = on ? "ON" : "OFF";
+            abToggle.style.cssText = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:10px",
+                "font-weight:bold",
+                "padding:5px 12px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+            abToggle.title = on
+                ? "Action buttons visible — click to hide the sidebar"
+                : "Action buttons hidden — click to show the sidebar";
+        };
+        try { updateAbToggle(); } catch { /* Player may not be ready yet */ }
+
+        abToggle.addEventListener("click", () => {
+            setActionButtonsVisible(!getActionButtonsVisible());
+            updateAbToggle();
+        });
+
+        abRow.appendChild(abLbl);
+        abRow.appendChild(abToggle);
+
         // Safeword permanent row (always visible, any tab)
         const safewordRow = document.createElement("div");
         safewordRow.style.cssText = "display:flex;flex-direction:column;flex-shrink:0;border-top:1px solid #2a1421;background:rgba(12,4,10,0.6);";
@@ -3501,6 +3539,7 @@ export class EBCDrawer {
         panel.appendChild(quickActions);
         panel.appendChild(selfPickPanel);
         panel.appendChild(badgeRow);
+        panel.appendChild(abRow);
         panel.appendChild(safewordRow);
         panel.appendChild(body);
         panel.appendChild(footer);
