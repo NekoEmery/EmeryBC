@@ -23,9 +23,11 @@ const userscriptBanner = `\
 // @match        https://bondage-europe.com/*
 // @match        https://www.bondageprojects.elementfx.com/*
 // @match        https://www.bondageprojects.com/*
-// @run-at       document-idle
+// @run-at       document-start
+// @inject-into  page
 // @grant        none
-// ==/UserScript==`;
+// ==/UserScript==
+console.log("[EmeryBC] userscript injected, waiting for BC...");`;
 
 export default {
     input: "src/main.ts",
