@@ -43,6 +43,407 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
 
+    // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
+    function getStore$8() {
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    // -- Badge visibility ----------------------------------------------------------
+    // Controls whether the EBC overhead badge is broadcast to other users.
+    // Defaults to true (badge shown). Setting to false clears presence from
+    // OnlineSharedSettings so no one else renders the tag above your head.
+    function getBadgeEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
+        }
+        catch (_b) {
+            return true; // safe default
+        }
+    }
+    function setBadgeEnabled(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.badgeEnabled = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Version badge visibility --------------------------------------------------
+    // When enabled, the overhead EBC badge shows the player's EBC version number.
+    // Defaults to false (badge shows just "EBC").
+    function getShowVersionBadge() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setShowVersionBadge(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.showVersionBadge = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Anti-restraint -----------------------------------------------------------
+    // When enabled, any restraint applied to the player by someone else is
+    // immediately removed and a playful emote is sent to the room.
+    function getAntiRestraintEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAntiRestraintEnabled(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.antiRestraint = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Anti-restraint whitelist --------------------------------------------------
+    // Group names that auto-escape will never touch, even when applied by others.
+    // Populated by the user from the Settings UI while wearing the items.
+    function getAntiRestraintWhitelist() {
+        var _a;
+        try {
+            const list = (_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function setAntiRestraintWhitelist(groups) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.antiRestraintWhitelist = groups;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function addToAntiRestraintWhitelist(group) {
+        const list = getAntiRestraintWhitelist();
+        if (!list.includes(group))
+            setAntiRestraintWhitelist([...list, group]);
+    }
+    function removeFromAntiRestraintWhitelist(group) {
+        setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
+    }
+    // -- Anti-restraint confirm dialog ---------------------------------------------
+    // When enabled, shows a confirm() prompt before auto-escaping so the user
+    // can choose to accept the restraint instead. Off by default.
+    function getAntiRestraintConfirm() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAntiRestraintConfirm(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.antiRestraintConfirm = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Suppress native beep notification ----------------------------------------
+    // When on (default), plain beeps handled by our IM don't also show in BC's
+    // main chat log. Game beeps (friend requests etc.) always pass through.
+    function getSuppressNativeBeep() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setSuppressNativeBeep(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.suppressNativeBeep = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Update notifications ------------------------------------------------------
+    // When enabled (default), a local chat notice appears if a room member is
+    // running a newer version of EBC, prompting the user to relog. The user can
+    // silence it permanently with /ebc updates off.
+    function getUpdateNotify() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.updateNotify) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setUpdateNotify(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.updateNotify = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- AFK auto-reply ------------------------------------------------------------
+    // When enabled, EBC sends a configurable auto-reply beep if a message arrives
+    // while the player has been inactive for more than the threshold.
+    function getAfkEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.afkEnabled) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setAfkEnabled(v) {
+        try {
+            const s = getStore$8();
+            if (s) {
+                s.afkEnabled = v;
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // Threshold stored in SECONDS (key afkThresholdSec). Default 600 s = 10 min.
+    function getAfkThreshold() {
+        var _a;
+        try {
+            const v = (_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
+            return typeof v === "number" && v >= 1 ? v : 300;
+        }
+        catch (_b) {
+            return 300;
+        }
+    }
+    function setAfkThreshold(n) {
+        try {
+            const s = getStore$8();
+            if (s) {
+                s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n)));
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getAfkMessage() {
+        var _a;
+        try {
+            const v = (_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.afkMessage;
+            return typeof v === "string" && v.trim() ? v : "I'm currently AFK — I'll reply when I'm back!";
+        }
+        catch (_b) {
+            return "I'm currently AFK — I'll reply when I'm back!";
+        }
+    }
+    function setAfkMessage(msg) {
+        try {
+            const s = getStore$8();
+            if (s) {
+                s.afkMessage = msg.slice(0, 200).trim();
+                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- OOC mode ------------------------------------------------------------------
+    // When enabled, every normal chat message is prefixed with "(" so it reads
+    // as out-of-character speech. Commands (/), emotes (*), and already-OOC
+    // messages (() are never modified.
+    function getOocEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.oocEnabled) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setOocEnabled(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.oocEnabled = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Room history enabled ------------------------------------------------------
+    // When off (default), no room visits are recorded. User must opt in.
+    function getRoomHistoryEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.roomHistoryEnabled) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setRoomHistoryEnabled(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.roomHistoryEnabled = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Restraint log enabled -----------------------------------------------------
+    // When off (default), no restraint changes are recorded. User must opt in.
+    function getRestraintLogEnabled() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.restraintLogEnabled) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setRestraintLogEnabled(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.restraintLogEnabled = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Action buttons sidebar visibility ----------------------------------------
+    // When off, the entire quick-action button sidebar is hidden from the canvas.
+    function getActionButtonsVisible() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setActionButtonsVisible(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.actionButtonsVisible = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Beep mute -----------------------------------------------------------------
+    function getBeepMuted() {
+        var _a;
+        try {
+            return ((_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setBeepMuted(value) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.beepMuted = value;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    const PEOPLE_MET_CAP = 2000;
+    // Debounce handle for batching multiple recordPersonMet calls into one server sync.
+    let peopleMetSyncTimer = null;
+    function schedulePeopleMetSync() {
+        if (peopleMetSyncTimer !== null)
+            return; // already queued
+        peopleMetSyncTimer = setTimeout(() => {
+            peopleMetSyncTimer = null;
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }, 3000); // wait 3 s then send one sync for all changes
+    }
+    function getPeopleMet() {
+        var _a;
+        try {
+            const raw = (_a = getStore$8()) === null || _a === void 0 ? void 0 : _a.peopleMet;
+            return Array.isArray(raw) ? raw : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function recordPersonMet(memberNumber, name) {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            const list = getPeopleMet();
+            const existing = list.find(p => p.n === memberNumber);
+            if (existing) {
+                if (existing.name === name)
+                    return; // nothing changed — skip sync entirely
+                existing.name = name;
+            }
+            else {
+                if (list.length >= PEOPLE_MET_CAP)
+                    list.splice(0, list.length - PEOPLE_MET_CAP + 1);
+                list.push({ n: memberNumber, name });
+            }
+            store.peopleMet = list;
+            schedulePeopleMetSync(); // batch — one server sync covers all changes in a 3 s window
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function clearPeopleMet() {
+        try {
+            const store = getStore$8();
+            if (!store)
+                return;
+            store.peopleMet = [];
+            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+
     var _a, _b;
     const DEFAULT_BUTTONS = [
         { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
@@ -56,14 +457,14 @@
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$8() {
+    function getStore$7() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     /** Returns all categories, migrating from old flat format if needed. */
     function getCategories() {
-        const store = getStore$8();
+        const store = getStore$7();
         // Migrate old flat actionButtons → first category "Default"
         if (!store.buttonCategories && store.actionButtons) {
             const migrated = [{
@@ -83,7 +484,7 @@
         return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
     }
     function getActiveCategoryIndex() {
-        const store = getStore$8();
+        const store = getStore$7();
         const cats = getCategories();
         const idx = store.activeCategoryIndex;
         if (typeof idx === "number" && idx >= 0 && idx < cats.length)
@@ -91,7 +492,7 @@
         return 0;
     }
     function setActiveCategoryIndex(idx) {
-        const store = getStore$8();
+        const store = getStore$7();
         store.activeCategoryIndex = idx;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
@@ -104,7 +505,7 @@
         return getActiveCategory().buttons;
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$8();
+        const store = getStore$7();
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         cats[idx].buttons = buttons;
@@ -113,7 +514,7 @@
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function saveCategories(categories, activeIndex) {
-        const store = getStore$8();
+        const store = getStore$7();
         store.buttonCategories = categories;
         store.activeCategoryIndex = activeIndex;
         ServerPlayerExtensionSettingsSync("EmeryBC");
@@ -478,6 +879,8 @@
     }
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
+            return;
+        if (!getActionButtonsVisible())
             return;
         // Derived Y positions
         const gripY = sidebarY - GRIP_H - 2;
@@ -1518,20 +1921,20 @@
 
     // Color palette manager — capture the full color map of your current
     // appearance as a named palette and re-apply it later (or to a different outfit).
-    function getStore$7() {
+    function getStore$6() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function load$2() {
-        const list = getStore$7().palettes;
+        const list = getStore$6().palettes;
         if (!Array.isArray(list))
             return [];
         // Backfill `type` for palettes saved before this field existed
         return list.map(p => { var _a; return (Object.assign(Object.assign({}, p), { type: ((_a = p.type) !== null && _a !== void 0 ? _a : "outfit") })); });
     }
     function save(list) {
-        getStore$7().palettes = list;
+        getStore$6().palettes = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function uid$5() {
@@ -1617,11 +2020,11 @@
     // -- Custom color swatches --------------------------------------------------
     // A flat list of user-saved hex colors for the direct picker workflow.
     function saveCustomColors(list) {
-        getStore$7().customColors = list;
+        getStore$6().customColors = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getCustomColors() {
-        const v = getStore$7().customColors;
+        const v = getStore$6().customColors;
         return Array.isArray(v) ? v : [];
     }
     function addCustomColor(hex) {
@@ -1729,11 +2132,11 @@
         });
     }
     function saveRestraintPresets(list) {
-        getStore$7().restraintPresets = list;
+        getStore$6().restraintPresets = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getRestraintPresets() {
-        const v = getStore$7().restraintPresets;
+        const v = getStore$6().restraintPresets;
         return Array.isArray(v) ? v : [];
     }
     function saveRestraintPreset(name, colors) {
@@ -1815,18 +2218,18 @@
         }
     }
     // -- Combo storage -------------------------------------------------------
-    function getStore$6() {
+    function getStore$5() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function uid$4() { return Math.random().toString(36).slice(2, 9); }
     function load$1() {
-        const list = getStore$6().poseCombos;
+        const list = getStore$5().poseCombos;
         return Array.isArray(list) ? list : [];
     }
     function saveCombos(list) {
-        getStore$6().poseCombos = list;
+        getStore$5().poseCombos = list;
         ServerPlayerExtensionSettingsSync("EmeryBC");
     }
     function getPoseCombos() { return load$1(); }
@@ -1891,386 +2294,6 @@
             return false;
         applyCombo(combo);
         return true;
-    }
-
-    // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
-    function getStore$5() {
-        try {
-            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
-                return null;
-            if (!Player.ExtensionSettings.EmeryBC)
-                Player.ExtensionSettings.EmeryBC = {};
-            return Player.ExtensionSettings.EmeryBC;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    // -- Badge visibility ----------------------------------------------------------
-    // Controls whether the EBC overhead badge is broadcast to other users.
-    // Defaults to true (badge shown). Setting to false clears presence from
-    // OnlineSharedSettings so no one else renders the tag above your head.
-    function getBadgeEnabled() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.badgeEnabled) !== false;
-        }
-        catch (_b) {
-            return true; // safe default
-        }
-    }
-    function setBadgeEnabled(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.badgeEnabled = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Version badge visibility --------------------------------------------------
-    // When enabled, the overhead EBC badge shows the player's EBC version number.
-    // Defaults to false (badge shows just "EBC").
-    function getShowVersionBadge() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.showVersionBadge) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setShowVersionBadge(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.showVersionBadge = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Anti-restraint -----------------------------------------------------------
-    // When enabled, any restraint applied to the player by someone else is
-    // immediately removed and a playful emote is sent to the room.
-    function getAntiRestraintEnabled() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.antiRestraint) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setAntiRestraintEnabled(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.antiRestraint = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Anti-restraint whitelist --------------------------------------------------
-    // Group names that auto-escape will never touch, even when applied by others.
-    // Populated by the user from the Settings UI while wearing the items.
-    function getAntiRestraintWhitelist() {
-        var _a;
-        try {
-            const list = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.antiRestraintWhitelist;
-            return Array.isArray(list) ? list : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function setAntiRestraintWhitelist(groups) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.antiRestraintWhitelist = groups;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function addToAntiRestraintWhitelist(group) {
-        const list = getAntiRestraintWhitelist();
-        if (!list.includes(group))
-            setAntiRestraintWhitelist([...list, group]);
-    }
-    function removeFromAntiRestraintWhitelist(group) {
-        setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
-    }
-    // -- Anti-restraint confirm dialog ---------------------------------------------
-    // When enabled, shows a confirm() prompt before auto-escaping so the user
-    // can choose to accept the restraint instead. Off by default.
-    function getAntiRestraintConfirm() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.antiRestraintConfirm) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setAntiRestraintConfirm(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.antiRestraintConfirm = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Suppress native beep notification ----------------------------------------
-    // When on (default), plain beeps handled by our IM don't also show in BC's
-    // main chat log. Game beeps (friend requests etc.) always pass through.
-    function getSuppressNativeBeep() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.suppressNativeBeep) !== false;
-        }
-        catch (_b) {
-            return true;
-        }
-    }
-    function setSuppressNativeBeep(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.suppressNativeBeep = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Update notifications ------------------------------------------------------
-    // When enabled (default), a local chat notice appears if a room member is
-    // running a newer version of EBC, prompting the user to relog. The user can
-    // silence it permanently with /ebc updates off.
-    function getUpdateNotify() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.updateNotify) !== false;
-        }
-        catch (_b) {
-            return true;
-        }
-    }
-    function setUpdateNotify(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.updateNotify = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- AFK auto-reply ------------------------------------------------------------
-    // When enabled, EBC sends a configurable auto-reply beep if a message arrives
-    // while the player has been inactive for more than the threshold.
-    function getAfkEnabled() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkEnabled) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setAfkEnabled(v) {
-        try {
-            const s = getStore$5();
-            if (s) {
-                s.afkEnabled = v;
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-            }
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // Threshold stored in SECONDS (key afkThresholdSec). Default 600 s = 10 min.
-    function getAfkThreshold() {
-        var _a;
-        try {
-            const v = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkThresholdSec;
-            return typeof v === "number" && v >= 1 ? v : 300;
-        }
-        catch (_b) {
-            return 300;
-        }
-    }
-    function setAfkThreshold(n) {
-        try {
-            const s = getStore$5();
-            if (s) {
-                s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n)));
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-            }
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function getAfkMessage() {
-        var _a;
-        try {
-            const v = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.afkMessage;
-            return typeof v === "string" && v.trim() ? v : "I'm currently AFK — I'll reply when I'm back!";
-        }
-        catch (_b) {
-            return "I'm currently AFK — I'll reply when I'm back!";
-        }
-    }
-    function setAfkMessage(msg) {
-        try {
-            const s = getStore$5();
-            if (s) {
-                s.afkMessage = msg.slice(0, 200).trim();
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-            }
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- OOC mode ------------------------------------------------------------------
-    // When enabled, every normal chat message is prefixed with "(" so it reads
-    // as out-of-character speech. Commands (/), emotes (*), and already-OOC
-    // messages (() are never modified.
-    function getOocEnabled() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.oocEnabled) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setOocEnabled(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.oocEnabled = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Room history enabled ------------------------------------------------------
-    // When off (default), no room visits are recorded. User must opt in.
-    function getRoomHistoryEnabled() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.roomHistoryEnabled) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setRoomHistoryEnabled(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.roomHistoryEnabled = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Restraint log enabled -----------------------------------------------------
-    // When off (default), no restraint changes are recorded. User must opt in.
-    function getRestraintLogEnabled() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.restraintLogEnabled) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setRestraintLogEnabled(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.restraintLogEnabled = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Beep mute -----------------------------------------------------------------
-    function getBeepMuted() {
-        var _a;
-        try {
-            return ((_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.beepMuted) === true;
-        }
-        catch (_b) {
-            return false;
-        }
-    }
-    function setBeepMuted(value) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.beepMuted = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    const PEOPLE_MET_CAP = 2000;
-    // Debounce handle for batching multiple recordPersonMet calls into one server sync.
-    let peopleMetSyncTimer = null;
-    function schedulePeopleMetSync() {
-        if (peopleMetSyncTimer !== null)
-            return; // already queued
-        peopleMetSyncTimer = setTimeout(() => {
-            peopleMetSyncTimer = null;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }, 3000); // wait 3 s then send one sync for all changes
-    }
-    function getPeopleMet() {
-        var _a;
-        try {
-            const raw = (_a = getStore$5()) === null || _a === void 0 ? void 0 : _a.peopleMet;
-            return Array.isArray(raw) ? raw : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function recordPersonMet(memberNumber, name) {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            const list = getPeopleMet();
-            const existing = list.find(p => p.n === memberNumber);
-            if (existing) {
-                if (existing.name === name)
-                    return; // nothing changed — skip sync entirely
-                existing.name = name;
-            }
-            else {
-                if (list.length >= PEOPLE_MET_CAP)
-                    list.splice(0, list.length - PEOPLE_MET_CAP + 1);
-                list.push({ n: memberNumber, name });
-            }
-            store.peopleMet = list;
-            schedulePeopleMetSync(); // batch — one server sync covers all changes in a 3 s window
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function clearPeopleMet() {
-        try {
-            const store = getStore$5();
-            if (!store)
-                return;
-            store.peopleMet = [];
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
     }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
@@ -14295,6 +14318,42 @@
             });
             badgeRow.appendChild(badgeLbl);
             badgeRow.appendChild(badgeToggle);
+            // Action buttons sidebar toggle row
+            const abRow = document.createElement("div");
+            abRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
+            const abLbl = document.createElement("span");
+            abLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+            abLbl.textContent = "Show action buttons";
+            const abToggle = document.createElement("button");
+            const updateAbToggle = () => {
+                const on = getActionButtonsVisible();
+                abToggle.textContent = on ? "ON" : "OFF";
+                abToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:5px 12px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+                abToggle.title = on
+                    ? "Action buttons visible — click to hide the sidebar"
+                    : "Action buttons hidden — click to show the sidebar";
+            };
+            try {
+                updateAbToggle();
+            }
+            catch ( /* Player may not be ready yet */_b) { /* Player may not be ready yet */ }
+            abToggle.addEventListener("click", () => {
+                setActionButtonsVisible(!getActionButtonsVisible());
+                updateAbToggle();
+            });
+            abRow.appendChild(abLbl);
+            abRow.appendChild(abToggle);
             // Safeword permanent row (always visible, any tab)
             const safewordRow = document.createElement("div");
             safewordRow.style.cssText = "display:flex;flex-direction:column;flex-shrink:0;border-top:1px solid #2a1421;background:rgba(12,4,10,0.6);";
@@ -14527,6 +14586,7 @@
             panel.appendChild(quickActions);
             panel.appendChild(selfPickPanel);
             panel.appendChild(badgeRow);
+            panel.appendChild(abRow);
             panel.appendChild(safewordRow);
             panel.appendChild(body);
             panel.appendChild(footer);
@@ -25315,7 +25375,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.18";
+    const MOD_VERSION = "2.2.19";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25326,6 +25386,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.19",
+            changes: [
+                "Add toggle in settings to show/hide the action buttons sidebar.",
+            ],
+        },
         {
             version: "2.2.18",
             changes: [
