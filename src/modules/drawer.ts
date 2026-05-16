@@ -2735,6 +2735,7 @@ export class EBCDrawer {
     private currentTab: DrawerTab = "outfits";
     private resizeObserver: ResizeObserver | null = null;
     private positioned = false;
+    private hasBeenShown = false;
     private version = "";
     private isDev   = false;
     private refreshBadgeRow: (() => void) | null = null;
@@ -3866,12 +3867,27 @@ export class EBCDrawer {
 
         // Try to position; if the chat log isn't laid out yet, retry next frame
         const synced = this.syncToChat();
+        const showPanel = (el: HTMLElement) => {
+            // Suppress the slide transition for the very first reveal — switching
+            // from display:none to display:block can cause the browser to animate
+            // the transform from an unrendered state, making the panel flash visible.
+            if (!this.hasBeenShown) {
+                this.hasBeenShown = true;
+                if (this.panelEl) this.panelEl.style.transition = "none";
+                el.style.display = "block";
+                requestAnimationFrame(() => {
+                    if (this.panelEl) this.panelEl.style.transition = "";
+                });
+            } else {
+                el.style.display = "block";
+            }
+        };
         if (synced) {
-            this.rootEl.style.display = "block";
+            showPanel(this.rootEl);
         } else {
             requestAnimationFrame(() => {
                 if (this.syncToChat() && this.rootEl) {
-                    this.rootEl.style.display = "block";
+                    showPanel(this.rootEl);
                 }
             });
         }
