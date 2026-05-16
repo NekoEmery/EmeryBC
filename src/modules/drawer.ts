@@ -10435,7 +10435,7 @@ export class EBCDrawer {
                     // EBC version badge
                     const ebcVer = (() => {
                         try {
-                            const sh = (char.OnlineSharedSettings as Record<string, unknown> | undefined)?.EmeryBC;
+                            const sh = (char.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EBC"];
                             if (sh && typeof sh === "object") {
                                 const p = (sh as Record<string, unknown>).presence;
                                 if (p && typeof p === "object") {
@@ -10797,7 +10797,7 @@ export class EBCDrawer {
                             Array<{ MemberNumber?: number; OnlineSharedSettings?: Record<string, unknown> }> | undefined;
                         const char = room?.find(c => c.MemberNumber === num);
                         if (char?.OnlineSharedSettings) {
-                            const sh = char.OnlineSharedSettings["EmeryBC"];
+                            const sh = char.OnlineSharedSettings["EBC"];
                             if (sh && typeof sh === "object") {
                                 const p = (sh as Record<string, unknown>).presence;
                                 if (p && typeof p === "object") {
@@ -11690,7 +11690,7 @@ export class EBCDrawer {
                     const gameName = String(c.Name ?? "?");
                     const nickname = String((c.Nickname as string | undefined)?.trim() || gameName);
                     if (isSelf) { found.push({ gameName, nickname, id: memberNum ?? 0, version: "self", isSelf: true }); continue; }
-                    const shared = (c.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EmeryBC"] as Record<string, unknown> | undefined;
+                    const shared = (c.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EBC"] as Record<string, unknown> | undefined;
                     const presence = shared?.["presence"] as Record<string, unknown> | undefined;
                     if (presence?.["marker"] === "EBC")
                         found.push({ gameName, nickname, id: memberNum ?? 0, version: String(presence["version"] ?? "?"), isSelf: false });
