@@ -1,5 +1,5 @@
 ﻿import { UI } from "./ui";
-import { getDisplayName } from "./actionButtons";
+import { getDisplayName } from "./bcUtils";
 
 export interface SerializedItem {
     Group: string;

@@ -3,8 +3,7 @@
 // chat command, and announce text template.
 
 import { SerializedItem, RESTRAINT_GROUPS } from "./outfitManager";
-import { getDisplayName } from "./actionButtons";
-import { callBC } from "./bcUtils";
+import { callBC, getDisplayName } from "./bcUtils";
 
 export const DOM_CREATOR_ID = 130267;
 

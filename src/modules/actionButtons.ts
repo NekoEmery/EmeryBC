@@ -1,6 +1,6 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
-import { callBC } from "./bcUtils";
+import { callBC, getDisplayName } from "./bcUtils";
 import { getActionButtonsVisible } from "./settings";
 import { executeMacro } from "./macros";
 
@@ -120,15 +120,6 @@ export function normalizeHex(value: string | undefined, fallback = "#c2185b"): s
     const m = /^#([0-9a-f]{3})$/i.exec(c);
     if (m) { const [r,g,b] = m[1].split(""); return `#${r}${r}${g}${g}${b}${b}`; }
     return fallback;
-}
-
-// --- Display name helper -----------------------------------------------------
-
-export function getDisplayName(): string {
-    // CharacterNickname is a BC global not always in the type declarations
-    const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
-    if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
-    return (Player as unknown as Record<string, unknown>).Nickname as string || Player.Name || "Player";
 }
 
 // --- Sequence runner ----------------------------------------------------------

@@ -13,3 +13,10 @@ export function callBC(fn: () => unknown): void {
             (r as Promise<unknown>).catch(() => {});
     } catch { /* ignore */ }
 }
+
+/** Returns the player's display name (nickname if set, otherwise Name). */
+export function getDisplayName(): string {
+    const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
+    if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
+    return (Player as unknown as Record<string, unknown>).Nickname as string || Player.Name || "Player";
+}

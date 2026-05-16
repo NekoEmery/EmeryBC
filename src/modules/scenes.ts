@@ -2,9 +2,8 @@
 // waits into a named sequence that plays back step by step with per-step timing.
 
 import { applyPoses } from "./poses";
-import { getDisplayName } from "./actionButtons";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { callBC } from "./bcUtils";
+import { callBC, getDisplayName } from "./bcUtils";
 
 export type StepType = "pose" | "equip" | "equip-restraint" | "equip-clothes" | "unequip" | "emote" | "chat" | "wait";
 

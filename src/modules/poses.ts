@@ -2,8 +2,7 @@
 // Poses require matching equipped items to visually render — BC handles
 // validation server-side and silently ignores inapplicable poses.
 
-import { getDisplayName } from "./actionButtons";
-import { callBC } from "./bcUtils";
+import { callBC, getDisplayName } from "./bcUtils";
 
 export interface PoseCombo {
     id: string;
