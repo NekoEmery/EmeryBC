@@ -20617,7 +20617,7 @@
                             const own = Player.Ownership;
                             if ((own === null || own === void 0 ? void 0 : own.MemberNumber) === num) {
                                 const ownEl = document.createElement("div");
-                                ownEl.style.color = "#cf6f98";
+                                ownEl.style.color = "#e8c060";
                                 const ts = parseRelStart(own.Start);
                                 ownEl.textContent = ts
                                     ? `👑 Owned since: ${relFmt(ts)}`
@@ -20641,7 +20641,7 @@
                             const rc = roomChars === null || roomChars === void 0 ? void 0 : roomChars.find(c => c.MemberNumber === num);
                             if (((_a = rc === null || rc === void 0 ? void 0 : rc.Ownership) === null || _a === void 0 ? void 0 : _a.MemberNumber) === Player.MemberNumber) {
                                 const ownedByMeEl = document.createElement("div");
-                                ownedByMeEl.style.color = "#a0d0a0";
+                                ownedByMeEl.style.color = "#e8c060";
                                 const ts = parseRelStart(rc.Ownership.Start);
                                 ownedByMeEl.textContent = ts
                                     ? `🔒 Owns them since: ${relFmt(ts)}`
@@ -24862,7 +24862,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.51";
+    const MOD_VERSION = "2.2.52";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -24873,6 +24873,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.52",
+            changes: [
+                "Friends: relationship info colours simplified — 👑 owned and 🔒 you-own-them both show in gold; ❤️ lovers stays pink.",
+            ],
+        },
         {
             version: "2.2.51",
             changes: [
