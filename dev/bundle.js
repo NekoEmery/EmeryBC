@@ -14924,25 +14924,51 @@
             if (!this.rootEl || !this.panelEl)
                 return;
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
+            // Tabs that only make sense inside a chatroom — hidden when outside one
+            const ROOM_ONLY = ["buttons", "anims"];
             if (!inRoom) {
-                this.rootEl.style.display = "none";
-                this.isOpen = false;
-                this.panelEl.className = "ebc-closed";
-                const tabEl2 = this.rootEl.querySelector("#ebc-tab");
-                if (tabEl2)
-                    tabEl2.classList.add("ebc-tab-closed");
-                this.positioned = false;
-                this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
-                this.tabOffsetChecked = false; // re-check on next room enter in case settings changed
+                // ── Outside chatroom: floating panel anchored to the right edge ───────
                 (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
                 this.resizeObserver = null;
                 this.stopCrabsPoller();
                 this.stopTimerPoller();
-                // Hide beep windows while outside the chat room — they'll be restored on return
+                // Keep beep windows hidden outside a room
                 for (const { el } of this.beepWins.values())
                     el.style.display = "none";
+                // Force-hide room-only tab buttons; jump to a safe tab if we're on one
+                for (const tabId of ROOM_ONLY) {
+                    const btn = this.rootEl.querySelector(`#ebc-tab-${tabId}`);
+                    if (btn)
+                        btn.style.display = "none";
+                }
+                if (ROOM_ONLY.includes(this.currentTab))
+                    this.switchTab("outfits");
+                // Float at the right edge of the viewport, vertically centred
+                const h = Math.min(Math.max(300, window.innerHeight - 80), 700);
+                this.rootEl.style.top = `${Math.max(20, Math.round((window.innerHeight - h) / 2))}px`;
+                this.rootEl.style.right = "0px";
+                this.rootEl.style.height = `${h}px`;
+                this.panelEl.style.height = `${h}px`;
+                // Mark as not anchored to the chat log so syncToChat re-runs on next room enter
+                this.positioned = false;
+                this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
+                this.tabOffsetChecked = false;
+                // Show (suppress CSS transition on the very first reveal)
+                if (!this.hasBeenShown) {
+                    this.hasBeenShown = true;
+                    this.panelEl.style.transition = "none";
+                    this.rootEl.style.display = "block";
+                    requestAnimationFrame(() => { if (this.panelEl)
+                        this.panelEl.style.transition = ""; });
+                }
+                else {
+                    this.rootEl.style.display = "block";
+                }
                 return;
             }
+            // ── In chatroom: restore room-only tabs and re-anchor to the chat log ────
+            // Restore room-only tab buttons (respects user hidden-tab preferences)
+            this.applyTabVisibility();
             // Restore any beep windows that were hidden while outside the chat room
             for (const { el } of this.beepWins.values())
                 el.style.display = "";
@@ -25571,7 +25597,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.31";
+    const MOD_VERSION = "2.2.32";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25582,6 +25608,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.32",
+            changes: [
+                "Menu is now accessible outside chatrooms (main hall, wardrobe, etc.) — floats at the right edge of the screen. Buttons and Poses tabs are hidden outside a room since they require chat.",
+            ],
+        },
         {
             version: "2.2.31",
             changes: [
