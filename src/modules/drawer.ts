@@ -82,8 +82,11 @@ import {
 } from "./actionButtons";
 import {
     releaseRestraints,
+    unlockItems,
     getPlayerRestraints,
+    getPlayerLockedItems,
     removePlayerSpecificItems,
+    unlockPlayerSpecificItems,
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
@@ -165,6 +168,33 @@ function showQuickConfirm(message: string, onConfirm: () => void): void {
     btns.appendChild(confirmBtn);
     overlay.appendChild(btns);
     document.body.appendChild(overlay);
+}
+
+// -- Slow Leave preset storage -------------------------------------------------
+
+const SLOW_LEAVE_PRESET_DEFAULTS = [
+    { label: "🌸 Classic",  seq: "*smiles and gives a little wave~@{DUR}|*slowly heads for the door...@0|leaveroom" },
+    { label: "🤗 Warm",     seq: "*gives everyone a warm hug before leaving~@{DUR}|*heads for the door with a soft smile~@0|leaveroom" },
+    { label: "😔 Quiet",    seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
+    { label: "💤 Sleepy",   seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
+    { label: "🐾 Playful",  seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
+];
+
+function getSlowLeavePresets(): Array<{ label: string; seq: string }> {
+    try {
+        const raw = localStorage.getItem("EBC_slowLeavePresets");
+        if (raw) {
+            const parsed = JSON.parse(raw) as Array<{ label: string; seq: string }>;
+            if (Array.isArray(parsed) && parsed.length === SLOW_LEAVE_PRESET_DEFAULTS.length) {
+                return parsed;
+            }
+        }
+    } catch { /* ignore */ }
+    return SLOW_LEAVE_PRESET_DEFAULTS.map(p => ({ ...p }));
+}
+
+function saveSlowLeavePresets(v: Array<{ label: string; seq: string }>): void {
+    try { localStorage.setItem("EBC_slowLeavePresets", JSON.stringify(v)); } catch { /* ignore */ }
 }
 
 // -- Icon ----------------------------------------------------------------------
@@ -3043,7 +3073,13 @@ export class EBCDrawer {
         releaseBtn.title = "Remove all restraints (skips owner/lover/family locks)";
         releaseBtn.textContent = "Release Restraints";
 
+        const unlockBtn = document.createElement("button");
+        unlockBtn.className = "ebc-action-btn danger";
+        unlockBtn.title = "Remove all locks (skips owner/lover/family locks)";
+        unlockBtn.textContent = "Remove Locks";
+
         qaRow1.appendChild(releaseBtn);
+        qaRow1.appendChild(unlockBtn);
         quickActions.appendChild(qaRow1);
 
         // Row 1b: confirm-before-escaping (centered, subtle, between danger buttons and picker)
@@ -3093,13 +3129,7 @@ export class EBCDrawer {
         quickActions.appendChild(selfPickToggle);
 
         // Slow Leave button — always shown when in a chatroom
-        const SLOW_LEAVE_PRESETS = [
-            { label: "🌸 Classic",  seq: "*smiles and gives a little wave~@{DUR}|*slowly heads for the door...@0|leaveroom" },
-            { label: "🤗 Warm",     seq: "*gives everyone a warm hug before leaving~@{DUR}|*heads for the door with a soft smile~@0|leaveroom" },
-            { label: "😔 Quiet",    seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
-            { label: "💤 Sleepy",   seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
-            { label: "🐾 Playful",  seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
-        ];
+        const SLOW_LEAVE_PRESETS = getSlowLeavePresets();
         const slowLeaveBtn = document.createElement("button");
         slowLeaveBtn.className = "ebc-action-btn";
         slowLeaveBtn.textContent = "🚶 Slow Leave";
@@ -3133,60 +3163,92 @@ export class EBCDrawer {
         const selfPickStatus = document.createElement("div");
         selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
 
-        // Track selected restraint groups
-        const selfSelected = new Set<string>();
+        // Track selections: group → "restraint" | "lock"
+        const selfSelected = new Map<string, "restraint" | "lock">();
 
         const rebuildSelfPicker = (): void => {
             while (selfPickPanel.firstChild) selfPickPanel.removeChild(selfPickPanel.firstChild);
             selfSelected.clear();
 
             const restraints = getPlayerRestraints();
+            const locks      = getPlayerLockedItems();
 
-            if (restraints.length === 0) {
+            if (restraints.length === 0 && locks.length === 0) {
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:2px;";
-                hint.textContent = "Nothing to remove — no restraints found.";
+                hint.textContent = "Nothing to remove — no restraints or locks found.";
                 selfPickPanel.appendChild(hint);
                 selfPickPanel.appendChild(selfPickStatus);
                 return;
             }
 
-            for (const item of restraints) {
-                const lbl = document.createElement("label");
-                lbl.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
-                lbl.addEventListener("mouseenter", () => { lbl.style.background = "rgba(42,20,33,0.6)"; });
-                lbl.addEventListener("mouseleave", () => { lbl.style.background = ""; });
-                const cb = document.createElement("input");
-                cb.type = "checkbox";
-                cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-                cb.addEventListener("change", () => {
-                    if (cb.checked) selfSelected.add(item.group);
-                    else selfSelected.delete(item.group);
-                });
-                const nm = document.createElement("span");
-                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                nm.textContent = item.name;
-                const gr = document.createElement("span");
-                gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
-                gr.textContent = item.group.replace("Item", "");
-                lbl.appendChild(cb); lbl.appendChild(nm); lbl.appendChild(gr);
-                selfPickPanel.appendChild(lbl);
-            }
+            const makeSection = (title: string, items: Array<{ group: string; name: string }>, kind: "restraint" | "lock"): void => {
+                if (items.length === 0) return;
+                const hdr = document.createElement("div");
+                hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;";
+                hdr.textContent = title;
+                selfPickPanel.appendChild(hdr);
+                for (const item of items) {
+                    const lbl = document.createElement("label");
+                    lbl.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
+                    lbl.addEventListener("mouseenter", () => { lbl.style.background = "rgba(42,20,33,0.6)"; });
+                    lbl.addEventListener("mouseleave", () => { lbl.style.background = ""; });
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox";
+                    cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                    cb.addEventListener("change", () => {
+                        if (cb.checked) selfSelected.set(item.group, kind);
+                        else selfSelected.delete(item.group);
+                    });
+                    const nm = document.createElement("span");
+                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    nm.textContent = item.name;
+                    const gr = document.createElement("span");
+                    gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                    gr.textContent = item.group.replace("Item", "");
+                    lbl.appendChild(cb); lbl.appendChild(nm); lbl.appendChild(gr);
+                    selfPickPanel.appendChild(lbl);
+                }
+            };
+
+            makeSection("Restraints", restraints, "restraint");
+            makeSection("Locks", locks, "lock");
+
+            // Two action buttons
+            const btnRow = document.createElement("div");
+            btnRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;";
 
             const removeSelBtn = document.createElement("button");
-            removeSelBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;margin-top:3px;";
+            removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
             removeSelBtn.textContent = "↑ Remove Selected";
             removeSelBtn.addEventListener("mouseenter", () => { removeSelBtn.style.background = "#5a1c30"; });
             removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a1020"; });
             removeSelBtn.addEventListener("click", () => {
-                if (selfSelected.size === 0) { selfPickStatus.textContent = "Select restraints first."; return; }
-                const n = removePlayerSpecificItems([...selfSelected]);
+                const groups = [...selfSelected.entries()].filter(([, k]) => k === "restraint").map(([g]) => g);
+                if (groups.length === 0) { selfPickStatus.textContent = "Select restraints first."; return; }
+                const n = removePlayerSpecificItems(groups);
                 selfPickStatus.textContent = n > 0 ? ("✓ Removed " + n + " item(s).") : "Nothing removed.";
                 rebuildSelfPicker();
                 window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
             });
 
-            selfPickPanel.appendChild(removeSelBtn);
+            const unlockSelBtn = document.createElement("button");
+            unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
+            unlockSelBtn.textContent = "🔓 Unlock Selected";
+            unlockSelBtn.addEventListener("mouseenter", () => { unlockSelBtn.style.background = "#1a4a2a"; });
+            unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#0f2a1a"; });
+            unlockSelBtn.addEventListener("click", () => {
+                const groups = [...selfSelected.entries()].filter(([, k]) => k === "lock").map(([g]) => g);
+                if (groups.length === 0) { selfPickStatus.textContent = "Select locks first."; return; }
+                const n = unlockPlayerSpecificItems(groups);
+                selfPickStatus.textContent = n > 0 ? ("✓ Unlocked " + n + " item(s).") : "Nothing unlocked.";
+                rebuildSelfPicker();
+                window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
+            });
+
+            btnRow.appendChild(removeSelBtn);
+            btnRow.appendChild(unlockSelBtn);
+            selfPickPanel.appendChild(btnRow);
             selfPickPanel.appendChild(selfPickStatus);
         };
 
@@ -3212,6 +3274,21 @@ export class EBCDrawer {
             releaseRestraints();
             if (selfPickPanel.style.display !== "none") rebuildSelfPicker();
             window.setTimeout(() => { releaseBtn.disabled = false; }, 1500);
+        });
+        unlockBtn.addEventListener("click", () => {
+            if (getAntiRestraintConfirm()) {
+                showQuickConfirm("Remove all locks?", () => {
+                    unlockBtn.disabled = true;
+                    unlockItems();
+                    if (selfPickPanel.style.display !== "none") rebuildSelfPicker();
+                    window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
+                });
+                return;
+            }
+            unlockBtn.disabled = true;
+            unlockItems();
+            if (selfPickPanel.style.display !== "none") rebuildSelfPicker();
+            window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
         });
         // Badge visibility toggle row (below the danger buttons)
         // Safeword permanent row (always visible, any tab)
@@ -12641,25 +12718,26 @@ export class EBCDrawer {
         body.appendChild(faHdr);
 
         // ── Slow Leave config ─────────────────────────────────────────────────
-        const SL_PRESETS_LABELS = ["🌸 Classic", "🤗 Warm", "😔 Quiet", "💤 Sleepy", "🐾 Playful"];
-        const rowCss = "display:flex;align-items:center;gap:8px;margin-bottom:7px;";
-        const lbl9Css = "font-family:'Trebuchet MS',serif;font-size:9px;color:#967281;white-space:nowrap;flex-shrink:0;width:58px;";
+        const BOX_CSS  = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+        const LBL_CSS  = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+        const VAL_CSS  = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+        const SL_CSS   = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
 
         // Duration slider row
         const durRow = document.createElement("div");
-        durRow.style.cssText = rowCss;
+        durRow.style.cssText = BOX_CSS;
         const durLbl = document.createElement("span");
-        durLbl.style.cssText = lbl9Css;
+        durLbl.style.cssText = LBL_CSS;
         durLbl.textContent = "Duration";
         const durVal = document.createElement("span");
-        durVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;width:26px;text-align:right;flex-shrink:0;";
+        durVal.style.cssText = VAL_CSS;
         const durSlider = document.createElement("input");
         durSlider.type = "range";
         durSlider.min = "2";
         durSlider.max = "30";
         durSlider.step = "1";
         durSlider.value = localStorage.getItem("EBC_slowLeaveDuration") ?? "5";
-        durSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+        durSlider.style.cssText = SL_CSS;
         const updateDurVal = (): void => { durVal.textContent = durSlider.value + "s"; };
         updateDurVal();
         durSlider.addEventListener("input", () => {
@@ -12672,26 +12750,119 @@ export class EBCDrawer {
         body.appendChild(durRow);
 
         // Preset dropdown row
+        let slPresets = getSlowLeavePresets();
         const preRow = document.createElement("div");
-        preRow.style.cssText = rowCss + "margin-bottom:10px;";
+        preRow.style.cssText = BOX_CSS + "margin-bottom:8px;";
         const preLbl = document.createElement("span");
-        preLbl.style.cssText = lbl9Css;
+        preLbl.style.cssText = LBL_CSS;
         preLbl.textContent = "Preset";
         const preSel = document.createElement("select");
         preSel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:4px;padding:2px 4px;cursor:pointer;min-width:0;";
-        SL_PRESETS_LABELS.forEach((lbl, i) => {
-            const opt = document.createElement("option");
-            opt.value = String(i);
-            opt.textContent = lbl;
-            preSel.appendChild(opt);
-        });
-        preSel.value = localStorage.getItem("EBC_slowLeavePreset") ?? "0";
+        const rebuildPreSel = (): void => {
+            while (preSel.firstChild) preSel.removeChild(preSel.firstChild);
+            slPresets.forEach((p, i) => {
+                const opt = document.createElement("option");
+                opt.value = String(i);
+                opt.textContent = p.label;
+                preSel.appendChild(opt);
+            });
+            preSel.value = localStorage.getItem("EBC_slowLeavePreset") ?? "0";
+        };
+        rebuildPreSel();
         preSel.addEventListener("change", () => {
             try { localStorage.setItem("EBC_slowLeavePreset", preSel.value); } catch { /* ignore */ }
         });
         preRow.appendChild(preLbl);
         preRow.appendChild(preSel);
         body.appendChild(preRow);
+
+        // ── Edit preset sequences toggle ──────────────────────────────────────
+        const editPresetsToggle = document.createElement("button");
+        editPresetsToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 6px;border-radius:4px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;margin-bottom:6px;text-align:left;transition:color 0.12s;";
+        editPresetsToggle.textContent = "✎ Edit preset sequences";
+        editPresetsToggle.addEventListener("mouseenter", () => { editPresetsToggle.style.color = "#cf6f98"; });
+        editPresetsToggle.addEventListener("mouseleave", () => { if (editPresetsPanel.style.display === "none") editPresetsToggle.style.color = "#7a4a5e"; });
+        body.appendChild(editPresetsToggle);
+
+        const editPresetsPanel = document.createElement("div");
+        editPresetsPanel.style.cssText = "display:none;flex-direction:column;gap:6px;margin-bottom:10px;padding:7px 8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+
+        const buildEditPresetsPanel = (): void => {
+            while (editPresetsPanel.firstChild) editPresetsPanel.removeChild(editPresetsPanel.firstChild);
+            slPresets = getSlowLeavePresets();
+
+            const note = document.createElement("div");
+            note.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a4a5e;line-height:1.4;margin-bottom:2px;";
+            note.textContent = "Use {DUR} for the duration delay. Separate steps with |. Use leaveroom to leave.";
+            editPresetsPanel.appendChild(note);
+
+            slPresets.forEach((preset, idx) => {
+                const pRow = document.createElement("div");
+                pRow.style.cssText = "display:flex;flex-direction:column;gap:3px;padding:5px;border:1px solid #2a1421;border-radius:4px;background:rgba(26,10,18,0.6);";
+
+                const pLblRow = document.createElement("div");
+                pLblRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+
+                const pLblInput = document.createElement("input");
+                pLblInput.type = "text";
+                pLblInput.value = preset.label;
+                pLblInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#cf6f98;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;min-width:0;";
+                pLblInput.placeholder = "Preset name";
+
+                const pResetBtn = document.createElement("button");
+                pResetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 5px;border-radius:3px;border:1px solid #3a1928;background:#1b0d17;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+                pResetBtn.textContent = "↺";
+                pResetBtn.title = "Reset to default";
+                pResetBtn.addEventListener("click", () => {
+                    pLblInput.value = SLOW_LEAVE_PRESET_DEFAULTS[idx].label;
+                    pSeqInput.value = SLOW_LEAVE_PRESET_DEFAULTS[idx].seq;
+                    slPresets[idx] = { ...SLOW_LEAVE_PRESET_DEFAULTS[idx] };
+                    saveSlowLeavePresets(slPresets);
+                    rebuildPreSel();
+                });
+
+                pLblRow.appendChild(pLblInput);
+                pLblRow.appendChild(pResetBtn);
+
+                const pSeqInput = document.createElement("textarea");
+                pSeqInput.value = preset.seq;
+                pSeqInput.rows = 2;
+                pSeqInput.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 5px;resize:vertical;min-width:0;";
+                pSeqInput.placeholder = "Sequence steps separated by |";
+
+                const savePreset = (): void => {
+                    slPresets[idx] = { label: pLblInput.value.trim() || SLOW_LEAVE_PRESET_DEFAULTS[idx].label, seq: pSeqInput.value.trim() || SLOW_LEAVE_PRESET_DEFAULTS[idx].seq };
+                    saveSlowLeavePresets(slPresets);
+                    rebuildPreSel();
+                };
+                pLblInput.addEventListener("change", savePreset);
+                pSeqInput.addEventListener("change", savePreset);
+
+                pRow.appendChild(pLblRow);
+                pRow.appendChild(pSeqInput);
+                editPresetsPanel.appendChild(pRow);
+            });
+
+            const resetAllBtn = document.createElement("button");
+            resetAllBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 0;border-radius:4px;border:1px solid #3a1928;background:#1b0d17;color:#7a4a5e;cursor:pointer;width:100%;";
+            resetAllBtn.textContent = "↺ Reset all presets to default";
+            resetAllBtn.addEventListener("click", () => {
+                slPresets = SLOW_LEAVE_PRESET_DEFAULTS.map(p => ({ ...p }));
+                saveSlowLeavePresets(slPresets);
+                buildEditPresetsPanel();
+                rebuildPreSel();
+            });
+            editPresetsPanel.appendChild(resetAllBtn);
+        };
+
+        editPresetsToggle.addEventListener("click", () => {
+            const isOpen = editPresetsPanel.style.display !== "none";
+            editPresetsPanel.style.display = isOpen ? "none" : "flex";
+            editPresetsToggle.style.color = isOpen ? "#7a4a5e" : "#cf6f98";
+            editPresetsToggle.style.borderStyle = isOpen ? "dashed" : "solid";
+            if (!isOpen) buildEditPresetsPanel();
+        });
+        body.appendChild(editPresetsPanel);
 
         // divider
         const faDivider = document.createElement("div");
@@ -13566,16 +13737,29 @@ export class EBCDrawer {
                         try {
                             if (em.id === "headpat") {
                                 // Register as a real BC activity so it shows as a proper headpat
-                                ServerSend("ChatRoomChat", {
-                                    Type: "Activity",
-                                    Content: "CaressItemHead",
-                                    Dictionary: [
-                                        { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
-                                        { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER },
-                                        { Tag: "ActivityGroup", Text: "ItemHead" },
-                                        { Tag: "ActivityName", Text: "Caress" },
-                                    ],
-                                });
+                                const w = window as unknown as Record<string, unknown>;
+                                const chars = w.ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
+                                const emery = chars?.find(c => (c.MemberNumber as number) === EMERY_MEMBER);
+                                // Try BC's native ActivityPerformActivity first (handles sounds + rendering)
+                                const performFn = w.ActivityPerformActivity as
+                                    ((src: unknown, tgt: unknown, act: unknown, dict: unknown[], asset: unknown) => void) | undefined;
+                                const activities = w.AssetActivities as Array<{ Name: string }> | undefined;
+                                const caressAct = activities?.find(a => a.Name === "Caress");
+                                if (performFn && caressAct && emery) {
+                                    try { performFn(Player, emery, caressAct, [], null); } catch { /* ignore */ }
+                                } else {
+                                    // Fallback: send as BC Activity chat message
+                                    ServerSend("ChatRoomChat", {
+                                        Type: "Activity",
+                                        Content: "Caress",
+                                        Dictionary: [
+                                            { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
+                                            { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER },
+                                            { Tag: "ActivityGroup", Text: "ItemHead" },
+                                            { Tag: "ActivityName", Text: "Caress" },
+                                        ],
+                                    });
+                                }
                             } else if (em.type === "emote") {
                                 ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
                             } else {
@@ -14077,8 +14261,14 @@ export class EBCDrawer {
                 const getGroupAssets = (group: string): string[] => {
                     try {
                         const w = window as unknown as Record<string, unknown>;
-                        const bcAssets = w.Asset as Array<{ Name: string; Group: { Name: string } }> | undefined;
-                        return bcAssets?.filter(a => a.Group.Name === group).map(a => a.Name).sort() ?? [];
+                        const bcAssets = w.Asset as Array<{ Name?: string; Group?: { Name?: string; Family?: string } }> | undefined;
+                        if (!Array.isArray(bcAssets)) return [];
+                        const family = (Player as unknown as Record<string, unknown>).AssetFamily as string | undefined;
+                        return bcAssets
+                            .filter(a => a?.Group?.Name === group && (!family || !a.Group?.Family || a.Group.Family === family))
+                            .map(a => a.Name)
+                            .filter((n): n is string => !!n)
+                            .sort();
                     } catch { return []; }
                 };
 

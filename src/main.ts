@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.70";
+const MOD_VERSION = "2.2.71";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,17 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.71",
+        changes: [
+            "Restored 'Remove Locks' button and 'Unlock Selected' in the sidebar self-picker (accidentally removed in 2.2.70).",
+            "Restored reaction-back emotes when accepting/ignoring kitty react popup (broken in 2.2.70).",
+            "Fixed headpat button using ActivityPerformActivity for real BC sounds; fallback uses Content:'Caress'.",
+            "Fixed kitty restraint set item picker always showing empty — null-safe BC asset array filtering.",
+            "Slow Leave duration slider now uses the same bordered-box style as the opacity slider.",
+            "Slow Leave presets are now fully editable (name + sequence) with per-preset reset and reset-all.",
+        ],
+    },
     {
         version: "2.2.70",
         changes: [
@@ -2566,12 +2577,18 @@ function showKittyReactPopup(label: string): void {
     const acceptBtn = document.createElement("button");
     acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
     acceptBtn.textContent = "Accept~ 🥰";
-    acceptBtn.addEventListener("click", () => { close(); });
+    acceptBtn.addEventListener("click", () => {
+        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "brightens up happily, tail wagging~ 💜", Dictionary: [] }); } catch { /* ignore */ }
+        close();
+    });
 
     const ignoreBtn = document.createElement("button");
     ignoreBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #7a5a6a;background:transparent;color:#7a5a6a;";
     ignoreBtn.textContent = "Ignore 🙈";
-    ignoreBtn.addEventListener("click", () => { close(); });
+    ignoreBtn.addEventListener("click", () => {
+        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "glances away shyly, pretending not to notice~", Dictionary: [] }); } catch { /* ignore */ }
+        close();
+    });
 
     btnRow.appendChild(acceptBtn);
     btnRow.appendChild(ignoreBtn);
