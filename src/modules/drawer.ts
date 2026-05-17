@@ -14570,6 +14570,166 @@ export class EBCDrawer {
         const { cBody: rpCBody, wrap: rpWrap2 } = makeCollapsible("EBC_kittyRestraintsOpen", "🔒 Restraints", false);
         renderRestraintPresets();
         rpCBody.appendChild(rpWrap);
+
+        // ── Tighten / Loosen ────────────────────────────────────────────────────
+        const tlDiv = divider(); rpCBody.appendChild(tlDiv);
+        const tlRow = document.createElement("div");
+        tlRow.style.cssText = "display:flex;gap:7px;flex-wrap:wrap;";
+        tlRow.appendChild(makePill("🔧 Tighten", "#c07838", () => {
+            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+            sendRoomEmote(getKittyMood() === "rough"
+                ? "yanks every restraint on Emery tighter without a word~"
+                : "carefully tightens each of Emery's restraints with a soft smile~");
+            sendKittyCmd("tighten", "");
+        }));
+        tlRow.appendChild(makePill("🔓 Loosen", "#3878c0", () => {
+            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+            sendRoomEmote(getKittyMood() === "rough"
+                ? "loosens Emery's restraints just a little — enough to breathe, nothing more~"
+                : "gently eases Emery's restraints to give her a little more comfort~");
+            sendKittyCmd("loosen", "");
+        }));
+        rpCBody.appendChild(tlRow);
+
+        // ── Copy Restraints from Member ─────────────────────────────────────────
+        const crDiv = divider(); rpCBody.appendChild(crDiv);
+        const crHdr = document.createElement("div");
+        crHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;";
+        crHdr.textContent = "Copy Restraints from Member";
+        rpCBody.appendChild(crHdr);
+
+        const crHint = document.createElement("div");
+        crHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+        crHint.textContent = "Pick a room member, load their restraints, then generate a BC outfit code to import via wardrobe.";
+        rpCBody.appendChild(crHint);
+
+        // Member picker row
+        const crPickRow = document.createElement("div");
+        crPickRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+        const crMemberSel = document.createElement("select");
+        crMemberSel.style.cssText = "flex:1;min-width:0;" + INP;
+
+        const crPopulate = (): void => {
+            while (crMemberSel.firstChild) crMemberSel.removeChild(crMemberSel.firstChild);
+            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+            const others = room.filter(c => c.MemberNumber !== Player.MemberNumber);
+            if (others.length === 0) {
+                const o = document.createElement("option"); o.value = ""; o.textContent = "No others in room"; crMemberSel.appendChild(o); return;
+            }
+            for (const c of others) {
+                const o = document.createElement("option"); o.value = String(c.MemberNumber);
+                const nick = (c as unknown as Record<string, unknown>).Nickname as string | undefined;
+                o.textContent = `${nick?.trim() || c.Name} (#${c.MemberNumber})`; crMemberSel.appendChild(o);
+            }
+        };
+        crPopulate();
+
+        const crMkBtn = (label: string): HTMLButtonElement => {
+            const b = document.createElement("button");
+            b.textContent = label;
+            b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+            return b;
+        };
+        const crRefreshBtn = crMkBtn("↻");
+        const crLoadBtn = crMkBtn("Load");
+        crPickRow.appendChild(crMemberSel); crPickRow.appendChild(crRefreshBtn); crPickRow.appendChild(crLoadBtn);
+        rpCBody.appendChild(crPickRow);
+
+        // Item checklist
+        const crCheckWrap = document.createElement("div");
+        crCheckWrap.style.cssText = "display:none;flex-direction:column;gap:2px;margin-bottom:4px;";
+        rpCBody.appendChild(crCheckWrap);
+        const crCheckHdr = document.createElement("div");
+        crCheckHdr.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
+        const crCheckLbl = document.createElement("span");
+        crCheckLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+        const crAllBtn = crMkBtn("All"); const crNoneBtn = crMkBtn("None");
+        crCheckHdr.appendChild(crCheckLbl); crCheckHdr.appendChild(crAllBtn); crCheckHdr.appendChild(crNoneBtn);
+        crCheckWrap.appendChild(crCheckHdr);
+        const crCheckItems = document.createElement("div");
+        crCheckItems.style.cssText = "display:flex;flex-direction:column;gap:2px;max-height:150px;overflow-y:auto;";
+        crCheckWrap.appendChild(crCheckItems);
+        let crLoaded: Array<{ item: Item; checkbox: HTMLInputElement }> = [];
+
+        // Code output
+        const crCodeWrap = document.createElement("div");
+        crCodeWrap.style.cssText = "display:none;flex-direction:column;gap:3px;margin-bottom:3px;";
+        rpCBody.appendChild(crCodeWrap);
+        const crTA = document.createElement("textarea");
+        crTA.readOnly = true; crTA.rows = 2;
+        crTA.style.cssText = "width:100%;box-sizing:border-box;resize:none;background:#100810;border:1px solid #3a1928;border-radius:3px;color:#cf6f98;font-family:'Courier New',monospace;font-size:8px;padding:3px 5px;";
+        const crCodeBtnRow = document.createElement("div"); crCodeBtnRow.style.cssText = "display:flex;gap:4px;";
+        const crGenBtn = crMkBtn("Generate Code"); const crCopyBtn = crMkBtn("Copy");
+        crCodeBtnRow.appendChild(crGenBtn); crCodeBtnRow.appendChild(crCopyBtn);
+        crCodeWrap.appendChild(crCodeBtnRow); crCodeWrap.appendChild(crTA);
+
+        const crStatus = document.createElement("div");
+        crStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;min-height:13px;";
+        rpCBody.appendChild(crStatus);
+
+        const crClear = (): void => {
+            crCheckItems.innerHTML = ""; crLoaded = [];
+            crCheckWrap.style.display = "none"; crCodeWrap.style.display = "none";
+            crTA.value = ""; crStatus.textContent = "";
+        };
+
+        crRefreshBtn.addEventListener("click", () => { crPopulate(); crClear(); });
+        crAllBtn.addEventListener("click",  () => { crLoaded.forEach(e => { e.checkbox.checked = true; }); });
+        crNoneBtn.addEventListener("click", () => { crLoaded.forEach(e => { e.checkbox.checked = false; }); });
+
+        crLoadBtn.addEventListener("click", () => {
+            const num = parseInt(crMemberSel.value, 10);
+            if (isNaN(num)) { crStatus.textContent = "No member selected."; return; }
+            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+            const char = room.find(c => c.MemberNumber === num);
+            if (!char) { crStatus.textContent = "Character not found."; return; }
+            const items = char.Appearance.filter((i: Item) => i.Asset?.Group?.Name && RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+            if (items.length === 0) { crClear(); crStatus.textContent = "No restraints on this character."; return; }
+            crClear();
+            const charName = ((char as unknown as Record<string, unknown>).Nickname as string | undefined)?.trim() || char.Name;
+            crCheckLbl.textContent = `${items.length} restraint(s) from ${charName}:`;
+            for (const item of items) {
+                const craft = item.Craft as { Name?: string } | undefined;
+                const craftName = craft?.Name?.trim();
+                const baseName = (item.Asset as unknown as Record<string, unknown>).Description as string || item.Asset.Name;
+                const label = craftName ? `${craftName} (${baseName})` : baseName;
+                const row = document.createElement("label");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 5px;border-radius:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;cursor:pointer;";
+                const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true; cb.style.cssText = "accent-color:#cf6f98;flex-shrink:0;cursor:pointer;";
+                const nm = document.createElement("span"); nm.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"; nm.textContent = label;
+                const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;"; grp.textContent = item.Asset.Group.Name.replace("Item", "");
+                row.appendChild(cb); row.appendChild(nm); row.appendChild(grp);
+                crCheckItems.appendChild(row); crLoaded.push({ item, checkbox: cb });
+            }
+            crCheckWrap.style.display = "flex"; crCodeWrap.style.display = "flex";
+        });
+
+        crGenBtn.addEventListener("click", () => {
+            const selected = crLoaded.filter(e => e.checkbox.checked).map(e => e.item);
+            if (selected.length === 0) { crStatus.textContent = "Select at least one item."; return; }
+            try {
+                const LZ = (window as unknown as Record<string, unknown>).LZString as { compressToBase64?: (s: string) => string } | undefined;
+                if (!LZ?.compressToBase64) throw new Error("LZString not available");
+                const bundle = selected.map(item => {
+                    const prop = item.Property ? { ...(item.Property as Record<string, unknown>) } : undefined;
+                    if (prop) { delete prop["LockedBy"]; delete prop["LockMemberNumber"]; delete prop["CombinationNumber"]; delete prop["Password"]; }
+                    return { Group: item.Asset.Group.Name, Name: item.Asset.Name, Color: item.Color, Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined, Property: prop, Craft: item.Craft ?? undefined };
+                });
+                crTA.value = LZ.compressToBase64(JSON.stringify(bundle));
+                crStatus.textContent = `✔ Code for ${selected.length} item(s) — import via BC wardrobe.`;
+                crStatus.style.color = "#79a885";
+            } catch (e) { crStatus.textContent = "Error: " + String(e); crStatus.style.color = "#e07070"; }
+        });
+
+        crCopyBtn.addEventListener("click", () => {
+            if (!crTA.value) { crStatus.textContent = "Generate code first."; return; }
+            try {
+                navigator.clipboard.writeText(crTA.value).then(() => {
+                    crStatus.textContent = "✔ Copied!"; crStatus.style.color = "#79a885";
+                }).catch(() => { crTA.select(); document.execCommand("copy"); crStatus.textContent = "✔ Copied!"; crStatus.style.color = "#79a885"; });
+            } catch { crTA.select(); document.execCommand("copy"); }
+        });
+
         body.appendChild(rpWrap2);
 
         // ── AROUSAL ──────────────────────────────────────────────────────────────

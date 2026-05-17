@@ -1,6 +1,6 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
-import { handleOutfitCommand, handleRestraintCommand } from "./modules/outfitManager";
+import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.90";
+const MOD_VERSION = "2.2.91";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.91",
+        changes: [
+            "Kitty Restraints: added 🔧 Tighten / 🔓 Loosen buttons — send a mood-aware room emote and adjust the difficulty of every restraint Emery is wearing up or down by 1 step.",
+            "Kitty Restraints: added Copy Restraints from Member panel — pick any room member, load their restraints into a checklist, select what to include, generate a BC LZ outfit code, and copy it for your wardrobe.",
+            "Kitty Emotes: added 🔗 Leash — sends a mood-aware room emote and runs the BC Yank activity on Emery's neck accessories slot.",
+        ],
+    },
     {
         version: "2.2.90",
         changes: [
@@ -2841,6 +2849,27 @@ function handleKittyCommand(msg: string): void {
                 } catch {
                     showKittyReactPopup(arg);
                 }
+                break;
+            }
+            case "tighten":
+            case "loosen": {
+                const delta = cmd === "tighten" ? 1 : -1;
+                for (const item of Player.Appearance) {
+                    if (!item.Asset?.Group?.Name || !RESTRAINT_GROUPS.has(item.Asset.Group.Name)) continue;
+                    const cur = typeof item.Difficulty === "number" ? item.Difficulty : 0;
+                    const next = Math.max(0, Math.min(6, cur + delta));
+                    if (next !== cur) item.Difficulty = next;
+                }
+                try {
+                    callBC(() => CharacterRefresh(Player, false, false));
+                    if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+                        callBC(() => ServerSend("ChatRoomCharacterUpdate", {
+                            ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                            ActivePose: Player.ActivePose,
+                            Appearance: ServerAppearanceBundle(Player.Appearance),
+                        }));
+                    }
+                } catch { /* ignore */ }
                 break;
             }
             case "expression": {
