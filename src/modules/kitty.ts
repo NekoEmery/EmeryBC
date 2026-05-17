@@ -327,6 +327,31 @@ export function getKittyPoses(): KittyPose[] {
 }
 export function saveKittyPoses(v: KittyPose[]): void { lsSet("EBC_kittyPoses", v); }
 
+// ── Pet Reactions ─────────────────────────────────────────────────────────────
+// Categorised one-click emotes Emery sends on Lucy's behalf.
+
+export interface KittyReactionEntry {
+    id: string;
+    text: string;
+    category: "punishment" | "reward";
+}
+
+const DEFAULT_REACTIONS: KittyReactionEntry[] = [
+    { id: "pu1", text: "eeep~",                                                               category: "punishment" },
+    { id: "pu2", text: "lets out a small startled squeak, ears pinning back~ >_<",            category: "punishment" },
+    { id: "pu3", text: "squints and makes a tiny disgruntled noise~ nuu~",                    category: "punishment" },
+    { id: "pu4", text: "gives a flustered huff, cheeks going pink~",                         category: "punishment" },
+    { id: "rw1", text: "purrs softly~ 🐾",                                                   category: "reward" },
+    { id: "rw2", text: "meows happily and nuzzles in close~",                                 category: "reward" },
+    { id: "rw3", text: "gives a content little chirp and flicks her tail~ ♪",                category: "reward" },
+    { id: "rw4", text: "rumbles with a deep pleased purr, going all soft~",                  category: "reward" },
+];
+
+export function getKittyReactions(): KittyReactionEntry[] {
+    return lsGet<KittyReactionEntry[]>("EBC_kittyReactions", DEFAULT_REACTIONS);
+}
+export function saveKittyReactions(v: KittyReactionEntry[]): void { lsSet("EBC_kittyReactions", v); }
+
 export function getKittyPunishments(): KittyPunishment[] {
     const raw = lsGet<KittyPunishment[]>("EBC_kittyPunishments", DEFAULT_PUNISHMENTS);
     return raw.map(p => {
