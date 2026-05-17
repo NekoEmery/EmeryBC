@@ -15,11 +15,11 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { isLeavePending, clearLeavePending, callBC } from "./modules/bcUtils";
+import { callBC } from "./modules/bcUtils";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.42";
+const MOD_VERSION = "2.2.43";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -33,6 +33,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.43",
+        changes: [
+            "Fix: slow leave (leaveroom macro / seq step) no longer freezes the UI — now switches screen first then calls ChatRoomLeave(), matching the safeword pattern.",
+        ],
+    },
     {
         version: "2.2.42",
         changes: [
@@ -2509,19 +2515,6 @@ function init(): void {
         if (active && active !== "Inactive") lastArousalActive = active;
     } catch { /* ignore */ }
 
-    // Guard: when EBC calls ChatRoomLeave(), BC clears ChatRoomData synchronously but
-    // delays the screen transition until the server ack.  The next animation frame still
-    // fires ChatRoomRun → ChatRoomCustomizationRun which reads ChatRoomData.Custom → crash.
-    // We ONLY skip the frame when EBC itself initiated the leave (consumeLeavePending flag),
-    // so map rooms — where ChatRoomData can legitimately be null during transitions — are
-    // completely unaffected.  Priority 500 puts us ahead of CRABS/BCOM/BCX.
-    modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
-        if (isLeavePending()) {
-            if ((window as unknown as Record<string, unknown>).ChatRoomData == null) return; // skip null frames
-            clearLeavePending(); // data is back — we're in a new room, lift the guard
-        }
-        return next(args);
-    });
 
     // Canvas sidebar action buttons
     modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {

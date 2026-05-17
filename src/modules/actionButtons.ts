@@ -1,6 +1,6 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
-import { callBC, getDisplayName, setLeavePending } from "./bcUtils";
+import { callBC, getDisplayName } from "./bcUtils";
 import { getActionButtonsVisible } from "./settings";
 import { executeMacro } from "./macros";
 
@@ -218,12 +218,15 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
             } else if (step.toLowerCase() === "leaveroom") {
-                // Restore pose, then defer leave by one tick — setLeavePending() goes
-                // inside the callback so no ChatRoomRun frame fires between the flag
-                // being set and ChatRoomData actually being cleared.
+                // Restore pose, switch screen FIRST, then leave — same pattern as
+                // safeword.ts.  CommonSetScreen stops ChatRoomRun before
+                // ChatRoomLeave() clears ChatRoomData, so no mod hook crashes.
                 Player.ActivePose = originalPoses;
                 seqRunning = false;
-                window.setTimeout(() => { setLeavePending(); callBC(() => ChatRoomLeave()); }, 0);
+                window.setTimeout(() => {
+                    callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                    callBC(() => ChatRoomLeave());
+                }, 0);
                 return;
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");

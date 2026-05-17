@@ -1,7 +1,7 @@
 // Macro execution — triggered when a "macro" style action button is clicked.
 // Handles all BC/EBC built-in actions so actionButtons.ts stays dependency-free.
 
-import { callBC, setLeavePending } from "./bcUtils";
+import { callBC } from "./bcUtils";
 import { releaseRestraints } from "./restraints";
 import { applyOutfit, getOutfits } from "./outfitManager";
 import { runScene, getScenes } from "./scenes";
@@ -48,11 +48,14 @@ export function executeMacro(cmd: string): void {
                 break;
 
             case "leaveroom":
-                // setLeavePending() must fire in the same tick as ChatRoomLeave() so no
-                // ChatRoomRun frame runs between the flag being set and the data being
-                // cleared — otherwise the guard sees ChatRoomData != null and clears the
-                // flag prematurely, causing the null-crash guard to never fire.
-                window.setTimeout(() => { setLeavePending(); callBC(() => ChatRoomLeave()); }, 0);
+                // Switch screen BEFORE ChatRoomLeave() clears ChatRoomData — same
+                // pattern as safeword.ts.  Once CommonSetScreen fires, BC's loop
+                // calls ChatSearchRun instead of ChatRoomRun so no hook can crash
+                // on a null ChatRoomData frame.
+                window.setTimeout(() => {
+                    callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                    callBC(() => ChatRoomLeave());
+                }, 0);
                 break;
         }
     } catch { /* ignore */ }
