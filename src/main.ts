@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.97";
+const MOD_VERSION = "2.2.98";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.98",
+        changes: [
+            "Kitty Restraints: removed the Tighten / Loosen per-item section.",
+            "Kitty Leash: Tug now fires BC's 'Choke' activity on ItemNeck — LSCG's breath play module hooks this and triggers the choke / breath-play effect on Emery if she has LSCG installed.",
+            "Fix: Fight back emote now goes through BC's own ChatRoomSendChat pipeline (same path as typing *text* manually) instead of a bare ServerSend — eliminates silent drops from BC's rate-limiting or speech-filter checks on Emery's connection.",
+        ],
+    },
     {
         version: "2.2.97",
         changes: [
@@ -2693,13 +2701,26 @@ function showKittyResistancePopup(
     fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
     fightBtn.textContent = "Fight back! 💪";
     fightBtn.addEventListener("click", () => {
-        callBC(() => ServerSend("ChatRoomChat", {
-            Type: "Emote",
-            Content: mood === "rough"
-                ? "twists away sharply, refusing to submit~"
-                : "squirms and shakes her head, resisting with a pout~",
-            Dictionary: [{ Tag: "SourceCharacter", Text: Player.Name, MemberNumber: Player.MemberNumber }],
-        }));
+        const emoteText = mood === "rough"
+            ? "*twists away sharply, refusing to submit~"
+            : "*squirms and shakes her head, resisting with a pout~";
+        try {
+            const w = window as unknown as Record<string, unknown>;
+            // Use BC's own ChatRoomSendChat pipeline — identical to the user typing *text* in the
+            // chat box.  This is guaranteed to work whereas a bare ServerSend can be silently
+            // dropped by rate-limiting or speech filters on Emery's connection.
+            const sendFn  = w.ChatRoomSendChat as (() => void) | undefined;
+            const elemVal = w.ElementValue as ((id: string, val?: string) => string) | undefined;
+            if (sendFn && elemVal) {
+                const saved = elemVal("InputChat");          // save any in-progress text
+                elemVal("InputChat", emoteText);
+                sendFn();
+                setTimeout(() => { if (elemVal) elemVal("InputChat", saved); }, 0);
+            } else {
+                // Fallback: direct send (same as sendRoomEmote)
+                ServerSend("ChatRoomChat", { Type: "Emote", Content: emoteText.slice(1), Dictionary: [] });
+            }
+        } catch { /* ignore */ }
         close();
     });
 

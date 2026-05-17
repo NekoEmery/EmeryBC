@@ -13791,6 +13791,8 @@ export class EBCDrawer {
                 const ll = ww.ChatRoomLeashList as number[] | undefined;
                 if (ll && !ll.includes(EMERY_MEMBER)) ll.push(EMERY_MEMBER);
             } catch { /* ignore */ }
+            // Choke activity on ItemNeck — triggers LSCG's breath play mechanic if installed
+            runKittyActivity("ItemNeck", "Choke");
             refreshLeashBtn();
             // Brief flash
             tugBtn.style.background = "rgba(140,60,90,0.55)";
@@ -14689,98 +14691,6 @@ export class EBCDrawer {
         const { cBody: rpCBody, wrap: rpWrap2 } = makeCollapsible("EBC_kittyRestraintsOpen", "🔒 Restraints", false);
         renderRestraintPresets();
         rpCBody.appendChild(rpWrap);
-
-        // ── Tighten / Loosen per item ────────────────────────────────────────────
-        const tlDiv = divider(); rpCBody.appendChild(tlDiv);
-        const tlHdr = document.createElement("div");
-        tlHdr.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:3px;";
-        const tlLbl = document.createElement("span");
-        tlLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;flex:1;";
-        tlLbl.textContent = "Tighten / Loosen";
-        const tlRefresh = document.createElement("button");
-        tlRefresh.textContent = "↻"; tlRefresh.title = "Refresh restraint list from Emery";
-        tlRefresh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;";
-        tlHdr.appendChild(tlLbl); tlHdr.appendChild(tlRefresh);
-        rpCBody.appendChild(tlHdr);
-
-        const tlList = document.createElement("div");
-        tlList.style.cssText = "display:flex;flex-direction:column;gap:3px;";
-        rpCBody.appendChild(tlList);
-
-        const tlStatus = document.createElement("div");
-        tlStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;min-height:12px;";
-        rpCBody.appendChild(tlStatus);
-
-        const buildTlList = (): void => {
-            tlList.innerHTML = "";
-            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") {
-                tlStatus.textContent = "Not in a room."; return;
-            }
-            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
-            const emery = room.find(c => c.MemberNumber === EMERY_MEMBER);
-            if (!emery) { tlStatus.textContent = "Emery not in room."; return; }
-            const items = emery.Appearance.filter((i: Item) => i.Asset?.Group?.Name && RESTRAINT_GROUPS.has(i.Asset.Group.Name));
-            if (items.length === 0) { tlStatus.textContent = "No restraints on Emery."; return; }
-            tlStatus.textContent = "";
-            for (const item of items) {
-                const craft = item.Craft as { Name?: string } | undefined;
-                const craftName = craft?.Name?.trim();
-                const baseName = (item.Asset as unknown as Record<string, unknown>).Description as string || item.Asset.Name;
-                const label = craftName ? `${craftName} (${baseName})` : baseName;
-                const group = item.Asset.Group.Name;
-                const diff = typeof item.Difficulty === "number" ? item.Difficulty : 0;
-
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:4px;padding:2px 0;";
-
-                const nm = document.createElement("span");
-                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
-                nm.textContent = label; nm.title = `${label} (${group.replace("Item","")})`;
-
-                const diffEl = document.createElement("span");
-                diffEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:14px;text-align:center;";
-                diffEl.textContent = String(diff);
-
-                // Mutable counter so multiple clicks track correctly
-                let liveDiff = diff;
-                const mkAdjBtn = (icon: string, delta: number, cmd: "tighten" | "loosen"): HTMLButtonElement => {
-                    const b = document.createElement("button");
-                    b.textContent = icon; b.title = (delta > 0 ? "Tighten" : "Loosen") + " " + label;
-                    b.style.cssText = "flex-shrink:0;font-size:11px;line-height:1;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;transition:background 0.1s;";
-                    b.addEventListener("click", () => {
-                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
-                        const mood = getKittyMood();
-                        // Mood-aware room emote from Lucy
-                        const emoteText = cmd === "tighten"
-                            ? (mood === "rough"
-                                ? `yanks ${label} tighter without a word~`
-                                : `adjusts ${label} snugger, making sure it's secure~`)
-                            : (mood === "rough"
-                                ? `gives ${label} a bit of slack — just enough to tease~`
-                                : `loosens ${label} gently, giving Emery a little breathing room~`);
-                        sendRoomEmote(emoteText);
-                        // Send command with group:mood:label so Emery's handler can react correctly
-                        sendKittyCmd(cmd, `${group}:${mood}:${label}`);
-                        // Update display counter correctly across multiple clicks
-                        liveDiff = Math.max(0, Math.min(6, liveDiff + delta));
-                        diffEl.textContent = String(liveDiff);
-                        // Brief flash to confirm the command was sent
-                        b.style.background = delta > 0 ? "rgba(100,60,80,0.5)" : "rgba(60,40,70,0.5)";
-                        setTimeout(() => { b.style.background = "transparent"; }, 300);
-                    });
-                    return b;
-                };
-
-                row.appendChild(nm);
-                row.appendChild(diffEl);
-                row.appendChild(mkAdjBtn("−", -1, "loosen"));
-                row.appendChild(mkAdjBtn("+", 1, "tighten"));
-                tlList.appendChild(row);
-            }
-        };
-
-        buildTlList();
-        tlRefresh.addEventListener("click", buildTlList);
 
         // ── Copy Restraints from Member ─────────────────────────────────────────
         const crDiv = divider(); rpCBody.appendChild(crDiv);
