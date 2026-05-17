@@ -3796,23 +3796,53 @@ export class EBCDrawer {
         if (!this.rootEl || !this.panelEl) return;
         const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
 
+        // Tabs that only make sense inside a chatroom — hidden when outside one
+        const ROOM_ONLY: DrawerTab[] = ["buttons", "anims"];
+
         if (!inRoom) {
-            this.rootEl.style.display = "none";
-            this.isOpen = false;
-            this.panelEl.className = "ebc-closed";
-            const tabEl2 = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
-            if (tabEl2) tabEl2.classList.add("ebc-tab-closed");
-            this.positioned = false;
-            this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
-            this.tabOffsetChecked = false; // re-check on next room enter in case settings changed
+            // ── Outside chatroom: floating panel anchored to the right edge ───────
             this.resizeObserver?.disconnect();
             this.resizeObserver = null;
             this.stopCrabsPoller();
             this.stopTimerPoller();
-            // Hide beep windows while outside the chat room — they'll be restored on return
+
+            // Keep beep windows hidden outside a room
             for (const { el } of this.beepWins.values()) el.style.display = "none";
+
+            // Force-hide room-only tab buttons; jump to a safe tab if we're on one
+            for (const tabId of ROOM_ONLY) {
+                const btn = this.rootEl.querySelector<HTMLElement>(`#ebc-tab-${tabId}`);
+                if (btn) btn.style.display = "none";
+            }
+            if ((ROOM_ONLY as string[]).includes(this.currentTab)) this.switchTab("outfits");
+
+            // Float at the right edge of the viewport, vertically centred
+            const h = Math.min(Math.max(300, window.innerHeight - 80), 700);
+            this.rootEl.style.top    = `${Math.max(20, Math.round((window.innerHeight - h) / 2))}px`;
+            this.rootEl.style.right  = "0px";
+            this.rootEl.style.height = `${h}px`;
+            this.panelEl.style.height = `${h}px`;
+            // Mark as not anchored to the chat log so syncToChat re-runs on next room enter
+            this.positioned = false;
+            this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
+            this.tabOffsetChecked = false;
+
+            // Show (suppress CSS transition on the very first reveal)
+            if (!this.hasBeenShown) {
+                this.hasBeenShown = true;
+                this.panelEl.style.transition = "none";
+                this.rootEl.style.display = "block";
+                requestAnimationFrame(() => { if (this.panelEl) this.panelEl.style.transition = ""; });
+            } else {
+                this.rootEl.style.display = "block";
+            }
             return;
         }
+
+        // ── In chatroom: restore room-only tabs and re-anchor to the chat log ────
+
+        // Restore room-only tab buttons (respects user hidden-tab preferences)
+        this.applyTabVisibility();
 
         // Restore any beep windows that were hidden while outside the chat room
         for (const { el } of this.beepWins.values()) el.style.display = "";

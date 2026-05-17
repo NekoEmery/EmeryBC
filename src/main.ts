@@ -19,7 +19,7 @@ import { isLeavePending, clearLeavePending } from "./modules/bcUtils";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.31";
+const MOD_VERSION = "2.2.32";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -33,6 +33,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.32",
+        changes: [
+            "Menu is now accessible outside chatrooms (main hall, wardrobe, etc.) — floats at the right edge of the screen. Buttons and Poses tabs are hidden outside a room since they require chat.",
+        ],
+    },
     {
         version: "2.2.31",
         changes: [
