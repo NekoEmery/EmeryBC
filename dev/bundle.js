@@ -24862,7 +24862,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.52";
+    const MOD_VERSION = "2.2.53";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -24873,6 +24873,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.53",
+            changes: [
+                "Fix: /lock and /unlock admin check now handles null ChatRoomData gracefully and normalises numeric vs string member IDs — was incorrectly reporting 'not a room admin' even when you were.",
+            ],
+        },
         {
             version: "2.2.52",
             changes: [
@@ -27199,12 +27205,22 @@
                 return true;
             }
             const rd = w.ChatRoomData;
-            if (!Array.isArray(rd === null || rd === void 0 ? void 0 : rd.Admin) || !rd.Admin.includes(Player.MemberNumber)) {
+            if (!rd) {
+                appendLocalLogLine("[EBC] /lock — room data not loaded yet, try again.", UI.danger);
+                return true;
+            }
+            // Admin list can contain numbers or numeric strings depending on BC version — normalise both
+            const admins = Array.isArray(rd.Admin) ? rd.Admin : [];
+            const isAdmin = admins.some(a => Number(a) === Player.MemberNumber)
+                // Fallback: BC sometimes exposes ChatRoomPlayerIsAdmin() directly
+                || (typeof w.ChatRoomPlayerIsAdmin === "function"
+                    && w.ChatRoomPlayerIsAdmin(Player));
+            if (!isAdmin) {
                 appendLocalLogLine("[EBC] /lock — you are not a room admin.", UI.danger);
                 return true;
             }
             const wantLock = cmd0 === "lock";
-            if (((_c = rd === null || rd === void 0 ? void 0 : rd.Locked) !== null && _c !== void 0 ? _c : false) === wantLock) {
+            if (((_c = rd.Locked) !== null && _c !== void 0 ? _c : false) === wantLock) {
                 appendLocalLogLine(`[EBC] Room is already ${wantLock ? "locked" : "unlocked"}.`, UI.textMuted);
                 return true;
             }
