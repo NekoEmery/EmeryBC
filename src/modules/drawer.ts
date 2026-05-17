@@ -13749,10 +13749,10 @@ export class EBCDrawer {
             const w = window as unknown as Record<string, unknown>;
             const leashList = w.ChatRoomLeashList as number[] | undefined;
             if (held) {
-                // Release leash
+                // Release leash — loosen collar back if it was tugged tight
                 sendRoomEmote(mood === "rough"
-                    ? "drops Emery's leash with a dismissive flick~"
-                    : "gently releases Emery's leash~");
+                    ? "drops Emery's leash with a sharp flick, giving her collar a rough adjustment back to its usual fit~"
+                    : "gently releases Emery's leash, carefully loosening her collar back to its comfortable fit~");
                 try {
                     ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
                     if (leashList) {
@@ -13760,9 +13760,11 @@ export class EBCDrawer {
                         if (idx >= 0) leashList.splice(idx, 1);
                     }
                 } catch { /* ignore */ }
-                // LSCG_ReleaseNeck resets LSCG's choke/breath-play pairing on release
+                // Loosen neck — Caress to signal collar relief; LSCG_ReleaseNeck clears any choke pairing
+                runKittyActivity("ItemNeck", "Caress");
                 runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
                 tugCount = 0;
+                refreshTugBtn();
             } else {
                 // Grab leash — BC's HoldLeash hidden-message protocol
                 sendRoomEmote(mood === "rough"
@@ -13773,6 +13775,7 @@ export class EBCDrawer {
                     if (leashList && !leashList.includes(EMERY_MEMBER)) leashList.push(EMERY_MEMBER);
                 } catch { /* ignore */ }
                 tugCount = 0;
+                refreshTugBtn();
             }
             // Update button to reflect new state
             refreshLeashBtn();
