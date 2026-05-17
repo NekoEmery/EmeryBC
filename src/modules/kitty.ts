@@ -91,6 +91,12 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         roughText: "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
         type: "emote",
     },
+    {
+        id: "spank",    label: "👋 Spank",
+        text:      "gives Emery a playful swat on the bottom~",
+        roughText: "delivers a sharp smack to Emery's bottom without warning~",
+        type: "emote",
+    },
 ];
 
 const DEFAULT_POSES: KittyPose[] = [
@@ -167,6 +173,7 @@ const ROUGH_TEXT_SEEDS: Record<string, string> = {
     "praise":   "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
     "announce": "Emery is Lucy's. End of discussion.~",
     "snuggle":  "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
+    "spank":    "delivers a sharp smack to Emery's bottom without warning~",
 };
 const EXPRESSION_SEEDS: Record<string, string> = {
     "headpat":  "Ears:Wiggle",

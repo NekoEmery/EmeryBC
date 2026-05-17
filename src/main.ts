@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.71";
+const MOD_VERSION = "2.2.72";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.72",
+        changes: [
+            "Headpat now sends a real BC Pet activity on ItemHead (correct sounds + chat format).",
+            "Added 👋 Spank emote button — sends a real BC Spank activity on ItemButt.",
+            "Slow Leave preset UI redesigned: dropdown + inline name/seq editor below it (no separate toggle).",
+        ],
+    },
     {
         version: "2.2.71",
         changes: [
