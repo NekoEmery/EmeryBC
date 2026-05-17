@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.60";
+const MOD_VERSION = "2.2.61";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.61",
+        changes: [
+            "Slow Leave quick button: always visible in sidebar when in a chatroom (no more hidden toggle). Clicking it now runs the real sequence — smiles and waves, slowly heads for the door, then leaves — instead of jumping out instantly. Removed the 'Show Slow Leave button' toggle from settings.",
+        ],
+    },
     {
         version: "2.2.60",
         changes: [
