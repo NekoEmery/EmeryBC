@@ -15,11 +15,11 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { isLeavePending, clearLeavePending } from "./modules/bcUtils";
+import { isLeavePending, clearLeavePending, callBC } from "./modules/bcUtils";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.40";
+const MOD_VERSION = "2.2.41";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -33,6 +33,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.41",
+        changes: [
+            "New commands: /lock and /unlock — lock or unlock the room from chat. Shows an error if you are not a room admin or not in a room.",
+        ],
+    },
     {
         version: "2.2.40",
         changes: [
@@ -2164,7 +2170,32 @@ function handleMetaCommand(inputValue: string): boolean {
     if (!trimmed.startsWith("/")) return false;
 
     const parts = trimmed.slice(1).split(/\s+/);
-    if (parts[0]?.toLowerCase() !== "ebc") return false;
+    const cmd0 = parts[0]?.toLowerCase() ?? "";
+
+    // ── /lock  /unlock ────────────────────────────────────────────────────────
+    if (cmd0 === "lock" || cmd0 === "unlock") {
+        type RD = { Locked?: boolean; Admin?: number[] };
+        const w = window as unknown as Record<string, unknown>;
+        const rd = w.ChatRoomData as RD | null | undefined;
+        if ((w.CurrentScreen as string | undefined) !== "ChatRoom" || rd == null) {
+            appendLocalLogLine("[EBC] /lock — not in a chatroom.", UI.danger);
+            return true;
+        }
+        if (!Array.isArray(rd.Admin) || !(rd.Admin as number[]).includes(Player.MemberNumber)) {
+            appendLocalLogLine("[EBC] /lock — you are not a room admin.", UI.danger);
+            return true;
+        }
+        const wantLock = cmd0 === "lock";
+        if ((rd.Locked ?? false) === wantLock) {
+            appendLocalLogLine(`[EBC] Room is already ${wantLock ? "locked" : "unlocked"}.`, UI.textMuted);
+            return true;
+        }
+        callBC(() => ServerSend("ChatRoomAdmin", { MemberNumber: Player.MemberNumber, Action: wantLock ? "Lock" : "Unlock" }));
+        appendLocalLogLine(`[EBC] Room ${wantLock ? "🔒 locked" : "🔓 unlocked"}.`, UI.gold);
+        return true;
+    }
+
+    if (cmd0 !== "ebc") return false;
 
     const subcommand = (parts[1] || "version").toLowerCase();
     if (["version", "ver", "v"].includes(subcommand)) {
@@ -2215,7 +2246,7 @@ function handleMetaCommand(inputValue: string): boolean {
     }
 
 
-    appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
+    appendLocalLogLine("[EBC] Commands: /lock  /unlock  |  /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
     return true;
 }
 
