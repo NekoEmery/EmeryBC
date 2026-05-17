@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.74
+// @version      2.2.75
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11324,6 +11324,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             text: "gently pats Emery on the head~ 🐾",
             roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
             type: "emote", expression: "Ears:Wiggle",
+            bcGroup: "ItemHead", bcActivity: "Pet",
         },
         {
             id: "goodgirl", label: "✨ Good girl",
@@ -11360,6 +11361,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             text: "gives Emery a playful swat on the bottom~",
             roughText: "delivers a sharp smack to Emery's bottom without warning~",
             type: "emote",
+            bcGroup: "ItemButt", bcActivity: "Spank",
         },
     ];
     const DEFAULT_POSES = [
@@ -11456,6 +11458,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         });
     }
     function saveKittyEmotes(v) { lsSet("EBC_kittyEmotes", v); }
+    function getKittyRestraintSets() {
+        // Migrate old sets that lack emote fields
+        const raw = lsGet("EBC_kittyRestraintSets", []);
+        return raw.map(s => {
+            var _a, _b;
+            return (Object.assign(Object.assign({}, s), { kindEmote: (_a = s.kindEmote) !== null && _a !== void 0 ? _a : "", roughEmote: (_b = s.roughEmote) !== null && _b !== void 0 ? _b : "" }));
+        });
+    }
+    function saveKittyRestraintSets(v) { lsSet("EBC_kittyRestraintSets", v); }
     function getKittyPoses() {
         // Migrate old poses that lack emote fields
         const raw = lsGet("EBC_kittyPoses", DEFAULT_POSES);
@@ -11574,6 +11585,34 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { label: "🐱 All fours", poses: ["AllFours"] },
         { label: "🙌 Hands up", poses: ["OverTheHead"] },
     ];
+    // BC activity slot groups (for the emote sound picker)
+    const ACTIVITY_SLOT_GROUPS = [
+        { label: "Head", value: "ItemHead" },
+        { label: "Ears", value: "ItemEars" },
+        { label: "Nose", value: "ItemNose" },
+        { label: "Mouth", value: "ItemMouth" },
+        { label: "Neck", value: "ItemNeck" },
+        { label: "Chest", value: "ItemBreast" },
+        { label: "Arms", value: "ItemArms" },
+        { label: "Hands", value: "ItemHands" },
+        { label: "Belly", value: "ItemTorso" },
+        { label: "Pelvis", value: "ItemPelvis" },
+        { label: "Butt", value: "ItemButt" },
+        { label: "Legs", value: "ItemLegs" },
+        { label: "Feet", value: "ItemFeet" },
+    ];
+    /** Returns all BC activity names available at runtime (from window.AssetActivity). */
+    function getBCActivityNames() {
+        try {
+            const acts = window.AssetActivity;
+            if (!Array.isArray(acts))
+                return [];
+            return acts.map(a => a.Name).filter((n) => !!n).sort();
+        }
+        catch (_a) {
+            return [];
+        }
+    }
     function getGroupAssets(group) {
         try {
             const w = window;
@@ -24915,7 +24954,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const mood = getKittyMood();
                             const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                             try {
-                                if (em.id === "headpat" || em.id === "spank") {
+                                if (em.bcGroup && em.bcActivity) {
                                     // Use BC's own ActivityRun pipeline — same as clicking the button in the dialog.
                                     // This plays sounds, triggers BCX/LSCG reactions, and shows the correct chat line.
                                     const w = window;
@@ -24924,11 +24963,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     const ChatRoomChars = w.ChatRoomCharacter;
                                     if (ActivityRun && AssetGetActivity && ChatRoomChars) {
                                         const emery = ChatRoomChars.find(c => c.MemberNumber === EMERY_MEMBER);
-                                        const actName = em.id === "headpat" ? "Pet" : "Spank";
-                                        const grpName = em.id === "headpat" ? "ItemHead" : "ItemButt";
-                                        const act = AssetGetActivity("Female3DCG", actName);
+                                        const act = AssetGetActivity("Female3DCG", em.bcActivity);
                                         if (emery && act)
-                                            ActivityRun(Player, emery, { Name: grpName }, { Activity: act, Item: null });
+                                            ActivityRun(Player, emery, { Name: em.bcGroup }, { Activity: act, Item: null });
                                     }
                                 }
                                 else if (em.type === "emote") {
@@ -24957,7 +24994,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
                 const cur = getKittyEmotes();
                 cur.forEach((em, idx) => {
-                    var _a;
+                    var _a, _b;
                     const r = document.createElement("div");
                     r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
                     // Row 1: label + type toggle + react toggle + delete
@@ -25038,9 +25075,72 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         saveKittyEmotes(updated);
                     };
                     [lblInp, txtInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
+                    // Row 4: BC Sound / Activity trigger
+                    const soundRow = document.createElement("div");
+                    soundRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const soundLbl = document.createElement("span");
+                    soundLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:38px;";
+                    soundLbl.textContent = "🔊 Sound:";
+                    soundLbl.title = "Trigger a real BC activity when this button is clicked (plays sound + shows BC chat line)";
+                    const grpSel = document.createElement("select");
+                    grpSel.style.cssText = "flex:1;min-width:0;" + INP;
+                    const grpPh = document.createElement("option");
+                    grpPh.value = "";
+                    grpPh.textContent = "— no BC activity —";
+                    grpSel.appendChild(grpPh);
+                    for (const g of ACTIVITY_SLOT_GROUPS) {
+                        const o = document.createElement("option");
+                        o.value = g.value;
+                        o.textContent = g.label;
+                        grpSel.appendChild(o);
+                    }
+                    grpSel.value = (_b = em.bcGroup) !== null && _b !== void 0 ? _b : "";
+                    const actSel = document.createElement("select");
+                    actSel.style.cssText = "flex:1;min-width:0;" + INP;
+                    const populateActSel = () => {
+                        actSel.innerHTML = "";
+                        const names = getBCActivityNames();
+                        if (names.length === 0) {
+                            const o = document.createElement("option");
+                            o.value = "";
+                            o.textContent = "— load game first —";
+                            o.disabled = true;
+                            o.selected = true;
+                            actSel.appendChild(o);
+                        }
+                        else {
+                            const ph = document.createElement("option");
+                            ph.value = "";
+                            ph.textContent = "— pick activity —";
+                            ph.disabled = true;
+                            ph.selected = true;
+                            actSel.appendChild(ph);
+                            for (const n of names) {
+                                const o = document.createElement("option");
+                                o.value = n;
+                                o.textContent = n;
+                                actSel.appendChild(o);
+                            }
+                        }
+                        if (em.bcActivity)
+                            actSel.value = em.bcActivity;
+                    };
+                    populateActSel();
+                    const saveActivity = () => {
+                        const upd = getKittyEmotes();
+                        upd[idx].bcGroup = grpSel.value || undefined;
+                        upd[idx].bcActivity = actSel.value || undefined;
+                        saveKittyEmotes(upd);
+                    };
+                    grpSel.addEventListener("change", saveActivity);
+                    actSel.addEventListener("change", saveActivity);
+                    soundRow.appendChild(soundLbl);
+                    soundRow.appendChild(grpSel);
+                    soundRow.appendChild(actSel);
                     r.appendChild(r1);
                     r.appendChild(kindRowE);
                     r.appendChild(roughRowE);
+                    r.appendChild(soundRow);
                     list.appendChild(r);
                 });
                 const addRow = document.createElement("div");
@@ -25394,6 +25494,47 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                         });
                                     }
                                 };
+                                // Load from kitty preset (always shown at top, re-queried each time)
+                                const kittyPresets = getKittyRestraintSets();
+                                if (kittyPresets.length > 0) {
+                                    const kpRow = document.createElement("div");
+                                    kpRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-bottom:3px;";
+                                    const kpSel = document.createElement("select");
+                                    kpSel.style.cssText = "flex:1;min-width:0;" + INP;
+                                    const kpPh = document.createElement("option");
+                                    kpPh.value = "";
+                                    kpPh.textContent = "— load preset —";
+                                    kpPh.disabled = true;
+                                    kpPh.selected = true;
+                                    kpSel.appendChild(kpPh);
+                                    for (const kp of kittyPresets) {
+                                        const o = document.createElement("option");
+                                        o.value = kp.id;
+                                        o.textContent = kp.label + " (" + kp.items.length + ")";
+                                        kpSel.appendChild(o);
+                                    }
+                                    const kpBtn = document.createElement("button");
+                                    kpBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                                    kpBtn.textContent = "Load ↓";
+                                    kpBtn.addEventListener("click", () => {
+                                        var _a;
+                                        const kp = getKittyRestraintSets().find(p => p.id === kpSel.value);
+                                        if (!kp)
+                                            return;
+                                        const upd = getKittyPunishments();
+                                        if ((_a = upd[idx]) === null || _a === void 0 ? void 0 : _a.steps[sIdx]) {
+                                            if (!upd[idx].steps[sIdx].items)
+                                                upd[idx].steps[sIdx].items = [];
+                                            upd[idx].steps[sIdx].items.push(...kp.items.map(i => (Object.assign({}, i))));
+                                            saveKittyPunishments(upd);
+                                        }
+                                        kpSel.value = "";
+                                        rebuildItems();
+                                    });
+                                    kpRow.appendChild(kpSel);
+                                    kpRow.appendChild(kpBtn);
+                                    sc.appendChild(kpRow);
+                                }
                                 rebuildItems();
                                 sc.appendChild(itemsWrap);
                                 // Slot → Item → Color → + Add row
@@ -25568,6 +25709,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 codeRow.appendChild(codeInp);
                                 codeRow.appendChild(codeBtn);
                                 sc.appendChild(codeRow);
+                                // Save current items as a named kitty preset
+                                const spRow = document.createElement("div");
+                                spRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:3px;border-top:1px solid #2a1421;padding-top:3px;";
+                                const spInp = document.createElement("input");
+                                spInp.placeholder = "Save items as preset…";
+                                spInp.style.cssText = "flex:1;min-width:0;" + INP;
+                                const spBtn = document.createElement("button");
+                                spBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                                spBtn.textContent = "💾 Save";
+                                spBtn.addEventListener("click", () => {
+                                    var _a, _b, _c;
+                                    const name = spInp.value.trim();
+                                    if (!name) {
+                                        spInp.focus();
+                                        return;
+                                    }
+                                    const items = (_c = (_b = (_a = getKittyPunishments()[idx]) === null || _a === void 0 ? void 0 : _a.steps[sIdx]) === null || _b === void 0 ? void 0 : _b.items) !== null && _c !== void 0 ? _c : [];
+                                    if (items.length === 0) {
+                                        spInp.style.borderColor = "#e07070";
+                                        window.setTimeout(() => { spInp.style.borderColor = ""; }, 1200);
+                                        return;
+                                    }
+                                    const presets = getKittyRestraintSets();
+                                    presets.push({ id: "r_" + Date.now(), label: name, items: items.map(i => (Object.assign({}, i))), kindEmote: "", roughEmote: "" });
+                                    saveKittyRestraintSets(presets);
+                                    spInp.value = "";
+                                    spBtn.textContent = "✓ Saved!";
+                                    window.setTimeout(() => { spBtn.textContent = "💾 Save"; }, 1500);
+                                });
+                                spRow.appendChild(spInp);
+                                spRow.appendChild(spBtn);
+                                sc.appendChild(spRow);
                             }
                             stepsWrap.appendChild(sc);
                         });
@@ -27113,7 +27286,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.74";
+    const MOD_VERSION = "2.2.75";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27124,6 +27297,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.75",
+            changes: [
+                "Emote editor: each emote now has a 🔊 Sound row — pick a BC body-group and activity (e.g. Head + Pet, Butt + Spank) to trigger real BC sounds/chat on click. Activity list is populated live from BC's own data.",
+                "Headpat/Spank emotes now store their BC activity in data (bcGroup/bcActivity fields) rather than being hardcoded — editing them in the menu will update which activity fires.",
+                "Punishment restraint steps: Load Preset dropdown at top (picks from saved kitty presets), Save as Preset row at bottom (saves step's items as a reusable named preset).",
+                "Restraint presets (EBC_kittyRestraintSets) re-exposed for use across punishment steps.",
+            ],
+        },
         {
             version: "2.2.74",
             changes: [
