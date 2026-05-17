@@ -11386,7 +11386,7 @@
             roughEmote: "grips Emery's shoulder firmly and points to the floor~",
         },
         {
-            id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["PresentationKneel"],
+            id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["KneelingSpread"],
             kindEmote: "guides Emery down to her knees and nudges her legs apart with a soft smile~",
             roughEmote: "pushes Emery to her knees and kicks her legs apart~",
         },
@@ -11409,11 +11409,6 @@
             id: "boxTie", label: "🎀 Box tie", poses: ["BackBoxTie"],
             kindEmote: "guides Emery's arms behind her back into a neat box tie~",
             roughEmote: "pulls Emery's arms behind her back and pins them there~",
-        },
-        {
-            id: "elbowTie", label: "🔗 Elbow tie", poses: ["BackElbowTie"],
-            kindEmote: "draws Emery's elbows together behind her back with care~",
-            roughEmote: "wrenches Emery's elbows together behind her back~",
         },
         {
             id: "neutral", label: "🔄 Neutral", poses: [],
@@ -11546,9 +11541,16 @@
     const NEW_POSE_SEEDS = DEFAULT_POSES.filter(p => !["allfours", "kneel", "handsup", "neutral"].includes(p.id));
     function getKittyPoses() {
         const raw = lsGet("EBC_kittyPoses", DEFAULT_POSES);
-        const poses = raw.map(p => {
+        const poses = raw
+            // Migration: remove elbow tie (BackElbowTouch conflicts in BC)
+            .filter(p => p.id !== "elbowTie")
+            .map(p => {
             var _a, _b;
-            return (Object.assign(Object.assign({}, p), { kindEmote: (_a = p.kindEmote) !== null && _a !== void 0 ? _a : "", roughEmote: (_b = p.roughEmote) !== null && _b !== void 0 ? _b : "" }));
+            return (Object.assign(Object.assign({}, p), { kindEmote: (_a = p.kindEmote) !== null && _a !== void 0 ? _a : "", roughEmote: (_b = p.roughEmote) !== null && _b !== void 0 ? _b : "", 
+                // Migration: fix old PresentationKneel → KneelingSpread
+                poses: p.id === "kneel_spread" && p.poses.includes("PresentationKneel")
+                    ? ["KneelingSpread"]
+                    : p.poses }));
         });
         // Additive migration: append new defaults not present in stored list
         for (const seed of NEW_POSE_SEEDS) {
@@ -25003,10 +25005,22 @@
                 if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
                     return;
                 const mood = getKittyMood();
+                // Send mood-aware emote so room sees it
                 sendRoomEmote(mood === "rough"
                     ? "snatches up Emery's leash with a firm grip~"
                     : "reaches out and gently takes hold of Emery's leash~");
-                runKittyActivity("ItemNeckAccessories", "GrabLeash");
+                // BC's actual "grab leash" mechanic — NOT an activity; it's a hidden message protocol.
+                // The hidden HoldLeash message tells Emery's BC client to register Lucy as holding her leash.
+                // This enables BC's "follow me" room-change mechanic if Emery has a leash-effect item.
+                try {
+                    ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                    // Update Lucy's local leash list so BC tracks the follow relationship
+                    const w = window;
+                    const leashList = w.ChatRoomLeashList;
+                    if (leashList && !leashList.includes(EMERY_MEMBER))
+                        leashList.push(EMERY_MEMBER);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
             });
             leashRow.appendChild(leashBtn);
             body.appendChild(leashRow);
@@ -28216,7 +28230,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.93";
+    const MOD_VERSION = "2.2.94";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28227,6 +28241,17 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.94",
+            changes: [
+                "Fix: Grab Leash now uses BC's actual HoldLeash hidden-message protocol instead of the non-existent GrabLeash activity — activates BC's full leash-follow mechanic when Emery has a leash item.",
+                "Fix: Kneel & Spread now uses KneelingSpread (the correct BC pose) — PresentationKneel does not exist in BC. Stored poses are migrated automatically.",
+                "Fix: Elbow Tie removed — BackElbowTouch conflicts with other upper-body poses and caused broken appearance. Removed from defaults; existing saved poses are cleaned up automatically.",
+                "Fix: Fight back button in the resistance popup no longer triggers a ghost auto-accept after you click it — an isResolved flag now stops the countdown timer once you respond.",
+                "Fix: Fight back emote now reliably sends to chat (wrapped in callBC, proper SourceCharacter dictionary entry).",
+                "Fix: Expression changes via Kitty menu now always sync to all room members — a full ChatRoomCharacterUpdate is pushed after CharacterSetFacialExpression to guarantee visibility.",
+            ],
+        },
         {
             version: "2.2.93",
             changes: [
@@ -30833,22 +30858,21 @@
         timerBar.appendChild(timerFill);
         const btnRow = document.createElement("div");
         btnRow.style.cssText = "display:flex;gap:10px;justify-content:center;";
-        const close = () => { overlay.remove(); };
+        // Prevent the auto-accept timer from firing after the user already responded
+        let isResolved = false;
+        const close = () => { isResolved = true; overlay.remove(); };
         // ── Fight back ──────────────────────────────────────────────────────────
         const fightBtn = document.createElement("button");
         fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
         fightBtn.textContent = "Fight back! 💪";
         fightBtn.addEventListener("click", () => {
-            try {
-                ServerSend("ChatRoomChat", {
-                    Type: "Emote",
-                    Content: mood === "rough"
-                        ? "twists away sharply, refusing to submit~"
-                        : "squirms and shakes her head, resisting with a pout~",
-                    Dictionary: [],
-                });
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
+            callBC(() => ServerSend("ChatRoomChat", {
+                Type: "Emote",
+                Content: mood === "rough"
+                    ? "twists away sharply, refusing to submit~"
+                    : "squirms and shakes her head, resisting with a pout~",
+                Dictionary: [{ Tag: "SourceCharacter", Text: Player.Name, MemberNumber: Player.MemberNumber }],
+            }));
             close();
         });
         // ── Accept — applies restraints if any ─────────────────────────────────
@@ -30933,10 +30957,16 @@
         const DURATION = mood === "rough" ? 1000 : 8000;
         const startTime = Date.now();
         const tick = () => {
+            if (isResolved)
+                return; // user already acted — stop ticking
             const pct = Math.max(0, 1 - (Date.now() - startTime) / DURATION);
-            timerFill.style.width = `${pct * 100}%`;
+            try {
+                timerFill.style.width = `${pct * 100}%`;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
             if (pct <= 0) {
-                acceptBtn.click();
+                if (!isResolved)
+                    acceptBtn.click();
             }
             else {
                 requestAnimationFrame(tick);
@@ -31091,8 +31121,10 @@
                     break;
                 }
                 case "expression": {
-                    // arg format: "FaceType:State"  e.g. "Ears:Wiggle"
-                    // Triggers a BC facial expression on Emery's own character (self-applied).
+                    // arg format: "FaceType:State"  e.g. "Blush:Low"
+                    // Triggers a BC facial expression on Emery and pushes a full appearance update
+                    // to ensure all room members see the change (CharacterSetFacialExpression's
+                    // internal ChatRoomCharacterExpressionUpdate can be lossy under some BC versions).
                     try {
                         const colonIdx = arg.indexOf(":");
                         if (colonIdx > 0) {
@@ -31100,8 +31132,20 @@
                             const state = arg.slice(colonIdx + 1);
                             const w = window;
                             const fn = w.CharacterSetFacialExpression;
-                            if (fn)
+                            if (fn) {
                                 fn(Player, face, state || null);
+                                // Belt-and-suspenders: push a full appearance update so the expression
+                                // is visible to everyone even if the internal sync doesn't fire.
+                                callBC(() => {
+                                    if (Player.OnlineID != null) {
+                                        ServerSend("ChatRoomCharacterUpdate", {
+                                            ID: Player.OnlineID,
+                                            ActivePose: Player.ActivePose,
+                                            Appearance: ServerAppearanceBundle(Player.Appearance),
+                                        });
+                                    }
+                                });
+                            }
                         }
                     }
                     catch ( /* ignore */_g) { /* ignore */ }
