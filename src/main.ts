@@ -16,11 +16,11 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC } from "./modules/bcUtils";
-import { LUCY_MEMBER, parseKittyCmd } from "./modules/kitty";
+import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.63";
+const MOD_VERSION = "2.2.64";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.64",
+        changes: [
+            "Rough punishment timer: 3 s instead of 8 s (kind stays 8 s). Subtitle shows the time remaining so Emery knows how long she has.",
+            "Punishments can now carry a restraint set: in edit mode pick a saved kitty restraint set from the '⛓ Bind' dropdown. When Emery accepts (or timer runs out), those items are applied to her and synced to the room.",
+            "Interactive emotes: treat 🍖 and praise 🎀 now send a react beep. Emery gets a soft 6-second popup to 'Accept~ 🥰' (sends happy emote) or 'Ignore 🙈' (glances away). Toggle per-emote with the 🔔/🔕 button in emote edit mode.",
+        ],
+    },
     {
         version: "2.2.63",
         changes: [
@@ -2376,25 +2384,15 @@ function setArometerProgress(pct: number): void {
     }
 }
 
-function showKittyResistancePopup(label: string, mood: "kind" | "rough"): void {
+function showKittyResistancePopup(label: string, mood: "kind" | "rough", restraintItems: KittyItem[] = []): void {
     if (document.getElementById("ebc-kitty-resist")) return;
 
     const overlay = document.createElement("div");
     overlay.id = "ebc-kitty-resist";
-    overlay.style.cssText = [
-        "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;",
-        "display:flex;align-items:center;justify-content:center;",
-        "background:rgba(0,0,0,0.55);",
-    ].join("");
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);";
 
     const box = document.createElement("div");
-    box.style.cssText = [
-        "background:linear-gradient(160deg,#1b0d17,#2a0e1e);",
-        "border:2px solid #6b3048;border-radius:10px;",
-        "padding:18px 22px;width:300px;text-align:center;",
-        "font-family:'Trebuchet MS',serif;",
-        "box-shadow:0 4px 32px #0008;",
-    ].join("");
+    box.style.cssText = "background:linear-gradient(160deg,#1b0d17,#2a0e1e);border:2px solid #6b3048;border-radius:10px;padding:18px 22px;width:300px;text-align:center;font-family:'Trebuchet MS',serif;box-shadow:0 4px 32px #0008;";
 
     const title = document.createElement("div");
     title.style.cssText = "font-size:13px;font-weight:bold;color:#cf6f98;margin-bottom:6px;";
@@ -2403,8 +2401,8 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough"): void {
     const sub = document.createElement("div");
     sub.style.cssText = "font-size:10px;color:#967281;margin-bottom:12px;";
     sub.textContent = mood === "rough"
-        ? "Miss Lucy is being stern with you..."
-        : "Miss Lucy is correcting you gently...";
+        ? "Miss Lucy is being stern with you... (3 s)"
+        : "Miss Lucy is correcting you gently... (8 s)";
 
     const timerBar = document.createElement("div");
     timerBar.style.cssText = "height:4px;background:#3a1928;border-radius:2px;margin-bottom:12px;overflow:hidden;";
@@ -2417,12 +2415,9 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough"): void {
 
     const close = (): void => { overlay.remove(); };
 
+    // ── Fight back ──────────────────────────────────────────────────────────
     const fightBtn = document.createElement("button");
-    fightBtn.style.cssText = [
-        "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;",
-        "padding:7px 16px;border-radius:6px;cursor:pointer;",
-        "border:1px solid #e07070;background:#e0707018;color:#e07070;",
-    ].join("");
+    fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
     fightBtn.textContent = "Fight back! 💪";
     fightBtn.addEventListener("click", () => {
         try {
@@ -2434,14 +2429,29 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough"): void {
         close();
     });
 
+    // ── Accept — applies restraints if any ─────────────────────────────────
     const acceptBtn = document.createElement("button");
-    acceptBtn.style.cssText = [
-        "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;",
-        "padding:7px 16px;border-radius:6px;cursor:pointer;",
-        "border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;",
-    ].join("");
+    acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
     acceptBtn.textContent = "Accept~ 🌸";
     acceptBtn.addEventListener("click", () => {
+        // Apply restraint items to self
+        if (restraintItems.length > 0) {
+            try {
+                const w = window as unknown as Record<string, unknown>;
+                for (const item of restraintItems) {
+                    (w.InventoryWear as ((c: unknown, name: string, group: string, color: unknown) => void) | undefined)
+                        ?.(Player, item.Name, item.Group, item.Color ?? "Default");
+                }
+                (w.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(Player, false, false);
+                if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+                    callBC(() => ServerSend("ChatRoomCharacterUpdate", {
+                        ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                        ActivePose: Player.ActivePose,
+                        Appearance: ServerAppearanceBundle(Player.Appearance),
+                    }));
+                }
+            } catch { /* ignore */ }
+        }
         try {
             const emote = mood === "rough"
                 ? "flinches but lowers her gaze, quietly accepting~"
@@ -2460,11 +2470,76 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough"): void {
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    // 8-second countdown — auto-accept when it expires
-    const DURATION = 8000;
+    // Rough = 3 s, Kind = 8 s — auto-accept when timer expires
+    const DURATION = mood === "rough" ? 3000 : 8000;
     const startTime = Date.now();
     const tick = (): void => {
         const pct = Math.max(0, 1 - (Date.now() - startTime) / DURATION);
+        timerFill.style.width = `${pct * 100}%`;
+        if (pct <= 0) { acceptBtn.click(); } else { requestAnimationFrame(tick); }
+    };
+    requestAnimationFrame(tick);
+}
+
+// Shown when Lucy sends an interactive emote (treat, praise, etc.)
+function showKittyReactPopup(label: string): void {
+    if (document.getElementById("ebc-kitty-react")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "ebc-kitty-react";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);";
+
+    const box = document.createElement("div");
+    box.style.cssText = "background:linear-gradient(160deg,#1b0d17,#2a0e1e);border:2px solid #6b3048;border-radius:10px;padding:18px 22px;width:280px;text-align:center;font-family:'Trebuchet MS',serif;box-shadow:0 4px 32px #0008;";
+
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:13px;font-weight:bold;color:#cf6f98;margin-bottom:6px;";
+    title.textContent = label;
+
+    const sub = document.createElement("div");
+    sub.style.cssText = "font-size:10px;color:#967281;margin-bottom:12px;";
+    sub.textContent = "Miss Lucy is being sweet to you~ 💜";
+
+    const timerBar = document.createElement("div");
+    timerBar.style.cssText = "height:4px;background:#3a1928;border-radius:2px;margin-bottom:12px;overflow:hidden;";
+    const timerFill = document.createElement("div");
+    timerFill.style.cssText = "height:100%;background:#79c8a0;border-radius:2px;width:100%;";
+    timerBar.appendChild(timerFill);
+
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display:flex;gap:10px;justify-content:center;";
+
+    const close = (): void => { overlay.remove(); };
+
+    const acceptBtn = document.createElement("button");
+    acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
+    acceptBtn.textContent = "Accept~ 🥰";
+    acceptBtn.addEventListener("click", () => {
+        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "brightens up happily, tail wagging~ 💜", Dictionary: [] }); } catch { /* ignore */ }
+        close();
+    });
+
+    const ignoreBtn = document.createElement("button");
+    ignoreBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #7a5a6a;background:transparent;color:#7a5a6a;";
+    ignoreBtn.textContent = "Ignore 🙈";
+    ignoreBtn.addEventListener("click", () => {
+        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "glances away shyly, pretending not to notice~", Dictionary: [] }); } catch { /* ignore */ }
+        close();
+    });
+
+    btnRow.appendChild(acceptBtn);
+    btnRow.appendChild(ignoreBtn);
+    box.appendChild(title);
+    box.appendChild(sub);
+    box.appendChild(timerBar);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    // 6-second countdown — auto-accepts (it's a nice gesture, after all~)
+    const startTime = Date.now();
+    const tick = (): void => {
+        const pct = Math.max(0, 1 - (Date.now() - startTime) / 6000);
         timerFill.style.width = `${pct * 100}%`;
         if (pct <= 0) { acceptBtn.click(); } else { requestAnimationFrame(tick); }
     };
@@ -2499,10 +2574,28 @@ function handleKittyCommand(msg: string): void {
                 releaseRestraints();
                 break;
             case "punish": {
-                const colonIdx = arg.lastIndexOf(":");
-                const punLabel = colonIdx >= 0 ? arg.slice(0, colonIdx) : arg;
-                const punMood  = (colonIdx >= 0 ? arg.slice(colonIdx + 1) : "kind") as "kind" | "rough";
-                showKittyResistancePopup(punLabel, punMood);
+                try {
+                    // New format: JSON payload { label, mood, items }
+                    const payload = JSON.parse(arg) as { label: string; mood: "kind" | "rough"; items: KittyItem[] };
+                    showKittyResistancePopup(payload.label, payload.mood, payload.items ?? []);
+                } catch {
+                    // Legacy fallback: "Label:mood"
+                    const colonIdx = arg.lastIndexOf(":");
+                    showKittyResistancePopup(
+                        colonIdx >= 0 ? arg.slice(0, colonIdx) : arg,
+                        (colonIdx >= 0 ? arg.slice(colonIdx + 1) : "kind") as "kind" | "rough",
+                        []
+                    );
+                }
+                break;
+            }
+            case "react": {
+                try {
+                    const payload = JSON.parse(arg) as { label: string };
+                    showKittyReactPopup(payload.label);
+                } catch {
+                    showKittyReactPopup(arg);
+                }
                 break;
             }
         }

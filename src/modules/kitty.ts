@@ -14,6 +14,7 @@ export interface KittyEmote {
     label: string;         // button label shown in the menu
     text: string;          // message body (no asterisks / parens — those are added by BC)
     type: "emote" | "action"; // emote = * Lucy text * , action = (Lucy text)
+    interactive?: boolean; // if true, also sends a react beep so Emery can respond
 }
 
 export interface KittyItem {
@@ -41,6 +42,7 @@ export interface KittyPunishment {
     label: string;
     kindEmote: string;
     roughEmote: string;
+    restraintSetId?: string; // ID of a saved kitty restraint set to apply when Emery accepts
 }
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -48,8 +50,8 @@ export interface KittyPunishment {
 const DEFAULT_EMOTES: KittyEmote[] = [
     { id: "headpat",   label: "🐾 Headpat",   text: "gently pats Emery on the head~ 🐾",                              type: "emote"  },
     { id: "goodgirl",  label: "✨ Good girl",  text: "scratches Emery behind the ears~ Good girl~ ✨",                  type: "emote"  },
-    { id: "treat",     label: "🍖 Treat",      text: "holds out a treat for her little pet~ 🍖",                        type: "emote"  },
-    { id: "praise",    label: "🎀 Praise",     text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀", type: "emote"  },
+    { id: "treat",     label: "🍖 Treat",      text: "holds out a treat for her little pet~ 🍖",                        type: "emote",  interactive: true },
+    { id: "praise",    label: "🎀 Praise",     text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀", type: "emote",  interactive: true },
     { id: "announce",  label: "💜 Mine",       text: "Emery belongs to Lucy~ 💜",                                      type: "action" },
     { id: "snuggle",   label: "🤗 Snuggle",    text: "pulls Emery into a warm snuggle, resting her chin on her head~", type: "emote"  },
 ];

@@ -13569,6 +13569,10 @@ export class EBCDrawer {
                                 ServerSend("ChatRoomChat", { Type: "Action", Content: em.text, Dictionary: [{ Tag: 'MISSING TEXT IN "Interface.csv": ', Text: zw }, { SourceCharacter: Player.MemberNumber }] });
                             }
                         } catch { /* ignore */ }
+                        // If interactive, send a react beep so Emery can respond
+                        if (em.interactive) {
+                            sendKittyCmd("react", JSON.stringify({ label: em.label, text: em.text }));
+                        }
                     }));
                 }
                 emotesWrap.appendChild(row);
@@ -13605,6 +13609,21 @@ export class EBCDrawer {
                 };
                 lblInp.addEventListener("input", saveInp);
                 txtInp.addEventListener("input", saveInp);
+                // Interactive toggle — 🔔 = Emery gets a react popup; 🔕 = room-only
+                const reactBtn = document.createElement("button");
+                const updateReactBtn = (): void => {
+                    const on = !!getKittyEmotes()[idx]?.interactive;
+                    reactBtn.textContent = on ? "🔔" : "🔕";
+                    reactBtn.title = on ? "Emery gets a react popup — click to disable" : "Room emote only — click to make Emery react";
+                    reactBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;cursor:pointer;flex-shrink:0;opacity:" + (on ? "1" : "0.4") + ";";
+                };
+                updateReactBtn();
+                reactBtn.addEventListener("click", () => {
+                    const updated = getKittyEmotes();
+                    updated[idx].interactive = !updated[idx].interactive;
+                    saveKittyEmotes(updated);
+                    updateReactBtn();
+                });
                 const delBtn = document.createElement("button");
                 delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                 delBtn.textContent = "×";
@@ -13612,7 +13631,7 @@ export class EBCDrawer {
                     saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
                     renderEmotes(true);
                 });
-                r.appendChild(lblInp); r.appendChild(txtInp); r.appendChild(typeBtn); r.appendChild(delBtn);
+                r.appendChild(lblInp); r.appendChild(txtInp); r.appendChild(typeBtn); r.appendChild(reactBtn); r.appendChild(delBtn);
                 list.appendChild(r);
             });
 
@@ -13761,8 +13780,14 @@ export class EBCDrawer {
                         const mood = getKittyMood();
                         const emoteText = mood === "rough" ? (pun.roughEmote || pun.kindEmote) : (pun.kindEmote || pun.roughEmote);
                         sendRoomEmote(emoteText);
-                        // Notify Emery so she can fight back
-                        sendKittyCmd("punish", `${pun.label}:${mood}`);
+                        // Resolve restraint items from the linked set (if any)
+                        const items: KittyItem[] = [];
+                        if (pun.restraintSetId) {
+                            const set = getKittyRestraintSets().find(s => s.id === pun.restraintSetId);
+                            if (set) items.push(...set.items);
+                        }
+                        // Send JSON payload — Emery gets a timed resist popup; if she accepts, items apply
+                        sendKittyCmd("punish", JSON.stringify({ label: pun.label, mood, items }));
                     }));
                 }
                 punishWrap.appendChild(row);
@@ -13800,6 +13825,30 @@ export class EBCDrawer {
                 const roughInp = document.createElement("input"); roughInp.value = pun.roughEmote; roughInp.placeholder = "Room emote in rough mode…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
                 roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
 
+                // Row 4: restraint set to apply on accept
+                const bindRow = document.createElement("div");
+                bindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const bindLbl = document.createElement("span");
+                bindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c07040;flex-shrink:0;width:38px;";
+                bindLbl.textContent = "⛓ Bind:";
+                const bindSel = document.createElement("select");
+                bindSel.style.cssText = "flex:1;min-width:0;" + INP;
+                const noneOpt = document.createElement("option");
+                noneOpt.value = ""; noneOpt.textContent = "— None —";
+                bindSel.appendChild(noneOpt);
+                for (const s of getKittyRestraintSets()) {
+                    const opt = document.createElement("option");
+                    opt.value = s.id; opt.textContent = s.label;
+                    if (s.id === pun.restraintSetId) opt.selected = true;
+                    bindSel.appendChild(opt);
+                }
+                bindSel.addEventListener("change", () => {
+                    const updated = getKittyPunishments();
+                    updated[idx].restraintSetId = bindSel.value || undefined;
+                    saveKittyPunishments(updated);
+                });
+                bindRow.appendChild(bindLbl); bindRow.appendChild(bindSel);
+
                 const saveInp = (): void => {
                     const updated = getKittyPunishments();
                     updated[idx].label     = lblInp.value;
@@ -13813,7 +13862,7 @@ export class EBCDrawer {
                     renderPunishments(true);
                 });
 
-                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow);
+                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow); r.appendChild(bindRow);
                 list.appendChild(r);
             });
 
