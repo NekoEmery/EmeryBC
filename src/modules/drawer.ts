@@ -2882,10 +2882,13 @@ export class EBCDrawer {
     private tagTooltipEl: HTMLElement | null = null;
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
     private slowLeaveBtn: HTMLButtonElement | null = null;
+    private slCollapseHdr: HTMLElement | null = null;
+    private slCollapseBody: HTMLElement | null = null;
     private slPresetDropdown: HTMLSelectElement | null = null;
     private slCatDropdown: HTMLSelectElement | null = null;
     private slDurSlider: HTMLInputElement | null = null;
     private slDurVal: HTMLSpanElement | null = null;
+    private slRefreshCat: (() => void) | null = null;
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
@@ -3183,12 +3186,48 @@ export class EBCDrawer {
         selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.color = "#7a4a5e"; });
         quickActions.appendChild(selfPickToggle);
 
-        // Slow Leave button + preset dropdown — always shown when in a chatroom
+        // ── Slow Leave — collapsible block ────────────────────────────────────
+        // Outer wrapper, hidden when not in a chatroom
+        const slWrap = document.createElement("div");
+        slWrap.style.cssText = "display:none;flex-direction:column;width:100%;";
+        quickActions.appendChild(slWrap);
+
+        // Collapse header row: click to expand/collapse
+        const slCollapseHdr = document.createElement("div");
+        slCollapseHdr.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;cursor:pointer;padding:3px 0;user-select:none;";
+        const slHdrLbl = document.createElement("span");
+        slHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+        slHdrLbl.textContent = "🚶 Slow Leave";
+        const slHdrArrow = document.createElement("span");
+        slHdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+        slHdrArrow.textContent = "▼";
+        slCollapseHdr.appendChild(slHdrLbl);
+        slCollapseHdr.appendChild(slHdrArrow);
+        slWrap.appendChild(slCollapseHdr);
+        this.slCollapseHdr = slCollapseHdr;
+
+        // Collapsible body
+        const slCollapseBody = document.createElement("div");
+        const slExpanded = localStorage.getItem("EBC_slowLeaveOpen") === "1";
+        slCollapseBody.style.cssText = `display:${slExpanded ? "flex" : "none"};flex-direction:column;gap:3px;padding:4px 0 2px;`;
+        slHdrArrow.textContent = slExpanded ? "▲" : "▼";
+        slWrap.appendChild(slCollapseBody);
+        this.slCollapseBody = slCollapseBody;
+
+        slCollapseHdr.addEventListener("click", () => {
+            const open = slCollapseBody.style.display === "none";
+            slCollapseBody.style.display = open ? "flex" : "none";
+            slHdrArrow.textContent = open ? "▲" : "▼";
+            try { localStorage.setItem("EBC_slowLeaveOpen", open ? "1" : "0"); } catch { /* ignore */ }
+            if (open) refreshCatDropdown(); // refresh now that Player is initialised
+        });
+
+        // Slow Leave action button
         const slowLeaveBtn = document.createElement("button");
         slowLeaveBtn.className = "ebc-action-btn";
         slowLeaveBtn.textContent = "🚶 Slow Leave";
         slowLeaveBtn.title = "Wave goodbye and slowly head for the door";
-        slowLeaveBtn.style.cssText = "display:none;width:100%;";
+        slowLeaveBtn.style.cssText = "width:100%;";
         slowLeaveBtn.addEventListener("click", () => {
             if (isSeqRunning()) {
                 cancelSequence();
@@ -3208,12 +3247,13 @@ export class EBCDrawer {
             slowLeaveBtn.style.color = "#ff8aaa";
             runSequence(seq);
         });
-        quickActions.appendChild(slowLeaveBtn);
+        slCollapseBody.appendChild(slowLeaveBtn);
         this.slowLeaveBtn = slowLeaveBtn;
 
-        // Preset selector — lives just below the slow leave button
+        // Preset selector
+        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
         const slPresetDropdown = document.createElement("select");
-        slPresetDropdown.style.cssText = "display:none;width:100%;margin-top:2px;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+        slPresetDropdown.style.cssText = DD_CSS;
         const populateSlPresets = (): void => {
             while (slPresetDropdown.firstChild) slPresetDropdown.removeChild(slPresetDropdown.firstChild);
             getSlowLeavePresets().forEach((p, i) => {
@@ -3225,13 +3265,12 @@ export class EBCDrawer {
         slPresetDropdown.addEventListener("change", () => {
             try { localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value); } catch { /* ignore */ }
         });
-        quickActions.appendChild(slPresetDropdown);
+        slCollapseBody.appendChild(slPresetDropdown);
         this.slPresetDropdown = slPresetDropdown;
 
-        // Button category selector — shown next to slow leave, hides when not in a room
-        const SL_DD_CSS = "display:none;width:100%;margin-top:3px;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+        // Button category selector
         const slCatDropdown = document.createElement("select");
-        slCatDropdown.style.cssText = SL_DD_CSS;
+        slCatDropdown.style.cssText = DD_CSS;
         slCatDropdown.title = "Switch action button category";
         const refreshCatDropdown = (): void => {
             try {
@@ -3248,12 +3287,13 @@ export class EBCDrawer {
             setActiveCategoryIndex(parseInt(slCatDropdown.value, 10));
             if (this.currentTab === "buttons") this.rerender();
         });
-        quickActions.appendChild(slCatDropdown);
+        slCollapseBody.appendChild(slCatDropdown);
         this.slCatDropdown = slCatDropdown;
+        this.slRefreshCat = refreshCatDropdown;
 
-        // Duration slider — shown next to slow leave
+        // Duration slider
         const slDurRow = document.createElement("div");
-        slDurRow.style.cssText = "display:none;align-items:center;gap:6px;width:100%;margin-top:3px;box-sizing:border-box;";
+        slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
         const slDurLbl = document.createElement("span");
         slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
         slDurLbl.textContent = "⏱";
@@ -3270,7 +3310,7 @@ export class EBCDrawer {
             try { localStorage.setItem("EBC_slowLeaveDuration", slDurSlider.value); } catch { /* ignore */ }
         });
         slDurRow.appendChild(slDurLbl); slDurRow.appendChild(slDurSlider); slDurRow.appendChild(slDurVal);
-        quickActions.appendChild(slDurRow);
+        slCollapseBody.appendChild(slDurRow);
         this.slDurSlider = slDurSlider;
         this.slDurVal = slDurVal;
 
@@ -4135,10 +4175,11 @@ export class EBCDrawer {
     private updateSlowLeaveVisibility(): void {
         if (!this.slowLeaveBtn) return;
         const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
-        this.slowLeaveBtn.style.display = inRoom ? "" : "none";
-        if (this.slPresetDropdown) this.slPresetDropdown.style.display = inRoom ? "" : "none";
-        if (this.slCatDropdown)    this.slCatDropdown.style.display    = inRoom ? "" : "none";
-        if (this.slDurSlider?.parentElement) this.slDurSlider.parentElement.style.display = inRoom ? "flex" : "none";
+        // Show/hide the outer collapsible wrapper
+        const wrapper = this.slCollapseHdr?.parentElement;
+        if (wrapper) wrapper.style.display = inRoom ? "flex" : "none";
+        // When entering a room refresh the category dropdown (Player is now available)
+        if (inRoom) { try { this.slRefreshCat?.(); } catch { /* ignore */ } }
         // Reset button label if no sequence is currently running
         if (!isSeqRunning()) {
             this.slowLeaveBtn.textContent = "🚶 Slow Leave";
