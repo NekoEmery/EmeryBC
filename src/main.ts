@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.86";
+const MOD_VERSION = "2.2.87";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.87",
+        changes: [
+            "Slow Leave: added editable textarea below preset picker — shows the current preset's raw sequence, edit inline to customise it; changes are saved immediately.",
+            "Slow Leave: category dropdown now has a × delete button so you can remove unwanted categories (e.g. Emotes) — prompts for confirmation; last remaining category cannot be deleted.",
+            "Slow Leave: added 😏 Bratty preset (saunters out dramatically).",
+            "Slow Leave: preset migration is now additive — newly added default presets are appended to existing user lists instead of resetting them.",
+        ],
+    },
     {
         version: "2.2.86",
         changes: [

@@ -241,6 +241,8 @@ const SLOW_LEAVE_PRESET_DEFAULTS = [
     { label: "😔 Quiet",    seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
     { label: "💤 Sleepy",   seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
     { label: "🐾 Playful",  seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
+    { label: "😏 Bratty",   seq: "*stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much.@{DUR}|*saunters out without a single look back~@0|leaveroom" },
+    { label: "✏️ Custom",   seq: "*waves and heads for the door~@{DUR}|leaveroom" },
 ];
 
 function getSlowLeavePresets(): Array<{ label: string; seq: string }> {
@@ -248,7 +250,11 @@ function getSlowLeavePresets(): Array<{ label: string; seq: string }> {
         const raw = localStorage.getItem("EBC_slowLeavePresets");
         if (raw) {
             const parsed = JSON.parse(raw) as Array<{ label: string; seq: string }>;
-            if (Array.isArray(parsed) && parsed.length === SLOW_LEAVE_PRESET_DEFAULTS.length) {
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                // Additive migration: append any new defaults not yet in the stored list
+                for (const def of SLOW_LEAVE_PRESET_DEFAULTS) {
+                    if (!parsed.find(p => p.label === def.label)) parsed.push({ ...def });
+                }
                 return parsed;
             }
         }
@@ -3285,13 +3291,38 @@ export class EBCDrawer {
         populateSlPresets();
         slPresetDropdown.addEventListener("change", () => {
             try { localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value); } catch { /* ignore */ }
+            // Update seq textarea
+            const lp = getSlowLeavePresets();
+            const pi = parseInt(slPresetDropdown.value, 10);
+            slSeqArea.value = lp[pi]?.seq ?? "";
         });
         slCollapseBody.appendChild(slPresetDropdown);
         this.slPresetDropdown = slPresetDropdown;
 
-        // Button category selector
+        // Seq textarea — lets the user customise the selected preset's sequence
+        const slSeqArea = document.createElement("textarea");
+        slSeqArea.rows = 3;
+        slSeqArea.spellcheck = false;
+        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
+        slSeqArea.title = "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}";
+        const slSeqInitPresets = getSlowLeavePresets();
+        const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
+        slSeqArea.value = slSeqInitPresets[slSeqInitIdx]?.seq ?? "";
+        slSeqArea.addEventListener("change", () => {
+            const lp = getSlowLeavePresets();
+            const pi = parseInt(slPresetDropdown.value, 10);
+            if (pi >= 0 && pi < lp.length) {
+                lp[pi].seq = slSeqArea.value;
+                saveSlowLeavePresets(lp);
+            }
+        });
+        slCollapseBody.appendChild(slSeqArea);
+
+        // Button category selector (with × delete)
+        const slCatRow = document.createElement("div");
+        slCatRow.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;box-sizing:border-box;";
         const slCatDropdown = document.createElement("select");
-        slCatDropdown.style.cssText = DD_CSS;
+        slCatDropdown.style.cssText = DD_CSS + "flex:1;";
         slCatDropdown.title = "Switch action button category";
         const refreshCatDropdown = (): void => {
             try {
@@ -3308,7 +3339,25 @@ export class EBCDrawer {
             setActiveCategoryIndex(parseInt(slCatDropdown.value, 10));
             if (this.currentTab === "buttons") this.rerender();
         });
-        slCollapseBody.appendChild(slCatDropdown);
+        const slCatDelBtn = document.createElement("button");
+        slCatDelBtn.textContent = "×";
+        slCatDelBtn.title = "Delete this category";
+        slCatDelBtn.style.cssText = "flex-shrink:0;padding:0 5px;height:18px;font-size:11px;line-height:1;background:#2a0d18;color:#cf6f98;border:1px solid #3a1928;border-radius:3px;cursor:pointer;";
+        slCatDelBtn.addEventListener("click", () => {
+            const cats = getCategories();
+            if (cats.length <= 1) return; // never delete the last category
+            const delIdx = parseInt(slCatDropdown.value, 10);
+            if (delIdx < 0 || delIdx >= cats.length) return;
+            if (!confirm(`Delete category "${cats[delIdx].name}"? Its buttons will be lost.`)) return;
+            cats.splice(delIdx, 1);
+            const newIdx = Math.min(delIdx, cats.length - 1);
+            saveCategories(cats, newIdx);
+            refreshCatDropdown();
+            if (this.currentTab === "buttons") this.rerender();
+        });
+        slCatRow.appendChild(slCatDropdown);
+        slCatRow.appendChild(slCatDelBtn);
+        slCollapseBody.appendChild(slCatRow);
         this.slCatDropdown = slCatDropdown;
         this.slRefreshCat = refreshCatDropdown;
 
