@@ -14943,10 +14943,13 @@
                 }
                 if (ROOM_ONLY.includes(this.currentTab))
                     this.switchTab("outfits");
-                // Float at the right edge of the viewport, vertically centred
+                // Float the tab at the right edge of the viewport, vertically centred.
+                // The closed tab sits at left:-10px on the zero-width root, so the root
+                // needs right:34px for the tab's right edge (−10+44=34) to land exactly
+                // at the viewport boundary and be fully visible.
                 const h = Math.min(Math.max(300, window.innerHeight - 80), 700);
                 this.rootEl.style.top = `${Math.max(20, Math.round((window.innerHeight - h) / 2))}px`;
-                this.rootEl.style.right = "0px";
+                this.rootEl.style.right = "34px";
                 this.rootEl.style.height = `${h}px`;
                 this.panelEl.style.height = `${h}px`;
                 // Mark as not anchored to the chat log so syncToChat re-runs on next room enter
@@ -25597,7 +25600,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.32";
+    const MOD_VERSION = "2.2.33";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25608,6 +25611,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.33",
+            changes: [
+                "Fix: drawer tab invisible outside chatrooms — closed tab was 34px off the right edge of the viewport. Root is now positioned at right:34px so the tab lands flush with the screen edge.",
+            ],
+        },
         {
             version: "2.2.32",
             changes: [
