@@ -11364,7 +11364,6 @@
             text: "gives Emery a playful bap on the nose~ 🐾",
             roughText: "gives Emery a sharp flick on the nose without warning~",
             type: "emote",
-            bcGroup: "ItemNose", bcActivity: "Pet",
         },
     ];
     const DEFAULT_POSES = [
@@ -11480,7 +11479,6 @@
     const BC_ACTIVITY_SEEDS = {
         "headpat": { group: "ItemHead", activity: "Pet" },
         "spank": { group: "ItemButt", activity: "Spank" },
-        "bap": { group: "ItemNose", activity: "Pet" },
     };
     // New emotes to seed into existing stored lists that predate them.
     const NEW_EMOTE_SEEDS = [
@@ -11489,7 +11487,6 @@
             text: "gives Emery a playful bap on the nose~ 🐾",
             roughText: "gives Emery a sharp flick on the nose without warning~",
             type: "emote",
-            bcGroup: "ItemNose", bcActivity: "Pet",
         },
         {
             id: "spank", label: "👋 Spank",
@@ -11507,14 +11504,9 @@
             .map(e => {
             var _a, _b, _c, _d, _e, _f, _g, _h;
             return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", 
-                // Migration: fix stored bap that used ItemHead — should be ItemNose (real boop action)
-                bcGroup: e.id === "bap" && e.bcGroup === "ItemHead"
-                    ? "ItemNose"
-                    : ((_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group), 
-                // Migration: fix stored bap that had Slap (face-slap) — should be Pet (light tap)
-                bcActivity: e.id === "bap" && e.bcActivity === "Slap"
-                    ? "Pet"
-                    : ((_g = e.bcActivity) !== null && _g !== void 0 ? _g : (_h = BC_ACTIVITY_SEEDS[e.id]) === null || _h === void 0 ? void 0 : _h.activity) }));
+                // Migration: bap no longer fires a BC activity (ActivityRun sends its own chat
+                // message which would say "boops nose" and conflict with the custom emote text)
+                bcGroup: e.id === "bap" ? undefined : ((_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group), bcActivity: e.id === "bap" ? undefined : ((_g = e.bcActivity) !== null && _g !== void 0 ? _g : (_h = BC_ACTIVITY_SEEDS[e.id]) === null || _h === void 0 ? void 0 : _h.activity) }));
         });
         // Append any new default emotes that weren't in the stored list yet
         for (const seed of NEW_EMOTE_SEEDS) {
@@ -28213,7 +28205,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.100";
+    const MOD_VERSION = "2.2.101";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28224,6 +28216,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.101",
+            changes: [
+                "Fix: 🐾 Bap no longer fires a BC activity — ActivityRun sends its own chat message ('boops nose') that conflicted with the custom emote text. The bap emote text is descriptive enough on its own. Existing stored bap entries have bcGroup/bcActivity cleared automatically.",
+            ],
+        },
         {
             version: "2.2.100",
             changes: [
