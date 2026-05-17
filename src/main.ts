@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.103";
+const MOD_VERSION = "2.2.104";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.104",
+        changes: [
+            "Kitty Leash: Tug no longer fires the Choke activity on ItemNeck — this was triggering LSCG's neck-grab event ('Your neck has been grabbed'). Tug now only sends the room emote and refreshes the HoldLeash signal.",
+            "Kitty Leash: Tug is now limited to 3 tugs per grab. A 4th+ click sends a 'already at max tightness' room emote instead. The counter resets whenever the leash is grabbed or released. Button tooltip shows current count.",
+        ],
+    },
     {
         version: "2.2.103",
         changes: [
