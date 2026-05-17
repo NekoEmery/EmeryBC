@@ -7278,6 +7278,7 @@ export class EBCDrawer {
         activeBodyEl.appendChild(slotList);
 
         const renderSlots = (): void => {
+            const savedScroll = body.scrollTop;
             // Always ensure btns has a real object for every slot — prevents "undefined" crashes
             while (btns.length < slotCount) {
                 btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
@@ -7546,6 +7547,7 @@ export class EBCDrawer {
                     }
                 });
             }
+            body.scrollTop = savedScroll;
         };
 
         renderSlots();
