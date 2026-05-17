@@ -2720,7 +2720,7 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "anims" | "notes" | "thanks" | "dev" | "dom" | "puppy";
+type DrawerTab = "outfits" | "anims" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
 
 const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
 
@@ -2985,6 +2985,14 @@ export class EBCDrawer {
         puppyTabBtn.title = "Puppy";
         puppyTabBtn.style.display = "none"; // revealed in open() for Lucy only
 
+        // Kitty tab — Lucy only (member 230466)
+        const kittyTabBtn = document.createElement("button");
+        kittyTabBtn.className = "ebc-tab-btn";
+        kittyTabBtn.id = "ebc-tab-kitty";
+        kittyTabBtn.textContent = "🐱";
+        kittyTabBtn.title = "Kitty";
+        kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
+
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(posesTabBtn);
         tabBar.appendChild(notesTabBtn);
@@ -2992,6 +3000,7 @@ export class EBCDrawer {
         tabBar.appendChild(devTabBtn2);
         tabBar.appendChild(domTabBtn);
         tabBar.appendChild(puppyTabBtn);
+        tabBar.appendChild(kittyTabBtn);
 
         // Quick actions bar (always visible below tabs)
         const quickActions = document.createElement("div");
@@ -3582,6 +3591,7 @@ export class EBCDrawer {
         devTabBtn2.addEventListener("click",     () => this.switchTab("dev"));
         domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
         puppyTabBtn.addEventListener("click",    () => this.switchTab("puppy"));
+        kittyTabBtn.addEventListener("click",    () => this.switchTab("kitty"));
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.isOpen) { this.close(); return; }
@@ -3970,6 +3980,7 @@ export class EBCDrawer {
             ["ebc-tab-dev",     "dev"],
             ["ebc-tab-dom",     "dom"],
             ["ebc-tab-puppy",   "puppy"],
+            ["ebc-tab-kitty",   "kitty"],
         ] as [string, DrawerTab][]) {
             const el = this.rootEl?.querySelector(`#${id}`);
             if (el) el.className = "ebc-tab-btn" + (tab === name ? " ebc-tab-active" : "");
@@ -3986,6 +3997,7 @@ export class EBCDrawer {
         else if (this.currentTab === "dev")      this.renderDev();
         else if (this.currentTab === "dom")      this.renderDomTools();
         else if (this.currentTab === "puppy")    this.renderPuppy();
+        else if (this.currentTab === "kitty")    this.renderKittyTab();
     }
 
     /**
@@ -9481,11 +9493,11 @@ export class EBCDrawer {
                         try {
                             const icons: string[] = [];
                             const own = (Player as unknown as Record<string, unknown>).Ownership as { MemberNumber?: number } | undefined;
-                            if (own?.MemberNumber === num) icons.push("🔒");
+                            if (own?.MemberNumber === num) icons.push("👑");
                             const loves = (Player as unknown as Record<string, unknown>).Lovership as Array<{ MemberNumber?: number }> | undefined;
                             if (loves?.some(l => l.MemberNumber === num)) icons.push("❤️");
                             const charOwn = char.Ownership as { MemberNumber?: number } | undefined;
-                            if (charOwn?.MemberNumber === Player.MemberNumber) icons.push("👑");
+                            if (charOwn?.MemberNumber === Player.MemberNumber) icons.push("🔒");
                             return icons.join("");
                         } catch { return ""; }
                     })();
@@ -12472,6 +12484,13 @@ export class EBCDrawer {
         body.appendChild(addRow);
     }
 
+    private renderKittyTab(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+        this.renderKittySection(body);
+    }
+
     private renderKittySection(body: HTMLElement): void {
         // ── Header ───────────────────────────────────────────────────────────────
         const hdr = document.createElement("div");
@@ -12939,11 +12958,6 @@ export class EBCDrawer {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
-
-        // Lucy (#230466) gets the Kitty section at the top
-        if (Player.MemberNumber === LUCY_MEMBER) {
-            this.renderKittySection(body);
-        }
 
         const credLbl = document.createElement("div");
         credLbl.className = "ebc-section-label";
@@ -14290,7 +14304,10 @@ export class EBCDrawer {
         if (domTabEl) domTabEl.style.display = isDomEnabled() ? "" : "none";
         // Show the Puppy tab only for Lucy (#230466)
         const puppyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-puppy");
-        if (puppyTabEl) puppyTabEl.style.display = Player.MemberNumber === 230466 ? "" : "none";
+        if (puppyTabEl) puppyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
+        // Show the Kitty tab only for Lucy (#230466)
+        const kittyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-kitty");
+        if (kittyTabEl) kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
         this.updateTimer();
         try { this.applyTabVisibility(); } catch { /* ignore */ }
         this.renderCurrentTab();

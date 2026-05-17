@@ -19,7 +19,7 @@ import { LUCY_MEMBER, parseKittyCmd } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.50";
+const MOD_VERSION = "2.2.51";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -33,6 +33,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.51",
+        changes: [
+            "Fix: PEOPLE IN ROOM badge now correctly shows 👑 for your owner and 🔒 for someone you own (was reversed).",
+            "New: Kitty menu is now its own 🐱 tab (was buried in Credits). Only visible to Lucy (#230466).",
+            "Fix: Arousal changes (/ebc ameter) now broadcast to the room immediately so others see the meter update.",
+            "New: /ebc help commands are now stacked with descriptions; click any to auto-fill the chat bar.",
+        ],
+    },
     {
         version: "2.2.50",
         changes: [
@@ -2175,6 +2184,47 @@ function appendLocalLogLine(text: string, color = UI.accent): void {
     }
 }
 
+// Appends a clickable command row to the chat log. Clicking fills the chat input
+// with the command text so the user only has to press Enter to run it.
+function appendClickableCmd(cmd: string, desc: string): void {
+    const doAppend = (): boolean => {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log) return false;
+        const row = document.createElement("div");
+        row.style.cssText = `
+            background: ${UI.cardMuted};
+            border-left: 3px solid ${UI.accent};
+            padding: 3px 8px;
+            margin: 1px 0;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.12s;
+        `;
+        row.title = "Click to fill chat bar";
+        row.addEventListener("mouseenter", () => { row.style.background = "#2a1a2a"; });
+        row.addEventListener("mouseleave", () => { row.style.background = UI.cardMuted; });
+        const cmdSpan = document.createElement("span");
+        cmdSpan.style.cssText = "font-family:monospace;color:#e0b8d8;font-weight:bold;font-size:11px;white-space:nowrap;font-style:normal;";
+        cmdSpan.textContent = cmd;
+        const descSpan = document.createElement("span");
+        descSpan.style.cssText = `color:${UI.textMuted};font-size:10px;font-style:italic;`;
+        descSpan.textContent = desc;
+        row.appendChild(cmdSpan);
+        row.appendChild(descSpan);
+        row.addEventListener("click", () => {
+            const input = document.getElementById("InputChat") as HTMLInputElement | HTMLTextAreaElement | null;
+            if (input) { input.value = cmd; input.focus(); }
+        });
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+        return true;
+    };
+    if (!doAppend()) window.setTimeout(() => doAppend(), 300);
+}
+
 function showVersionInfo(): void {
     appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
 }
@@ -2203,6 +2253,20 @@ function syncArousalSettings(arousal: Record<string, unknown>): void {
     const updater = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
         AccountUpdater | undefined;
     updater?.QueueData({ ArousalSettings: arousal });
+    // Also broadcast to the room so other players see the change immediately
+    callBC(() => {
+        type W = Record<string, unknown>;
+        const syncFn = (window as unknown as W).ActivityChatRoomArousalSync as ((c: unknown) => void) | undefined;
+        if (typeof syncFn === "function") {
+            syncFn(Player);
+        } else if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+            ServerSend("ChatRoomCharacterUpdate", {
+                ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                ArousalSettings: arousal,
+                Appearance: ServerAppearanceBundle(Player.Appearance),
+            });
+        }
+    });
 }
 
 function toggleArometerCommand(): void {
@@ -2361,7 +2425,19 @@ function handleMetaCommand(inputValue: string): boolean {
     }
 
 
-    appendLocalLogLine("[EBC] Commands: /lock  /unlock  |  /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter [0-100]  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
+    appendLocalLogLine("[EBC] Commands — click any to fill the chat bar:", UI.gold);
+    appendClickableCmd("/lock",              "Lock the current room (requires admin)");
+    appendClickableCmd("/unlock",            "Unlock the current room (requires admin)");
+    appendClickableCmd("/ebc version",       "Show current EBC version");
+    appendClickableCmd("/ebc changelog",     "Show recent changelog entries");
+    appendClickableCmd("/ebc release",       "Release all restraints from yourself");
+    appendClickableCmd("/ebc unlock",        "Remove all locks from yourself");
+    appendClickableCmd("/ebc ameter",        "Toggle arousal meter on / off");
+    appendClickableCmd("/ebc ameter 50",     "Set arousal to a specific % (0–100)");
+    appendClickableCmd("/ebc update",        "Check GitHub for a newer version");
+    appendClickableCmd("/ebc updates on",    "Enable update notifications");
+    appendClickableCmd("/ebc updates off",   "Disable update notifications");
+    appendClickableCmd("/ebc afk",           "Toggle AFK mode");
     return true;
 }
 
