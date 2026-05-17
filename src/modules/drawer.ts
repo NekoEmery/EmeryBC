@@ -14022,7 +14022,6 @@ export class EBCDrawer {
                         const mood = getKittyMood();
                         const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                         sendRoomEmote(text);
-                        if (em.expression) sendExprOrPreset(em.expression);
                         if (em.bcGroup && em.bcActivity) runKittyActivity(em.bcGroup, em.bcActivity);
                         if (em.interactive) sendKittyCmd("react", JSON.stringify({ label: em.label }));
                         const reactText = mood === "rough" ? (em.autoreactRough || em.autoreact) : em.autoreact;
@@ -14122,7 +14121,6 @@ export class EBCDrawer {
                         const mood = getKittyMood();
                         const emoteText = mood === "rough" ? (p.roughEmote || p.kindEmote) : (p.kindEmote || p.roughEmote);
                         sendKittyCmd("pose", p.poses.join(","));
-                        if (p.expression) sendExprOrPreset(p.expression);
                         setTimeout(() => {
                             if (typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom") {
                                 sendRoomEmote(emoteText);
@@ -14169,37 +14167,21 @@ export class EBCDrawer {
                 const roughInp = document.createElement("input"); roughInp.value = p.roughEmote; roughInp.placeholder = "Room emote in rough mode…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
                 roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
 
-                // Row 4: expression trigger
-                const exprTrigRow = document.createElement("div"); exprTrigRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const exprTrigLbl = document.createElement("span"); exprTrigLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:38px;"; exprTrigLbl.textContent = "😊 Expr:";
-                const exprTrigSel = document.createElement("select"); exprTrigSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const exprNoneOpt = document.createElement("option"); exprNoneOpt.value = ""; exprNoneOpt.textContent = "— none —"; exprTrigSel.appendChild(exprNoneOpt);
-                for (const ex of KITTY_EXPRESSIONS) { const o = document.createElement("option"); o.value = ex.cmd; o.textContent = ex.label; exprTrigSel.appendChild(o); }
-                const exprPresets1 = getKittyExpressionPresets();
-                if (exprPresets1.length > 0) {
-                    const grp1 = document.createElement("optgroup"); grp1.label = "★ Presets"; exprTrigSel.appendChild(grp1);
-                    for (const ep of exprPresets1) { const o = document.createElement("option"); o.value = "preset:" + ep.id; o.textContent = "★ " + ep.label; grp1.appendChild(o); }
-                }
-                exprTrigSel.value = p.expression ?? "";
-                exprTrigRow.appendChild(exprTrigLbl); exprTrigRow.appendChild(exprTrigSel);
-
                 const saveInp = (): void => {
                     const updated = getKittyPoses();
                     updated[idx].label = lblInp.value;
                     updated[idx].poses = poseInp.value ? poseInp.value.split(",").map(s => s.trim()).filter(Boolean) : [];
                     updated[idx].kindEmote  = kindInp.value;
                     updated[idx].roughEmote = roughInp.value;
-                    updated[idx].expression = exprTrigSel.value || undefined;
                     saveKittyPoses(updated);
                 };
                 [lblInp, poseInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
-                exprTrigSel.addEventListener("change", saveInp);
                 delBtn.addEventListener("click", () => {
                     saveKittyPoses(getKittyPoses().filter((_, i) => i !== idx));
                     renderPoses(true);
                 });
 
-                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow); r.appendChild(exprTrigRow);
+                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow);
                 list.appendChild(r);
             });
 
@@ -14934,6 +14916,24 @@ export class EBCDrawer {
         // ── EXPRESSIONS ──────────────────────────────────────────────────────────
         const { cBody: exprCBody, wrap: exprWrap2 } = makeCollapsible("EBC_kittyExpressionsOpen", "😊 Expressions", false);
 
+        // ── Expression Presets (at top) ───────────────────────────────────────
+        const epHdr = document.createElement("div");
+        epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
+        epHdr.textContent = "Expression Presets";
+        exprCBody.appendChild(epHdr);
+
+        const epHint = document.createElement("div");
+        epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+        epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy + Mouth:Pout) — click a preset to fire all its expressions at once.";
+        exprCBody.appendChild(epHint);
+
+        const epWrap = document.createElement("div");
+        epWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+        exprCBody.appendChild(epWrap);
+
+        // ── Individual expressions (below presets) ────────────────────────────
+        const epDivider = divider(); epDivider.style.margin = "6px 0";
+
         const exprWrap = document.createElement("div");
         exprWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
         for (const expr of KITTY_EXPRESSIONS) {
@@ -14949,26 +14949,7 @@ export class EBCDrawer {
         }
         const exprHint = document.createElement("div");
         exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:2px;";
-        exprHint.textContent = "Sends a facial expression command to Emery";
-        exprCBody.appendChild(exprWrap);
-        exprCBody.appendChild(exprHint);
-
-        // ── Expression Presets ────────────────────────────────────────────────
-        const epDivider = divider(); epDivider.style.margin = "6px 0"; exprCBody.appendChild(epDivider);
-
-        const epHdr = document.createElement("div");
-        epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
-        epHdr.textContent = "Expression Presets";
-        exprCBody.appendChild(epHdr);
-
-        const epHint = document.createElement("div");
-        epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
-        epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy). Use them as expression triggers on poses, actions and emotes.";
-        exprCBody.appendChild(epHint);
-
-        const epWrap = document.createElement("div");
-        epWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
-        exprCBody.appendChild(epWrap);
+        exprHint.textContent = "Sends a single facial expression command to Emery";
 
         const renderExprPresets = (): void => {
             epWrap.innerHTML = "";
@@ -15086,6 +15067,9 @@ export class EBCDrawer {
         };
 
         renderExprPresets();
+        exprCBody.appendChild(epDivider);
+        exprCBody.appendChild(exprWrap);
+        exprCBody.appendChild(exprHint);
         body.appendChild(exprWrap2);
     }
 

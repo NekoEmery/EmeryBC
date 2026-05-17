@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.109";
+const MOD_VERSION = "2.2.110";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.110",
+        changes: [
+            "Kitty UI: expressions can no longer be attached to emotes or poses — they are now exclusive to the Expressions section. The expression-trigger dropdown has been removed from pose edit cards, and expression firing has been removed from both emote and pose click handlers.",
+            "Kitty UI: in the Expressions section, custom presets (★ buttons + editor) now appear at the top, above the individual expression buttons.",
+        ],
+    },
     {
         version: "2.2.109",
         changes: [
