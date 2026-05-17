@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.105
+// @version      2.2.106
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11378,9 +11378,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         },
         {
             id: "bap", label: "🐾 Bap",
-            text: "gives Emery a playful bap on the nose~ 🐾",
+            text: "gives Emery a playful bap on the head~ 🐾",
             roughText: "gives Emery a sharp flick to the forehead without warning~",
             type: "emote",
+            autoreact: "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾",
+            autoreactRough: "yelps and flinches away, one hand flying up to her forehead~",
         },
     ];
     const DEFAULT_POSES = [
@@ -11501,9 +11503,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const NEW_EMOTE_SEEDS = [
         {
             id: "bap", label: "🐾 Bap",
-            text: "gives Emery a playful bap on the nose~ 🐾",
+            text: "gives Emery a playful bap on the head~ 🐾",
             roughText: "gives Emery a sharp flick to the forehead without warning~",
             type: "emote",
+            autoreact: "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾",
+            autoreactRough: "yelps and flinches away, one hand flying up to her forehead~",
         },
         {
             id: "spank", label: "👋 Spank",
@@ -11521,6 +11525,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             .map(e => {
             var _a, _b, _c, _d, _e, _f, _g, _h;
             return (Object.assign(Object.assign({}, e), { 
+                // Migration: fix stored bap kind text that still says "nose" — should be "head"
+                text: e.id === "bap" && e.text === "gives Emery a playful bap on the nose~ 🐾"
+                    ? "gives Emery a playful bap on the head~ 🐾"
+                    : e.text, 
                 // Migration: fix stored bap rough text that still says "nose" — should be "forehead"
                 roughText: e.id === "bap" && e.roughText === "gives Emery a sharp flick on the nose without warning~"
                     ? "gives Emery a sharp flick to the forehead without warning~"
@@ -25254,6 +25262,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 runKittyActivity(em.bcGroup, em.bcActivity);
                             if (em.interactive)
                                 sendKittyCmd("react", JSON.stringify({ label: em.label }));
+                            const reactText = mood === "rough" ? (em.autoreactRough || em.autoreact) : em.autoreact;
+                            if (reactText)
+                                sendKittyCmd("autoreact", reactText);
                         }));
                     }
                     emotesWrap.appendChild(row);
@@ -28254,7 +28265,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.105";
+    const MOD_VERSION = "2.2.106";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28265,6 +28276,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.106",
+            changes: [
+                "Fix: Kneel (and all kitty poses) now apply correctly — CharacterRefresh was called with dirty=false which told BC not to recalculate the pose. Now uses CharacterRefresh(false) + ChatRoomCharacterUpdate, matching the applyPoses pattern.",
+                "Kitty Bap: text updated to 'head bap' (was 'nose bap'). Emery now auto-reacts with a startled eeep emote — no popup, fires automatically. Stored text entries migrated.",
+                "Kitty Resistance popup: accept button now sends 'accepts obediently' emote. Timer expiry (failed struggle) sends a separate 'crumbles despite herself' emote. Both are mood-aware.",
+                "Added 'autoreact' kitty command + KittyEmote fields autoreact/autoreactRough for instant auto-sent reactions without a popup.",
+            ],
+        },
         {
             version: "2.2.105",
             changes: [
@@ -30996,8 +31016,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const acceptBtn = document.createElement("button");
         acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
         acceptBtn.textContent = "Accept~ 🌸";
-        acceptBtn.addEventListener("click", () => {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+        // Shared accept handler — autoFailed=true when the countdown expires, false when clicked
+        const doAccept = (autoFailed) => {
+            var _a, _b, _c, _d, _e, _f, _g, _h;
+            if (isResolved)
+                return;
+            isResolved = true;
+            // Send the appropriate emote before applying anything
+            try {
+                const emote = autoFailed
+                    ? (mood === "rough"
+                        ? "struggles with everything she has but crumbles all the same, resistance fading despite herself~"
+                        : "squirms and fights a little longer before going still, unable to find the will to refuse~")
+                    : (mood === "rough"
+                        ? "stills with a quiet whimper, yielding without further struggle~"
+                        : "takes a slow breath and gives a small nod, accepting obediently~ 🌸");
+                ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+            }
+            catch ( /* ignore */_j) { /* ignore */ }
             // Apply restraint items to self (with full craft/property/difficulty support)
             if (restraintItems.length > 0) {
                 try {
@@ -31049,19 +31085,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 try {
                     const w2 = window;
                     Player.ActivePose = [...reaction.poses];
-                    (_j = w2.CharacterRefresh) === null || _j === void 0 ? void 0 : _j.call(w2, Player, false, false);
-                    if (Player.OnlineID != null) {
-                        callBC(() => ServerSend("ChatRoomCharacterUpdate", {
-                            ID: Player.OnlineID,
-                            ActivePose: reaction.poses,
-                            Appearance: ServerAppearanceBundle(Player.Appearance),
-                        }));
-                    }
+                    callBC(() => CharacterRefresh(Player, false));
+                    callBC(() => ChatRoomCharacterUpdate(Player));
                 }
                 catch ( /* ignore */_m) { /* ignore */ }
             }
-            close();
-        });
+            overlay.remove();
+        };
+        acceptBtn.addEventListener("click", () => doAccept(false));
         btnRow.appendChild(fightBtn);
         btnRow.appendChild(acceptBtn);
         box.appendChild(title);
@@ -31083,7 +31114,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
             if (pct <= 0) {
                 if (!isResolved)
-                    acceptBtn.click();
+                    doAccept(true);
             }
             else {
                 requestAnimationFrame(tick);
@@ -31194,16 +31225,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ? arg.split(",").map(s => s.trim()).filter(Boolean)
                         : null;
                     Player.ActivePose = poses;
-                    callBC(() => CharacterRefresh(Player, false, false));
-                    // Re-patch tracked expressions into appearance so they survive the update
+                    // Patch expressions first so they survive the full refresh recalculation
                     patchKittyExpressions();
-                    if (Player.OnlineID != null) {
-                        callBC(() => ServerSend("ChatRoomCharacterUpdate", {
-                            ID: Player.OnlineID,
-                            ActivePose: poses,
-                            Appearance: ServerAppearanceBundle(Player.Appearance),
-                        }));
-                    }
+                    // Use BC's own ChatRoomCharacterUpdate (same path as applyPoses) so the
+                    // pose recalculation runs properly — CharacterRefresh(false,false) was
+                    // skipping the dirty/recalculate step which broke Kneel and similar poses.
+                    callBC(() => CharacterRefresh(Player, false));
+                    callBC(() => ChatRoomCharacterUpdate(Player));
                     break;
                 }
                 case "arousal": {
@@ -31234,6 +31262,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     catch (_f) {
                         showKittyReactPopup(arg);
+                    }
+                    break;
+                }
+                case "autoreact": {
+                    // Auto-send a reaction emote with no popup — used for instant reactions like bap eeep
+                    if (arg) {
+                        try {
+                            ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
+                        }
+                        catch ( /* ignore */_g) { /* ignore */ }
                     }
                     break;
                 }
@@ -31282,7 +31320,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }));
                         }
                     }
-                    catch ( /* ignore */_g) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                     break;
                 }
                 case "expression": {
@@ -31315,12 +31353,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }
                         }
                     }
-                    catch ( /* ignore */_h) { /* ignore */ }
+                    catch ( /* ignore */_j) { /* ignore */ }
                     break;
                 }
             }
         }
-        catch ( /* ignore */_j) { /* ignore */ }
+        catch ( /* ignore */_k) { /* ignore */ }
     }
     function handleMetaCommand(inputValue) {
         var _a, _b, _c;
