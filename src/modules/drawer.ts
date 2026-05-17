@@ -13814,6 +13814,8 @@ export class EBCDrawer {
                 row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
                 for (const em of emotes) {
                     row.appendChild(makePill(em.label, "#cf6f98", () => {
+                        // Guard: never send chat when not in a room
+                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
                         const mood = getKittyMood();
                         const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                         try {
@@ -14009,6 +14011,8 @@ export class EBCDrawer {
                 row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
                 for (const p of poses) {
                     row.appendChild(makePill(p.label, "#a070c8", () => {
+                        // Guard: never send chat when not in a room
+                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
                         // Send mood-aware room emote first, then apply pose
                         const mood = getKittyMood();
                         const emoteText = mood === "rough" ? (p.roughEmote || p.kindEmote) : (p.kindEmote || p.roughEmote);
@@ -14122,6 +14126,8 @@ export class EBCDrawer {
                 row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
                 for (const pun of punishments) {
                     row.appendChild(makePill(pun.label, "#d05070", () => {
+                        // Guard: never send chat when not in a room
+                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
                         const mood = getKittyMood();
                         // Send all emote steps to room in order
                         for (const step of pun.steps) {
