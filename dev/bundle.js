@@ -2343,6 +2343,25 @@
     //   *text      - send as * Name text * emote message
     // Steps run 500 ms apart. Original poses are restored when done.
     let seqRunning = false;
+    let seqTimeoutId = null;
+    let seqDoneCallback = null;
+    let seqRestoreFn = null;
+    function isSeqRunning() { return seqRunning; }
+    function setSeqDoneCallback(fn) { seqDoneCallback = fn; }
+    function cancelSequence() {
+        if (!seqRunning)
+            return;
+        if (seqTimeoutId !== null) {
+            window.clearTimeout(seqTimeoutId);
+            seqTimeoutId = null;
+        }
+        seqRestoreFn === null || seqRestoreFn === void 0 ? void 0 : seqRestoreFn();
+        seqRestoreFn = null;
+        seqRunning = false;
+        const cb = seqDoneCallback;
+        seqDoneCallback = null;
+        cb === null || cb === void 0 ? void 0 : cb();
+    }
     // Sends the current ActivePose to the room without triggering a full re-render on each step.
     // appearanceBundle should be pre-built once before the sequence starts and reused - sending
     // a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
@@ -2410,6 +2429,7 @@
             : null;
         // Build appearance bundle ONCE - reusing it avoids re-render flicker on other clients.
         const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
+        seqRestoreFn = () => { Player.ActivePose = originalPoses; syncPoseToRoom(); };
         let idx = 0;
         const next = () => {
             try {
@@ -2418,6 +2438,11 @@
                     Player.ActivePose = originalPoses;
                     syncPoseToRoom();
                     seqRunning = false;
+                    seqTimeoutId = null;
+                    seqRestoreFn = null;
+                    const cb = seqDoneCallback;
+                    seqDoneCallback = null;
+                    cb === null || cb === void 0 ? void 0 : cb();
                     return;
                 }
                 const { content: step, delay } = steps[idx++];
@@ -2428,7 +2453,12 @@
                 else if (step.toLowerCase() === "leaveroom") {
                     Player.ActivePose = originalPoses;
                     seqRunning = false;
+                    seqTimeoutId = null;
+                    seqRestoreFn = null;
+                    const leaveCb = seqDoneCallback;
+                    seqDoneCallback = null;
                     window.setTimeout(() => {
+                        leaveCb === null || leaveCb === void 0 ? void 0 : leaveCb();
                         callBC(() => CommonSetScreen("Online", "ChatSearch"));
                         callBC(() => ChatRoomLeave());
                     }, 0);
@@ -2444,10 +2474,15 @@
                     Player.ActivePose = [step];
                     sendPoseUpdate(appearanceBundle);
                 }
-                window.setTimeout(next, delay);
+                seqTimeoutId = window.setTimeout(next, delay);
             }
             catch (_) {
                 seqRunning = false;
+                seqTimeoutId = null;
+                seqRestoreFn = null;
+                const cb = seqDoneCallback;
+                seqDoneCallback = null;
+                cb === null || cb === void 0 ? void 0 : cb();
             }
         };
         next();
@@ -14349,13 +14384,36 @@
                 selfPickToggle.style.color = "#7a4a5e"; });
             quickActions.appendChild(selfPickToggle);
             // Slow Leave button — always shown when in a chatroom
+            const SLOW_LEAVE_PRESETS = [
+                { label: "🌸 Classic", seq: "*smiles and gives a little wave~@{DUR}|*slowly heads for the door...@0|leaveroom" },
+                { label: "🤗 Warm", seq: "*gives everyone a warm hug before leaving~@{DUR}|*heads for the door with a soft smile~@0|leaveroom" },
+                { label: "😔 Quiet", seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
+                { label: "💤 Sleepy", seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
+                { label: "🐾 Playful", seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
+            ];
             const slowLeaveBtn = document.createElement("button");
             slowLeaveBtn.className = "ebc-action-btn";
             slowLeaveBtn.textContent = "🚶 Slow Leave";
             slowLeaveBtn.title = "Wave goodbye and slowly head for the door";
             slowLeaveBtn.style.cssText = "display:none;width:100%;";
             slowLeaveBtn.addEventListener("click", () => {
-                runSequence("*smiles and gives a little wave~@2500|*slowly heads for the door...@0|leaveroom");
+                var _a, _b;
+                if (isSeqRunning()) {
+                    cancelSequence();
+                    return;
+                }
+                const durMs = Math.max(500, (parseInt((_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5", 10)) * 1000);
+                const pIdx = Math.min(SLOW_LEAVE_PRESETS.length - 1, Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10)));
+                const seq = SLOW_LEAVE_PRESETS[pIdx].seq.replace("{DUR}", String(durMs));
+                setSeqDoneCallback(() => {
+                    slowLeaveBtn.textContent = "🚶 Slow Leave";
+                    slowLeaveBtn.style.background = "";
+                    slowLeaveBtn.style.color = "";
+                });
+                slowLeaveBtn.textContent = "✕ Cancel Leave";
+                slowLeaveBtn.style.background = "#4a1a2a";
+                slowLeaveBtn.style.color = "#ff8aaa";
+                runSequence(seq);
             });
             quickActions.appendChild(slowLeaveBtn);
             this.slowLeaveBtn = slowLeaveBtn;
@@ -15189,9 +15247,14 @@
         updateSlowLeaveVisibility() {
             if (!this.slowLeaveBtn)
                 return;
-            const enabled = localStorage.getItem("EBC_slowLeave") !== "0"; // default ON
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
-            this.slowLeaveBtn.style.display = (enabled && inRoom) ? "" : "none";
+            this.slowLeaveBtn.style.display = inRoom ? "" : "none";
+            // Reset button label if no sequence is currently running
+            if (!isSeqRunning()) {
+                this.slowLeaveBtn.textContent = "🚶 Slow Leave";
+                this.slowLeaveBtn.style.background = "";
+                this.slowLeaveBtn.style.color = "";
+            }
         }
         // -- Tab switching ---------------------------------------------------------
         stopDevLogPoller() {
@@ -23807,7 +23870,7 @@
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a;
+            var _a, _b, _c;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -23818,35 +23881,62 @@
             faHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;";
             faHdr.textContent = "Fun Actions";
             body.appendChild(faHdr);
-            const faRow = document.createElement("div");
-            faRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;";
-            // Slow Leave toggle pill
-            const getSlOn = () => localStorage.getItem("EBC_slowLeave") !== "0";
-            const slPill = document.createElement("button");
-            const updateSlPill = () => {
-                const on = getSlOn();
-                slPill.textContent = (on ? "✅" : "⬜") + " Slow Leave";
-                slPill.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:10px",
-                    "padding:4px 10px", "border-radius:5px", "cursor:pointer",
-                    "border:1px solid " + (on ? "#cf6f9855" : "#3a1928"),
-                    "background:" + (on ? "#cf6f9818" : "transparent"),
-                    "color:" + (on ? "#cf6f98" : "#7a5a6a"),
-                    "transition:background 0.12s,border-color 0.12s",
-                ].join(";");
-            };
-            updateSlPill();
-            slPill.title = "Show the 🚶 Slow Leave quick button in the drawer when you're in a chatroom";
-            slPill.addEventListener("click", () => {
+            // ── Slow Leave config ─────────────────────────────────────────────────
+            const SL_PRESETS_LABELS = ["🌸 Classic", "🤗 Warm", "😔 Quiet", "💤 Sleepy", "🐾 Playful"];
+            const rowCss = "display:flex;align-items:center;gap:8px;margin-bottom:7px;";
+            const lbl9Css = "font-family:'Trebuchet MS',serif;font-size:9px;color:#967281;white-space:nowrap;flex-shrink:0;width:58px;";
+            // Duration slider row
+            const durRow = document.createElement("div");
+            durRow.style.cssText = rowCss;
+            const durLbl = document.createElement("span");
+            durLbl.style.cssText = lbl9Css;
+            durLbl.textContent = "Duration";
+            const durVal = document.createElement("span");
+            durVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;width:26px;text-align:right;flex-shrink:0;";
+            const durSlider = document.createElement("input");
+            durSlider.type = "range";
+            durSlider.min = "2";
+            durSlider.max = "30";
+            durSlider.step = "1";
+            durSlider.value = (_b = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _b !== void 0 ? _b : "5";
+            durSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            const updateDurVal = () => { durVal.textContent = durSlider.value + "s"; };
+            updateDurVal();
+            durSlider.addEventListener("input", () => {
+                updateDurVal();
                 try {
-                    localStorage.setItem("EBC_slowLeave", getSlOn() ? "0" : "1");
+                    localStorage.setItem("EBC_slowLeaveDuration", durSlider.value);
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
-                updateSlPill();
-                this.updateSlowLeaveVisibility();
             });
-            faRow.appendChild(slPill);
-            body.appendChild(faRow);
+            durRow.appendChild(durLbl);
+            durRow.appendChild(durSlider);
+            durRow.appendChild(durVal);
+            body.appendChild(durRow);
+            // Preset dropdown row
+            const preRow = document.createElement("div");
+            preRow.style.cssText = rowCss + "margin-bottom:10px;";
+            const preLbl = document.createElement("span");
+            preLbl.style.cssText = lbl9Css;
+            preLbl.textContent = "Preset";
+            const preSel = document.createElement("select");
+            preSel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:4px;padding:2px 4px;cursor:pointer;min-width:0;";
+            SL_PRESETS_LABELS.forEach((lbl, i) => {
+                const opt = document.createElement("option");
+                opt.value = String(i);
+                opt.textContent = lbl;
+                preSel.appendChild(opt);
+            });
+            preSel.value = (_c = localStorage.getItem("EBC_slowLeavePreset")) !== null && _c !== void 0 ? _c : "0";
+            preSel.addEventListener("change", () => {
+                try {
+                    localStorage.setItem("EBC_slowLeavePreset", preSel.value);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            preRow.appendChild(preLbl);
+            preRow.appendChild(preSel);
+            body.appendChild(preRow);
             // divider
             const faDivider = document.createElement("div");
             faDivider.style.cssText = "height:1px;background:#2a1421;margin-bottom:10px;";
@@ -26763,7 +26853,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.68";
+    const MOD_VERSION = "2.2.69";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26774,6 +26864,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.69",
+            changes: [
+                "Slow Leave overhaul: removed the toggle pill from Fun Actions; added a duration slider (2–30 s) and a preset dropdown (🌸 Classic, 🤗 Warm, 😔 Quiet, 💤 Sleepy, 🐾 Playful) in its place.",
+                "Slow Leave sidebar button now toggles to '✕ Cancel Leave' while the sequence is running — clicking it cancels immediately and resets pose.",
+                "Slow Leave is now always visible in the sidebar when inside a chatroom (no toggle needed).",
+            ],
+        },
         {
             version: "2.2.68",
             changes: [
