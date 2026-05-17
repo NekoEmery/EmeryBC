@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.86
+// @version      2.2.87
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11683,13 +11683,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { label: "😔 Quiet", seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
         { label: "💤 Sleepy", seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
         { label: "🐾 Playful", seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
+        { label: "😏 Bratty", seq: "*stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much.@{DUR}|*saunters out without a single look back~@0|leaveroom" },
+        { label: "✏️ Custom", seq: "*waves and heads for the door~@{DUR}|leaveroom" },
     ];
     function getSlowLeavePresets() {
         try {
             const raw = localStorage.getItem("EBC_slowLeavePresets");
             if (raw) {
                 const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length === SLOW_LEAVE_PRESET_DEFAULTS.length) {
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Additive migration: append any new defaults not yet in the stored list
+                    for (const def of SLOW_LEAVE_PRESET_DEFAULTS) {
+                        if (!parsed.find(p => p.label === def.label))
+                            parsed.push(Object.assign({}, def));
+                    }
                     return parsed;
                 }
             }
@@ -14342,7 +14349,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         // -- Setup -----------------------------------------------------------------
         setup() {
-            var _a;
+            var _a, _b, _c, _d;
             if (this.rootEl)
                 return;
             this.injectStyles();
@@ -14666,16 +14673,41 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             populateSlPresets();
             slPresetDropdown.addEventListener("change", () => {
+                var _a, _b;
                 try {
                     localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value);
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_c) { /* ignore */ }
+                // Update seq textarea
+                const lp = getSlowLeavePresets();
+                const pi = parseInt(slPresetDropdown.value, 10);
+                slSeqArea.value = (_b = (_a = lp[pi]) === null || _a === void 0 ? void 0 : _a.seq) !== null && _b !== void 0 ? _b : "";
             });
             slCollapseBody.appendChild(slPresetDropdown);
             this.slPresetDropdown = slPresetDropdown;
-            // Button category selector
+            // Seq textarea — lets the user customise the selected preset's sequence
+            const slSeqArea = document.createElement("textarea");
+            slSeqArea.rows = 3;
+            slSeqArea.spellcheck = false;
+            slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
+            slSeqArea.title = "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}";
+            const slSeqInitPresets = getSlowLeavePresets();
+            const slSeqInitIdx = parseInt((_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0", 10);
+            slSeqArea.value = (_c = (_b = slSeqInitPresets[slSeqInitIdx]) === null || _b === void 0 ? void 0 : _b.seq) !== null && _c !== void 0 ? _c : "";
+            slSeqArea.addEventListener("change", () => {
+                const lp = getSlowLeavePresets();
+                const pi = parseInt(slPresetDropdown.value, 10);
+                if (pi >= 0 && pi < lp.length) {
+                    lp[pi].seq = slSeqArea.value;
+                    saveSlowLeavePresets(lp);
+                }
+            });
+            slCollapseBody.appendChild(slSeqArea);
+            // Button category selector (with × delete)
+            const slCatRow = document.createElement("div");
+            slCatRow.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;box-sizing:border-box;";
             const slCatDropdown = document.createElement("select");
-            slCatDropdown.style.cssText = DD_CSS;
+            slCatDropdown.style.cssText = DD_CSS + "flex:1;";
             slCatDropdown.title = "Switch action button category";
             const refreshCatDropdown = () => {
                 try {
@@ -14698,7 +14730,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (this.currentTab === "buttons")
                     this.rerender();
             });
-            slCollapseBody.appendChild(slCatDropdown);
+            const slCatDelBtn = document.createElement("button");
+            slCatDelBtn.textContent = "×";
+            slCatDelBtn.title = "Delete this category";
+            slCatDelBtn.style.cssText = "flex-shrink:0;padding:0 5px;height:18px;font-size:11px;line-height:1;background:#2a0d18;color:#cf6f98;border:1px solid #3a1928;border-radius:3px;cursor:pointer;";
+            slCatDelBtn.addEventListener("click", () => {
+                const cats = getCategories();
+                if (cats.length <= 1)
+                    return; // never delete the last category
+                const delIdx = parseInt(slCatDropdown.value, 10);
+                if (delIdx < 0 || delIdx >= cats.length)
+                    return;
+                if (!confirm(`Delete category "${cats[delIdx].name}"? Its buttons will be lost.`))
+                    return;
+                cats.splice(delIdx, 1);
+                const newIdx = Math.min(delIdx, cats.length - 1);
+                saveCategories(cats, newIdx);
+                refreshCatDropdown();
+                if (this.currentTab === "buttons")
+                    this.rerender();
+            });
+            slCatRow.appendChild(slCatDropdown);
+            slCatRow.appendChild(slCatDelBtn);
+            slCollapseBody.appendChild(slCatRow);
             this.slCatDropdown = slCatDropdown;
             this.slRefreshCat = refreshCatDropdown;
             // Duration slider
@@ -14713,7 +14767,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slDurSlider.min = "2";
             slDurSlider.max = "30";
             slDurSlider.step = "1";
-            slDurSlider.value = (_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5";
+            slDurSlider.value = (_d = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _d !== void 0 ? _d : "5";
             slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
             const slDurVal = document.createElement("span");
             slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
@@ -27748,7 +27802,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.86";
+    const MOD_VERSION = "2.2.87";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27759,6 +27813,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.87",
+            changes: [
+                "Slow Leave: added editable textarea below preset picker — shows the current preset's raw sequence, edit inline to customise it; changes are saved immediately.",
+                "Slow Leave: category dropdown now has a × delete button so you can remove unwanted categories (e.g. Emotes) — prompts for confirmation; last remaining category cannot be deleted.",
+                "Slow Leave: added 😏 Bratty preset (saunters out dramatically).",
+                "Slow Leave: preset migration is now additive — newly added default presets are appended to existing user lists instead of resetting them.",
+            ],
+        },
         {
             version: "2.2.86",
             changes: [
