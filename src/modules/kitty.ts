@@ -146,9 +146,49 @@ const DEFAULT_POSES: KittyPose[] = [
         roughEmote: "grips Emery's shoulder firmly and points to the floor~",
     },
     {
+        id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["Kneel", "Spread"],
+        kindEmote: "guides Emery down to her knees and nudges her legs apart with a soft smile~",
+        roughEmote: "pushes Emery to her knees and kicks her legs apart~",
+    },
+    {
+        id: "spread", label: "🦵 Spread", poses: ["Spread"],
+        kindEmote: "gently nudges Emery's feet apart~",
+        roughEmote: "kicks Emery's feet apart with a sharp look~",
+    },
+    {
         id: "handsup", label: "🙌 Hands up", poses: ["OverTheHead"],
         kindEmote: "lifts Emery's hands above her head, humming softly to herself~",
         roughEmote: "grabs Emery's wrists and raises them sharply above her head~",
+    },
+    {
+        id: "boxTie", label: "🎀 Box tie", poses: ["BackBoxTie"],
+        kindEmote: "guides Emery's arms behind her back into a neat box tie~",
+        roughEmote: "pulls Emery's arms behind her back and pins them there~",
+    },
+    {
+        id: "elbowTie", label: "🔗 Elbow tie", poses: ["BackElbowTie"],
+        kindEmote: "draws Emery's elbows together behind her back with care~",
+        roughEmote: "wrenches Emery's elbows together behind her back~",
+    },
+    {
+        id: "hogtied", label: "⛓ Hogtied", poses: ["Hogtied"],
+        kindEmote: "carefully arranges Emery into a hogtied position, checking she's comfortable~",
+        roughEmote: "flips Emery over and puts her in a hogtied position without ceremony~",
+    },
+    {
+        id: "tiptoe", label: "💃 Tiptoe", poses: ["TiptoeStrap"],
+        kindEmote: "coaxes Emery up onto her tiptoes with a playful grin~",
+        roughEmote: "yanks Emery up onto her tiptoes with a firm grip~",
+    },
+    {
+        id: "legup", label: "🦵 Leg up", poses: ["LegUp"],
+        kindEmote: "lifts one of Emery's legs up, holding it steady~",
+        roughEmote: "grabs one of Emery's legs and hoists it up sharply~",
+    },
+    {
+        id: "suspension", label: "🔗 Suspend", poses: ["Suspension"],
+        kindEmote: "arranges Emery into a suspension, carefully checking every knot~",
+        roughEmote: "hauls Emery up into a suspension without a word~",
     },
     {
         id: "neutral", label: "🔄 Neutral", poses: [],
@@ -284,14 +324,23 @@ export function getKittyRestraintSets(): KittyRestraintSet[] {
 }
 export function saveKittyRestraintSets(v: KittyRestraintSet[]): void { lsSet("EBC_kittyRestraintSets", v); }
 
+// New poses seeded into existing stored lists that predate them.
+const NEW_POSE_SEEDS: KittyPose[] = DEFAULT_POSES.filter(p =>
+    !["allfours", "kneel", "handsup", "neutral"].includes(p.id)
+);
+
 export function getKittyPoses(): KittyPose[] {
-    // Migrate old poses that lack emote fields
     const raw = lsGet<KittyPose[]>("EBC_kittyPoses", DEFAULT_POSES);
-    return raw.map(p => ({
+    const poses: KittyPose[] = raw.map(p => ({
         ...p,
         kindEmote:  p.kindEmote  ?? "",
         roughEmote: p.roughEmote ?? "",
     }));
+    // Additive migration: append new defaults not present in stored list
+    for (const seed of NEW_POSE_SEEDS) {
+        if (!poses.find(p => p.id === seed.id)) poses.push({ ...seed });
+    }
+    return poses;
 }
 export function saveKittyPoses(v: KittyPose[]): void { lsSet("EBC_kittyPoses", v); }
 

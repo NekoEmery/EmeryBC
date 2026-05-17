@@ -13857,6 +13857,7 @@ export class EBCDrawer {
                         sendRoomEmote(text);
                         if (em.expression) sendKittyCmd("expression", em.expression);
                         if (em.bcGroup && em.bcActivity) runKittyActivity(em.bcGroup, em.bcActivity);
+                        if (em.interactive) sendKittyCmd("react", JSON.stringify({ label: em.label }));
                     }));
                 }
                 emotesWrap.appendChild(row);

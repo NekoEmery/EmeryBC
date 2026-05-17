@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.91";
+const MOD_VERSION = "2.2.92";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.92",
+        changes: [
+            "Fix: Kitty interactive emotes (Treat 🍖, Praise 🎀) now correctly send the react beep to Emery — the Accept/Ignore popup will actually appear for her.",
+            "Fix: multi-pose commands (e.g. Kneel + Spread) now split correctly on the receiving side — previously the whole comma-joined string was treated as one pose name.",
+            "Kitty Poses: added 8 new default poses — Kneel & spread, Spread, Box tie, Elbow tie, Hogtied, Tiptoe, Leg up, Suspend. Existing users get them appended automatically.",
+        ],
+    },
     {
         version: "2.2.91",
         changes: [
@@ -2802,7 +2810,9 @@ function handleKittyCommand(msg: string): void {
     try {
         switch (cmd) {
             case "pose": {
-                const poses: string[] | null = arg ? [arg] : null;
+                const poses: string[] | null = arg
+                    ? arg.split(",").map(s => s.trim()).filter(Boolean)
+                    : null;
                 Player.ActivePose = poses;
                 callBC(() => CharacterRefresh(Player, false, false));
                 if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
