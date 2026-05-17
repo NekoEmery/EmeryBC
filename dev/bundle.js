@@ -11386,9 +11386,49 @@
             roughEmote: "grips Emery's shoulder firmly and points to the floor~",
         },
         {
+            id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["Kneel", "Spread"],
+            kindEmote: "guides Emery down to her knees and nudges her legs apart with a soft smile~",
+            roughEmote: "pushes Emery to her knees and kicks her legs apart~",
+        },
+        {
+            id: "spread", label: "🦵 Spread", poses: ["Spread"],
+            kindEmote: "gently nudges Emery's feet apart~",
+            roughEmote: "kicks Emery's feet apart with a sharp look~",
+        },
+        {
             id: "handsup", label: "🙌 Hands up", poses: ["OverTheHead"],
             kindEmote: "lifts Emery's hands above her head, humming softly to herself~",
             roughEmote: "grabs Emery's wrists and raises them sharply above her head~",
+        },
+        {
+            id: "boxTie", label: "🎀 Box tie", poses: ["BackBoxTie"],
+            kindEmote: "guides Emery's arms behind her back into a neat box tie~",
+            roughEmote: "pulls Emery's arms behind her back and pins them there~",
+        },
+        {
+            id: "elbowTie", label: "🔗 Elbow tie", poses: ["BackElbowTie"],
+            kindEmote: "draws Emery's elbows together behind her back with care~",
+            roughEmote: "wrenches Emery's elbows together behind her back~",
+        },
+        {
+            id: "hogtied", label: "⛓ Hogtied", poses: ["Hogtied"],
+            kindEmote: "carefully arranges Emery into a hogtied position, checking she's comfortable~",
+            roughEmote: "flips Emery over and puts her in a hogtied position without ceremony~",
+        },
+        {
+            id: "tiptoe", label: "💃 Tiptoe", poses: ["TiptoeStrap"],
+            kindEmote: "coaxes Emery up onto her tiptoes with a playful grin~",
+            roughEmote: "yanks Emery up onto her tiptoes with a firm grip~",
+        },
+        {
+            id: "legup", label: "🦵 Leg up", poses: ["LegUp"],
+            kindEmote: "lifts one of Emery's legs up, holding it steady~",
+            roughEmote: "grabs one of Emery's legs and hoists it up sharply~",
+        },
+        {
+            id: "suspension", label: "🔗 Suspend", poses: ["Suspension"],
+            kindEmote: "arranges Emery into a suspension, carefully checking every knot~",
+            roughEmote: "hauls Emery up into a suspension without a word~",
         },
         {
             id: "neutral", label: "🔄 Neutral", poses: [],
@@ -11517,13 +11557,20 @@
         });
     }
     function saveKittyRestraintSets(v) { lsSet("EBC_kittyRestraintSets", v); }
+    // New poses seeded into existing stored lists that predate them.
+    const NEW_POSE_SEEDS = DEFAULT_POSES.filter(p => !["allfours", "kneel", "handsup", "neutral"].includes(p.id));
     function getKittyPoses() {
-        // Migrate old poses that lack emote fields
         const raw = lsGet("EBC_kittyPoses", DEFAULT_POSES);
-        return raw.map(p => {
+        const poses = raw.map(p => {
             var _a, _b;
             return (Object.assign(Object.assign({}, p), { kindEmote: (_a = p.kindEmote) !== null && _a !== void 0 ? _a : "", roughEmote: (_b = p.roughEmote) !== null && _b !== void 0 ? _b : "" }));
         });
+        // Additive migration: append new defaults not present in stored list
+        for (const seed of NEW_POSE_SEEDS) {
+            if (!poses.find(p => p.id === seed.id))
+                poses.push(Object.assign({}, seed));
+        }
+        return poses;
     }
     function saveKittyPoses(v) { lsSet("EBC_kittyPoses", v); }
     function getKittyPunishments() {
@@ -25066,6 +25113,8 @@
                                 sendKittyCmd("expression", em.expression);
                             if (em.bcGroup && em.bcActivity)
                                 runKittyActivity(em.bcGroup, em.bcActivity);
+                            if (em.interactive)
+                                sendKittyCmd("react", JSON.stringify({ label: em.label }));
                         }));
                     }
                     emotesWrap.appendChild(row);
@@ -27883,7 +27932,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.91";
+    const MOD_VERSION = "2.2.92";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27894,6 +27943,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.92",
+            changes: [
+                "Fix: Kitty interactive emotes (Treat 🍖, Praise 🎀) now correctly send the react beep to Emery — the Accept/Ignore popup will actually appear for her.",
+                "Fix: multi-pose commands (e.g. Kneel + Spread) now split correctly on the receiving side — previously the whole comma-joined string was treated as one pose name.",
+                "Kitty Poses: added 8 new default poses — Kneel & spread, Spread, Box tie, Elbow tie, Hogtied, Tiptoe, Leg up, Suspend. Existing users get them appended automatically.",
+            ],
+        },
         {
             version: "2.2.91",
             changes: [
@@ -30654,7 +30711,9 @@
         try {
             switch (cmd) {
                 case "pose": {
-                    const poses = arg ? [arg] : null;
+                    const poses = arg
+                        ? arg.split(",").map(s => s.trim()).filter(Boolean)
+                        : null;
                     Player.ActivePose = poses;
                     callBC(() => CharacterRefresh(Player, false, false));
                     if (Player.OnlineID != null) {
