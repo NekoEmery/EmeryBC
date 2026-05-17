@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.78";
+const MOD_VERSION = "2.2.79";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.79",
+        changes: [
+            "Kitty tab: added a dedicated Restraints section for managing named restraint presets — create, rename, add/remove items, and delete presets directly without going through a punishment step.",
+            "Fixed: the 💾 Save button in punishment restraint steps now triggers a step rebuild so the Load ↓ dropdown immediately shows the newly saved preset.",
+        ],
+    },
     {
         version: "2.2.78",
         changes: [
