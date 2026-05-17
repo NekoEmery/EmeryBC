@@ -5723,14 +5723,20 @@ export class EBCDrawer {
         });
 
         updateBtn.addEventListener("click", () => {
-            setAllDisabled(true);
-            const ok = saveCurrentAppearanceToOutfit(o.id);
-            if (!ok) { setAllDisabled(false); return; }
-            updateBtn.textContent = "Saved!";
-            window.setTimeout(() => {
-                updateBtn.textContent = "Update";
-                setAllDisabled(false);
-            }, 1200);
+            showConfirmOverlay(
+                `Overwrite "${o.displayName}" with your current look?`,
+                "Cancel", "Update",
+                () => {
+                    setAllDisabled(true);
+                    const ok = saveCurrentAppearanceToOutfit(o.id);
+                    if (!ok) { setAllDisabled(false); return; }
+                    updateBtn.textContent = "Saved!";
+                    window.setTimeout(() => {
+                        updateBtn.textContent = "Update";
+                        setAllDisabled(false);
+                    }, 1200);
+                }
+            );
         });
 
         editBtn.addEventListener("click", () => {
