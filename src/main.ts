@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.120";
+const MOD_VERSION = "2.2.121";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.121",
+        changes: [
+            "Fix: beeps sent via BC's native UI (the /beep command, the friend-list beep button, or the chat-room beep reply arrow) now appear in EBC's IM window. Previously only beeps sent through EBC's own interface were recorded; native BC beeps went through ServerSendBeepMessage which EBC never saw.",
+        ],
+    },
     {
         version: "2.2.120",
         changes: [
@@ -3899,6 +3905,25 @@ function init(): void {
         return next(args);
     });
 
+
+    // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
+    // button, or the "reply" arrow in the chat room beep preview).  Those calls go
+    // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
+    // so they are invisible to EBC's IM window unless we hook here.
+    tryHookFunction(modAPI, "ServerSendBeepMessage", 3, (args, next) => {
+        try {
+            const [target, msg] = args as [number, string | undefined, unknown];
+            const toNum = typeof target === "number" ? target : (parseInt(String(target), 10) || 0);
+            if (toNum && typeof msg === "string" && msg.trim()) {
+                const clean = stripBeepMetadata(msg.trim());
+                if (clean) {
+                    addBeepEntry({ from: Player.MemberNumber ?? 0, to: toNum, message: clean, ts: Date.now() });
+                    try { drawer?.refreshBeepWindow(toNum); } catch { /* ignore */ }
+                }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
 
     // Cache friend names whenever BC notifies us a friend came online.
     // FriendListBeep is a real BC global called with {MemberNumber, MemberName, ...}.
