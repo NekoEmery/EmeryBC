@@ -307,14 +307,22 @@ const CSS = `
     top: 0;
     width: 360px;
     height: 100%;  /* full chat log height — no vertical conflict with tab */
-    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-    will-change: transform;
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                visibility 0.35s;
+    will-change: transform, opacity;
     pointer-events: none;
 }
 
-/* +60px extra so the panel clears the 44px tab offset when closed */
-#emerybc-panel.ebc-closed { transform: translateX(calc(100% + 60px)); }
-#emerybc-panel.ebc-open   { transform: translateX(0); pointer-events: auto; }
+/* +60px extra so the panel clears the 44px tab offset when closed.
+   opacity+visibility mirror what CRABS does — ensures zero visual bleed
+   even if the transform doesn't push every pixel off-screen. */
+#emerybc-panel.ebc-closed {
+    transform: translateX(calc(100% + 60px));
+    opacity: 0;
+    visibility: hidden;
+}
+#emerybc-panel.ebc-open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
@@ -2241,11 +2249,13 @@ const CSS = `
 }
 #emerybc-panel.ebc-free-mode.ebc-closed {
     opacity: 0 !important;
+    visibility: hidden !important;
     pointer-events: none !important;
     transform: none !important;
 }
 #emerybc-panel.ebc-free-mode.ebc-open {
     opacity: 1 !important;
+    visibility: visible !important;
     pointer-events: auto !important;
     transform: none !important;
 }

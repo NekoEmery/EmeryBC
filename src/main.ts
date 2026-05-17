@@ -19,7 +19,7 @@ import { isLeavePending, clearLeavePending } from "./modules/bcUtils";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.34";
+const MOD_VERSION = "2.2.35";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -33,6 +33,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.35",
+        changes: [
+            "Fix: closed panel still visually bled — added opacity:0 + visibility:hidden to ebc-closed (matching CRABS's approach). Panel is now completely invisible when closed regardless of transform position.",
+        ],
+    },
     {
         version: "2.2.34",
         changes: [
