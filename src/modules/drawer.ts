@@ -1,4 +1,4 @@
-﻿/**
+/**
  * EmeryBC Drawer
  *
  * CRABS-inspired sliding panel aligned to the right edge of the chat log,
@@ -75,6 +75,10 @@ import {
     type ActionStyle,
     type ButtonCategory,
     resetSidebarPos,
+    runSequence,
+    cancelSequence,
+    isSeqRunning,
+    setSeqDoneCallback,
 } from "./actionButtons";
 import {
     releaseRestraints,
@@ -90,6 +94,7 @@ import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } 
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
+import { registerOpenBeepCallback } from "./macros";
 import { callBC } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -114,6 +119,20 @@ import {
     clearLocksOnMember,
     removeItemsFromMember,
 } from "./domTools";
+import {
+    LUCY_MEMBER, EMERY_MEMBER,
+    getKittyEmotes, saveKittyEmotes,
+    getKittyRestraintSets, saveKittyRestraintSets,
+    getKittyPoses, saveKittyPoses,
+    getKittyPunishments, saveKittyPunishments,
+    getKittyReactions, saveKittyReactions,
+    getKittyMood, setKittyMood,
+    sendKittyCmd,
+    getKittyExpressionPresets, saveKittyExpressionPresets,
+    type KittyEmote, type KittyRestraintSet, type KittyPose, type KittyItem,
+    type KittyPunishment, type KittyMood, type KittyExpressionPreset,
+    type KittyReactionEntry,
+} from "./kitty";
 
 // -- Shared UI helpers ---------------------------------------------------------
 
@@ -154,6 +173,102 @@ function showQuickConfirm(message: string, onConfirm: () => void): void {
     document.body.appendChild(overlay);
 }
 
+// -- Kitty reaction presets ----------------------------------------------------
+
+// Valid BC facial expression states (verified against Female3DCG asset directories).
+// Groups: Blush, Eyes, Eyes2, Mouth, Eyebrows, Fluids, Emoticon.
+// "Ears" is NOT a valid CharacterSetFacialExpression group — removed.
+// Empty state string → handler sends null → clears that group.
+const KITTY_EXPRESSIONS = [
+    // ── Blush ────────────────────────────────────────────────────
+    { label: "😊 Blush — light",    cmd: "Blush:Low" },
+    { label: "😊 Blush — medium",   cmd: "Blush:Medium" },
+    { label: "😳 Blush — high",     cmd: "Blush:High" },
+    { label: "🔥 Blush — extreme",  cmd: "Blush:Extreme" },
+    { label: "× Blush — clear",     cmd: "Blush:" },
+    // ── Eyes ─────────────────────────────────────────────────────
+    { label: "😌 Eyes — closed",    cmd: "Eyes:Closed" },
+    { label: "😳 Eyes — shy",       cmd: "Eyes:Shy" },
+    { label: "😢 Eyes — sad",       cmd: "Eyes:Sad" },
+    { label: "😱 Eyes — surprised", cmd: "Eyes:Surprised" },
+    { label: "😡 Eyes — angry",     cmd: "Eyes:Angry" },
+    { label: "😵 Eyes — dazed",     cmd: "Eyes:Dazed" },
+    { label: "💕 Eyes — heart",     cmd: "Eyes:Heart" },
+    { label: "😍 Eyes — lewd",      cmd: "Eyes:Lewd" },
+    { label: "× Eyes — clear",      cmd: "Eyes:" },
+    // ── Mouth ────────────────────────────────────────────────────
+    { label: "😊 Mouth — happy",    cmd: "Mouth:Happy" },
+    { label: "😢 Mouth — sad",      cmd: "Mouth:Sad" },
+    { label: "😤 Mouth — pout",     cmd: "Mouth:Pout" },
+    { label: "😠 Mouth — angry",    cmd: "Mouth:Angry" },
+    { label: "😩 Mouth — moan",     cmd: "Mouth:Moan" },
+    { label: "😈 Mouth — devious",  cmd: "Mouth:Devious" },
+    { label: "😬 Mouth — grin",     cmd: "Mouth:Grin" },
+    { label: "😋 Mouth — smirk",    cmd: "Mouth:Smirk" },
+    { label: "× Mouth — clear",     cmd: "Mouth:" },
+    // ── Eyebrows ─────────────────────────────────────────────────
+    { label: "🤨 Brow — raised",    cmd: "Eyebrows:Raised" },
+    { label: "😤 Brow — harsh",     cmd: "Eyebrows:Harsh" },
+    { label: "😡 Brow — angry",     cmd: "Eyebrows:Angry" },
+    { label: "😊 Brow — soft",      cmd: "Eyebrows:Soft" },
+    { label: "× Brow — clear",      cmd: "Eyebrows:" },
+];
+
+const KITTY_REACTION_POSES = [
+    { label: "— None —",       poses: [] as string[] },
+    { label: "🙏 Kneel",       poses: ["Kneel"] },
+    { label: "🐱 All fours",   poses: ["AllFours"] },
+    { label: "🙌 Hands up",    poses: ["OverTheHead"] },
+];
+
+
+function getGroupAssets(group: string): string[] {
+    try {
+        const w = window as unknown as Record<string, unknown>;
+        const bcAssets = w.Asset as Array<{ Name?: string; Group?: { Name?: string; Family?: string } }> | undefined;
+        if (!Array.isArray(bcAssets)) return [];
+        const family = (Player as unknown as Record<string, unknown>).AssetFamily as string | undefined;
+        return bcAssets
+            .filter(a => a?.Group?.Name === group && (!family || !a.Group?.Family || a.Group.Family === family))
+            .map(a => a.Name)
+            .filter((n): n is string => !!n)
+            .sort();
+    } catch { return []; }
+}
+
+// -- Slow Leave preset storage -------------------------------------------------
+
+const SLOW_LEAVE_PRESET_DEFAULTS = [
+    { label: "Classic", seq: "*smiles and gives a little wave~@{DUR}|*slowly heads for the door...@0|leaveroom" },
+    { label: "Warm",    seq: "*gives everyone a warm hug before leaving~@{DUR}|*heads for the door with a soft smile~@0|leaveroom" },
+    { label: "Quiet",   seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
+    { label: "Sleepy",  seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
+    { label: "Playful", seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
+    { label: "Bratty",  seq: "*stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much.@{DUR}|*saunters out without a single look back~@0|leaveroom" },
+    { label: "Custom",  seq: "*waves and heads for the door~@{DUR}|leaveroom" },
+];
+
+function getSlowLeavePresets(): Array<{ label: string; seq: string }> {
+    try {
+        const raw = localStorage.getItem("EBC_slowLeavePresets");
+        if (raw) {
+            const parsed = JSON.parse(raw) as Array<{ label: string; seq: string }>;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                // Additive migration: append any new defaults not yet in the stored list
+                for (const def of SLOW_LEAVE_PRESET_DEFAULTS) {
+                    if (!parsed.find(p => p.label === def.label)) parsed.push({ ...def });
+                }
+                return parsed;
+            }
+        }
+    } catch { /* ignore */ }
+    return SLOW_LEAVE_PRESET_DEFAULTS.map(p => ({ ...p }));
+}
+
+function saveSlowLeavePresets(v: Array<{ label: string; seq: string }>): void {
+    try { localStorage.setItem("EBC_slowLeavePresets", JSON.stringify(v)); } catch { /* ignore */ }
+}
+
 // -- Icon ----------------------------------------------------------------------
 
 
@@ -164,6 +279,21 @@ const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"
     + '<circle cx="56" cy="43" r="4" fill="#f7e6ee"/>'
     + '<path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>'
     + '</svg>';
+
+// -- Panel opacity (persisted to localStorage) --------------------------------
+
+const PANEL_OPACITY_KEY = "EBC_panelOpacity";
+
+function loadPanelOpacity(): number {
+    try {
+        const v = parseFloat(localStorage.getItem(PANEL_OPACITY_KEY) ?? "1");
+        return isNaN(v) ? 1 : Math.max(0.1, Math.min(1, v));
+    } catch { return 1; }
+}
+
+function savePanelOpacity(v: number): void {
+    try { localStorage.setItem(PANEL_OPACITY_KEY, String(Math.round(v * 100) / 100)); } catch { /* ignore */ }
+}
 
 // -- Styles --------------------------------------------------------------------
 
@@ -185,9 +315,7 @@ const CSS = `
     pointer-events: auto;
     width: 44px;
     height: 44px;
-    background: rgba(42, 20, 33, 0.85);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: #2a1421;
     border: 1px solid #cf6f9833;
     border-right: none;
     border-radius: 8px 0 0 8px;
@@ -291,6 +419,13 @@ const CSS = `
     left: -10px;
     cursor: pointer;
 }
+/* Outside chatrooms (roaming mode) the root sits at right:0 so there is no
+   chat-log column to overlap — keep the tab fully visible at all times. */
+#emerybc-root.ebc-roaming #ebc-tab,
+#emerybc-root.ebc-roaming #ebc-tab.ebc-tab-closed {
+    left: -44px;
+    cursor: pointer;
+}
 
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
@@ -299,20 +434,26 @@ const CSS = `
     top: 0;
     width: 360px;
     height: 100%;  /* full chat log height — no vertical conflict with tab */
-    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-    will-change: transform;
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                visibility 0.35s;
+    will-change: transform, opacity;
     pointer-events: none;
 }
 
-/* +60px extra so the panel clears the 44px tab offset when closed */
-#emerybc-panel.ebc-closed { transform: translateX(calc(100% + 60px)); }
-#emerybc-panel.ebc-open   { transform: translateX(0); pointer-events: auto; }
+/* +60px extra so the panel clears the 44px tab offset when closed.
+   opacity+visibility mirror what CRABS does — ensures zero visual bleed
+   even if the transform doesn't push every pixel off-screen. */
+#emerybc-panel.ebc-closed {
+    transform: translateX(calc(100% + 60px));
+    opacity: 0;
+    visibility: hidden;
+}
+#emerybc-panel.ebc-open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
-    background: #1b0d17f7;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    background: #1b0d17; /* fully opaque by default; opacity is applied dynamically via applyPanelOpacity() */
     border-left: 2px solid #4c2537;
     display: flex;
     flex-direction: column;
@@ -337,7 +478,7 @@ const CSS = `
     justify-content: space-between;
     padding: 6px 10px;
     border-bottom: 1px solid #4c2537;
-    background: rgba(36, 17, 29, 0.9);
+    background: #24111d;
     flex-shrink: 0;
     gap: 6px;
 }
@@ -2233,11 +2374,13 @@ const CSS = `
 }
 #emerybc-panel.ebc-free-mode.ebc-closed {
     opacity: 0 !important;
+    visibility: hidden !important;
     pointer-events: none !important;
     transform: none !important;
 }
 #emerybc-panel.ebc-free-mode.ebc-open {
     opacity: 1 !important;
+    visibility: visible !important;
     pointer-events: auto !important;
     transform: none !important;
 }
@@ -2699,7 +2842,7 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "buttons" | "anims" | "notes" | "thanks" | "dev" | "dom" | "puppy";
+type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
 
 const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
 
@@ -2735,13 +2878,14 @@ export class EBCDrawer {
     private currentTab: DrawerTab = "outfits";
     private resizeObserver: ResizeObserver | null = null;
     private positioned = false;
+    private hasBeenShown = false;
     private version = "";
     private isDev   = false;
-    private refreshBadgeRow: (() => void) | null = null;
     private refreshConfirmToggle: (() => void) | null = null;
     private refreshSwEnableBtn: (() => void) | null = null;
     private beepWins = new Map<number, { el: HTMLElement; minimized: boolean }>();
     private beepUnread = new Map<number, number>();
+    private expandedFriends = new Set<number>();
     private friendsSectionEl: HTMLElement | null = null;
     private friendPollTick = 0;
     private friendRefreshDebounce: ReturnType<typeof window.setTimeout> | null = null;
@@ -2767,11 +2911,18 @@ export class EBCDrawer {
     // Tag tooltip — kept at instance level so it survives list rebuilds
     private tagTooltipEl: HTMLElement | null = null;
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
+    private slowLeaveBtn: HTMLButtonElement | null = null;
+    private slCollapseHdr: HTMLElement | null = null;
+    private slCollapseBody: HTMLElement | null = null;
+    private slPresetDropdown: HTMLSelectElement | null = null;
+    private slDurSlider: HTMLInputElement | null = null;
+    private slDurVal: HTMLSpanElement | null = null;
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
         this.version = version;
         this.isDev   = isDev;
+        registerOpenBeepCallback((n) => this.openBeepWindow(n));
         if (document.body) {
             this.setup();
         } else {
@@ -2809,6 +2960,15 @@ export class EBCDrawer {
         // Inner panel (visual content)
         const panel = document.createElement("div");
         panel.className = "ebc-panel";
+
+        // Anchor the skeleton to the DOM immediately — if any later step in setup()
+        // throws, updateVisibility() can still show the tab and the panel won't be
+        // permanently lost (content gets appended to the live panel as setup continues).
+        slideContainer.appendChild(panel);
+        root.appendChild(slideContainer);
+        document.body.appendChild(root);
+        this.rootEl  = root;
+        this.panelEl = slideContainer;
 
         // Header
         const header = document.createElement("div");
@@ -2923,15 +3083,16 @@ export class EBCDrawer {
         outfitTabBtn.id = "ebc-tab-outfits";
         outfitTabBtn.textContent = "OUTFITS";
 
-        const buttonsTabBtn = document.createElement("button");
-        buttonsTabBtn.className = "ebc-tab-btn";
-        buttonsTabBtn.id = "ebc-tab-buttons";
-        buttonsTabBtn.textContent = "BUTTONS";
-
         const posesTabBtn = document.createElement("button");
         posesTabBtn.className = "ebc-tab-btn";
         posesTabBtn.id = "ebc-tab-poses";
         posesTabBtn.textContent = "ANIMS";
+
+        const btnsTabBtn = document.createElement("button");
+        btnsTabBtn.className = "ebc-tab-btn";
+        btnsTabBtn.id = "ebc-tab-buttons";
+        btnsTabBtn.textContent = "BUTTONS";
+        btnsTabBtn.title = "Action Buttons";
 
         const notesTabBtn = document.createElement("button");
         notesTabBtn.className = "ebc-tab-btn";
@@ -2966,14 +3127,23 @@ export class EBCDrawer {
         puppyTabBtn.title = "Puppy";
         puppyTabBtn.style.display = "none"; // revealed in open() for Lucy only
 
+        // Kitty tab — Lucy only (member 230466)
+        const kittyTabBtn = document.createElement("button");
+        kittyTabBtn.className = "ebc-tab-btn";
+        kittyTabBtn.id = "ebc-tab-kitty";
+        kittyTabBtn.textContent = "🐱";
+        kittyTabBtn.title = "Kitty";
+        kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
+
         tabBar.appendChild(outfitTabBtn);
-        tabBar.appendChild(buttonsTabBtn);
+        tabBar.appendChild(btnsTabBtn);
         tabBar.appendChild(posesTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(thanksTabBtn);
         tabBar.appendChild(devTabBtn2);
         tabBar.appendChild(domTabBtn);
         tabBar.appendChild(puppyTabBtn);
+        tabBar.appendChild(kittyTabBtn);
 
         // Quick actions bar (always visible below tabs)
         const quickActions = document.createElement("div");
@@ -3038,11 +3208,138 @@ export class EBCDrawer {
         // Row 2: self-picker toggle (full-width, subtle)
         const selfPickToggle = document.createElement("button");
         selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
-        selfPickToggle.textContent = "↓ Pick items to remove from yourself";
-        selfPickToggle.title = "Choose specific restraints or locks to strip from yourself";
+        selfPickToggle.textContent = "↓ Pick restraints to remove";
+        selfPickToggle.title = "Choose specific restraints to strip from yourself";
         selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.color = "#cf6f98"; });
         selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.color = "#7a4a5e"; });
         quickActions.appendChild(selfPickToggle);
+
+        // ── Slow Leave — collapsible block ────────────────────────────────────
+        // Outer wrapper, hidden when not in a chatroom
+        const slWrap = document.createElement("div");
+        slWrap.style.cssText = "display:none;flex-direction:column;width:100%;";
+        quickActions.appendChild(slWrap);
+
+        // Collapse header row: click to expand/collapse
+        const slCollapseHdr = document.createElement("div");
+        slCollapseHdr.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;cursor:pointer;padding:3px 0;user-select:none;";
+        const slHdrLbl = document.createElement("span");
+        slHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+        slHdrLbl.textContent = "🚶 Slow Leave";
+        const slHdrArrow = document.createElement("span");
+        slHdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+        slHdrArrow.textContent = "▼";
+        slCollapseHdr.appendChild(slHdrLbl);
+        slCollapseHdr.appendChild(slHdrArrow);
+        slWrap.appendChild(slCollapseHdr);
+        this.slCollapseHdr = slCollapseHdr;
+
+        // Collapsible body
+        const slCollapseBody = document.createElement("div");
+        const slExpanded = localStorage.getItem("EBC_slowLeaveOpen") === "1";
+        slCollapseBody.style.cssText = `display:${slExpanded ? "flex" : "none"};flex-direction:column;gap:3px;padding:4px 0 2px;`;
+        slHdrArrow.textContent = slExpanded ? "▲" : "▼";
+        slWrap.appendChild(slCollapseBody);
+        this.slCollapseBody = slCollapseBody;
+
+        slCollapseHdr.addEventListener("click", () => {
+            const open = slCollapseBody.style.display === "none";
+            slCollapseBody.style.display = open ? "flex" : "none";
+            slHdrArrow.textContent = open ? "▲" : "▼";
+            try { localStorage.setItem("EBC_slowLeaveOpen", open ? "1" : "0"); } catch { /* ignore */ }
+        });
+
+        // Slow Leave action button
+        const slowLeaveBtn = document.createElement("button");
+        slowLeaveBtn.className = "ebc-action-btn";
+        slowLeaveBtn.textContent = "🚶 Slow Leave";
+        slowLeaveBtn.title = "Wave goodbye and slowly head for the door";
+        slowLeaveBtn.style.cssText = "width:100%;";
+        slowLeaveBtn.addEventListener("click", () => {
+            if (isSeqRunning()) {
+                cancelSequence();
+                return;
+            }
+            const livePresets = getSlowLeavePresets();
+            const durMs = Math.max(500, (parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10)) * 1000);
+            const pIdx  = Math.min(livePresets.length - 1, Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10)));
+            const seq   = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
+            setSeqDoneCallback(() => {
+                slowLeaveBtn.textContent = "🚶 Slow Leave";
+                slowLeaveBtn.style.background = "";
+                slowLeaveBtn.style.color = "";
+            });
+            slowLeaveBtn.textContent = "✕ Cancel Leave";
+            slowLeaveBtn.style.background = "#4a1a2a";
+            slowLeaveBtn.style.color = "#ff8aaa";
+            runSequence(seq);
+        });
+        slCollapseBody.appendChild(slowLeaveBtn);
+        this.slowLeaveBtn = slowLeaveBtn;
+
+        // Preset selector
+        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+        const slPresetDropdown = document.createElement("select");
+        slPresetDropdown.style.cssText = DD_CSS;
+        const populateSlPresets = (): void => {
+            while (slPresetDropdown.firstChild) slPresetDropdown.removeChild(slPresetDropdown.firstChild);
+            getSlowLeavePresets().forEach((p, i) => {
+                const o = document.createElement("option"); o.value = String(i); o.textContent = p.label; slPresetDropdown.appendChild(o);
+            });
+            slPresetDropdown.value = localStorage.getItem("EBC_slowLeavePreset") ?? "0";
+        };
+        populateSlPresets();
+        slPresetDropdown.addEventListener("change", () => {
+            try { localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value); } catch { /* ignore */ }
+            // Update seq textarea
+            const lp = getSlowLeavePresets();
+            const pi = parseInt(slPresetDropdown.value, 10);
+            slSeqArea.value = lp[pi]?.seq ?? "";
+        });
+        slCollapseBody.appendChild(slPresetDropdown);
+        this.slPresetDropdown = slPresetDropdown;
+
+        // Seq textarea — lets the user customise the selected preset's sequence
+        const slSeqArea = document.createElement("textarea");
+        slSeqArea.rows = 3;
+        slSeqArea.spellcheck = false;
+        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
+        slSeqArea.title = "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}";
+        const slSeqInitPresets = getSlowLeavePresets();
+        const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
+        slSeqArea.value = slSeqInitPresets[slSeqInitIdx]?.seq ?? "";
+        slSeqArea.addEventListener("change", () => {
+            const lp = getSlowLeavePresets();
+            const pi = parseInt(slPresetDropdown.value, 10);
+            if (pi >= 0 && pi < lp.length) {
+                lp[pi].seq = slSeqArea.value;
+                saveSlowLeavePresets(lp);
+            }
+        });
+        slCollapseBody.appendChild(slSeqArea);
+
+        // Duration slider
+        const slDurRow = document.createElement("div");
+        slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
+        const slDurLbl = document.createElement("span");
+        slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
+        slDurLbl.textContent = "⏱";
+        slDurLbl.title = "Slow leave duration";
+        const slDurSlider = document.createElement("input");
+        slDurSlider.type = "range"; slDurSlider.min = "2"; slDurSlider.max = "30"; slDurSlider.step = "1";
+        slDurSlider.value = localStorage.getItem("EBC_slowLeaveDuration") ?? "5";
+        slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+        const slDurVal = document.createElement("span");
+        slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
+        slDurVal.textContent = slDurSlider.value + "s";
+        slDurSlider.addEventListener("input", () => {
+            slDurVal.textContent = slDurSlider.value + "s";
+            try { localStorage.setItem("EBC_slowLeaveDuration", slDurSlider.value); } catch { /* ignore */ }
+        });
+        slDurRow.appendChild(slDurLbl); slDurRow.appendChild(slDurSlider); slDurRow.appendChild(slDurVal);
+        slCollapseBody.appendChild(slDurRow);
+        this.slDurSlider = slDurSlider;
+        this.slDurVal = slDurVal;
 
         // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
         const selfPickPanel = document.createElement("div");
@@ -3178,48 +3475,7 @@ export class EBCDrawer {
             if (selfPickPanel.style.display !== "none") rebuildSelfPicker();
             window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
         });
-
         // Badge visibility toggle row (below the danger buttons)
-        const badgeRow = document.createElement("div");
-        badgeRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;border-top:1px solid #2a1421;background:rgba(20,8,16,0.5);flex-shrink:0;";
-
-        const badgeLbl = document.createElement("span");
-        badgeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-        badgeLbl.textContent = "Show EBC tags";
-
-        const badgeToggle = document.createElement("button");
-        const updateBadgeToggle = (): void => {
-            const on = getBadgeEnabled();
-            badgeToggle.textContent = on ? "ON" : "OFF";
-            badgeToggle.style.cssText = [
-                "font-family:'Trebuchet MS',serif",
-                "font-size:10px",
-                "font-weight:bold",
-                "padding:5px 12px",
-                "border-radius:4px",
-                "cursor:pointer",
-                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                "background:" + (on ? "#6b3048" : "#1b0d17"),
-                "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                "transition:background 0.14s,color 0.14s,border-color 0.14s",
-            ].join(";");
-            badgeToggle.title = on
-                ? "EBC tags visible — click to hide them on your screen"
-                : "EBC tags hidden — click to show them on your screen";
-        };
-        this.refreshBadgeRow = updateBadgeToggle;
-        try { updateBadgeToggle(); } catch { /* Player may not be ready yet — synced on first open */ }
-
-        badgeToggle.addEventListener("click", () => {
-            // Client-side only — toggle just controls what YOU see locally.
-            // Your own presence is always broadcast regardless of this setting.
-            setBadgeEnabled(!getBadgeEnabled());
-            updateBadgeToggle();
-        });
-
-        badgeRow.appendChild(badgeLbl);
-        badgeRow.appendChild(badgeToggle);
-
         // Safeword permanent row (always visible, any tab)
         const safewordRow = document.createElement("div");
         safewordRow.style.cssText = "display:flex;flex-direction:column;flex-shrink:0;border-top:1px solid #2a1421;background:rgba(12,4,10,0.6);";
@@ -3499,16 +3755,11 @@ export class EBCDrawer {
         panel.appendChild(tabBar);
         panel.appendChild(quickActions);
         panel.appendChild(selfPickPanel);
-        panel.appendChild(badgeRow);
         panel.appendChild(safewordRow);
         panel.appendChild(body);
         panel.appendChild(footer);
-        slideContainer.appendChild(panel);
-        root.appendChild(slideContainer);
-
-        document.body.appendChild(root);
-        this.rootEl  = root;
-        this.panelEl = slideContainer;
+        // (slideContainer/root/body already anchored early in setup — see above)
+        this.applyPanelOpacity();
 
         // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
         // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
@@ -3575,25 +3826,24 @@ export class EBCDrawer {
             tab.style.top  = "";
             this.saveTabOffset(null);
             this.updateCrabsPosition();
-            // Reset canvas quick-action sidebar to default position
-            try { resetSidebarPos(); } catch { /* ignore */ }
         });
 
         closeBtn.addEventListener("click", () => this.close());
         refreshBtn.addEventListener("click", () => {
             refreshBtn.classList.add("spinning");
             refreshBtn.addEventListener("animationend", () => refreshBtn.classList.remove("spinning"), { once: true });
-            this.renderCurrentTab();
+            this.rerender();
         });
 
         outfitTabBtn.addEventListener("click",   () => this.switchTab("outfits"));
-        buttonsTabBtn.addEventListener("click",  () => this.switchTab("buttons"));
         posesTabBtn.addEventListener("click",    () => this.switchTab("anims"));
         notesTabBtn.addEventListener("click",    () => this.switchTab("notes"));
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
         devTabBtn2.addEventListener("click",     () => this.switchTab("dev"));
+        btnsTabBtn.addEventListener("click",      () => this.switchTab("buttons"));
         domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
         puppyTabBtn.addEventListener("click",    () => this.switchTab("puppy"));
+        kittyTabBtn.addEventListener("click",    () => this.switchTab("kitty"));
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.isOpen) { this.close(); return; }
@@ -3835,23 +4085,61 @@ export class EBCDrawer {
         if (!this.rootEl || !this.panelEl) return;
         const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
 
+        // Tabs that only make sense inside a chatroom — hidden when outside one
+        const ROOM_ONLY: DrawerTab[] = ["anims"];
+
         if (!inRoom) {
-            this.rootEl.style.display = "none";
-            this.isOpen = false;
-            this.panelEl.className = "ebc-closed";
-            const tabEl2 = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
-            if (tabEl2) tabEl2.classList.add("ebc-tab-closed");
-            this.positioned = false;
-            this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
-            this.tabOffsetChecked = false; // re-check on next room enter in case settings changed
+            // ── Outside chatroom: floating panel anchored to the right edge ───────
             this.resizeObserver?.disconnect();
             this.resizeObserver = null;
             this.stopCrabsPoller();
             this.stopTimerPoller();
-            // Hide beep windows while outside the chat room — they'll be restored on return
+
+            // Keep beep windows hidden outside a room
             for (const { el } of this.beepWins.values()) el.style.display = "none";
+
+            // Force-hide room-only tab buttons; jump to a safe tab if we're on one
+            for (const tabId of ROOM_ONLY) {
+                const btn = this.rootEl.querySelector<HTMLElement>(`#ebc-tab-${tabId}`);
+                if (btn) btn.style.display = "none";
+            }
+            if ((ROOM_ONLY as string[]).includes(this.currentTab)) this.switchTab("outfits");
+
+            // Roaming mode: root at right:0 so the closed panel (translateX(W+60))
+            // lands at vw+16 — completely off-screen.  A CSS class keeps the tab
+            // fully visible (overrides the in-room left:-10px collapsed state).
+            // Centre the panel vertically in the viewport.
+            this.rootEl.classList.add("ebc-roaming");
+            const h = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+            const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
+            this.rootEl.style.top    = `${top}px`;
+            this.rootEl.style.right  = "0px";
+            this.rootEl.style.height = `${h}px`;
+            this.panelEl.style.height = `${h}px`;
+            // Mark as not anchored to the chat log so syncToChat re-runs on next room enter
+            this.positioned = false;
+            this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
+            this.tabOffsetChecked = false;
+
+            // Show (suppress CSS transition on the very first reveal)
+            if (!this.hasBeenShown) {
+                this.hasBeenShown = true;
+                this.panelEl.style.transition = "none";
+                this.rootEl.style.display = "block";
+                requestAnimationFrame(() => { if (this.panelEl) this.panelEl.style.transition = ""; });
+            } else {
+                this.rootEl.style.display = "block";
+            }
             return;
         }
+
+        // ── In chatroom: restore room-only tabs and re-anchor to the chat log ────
+
+        // Drop roaming mode so normal closed-tab CSS applies again
+        this.rootEl.classList.remove("ebc-roaming");
+
+        // Restore room-only tab buttons (respects user hidden-tab preferences)
+        this.applyTabVisibility();
 
         // Restore any beep windows that were hidden while outside the chat room
         for (const { el } of this.beepWins.values()) el.style.display = "";
@@ -3866,12 +4154,27 @@ export class EBCDrawer {
 
         // Try to position; if the chat log isn't laid out yet, retry next frame
         const synced = this.syncToChat();
+        const showPanel = (el: HTMLElement) => {
+            // Suppress the slide transition for the very first reveal — switching
+            // from display:none to display:block can cause the browser to animate
+            // the transform from an unrendered state, making the panel flash visible.
+            if (!this.hasBeenShown) {
+                this.hasBeenShown = true;
+                if (this.panelEl) this.panelEl.style.transition = "none";
+                el.style.display = "block";
+                requestAnimationFrame(() => {
+                    if (this.panelEl) this.panelEl.style.transition = "";
+                });
+            } else {
+                el.style.display = "block";
+            }
+        };
         if (synced) {
-            this.rootEl.style.display = "block";
+            showPanel(this.rootEl);
         } else {
             requestAnimationFrame(() => {
                 if (this.syncToChat() && this.rootEl) {
-                    this.rootEl.style.display = "block";
+                    showPanel(this.rootEl);
                 }
             });
         }
@@ -3892,6 +4195,22 @@ export class EBCDrawer {
         // drawer is first built, so we refresh any toggles that depend on them.
         try { this.refreshConfirmToggle?.(); } catch { /* ignore */ }
         try { this.refreshSwEnableBtn?.();   } catch { /* ignore */ }
+
+        this.updateSlowLeaveVisibility();
+    }
+
+    private updateSlowLeaveVisibility(): void {
+        if (!this.slowLeaveBtn) return;
+        const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
+        // Show/hide the outer collapsible wrapper
+        const wrapper = this.slCollapseHdr?.parentElement;
+        if (wrapper) wrapper.style.display = inRoom ? "flex" : "none";
+        // Reset button label if no sequence is currently running
+        if (!isSeqRunning()) {
+            this.slowLeaveBtn.textContent = "🚶 Slow Leave";
+            this.slowLeaveBtn.style.background = "";
+            this.slowLeaveBtn.style.color = "";
+        }
     }
 
     // -- Tab switching ---------------------------------------------------------
@@ -3914,13 +4233,14 @@ export class EBCDrawer {
 
         for (const [id, name] of [
             ["ebc-tab-outfits", "outfits"],
-            ["ebc-tab-buttons", "buttons"],
             ["ebc-tab-poses",   "anims"],
+            ["ebc-tab-buttons", "buttons"],
             ["ebc-tab-notes",   "notes"],
             ["ebc-tab-thanks",  "thanks"],
             ["ebc-tab-dev",     "dev"],
             ["ebc-tab-dom",     "dom"],
             ["ebc-tab-puppy",   "puppy"],
+            ["ebc-tab-kitty",   "kitty"],
         ] as [string, DrawerTab][]) {
             const el = this.rootEl?.querySelector(`#${id}`);
             if (el) el.className = "ebc-tab-btn" + (tab === name ? " ebc-tab-active" : "");
@@ -3931,13 +4251,55 @@ export class EBCDrawer {
 
     private renderCurrentTab(): void {
         if      (this.currentTab === "outfits")  this.renderOutfits();
-        else if (this.currentTab === "buttons")  this.renderButtons();
         else if (this.currentTab === "anims")    this.renderPoses();
+        else if (this.currentTab === "buttons")  this.renderButtons();
         else if (this.currentTab === "notes")    this.renderNotes();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
         else if (this.currentTab === "dom")      this.renderDomTools();
         else if (this.currentTab === "puppy")    this.renderPuppy();
+        else if (this.currentTab === "kitty")    this.renderKittyTab();
+    }
+
+    /**
+     * Apply the stored panel opacity to the .ebc-panel element.
+     * At opacity 1 the panel is fully opaque (no backdrop blur).
+     * Below 1 the background becomes semi-transparent and a proportional blur
+     * is added so the frosted-glass effect looks intentional.
+     */
+    applyPanelOpacity(alpha = loadPanelOpacity()): void {
+        const panel = this.rootEl?.querySelector(".ebc-panel") as HTMLElement | null;
+        if (!panel) return;
+        panel.style.background = `rgba(27, 13, 23, ${alpha})`;
+        const style = panel.style as CSSStyleDeclaration & { webkitBackdropFilter?: string };
+        if (alpha < 0.99) {
+            const blur = `blur(${Math.round((1 - alpha) * 20)}px)`;
+            panel.style.backdropFilter = blur;
+            if (style.webkitBackdropFilter !== undefined) style.webkitBackdropFilter = blur;
+        } else {
+            panel.style.backdropFilter = "none";
+            if (style.webkitBackdropFilter !== undefined) style.webkitBackdropFilter = "none";
+        }
+    }
+
+    /**
+     * Re-render the current tab in-place while preserving the panel's scroll
+     * position.  All within-tab actions (save, delete, reorder, etc.) should
+     * call this instead of renderCurrentTab() directly so the user doesn't
+     * get snapped back to the top of the list after every interaction.
+     *
+     * Tab *switches* intentionally bypass this and call renderCurrentTab()
+     * directly so the new tab always starts at the top.
+     */
+    private rerender(delay = 0): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const scroll = body?.scrollTop ?? 0;
+        const doRender = (): void => {
+            this.renderCurrentTab();
+            if (body) body.scrollTop = scroll;
+        };
+        if (delay > 0) window.setTimeout(doRender, delay);
+        else doRender();
     }
 
     // -- Timer -----------------------------------------------------------------
@@ -4152,7 +4514,7 @@ export class EBCDrawer {
                             }, 2000);
                         } else {
                             deleteOutfitTag(tag.id);
-                            this.renderOutfits();
+                            this.rerender();
                         }
                     });
 
@@ -4223,21 +4585,11 @@ export class EBCDrawer {
         let outfitsCollapsed = false;
         try { outfitsCollapsed = localStorage.getItem("EBC_outfitsCollapsed") === "1"; } catch { /* ignore */ }
 
-        const outfitsHeaderRow = document.createElement("div");
-        outfitsHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
-
         const outfitLbl = document.createElement("div");
         outfitLbl.className = "ebc-section-label";
-        outfitLbl.style.margin = "0";
-        outfitLbl.textContent = "Saved Outfits";
-
-        const outfitsChevron = document.createElement("span");
-        outfitsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
-        outfitsChevron.textContent = outfitsCollapsed ? "▲" : "▼";
-
-        outfitsHeaderRow.appendChild(outfitLbl);
-        outfitsHeaderRow.appendChild(outfitsChevron);
-        body.appendChild(outfitsHeaderRow);
+        outfitLbl.style.cssText = "cursor:pointer;user-select:none;";
+        outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
+        body.appendChild(outfitLbl);
 
         // ── Outfit search ─────────────────────────────────────────────────────
         const searchRow = document.createElement("div");
@@ -4297,11 +4649,11 @@ export class EBCDrawer {
         const toggleOutfitsCollapsed = (): void => {
             outfitsCollapsed = !outfitsCollapsed;
             outfitsBody.style.display = outfitsCollapsed ? "none" : "block";
-            outfitsChevron.textContent = outfitsCollapsed ? "▲" : "▼";
+            outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
             try { localStorage.setItem("EBC_outfitsCollapsed", outfitsCollapsed ? "1" : "0"); } catch { /* ignore */ }
         };
 
-        outfitsHeaderRow.addEventListener("click", toggleOutfitsCollapsed);
+        outfitLbl.addEventListener("click", toggleOutfitsCollapsed);
 
         rebuildOutfitList();
 
@@ -5503,13 +5855,13 @@ export class EBCDrawer {
         upBtn.textContent = "▲";
         upBtn.title = "Move up";
         upBtn.disabled = thisIdx <= 0;
-        upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.renderOutfits(); });
+        upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.rerender(); });
         const downBtn = document.createElement("button");
         downBtn.className = "ebc-reorder-btn";
         downBtn.textContent = "▼";
         downBtn.title = "Move down";
         downBtn.disabled = thisIdx >= outfitsList.length - 1;
-        downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.renderOutfits(); });
+        downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.rerender(); });
         reorderCol.appendChild(upBtn);
         reorderCol.appendChild(downBtn);
         row.appendChild(reorderCol);
@@ -5702,14 +6054,20 @@ export class EBCDrawer {
         });
 
         updateBtn.addEventListener("click", () => {
-            setAllDisabled(true);
-            const ok = saveCurrentAppearanceToOutfit(o.id);
-            if (!ok) { setAllDisabled(false); return; }
-            updateBtn.textContent = "Saved!";
-            window.setTimeout(() => {
-                updateBtn.textContent = "Update";
-                setAllDisabled(false);
-            }, 1200);
+            showConfirmOverlay(
+                `Overwrite "${o.displayName}" with your current look?`,
+                "Cancel", "Update",
+                () => {
+                    setAllDisabled(true);
+                    const ok = saveCurrentAppearanceToOutfit(o.id);
+                    if (!ok) { setAllDisabled(false); return; }
+                    updateBtn.textContent = "Saved!";
+                    window.setTimeout(() => {
+                        updateBtn.textContent = "Update";
+                        setAllDisabled(false);
+                    }, 1200);
+                }
+            );
         });
 
         editBtn.addEventListener("click", () => {
@@ -5739,7 +6097,7 @@ export class EBCDrawer {
                 eNicknameInput.value,
                 eTitleSel.value,
             );
-            if (ok) this.renderOutfits();
+            if (ok) this.rerender();
         });
 
         eExportBtn.addEventListener("click", () => {
@@ -5800,7 +6158,7 @@ export class EBCDrawer {
             } else {
                 if (delTimer !== null) window.clearTimeout(delTimer);
                 deleteOutfit(o.id);
-                this.renderOutfits();
+                this.rerender();
             }
         });
 
@@ -5909,7 +6267,7 @@ export class EBCDrawer {
                 checkbox.checked = false;
                 form.style.display = "none";
                 newBtn.textContent = "+ New Outfit from Current Look";
-                this.renderOutfits();
+                this.rerender();
             } else {
                 createBtn.disabled = false;
                 createBtn.textContent = "Save as New Outfit";
@@ -6040,7 +6398,7 @@ export class EBCDrawer {
                     importOutfitFromJSON(impTextarea.value.trim());
                 }
                 closeImpPanel();
-                this.renderOutfits();
+                this.rerender();
             } catch (err) {
                 impError.textContent = err instanceof Error ? err.message : "Invalid format.";
             }
@@ -6058,21 +6416,11 @@ export class EBCDrawer {
         let restraintsCollapsed = false;
         try { restraintsCollapsed = localStorage.getItem("EBC_restraintsCollapsed") === "1"; } catch { /* ignore */ }
 
-        const headerRow = document.createElement("div");
-        headerRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
-
         const lbl = document.createElement("div");
         lbl.className = "ebc-section-label";
-        lbl.style.margin = "0";
-        lbl.textContent = "Saved Restraints";
-
-        const chevron = document.createElement("span");
-        chevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
-        chevron.textContent = restraintsCollapsed ? "▲" : "▼";
-
-        headerRow.appendChild(lbl);
-        headerRow.appendChild(chevron);
-        body.appendChild(headerRow);
+        lbl.style.cssText = "cursor:pointer;user-select:none;";
+        lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
+        body.appendChild(lbl);
 
         const sectionBody = document.createElement("div");
         sectionBody.style.display = restraintsCollapsed ? "none" : "block";
@@ -6080,10 +6428,10 @@ export class EBCDrawer {
         const toggleCollapsed = (): void => {
             restraintsCollapsed = !restraintsCollapsed;
             sectionBody.style.display = restraintsCollapsed ? "none" : "block";
-            chevron.textContent = restraintsCollapsed ? "▲" : "▼";
+            lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
             try { localStorage.setItem("EBC_restraintsCollapsed", restraintsCollapsed ? "1" : "0"); } catch { /* ignore */ }
         };
-        headerRow.addEventListener("click", toggleCollapsed);
+        lbl.addEventListener("click", toggleCollapsed);
 
         const renderRestraintList = (): void => {
             while (sectionBody.firstChild) sectionBody.removeChild(sectionBody.firstChild);
@@ -6734,880 +7082,6 @@ export class EBCDrawer {
         }
     }
 
-    // -- Seq step builder helper -----------------------------------------------
-
-    // Builds a step-builder UI for a seq button and wires it to btns[idx].emote.
-    private buildSeqStepBuilder(btns: ActionButton[], idx: number): HTMLElement {
-        const DEFAULT_DELAY = 600;
-
-        // Parse current emote value into step rows
-        interface SeqStep { type: "action" | "emote" | "pose" | "reset"; text: string; delay: number; }
-
-        const parseSteps = (raw: string): SeqStep[] => {
-            if (!raw.trim()) return [];
-            return raw.split("|").map(r => r.trim()).filter(Boolean).map(r => {
-                const { content, delay } = parseStep(r, DEFAULT_DELAY);
-                if (content === "_") return { type: "reset" as const, text: "", delay };
-                if (content.startsWith("!")) return { type: "action" as const, text: content.slice(1), delay };
-                if (content.startsWith("*")) return { type: "emote" as const, text: content.slice(1), delay };
-                return { type: "pose" as const, text: content, delay };
-            });
-        };
-
-        const serializeSteps = (steps: SeqStep[]): string => {
-            return steps.map(s => {
-                let content = "";
-                if (s.type === "reset") content = "_";
-                else if (s.type === "action") content = "!" + s.text;
-                else if (s.type === "emote") content = "*" + s.text;
-                else content = s.text;
-                return `${content}@${s.delay}`;
-            }).join("|");
-        };
-
-        let steps: SeqStep[] = parseSteps(btns[idx].emote);
-
-        const wrapper = document.createElement("div");
-        wrapper.className = "ebc-seq-builder";
-
-        const stepList = document.createElement("div");
-        stepList.style.cssText = "display:flex;flex-direction:column;gap:3px;";
-        wrapper.appendChild(stepList);
-
-        const renderSteps = (): void => {
-            while (stepList.firstChild) stepList.removeChild(stepList.firstChild);
-
-            for (let si = 0; si < steps.length; si++) {
-                const step = steps[si];
-                const stepRow = document.createElement("div");
-                stepRow.className = "ebc-seq-step-row";
-
-                // Type dropdown
-                const typeSelect = document.createElement("select");
-                typeSelect.className = "ebc-seq-type-select";
-                [
-                    { value: "action", label: "Action !" },
-                    { value: "emote",  label: "Emote *"  },
-                    { value: "pose",   label: "Pose"     },
-                    { value: "reset",  label: "Reset _"  },
-                ].forEach(opt => {
-                    const o = document.createElement("option");
-                    o.value = opt.value; o.textContent = opt.label;
-                    if (opt.value === step.type) o.selected = true;
-                    typeSelect.appendChild(o);
-                });
-
-                // Text input
-                const textInp = document.createElement("input");
-                textInp.className = "ebc-seq-text-inp";
-                textInp.type = "text";
-                textInp.value = step.text;
-                textInp.placeholder = step.type === "pose" ? "e.g. HandsUp" : "text...";
-                textInp.disabled = step.type === "reset";
-                textInp.maxLength = 200;
-
-                // Delay input (ms)
-                const delayInp = document.createElement("input");
-                delayInp.className = "ebc-seq-delay-inp";
-                delayInp.type = "number";
-                delayInp.min = "0";
-                delayInp.max = "60000";
-                delayInp.step = "100";
-                delayInp.value = String(step.delay);
-                delayInp.title = "Delay after this step (ms)";
-
-                // Delete button
-                const delBtn = document.createElement("button");
-                delBtn.className = "ebc-seq-step-del";
-                delBtn.textContent = "×";
-                delBtn.title = "Remove step";
-
-                stepRow.appendChild(typeSelect);
-                stepRow.appendChild(textInp);
-                stepRow.appendChild(delayInp);
-                stepRow.appendChild(delBtn);
-                stepList.appendChild(stepRow);
-
-                // Events (capture si)
-                const sidx = si;
-
-                typeSelect.addEventListener("change", () => {
-                    const t = typeSelect.value as SeqStep["type"];
-                    steps[sidx].type = t;
-                    textInp.disabled = t === "reset";
-                    if (t === "reset") { steps[sidx].text = ""; textInp.value = ""; }
-                    btns[idx].emote = serializeSteps(steps);
-                });
-
-                textInp.addEventListener("input", () => {
-                    steps[sidx].text = textInp.value;
-                    btns[idx].emote = serializeSteps(steps);
-                });
-
-                delayInp.addEventListener("input", () => {
-                    const v = parseInt(delayInp.value, 10);
-                    steps[sidx].delay = isNaN(v) ? DEFAULT_DELAY : Math.max(0, v);
-                    btns[idx].emote = serializeSteps(steps);
-                });
-
-                delBtn.addEventListener("click", () => {
-                    steps.splice(sidx, 1);
-                    btns[idx].emote = serializeSteps(steps);
-                    renderSteps();
-                });
-            }
-        };
-
-        renderSteps();
-
-        // + Add step button
-        const addBtn = document.createElement("button");
-        addBtn.className = "ebc-seq-add-btn";
-        addBtn.textContent = "+ Add step";
-        addBtn.addEventListener("click", () => {
-            steps.push({ type: "action", text: "", delay: DEFAULT_DELAY });
-            btns[idx].emote = serializeSteps(steps);
-            renderSteps();
-        });
-        wrapper.appendChild(addBtn);
-
-        return wrapper;
-    }
-
-    // -- Buttons tab -----------------------------------------------------------
-
-    private renderButtons(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
-        if (!body) return;
-        while (body.firstChild) body.removeChild(body.firstChild);
-
-        // Working category state
-        const cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
-        let activeCatIdx = getActiveCategoryIndex();
-        if (activeCatIdx >= cats.length) activeCatIdx = 0;
-
-        // ── Accordion: one collapsible section per category ───────────────────
-        // Build all headers; only the active one has its editor body visible.
-        // Clicking a collapsed header switches to it and re-renders.
-
-        // Working copies for the active category's editor
-        let btns: ActionButton[] = cats[activeCatIdx].buttons.map(b => ({ ...b }));
-        let slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
-        while (btns.length < slotCount) {
-            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
-        }
-
-        // ── Build accordion ───────────────────────────────────────────────────
-        // One section per category. The active one is expanded; others collapsed.
-        let activeBodyEl: HTMLElement = document.createElement("div"); // filled below
-
-        const HROW_CSS = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;border-radius:6px;margin-bottom:2px;";
-        const CAT_LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-        const ICON_BTN_CSS = "background:none;border:none;font-family:'Trebuchet MS',serif;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:3px;color:#7a5a6a;flex-shrink:0;";
-
-        cats.forEach((cat, i) => {
-            const isActive = i === activeCatIdx;
-
-            const section = document.createElement("div");
-            section.style.cssText = "border:1px solid " + (isActive ? "#5a2840" : "#2a1421") + ";border-radius:7px;margin-bottom:5px;overflow:hidden;";
-
-            // ── Header ──
-            const hrow = document.createElement("div");
-            hrow.style.cssText = HROW_CSS + "background:" + (isActive ? "#2a0e1e" : "#1b0d17") + ";";
-
-            const chevron = document.createElement("span");
-            chevron.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
-            chevron.textContent = isActive ? "▼" : "▶";
-
-            const nameLbl = document.createElement("span");
-            nameLbl.style.cssText = CAT_LBL_CSS;
-            nameLbl.textContent = cat.name;
-
-            const renameBtn = document.createElement("button");
-            renameBtn.style.cssText = ICON_BTN_CSS;
-            renameBtn.textContent = "✎";
-            renameBtn.title = "Rename";
-            renameBtn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const newName = window.prompt("New name:", cats[i].name) ?? "";
-                if (!newName.trim()) return;
-                cats[i].name = newName.trim();
-                saveCategories([...cats], activeCatIdx);
-                nameLbl.textContent = newName.trim();
-            });
-
-            hrow.appendChild(chevron);
-            hrow.appendChild(nameLbl);
-            hrow.appendChild(renameBtn);
-
-            if (cats.length > 1) {
-                const delBtn = document.createElement("button");
-                delBtn.style.cssText = ICON_BTN_CSS + "color:#7a3040;";
-                delBtn.textContent = "✕";
-                delBtn.title = "Delete category";
-                delBtn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    if (!window.confirm(`Delete category "${cats[i].name}"?`)) return;
-                    cats.splice(i, 1);
-                    const newIdx = Math.min(i, cats.length - 1);
-                    saveCategories([...cats], newIdx);
-                    this.renderButtons();
-                });
-                hrow.appendChild(delBtn);
-            }
-
-            // Build the body element now so the click handler can reference it for toggling
-            const catBody = document.createElement("div");
-            catBody.style.cssText = "padding:6px 8px 4px;";
-            let isExpanded = isActive;
-            if (isActive) {
-                // Restore persisted collapse state for the active category
-                try { isExpanded = localStorage.getItem("EBC_activeCatExpanded") !== "0"; } catch { /* ignore */ }
-                // Sync visual state to match the restored expansion state
-                chevron.textContent = isExpanded ? "▼" : "▶";
-                section.style.borderColor = isExpanded ? "#5a2840" : "#2a1421";
-                hrow.style.background = isExpanded ? "#2a0e1e" : "#1b0d17";
-            }
-            catBody.style.display = isExpanded ? "" : "none";
-
-            // Clicking a collapsed header switches to it and re-renders.
-            // Clicking the active (expanded) header toggles it open/closed inline.
-            hrow.addEventListener("click", () => {
-                if (i !== activeCatIdx) {
-                    setActiveCategoryIndex(i);
-                    this.renderButtons();
-                    return;
-                }
-                isExpanded = !isExpanded;
-                catBody.style.display = isExpanded ? "" : "none";
-                chevron.textContent = isExpanded ? "▼" : "▶";
-                section.style.borderColor = isExpanded ? "#5a2840" : "#2a1421";
-                hrow.style.background = isExpanded ? "#2a0e1e" : "#1b0d17";
-                try { localStorage.setItem("EBC_activeCatExpanded", isExpanded ? "1" : "0"); } catch { /* ignore */ }
-            });
-
-            section.appendChild(hrow);
-
-            // ── Body (only rendered for the active category) ──
-            if (isActive) {
-                activeBodyEl = catBody;
-                section.appendChild(catBody);
-            }
-
-            body.appendChild(section);
-        });
-
-        // ── Add Category row ──────────────────────────────────────────────────
-        const addCatRow = document.createElement("div");
-        addCatRow.style.cssText = "margin-bottom:8px;";
-        const addCatBtn = document.createElement("button");
-        addCatBtn.className = "ebc-cat-pill";
-        addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
-        addCatBtn.textContent = "+ Add Category";
-        addCatBtn.addEventListener("click", () => {
-            const name = window.prompt("Category name (e.g. RP, Casual):") ?? "";
-            if (!name.trim()) return;
-            cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" }], slotCount: 1 });
-            const newIdx = cats.length - 1;
-            saveCategories([...cats], newIdx);
-            this.renderButtons();
-        });
-        addCatRow.appendChild(addCatBtn);
-        body.appendChild(addCatRow);
-
-        // ── Slot list + render fn — appended into the active category body ─────
-        const slotList = document.createElement("div");
-        slotList.id = "ebc-slot-list";
-        activeBodyEl.appendChild(slotList);
-
-        const renderSlots = (): void => {
-            // Always ensure btns has a real object for every slot — prevents "undefined" crashes
-            while (btns.length < slotCount) {
-                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
-            }
-            while (slotList.firstChild) slotList.removeChild(slotList.firstChild);
-
-            for (let i = 0; i < slotCount; i++) {
-                const btn = btns[i];
-
-                const row = document.createElement("div");
-                row.className = "ebc-slot-row";
-
-                // Top line: toggle | label input | color picker | del
-                const topLine = document.createElement("div");
-                topLine.className = "ebc-slot-top";
-
-                const toggle = document.createElement("button");
-                toggle.className = "ebc-slot-toggle" + (btn.enabled ? " on" : "");
-                toggle.textContent = btn.enabled ? "ON" : "OFF";
-                toggle.title = btn.enabled ? "Click to disable" : "Click to enable";
-
-                const labelInp = document.createElement("input");
-                labelInp.className = "ebc-slot-label";
-                labelInp.type = "text";
-                labelInp.maxLength = 6;
-                labelInp.placeholder = "Label";
-                labelInp.value = btn.label;
-                labelInp.title = "Button label (max 6 chars)";
-
-                // Colour preview dot + hex text input; dot opens floating picker
-                const colorWrap = document.createElement("span");
-                colorWrap.style.cssText = "display:inline-flex;align-items:center;gap:3px;flex-shrink:0;";
-                const colorDot = document.createElement("span");
-                colorDot.style.cssText = `width:14px;height:14px;border-radius:3px;border:1px solid #5a2a3e;flex-shrink:0;background:${normalizeHex(btn.color)};cursor:pointer;`;
-                colorDot.title = "Click to open colour picker";
-                const colorInp = document.createElement("input");
-                colorInp.className = "ebc-slot-color";
-                colorInp.type = "text";
-                colorInp.maxLength = 7;
-                colorInp.placeholder = "#hex";
-                colorInp.value = normalizeHex(btn.color);
-                colorInp.title = "Button colour (hex, e.g. #cf6f98)";
-                colorInp.style.cssText = "width:52px;font-size:8px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
-                colorWrap.appendChild(colorDot);
-                colorWrap.appendChild(colorInp);
-
-                // Floating picker popup — created on demand, one per slot at a time
-                let slotPickerPopup: HTMLElement | null = null;
-                let slotPickerCleanup: (() => void) | null = null;
-                const closeSlotPicker = (): void => {
-                    if (slotPickerPopup) {
-                        slotPickerCleanup?.();
-                        slotPickerCleanup = null;
-                        slotPickerPopup.remove();
-                        slotPickerPopup = null;
-                    }
-                };
-                colorDot.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    if (slotPickerPopup) { closeSlotPicker(); return; }
-                    const popup = document.createElement("div");
-                    popup.style.cssText = "position:fixed;z-index:100000;background:#1b0d17;border:1px solid #5a2a3e;border-radius:8px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,0.7);";
-                    const pw = this.buildColorPickerWidget(btns[i].color ?? "#cf6f98", (hex) => {
-                        btns[i].color = hex;
-                        colorDot.style.background = hex;
-                        colorInp.value = hex;
-                        colorInp.style.color = "#f7e6ee";
-                    });
-                    const wpw = pw as unknown as Record<string, unknown>;
-                    slotPickerCleanup = wpw._cleanup as () => void;
-                    const doneBtn = document.createElement("button");
-                    doneBtn.className = "ebc-wear-btn";
-                    doneBtn.style.cssText = "width:100%;margin-top:6px;";
-                    doneBtn.textContent = "✓ Done";
-                    doneBtn.addEventListener("click", closeSlotPicker);
-                    popup.appendChild(pw);
-                    popup.appendChild(doneBtn);
-                    const rect = colorDot.getBoundingClientRect();
-                    popup.style.top = Math.max(4, Math.min(rect.top - 4, window.innerHeight - 280)) + "px";
-                    popup.style.left = Math.max(4, rect.left - 224) + "px";
-                    document.body.appendChild(popup);
-                    slotPickerPopup = popup;
-                    // Close when clicking outside the popup
-                    const onOutside = (ev: MouseEvent): void => {
-                        if (!popup.contains(ev.target as Node)) {
-                            closeSlotPicker();
-                            document.removeEventListener("click", onOutside, true);
-                        }
-                    };
-                    window.setTimeout(() => document.addEventListener("click", onOutside, true), 80);
-                });
-
-                const delBtn = document.createElement("button");
-                delBtn.className = "ebc-slot-del";
-                delBtn.textContent = "x";
-                delBtn.title = "Remove this slot";
-
-                // ▲ / ▼ reorder buttons
-                const moveUpBtn = document.createElement("button");
-                moveUpBtn.className = "ebc-slot-move";
-                moveUpBtn.textContent = "▲";
-                moveUpBtn.title = "Move up";
-                moveUpBtn.disabled = i === 0;
-
-                const moveDownBtn = document.createElement("button");
-                moveDownBtn.className = "ebc-slot-move";
-                moveDownBtn.textContent = "▼";
-                moveDownBtn.title = "Move down";
-                moveDownBtn.disabled = i === slotCount - 1;
-
-                topLine.appendChild(toggle);
-                topLine.appendChild(labelInp);
-                topLine.appendChild(colorWrap);
-                topLine.appendChild(moveUpBtn);
-                topLine.appendChild(moveDownBtn);
-                topLine.appendChild(delBtn);
-
-                // Bottom line: style toggle (hidden for seq) | emote/seq input
-                const botLine = document.createElement("div");
-                botLine.className = "ebc-slot-bottom";
-
-                const currentStyle: ActionStyle = (btn.style as ActionStyle) ?? "action";
-                const isSeq = currentStyle === "seq";
-
-                const styleBtn = document.createElement("button");
-                styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
-                styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
-                styleBtn.title = currentStyle === "emote"
-                    ? "Style: * emote * — click to switch"
-                    : "Style: ( action ) — click to switch";
-                // Seq buttons don't show the style toggle — animation is internal
-                styleBtn.style.display = isSeq ? "none" : "";
-
-                // For seq buttons, show a small non-interactive badge instead
-                const seqBadge = document.createElement("span");
-                seqBadge.className = "ebc-slot-seq-badge";
-                seqBadge.textContent = "✨";
-                seqBadge.title = "Animation button — edit the sequence below";
-                seqBadge.style.display = isSeq ? "inline" : "none";
-
-                const emoteInp = document.createElement("input");
-                emoteInp.className = "ebc-slot-emote";
-                emoteInp.type = "text";
-                emoteInp.maxLength = 240;
-                emoteInp.placeholder = "e.g. nods.";
-                emoteInp.value = btn.emote;
-                emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                emoteInp.style.display = isSeq ? "none" : "";
-
-                // Name-in-announce chip — only meaningful for ( ) action style
-                const nameIncluded = btn.includeNameInAnnounce !== false;
-                const nameChip = document.createElement("button");
-                nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
-                nameChip.textContent = nameIncluded ? "name" : "anon";
-                nameChip.title = nameIncluded
-                    ? "Your name is included — click to send anonymously"
-                    : "Sending without name — click to include name";
-                nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
-                // only show for action style (emote always has name; seq not applicable)
-                nameChip.style.display = (currentStyle === "action") ? "" : "none";
-
-                botLine.appendChild(styleBtn);
-                botLine.appendChild(seqBadge);
-                botLine.appendChild(nameChip);
-                botLine.appendChild(emoteInp);
-
-                row.appendChild(topLine);
-                row.appendChild(botLine);
-                slotList.appendChild(row);
-
-                // -- Seq step builder (only for seq style) --
-                if (isSeq) {
-                    const builderEl = this.buildSeqStepBuilder(btns, i);
-                    slotList.appendChild(builderEl);
-                }
-
-                // -- Events (capture i) --
-                const idx = i;
-
-                moveUpBtn.addEventListener("click", () => {
-                    if (idx === 0) return;
-                    [btns[idx - 1], btns[idx]] = [btns[idx], btns[idx - 1]];
-                    renderSlots();
-                    updateFooterState();
-                });
-
-                moveDownBtn.addEventListener("click", () => {
-                    if (idx >= slotCount - 1) return;
-                    [btns[idx], btns[idx + 1]] = [btns[idx + 1], btns[idx]];
-                    renderSlots();
-                    updateFooterState();
-                });
-
-                toggle.addEventListener("click", () => {
-                    btns[idx].enabled = !btns[idx].enabled;
-                    toggle.className = "ebc-slot-toggle" + (btns[idx].enabled ? " on" : "");
-                    toggle.textContent = btns[idx].enabled ? "ON" : "OFF";
-                });
-
-                labelInp.addEventListener("input", () => {
-                    btns[idx].label = labelInp.value.trim().slice(0, 6);
-                });
-
-                colorInp.addEventListener("input", () => {
-                    let v = colorInp.value.trim();
-                    if (!v.startsWith("#")) v = "#" + v;
-                    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-                        btns[idx].color = v;
-                        colorDot.style.background = v;
-                        colorInp.style.color = "#f7e6ee";
-                    } else {
-                        colorInp.style.color = "#cf3060";
-                    }
-                });
-
-                emoteInp.addEventListener("input", () => {
-                    btns[idx].emote = emoteInp.value;
-                });
-
-                nameChip.addEventListener("click", () => {
-                    const next = btns[idx].includeNameInAnnounce === false; // toggle
-                    btns[idx].includeNameInAnnounce = next;
-                    nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
-                    nameChip.textContent = next ? "name" : "anon";
-                    nameChip.title = next
-                        ? "Your name is included — click to send anonymously"
-                        : "Sending without name — click to include name";
-                });
-
-                styleBtn.addEventListener("click", () => {
-                    const cur: ActionStyle = btns[idx].style ?? "action";
-                    if (cur === "seq") return; // seq buttons don't cycle through styles
-                    const next: "action" | "emote" = cur === "action" ? "emote" : "action";
-                    btns[idx].style = next;
-                    styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
-                    styleBtn.textContent = next === "emote" ? "* *" : "( )";
-                    styleBtn.title = next === "emote"
-                        ? "Style: * emote * — click to switch"
-                        : "Style: ( action ) — click to switch";
-                    emoteInp.title = next === "emote"
-                        ? "Text sent as * Name text *"
-                        : "Text sent as ( Name text )";
-                    // name chip only applies to action style
-                    nameChip.style.display = next === "action" ? "" : "none";
-                });
-
-                let slotDelPending = false;
-                let slotDelTimer: ReturnType<typeof window.setTimeout> | null = null;
-                delBtn.addEventListener("click", () => {
-                    if (!slotDelPending) {
-                        slotDelPending = true;
-                        delBtn.classList.add("confirm");
-                        delBtn.textContent = "?";
-                        delBtn.title = "Click again to remove this slot";
-                        slotDelTimer = window.setTimeout(() => {
-                            slotDelPending = false;
-                            delBtn.classList.remove("confirm");
-                            delBtn.textContent = "x";
-                            delBtn.title = "Remove this slot";
-                        }, 2500);
-                    } else {
-                        if (slotDelTimer !== null) window.clearTimeout(slotDelTimer);
-                        btns.splice(idx, 1);
-                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
-                        slotCount = Math.max(1, slotCount - 1);
-                        renderSlots();
-                        updateFooterState();
-                    }
-                });
-            }
-        };
-
-        renderSlots();
-
-        // Footer buttons
-        const footer = document.createElement("div");
-        footer.className = "ebc-btn-footer";
-
-        const addBtn = document.createElement("button");
-        addBtn.className = "ebc-btn-footer-btn";
-        addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
-
-        const saveBtn = document.createElement("button");
-        saveBtn.className = "ebc-btn-footer-btn save";
-        saveBtn.textContent = "Save";
-
-        const resetBtn = document.createElement("button");
-        resetBtn.className = "ebc-btn-footer-btn";
-        resetBtn.textContent = "Reset";
-        resetBtn.title = "Reset to defaults";
-
-        footer.appendChild(addBtn);
-        footer.appendChild(saveBtn);
-        footer.appendChild(resetBtn);
-        activeBodyEl.appendChild(footer);
-
-        // Export / Import row — inside the active category body
-        const ioRow = document.createElement("div");
-        ioRow.className = "ebc-btn-footer";
-        ioRow.style.marginTop = "3px";
-
-        const exportBtn = document.createElement("button");
-        exportBtn.className = "ebc-btn-footer-btn";
-        exportBtn.textContent = "↑ Export";
-        exportBtn.title = "Copy button config to clipboard to share with others";
-
-        const importToggleBtn = document.createElement("button");
-        importToggleBtn.className = "ebc-btn-footer-btn";
-        importToggleBtn.textContent = "↓ Import";
-        importToggleBtn.title = "Load a shared button config";
-
-        ioRow.appendChild(exportBtn);
-        ioRow.appendChild(importToggleBtn);
-        activeBodyEl.appendChild(ioRow);
-
-        // Import panel (collapsible)
-        const importPanel = document.createElement("div");
-        importPanel.className = "ebc-import-panel";
-        activeBodyEl.appendChild(importPanel);
-
-        const importHint = document.createElement("div");
-        importHint.className = "ebc-import-hint";
-        importHint.textContent = "Paste exported config here:";
-        importPanel.appendChild(importHint);
-
-        const importTextarea = document.createElement("textarea");
-        importTextarea.className = "ebc-notes-textarea";
-        importTextarea.placeholder = '{"ebc":1,"slotCount":3,"buttons":[...]}';
-        importTextarea.rows = 3;
-        importPanel.appendChild(importTextarea);
-
-        const importError = document.createElement("div");
-        importError.className = "ebc-import-error";
-        importPanel.appendChild(importError);
-
-        const importActionRow = document.createElement("div");
-        importActionRow.style.cssText = "display:flex;gap:5px;";
-        const loadBtn = document.createElement("button");
-        loadBtn.className = "ebc-create-btn";
-        loadBtn.style.marginTop = "0";
-        loadBtn.textContent = "Load";
-        const cancelImportBtn = document.createElement("button");
-        cancelImportBtn.className = "ebc-btn-footer-btn";
-        cancelImportBtn.textContent = "Cancel";
-        importActionRow.appendChild(loadBtn);
-        importActionRow.appendChild(cancelImportBtn);
-        importPanel.appendChild(importActionRow);
-
-        const updateFooterState = (): void => {
-            addBtn.disabled = slotCount >= ABSOLUTE_MAX;
-            addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
-        };
-
-        updateFooterState();
-
-        addBtn.addEventListener("click", () => {
-            if (slotCount >= ABSOLUTE_MAX) return;
-            slotCount++;
-            renderSlots();
-            updateFooterState();
-            // Scroll to bottom so new slot is visible
-            body.scrollTop = body.scrollHeight;
-        });
-
-        saveBtn.addEventListener("click", () => {
-            // Flush any partially typed values from inputs before saving
-            const rows = slotList.querySelectorAll<HTMLElement>(".ebc-slot-row");
-            rows.forEach((row, i) => {
-                const lInp = row.querySelector<HTMLInputElement>(".ebc-slot-label");
-                const cInp = row.querySelector<HTMLInputElement>(".ebc-slot-color");
-                const eInp = row.querySelector<HTMLInputElement>(".ebc-slot-emote");
-                if (lInp) btns[i].label = lInp.value.trim().slice(0, 6);
-                if (cInp) btns[i].color = normalizeHex(cInp.value);
-                if (eInp && btns[i].style !== "seq") btns[i].emote = eInp.value;
-            });
-            // Save into the active category then persist all categories
-            cats[activeCatIdx].buttons   = [...btns];
-            cats[activeCatIdx].slotCount = slotCount;
-            saveCategories([...cats], activeCatIdx);
-                        saveBtn.textContent = "Saved!";
-            window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
-        });
-
-        let resetPending = false;
-        let resetTimer: ReturnType<typeof window.setTimeout> | null = null;
-        resetBtn.addEventListener("click", () => {
-            if (!resetPending) {
-                resetPending = true;
-                resetBtn.classList.add("confirm");
-                resetBtn.textContent = "Sure?";
-                resetBtn.title = "Click again to restore defaults";
-                resetTimer = window.setTimeout(() => {
-                    resetPending = false;
-                    resetBtn.classList.remove("confirm");
-                    resetBtn.textContent = "Reset";
-                    resetBtn.title = "Reset to defaults";
-                }, 2500);
-            } else {
-                if (resetTimer !== null) window.clearTimeout(resetTimer);
-                resetPending = false;
-                resetBtn.classList.remove("confirm");
-                resetBtn.textContent = "Reset";
-                resetBtn.title = "Reset to defaults";
-                importPanel.classList.remove("open");
-                importToggleBtn.classList.remove("open");
-                btns = DEFAULT_BUTTONS.map(b => ({ ...b }));
-                slotCount = DEFAULT_BUTTONS.length;
-                cats[activeCatIdx].buttons   = [...btns];
-                cats[activeCatIdx].slotCount = slotCount;
-                saveCategories([...cats], activeCatIdx);
-                            renderSlots();
-                updateFooterState();
-            }
-        });
-
-        // -- Export ---------------------------------------------------------------
-        exportBtn.addEventListener("click", () => {
-            const payload = JSON.stringify({
-                ebc: 1,
-                slotCount,
-                buttons: btns.slice(0, slotCount).map(b => ({
-                    label: b.label,
-                    emote: b.emote,
-                    color: b.color,
-                    enabled: b.enabled,
-                    style: b.style ?? "action",
-                })),
-            });
-
-            const showInPanel = (): void => {
-                importTextarea.value = payload;
-                importError.textContent = "";
-                importPanel.classList.add("open");
-                importToggleBtn.classList.add("open");
-                importTextarea.select();
-            };
-
-            if (navigator.clipboard?.writeText) {
-                navigator.clipboard.writeText(payload).then(() => {
-                    exportBtn.textContent = "Copied!";
-                    window.setTimeout(() => { exportBtn.textContent = "↑ Export"; }, 1500);
-                }).catch(showInPanel).catch(() => { /* ignore */ });
-            } else {
-                showInPanel();
-            }
-        });
-
-        // -- Import ---------------------------------------------------------------
-        importToggleBtn.addEventListener("click", () => {
-            const willOpen = !importPanel.classList.contains("open");
-            importPanel.classList.toggle("open", willOpen);
-            importToggleBtn.classList.toggle("open", willOpen);
-            if (willOpen) {
-                importTextarea.value = "";
-                importError.textContent = "";
-                importTextarea.focus();
-            }
-        });
-
-        cancelImportBtn.addEventListener("click", () => {
-            importPanel.classList.remove("open");
-            importToggleBtn.classList.remove("open");
-            importTextarea.value = "";
-            importError.textContent = "";
-        });
-
-        loadBtn.addEventListener("click", () => {
-            importError.textContent = "";
-            try {
-                const raw = importTextarea.value.trim();
-                if (!raw) { importError.textContent = "Nothing to import."; return; }
-
-                const data = JSON.parse(raw) as Record<string, unknown>;
-                if (data.ebc !== 1) throw new Error("Not a valid EBC button export (missing version tag).");
-                if (!Array.isArray(data.buttons)) throw new Error("Missing buttons array.");
-
-                const imported: ActionButton[] = (data.buttons as unknown[]).map((item) => {
-                    const b = item as Record<string, unknown>;
-                    const style = (["action", "emote", "seq"].includes(b.style as string)
-                        ? b.style : "action") as ActionStyle;
-                    return {
-                        label:   typeof b.label === "string" ? b.label.slice(0, 6) : "",
-                        emote:   typeof b.emote === "string" ? b.emote.slice(0, 240) : "",
-                        color:   typeof b.color === "string" ? normalizeHex(b.color) : "#c2185b",
-                        enabled: !!b.enabled,
-                        style,
-                    };
-                });
-
-                const newCount = typeof data.slotCount === "number"
-                    ? Math.min(Math.max(1, Math.round(data.slotCount)), ABSOLUTE_MAX)
-                    : Math.min(imported.length, ABSOLUTE_MAX);
-
-                btns = imported;
-                slotCount = newCount;
-                while (btns.length < slotCount) {
-                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
-                }
-
-                saveButtons([...btns], slotCount);
-                importPanel.classList.remove("open");
-                importToggleBtn.classList.remove("open");
-                importTextarea.value = "";
-                renderSlots();
-                updateFooterState();
-
-                loadBtn.textContent = "Loaded!";
-                window.setTimeout(() => { loadBtn.textContent = "Load"; }, 1200);
-            } catch (err) {
-                importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
-            }
-        });
-
-        // -- Fun Actions --------------------------------------------------------
-        const funLbl = document.createElement("div");
-        funLbl.className = "ebc-section-label";
-        funLbl.style.marginTop = "10px";
-        funLbl.textContent = "Fun Actions";
-        body.appendChild(funLbl);
-
-        const boopBtn = document.createElement("button");
-        boopBtn.className = "ebc-create-btn";
-        boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        boopBtn.title = "Send a unique boop message to every friend currently in the room";
-        boopBtn.textContent = "🐾 Boop all friends in room";
-        boopBtn.addEventListener("click", () => {
-            const booped = this.boopFriendsInRoom();
-            if (booped === 0) {
-                boopBtn.textContent = "No friends here~";
-            } else {
-                boopBtn.textContent = `Booped ${booped}!`;
-            }
-            window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
-        });
-        body.appendChild(boopBtn);
-
-        // -- Useful Buttons ------------------------------------------------------
-        const usefulLbl = document.createElement("div");
-        usefulLbl.className = "ebc-section-label";
-        usefulLbl.style.marginTop = "10px";
-        usefulLbl.textContent = "Useful Buttons";
-        body.appendChild(usefulLbl);
-
-        const oocBtn = document.createElement("button");
-        oocBtn.className = "ebc-create-btn";
-        oocBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        const refreshOoc = (): void => {
-            const on = getOocEnabled();
-            oocBtn.textContent = on ? "( OOC Mode: ON  —  click to turn off" : "( OOC Mode: OFF  —  click to turn on";
-            oocBtn.style.opacity = on ? "1" : "0.6";
-        };
-        refreshOoc();
-        oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
-        body.appendChild(oocBtn);
-
-        const copyMemberBtn = document.createElement("button");
-        copyMemberBtn.className = "ebc-create-btn";
-        copyMemberBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        copyMemberBtn.textContent = "Copy My Member Number";
-        copyMemberBtn.addEventListener("click", () => {
-            try {
-                navigator.clipboard.writeText(String(Player.MemberNumber));
-                copyMemberBtn.textContent = "Copied!";
-            } catch {
-                copyMemberBtn.textContent = `#${Player.MemberNumber}`;
-            }
-            window.setTimeout(() => { copyMemberBtn.textContent = "Copy My Member Number"; }, 2000);
-        });
-        body.appendChild(copyMemberBtn);
-
-        const clearPoseBtn = document.createElement("button");
-        clearPoseBtn.className = "ebc-create-btn";
-        clearPoseBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        clearPoseBtn.textContent = "Reset to Default Pose";
-        clearPoseBtn.title = "Clears all active poses back to standing";
-        clearPoseBtn.addEventListener("click", () => {
-            try {
-                (Player as unknown as Record<string, unknown>).ActivePose = [];
-                CharacterRefresh(Player, false);
-                ChatRoomCharacterUpdate(Player);
-                ServerPlayerAppearanceSync();
-            } catch { /* ignore */ }
-        });
-        body.appendChild(clearPoseBtn);
-
-    }
-
     // -- Appearance diff -------------------------------------------------------
 
     private renderDiff(panel: HTMLElement, outfit: ConfiguredOutfit): void {
@@ -7982,7 +7456,7 @@ export class EBCDrawer {
             clearBtn.title = "Clear all poses";
             clearBtn.addEventListener("click", () => {
                 applyPoses([]);
-                window.setTimeout(() => this.renderPoses(), 150);
+                this.rerender(150);
             });
             statusBar.appendChild(clearBtn);
         }
@@ -8043,7 +7517,7 @@ export class EBCDrawer {
                         );
                         applyPoses([...bodyPoses, preset.key]);
                     }
-                    window.setTimeout(() => this.renderPoses(), 150);
+                    this.rerender(150);
                 });
                 grid.appendChild(btn);
             }
@@ -8111,7 +7585,7 @@ export class EBCDrawer {
                 window.setTimeout(() => {
                     applyBtn.disabled = false;
                     applyBtn.textContent = "▶";
-                    this.renderPoses();
+                    this.rerender();
                 }, totalMs);
             });
 
@@ -8137,7 +7611,7 @@ export class EBCDrawer {
                 } else {
                     if (delTimer) window.clearTimeout(delTimer);
                     deleteCombo(combo.id);
-                    this.renderPoses();
+                    this.rerender();
                 }
             });
 
@@ -8191,7 +7665,7 @@ export class EBCDrawer {
             // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
             topSaveBtn.addEventListener("click", () => {
                 updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                this.renderPoses();
+                this.rerender();
             });
             topSaveBar.appendChild(topSaveBtn);
 
@@ -8204,7 +7678,7 @@ export class EBCDrawer {
             savComboBtn.textContent = "Save Changes";
             savComboBtn.addEventListener("click", () => {
                 updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                this.renderPoses();
+                this.rerender();
             });
             saveBar.appendChild(savComboBtn);
             editor.appendChild(saveBar);
@@ -8276,7 +7750,7 @@ export class EBCDrawer {
             const name = (ncNameInp as HTMLInputElement).value.trim();
             if (!name) { (ncNameInp as HTMLInputElement).style.borderColor = "#cf6f98"; return; }
             createCombo(name, ncGetPoses(), ncGetCommand(), ncGetAnnounce(), ncGetDelay());
-            this.renderPoses();
+            this.rerender();
         };
         ncTopSaveBtn.addEventListener("click", doSave);
         ncTopSaveBar.appendChild(ncTopSaveBtn);
@@ -9117,7 +8591,7 @@ export class EBCDrawer {
                 window.setTimeout(() => {
                     playBtn.disabled = false;
                     playBtn.textContent = "▶";
-                    this.renderPoses();
+                    this.rerender();
                 }, totalMs);
             });
 
@@ -9171,7 +8645,7 @@ export class EBCDrawer {
                 } else {
                     if (delTimer) window.clearTimeout(delTimer);
                     deleteScene(scene.id);
-                    this.renderPoses();
+                    this.rerender();
                 }
             });
 
@@ -9238,7 +8712,7 @@ export class EBCDrawer {
 
             topSaveBtn.addEventListener("click", () => {
                 updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                this.renderPoses();
+                this.rerender();
             });
 
             const botSaveBar = document.createElement("div");
@@ -9249,7 +8723,7 @@ export class EBCDrawer {
             botSaveBtn.textContent = "Save Changes";
             botSaveBtn.addEventListener("click", () => {
                 updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                this.renderPoses();
+                this.rerender();
             });
             botSaveBar.appendChild(botSaveBtn);
             editor.appendChild(botSaveBar);
@@ -9335,7 +8809,7 @@ export class EBCDrawer {
             const name = nsNameInp.value.trim();
             if (!name) { nsNameInp.style.borderColor = "#cf6f98"; return; }
             createScene(name, nsGetSteps(), nsCmdInp.value);
-            this.renderPoses();
+            this.rerender();
         };
 
         nsTopSaveBtn.addEventListener("click", doSaveScene);
@@ -9418,7 +8892,7 @@ export class EBCDrawer {
             try {
                 importScene(impTextarea.value.trim());
                 closeImpPanel();
-                this.renderPoses();
+                this.rerender();
             } catch (err) {
                 impError.textContent = err instanceof Error ? err.message : "Invalid format.";
             }
@@ -9945,7 +9419,7 @@ export class EBCDrawer {
             this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
             this.refreshTabDot();
             if (this.currentTab === "notes") {
-                try { this.renderNotes(); } catch { /* ignore */ }
+                try { this.rerender(); } catch { /* ignore */ }
             }
         }
 
@@ -10280,11 +9754,11 @@ export class EBCDrawer {
                         try {
                             const icons: string[] = [];
                             const own = (Player as unknown as Record<string, unknown>).Ownership as { MemberNumber?: number } | undefined;
-                            if (own?.MemberNumber === num) icons.push("🔒");
+                            if (own?.MemberNumber === num) icons.push("👑");
                             const loves = (Player as unknown as Record<string, unknown>).Lovership as Array<{ MemberNumber?: number }> | undefined;
                             if (loves?.some(l => l.MemberNumber === num)) icons.push("❤️");
                             const charOwn = char.Ownership as { MemberNumber?: number } | undefined;
-                            if (charOwn?.MemberNumber === Player.MemberNumber) icons.push("👑");
+                            if (charOwn?.MemberNumber === Player.MemberNumber) icons.push("🔒");
                             return icons.join("");
                         } catch { return ""; }
                     })();
@@ -10292,7 +9766,7 @@ export class EBCDrawer {
                     // EBC version badge
                     const ebcVer = (() => {
                         try {
-                            const sh = (char.OnlineSharedSettings as Record<string, unknown> | undefined)?.EmeryBC;
+                            const sh = (char.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EBC"];
                             if (sh && typeof sh === "object") {
                                 const p = (sh as Record<string, unknown>).presence;
                                 if (p && typeof p === "object") {
@@ -10584,19 +10058,19 @@ export class EBCDrawer {
                 const relBadge = (() => {
                     try {
                         const icons: string[] = [];
-                        // Owned by them
+                        // They own you — crown = "this person is your owner"
                         const own = (Player as unknown as Record<string, unknown>).Ownership as
                             { MemberNumber?: number } | undefined;
-                        if (own?.MemberNumber === num) icons.push("🔒");
+                        if (own?.MemberNumber === num) icons.push("👑");
                         // Lover
                         const loves = (Player as unknown as Record<string, unknown>).Lovership as
                             Array<{ MemberNumber?: number }> | undefined;
                         if (loves?.some(l => l.MemberNumber === num)) icons.push("❤️");
-                        // You own them — need their room data
+                        // You own them — lock = "you have them locked"
                         const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
                             Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number } }> | undefined;
                         const roomChar = room?.find(c => c.MemberNumber === num);
-                        if (roomChar?.Ownership?.MemberNumber === Player.MemberNumber) icons.push("👑");
+                        if (roomChar?.Ownership?.MemberNumber === Player.MemberNumber) icons.push("🔒");
                         return icons.join("");
                     } catch { return ""; }
                 })();
@@ -10654,7 +10128,7 @@ export class EBCDrawer {
                             Array<{ MemberNumber?: number; OnlineSharedSettings?: Record<string, unknown> }> | undefined;
                         const char = room?.find(c => c.MemberNumber === num);
                         if (char?.OnlineSharedSettings) {
-                            const sh = char.OnlineSharedSettings["EmeryBC"];
+                            const sh = char.OnlineSharedSettings["EBC"];
                             if (sh && typeof sh === "object") {
                                 const p = (sh as Record<string, unknown>).presence;
                                 if (p && typeof p === "object") {
@@ -10937,6 +10411,57 @@ export class EBCDrawer {
                         infoBox.appendChild(lsFullEl);
                     }
 
+                    // ── Relationship info ──────────────────────────────────────
+                    const parseRelStart = (s: string | number | undefined): number | null => {
+                        if (s === undefined || s === null) return null;
+                        if (typeof s === "number") return s > 0 ? s : null;
+                        const t = Date.parse(String(s));
+                        return isNaN(t) ? null : t;
+                    };
+                    const relFmt = (ts: number): string =>
+                        new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+
+                    try {
+                        // They own you
+                        const own = (Player as unknown as Record<string, unknown>).Ownership as
+                            { MemberNumber?: number; Start?: string | number } | undefined;
+                        if (own?.MemberNumber === num) {
+                            const ownEl = document.createElement("div");
+                            ownEl.style.color = "#e8c060";
+                            const ts = parseRelStart(own.Start);
+                            ownEl.textContent = ts
+                                ? `👑 Owned since: ${relFmt(ts)}`
+                                : "👑 Owned by them";
+                            infoBox.appendChild(ownEl);
+                        }
+                        // Lovership
+                        const loves = (Player as unknown as Record<string, unknown>).Lovership as
+                            Array<{ MemberNumber?: number; Start?: string | number }> | undefined;
+                        const love = loves?.find(l => l.MemberNumber === num);
+                        if (love) {
+                            const loveEl = document.createElement("div");
+                            loveEl.style.color = "#e87090";
+                            const ts = parseRelStart(love.Start);
+                            loveEl.textContent = ts
+                                ? `❤️ Lovers since: ${relFmt(ts)}`
+                                : "❤️ Lovers";
+                            infoBox.appendChild(loveEl);
+                        }
+                        // You own them (room data only — offline skip)
+                        const roomChars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                            Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number; Start?: string | number } }> | undefined;
+                        const rc = roomChars?.find(c => c.MemberNumber === num);
+                        if (rc?.Ownership?.MemberNumber === Player.MemberNumber) {
+                            const ownedByMeEl = document.createElement("div");
+                            ownedByMeEl.style.color = "#e8c060";
+                            const ts = parseRelStart(rc.Ownership.Start);
+                            ownedByMeEl.textContent = ts
+                                ? `🔒 Owns them since: ${relFmt(ts)}`
+                                : "🔒 You own them";
+                            infoBox.appendChild(ownedByMeEl);
+                        }
+                    } catch { /* ignore */ }
+
                     expand.appendChild(infoBox);
 
                     // Tags label
@@ -10983,7 +10508,7 @@ export class EBCDrawer {
                                     setFriendTagList(num, updated);
                                     rebuildChips();
                                     renderTagArea();
-                                    if (updated.length > 0) { if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn); }
+                                    if (updated.length > 0) { if (!metaRow.contains(tagArea)) metaRow.appendChild(tagArea); }
                                     else tagArea.remove();
                                 });
                                 chip.appendChild(dot2);
@@ -11044,7 +10569,7 @@ export class EBCDrawer {
                         newTagInput.style.borderColor = "#3a1928";
                         rebuildChips();
                         renderTagArea();
-                        if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn);
+                        if (!metaRow.contains(tagArea)) metaRow.appendChild(tagArea);
                     };
                     addTagBtn.addEventListener("click", doAddTag);
                     newTagInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); doAddTag(); } });
@@ -11102,7 +10627,7 @@ export class EBCDrawer {
                             saveNote(num, name, noteTA.value);
                             noteHint.textContent = noteTA.value.trim() ? "saved" : "saves automatically";
                             window.setTimeout(() => { noteHint.textContent = "saves automatically"; }, 1500);
-                            try { if (this.currentTab === "notes") this.renderNotes(); } catch { /* ignore */ }
+                            try { if (this.currentTab === "notes") this.rerender(); } catch { /* ignore */ }
                         }, 800);
                     });
                 };
@@ -11113,10 +10638,20 @@ export class EBCDrawer {
                     const open = expand.classList.toggle("visible");
                     row.classList.toggle("expanded", open);
                     if (open) {
+                        this.expandedFriends.add(num);
                         try { refreshExpandNote?.(); } catch { /* ignore */ }
                         window.setTimeout(() => newTagInputRef?.focus(), 50);
+                    } else {
+                        this.expandedFriends.delete(num);
                     }
                 });
+
+                // Restore open state if this panel was open before a list refresh
+                if (this.expandedFriends.has(num)) {
+                    buildExpandPanel();
+                    expand.classList.add("visible");
+                    row.classList.add("expanded");
+                }
 
                 wrap.appendChild(row);
                 wrap.appendChild(expand);
@@ -11276,6 +10811,32 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        // ── Show EBC tags toggle ──────────────────────────────────────────────
+        const badgeToggleRow = document.createElement("div");
+        badgeToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+        const badgeLbl2 = document.createElement("span");
+        badgeLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+        badgeLbl2.textContent = "Show EBC tags above players";
+        const badgeToggle2 = document.createElement("button");
+        const updateBadgeToggle2 = (): void => {
+            const on = getBadgeEnabled();
+            badgeToggle2.textContent = on ? "ON" : "OFF";
+            badgeToggle2.style.cssText = [
+                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                "padding:5px 12px", "border-radius:4px", "cursor:pointer",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+            badgeToggle2.title = on ? "EBC tags visible — click to hide" : "EBC tags hidden — click to show";
+        };
+        try { updateBadgeToggle2(); } catch { /* ignore */ }
+        badgeToggle2.addEventListener("click", () => { setBadgeEnabled(!getBadgeEnabled()); updateBadgeToggle2(); });
+        badgeToggleRow.appendChild(badgeLbl2);
+        badgeToggleRow.appendChild(badgeToggle2);
+        body.appendChild(badgeToggleRow);
+
         // Helper: collapsible section wrapper
         const makeSection = (
             labelText: string,
@@ -11314,8 +10875,41 @@ export class EBCDrawer {
             body.appendChild(div);
         };
 
-        // ── Drawer Appearance ─────────────────────────────────────────────────
-        makeSection("DRAWER APPEARANCE", "EBC_devAppearanceCollapsed", false, (cnt) => {
+        // ── Drawer Preferences ────────────────────────────────────────────────
+        makeSection("DRAWER PREFERENCES", "EBC_devAppearanceCollapsed", false, (cnt) => {
+
+            // ── Panel opacity slider ──────────────────────────────────────────
+            const opacityRow = document.createElement("div");
+            opacityRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+
+            const opacityLbl = document.createElement("span");
+            opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+            opacityLbl.textContent = "Panel opacity";
+
+            const opacitySlider = document.createElement("input");
+            opacitySlider.type = "range";
+            opacitySlider.min = "0.1";
+            opacitySlider.max = "1";
+            opacitySlider.step = "0.05";
+            opacitySlider.value = String(loadPanelOpacity());
+            opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            opacitySlider.title = "100% = fully solid, lower = semi-transparent";
+
+            const opacityVal = document.createElement("span");
+            opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+            opacityVal.textContent = Math.round(loadPanelOpacity() * 100) + "%";
+
+            opacitySlider.addEventListener("input", () => {
+                const v = parseFloat(opacitySlider.value);
+                opacityVal.textContent = Math.round(v * 100) + "%";
+                savePanelOpacity(v);
+                this.applyPanelOpacity(v);
+            });
+
+            opacityRow.appendChild(opacityLbl);
+            opacityRow.appendChild(opacitySlider);
+            opacityRow.appendChild(opacityVal);
+            cnt.appendChild(opacityRow);
 
             // Working copy of colours — mutated by pickers, written to storage on every change
             let liveColors = getCoreColors();
@@ -11455,55 +11049,90 @@ export class EBCDrawer {
             cnt.appendChild(tabVisGrid);
 
             // ── Menu hotkey ────────────────────────────────────────────────────────
+            const hotkeyWrap = document.createElement("div");
+            hotkeyWrap.style.cssText = "margin-top:8px;padding:8px 10px;border:1px solid #3a1928;border-radius:6px;background:rgba(20,8,16,0.5);";
+
+            const hotkeyTitle = document.createElement("div");
+            hotkeyTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;margin-bottom:6px;letter-spacing:0.03em;";
+            hotkeyTitle.textContent = "⌨ Menu Hotkey";
+            hotkeyWrap.appendChild(hotkeyTitle);
+
             const hotkeyRow = document.createElement("div");
-            hotkeyRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-top:6px;";
-            const hotkeyLbl = document.createElement("span");
-            hotkeyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
-            hotkeyLbl.textContent = "Menu hotkey";
+            hotkeyRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+
             const hotkeyDisplay = document.createElement("span");
             const refreshHotkeyDisplay = (): void => {
                 const k = getMenuHotkey();
-                hotkeyDisplay.textContent = k || "None";
-                hotkeyDisplay.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;border:1px solid #3a1928;background:#1b0d17;color:${k ? "#cf6f98" : "#4c2537"};min-width:36px;text-align:center;`;
+                // Convert "KeyF" → "F", "Space" → "Space", etc. for readability
+                const pretty = k
+                    ? k.replace(/^Key/, "").replace(/^Digit/, "").replace(/^Numpad/, "Num ")
+                    : "None";
+                hotkeyDisplay.textContent = pretty;
+                hotkeyDisplay.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:14px",
+                    "font-weight:bold",
+                    "padding:4px 14px",
+                    "border-radius:5px",
+                    "border:1px solid " + (k ? "#cf6f98" : "#3a1928"),
+                    "background:" + (k ? "rgba(207,111,152,0.15)" : "#1b0d17"),
+                    "color:" + (k ? "#f0a0c0" : "#4c3040"),
+                    "min-width:52px",
+                    "text-align:center",
+                    "flex-shrink:0",
+                    "letter-spacing:0.05em",
+                ].join(";");
             };
             refreshHotkeyDisplay();
+
+            const BTN = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
             const setHotkeyBtn = document.createElement("button");
-            setHotkeyBtn.textContent = "Set key";
-            setHotkeyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            setHotkeyBtn.textContent = "Set Key";
+            setHotkeyBtn.style.cssText = BTN + "border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;";
+            setHotkeyBtn.addEventListener("mouseenter", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#5a1c30"; });
+            setHotkeyBtn.addEventListener("mouseleave", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#3a1020"; });
+
             const clearHotkeyBtn = document.createElement("button");
             clearHotkeyBtn.textContent = "Clear";
-            clearHotkeyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            clearHotkeyBtn.style.cssText = BTN + "border:1px solid #3a2530;background:transparent;color:#7a5a6a;";
+            clearHotkeyBtn.addEventListener("mouseenter", () => { clearHotkeyBtn.style.background = "rgba(122,90,106,0.15)"; });
+            clearHotkeyBtn.addEventListener("mouseleave", () => { clearHotkeyBtn.style.background = "transparent"; });
+
             let capturingHotkey = false;
             setHotkeyBtn.addEventListener("click", () => {
                 if (capturingHotkey) return;
                 capturingHotkey = true;
-                setHotkeyBtn.textContent = "Press key…";
-                setHotkeyBtn.style.color = "#cf6f98";
+                setHotkeyBtn.textContent = "Press a key…";
+                setHotkeyBtn.style.background = "#4a1a2a";
+                setHotkeyBtn.style.color = "#ff9ab8";
                 setHotkeyBtn.style.borderColor = "#cf6f98";
                 const capture = (ev: KeyboardEvent): void => {
                     if (ev.key === "Control" || ev.key === "Shift" || ev.key === "Alt" || ev.key === "Meta") return;
                     ev.preventDefault();
                     ev.stopPropagation();
-                    if (ev.key === "Escape") {
-                        // cancel capture
-                    } else {
-                        setMenuHotkey(ev.code);
-                    }
+                    if (ev.key !== "Escape") setMenuHotkey(ev.code);
                     capturingHotkey = false;
-                    setHotkeyBtn.textContent = "Set key";
-                    setHotkeyBtn.style.color = "#7a5a6a";
-                    setHotkeyBtn.style.borderColor = "#4c2537";
+                    setHotkeyBtn.textContent = "Set Key";
+                    setHotkeyBtn.style.background = "#3a1020";
+                    setHotkeyBtn.style.color = "#cf6f98";
+                    setHotkeyBtn.style.borderColor = "#7a3a50";
                     document.removeEventListener("keydown", capture, true);
                     refreshHotkeyDisplay();
                 };
                 document.addEventListener("keydown", capture, true);
             });
             clearHotkeyBtn.addEventListener("click", () => { setMenuHotkey(""); refreshHotkeyDisplay(); });
-            hotkeyRow.appendChild(hotkeyLbl);
+
             hotkeyRow.appendChild(hotkeyDisplay);
             hotkeyRow.appendChild(setHotkeyBtn);
             hotkeyRow.appendChild(clearHotkeyBtn);
-            cnt.appendChild(hotkeyRow);
+            hotkeyWrap.appendChild(hotkeyRow);
+
+            const hotkeyHint = document.createElement("div");
+            hotkeyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a4a;margin-top:5px;";
+            hotkeyHint.textContent = "Press the key to open / close the EBC menu from anywhere in the game.";
+            hotkeyWrap.appendChild(hotkeyHint);
+            cnt.appendChild(hotkeyWrap);
         });
 
         // ── EBC Users In This Room ─────────────────────────────────────────────
@@ -11521,7 +11150,7 @@ export class EBCDrawer {
                     const gameName = String(c.Name ?? "?");
                     const nickname = String((c.Nickname as string | undefined)?.trim() || gameName);
                     if (isSelf) { found.push({ gameName, nickname, id: memberNum ?? 0, version: "self", isSelf: true }); continue; }
-                    const shared = (c.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EmeryBC"] as Record<string, unknown> | undefined;
+                    const shared = (c.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EBC"] as Record<string, unknown> | undefined;
                     const presence = shared?.["presence"] as Record<string, unknown> | undefined;
                     if (presence?.["marker"] === "EBC")
                         found.push({ gameName, nickname, id: memberNum ?? 0, version: String(presence["version"] ?? "?"), isSelf: false });
@@ -11717,7 +11346,8 @@ export class EBCDrawer {
             cnt.appendChild(hookRefreshBtn);
         });
 
-        // ── Copy Restraints from Room Member ──────────────────────────────────
+        // ── Copy Restraints from Room Member (credited members only) ─────────
+        if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
         makeSection("COPY RESTRAINTS FROM MEMBER", "EBC_devCopyRestrCollapsed", true, (cnt) => {
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
@@ -11850,7 +11480,7 @@ export class EBCDrawer {
                 const char = room.find(c => c.MemberNumber === num);
                 if (!char) { statusEl.textContent = "Character not found in room."; statusEl.style.color = "#ff6b6b"; return; }
 
-                const items = char.Appearance.filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+                const items = char.Appearance.filter((i: Item) => i.Asset?.Group?.Name && RESTRAINT_GROUPS.has(i.Asset.Group.Name));
                 if (items.length === 0) {
                     statusEl.textContent = "This character has no restraints.";
                     statusEl.style.color = "#9a7080";
@@ -11945,6 +11575,7 @@ export class EBCDrawer {
                 } catch { codeTA.select(); document.execCommand("copy"); }
             });
         });
+        } // end credited-members-only block
 
         // ── LOG ───────────────────────────────────────────────────────────────
         // Hoisted so the auto-refresh poller can reference them without
@@ -13121,6 +12752,2399 @@ export class EBCDrawer {
         body.appendChild(addRow);
     }
 
+    private buildSeqStepBuilder(btns: ActionButton[], idx: number): HTMLElement {
+        const DEFAULT_DELAY = 600;
+
+        // Parse current emote value into step rows
+        interface SeqStep { type: "action" | "emote" | "pose" | "reset" | "leaveroom"; text: string; delay: number; }
+
+        const parseSteps = (raw: string): SeqStep[] => {
+            if (!raw.trim()) return [];
+            return raw.split("|").map(r => r.trim()).filter(Boolean).map(r => {
+                const { content, delay } = parseStep(r, DEFAULT_DELAY);
+                if (content === "_") return { type: "reset" as const, text: "", delay };
+                if (content.toLowerCase() === "leaveroom") return { type: "leaveroom" as const, text: "", delay };
+                if (content.startsWith("!")) return { type: "action" as const, text: content.slice(1), delay };
+                if (content.startsWith("*")) return { type: "emote" as const, text: content.slice(1), delay };
+                return { type: "pose" as const, text: content, delay };
+            });
+        };
+
+        const serializeSteps = (steps: SeqStep[]): string => {
+            return steps.map(s => {
+                if (s.type === "leaveroom") return "leaveroom";
+                let content = "";
+                if (s.type === "reset") content = "_";
+                else if (s.type === "action") content = "!" + s.text;
+                else if (s.type === "emote") content = "*" + s.text;
+                else content = s.text;
+                return `${content}@${s.delay}`;
+            }).join("|");
+        };
+
+        let steps: SeqStep[] = parseSteps(btns[idx].emote);
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "ebc-seq-builder";
+
+        const stepList = document.createElement("div");
+        stepList.style.cssText = "display:flex;flex-direction:column;gap:3px;";
+        wrapper.appendChild(stepList);
+
+        const renderSteps = (): void => {
+            while (stepList.firstChild) stepList.removeChild(stepList.firstChild);
+
+            for (let si = 0; si < steps.length; si++) {
+                const step = steps[si];
+                const stepRow = document.createElement("div");
+                stepRow.className = "ebc-seq-step-row";
+
+                // Type dropdown
+                const typeSelect = document.createElement("select");
+                typeSelect.className = "ebc-seq-type-select";
+                [
+                    { value: "action",    label: "Action !"     },
+                    { value: "emote",     label: "Emote *"      },
+                    { value: "pose",      label: "Pose"         },
+                    { value: "reset",     label: "Reset _"      },
+                    { value: "leaveroom", label: "Leave Room 🚪" },
+                ].forEach(opt => {
+                    const o = document.createElement("option");
+                    o.value = opt.value; o.textContent = opt.label;
+                    if (opt.value === step.type) o.selected = true;
+                    typeSelect.appendChild(o);
+                });
+
+                const noText  = step.type === "reset" || step.type === "leaveroom";
+                const noDelay = step.type === "leaveroom";
+
+                // Text input
+                const textInp = document.createElement("input");
+                textInp.className = "ebc-seq-text-inp";
+                textInp.type = "text";
+                textInp.value = step.text;
+                textInp.placeholder = step.type === "pose" ? "e.g. HandsUp" : "text...";
+                textInp.disabled = noText;
+                textInp.maxLength = 200;
+                if (noText) textInp.style.opacity = "0.35";
+
+                // Delay input (ms) — hidden for leaveroom since nothing follows
+                const delayInp = document.createElement("input");
+                delayInp.className = "ebc-seq-delay-inp";
+                delayInp.type = "number";
+                delayInp.min = "0";
+                delayInp.max = "60000";
+                delayInp.step = "100";
+                delayInp.value = String(step.delay);
+                delayInp.title = "Delay after this step (ms)";
+                if (noDelay) delayInp.style.visibility = "hidden";
+
+                // Delete button
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-seq-step-del";
+                delBtn.textContent = "×";
+                delBtn.title = "Remove step";
+
+                stepRow.appendChild(typeSelect);
+                stepRow.appendChild(textInp);
+                stepRow.appendChild(delayInp);
+                stepRow.appendChild(delBtn);
+                stepList.appendChild(stepRow);
+
+                // Events (capture si)
+                const sidx = si;
+
+                typeSelect.addEventListener("change", () => {
+                    const t = typeSelect.value as SeqStep["type"];
+                    steps[sidx].type = t;
+                    const noTxt = t === "reset" || t === "leaveroom";
+                    const noDly = t === "leaveroom";
+                    textInp.disabled = noTxt;
+                    textInp.style.opacity = noTxt ? "0.35" : "";
+                    delayInp.style.visibility = noDly ? "hidden" : "";
+                    if (noTxt) { steps[sidx].text = ""; textInp.value = ""; }
+                    btns[idx].emote = serializeSteps(steps);
+                });
+
+                textInp.addEventListener("input", () => {
+                    steps[sidx].text = textInp.value;
+                    btns[idx].emote = serializeSteps(steps);
+                });
+
+                delayInp.addEventListener("input", () => {
+                    const v = parseInt(delayInp.value, 10);
+                    steps[sidx].delay = isNaN(v) ? DEFAULT_DELAY : Math.max(0, v);
+                    btns[idx].emote = serializeSteps(steps);
+                });
+
+                delBtn.addEventListener("click", () => {
+                    steps.splice(sidx, 1);
+                    btns[idx].emote = serializeSteps(steps);
+                    renderSteps();
+                });
+            }
+        };
+
+        renderSteps();
+
+        // Button row: template shortcut + add step
+        const seqBtnRow = document.createElement("div");
+        seqBtnRow.style.cssText = "display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;";
+
+        const templateBtn = document.createElement("button");
+        templateBtn.className = "ebc-seq-add-btn";
+        templateBtn.textContent = "📤 Slow Leave template";
+        templateBtn.title = "Fill with a simple slow leave sequence";
+        templateBtn.addEventListener("click", () => {
+            steps = [
+                { type: "emote",     text: "smiles and gives a little wave~",  delay: 2500 },
+                { type: "emote",     text: "slowly heads for the door...",      delay: 0    },
+                { type: "leaveroom", text: "",                                  delay: 0    },
+            ];
+            btns[idx].emote = serializeSteps(steps);
+            renderSteps();
+        });
+        seqBtnRow.appendChild(templateBtn);
+
+        const addBtn = document.createElement("button");
+        addBtn.className = "ebc-seq-add-btn";
+        addBtn.textContent = "+ Add step";
+        addBtn.addEventListener("click", () => {
+            steps.push({ type: "action", text: "", delay: DEFAULT_DELAY });
+            btns[idx].emote = serializeSteps(steps);
+            renderSteps();
+        });
+        seqBtnRow.appendChild(addBtn);
+
+        wrapper.appendChild(seqBtnRow);
+
+        return wrapper;
+    }
+
+    // -- Buttons tab -----------------------------------------------------------
+
+    private renderButtons(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        // Working category state
+        const cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
+        let activeCatIdx = getActiveCategoryIndex();
+        if (activeCatIdx >= cats.length) activeCatIdx = 0;
+
+        // ── Accordion: one collapsible section per category ───────────────────
+        // Build all headers; only the active one has its editor body visible.
+        // Clicking a collapsed header switches to it and re-renders.
+
+        // Working copies for the active category's editor
+        let btns: ActionButton[] = cats[activeCatIdx].buttons.map(b => ({ ...b }));
+        let slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
+        while (btns.length < slotCount) {
+            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+        }
+
+        // ── Build accordion ───────────────────────────────────────────────────
+        // One section per category. The active one is expanded; others collapsed.
+        let activeBodyEl: HTMLElement = document.createElement("div"); // filled below
+
+        const HROW_CSS = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;border-radius:6px;margin-bottom:2px;";
+        const CAT_LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        const ICON_BTN_CSS = "background:none;border:none;font-family:'Trebuchet MS',serif;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:3px;color:#7a5a6a;flex-shrink:0;";
+
+        cats.forEach((cat, i) => {
+            const isActive = i === activeCatIdx;
+
+            const section = document.createElement("div");
+            section.style.cssText = "border:1px solid " + (isActive ? "#5a2840" : "#2a1421") + ";border-radius:7px;margin-bottom:5px;overflow:hidden;";
+
+            // ── Header ──
+            const hrow = document.createElement("div");
+            hrow.style.cssText = HROW_CSS + "background:" + (isActive ? "#2a0e1e" : "#1b0d17") + ";";
+
+            const chevron = document.createElement("span");
+            chevron.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+            chevron.textContent = isActive ? "▼" : "▶";
+
+            const nameLbl = document.createElement("span");
+            nameLbl.style.cssText = CAT_LBL_CSS;
+            nameLbl.textContent = cat.name;
+
+            const renameBtn = document.createElement("button");
+            renameBtn.style.cssText = ICON_BTN_CSS;
+            renameBtn.textContent = "✎";
+            renameBtn.title = "Rename";
+            renameBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const newName = window.prompt("New name:", cats[i].name) ?? "";
+                if (!newName.trim()) return;
+                cats[i].name = newName.trim();
+                saveCategories([...cats], activeCatIdx);
+                nameLbl.textContent = newName.trim();
+            });
+
+            hrow.appendChild(chevron);
+            hrow.appendChild(nameLbl);
+            hrow.appendChild(renameBtn);
+
+            if (cats.length > 1) {
+                const delBtn = document.createElement("button");
+                delBtn.style.cssText = ICON_BTN_CSS + "color:#7a3040;";
+                delBtn.textContent = "✕";
+                delBtn.title = "Delete category";
+                delBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (!window.confirm(`Delete category "${cats[i].name}"?`)) return;
+                    cats.splice(i, 1);
+                    const newIdx = Math.min(i, cats.length - 1);
+                    saveCategories([...cats], newIdx);
+                    this.renderButtons();
+                });
+                hrow.appendChild(delBtn);
+            }
+
+            // Build the body element now so the click handler can reference it for toggling
+            const catBody = document.createElement("div");
+            catBody.style.cssText = "padding:6px 8px 4px;";
+            let isExpanded = isActive;
+            if (isActive) {
+                // Restore persisted collapse state for the active category
+                try { isExpanded = localStorage.getItem("EBC_activeCatExpanded") !== "0"; } catch { /* ignore */ }
+                // Sync visual state to match the restored expansion state
+                chevron.textContent = isExpanded ? "▼" : "▶";
+                section.style.borderColor = isExpanded ? "#5a2840" : "#2a1421";
+                hrow.style.background = isExpanded ? "#2a0e1e" : "#1b0d17";
+            }
+            catBody.style.display = isExpanded ? "" : "none";
+
+            // Clicking a collapsed header switches to it and re-renders.
+            // Clicking the active (expanded) header toggles it open/closed inline.
+            hrow.addEventListener("click", () => {
+                if (i !== activeCatIdx) {
+                    setActiveCategoryIndex(i);
+                    this.renderButtons();
+                    return;
+                }
+                isExpanded = !isExpanded;
+                catBody.style.display = isExpanded ? "" : "none";
+                chevron.textContent = isExpanded ? "▼" : "▶";
+                section.style.borderColor = isExpanded ? "#5a2840" : "#2a1421";
+                hrow.style.background = isExpanded ? "#2a0e1e" : "#1b0d17";
+                try { localStorage.setItem("EBC_activeCatExpanded", isExpanded ? "1" : "0"); } catch { /* ignore */ }
+            });
+
+            section.appendChild(hrow);
+
+            // ── Body (only rendered for the active category) ──
+            if (isActive) {
+                activeBodyEl = catBody;
+                section.appendChild(catBody);
+            }
+
+            body.appendChild(section);
+        });
+
+        // ── Add Category row ──────────────────────────────────────────────────
+        const addCatRow = document.createElement("div");
+        addCatRow.style.cssText = "margin-bottom:8px;";
+        const addCatBtn = document.createElement("button");
+        addCatBtn.className = "ebc-cat-pill";
+        addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
+        addCatBtn.textContent = "+ Add Category";
+        addCatBtn.addEventListener("click", () => {
+            const name = window.prompt("Category name (e.g. RP, Casual):") ?? "";
+            if (!name.trim()) return;
+            cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" }], slotCount: 1 });
+            const newIdx = cats.length - 1;
+            saveCategories([...cats], newIdx);
+            this.renderButtons();
+        });
+        addCatRow.appendChild(addCatBtn);
+        body.appendChild(addCatRow);
+
+        // ── Slot list + render fn — appended into the active category body ─────
+        const slotList = document.createElement("div");
+        slotList.id = "ebc-slot-list";
+        activeBodyEl.appendChild(slotList);
+
+        const renderSlots = (): void => {
+            // Always ensure btns has a real object for every slot — prevents "undefined" crashes
+            while (btns.length < slotCount) {
+                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+            }
+            while (slotList.firstChild) slotList.removeChild(slotList.firstChild);
+
+            for (let i = 0; i < slotCount; i++) {
+                const btn = btns[i];
+
+                const row = document.createElement("div");
+                row.className = "ebc-slot-row";
+
+                // Top line: toggle | label input | color picker | del
+                const topLine = document.createElement("div");
+                topLine.className = "ebc-slot-top";
+
+                const toggle = document.createElement("button");
+                toggle.className = "ebc-slot-toggle" + (btn.enabled ? " on" : "");
+                toggle.textContent = btn.enabled ? "ON" : "OFF";
+                toggle.title = btn.enabled ? "Click to disable" : "Click to enable";
+
+                const labelInp = document.createElement("input");
+                labelInp.className = "ebc-slot-label";
+                labelInp.type = "text";
+                labelInp.maxLength = 6;
+                labelInp.placeholder = "Label";
+                labelInp.value = btn.label;
+                labelInp.title = "Button label (max 6 chars)";
+
+                // Colour preview dot + hex text input; dot opens floating picker
+                const colorWrap = document.createElement("span");
+                colorWrap.style.cssText = "display:inline-flex;align-items:center;gap:3px;flex-shrink:0;";
+                const colorDot = document.createElement("span");
+                colorDot.style.cssText = `width:14px;height:14px;border-radius:3px;border:1px solid #5a2a3e;flex-shrink:0;background:${normalizeHex(btn.color)};cursor:pointer;`;
+                colorDot.title = "Click to open colour picker";
+                const colorInp = document.createElement("input");
+                colorInp.className = "ebc-slot-color";
+                colorInp.type = "text";
+                colorInp.maxLength = 7;
+                colorInp.placeholder = "#hex";
+                colorInp.value = normalizeHex(btn.color);
+                colorInp.title = "Button colour (hex, e.g. #cf6f98)";
+                colorInp.style.cssText = "width:52px;font-size:8px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
+                colorWrap.appendChild(colorDot);
+                colorWrap.appendChild(colorInp);
+
+                // Floating picker popup — created on demand, one per slot at a time
+                let slotPickerPopup: HTMLElement | null = null;
+                let slotPickerCleanup: (() => void) | null = null;
+                const closeSlotPicker = (): void => {
+                    if (slotPickerPopup) {
+                        slotPickerCleanup?.();
+                        slotPickerCleanup = null;
+                        slotPickerPopup.remove();
+                        slotPickerPopup = null;
+                    }
+                };
+                colorDot.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (slotPickerPopup) { closeSlotPicker(); return; }
+                    const popup = document.createElement("div");
+                    popup.style.cssText = "position:fixed;z-index:100000;background:#1b0d17;border:1px solid #5a2a3e;border-radius:8px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,0.7);";
+                    const pw = this.buildColorPickerWidget(btns[i].color ?? "#cf6f98", (hex) => {
+                        btns[i].color = hex;
+                        colorDot.style.background = hex;
+                        colorInp.value = hex;
+                        colorInp.style.color = "#f7e6ee";
+                    });
+                    const wpw = pw as unknown as Record<string, unknown>;
+                    slotPickerCleanup = wpw._cleanup as () => void;
+                    const doneBtn = document.createElement("button");
+                    doneBtn.className = "ebc-wear-btn";
+                    doneBtn.style.cssText = "width:100%;margin-top:6px;";
+                    doneBtn.textContent = "✓ Done";
+                    doneBtn.addEventListener("click", closeSlotPicker);
+                    popup.appendChild(pw);
+                    popup.appendChild(doneBtn);
+                    const rect = colorDot.getBoundingClientRect();
+                    popup.style.top = Math.max(4, Math.min(rect.top - 4, window.innerHeight - 280)) + "px";
+                    popup.style.left = Math.max(4, rect.left - 224) + "px";
+                    document.body.appendChild(popup);
+                    slotPickerPopup = popup;
+                    // Close when clicking outside the popup
+                    const onOutside = (ev: MouseEvent): void => {
+                        if (!popup.contains(ev.target as Node)) {
+                            closeSlotPicker();
+                            document.removeEventListener("click", onOutside, true);
+                        }
+                    };
+                    window.setTimeout(() => document.addEventListener("click", onOutside, true), 80);
+                });
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-slot-del";
+                delBtn.textContent = "x";
+                delBtn.title = "Remove this slot";
+
+                // ▲ / ▼ reorder buttons
+                const moveUpBtn = document.createElement("button");
+                moveUpBtn.className = "ebc-slot-move";
+                moveUpBtn.textContent = "▲";
+                moveUpBtn.title = "Move up";
+                moveUpBtn.disabled = i === 0;
+
+                const moveDownBtn = document.createElement("button");
+                moveDownBtn.className = "ebc-slot-move";
+                moveDownBtn.textContent = "▼";
+                moveDownBtn.title = "Move down";
+                moveDownBtn.disabled = i === slotCount - 1;
+
+                topLine.appendChild(toggle);
+                topLine.appendChild(labelInp);
+                topLine.appendChild(colorWrap);
+                topLine.appendChild(moveUpBtn);
+                topLine.appendChild(moveDownBtn);
+                topLine.appendChild(delBtn);
+
+                // Bottom line: style toggle (hidden for seq) | emote/seq input
+                const botLine = document.createElement("div");
+                botLine.className = "ebc-slot-bottom";
+
+                const currentStyle: ActionStyle = (btn.style as ActionStyle) ?? "action";
+                const isSeq = currentStyle === "seq";
+
+                const styleBtn = document.createElement("button");
+                styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
+                styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
+                styleBtn.title = currentStyle === "emote"
+                    ? "Style: * emote * — click to switch"
+                    : "Style: ( action ) — click to switch";
+                // Seq buttons don't show the style toggle — animation is internal
+                styleBtn.style.display = isSeq ? "none" : "";
+
+                // For seq buttons, show a small non-interactive badge instead
+                const seqBadge = document.createElement("span");
+                seqBadge.className = "ebc-slot-seq-badge";
+                seqBadge.textContent = "✨";
+                seqBadge.title = "Animation button — edit the sequence below";
+                seqBadge.style.display = isSeq ? "inline" : "none";
+
+                const emoteInp = document.createElement("input");
+                emoteInp.className = "ebc-slot-emote";
+                emoteInp.type = "text";
+                emoteInp.maxLength = 240;
+                emoteInp.placeholder = "e.g. nods.";
+                emoteInp.value = btn.emote;
+                emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
+                emoteInp.style.display = isSeq ? "none" : "";
+
+                // Name-in-announce chip — only meaningful for ( ) action style
+                const nameIncluded = btn.includeNameInAnnounce !== false;
+                const nameChip = document.createElement("button");
+                nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
+                nameChip.textContent = nameIncluded ? "name" : "anon";
+                nameChip.title = nameIncluded
+                    ? "Your name is included — click to send anonymously"
+                    : "Sending without name — click to include name";
+                nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
+                // only show for action style (emote always has name; seq not applicable)
+                nameChip.style.display = (currentStyle === "action") ? "" : "none";
+
+                botLine.appendChild(styleBtn);
+                botLine.appendChild(seqBadge);
+                botLine.appendChild(nameChip);
+                botLine.appendChild(emoteInp);
+
+                row.appendChild(topLine);
+                row.appendChild(botLine);
+                slotList.appendChild(row);
+
+                // -- Seq step builder (only for seq style) --
+                if (isSeq) {
+                    const builderEl = this.buildSeqStepBuilder(btns, i);
+                    slotList.appendChild(builderEl);
+                }
+
+                // -- Events (capture i) --
+                const idx = i;
+
+                moveUpBtn.addEventListener("click", () => {
+                    if (idx === 0) return;
+                    [btns[idx - 1], btns[idx]] = [btns[idx], btns[idx - 1]];
+                    renderSlots();
+                    updateFooterState();
+                });
+
+                moveDownBtn.addEventListener("click", () => {
+                    if (idx >= slotCount - 1) return;
+                    [btns[idx], btns[idx + 1]] = [btns[idx + 1], btns[idx]];
+                    renderSlots();
+                    updateFooterState();
+                });
+
+                toggle.addEventListener("click", () => {
+                    btns[idx].enabled = !btns[idx].enabled;
+                    toggle.className = "ebc-slot-toggle" + (btns[idx].enabled ? " on" : "");
+                    toggle.textContent = btns[idx].enabled ? "ON" : "OFF";
+                });
+
+                labelInp.addEventListener("input", () => {
+                    btns[idx].label = labelInp.value.trim().slice(0, 6);
+                });
+
+                colorInp.addEventListener("input", () => {
+                    let v = colorInp.value.trim();
+                    if (!v.startsWith("#")) v = "#" + v;
+                    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                        btns[idx].color = v;
+                        colorDot.style.background = v;
+                        colorInp.style.color = "#f7e6ee";
+                    } else {
+                        colorInp.style.color = "#cf3060";
+                    }
+                });
+
+                emoteInp.addEventListener("input", () => {
+                    btns[idx].emote = emoteInp.value;
+                });
+
+                nameChip.addEventListener("click", () => {
+                    const next = btns[idx].includeNameInAnnounce === false; // toggle
+                    btns[idx].includeNameInAnnounce = next;
+                    nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
+                    nameChip.textContent = next ? "name" : "anon";
+                    nameChip.title = next
+                        ? "Your name is included — click to send anonymously"
+                        : "Sending without name — click to include name";
+                });
+
+                styleBtn.addEventListener("click", () => {
+                    const cur: ActionStyle = btns[idx].style ?? "action";
+                    if (cur === "seq") return; // seq buttons don't cycle through styles
+                    const next: "action" | "emote" = cur === "action" ? "emote" : "action";
+                    btns[idx].style = next;
+                    styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
+                    styleBtn.textContent = next === "emote" ? "* *" : "( )";
+                    styleBtn.title = next === "emote"
+                        ? "Style: * emote * — click to switch"
+                        : "Style: ( action ) — click to switch";
+                    emoteInp.title = next === "emote"
+                        ? "Text sent as * Name text *"
+                        : "Text sent as ( Name text )";
+                    // name chip only applies to action style
+                    nameChip.style.display = next === "action" ? "" : "none";
+                });
+
+                let slotDelPending = false;
+                let slotDelTimer: ReturnType<typeof window.setTimeout> | null = null;
+                delBtn.addEventListener("click", () => {
+                    if (!slotDelPending) {
+                        slotDelPending = true;
+                        delBtn.classList.add("confirm");
+                        delBtn.textContent = "?";
+                        delBtn.title = "Click again to remove this slot";
+                        slotDelTimer = window.setTimeout(() => {
+                            slotDelPending = false;
+                            delBtn.classList.remove("confirm");
+                            delBtn.textContent = "x";
+                            delBtn.title = "Remove this slot";
+                        }, 2500);
+                    } else {
+                        if (slotDelTimer !== null) window.clearTimeout(slotDelTimer);
+                        btns.splice(idx, 1);
+                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                        slotCount = Math.max(1, slotCount - 1);
+                        renderSlots();
+                        updateFooterState();
+                    }
+                });
+            }
+        };
+
+        renderSlots();
+
+        // Footer buttons
+        const footer = document.createElement("div");
+        footer.className = "ebc-btn-footer";
+
+        const addBtn = document.createElement("button");
+        addBtn.className = "ebc-btn-footer-btn";
+        addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "ebc-btn-footer-btn save";
+        saveBtn.textContent = "Save";
+
+        const resetBtn = document.createElement("button");
+        resetBtn.className = "ebc-btn-footer-btn";
+        resetBtn.textContent = "Reset";
+        resetBtn.title = "Reset to defaults";
+
+        footer.appendChild(addBtn);
+        footer.appendChild(saveBtn);
+        footer.appendChild(resetBtn);
+        activeBodyEl.appendChild(footer);
+
+        // Export / Import row — inside the active category body
+        const ioRow = document.createElement("div");
+        ioRow.className = "ebc-btn-footer";
+        ioRow.style.marginTop = "3px";
+
+        const exportBtn = document.createElement("button");
+        exportBtn.className = "ebc-btn-footer-btn";
+        exportBtn.textContent = "↑ Export";
+        exportBtn.title = "Copy button config to clipboard to share with others";
+
+        const importToggleBtn = document.createElement("button");
+        importToggleBtn.className = "ebc-btn-footer-btn";
+        importToggleBtn.textContent = "↓ Import";
+        importToggleBtn.title = "Load a shared button config";
+
+        ioRow.appendChild(exportBtn);
+        ioRow.appendChild(importToggleBtn);
+        activeBodyEl.appendChild(ioRow);
+
+        // Import panel (collapsible)
+        const importPanel = document.createElement("div");
+        importPanel.className = "ebc-import-panel";
+        activeBodyEl.appendChild(importPanel);
+
+        const importHint = document.createElement("div");
+        importHint.className = "ebc-import-hint";
+        importHint.textContent = "Paste exported config here:";
+        importPanel.appendChild(importHint);
+
+        const importTextarea = document.createElement("textarea");
+        importTextarea.className = "ebc-notes-textarea";
+        importTextarea.placeholder = '{"ebc":1,"slotCount":3,"buttons":[...]}';
+        importTextarea.rows = 3;
+        importPanel.appendChild(importTextarea);
+
+        const importError = document.createElement("div");
+        importError.className = "ebc-import-error";
+        importPanel.appendChild(importError);
+
+        const importActionRow = document.createElement("div");
+        importActionRow.style.cssText = "display:flex;gap:5px;";
+        const loadBtn = document.createElement("button");
+        loadBtn.className = "ebc-create-btn";
+        loadBtn.style.marginTop = "0";
+        loadBtn.textContent = "Load";
+        const cancelImportBtn = document.createElement("button");
+        cancelImportBtn.className = "ebc-btn-footer-btn";
+        cancelImportBtn.textContent = "Cancel";
+        importActionRow.appendChild(loadBtn);
+        importActionRow.appendChild(cancelImportBtn);
+        importPanel.appendChild(importActionRow);
+
+        const updateFooterState = (): void => {
+            addBtn.disabled = slotCount >= ABSOLUTE_MAX;
+            addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
+        };
+
+        updateFooterState();
+
+        addBtn.addEventListener("click", () => {
+            if (slotCount >= ABSOLUTE_MAX) return;
+            slotCount++;
+            renderSlots();
+            updateFooterState();
+            // Scroll to bottom so new slot is visible
+            body.scrollTop = body.scrollHeight;
+        });
+
+        saveBtn.addEventListener("click", () => {
+            // Flush any partially typed values from inputs before saving
+            const rows = slotList.querySelectorAll<HTMLElement>(".ebc-slot-row");
+            rows.forEach((row, i) => {
+                const lInp = row.querySelector<HTMLInputElement>(".ebc-slot-label");
+                const cInp = row.querySelector<HTMLInputElement>(".ebc-slot-color");
+                const eInp = row.querySelector<HTMLInputElement>(".ebc-slot-emote");
+                if (lInp) btns[i].label = lInp.value.trim().slice(0, 6);
+                if (cInp) btns[i].color = normalizeHex(cInp.value);
+                if (eInp && btns[i].style !== "seq") btns[i].emote = eInp.value;
+            });
+            // Save into the active category then persist all categories
+            cats[activeCatIdx].buttons   = [...btns];
+            cats[activeCatIdx].slotCount = slotCount;
+            saveCategories([...cats], activeCatIdx);
+                        saveBtn.textContent = "Saved!";
+            window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
+        });
+
+        let resetPending = false;
+        let resetTimer: ReturnType<typeof window.setTimeout> | null = null;
+        resetBtn.addEventListener("click", () => {
+            if (!resetPending) {
+                resetPending = true;
+                resetBtn.classList.add("confirm");
+                resetBtn.textContent = "Sure?";
+                resetBtn.title = "Click again to restore defaults";
+                resetTimer = window.setTimeout(() => {
+                    resetPending = false;
+                    resetBtn.classList.remove("confirm");
+                    resetBtn.textContent = "Reset";
+                    resetBtn.title = "Reset to defaults";
+                }, 2500);
+            } else {
+                if (resetTimer !== null) window.clearTimeout(resetTimer);
+                resetPending = false;
+                resetBtn.classList.remove("confirm");
+                resetBtn.textContent = "Reset";
+                resetBtn.title = "Reset to defaults";
+                importPanel.classList.remove("open");
+                importToggleBtn.classList.remove("open");
+                btns = DEFAULT_BUTTONS.map(b => ({ ...b }));
+                slotCount = DEFAULT_BUTTONS.length;
+                cats[activeCatIdx].buttons   = [...btns];
+                cats[activeCatIdx].slotCount = slotCount;
+                saveCategories([...cats], activeCatIdx);
+                            renderSlots();
+                updateFooterState();
+            }
+        });
+
+        // -- Export ---------------------------------------------------------------
+        exportBtn.addEventListener("click", () => {
+            const payload = JSON.stringify({
+                ebc: 1,
+                slotCount,
+                buttons: btns.slice(0, slotCount).map(b => ({
+                    label: b.label,
+                    emote: b.emote,
+                    color: b.color,
+                    enabled: b.enabled,
+                    style: b.style ?? "action",
+                })),
+            });
+
+            const showInPanel = (): void => {
+                importTextarea.value = payload;
+                importError.textContent = "";
+                importPanel.classList.add("open");
+                importToggleBtn.classList.add("open");
+                importTextarea.select();
+            };
+
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(payload).then(() => {
+                    exportBtn.textContent = "Copied!";
+                    window.setTimeout(() => { exportBtn.textContent = "↑ Export"; }, 1500);
+                }).catch(showInPanel).catch(() => { /* ignore */ });
+            } else {
+                showInPanel();
+            }
+        });
+
+        // -- Import ---------------------------------------------------------------
+        importToggleBtn.addEventListener("click", () => {
+            const willOpen = !importPanel.classList.contains("open");
+            importPanel.classList.toggle("open", willOpen);
+            importToggleBtn.classList.toggle("open", willOpen);
+            if (willOpen) {
+                importTextarea.value = "";
+                importError.textContent = "";
+                importTextarea.focus();
+            }
+        });
+
+        cancelImportBtn.addEventListener("click", () => {
+            importPanel.classList.remove("open");
+            importToggleBtn.classList.remove("open");
+            importTextarea.value = "";
+            importError.textContent = "";
+        });
+
+        loadBtn.addEventListener("click", () => {
+            importError.textContent = "";
+            try {
+                const raw = importTextarea.value.trim();
+                if (!raw) { importError.textContent = "Nothing to import."; return; }
+
+                const data = JSON.parse(raw) as Record<string, unknown>;
+                if (data.ebc !== 1) throw new Error("Not a valid EBC button export (missing version tag).");
+                if (!Array.isArray(data.buttons)) throw new Error("Missing buttons array.");
+
+                const imported: ActionButton[] = (data.buttons as unknown[]).map((item) => {
+                    const b = item as Record<string, unknown>;
+                    const style = (["action", "emote", "seq"].includes(b.style as string)
+                        ? b.style : "action") as ActionStyle;
+                    return {
+                        label:   typeof b.label === "string" ? b.label.slice(0, 6) : "",
+                        emote:   typeof b.emote === "string" ? b.emote.slice(0, 240) : "",
+                        color:   typeof b.color === "string" ? normalizeHex(b.color) : "#c2185b",
+                        enabled: !!b.enabled,
+                        style,
+                    };
+                });
+
+                const newCount = typeof data.slotCount === "number"
+                    ? Math.min(Math.max(1, Math.round(data.slotCount)), ABSOLUTE_MAX)
+                    : Math.min(imported.length, ABSOLUTE_MAX);
+
+                btns = imported;
+                slotCount = newCount;
+                while (btns.length < slotCount) {
+                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
+                }
+
+                saveButtons([...btns], slotCount);
+                importPanel.classList.remove("open");
+                importToggleBtn.classList.remove("open");
+                importTextarea.value = "";
+                renderSlots();
+                updateFooterState();
+
+                loadBtn.textContent = "Loaded!";
+                window.setTimeout(() => { loadBtn.textContent = "Load"; }, 1200);
+            } catch (err) {
+                importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
+            }
+        });
+
+        // -- Fun Actions --------------------------------------------------------
+        const funLbl = document.createElement("div");
+        funLbl.className = "ebc-section-label";
+        funLbl.style.marginTop = "10px";
+        funLbl.textContent = "Fun Actions";
+        body.appendChild(funLbl);
+
+        const boopBtn = document.createElement("button");
+        boopBtn.className = "ebc-create-btn";
+        boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        boopBtn.title = "Send a unique boop message to every friend currently in the room";
+        boopBtn.textContent = "🐾 Boop all friends in room";
+        boopBtn.addEventListener("click", () => {
+            const booped = this.boopFriendsInRoom();
+            if (booped === 0) {
+                boopBtn.textContent = "No friends here~";
+            } else {
+                boopBtn.textContent = `Booped ${booped}!`;
+            }
+            window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
+        });
+        body.appendChild(boopBtn);
+
+        // -- Useful Buttons ------------------------------------------------------
+        const usefulLbl = document.createElement("div");
+        usefulLbl.className = "ebc-section-label";
+        usefulLbl.style.marginTop = "10px";
+        usefulLbl.textContent = "Useful Buttons";
+        body.appendChild(usefulLbl);
+
+        const oocBtn = document.createElement("button");
+        oocBtn.className = "ebc-create-btn";
+        oocBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        const refreshOoc = (): void => {
+            const on = getOocEnabled();
+            oocBtn.textContent = on ? "( OOC Mode: ON  —  click to turn off" : "( OOC Mode: OFF  —  click to turn on";
+            oocBtn.style.opacity = on ? "1" : "0.6";
+        };
+        refreshOoc();
+        oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
+        body.appendChild(oocBtn);
+
+        const copyMemberBtn = document.createElement("button");
+        copyMemberBtn.className = "ebc-create-btn";
+        copyMemberBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        copyMemberBtn.textContent = "Copy My Member Number";
+        copyMemberBtn.addEventListener("click", () => {
+            try {
+                navigator.clipboard.writeText(String(Player.MemberNumber));
+                copyMemberBtn.textContent = "Copied!";
+            } catch {
+                copyMemberBtn.textContent = `#${Player.MemberNumber}`;
+            }
+            window.setTimeout(() => { copyMemberBtn.textContent = "Copy My Member Number"; }, 2000);
+        });
+        body.appendChild(copyMemberBtn);
+
+        const clearPoseBtn = document.createElement("button");
+        clearPoseBtn.className = "ebc-create-btn";
+        clearPoseBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        clearPoseBtn.textContent = "Reset to Default Pose";
+        clearPoseBtn.title = "Clears all active poses back to standing";
+        clearPoseBtn.addEventListener("click", () => {
+            try {
+                (Player as unknown as Record<string, unknown>).ActivePose = [];
+                CharacterRefresh(Player, false);
+                ChatRoomCharacterUpdate(Player);
+                ServerPlayerAppearanceSync();
+            } catch { /* ignore */ }
+        });
+        body.appendChild(clearPoseBtn);
+
+    }
+
+
+    private renderKittyTab(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+        this.renderKittySection(body);
+    }
+
+    private renderKittySection(body: HTMLElement): void {
+        // ── Header ───────────────────────────────────────────────────────────────
+        const hdr = document.createElement("div");
+        hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;background:linear-gradient(90deg,#2a0e1e,#1b0d17);border:1px solid #6b3048;border-radius:6px;margin-bottom:6px;";
+        const hdrIcon = document.createElement("span");
+        hdrIcon.textContent = "🐱";
+        hdrIcon.style.fontSize = "16px";
+        const hdrLbl = document.createElement("span");
+        hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#cf6f98;letter-spacing:0.06em;flex:1;";
+        hdrLbl.textContent = "KITTY";
+        const hdrSub = document.createElement("span");
+        hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a3a50;font-style:italic;flex:1;";
+        hdrSub.textContent = "for lucy's eyes only~";
+        const beepEmeryBtn = document.createElement("button");
+        beepEmeryBtn.textContent = "📟 Beep";
+        beepEmeryBtn.title = "Open IM window to Emery";
+        beepEmeryBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;flex-shrink:0;";
+        beepEmeryBtn.addEventListener("mouseenter", () => { beepEmeryBtn.style.background = "#3a1020"; beepEmeryBtn.style.borderColor = "#cf6f98"; });
+        beepEmeryBtn.addEventListener("mouseleave", () => { beepEmeryBtn.style.background = "transparent"; beepEmeryBtn.style.borderColor = "#4c2537"; });
+        beepEmeryBtn.addEventListener("click", () => { this.openBeepWindow(EMERY_MEMBER); });
+        hdr.appendChild(hdrIcon);
+        hdr.appendChild(hdrLbl);
+        hdr.appendChild(hdrSub);
+        hdr.appendChild(beepEmeryBtn);
+        body.appendChild(hdr);
+
+        // ── Mood toggle (big, obvious) ────────────────────────────────────────────
+        const moodRow = document.createElement("div");
+        moodRow.style.cssText = "display:flex;gap:6px;margin-bottom:10px;";
+
+        const makeMoodBtn = (m: KittyMood, icon: string, label: string, color: string): HTMLButtonElement => {
+            const b = document.createElement("button");
+            const update = (): void => {
+                const active = getKittyMood() === m;
+                b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 0;border-radius:8px;cursor:pointer;transition:all 0.14s;border:2px solid ${active ? color : "#3a1928"};background:${active ? color + "30" : "rgba(20,8,16,0.5)"};color:${active ? color : "#5a3a4a"};flex:1;`;
+            };
+            b.textContent = icon + " " + label;
+            update();
+            b.addEventListener("click", () => {
+                setKittyMood(m);
+                [kindBtn, roughBtn].forEach(x => {
+                    const isActive = getKittyMood() === (x === kindBtn ? "kind" : "rough");
+                    const col = x === kindBtn ? "#79c8a0" : "#e07070";
+                    x.style.borderColor = isActive ? col : "#3a1928";
+                    x.style.background  = isActive ? col + "30" : "rgba(20,8,16,0.5)";
+                    x.style.color       = isActive ? col : "#5a3a4a";
+                });
+            });
+            return b;
+        };
+
+        const kindBtn  = makeMoodBtn("kind",  "🌸", "Kind",  "#79c8a0");
+        const roughBtn = makeMoodBtn("rough", "⚡", "Rough", "#e07070");
+        moodRow.appendChild(kindBtn);
+        moodRow.appendChild(roughBtn);
+        body.appendChild(moodRow);
+
+        // ── Grab / Release Leash ─────────────────────────────────────────────────
+        const leashRow = document.createElement("div");
+        leashRow.style.cssText = "display:flex;gap:6px;margin-bottom:8px;";
+        const leashBtn = document.createElement("button");
+        leashBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 0;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;";
+
+        // Helper: check whether Lucy is currently holding Emery's leash
+        const isLeashHeld = (): boolean => {
+            const w = window as unknown as Record<string, unknown>;
+            const leashList = w.ChatRoomLeashList as number[] | undefined;
+            return leashList ? leashList.includes(EMERY_MEMBER) : false;
+        };
+
+        // Sync button label/style to current leash state
+        const refreshLeashBtn = (): void => {
+            const held = isLeashHeld();
+            leashBtn.textContent = held ? "🔗 Let Go of Leash" : "🔗 Grab Leash";
+            leashBtn.style.borderColor = held ? "#e07070aa" : "#8a5a7888";
+            leashBtn.style.color       = held ? "#e0a090"   : "#c090b0";
+        };
+        refreshLeashBtn();
+
+        leashBtn.addEventListener("mouseenter", () => {
+            leashBtn.style.background = isLeashHeld() ? "rgba(120,40,40,0.45)" : "rgba(120,50,80,0.5)";
+        });
+        leashBtn.addEventListener("mouseleave", () => {
+            leashBtn.style.background = "rgba(80,40,60,0.35)";
+        });
+        leashBtn.addEventListener("click", () => {
+            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+            const mood = getKittyMood();
+            const held = isLeashHeld();
+            const w = window as unknown as Record<string, unknown>;
+            const leashList = w.ChatRoomLeashList as number[] | undefined;
+            if (held) {
+                // Release leash
+                sendRoomEmote(mood === "rough"
+                    ? "drops Emery's leash with a sharp flick, giving her collar a rough adjustment back to its usual fit~"
+                    : "gently releases Emery's leash, carefully loosening her collar back to its comfortable fit~");
+                try {
+                    ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                    if (leashList) {
+                        const idx = leashList.indexOf(EMERY_MEMBER);
+                        if (idx >= 0) leashList.splice(idx, 1);
+                    }
+                } catch { /* ignore */ }
+                // Loosen neck — Caress to signal collar relief; LSCG_ReleaseNeck clears any choke pairing
+                runKittyActivity("ItemNeck", "Caress");
+                runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
+            } else {
+                // Grab leash — BC's HoldLeash hidden-message protocol
+                sendRoomEmote(mood === "rough"
+                    ? "snatches up Emery's leash with a firm grip~"
+                    : "reaches out and gently takes hold of Emery's leash~");
+                try {
+                    ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                    if (leashList && !leashList.includes(EMERY_MEMBER)) leashList.push(EMERY_MEMBER);
+                } catch { /* ignore */ }
+            }
+            refreshLeashBtn();
+        });
+        leashRow.appendChild(leashBtn);
+        body.appendChild(leashRow);
+
+        // Helper: styled section header with optional edit toggle
+        const makeSectionHdr = (
+            title: string,
+            onAdd: (() => void) | null,
+            onEditToggle: ((editing: boolean) => void) | null,
+        ): { el: HTMLElement; setEditing: (v: boolean) => void } => {
+            const el = document.createElement("div");
+            el.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:5px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;color:#b07090;letter-spacing:0.05em;text-transform:uppercase;flex:1;";
+            lbl.textContent = title;
+            el.appendChild(lbl);
+            let editing = false;
+            const editBtn = document.createElement("button");
+            editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
+            editBtn.textContent = "✎ Edit";
+            if (onEditToggle) {
+                editBtn.addEventListener("click", () => {
+                    editing = !editing;
+                    editBtn.textContent = editing ? "✔ Done" : "✎ Edit";
+                    editBtn.style.color = editing ? "#cf6f98" : "#7a5a6a";
+                    editBtn.style.borderColor = editing ? "#cf6f98" : "#4c2537";
+                    onEditToggle(editing);
+                });
+                el.appendChild(editBtn);
+            }
+            if (onAdd) {
+                const addBtn = document.createElement("button");
+                addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
+                addBtn.textContent = "+ Add";
+                addBtn.addEventListener("mouseenter", () => { addBtn.style.color = "#cf6f98"; addBtn.style.borderColor = "#cf6f98"; });
+                addBtn.addEventListener("mouseleave", () => { addBtn.style.color = "#7a5a6a"; addBtn.style.borderColor = "#4c2537"; });
+                addBtn.addEventListener("click", onAdd);
+                el.appendChild(addBtn);
+            }
+            return { el, setEditing: (v) => { editing = v; editBtn.textContent = v ? "✔ Done" : "✎ Edit"; editBtn.style.color = v ? "#cf6f98" : "#7a5a6a"; editBtn.style.borderColor = v ? "#cf6f98" : "#4c2537"; } };
+        };
+
+        // Helper: pill-style action button (big, easy to tap).
+        // cooldownMs: if > 0, button is briefly disabled after click to prevent
+        // accidental double-firing and give visual confirmation the click registered.
+        const makePill = (label: string, color: string, onClick: () => void, cooldownMs = 0): HTMLButtonElement => {
+            const b = document.createElement("button");
+            b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 14px;border-radius:8px;cursor:pointer;border:2px solid ${color}66;background:${color}22;color:${color};transition:background 0.12s,border-color 0.12s,transform 0.08s;white-space:nowrap;`;
+            b.textContent = label;
+            b.addEventListener("mouseenter", () => { if (!b.disabled) { b.style.background = `${color}38`; b.style.borderColor = color; b.style.transform = "scale(1.04)"; } });
+            b.addEventListener("mouseleave", () => { if (!b.disabled) { b.style.background = `${color}22`; b.style.borderColor = `${color}66`; b.style.transform = ""; } });
+            b.addEventListener("click", () => {
+                if (b.disabled) return;
+                if (cooldownMs > 0) {
+                    b.disabled = true;
+                    b.style.opacity = "0.5";
+                    b.style.transform = "";
+                    b.style.cursor = "default";
+                    setTimeout(() => {
+                        b.disabled = false;
+                        b.style.opacity = "";
+                        b.style.cursor = "pointer";
+                    }, cooldownMs);
+                }
+                onClick();
+            });
+            return b;
+        };
+
+        const divider = (): HTMLElement => {
+            const d = document.createElement("div");
+            d.style.cssText = "height:1px;background:#2a1421;margin:8px 0;";
+            return d;
+        };
+
+        const INP = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+
+        const sendRoomEmote = (text: string): void => {
+            if (!text) return;
+            try { ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] }); } catch { /* ignore */ }
+        };
+
+
+        // Helper: run a BC activity on Emery (who must be in the room)
+        const runKittyActivity = (bcGroup: string, bcActivity: string): void => {
+            try {
+                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+                const w = window as unknown as Record<string, unknown>;
+                const room = w.ChatRoomCharacter as Character[] | undefined;
+                const emery = room?.find(c => c.MemberNumber === EMERY_MEMBER);
+                if (!emery) return;
+                const ActivityRun = w.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, item: { Activity: unknown; Item: null }) => void) | undefined;
+                const AssetGetActivity = w.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
+                if (!ActivityRun || !AssetGetActivity) return;
+                const act = AssetGetActivity((Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG", bcActivity);
+                if (!act) return;
+                ActivityRun(Player, emery, { Name: bcGroup }, { Activity: act, Item: null });
+            } catch { /* ignore */ }
+        };
+
+        // Helper: send a single expression OR fire all commands in a named preset
+        // expr can be "Group:State" (single) or "preset:<id>" (multi-expression preset)
+        const sendExprOrPreset = (expr: string): void => {
+            if (!expr) return;
+            if (expr.startsWith("preset:")) {
+                const id = expr.slice(7);
+                const preset = getKittyExpressionPresets().find(p => p.id === id);
+                if (preset) preset.commands.forEach(c => { if (c) sendKittyCmd("expression", c); });
+            } else {
+                sendKittyCmd("expression", expr);
+            }
+        };
+
+        // Helper: collapsible section wrapper with optional edit-toggle button in the header
+        const makeCollapsible = (
+            key: string,
+            title: string,
+            defaultOpen: boolean,
+            onEditToggle?: (editing: boolean) => void,
+        ): { wrap: HTMLElement; cBody: HTMLElement } => {
+            const open = (localStorage.getItem(key) ?? (defaultOpen ? "1" : "0")) === "1";
+            const wrap = document.createElement("div");
+            wrap.style.cssText = "border:1px solid #2a1421;border-radius:6px;margin-bottom:6px;overflow:hidden;";
+            const ch = document.createElement("div");
+            ch.style.cssText = "display:flex;align-items:center;gap:5px;padding:5px 8px;cursor:pointer;background:rgba(20,8,16,0.7);user-select:none;" + (open ? "border-bottom:1px solid #2a1421;" : "");
+            const chLbl = document.createElement("span");
+            chLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#b07090;letter-spacing:0.05em;text-transform:uppercase;flex:1;";
+            chLbl.textContent = title;
+            ch.appendChild(chLbl);
+            if (onEditToggle) {
+                let editing = false;
+                const editBtn = document.createElement("button");
+                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;flex-shrink:0;";
+                editBtn.textContent = "✎ Edit";
+                editBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    editing = !editing;
+                    editBtn.textContent = editing ? "✔ Done" : "✎ Edit";
+                    editBtn.style.color = editing ? "#cf6f98" : "#7a5a6a";
+                    editBtn.style.borderColor = editing ? "#cf6f98" : "#4c2537";
+                    onEditToggle(editing);
+                });
+                ch.appendChild(editBtn);
+            }
+            const chArrow = document.createElement("span");
+            chArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+            chArrow.textContent = open ? "▲" : "▼";
+            ch.appendChild(chArrow);
+            wrap.appendChild(ch);
+            const cBody = document.createElement("div");
+            cBody.style.cssText = "display:" + (open ? "flex" : "none") + ";flex-direction:column;gap:5px;padding:7px 8px;";
+            wrap.appendChild(cBody);
+            ch.addEventListener("click", () => {
+                const isOpen = cBody.style.display !== "none";
+                cBody.style.display = isOpen ? "none" : "flex";
+                chArrow.textContent = isOpen ? "▼" : "▲";
+                ch.style.borderBottom = isOpen ? "" : "1px solid #2a1421";
+                try { localStorage.setItem(key, isOpen ? "0" : "1"); } catch { /* ignore */ }
+            });
+            return { wrap, cBody };
+        };
+
+        // ── EMOTES ───────────────────────────────────────────────────────────────
+        const emotesWrap = document.createElement("div");
+        emotesWrap.style.marginBottom = "10px";
+
+        const renderEmotes = (editing: boolean): void => {
+            emotesWrap.innerHTML = "";
+            const emotes = getKittyEmotes();
+
+            if (!editing) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
+                for (const em of emotes) {
+                    row.appendChild(makePill(em.label, "#c8a040", () => {
+                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+                        const mood = getKittyMood();
+                        const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
+                        sendRoomEmote(text);
+                        if (em.bcGroup && em.bcActivity) runKittyActivity(em.bcGroup, em.bcActivity);
+                        if (em.interactive) sendKittyCmd("react", JSON.stringify({ label: em.label }));
+                        // Fire a random pet reaction from the emote's assigned category
+                        if (em.reactionCategory) {
+                            const pool = getKittyReactions().filter(r => r.category === em.reactionCategory);
+                            if (pool.length > 0) {
+                                const pick = pool[Math.floor(Math.random() * pool.length)];
+                                sendKittyCmd("emote", pick.text);
+                            }
+                        }
+                    }));
+                }
+                emotesWrap.appendChild(row);
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.textContent = "Sends emote to room; mood-aware text";
+                emotesWrap.appendChild(hint);
+                return;
+            }
+
+            // Edit mode
+            const list = document.createElement("div");
+            list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+            const cur = getKittyEmotes();
+            cur.forEach((em, idx) => {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
+
+                // Row 1: label + delete
+                const r1 = document.createElement("div"); r1.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const lblInp = document.createElement("input"); lblInp.value = em.label; lblInp.style.cssText = "width:90px;flex-shrink:0;" + INP;
+                const delBtn = document.createElement("button"); delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delBtn.textContent = "×";
+                r1.appendChild(lblInp); r1.appendChild(delBtn);
+
+                // Row 2: kind text
+                const kindRow = document.createElement("div"); kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
+                const kindInp = document.createElement("input"); kindInp.value = em.text; kindInp.placeholder = "Kind mode text…"; kindInp.style.cssText = "flex:1;min-width:0;" + INP;
+                kindRow.appendChild(kindLbl); kindRow.appendChild(kindInp);
+
+                // Row 3: rough text
+                const roughRow = document.createElement("div"); roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
+                const roughInp = document.createElement("input"); roughInp.value = em.roughText ?? ""; roughInp.placeholder = "Rough mode text (optional)…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
+                roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
+
+                // Row 4: reaction category
+                const catRow = document.createElement("div"); catRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const catLbl = document.createElement("span"); catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:38px;"; catLbl.textContent = "😊 React:";
+                const catSel = document.createElement("select"); catSel.style.cssText = "flex:1;min-width:0;" + INP;
+                for (const [v, t] of [["", "— none —"], ["punishment", "⚡ Punishment"], ["reward", "🌸 Reward"]] as [string, string][]) {
+                    const o = document.createElement("option"); o.value = v; o.textContent = t; catSel.appendChild(o);
+                }
+                catSel.value = em.reactionCategory ?? "";
+                catRow.appendChild(catLbl); catRow.appendChild(catSel);
+
+                const saveRow = (): void => {
+                    const updated = getKittyEmotes();
+                    updated[idx].label = lblInp.value;
+                    updated[idx].text  = kindInp.value;
+                    updated[idx].roughText = roughInp.value;
+                    updated[idx].reactionCategory = (catSel.value as "punishment" | "reward") || undefined;
+                    saveKittyEmotes(updated);
+                };
+                [lblInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveRow));
+                catSel.addEventListener("change", saveRow);
+                delBtn.addEventListener("click", () => {
+                    saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
+                    renderEmotes(true);
+                });
+
+                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow); r.appendChild(catRow);
+                list.appendChild(r);
+            });
+
+            const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+            const newLbl = document.createElement("input"); newLbl.placeholder = "Label"; newLbl.style.cssText = "width:90px;flex-shrink:0;" + INP;
+            const newText = document.createElement("input"); newText.placeholder = "Emote text…"; newText.style.cssText = "flex:1;min-width:0;" + INP;
+            const addBtnE = document.createElement("button"); addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnE.textContent = "+ Add";
+            addBtnE.addEventListener("click", () => {
+                if (!newLbl.value.trim()) return;
+                const updated = getKittyEmotes();
+                updated.push({ id: "e_" + Date.now(), label: newLbl.value.trim(), text: newText.value.trim(), type: "emote", roughText: "", expression: "" });
+                saveKittyEmotes(updated);
+                newLbl.value = ""; newText.value = "";
+                renderEmotes(true);
+            });
+            addRow.appendChild(newLbl); addRow.appendChild(newText); addRow.appendChild(addBtnE);
+            list.appendChild(addRow);
+            emotesWrap.appendChild(list);
+        };
+
+        const { cBody: emotesCBody, wrap: emotesWrap2 } = makeCollapsible("EBC_kittyEmotesOpen", "🐾 Emotes", true, (ed) => renderEmotes(ed));
+        renderEmotes(false);
+        emotesCBody.appendChild(emotesWrap);
+        body.appendChild(emotesWrap2);
+
+        // ── PET REACTIONS ─────────────────────────────────────────────────────────
+        const reactionsWrap = document.createElement("div");
+        reactionsWrap.style.marginBottom = "10px";
+
+        const renderReactions = (editing: boolean): void => {
+            reactionsWrap.innerHTML = "";
+
+            const reactions = getKittyReactions();
+            const punishments = reactions.filter(r => r.category === "punishment");
+            const rewards     = reactions.filter(r => r.category === "reward");
+
+            const makeCatLabel = (text: string, color: string): HTMLElement => {
+                const el = document.createElement("div");
+                el.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:${color};letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;margin-top:6px;`;
+                el.textContent = text;
+                return el;
+            };
+
+            if (!editing) {
+                // ── View mode ──────────────────────────────────────────────────
+                const renderCatRow = (entries: KittyReactionEntry[], color: string): HTMLElement => {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                    for (const r of entries) {
+                        const b = document.createElement("button");
+                        b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid ${color}66;background:${color}18;color:${color};transition:background 0.12s,border-color 0.12s;`;
+                        b.textContent = r.text;
+                        b.title = r.text;
+                        b.addEventListener("mouseenter", () => { b.style.background = `${color}30`; b.style.borderColor = color; });
+                        b.addEventListener("mouseleave", () => { b.style.background = `${color}18`; b.style.borderColor = `${color}66`; });
+                        b.addEventListener("click", () => {
+                            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+                            sendKittyCmd("emote", r.text);
+                        });
+                        row.appendChild(b);
+                    }
+                    return row;
+                };
+
+                reactionsWrap.appendChild(makeCatLabel("⚡ Punishment", "#e07070"));
+                reactionsWrap.appendChild(renderCatRow(punishments, "#e07070"));
+                reactionsWrap.appendChild(makeCatLabel("🌸 Reward", "#79c8a0"));
+                reactionsWrap.appendChild(renderCatRow(rewards, "#79c8a0"));
+
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.textContent = "Sends a reaction emote from Emery";
+                reactionsWrap.appendChild(hint);
+                return;
+            }
+
+            // ── Edit mode ──────────────────────────────────────────────────────
+            const renderCatEdit = (category: "punishment" | "reward", color: string, catLabel: string): HTMLElement => {
+                const wrap = document.createElement("div");
+                wrap.style.cssText = `display:flex;flex-direction:column;gap:4px;border:1px solid ${color}44;border-radius:6px;padding:6px 8px;`;
+
+                const lbl = makeCatLabel(catLabel, color);
+                lbl.style.marginTop = "0";
+                wrap.appendChild(lbl);
+
+                const cur = getKittyReactions();
+                cur.forEach((r, idx) => {
+                    if (r.category !== category) return;
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const inp = document.createElement("input");
+                    inp.value = r.text;
+                    inp.style.cssText = "flex:1;min-width:0;" + INP;
+                    inp.addEventListener("input", () => {
+                        const upd = getKittyReactions();
+                        if (upd[idx]) { upd[idx].text = inp.value; saveKittyReactions(upd); }
+                    });
+                    const del = document.createElement("button");
+                    del.textContent = "×";
+                    del.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                    del.addEventListener("click", () => {
+                        saveKittyReactions(getKittyReactions().filter((_, i) => i !== idx));
+                        renderReactions(true);
+                    });
+                    row.appendChild(inp); row.appendChild(del);
+                    wrap.appendChild(row);
+                });
+
+                // Add row
+                const addRow = document.createElement("div");
+                addRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-top:2px;";
+                const newInp = document.createElement("input");
+                newInp.placeholder = "New reaction text…";
+                newInp.style.cssText = "flex:1;min-width:0;" + INP;
+                const addBtn = document.createElement("button");
+                addBtn.textContent = "+ Add";
+                addBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid ${color}66;background:transparent;color:${color};flex-shrink:0;`;
+                addBtn.addEventListener("click", () => {
+                    const text = newInp.value.trim();
+                    if (!text) return;
+                    const upd = getKittyReactions();
+                    upd.push({ id: category[0] + "_" + Date.now(), text, category });
+                    saveKittyReactions(upd);
+                    newInp.value = "";
+                    renderReactions(true);
+                });
+                addRow.appendChild(newInp); addRow.appendChild(addBtn);
+                wrap.appendChild(addRow);
+                return wrap;
+            };
+
+            reactionsWrap.appendChild(renderCatEdit("punishment", "#e07070", "⚡ Punishment"));
+            reactionsWrap.appendChild(renderCatEdit("reward",     "#79c8a0", "🌸 Reward"));
+        };
+
+        const { cBody: reactionsCBody, wrap: reactionsWrap2 } = makeCollapsible("EBC_kittyReactionsOpen", "🐾 Pet Reactions", true, (ed) => renderReactions(ed));
+        renderReactions(false);
+        reactionsCBody.appendChild(reactionsWrap);
+        body.appendChild(reactionsWrap2);
+
+        // ── POSES ────────────────────────────────────────────────────────────────
+        const posesWrap = document.createElement("div");
+        posesWrap.style.marginBottom = "10px";
+
+        const renderPoses = (editing: boolean): void => {
+            posesWrap.innerHTML = "";
+            const poses = getKittyPoses();
+
+            if (!editing) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
+                for (const p of poses) {
+                    // cooldown 700ms: covers the 600ms emote delay so the button stays
+                    // visually disabled until the room emote fires — prevents double-sends.
+                    row.appendChild(makePill(p.label, "#a070c8", () => {
+                        // Guard: never send chat when not in a room
+                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+                        // Apply pose + expression first, then narrate after a short delay so
+                        // Emery's CharacterUpdate reaches everyone before the emote text appears.
+                        const mood = getKittyMood();
+                        const emoteText = mood === "rough" ? (p.roughEmote || p.kindEmote) : (p.kindEmote || p.roughEmote);
+                        sendKittyCmd("pose", p.poses.join(","));
+                        setTimeout(() => {
+                            if (typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom") {
+                                sendRoomEmote(emoteText);
+                            }
+                        }, 600);
+                    }, 700));
+                }
+                posesWrap.appendChild(row);
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.textContent = "Applies the pose on Emery then sends a room emote";
+                posesWrap.appendChild(hint);
+                return;
+            }
+
+            const list = document.createElement("div");
+            list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+            const cur = getKittyPoses();
+            cur.forEach((p, idx) => {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
+
+                // Row 1: label + pose names + del
+                const r1 = document.createElement("div");
+                r1.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const lblInp = document.createElement("input"); lblInp.value = p.label; lblInp.style.cssText = "width:90px;flex-shrink:0;" + INP;
+                const poseInp = document.createElement("input"); poseInp.value = p.poses.join(","); poseInp.placeholder = "BC pose name (empty = neutral)"; poseInp.style.cssText = "flex:1;min-width:0;" + INP;
+                const delBtn = document.createElement("button");
+                delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                delBtn.textContent = "×";
+                r1.appendChild(lblInp); r1.appendChild(poseInp); r1.appendChild(delBtn);
+
+                // Row 2: kind emote
+                const kindRow = document.createElement("div");
+                kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
+                const kindInp = document.createElement("input"); kindInp.value = p.kindEmote; kindInp.placeholder = "Room emote in kind mode…"; kindInp.style.cssText = "flex:1;min-width:0;" + INP;
+                kindRow.appendChild(kindLbl); kindRow.appendChild(kindInp);
+
+                // Row 3: rough emote
+                const roughRow = document.createElement("div");
+                roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
+                const roughInp = document.createElement("input"); roughInp.value = p.roughEmote; roughInp.placeholder = "Room emote in rough mode…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
+                roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
+
+                const saveInp = (): void => {
+                    const updated = getKittyPoses();
+                    updated[idx].label = lblInp.value;
+                    updated[idx].poses = poseInp.value ? poseInp.value.split(",").map(s => s.trim()).filter(Boolean) : [];
+                    updated[idx].kindEmote  = kindInp.value;
+                    updated[idx].roughEmote = roughInp.value;
+                    saveKittyPoses(updated);
+                };
+                [lblInp, poseInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
+                delBtn.addEventListener("click", () => {
+                    saveKittyPoses(getKittyPoses().filter((_, i) => i !== idx));
+                    renderPoses(true);
+                });
+
+                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow);
+                list.appendChild(r);
+            });
+
+            const addRow = document.createElement("div");
+            addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+            const newLbl2 = document.createElement("input"); newLbl2.placeholder = "Label"; newLbl2.style.cssText = "width:90px;flex-shrink:0;" + INP;
+            const newPose = document.createElement("input"); newPose.placeholder = "BC pose (empty = neutral)"; newPose.style.cssText = "flex:1;min-width:0;" + INP;
+            const addBtnP = document.createElement("button");
+            addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+            addBtnP.textContent = "+ Add";
+            addBtnP.addEventListener("click", () => {
+                if (!newLbl2.value.trim()) return;
+                const updated = getKittyPoses();
+                updated.push({ id: "p_" + Date.now(), label: newLbl2.value.trim(), poses: newPose.value ? newPose.value.split(",").map(s => s.trim()).filter(Boolean) : [], kindEmote: "", roughEmote: "" });
+                saveKittyPoses(updated);
+                newLbl2.value = ""; newPose.value = "";
+                renderPoses(true);
+            });
+            addRow.appendChild(newLbl2); addRow.appendChild(newPose); addRow.appendChild(addBtnP);
+            list.appendChild(addRow);
+            posesWrap.appendChild(list);
+        };
+
+        const { cBody: posesCBody, wrap: posesWrap2 } = makeCollapsible("EBC_kittyPosesOpen", "🧘 Poses", true, (ed) => renderPoses(ed));
+        renderPoses(false);
+        posesCBody.appendChild(posesWrap);
+        body.appendChild(posesWrap2);
+
+        // ── ACTIONS (formerly Punishments) ───────────────────────────────────────
+        const punishWrap = document.createElement("div");
+        punishWrap.style.marginBottom = "10px";
+
+        const colorToStr = (c: string | string[] | undefined): string =>
+            Array.isArray(c) ? c.join(", ") : (c ?? "Default");
+        const strToColor = (v: string): string | string[] => {
+            const t = v.trim();
+            if (!t || t === "Default") return "Default";
+            if (t.includes(",")) return t.split(",").map(x => x.trim()).filter(Boolean);
+            return t;
+        };
+
+        const renderPunishments = (editing: boolean): void => {
+            punishWrap.innerHTML = "";
+            const punishments = getKittyPunishments();
+
+            if (!editing) {
+                // ── View mode: pills ──────────────────────────────────────────
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
+                for (const pun of punishments) {
+                    row.appendChild(makePill(pun.label, "#d05070", () => {
+                        // Guard: never send chat when not in a room
+                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+                        const mood = getKittyMood();
+                        // Send all emote steps to room in order
+                        for (const step of pun.steps) {
+                            if (step.type === "emote") {
+                                const txt = (mood === "rough" && step.roughText) ? step.roughText : (step.kindText ?? "");
+                                if (txt) sendRoomEmote(txt);
+                            }
+                        }
+                        // Collect all restraint items from all restraint steps
+                        const items: KittyItem[] = pun.steps
+                            .filter(s => s.type === "restraint")
+                            .reduce((acc: KittyItem[], s) => acc.concat(s.items ?? []), []);
+                        sendKittyCmd("punish", JSON.stringify({ label: pun.label, mood, items, reaction: pun.reaction }));
+                    }));
+                }
+                punishWrap.appendChild(row);
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.textContent = "Sends room emotes + gives Emery a chance to fight back";
+                punishWrap.appendChild(hint);
+                return;
+            }
+
+            // ── Edit mode ─────────────────────────────────────────────────────
+            const list = document.createElement("div");
+            list.style.cssText = "display:flex;flex-direction:column;gap:8px;";
+            const cur = getKittyPunishments();
+
+            cur.forEach((pun, idx) => {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;flex-direction:column;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:6px 8px;";
+
+                // Header: label + delete
+                const hdr = document.createElement("div"); hdr.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const lblInp = document.createElement("input"); lblInp.value = pun.label; lblInp.placeholder = "Action name"; lblInp.style.cssText = "flex:1;min-width:0;" + INP;
+                lblInp.addEventListener("input", () => { const upd = getKittyPunishments(); upd[idx].label = lblInp.value; saveKittyPunishments(upd); });
+                const delBtn = document.createElement("button"); delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delBtn.textContent = "×";
+                delBtn.addEventListener("click", () => { saveKittyPunishments(getKittyPunishments().filter((_, i) => i !== idx)); renderPunishments(true); });
+                hdr.appendChild(lblInp); hdr.appendChild(delBtn);
+                r.appendChild(hdr);
+
+                // Steps header label
+                const stepsHdr = document.createElement("div"); stepsHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;"; stepsHdr.textContent = "Steps";
+                r.appendChild(stepsHdr);
+
+                // Steps container
+                const stepsWrap = document.createElement("div"); stepsWrap.style.cssText = "display:flex;flex-direction:column;gap:3px;";
+
+                const rebuildSteps = (): void => {
+                    stepsWrap.innerHTML = "";
+                    const steps = getKittyPunishments()[idx]?.steps ?? [];
+                    if (steps.length === 0) {
+                        const em = document.createElement("div"); em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;"; em.textContent = "No steps yet.";
+                        stepsWrap.appendChild(em); return;
+                    }
+                    steps.forEach((step, sIdx) => {
+                        const sc = document.createElement("div");
+                        sc.style.cssText = "display:flex;flex-direction:column;gap:2px;padding:4px 5px;border:1px solid #2a1421;border-radius:4px;" +
+                            (step.type === "emote" ? "background:rgba(26,10,26,0.5);" : "background:rgba(20,14,8,0.5);");
+
+                        // Step header: type badge + delete button
+                        const sh = document.createElement("div"); sh.style.cssText = "display:flex;align-items:center;gap:4px;";
+                        const badge = document.createElement("span");
+                        badge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;padding:1px 5px;border-radius:3px;flex-shrink:0;" +
+                            (step.type === "emote" ? "background:#2a1035;color:#cf6f98;border:1px solid #4c2537;" : "background:#1a1004;color:#c07040;border:1px solid #4a3020;");
+                        badge.textContent = step.type === "emote" ? "🗯 Sentence" : "⛓ Restraints";
+                        const delStep = document.createElement("button"); delStep.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;margin-left:auto;"; delStep.textContent = "×";
+                        delStep.addEventListener("click", () => {
+                            const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].steps.splice(sIdx, 1); saveKittyPunishments(upd); } rebuildSteps();
+                        });
+                        sh.appendChild(badge); sh.appendChild(delStep); sc.appendChild(sh);
+
+                        if (step.type === "emote") {
+                            // Kind text input
+                            const kr = document.createElement("div"); kr.style.cssText = "display:flex;align-items:center;gap:3px;";
+                            const kl = document.createElement("span"); kl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:16px;"; kl.textContent = "🌸";
+                            const ki = document.createElement("input"); ki.value = step.kindText ?? ""; ki.placeholder = "Kind emote"; ki.style.cssText = "flex:1;min-width:0;" + INP;
+                            ki.addEventListener("input", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { upd[idx].steps[sIdx].kindText = ki.value; saveKittyPunishments(upd); } });
+                            kr.appendChild(kl); kr.appendChild(ki); sc.appendChild(kr);
+                            // Rough text input
+                            const rr = document.createElement("div"); rr.style.cssText = "display:flex;align-items:center;gap:3px;";
+                            const rl = document.createElement("span"); rl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:16px;"; rl.textContent = "⚡";
+                            const ri = document.createElement("input"); ri.value = step.roughText ?? ""; ri.placeholder = "Rough emote"; ri.style.cssText = "flex:1;min-width:0;" + INP;
+                            ri.addEventListener("input", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { upd[idx].steps[sIdx].roughText = ri.value; saveKittyPunishments(upd); } });
+                            rr.appendChild(rl); rr.appendChild(ri); sc.appendChild(rr);
+                        } else {
+                            // Restraint step: item list + add-item builder
+                            const itemsWrap = document.createElement("div"); itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+
+                            const rebuildItems = (): void => {
+                                itemsWrap.innerHTML = "";
+                                const liveItems = getKittyPunishments()[idx]?.steps[sIdx]?.items ?? [];
+                                if (liveItems.length === 0) {
+                                    const em2 = document.createElement("div"); em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;"; em2.textContent = "No items yet";
+                                    itemsWrap.appendChild(em2);
+                                } else {
+                                    liveItems.forEach((item, iIdx) => {
+                                        const iRow = document.createElement("div"); iRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 0;";
+                                        const nm = document.createElement("span"); nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"; nm.textContent = item.Name; nm.title = item.Name;
+                                        const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;"; grp.textContent = item.Group.replace("Item", "");
+                                        const colInp = document.createElement("input"); colInp.value = colorToStr(item.Color); colInp.placeholder = "Default"; colInp.style.cssText = "width:72px;flex-shrink:0;" + INP; colInp.title = "Colour";
+                                        colInp.addEventListener("change", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]?.items?.[iIdx]) { upd[idx].steps[sIdx].items![iIdx].Color = strToColor(colInp.value); saveKittyPunishments(upd); } });
+                                        const delI = document.createElement("button"); delI.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delI.textContent = "×";
+                                        delI.addEventListener("click", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]?.items) { upd[idx].steps[sIdx].items!.splice(iIdx, 1); saveKittyPunishments(upd); } rebuildItems(); });
+                                        iRow.appendChild(nm); iRow.appendChild(grp); iRow.appendChild(colInp); iRow.appendChild(delI);
+                                        itemsWrap.appendChild(iRow);
+                                    });
+                                }
+                            };
+                            // Load from kitty preset (always shown at top, re-queried each time)
+                            const kittyPresets = getKittyRestraintSets();
+                            if (kittyPresets.length > 0) {
+                                const kpRow = document.createElement("div"); kpRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-bottom:3px;";
+                                const kpSel = document.createElement("select"); kpSel.style.cssText = "flex:1;min-width:0;" + INP;
+                                const kpPh = document.createElement("option"); kpPh.value = ""; kpPh.textContent = "— load preset —"; kpPh.disabled = true; kpPh.selected = true; kpSel.appendChild(kpPh);
+                                for (const kp of kittyPresets) { const o = document.createElement("option"); o.value = kp.id; o.textContent = kp.label + " (" + kp.items.length + ")"; kpSel.appendChild(o); }
+                                const kpBtn = document.createElement("button"); kpBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; kpBtn.textContent = "Load ↓";
+                                kpBtn.addEventListener("click", () => {
+                                    const kp = getKittyRestraintSets().find(p => p.id === kpSel.value); if (!kp) return;
+                                    const upd = getKittyPunishments();
+                                    if (upd[idx]?.steps[sIdx]) { if (!upd[idx].steps[sIdx].items) upd[idx].steps[sIdx].items = []; upd[idx].steps[sIdx].items!.push(...kp.items.map(i => ({ ...i }))); saveKittyPunishments(upd); }
+                                    kpSel.value = ""; rebuildItems();
+                                });
+                                kpRow.appendChild(kpSel); kpRow.appendChild(kpBtn); sc.appendChild(kpRow);
+                            }
+
+                            rebuildItems();
+                            sc.appendChild(itemsWrap);
+
+                            // Slot → Item → Color → + Add row
+                            const aiSlRow = document.createElement("div"); aiSlRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:3px;border-top:1px solid #2a1421;padding-top:3px;";
+                            const aiSl = document.createElement("select"); aiSl.style.cssText = "flex:1;min-width:0;" + INP;
+                            const aiSlPh = document.createElement("option"); aiSlPh.value = ""; aiSlPh.textContent = "— slot —"; aiSlPh.disabled = true; aiSlPh.selected = true; aiSl.appendChild(aiSlPh);
+                            for (const grp of RESTRAINT_GROUPS) { const o = document.createElement("option"); o.value = grp; o.textContent = grp.replace("Item", ""); aiSl.appendChild(o); }
+                            aiSlRow.appendChild(aiSl);
+
+                            const aiItemRow2 = document.createElement("div"); aiItemRow2.style.cssText = "display:flex;align-items:center;gap:3px;";
+                            const aiItemSel = document.createElement("select"); aiItemSel.style.cssText = "flex:1;min-width:0;" + INP;
+                            const aiIPh = document.createElement("option"); aiIPh.value = ""; aiIPh.textContent = "— pick slot first —"; aiIPh.disabled = true; aiIPh.selected = true; aiItemSel.appendChild(aiIPh);
+                            aiSl.addEventListener("change", () => {
+                                aiItemSel.innerHTML = "";
+                                const names = getGroupAssets(aiSl.value);
+                                if (names.length === 0) { const o = document.createElement("option"); o.value = ""; o.textContent = "— none —"; o.disabled = true; o.selected = true; aiItemSel.appendChild(o); }
+                                else { const ph2 = document.createElement("option"); ph2.value = ""; ph2.textContent = "— pick item —"; ph2.disabled = true; ph2.selected = true; aiItemSel.appendChild(ph2); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; aiItemSel.appendChild(o); } }
+                            });
+                            aiItemRow2.appendChild(aiItemSel);
+
+                            const aiColRow2 = document.createElement("div"); aiColRow2.style.cssText = "display:flex;align-items:center;gap:3px;";
+                            const aiColInp = document.createElement("input"); aiColInp.placeholder = "Default or #rrggbb"; aiColInp.style.cssText = "flex:1;min-width:0;" + INP;
+                            const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = "+ Add";
+                            aiAddBtn.addEventListener("click", () => {
+                                if (!aiSl.value || !aiItemSel.value) return;
+                                const newItem: KittyItem = { Name: aiItemSel.value, Group: aiSl.value, Color: strToColor(aiColInp.value || "Default") };
+                                const upd = getKittyPunishments();
+                                if (upd[idx]?.steps[sIdx]) { if (!upd[idx].steps[sIdx].items) upd[idx].steps[sIdx].items = []; upd[idx].steps[sIdx].items!.push(newItem); saveKittyPunishments(upd); }
+                                aiSl.value = ""; aiItemSel.innerHTML = ""; aiItemSel.appendChild(aiIPh); aiIPh.selected = true; aiColInp.value = "";
+                                rebuildItems();
+                            });
+                            aiColRow2.appendChild(aiColInp); aiColRow2.appendChild(aiAddBtn);
+                            sc.appendChild(aiSlRow); sc.appendChild(aiItemRow2); sc.appendChild(aiColRow2);
+
+                            // Import from Emery's saved restraint sets
+                            const fromSaved = getRestraints();
+                            if (fromSaved.length > 0) {
+                                const fsRow = document.createElement("div"); fsRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
+                                const fsSel = document.createElement("select"); fsSel.style.cssText = "flex:1;min-width:0;" + INP;
+                                const fsPh = document.createElement("option"); fsPh.value = ""; fsPh.textContent = "— import saved set —"; fsPh.disabled = true; fsPh.selected = true; fsSel.appendChild(fsPh);
+                                for (const rs of fromSaved) { const o = document.createElement("option"); o.value = rs.id; o.textContent = rs.displayName + " (" + rs.items.filter((i: { Group: string }) => RESTRAINT_GROUPS.has(i.Group)).length + ")"; fsSel.appendChild(o); }
+                                const fsBtn = document.createElement("button"); fsBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; fsBtn.textContent = "Use ↓";
+                                fsBtn.addEventListener("click", () => {
+                                    const rs = fromSaved.find((s: { id: string }) => s.id === fsSel.value); if (!rs) return;
+                                    const rawItems = rs.items as unknown as Array<Record<string, unknown>>;
+                                    const newItems: KittyItem[] = rawItems.filter(i => RESTRAINT_GROUPS.has(String(i.Group))).map(i => ({ Name: String(i.Name), Group: String(i.Group), Color: i.Color as string | string[] | undefined, Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined, Property: i.Property as Record<string, unknown> | undefined, Craft: i.Craft as Record<string, unknown> | undefined }));
+                                    const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { if (!upd[idx].steps[sIdx].items) upd[idx].steps[sIdx].items = []; upd[idx].steps[sIdx].items!.push(...newItems); saveKittyPunishments(upd); } fsSel.value = ""; rebuildItems();
+                                });
+                                fsRow.appendChild(fsSel); fsRow.appendChild(fsBtn); sc.appendChild(fsRow);
+                            }
+
+                            // Import from pasted BC outfit code
+                            const codeRow = document.createElement("div"); codeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
+                            const codeInp = document.createElement("input"); codeInp.placeholder = "Paste LZ/JSON BC code…"; codeInp.style.cssText = "flex:1;min-width:0;" + INP;
+                            const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
+                            codeBtn.addEventListener("click", () => {
+                                const code = codeInp.value.trim(); if (!code) return;
+                                try {
+                                    const LZStr = (window as unknown as Record<string, unknown>).LZString as { decompressFromBase64?: (s: string) => string | null } | undefined;
+                                    const raw2 = LZStr?.decompressFromBase64?.(code) ?? code;
+                                    const parsed = JSON.parse(raw2) as Array<Record<string, unknown>>;
+                                    const newItems2: KittyItem[] = parsed.filter(p => typeof p.Group === "string" && typeof p.Name === "string" && RESTRAINT_GROUPS.has(String(p.Group))).map(p => ({ Name: String(p.Name), Group: String(p.Group), Color: p.Color as string | string[] | undefined, Difficulty: typeof p.Difficulty === "number" ? p.Difficulty : undefined, Property: typeof p.Property === "object" && p.Property !== null ? p.Property as Record<string, unknown> : undefined, Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft as Record<string, unknown> : undefined }));
+                                    if (newItems2.length === 0) { codeInp.style.borderColor = "#e07070"; window.setTimeout(() => { codeInp.style.borderColor = ""; }, 1500); return; }
+                                    const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { if (!upd[idx].steps[sIdx].items) upd[idx].steps[sIdx].items = []; upd[idx].steps[sIdx].items!.push(...newItems2); saveKittyPunishments(upd); } codeInp.value = ""; rebuildItems();
+                                } catch { codeInp.style.borderColor = "#e07070"; window.setTimeout(() => { codeInp.style.borderColor = ""; }, 1500); }
+                            });
+                            codeRow.appendChild(codeInp); codeRow.appendChild(codeBtn); sc.appendChild(codeRow);
+
+                            // Save current items as a named kitty preset
+                            const spRow = document.createElement("div"); spRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:3px;border-top:1px solid #2a1421;padding-top:3px;";
+                            const spInp = document.createElement("input"); spInp.placeholder = "Save items as preset…"; spInp.style.cssText = "flex:1;min-width:0;" + INP;
+                            const spBtn = document.createElement("button"); spBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; spBtn.textContent = "💾 Save";
+                            spBtn.addEventListener("click", () => {
+                                const name = spInp.value.trim(); if (!name) { spInp.focus(); return; }
+                                const items = getKittyPunishments()[idx]?.steps[sIdx]?.items ?? [];
+                                if (items.length === 0) { spInp.style.borderColor = "#e07070"; window.setTimeout(() => { spInp.style.borderColor = ""; }, 1200); return; }
+                                const presets = getKittyRestraintSets();
+                                presets.push({ id: "r_" + Date.now(), label: name, items: items.map(i => ({ ...i })), kindEmote: "", roughEmote: "" });
+                                saveKittyRestraintSets(presets);
+                                rebuildSteps(); // rebuild so the Load dropdown shows the new preset
+                            });
+                            spRow.appendChild(spInp); spRow.appendChild(spBtn); sc.appendChild(spRow);
+                        }
+
+                        stepsWrap.appendChild(sc);
+                    });
+                };
+
+                r.appendChild(stepsWrap);
+                rebuildSteps();
+
+                // Add step buttons
+                const addStepRow = document.createElement("div"); addStepRow.style.cssText = "display:flex;gap:5px;margin-top:3px;";
+                const mkAddBtn = (lbl: string, fn: () => void): HTMLButtonElement => {
+                    const b = document.createElement("button"); b.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px;border-radius:4px;cursor:pointer;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;"; b.textContent = lbl; b.addEventListener("click", fn); return b;
+                };
+                addStepRow.appendChild(mkAddBtn("+ Sentence", () => { const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].steps.push({ type: "emote", kindText: "", roughText: "" }); saveKittyPunishments(upd); } rebuildSteps(); }));
+                addStepRow.appendChild(mkAddBtn("+ Restraints", () => { const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].steps.push({ type: "restraint", items: [] }); saveKittyPunishments(upd); } rebuildSteps(); }));
+                r.appendChild(addStepRow);
+
+                // Reaction section
+                const reactHdr = document.createElement("div"); reactHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:5px;border-top:1px solid #2a1421;padding-top:4px;"; reactHdr.textContent = "Emery reacts (on accept)";
+                r.appendChild(reactHdr);
+
+                // Expression picker
+                const exprRow = document.createElement("div"); exprRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const exprLbl = document.createElement("span"); exprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:56px;"; exprLbl.textContent = "Expression";
+                const exprSel = document.createElement("select"); exprSel.style.cssText = "flex:1;min-width:0;" + INP;
+                for (const e of KITTY_EXPRESSIONS) { const o = document.createElement("option"); o.value = e.cmd; o.textContent = e.label; exprSel.appendChild(o); }
+                const exprPresets2 = getKittyExpressionPresets();
+                if (exprPresets2.length > 0) {
+                    const grp2 = document.createElement("optgroup"); grp2.label = "★ Presets"; exprSel.appendChild(grp2);
+                    for (const ep of exprPresets2) { const o = document.createElement("option"); o.value = "preset:" + ep.id; o.textContent = "★ " + ep.label; grp2.appendChild(o); }
+                }
+                exprSel.value = pun.reaction?.expression ?? "";
+                exprSel.addEventListener("change", () => { const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].reaction = { ...(upd[idx].reaction ?? {}), expression: exprSel.value || undefined }; saveKittyPunishments(upd); } });
+                exprRow.appendChild(exprLbl); exprRow.appendChild(exprSel); r.appendChild(exprRow);
+
+                // Pose picker
+                const poseRow2 = document.createElement("div"); poseRow2.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const poseLbl2 = document.createElement("span"); poseLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:56px;"; poseLbl2.textContent = "Pose";
+                const poseSel2 = document.createElement("select"); poseSel2.style.cssText = "flex:1;min-width:0;" + INP;
+                for (const p2 of KITTY_REACTION_POSES) { const o = document.createElement("option"); o.value = JSON.stringify(p2.poses); o.textContent = p2.label; poseSel2.appendChild(o); }
+                poseSel2.value = JSON.stringify(pun.reaction?.poses ?? []);
+                if (poseSel2.selectedIndex === -1) poseSel2.selectedIndex = 0;
+                poseSel2.addEventListener("change", () => {
+                    const upd = getKittyPunishments(); if (upd[idx]) { try { const poses = JSON.parse(poseSel2.value) as string[]; upd[idx].reaction = { ...(upd[idx].reaction ?? {}), poses: poses.length ? poses : undefined }; } catch { /* ignore */ } saveKittyPunishments(upd); }
+                });
+                poseRow2.appendChild(poseLbl2); poseRow2.appendChild(poseSel2); r.appendChild(poseRow2);
+
+                list.appendChild(r);
+            });
+
+            // Add new action
+            const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+            const newPunLbl = document.createElement("input"); newPunLbl.placeholder = "New action name"; newPunLbl.style.cssText = "flex:1;min-width:0;" + INP;
+            const addBtnPun = document.createElement("button"); addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnPun.textContent = "+ Add";
+            addBtnPun.addEventListener("click", () => {
+                if (!newPunLbl.value.trim()) return;
+                const updated = getKittyPunishments();
+                updated.push({ id: "pun_" + Date.now(), label: newPunLbl.value.trim(), steps: [{ type: "emote", kindText: "", roughText: "" }] });
+                saveKittyPunishments(updated); newPunLbl.value = ""; renderPunishments(true);
+            });
+            addRow.appendChild(newPunLbl); addRow.appendChild(addBtnPun);
+            list.appendChild(addRow);
+            punishWrap.appendChild(list);
+        };
+
+        const { cBody: punishCBody, wrap: punishWrap2 } = makeCollapsible("EBC_kittyActionsOpen", "⚡ Actions", false, (ed) => renderPunishments(ed));
+        renderPunishments(false);
+        punishCBody.appendChild(punishWrap);
+        body.appendChild(punishWrap2);
+
+        // ── RESTRAINT PRESETS ────────────────────────────────────────────────────
+        const rpWrap = document.createElement("div");
+        rpWrap.style.marginBottom = "10px";
+
+        const renderRestraintPresets = (): void => {
+            rpWrap.innerHTML = "";
+            const presets = getKittyRestraintSets();
+
+            // ── Create new preset row (always visible) ────────────────────────
+            const createRow = document.createElement("div");
+            createRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
+            const newNameInp = document.createElement("input");
+            newNameInp.placeholder = "New preset name…";
+            newNameInp.style.cssText = "flex:1;min-width:0;" + INP;
+            const createBtn = document.createElement("button");
+            createBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+            createBtn.textContent = "+ Create";
+            createBtn.addEventListener("click", () => {
+                if (!newNameInp.value.trim()) return;
+                const upd = getKittyRestraintSets();
+                upd.push({ id: "r_" + Date.now(), label: newNameInp.value.trim(), items: [], kindEmote: "", roughEmote: "" });
+                saveKittyRestraintSets(upd);
+                newNameInp.value = "";
+                renderRestraintPresets();
+            });
+            createRow.appendChild(newNameInp);
+            createRow.appendChild(createBtn);
+            rpWrap.appendChild(createRow);
+
+            if (presets.length === 0) {
+                const em = document.createElement("div");
+                em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;";
+                em.textContent = "No restraint presets yet — create one above.";
+                rpWrap.appendChild(em);
+                return;
+            }
+
+            // ── Select + apply row ────────────────────────────────────────────
+            const selectRow = document.createElement("div");
+            selectRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+
+            const presetSel = document.createElement("select");
+            presetSel.style.cssText = "flex:1;min-width:0;" + INP;
+            const selPh = document.createElement("option");
+            selPh.value = ""; selPh.textContent = "— select preset —"; selPh.disabled = true; selPh.selected = true;
+            presetSel.appendChild(selPh);
+            for (const p of presets) {
+                const o = document.createElement("option");
+                o.value = p.id;
+                o.textContent = `🔒 ${p.label} (${p.items.length})`;
+                presetSel.appendChild(o);
+            }
+
+            const applyBtn = document.createElement("button");
+            applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:3px;cursor:pointer;border:1px solid #8a4060;background:#3a1a2a;color:#cf6f98;flex-shrink:0;opacity:0.45;";
+            applyBtn.textContent = "Apply 🔒";
+            applyBtn.disabled = true;
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #5a2030;background:transparent;color:#8a4050;flex-shrink:0;opacity:0.45;";
+            deleteBtn.textContent = "Delete";
+            deleteBtn.disabled = true;
+
+            selectRow.appendChild(presetSel);
+            selectRow.appendChild(applyBtn);
+            selectRow.appendChild(deleteBtn);
+            rpWrap.appendChild(selectRow);
+
+            // ── Collapsible item editor (shown when a preset is selected) ─────
+            const editWrap = document.createElement("div");
+            editWrap.style.cssText = "display:none;flex-direction:column;gap:3px;background:rgba(20,10,5,0.4);border:1px solid #3a2010;border-radius:5px;padding:5px 7px;margin-top:2px;";
+            rpWrap.appendChild(editWrap);
+
+            const rebuildEditSection = (presetId: string): void => {
+                editWrap.innerHTML = "";
+                const liveSets = getKittyRestraintSets();
+                const preset = liveSets.find(p => p.id === presetId);
+                if (!preset) return;
+
+                // Item list
+                const itemsWrap = document.createElement("div");
+                itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:2px;margin-bottom:3px;";
+                const rebuildItems = (): void => {
+                    itemsWrap.innerHTML = "";
+                    const liveItems = (getKittyRestraintSets().find(p => p.id === presetId) ?? preset).items;
+                    // Update dropdown label to reflect new item count
+                    const opt = presetSel.querySelector(`option[value="${presetId}"]`) as HTMLOptionElement | null;
+                    if (opt) opt.textContent = `🔒 ${preset.label} (${liveItems.length})`;
+                    if (liveItems.length === 0) {
+                        const em2 = document.createElement("div");
+                        em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;";
+                        em2.textContent = "No items yet";
+                        itemsWrap.appendChild(em2);
+                    } else {
+                        liveItems.forEach((item, iIdx) => {
+                            const iRow = document.createElement("div"); iRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 0;";
+                            const nm = document.createElement("span"); nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"; nm.textContent = item.Name; nm.title = item.Name;
+                            const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;"; grp.textContent = item.Group.replace("Item", "");
+                            const colInp = document.createElement("input"); colInp.value = colorToStr(item.Color); colInp.placeholder = "Default"; colInp.style.cssText = "width:72px;flex-shrink:0;" + INP; colInp.title = "Colour";
+                            colInp.addEventListener("change", () => {
+                                const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
+                                if (pp?.items?.[iIdx]) { pp.items[iIdx].Color = strToColor(colInp.value); saveKittyRestraintSets(upd); }
+                            });
+                            const delI = document.createElement("button"); delI.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delI.textContent = "×";
+                            delI.addEventListener("click", () => {
+                                const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
+                                if (pp?.items) { pp.items.splice(iIdx, 1); saveKittyRestraintSets(upd); } rebuildItems();
+                            });
+                            iRow.appendChild(nm); iRow.appendChild(grp); iRow.appendChild(colInp); iRow.appendChild(delI);
+                            itemsWrap.appendChild(iRow);
+                        });
+                    }
+                };
+                rebuildItems();
+                editWrap.appendChild(itemsWrap);
+
+                // Expression trigger row
+                const rpExprRow = document.createElement("div"); rpExprRow.style.cssText = "display:flex;align-items:center;gap:4px;padding-bottom:4px;border-bottom:1px solid #3a2010;margin-bottom:4px;";
+                const rpExprLbl = document.createElement("span"); rpExprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:56px;"; rpExprLbl.textContent = "😊 Expression";
+                const rpExprSel = document.createElement("select"); rpExprSel.style.cssText = "flex:1;min-width:0;" + INP;
+                const rpExprNone = document.createElement("option"); rpExprNone.value = ""; rpExprNone.textContent = "— none —"; rpExprSel.appendChild(rpExprNone);
+                for (const ex of KITTY_EXPRESSIONS) { const o = document.createElement("option"); o.value = ex.cmd; o.textContent = ex.label; rpExprSel.appendChild(o); }
+                const exprPresets3 = getKittyExpressionPresets();
+                if (exprPresets3.length > 0) {
+                    const grp3 = document.createElement("optgroup"); grp3.label = "★ Presets"; rpExprSel.appendChild(grp3);
+                    for (const ep of exprPresets3) { const o = document.createElement("option"); o.value = "preset:" + ep.id; o.textContent = "★ " + ep.label; grp3.appendChild(o); }
+                }
+                const liveSet = getKittyRestraintSets().find(p => p.id === presetId);
+                rpExprSel.value = liveSet?.expression ?? "";
+                rpExprSel.addEventListener("change", () => {
+                    const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
+                    if (pp) { pp.expression = rpExprSel.value || undefined; saveKittyRestraintSets(upd); }
+                });
+                rpExprRow.appendChild(rpExprLbl); rpExprRow.appendChild(rpExprSel);
+                editWrap.appendChild(rpExprRow);
+
+                // Slot + item + colour + Add
+                const slRow = document.createElement("div"); slRow.style.cssText = "display:flex;align-items:center;gap:3px;border-top:1px solid #3a2010;padding-top:4px;flex-wrap:wrap;";
+                const sl = document.createElement("select"); sl.style.cssText = "flex:1;min-width:0;" + INP;
+                const slPh = document.createElement("option"); slPh.value = ""; slPh.textContent = "— slot —"; slPh.disabled = true; slPh.selected = true; sl.appendChild(slPh);
+                for (const grp of RESTRAINT_GROUPS) { const o = document.createElement("option"); o.value = grp; o.textContent = grp.replace("Item", ""); sl.appendChild(o); }
+                const itemSel = document.createElement("select"); itemSel.style.cssText = "flex:1;min-width:0;" + INP;
+                const itemPh = document.createElement("option"); itemPh.value = ""; itemPh.textContent = "— pick slot —"; itemPh.disabled = true; itemPh.selected = true; itemSel.appendChild(itemPh);
+                sl.addEventListener("change", () => {
+                    itemSel.innerHTML = "";
+                    const names = getGroupAssets(sl.value);
+                    if (names.length === 0) { const o = document.createElement("option"); o.value = ""; o.textContent = "— none —"; o.disabled = true; o.selected = true; itemSel.appendChild(o); }
+                    else { const ph = document.createElement("option"); ph.value = ""; ph.textContent = "— item —"; ph.disabled = true; ph.selected = true; itemSel.appendChild(ph); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; itemSel.appendChild(o); } }
+                });
+                const colInp2 = document.createElement("input"); colInp2.placeholder = "#rrggbb"; colInp2.style.cssText = "width:64px;flex-shrink:0;" + INP; colInp2.title = "Colour (optional)";
+                const addItemBtn = document.createElement("button"); addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addItemBtn.textContent = "+ Add";
+                addItemBtn.addEventListener("click", () => {
+                    if (!sl.value || !itemSel.value) return;
+                    const newItem: KittyItem = { Name: itemSel.value, Group: sl.value, Color: strToColor(colInp2.value || "Default") };
+                    const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
+                    if (pp) { pp.items.push(newItem); saveKittyRestraintSets(upd); }
+                    sl.value = ""; itemSel.innerHTML = ""; itemSel.appendChild(itemPh); itemPh.selected = true; colInp2.value = "";
+                    rebuildItems();
+                });
+                slRow.appendChild(sl); slRow.appendChild(itemSel); slRow.appendChild(colInp2); slRow.appendChild(addItemBtn);
+                editWrap.appendChild(slRow);
+
+                // BC outfit/craft code import
+                const codeRow = document.createElement("div"); codeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
+                const codeInp = document.createElement("input"); codeInp.placeholder = "Paste BC outfit/craft code…"; codeInp.style.cssText = "flex:1;min-width:0;" + INP;
+                const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
+                codeBtn.addEventListener("click", () => {
+                    const code = codeInp.value.trim(); if (!code) return;
+                    try {
+                        const LZStr = (window as unknown as Record<string, unknown>).LZString as { decompressFromBase64?: (s: string) => string | null } | undefined;
+                        const raw2 = LZStr?.decompressFromBase64?.(code) ?? code;
+                        const parsed2 = JSON.parse(raw2) as Array<Record<string, unknown>>;
+                        const newItems: KittyItem[] = parsed2
+                            .filter(p => typeof p.Group === "string" && typeof p.Name === "string")
+                            .map(p => ({
+                                Name: String(p.Name), Group: String(p.Group),
+                                Color: p.Color as string | string[] | undefined,
+                                Difficulty: typeof p.Difficulty === "number" ? p.Difficulty : undefined,
+                                Property: typeof p.Property === "object" && p.Property !== null ? p.Property as Record<string, unknown> : undefined,
+                                Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft as Record<string, unknown> : undefined,
+                            }));
+                        if (newItems.length === 0) { codeInp.style.borderColor = "#e07070"; window.setTimeout(() => { codeInp.style.borderColor = ""; }, 1500); return; }
+                        const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
+                        if (pp) { pp.items.push(...newItems); saveKittyRestraintSets(upd); }
+                        codeInp.value = ""; rebuildItems();
+                    } catch { codeInp.style.borderColor = "#e07070"; window.setTimeout(() => { codeInp.style.borderColor = ""; }, 1500); }
+                });
+                codeRow.appendChild(codeInp); codeRow.appendChild(codeBtn);
+                editWrap.appendChild(codeRow);
+            };
+
+            // Wire up preset selection
+            presetSel.addEventListener("change", () => {
+                const id = presetSel.value; if (!id) return;
+                applyBtn.disabled = false; applyBtn.style.opacity = "1";
+                deleteBtn.disabled = false; deleteBtn.style.opacity = "1";
+                editWrap.style.display = "flex";
+                rebuildEditSection(id);
+            });
+
+            applyBtn.addEventListener("click", () => {
+                const id = presetSel.value; if (!id) return;
+                const mood = getKittyMood();
+                const set = getKittyRestraintSets().find(p => p.id === id);
+                if (!set) return;
+                const emoteText = mood === "rough" ? (set.roughEmote || set.kindEmote) : (set.kindEmote || set.roughEmote);
+                if (emoteText) sendRoomEmote(emoteText);
+                if (set.expression) sendKittyCmd("expression", set.expression);
+                sendKittyCmd("punish", JSON.stringify({ label: set.label, mood, items: set.items, reaction: undefined }));
+            });
+
+            deleteBtn.addEventListener("click", () => {
+                const id = presetSel.value; if (!id) return;
+                saveKittyRestraintSets(getKittyRestraintSets().filter(p => p.id !== id));
+                renderRestraintPresets();
+            });
+
+            // Hint
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+            hint.textContent = "Select a preset and Apply to send restraints to Emery";
+            rpWrap.appendChild(hint);
+        };
+
+        const { cBody: rpCBody, wrap: rpWrap2 } = makeCollapsible("EBC_kittyRestraintsOpen", "🔒 Restraints", false);
+        renderRestraintPresets();
+        rpCBody.appendChild(rpWrap);
+
+        // ── Copy Restraints from Member ─────────────────────────────────────────
+        const crDiv = divider(); rpCBody.appendChild(crDiv);
+        const crHdr = document.createElement("div");
+        crHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;";
+        crHdr.textContent = "Copy Restraints from Member";
+        rpCBody.appendChild(crHdr);
+
+        const crHint = document.createElement("div");
+        crHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+        crHint.textContent = "Pick a room member, load their restraints, then generate a BC outfit code to import via wardrobe.";
+        rpCBody.appendChild(crHint);
+
+        // Member picker row
+        const crPickRow = document.createElement("div");
+        crPickRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+        const crMemberSel = document.createElement("select");
+        crMemberSel.style.cssText = "flex:1;min-width:0;" + INP;
+
+        const crPopulate = (): void => {
+            while (crMemberSel.firstChild) crMemberSel.removeChild(crMemberSel.firstChild);
+            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+            const others = room.filter(c => c.MemberNumber !== Player.MemberNumber);
+            if (others.length === 0) {
+                const o = document.createElement("option"); o.value = ""; o.textContent = "No others in room"; crMemberSel.appendChild(o); return;
+            }
+            for (const c of others) {
+                const o = document.createElement("option"); o.value = String(c.MemberNumber);
+                const nick = (c as unknown as Record<string, unknown>).Nickname as string | undefined;
+                o.textContent = `${nick?.trim() || c.Name} (#${c.MemberNumber})`; crMemberSel.appendChild(o);
+            }
+        };
+        crPopulate();
+
+        const crMkBtn = (label: string): HTMLButtonElement => {
+            const b = document.createElement("button");
+            b.textContent = label;
+            b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+            return b;
+        };
+        const crRefreshBtn = crMkBtn("↻");
+        const crLoadBtn = crMkBtn("Load");
+        crPickRow.appendChild(crMemberSel); crPickRow.appendChild(crRefreshBtn); crPickRow.appendChild(crLoadBtn);
+        rpCBody.appendChild(crPickRow);
+
+        // Item checklist
+        const crCheckWrap = document.createElement("div");
+        crCheckWrap.style.cssText = "display:none;flex-direction:column;gap:2px;margin-bottom:4px;";
+        rpCBody.appendChild(crCheckWrap);
+        const crCheckHdr = document.createElement("div");
+        crCheckHdr.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
+        const crCheckLbl = document.createElement("span");
+        crCheckLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+        const crAllBtn = crMkBtn("All"); const crNoneBtn = crMkBtn("None");
+        crCheckHdr.appendChild(crCheckLbl); crCheckHdr.appendChild(crAllBtn); crCheckHdr.appendChild(crNoneBtn);
+        crCheckWrap.appendChild(crCheckHdr);
+        const crCheckItems = document.createElement("div");
+        crCheckItems.style.cssText = "display:flex;flex-direction:column;gap:2px;max-height:150px;overflow-y:auto;";
+        crCheckWrap.appendChild(crCheckItems);
+        let crLoaded: Array<{ item: Item; checkbox: HTMLInputElement }> = [];
+
+        // Code output
+        const crCodeWrap = document.createElement("div");
+        crCodeWrap.style.cssText = "display:none;flex-direction:column;gap:3px;margin-bottom:3px;";
+        rpCBody.appendChild(crCodeWrap);
+        const crTA = document.createElement("textarea");
+        crTA.readOnly = true; crTA.rows = 2;
+        crTA.style.cssText = "width:100%;box-sizing:border-box;resize:none;background:#100810;border:1px solid #3a1928;border-radius:3px;color:#cf6f98;font-family:'Courier New',monospace;font-size:8px;padding:3px 5px;";
+        const crCodeBtnRow = document.createElement("div"); crCodeBtnRow.style.cssText = "display:flex;gap:4px;";
+        const crGenBtn = crMkBtn("Generate Code"); const crCopyBtn = crMkBtn("Copy");
+        crCodeBtnRow.appendChild(crGenBtn); crCodeBtnRow.appendChild(crCopyBtn);
+        crCodeWrap.appendChild(crCodeBtnRow); crCodeWrap.appendChild(crTA);
+
+        const crStatus = document.createElement("div");
+        crStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;min-height:13px;";
+        rpCBody.appendChild(crStatus);
+
+        const crClear = (): void => {
+            crCheckItems.innerHTML = ""; crLoaded = [];
+            crCheckWrap.style.display = "none"; crCodeWrap.style.display = "none";
+            crTA.value = ""; crStatus.textContent = "";
+        };
+
+        crRefreshBtn.addEventListener("click", () => { crPopulate(); crClear(); });
+        crAllBtn.addEventListener("click",  () => { crLoaded.forEach(e => { e.checkbox.checked = true; }); });
+        crNoneBtn.addEventListener("click", () => { crLoaded.forEach(e => { e.checkbox.checked = false; }); });
+
+        crLoadBtn.addEventListener("click", () => {
+            const num = parseInt(crMemberSel.value, 10);
+            if (isNaN(num)) { crStatus.textContent = "No member selected."; return; }
+            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+            const char = room.find(c => c.MemberNumber === num);
+            if (!char) { crStatus.textContent = "Character not found."; return; }
+            const items = char.Appearance.filter((i: Item) => i.Asset?.Group?.Name && RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+            if (items.length === 0) { crClear(); crStatus.textContent = "No restraints on this character."; return; }
+            crClear();
+            const charName = ((char as unknown as Record<string, unknown>).Nickname as string | undefined)?.trim() || char.Name;
+            crCheckLbl.textContent = `${items.length} restraint(s) from ${charName}:`;
+            for (const item of items) {
+                const craft = item.Craft as { Name?: string } | undefined;
+                const craftName = craft?.Name?.trim();
+                const baseName = (item.Asset as unknown as Record<string, unknown>).Description as string || item.Asset.Name;
+                const label = craftName ? `${craftName} (${baseName})` : baseName;
+                const row = document.createElement("label");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 5px;border-radius:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;cursor:pointer;";
+                const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true; cb.style.cssText = "accent-color:#cf6f98;flex-shrink:0;cursor:pointer;";
+                const nm = document.createElement("span"); nm.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"; nm.textContent = label;
+                const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;"; grp.textContent = item.Asset.Group.Name.replace("Item", "");
+                row.appendChild(cb); row.appendChild(nm); row.appendChild(grp);
+                crCheckItems.appendChild(row); crLoaded.push({ item, checkbox: cb });
+            }
+            crCheckWrap.style.display = "flex"; crCodeWrap.style.display = "flex";
+        });
+
+        crGenBtn.addEventListener("click", () => {
+            const selected = crLoaded.filter(e => e.checkbox.checked).map(e => e.item);
+            if (selected.length === 0) { crStatus.textContent = "Select at least one item."; return; }
+            try {
+                const LZ = (window as unknown as Record<string, unknown>).LZString as { compressToBase64?: (s: string) => string } | undefined;
+                if (!LZ?.compressToBase64) throw new Error("LZString not available");
+                const bundle = selected.map(item => {
+                    const prop = item.Property ? { ...(item.Property as Record<string, unknown>) } : undefined;
+                    if (prop) { delete prop["LockedBy"]; delete prop["LockMemberNumber"]; delete prop["CombinationNumber"]; delete prop["Password"]; }
+                    return { Group: item.Asset.Group.Name, Name: item.Asset.Name, Color: item.Color, Difficulty: typeof item.Difficulty === "number" ? item.Difficulty : undefined, Property: prop, Craft: item.Craft ?? undefined };
+                });
+                crTA.value = LZ.compressToBase64(JSON.stringify(bundle));
+                crStatus.textContent = `✔ Code for ${selected.length} item(s) — import via BC wardrobe.`;
+                crStatus.style.color = "#79a885";
+            } catch (e) { crStatus.textContent = "Error: " + String(e); crStatus.style.color = "#e07070"; }
+        });
+
+        crCopyBtn.addEventListener("click", () => {
+            if (!crTA.value) { crStatus.textContent = "Generate code first."; return; }
+            try {
+                navigator.clipboard.writeText(crTA.value).then(() => {
+                    crStatus.textContent = "✔ Copied!"; crStatus.style.color = "#79a885";
+                }).catch(() => { crTA.select(); document.execCommand("copy"); crStatus.textContent = "✔ Copied!"; crStatus.style.color = "#79a885"; });
+            } catch { crTA.select(); document.execCommand("copy"); }
+        });
+
+        body.appendChild(rpWrap2);
+
+        // ── AROUSAL ──────────────────────────────────────────────────────────────
+        const { cBody: arousalCBody, wrap: arousalWrap2 } = makeCollapsible("EBC_kittyArousalOpen", "💗 Arousal", false);
+
+        const arousalWrap = document.createElement("div");
+        arousalWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;width:100%;";
+        const presetRow = document.createElement("div");
+        presetRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;";
+        for (const pct of [0, 25, 50, 75, 95, 100]) {
+            const color = pct === 0 ? "#4080c0" : pct < 75 ? "#c07090" : "#e050a0";
+            presetRow.appendChild(makePill(`${pct}%`, color, () => sendKittyCmd("arousal", String(pct))));
+        }
+        arousalWrap.appendChild(presetRow);
+        const customRow = document.createElement("div");
+        customRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+        const customInp = document.createElement("input");
+        customInp.type = "number"; customInp.min = "0"; customInp.max = "100"; customInp.placeholder = "0–100";
+        customInp.style.cssText = "width:55px;" + INP;
+        const setBtn = document.createElement("button");
+        setBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+        setBtn.textContent = "Set";
+        setBtn.addEventListener("click", () => {
+            const v = parseInt(customInp.value, 10);
+            if (!isNaN(v) && v >= 0 && v <= 100) sendKittyCmd("arousal", String(v));
+        });
+        customRow.appendChild(customInp); customRow.appendChild(setBtn);
+        arousalWrap.appendChild(customRow);
+        arousalCBody.appendChild(arousalWrap);
+        body.appendChild(arousalWrap2);
+
+        // ── EXPRESSIONS ──────────────────────────────────────────────────────────
+        const { cBody: exprCBody, wrap: exprWrap2 } = makeCollapsible("EBC_kittyExpressionsOpen", "😊 Expressions", false);
+
+        // ── Expression Presets (at top) ───────────────────────────────────────
+        const epHdr = document.createElement("div");
+        epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
+        epHdr.textContent = "Expression Presets";
+        exprCBody.appendChild(epHdr);
+
+        const epHint = document.createElement("div");
+        epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+        epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy + Mouth:Pout) — click a preset to fire all its expressions at once.";
+        exprCBody.appendChild(epHint);
+
+        const epWrap = document.createElement("div");
+        epWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+        exprCBody.appendChild(epWrap);
+
+        // ── Individual expressions (below presets) ────────────────────────────
+        const epDivider = divider(); epDivider.style.margin = "6px 0";
+
+        const exprWrap = document.createElement("div");
+        exprWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+        for (const expr of KITTY_EXPRESSIONS) {
+            if (!expr.cmd) continue; // skip "— None —"
+            const b = document.createElement("button");
+            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid #5a3050;background:rgba(40,15,30,0.5);color:#c090b0;transition:background 0.12s,border-color 0.12s;";
+            b.textContent = expr.label;
+            b.title = expr.cmd;
+            b.addEventListener("mouseenter", () => { b.style.background = "rgba(90,30,60,0.5)"; b.style.borderColor = "#a06080"; });
+            b.addEventListener("mouseleave", () => { b.style.background = "rgba(40,15,30,0.5)"; b.style.borderColor = "#5a3050"; });
+            b.addEventListener("click", () => { sendKittyCmd("expression", expr.cmd); });
+            exprWrap.appendChild(b);
+        }
+        const exprHint = document.createElement("div");
+        exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:2px;";
+        exprHint.textContent = "Sends a single facial expression command to Emery";
+
+        const renderExprPresets = (): void => {
+            epWrap.innerHTML = "";
+            const presets = getKittyExpressionPresets();
+
+            // Fire buttons for existing presets
+            if (presets.length > 0) {
+                const fireRow = document.createElement("div");
+                fireRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px;";
+                for (const ep of presets) {
+                    const fireBtn = document.createElement("button");
+                    fireBtn.textContent = "★ " + ep.label;
+                    fireBtn.title = ep.commands.join(", ") || "No commands";
+                    fireBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid #5a3868;background:rgba(50,20,50,0.5);color:#c090d0;";
+                    fireBtn.addEventListener("mouseenter", () => { fireBtn.style.background = "rgba(80,30,80,0.6)"; });
+                    fireBtn.addEventListener("mouseleave", () => { fireBtn.style.background = "rgba(50,20,50,0.5)"; });
+                    fireBtn.addEventListener("click", () => { sendExprOrPreset("preset:" + ep.id); });
+                    fireRow.appendChild(fireBtn);
+                }
+                epWrap.appendChild(fireRow);
+            }
+
+            // Editor: list of presets (edit/delete each) + create new
+            const editorWrap = document.createElement("div");
+            editorWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+
+            const epMkBtn = (label: string): HTMLButtonElement => {
+                const b = document.createElement("button");
+                b.textContent = label;
+                b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+                return b;
+            };
+
+            const EP_GROUPS = ["Blush", "Eyes", "Eyes2", "Mouth", "Eyebrows", "Emoticon"];
+
+            presets.forEach((ep, pIdx) => {
+                const card = document.createElement("div");
+                card.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(30,10,30,0.5);border:1px solid #3a1538;border-radius:5px;padding:5px 7px;";
+
+                // Header: label + delete
+                const cardHdr = document.createElement("div"); cardHdr.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const epLblInp = document.createElement("input"); epLblInp.value = ep.label; epLblInp.style.cssText = "flex:1;min-width:0;" + INP;
+                epLblInp.addEventListener("change", () => {
+                    const upd = getKittyExpressionPresets(); if (upd[pIdx]) { upd[pIdx].label = epLblInp.value.trim() || ep.label; saveKittyExpressionPresets(upd); renderExprPresets(); }
+                });
+                const epDel = document.createElement("button"); epDel.textContent = "×"; epDel.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                epDel.addEventListener("click", () => { saveKittyExpressionPresets(getKittyExpressionPresets().filter((_, i) => i !== pIdx)); renderExprPresets(); });
+                cardHdr.appendChild(epLblInp); cardHdr.appendChild(epDel); card.appendChild(cardHdr);
+
+                // Commands list
+                const cmdsWrap = document.createElement("div"); cmdsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+                ep.commands.forEach((cmd, cIdx) => {
+                    const chip = document.createElement("span"); chip.style.cssText = "display:flex;align-items:center;gap:2px;font-family:'Trebuchet MS',serif;font-size:8px;background:#2a0f2a;border:1px solid #5a2558;border-radius:3px;padding:1px 5px;color:#c090d0;";
+                    chip.textContent = cmd;
+                    const removeChip = document.createElement("button"); removeChip.textContent = "×"; removeChip.style.cssText = "font-size:9px;line-height:1;padding:0 2px;border:none;background:transparent;color:#9a6080;cursor:pointer;";
+                    removeChip.addEventListener("click", () => {
+                        const upd = getKittyExpressionPresets(); if (upd[pIdx]) { upd[pIdx].commands.splice(cIdx, 1); saveKittyExpressionPresets(upd); } renderExprPresets();
+                    });
+                    chip.appendChild(removeChip); cmdsWrap.appendChild(chip);
+                });
+                if (ep.commands.length === 0) {
+                    const em = document.createElement("span"); em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;"; em.textContent = "No expressions yet"; cmdsWrap.appendChild(em);
+                }
+                card.appendChild(cmdsWrap);
+
+                // Add expression row
+                const addExprRow = document.createElement("div"); addExprRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                const grpSel = document.createElement("select"); grpSel.style.cssText = "flex-shrink:0;width:80px;" + INP;
+                EP_GROUPS.forEach(g => { const o = document.createElement("option"); o.value = g; o.textContent = g; grpSel.appendChild(o); });
+                const stateSel = document.createElement("select"); stateSel.style.cssText = "flex:1;min-width:0;" + INP;
+
+                const EP_STATES: Record<string, string[]> = {
+                    Blush: ["Low", "Medium", "High", "VeryHigh", "Extreme", ""],
+                    Eyes: ["Closed", "Shy", "Sad", "Surprised", "Angry", "Dazed", "Heart", "Lewd", ""],
+                    Eyes2: ["Closed", "Shy", "Sad", "Surprised", "Angry", "Dazed", "Heart", "Lewd", ""],
+                    Mouth: ["Happy", "Sad", "Pout", "Angry", "Moan", "Devious", "Grin", "Smirk", ""],
+                    Eyebrows: ["Raised", "Harsh", "Angry", "Soft", ""],
+                    Emoticon: ["Afk", "Hearing_Loss", "Whisper", "Sleep", ""],
+                };
+                const refreshStateSel = (): void => {
+                    stateSel.innerHTML = "";
+                    const states = EP_STATES[grpSel.value] ?? [""];
+                    states.forEach(s => {
+                        const o = document.createElement("option"); o.value = s;
+                        o.textContent = s || "(clear)"; stateSel.appendChild(o);
+                    });
+                };
+                refreshStateSel();
+                grpSel.addEventListener("change", refreshStateSel);
+
+                const addCmdBtn = epMkBtn("+ Add");
+                addCmdBtn.addEventListener("click", () => {
+                    const cmd = `${grpSel.value}:${stateSel.value}`;
+                    const upd = getKittyExpressionPresets(); if (upd[pIdx]) { upd[pIdx].commands.push(cmd); saveKittyExpressionPresets(upd); } renderExprPresets();
+                });
+                addExprRow.appendChild(grpSel); addExprRow.appendChild(stateSel); addExprRow.appendChild(addCmdBtn);
+                card.appendChild(addExprRow);
+                editorWrap.appendChild(card);
+            });
+
+            // Create new preset
+            const createRow = document.createElement("div"); createRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+            const newLblInp = document.createElement("input"); newLblInp.placeholder = "New preset name…"; newLblInp.style.cssText = "flex:1;min-width:0;" + INP;
+            const createBtn = epMkBtn("+ Create");
+            createBtn.addEventListener("click", () => {
+                const name = newLblInp.value.trim(); if (!name) return;
+                const upd = getKittyExpressionPresets();
+                upd.push({ id: "ep_" + Date.now(), label: name, commands: [] });
+                saveKittyExpressionPresets(upd);
+                newLblInp.value = ""; renderExprPresets();
+            });
+            createRow.appendChild(newLblInp); createRow.appendChild(createBtn);
+            editorWrap.appendChild(createRow);
+            epWrap.appendChild(editorWrap);
+        };
+
+        renderExprPresets();
+        exprCBody.appendChild(epDivider);
+        exprCBody.appendChild(exprWrap);
+        exprCBody.appendChild(exprHint);
+        body.appendChild(exprWrap2);
+    }
+
     private renderThanks(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
@@ -13386,6 +15410,163 @@ export class EBCDrawer {
         whitelistSection.appendChild(wlChips);
         whitelistSection.appendChild(wlAddRow);
         body.appendChild(whitelistSection);
+
+        // ── Room Admin ────────────────────────────────────────────────────────
+        const divAdmin = document.createElement("div");
+        divAdmin.className = "ebc-divider";
+        body.appendChild(divAdmin);
+
+        const adminLbl = document.createElement("div");
+        adminLbl.className = "ebc-section-label";
+        adminLbl.textContent = "ROOM ADMIN";
+        body.appendChild(adminLbl);
+
+        type RoomDataShape = { Locked?: boolean; Admin?: number[] };
+        const w = window as unknown as Record<string, unknown>;
+        const roomData = w.ChatRoomData as RoomDataShape | null | undefined;
+        const inRoom   = (w.CurrentScreen as string | undefined) === "ChatRoom" && roomData != null;
+        const isAdmin  = inRoom && Array.isArray(roomData?.Admin) && (roomData.Admin as number[]).includes(Player.MemberNumber);
+
+        if (!inRoom) {
+            const hint = document.createElement("div");
+            hint.className = "ebc-import-hint";
+            hint.style.marginBottom = "6px";
+            hint.textContent = "Not in a chatroom.";
+            body.appendChild(hint);
+        } else if (!isAdmin) {
+            const hint = document.createElement("div");
+            hint.className = "ebc-import-hint";
+            hint.style.marginBottom = "6px";
+            hint.textContent = "You are not a room admin.";
+            body.appendChild(hint);
+        } else {
+            const adminWrap = document.createElement("div");
+            adminWrap.style.cssText = "display:flex;flex-direction:column;gap:7px;margin-bottom:8px;";
+
+            // ── Lock / Unlock ─────────────────────────────────────────────────
+            const locked = roomData?.Locked ?? false;
+            const lockBtn = document.createElement("button");
+            lockBtn.style.cssText = [
+                "width:100%",
+                "font-family:'Trebuchet MS',serif",
+                "font-size:11px",
+                "font-weight:bold",
+                "padding:8px 4px",
+                "border-radius:6px",
+                "cursor:pointer",
+                "transition:background 0.14s,border-color 0.14s",
+                locked
+                    ? "border:1px solid #cf6f98;background:#6b2040;color:#ffd0e0;"
+                    : "border:1px solid #5a9860;background:#1a3e20;color:#a0e090;",
+            ].join(";");
+            lockBtn.textContent = locked ? "🔒 Room Locked — Click to Unlock" : "🔓 Room Unlocked — Click to Lock";
+            lockBtn.title = locked ? "Unlock the room so anyone can join" : "Lock the room to prevent new joins";
+            lockBtn.addEventListener("click", () => {
+                try { ServerSend("ChatRoomAdmin", { MemberNumber: Player.MemberNumber, Action: locked ? "Unlock" : "Lock" }); } catch { /* ignore */ }
+                // Optimistic local update — server will confirm
+                window.setTimeout(() => this.rerender(), 200);
+            });
+            adminWrap.appendChild(lockBtn);
+
+            // ── Member picker + action buttons ────────────────────────────────
+            const memberSel = document.createElement("select");
+            memberSel.className = "ebc-form-input";
+            memberSel.style.cssText = "width:100%;font-size:10px;";
+            const ph = document.createElement("option");
+            ph.value = ""; ph.textContent = "— choose member —";
+            ph.disabled = true; ph.selected = true;
+            memberSel.appendChild(ph);
+
+            const buildMemberOpts = (): void => {
+                while (memberSel.firstChild) memberSel.removeChild(memberSel.firstChild);
+                memberSel.appendChild(ph);
+                for (const m of getRoomMembers()) {
+                    if (m.id === Player.MemberNumber) continue;
+                    const opt = document.createElement("option");
+                    opt.value = String(m.id);
+                    opt.textContent = `${m.name} (#${m.id})`;
+                    memberSel.appendChild(opt);
+                }
+                ph.textContent = memberSel.children.length <= 1 ? "— no other members —" : "— choose member —";
+            };
+            buildMemberOpts();
+
+            const makeBtn = (label: string, title: string, border: string, bg: string, color: string): HTMLButtonElement => {
+                const btn = document.createElement("button");
+                btn.textContent = label;
+                btn.title = title;
+                btn.disabled = true;
+                btn.style.cssText = [
+                    "flex:1",
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:6px 4px",
+                    "border-radius:6px",
+                    "cursor:pointer",
+                    "opacity:0.45",
+                    "transition:background 0.14s,opacity 0.14s",
+                    `border:1px solid ${border}`,
+                    `background:${bg}`,
+                    `color:${color}`,
+                ].join(";");
+                return btn;
+            };
+
+            const kickBtn  = makeBtn("👢 Kick",    "Kick this member from the room",     "#7a3a1a", "#3a1a08", "#f0a060");
+            const banBtn   = makeBtn("🚫 Ban",      "Ban this member from the room",      "#7a2020", "#3a0808", "#ff8888");
+            const promBtn  = makeBtn("⭐ Promote", "Give room admin to this member",      "#3a7030", "#152a10", "#90e080");
+            const demBtn   = makeBtn("⬇ Demote",  "Remove room admin from this member",  "#3a4070", "#101828", "#80a0f0");
+
+            const allActionBtns = [kickBtn, banBtn, promBtn, demBtn];
+
+            const syncBtns = (): void => {
+                const has = memberSel.value !== "";
+                for (const b of allActionBtns) {
+                    b.disabled = !has;
+                    b.style.opacity = has ? "1" : "0.45";
+                    b.style.cursor  = has ? "pointer" : "default";
+                }
+            };
+            memberSel.addEventListener("change", syncBtns);
+
+            const sendAction = (action: string): void => {
+                const id = parseInt(memberSel.value, 10);
+                if (!id) return;
+                try { ServerSend("ChatRoomAdmin", { MemberNumber: id, Action: action }); } catch { /* ignore */ }
+            };
+
+            kickBtn.addEventListener("click", () => sendAction("Kick"));
+            banBtn.addEventListener("click",  () => sendAction("Ban"));
+            promBtn.addEventListener("click", () => sendAction("Promote"));
+            demBtn.addEventListener("click",  () => sendAction("Demote"));
+
+            const refreshBtn2 = document.createElement("button");
+            refreshBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+            refreshBtn2.textContent = "↻";
+            refreshBtn2.title = "Refresh member list";
+            refreshBtn2.addEventListener("click", buildMemberOpts);
+
+            const selRow = document.createElement("div");
+            selRow.style.cssText = "display:flex;gap:5px;align-items:center;";
+            selRow.appendChild(memberSel);
+            selRow.appendChild(refreshBtn2);
+
+            const row1 = document.createElement("div");
+            row1.style.cssText = "display:flex;gap:5px;";
+            row1.appendChild(kickBtn);
+            row1.appendChild(banBtn);
+
+            const row2 = document.createElement("div");
+            row2.style.cssText = "display:flex;gap:5px;";
+            row2.appendChild(promBtn);
+            row2.appendChild(demBtn);
+
+            adminWrap.appendChild(selRow);
+            adminWrap.appendChild(row1);
+            adminWrap.appendChild(row2);
+            body.appendChild(adminWrap);
+        }
 
         // ── DOM Tools (creator-only below this point) ─────────────────────────
         if (!isDomEnabled()) {
@@ -14307,14 +16488,17 @@ export class EBCDrawer {
             this.panelEl.className = "ebc-open";
         }
         if (!this.positioned) this.syncToChat();
-        try { this.refreshBadgeRow?.();    } catch { /* ignore */ }
+        // badge toggle now lives in the DEV tab and refreshes on render
         try { this.refreshSwEnableBtn?.(); } catch { /* ignore */ }
         // Show the DOM tab only for the creator
         const domTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-dom");
         if (domTabEl) domTabEl.style.display = isDomEnabled() ? "" : "none";
         // Show the Puppy tab only for Lucy (#230466)
         const puppyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-puppy");
-        if (puppyTabEl) puppyTabEl.style.display = Player.MemberNumber === 230466 ? "" : "none";
+        if (puppyTabEl) puppyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
+        // Show the Kitty tab only for Lucy (#230466)
+        const kittyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-kitty");
+        if (kittyTabEl) kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
         this.updateTimer();
         try { this.applyTabVisibility(); } catch { /* ignore */ }
         this.renderCurrentTab();

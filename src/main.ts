@@ -1,6 +1,6 @@
-﻿import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
-import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
-import { handleOutfitCommand, handleRestraintCommand } from "./modules/outfitManager";
+﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
+import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
+import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
@@ -15,10 +15,12 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
+import { callBC } from "./modules/bcUtils";
+import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.17";
+const MOD_VERSION = "2.3.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -32,6 +34,727 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.3.6",
+        changes: [
+            "Fix: beeps sent via BC's native UI (the /beep command, the friend-list beep button, or the chat-room beep reply arrow) now appear in EBC's IM window. Previously only beeps sent through EBC's own interface were recorded; native BC beeps went through ServerSendBeepMessage which EBC never saw.",
+        ],
+    },
+    {
+        version: "2.3.5",
+        changes: [
+            "Kitty Leash: removed tug and untug buttons. The leash section now has only a single Grab / Let Go toggle button.",
+        ],
+    },
+    {
+        version: "2.3.4",
+        changes: [
+            "Fix: beep room name now actually works. The previous fix (v2.2.116) sent ChatRoomName from the client, but the BC server ignores that — it derives the room from the sender's session. The correct flag is IsSecret: false, which tells the server to attach the sender's current room to the delivered beep. Recipients now see 'in room X' with a join button.",
+        ],
+    },
+    {
+        version: "2.3.3",
+        changes: [
+            "Kitty Leash: ↙ Untug now fires BC's native LoosenLittle activity on ItemNeck on every single click — same event as the in-game 'Loosen → A little' collar button. The tug counter still decrements for emote purposes but the activity fires every time regardless, so clicking repeatedly keeps loosening the collar further.",
+        ],
+    },
+    {
+        version: "2.3.2",
+        changes: [
+            "Kitty Leash: ↙ Untug now fully resets all tug steps in one click (previously only decremented by 1 per click) and fires Caress + LSCG_ReleaseNeck on ItemNeck to actually release neck pressure — same activities used when the leash is fully dropped.",
+        ],
+    },
+    {
+        version: "2.3.1",
+        changes: [
+            "Fix: kitty buttons (especially poses) sometimes required two clicks. Root cause was a capture-phase click suppressor in the action button sidebar drag code that was too broad — it fired on ANY click after a sidebar drag, including HTML panel buttons. It now only suppresses clicks whose target is the BC game canvas, leaving EBC panel buttons unaffected.",
+            "Fix: pose buttons now show a brief disabled state (700ms) after clicking, covering the 600ms emote delay so there is visual feedback that the click registered and a second click is not needed.",
+            "Kitty menu: added 📟 Beep quick-access button in the Kitty section header to open the IM window directly to Emery.",
+            "Fix: EBC beep window now includes the current chat room name in the AccountBeep payload so recipients see the 'Join room' option in BC's native beep notification.",
+        ],
+    },
+    {
+        version: "2.3.0",
+        changes: [
+            "Fix: built-in emotes (headpat, goodgirl, treat, praise, snuggle → reward; spank, bap → punishment) now correctly seed their reactionCategory for stored emote lists saved before v2.2.114. Previously the category was set on the defaults but never migrated, so existing installations saw no reactions fire.",
+        ],
+    },
+    {
+        version: "2.2.114",
+        changes: [
+            "Kitty Emotes: each emote can now be tagged with a reaction category (⚡ Punishment or 🌸 Reward) via the edit panel. When the emote fires, a random reaction from that pool is auto-sent by Emery. The pool is whatever is configured in the 🐾 Pet Reactions section.",
+        ],
+    },
+    {
+        version: "2.2.113",
+        changes: [
+            "New: 🐾 Pet Reactions section in the Kitty menu — two categories of one-click emotes Emery sends when Lucy triggers them. ⚡ Punishment (eeep~, startled squeak, disgruntled noises) and 🌸 Reward (purrs, meows, chirps). Fully editable — add, edit, or delete any reaction per category.",
+        ],
+    },
+    {
+        version: "2.2.112",
+        changes: [
+            "Fix: expression updates now include ActivePose again — BC treats a missing ActivePose field as 'reset to null', so omitting it was causing every expression click to wipe Emery's current pose for all room members. The original omission was a workaround for a race condition caused by expression triggers on pose buttons; since those were removed in v2.2.110 the race condition is gone and it is safe to send the current pose.",
+        ],
+    },
+    {
+        version: "2.2.111",
+        changes: [
+            "Removed autoreact feature entirely — emote buttons no longer auto-send a reaction emote on Emery's behalf. Removed autoreact/autoreactRough fields from KittyEmote, removed the autoreact kitty command handler, and cleaned up all related migrations.",
+        ],
+    },
+    {
+        version: "2.2.110",
+        changes: [
+            "Kitty UI: expressions can no longer be attached to emotes or poses — they are now exclusive to the Expressions section. The expression-trigger dropdown has been removed from pose edit cards, and expression firing has been removed from both emote and pose click handlers.",
+            "Kitty UI: in the Expressions section, custom presets (★ buttons + editor) now appear at the top, above the individual expression buttons.",
+        ],
+    },
+    {
+        version: "2.2.109",
+        changes: [
+            "Fix: beeps sent from inside a BC chatroom (BeepType 'Beep') were being silently passed to BC's native handler without ever reaching EBC's IM window. The BeepType early-return now only skips genuine non-IM types (GriefReport, DominoInvite, etc.) — 'Beep' type flows through to normal friend/IM processing. MemberNumber is now also coerced from string in case BC ever sends it that way.",
+        ],
+    },
+    {
+        version: "2.2.108",
+        changes: [
+            "Kitty Leash: added ↙ Untug button — decrements tug count by one and sends a collar-loosening emote. Both Tug and Untug buttons dim when at their respective limits.",
+            "Kitty Bap: fixed migration so stored kind text ('bap on the nose') is caught regardless of trailing emoji variations. Also seeds autoreact/autoreactRough fields for old stored entries — eeep reaction was silently missing.",
+            "Kitty Resistance popup: fight-back and auto-fail emotes now include the item name (e.g. 'refusing the gag', 'earns herself a bind'). Manual accept is now silent — no emote sent. Auto-fail emotes are now bratty rather than resigned.",
+        ],
+    },
+    {
+        version: "2.2.107",
+        changes: [
+            "Fix: Expression updates no longer propagate ActivePose to other clients — expression-only ServerSend now omits ActivePose, preventing pose-breaks when expressions fire after a pose change.",
+            "Fix: patchKittyExpressions() now runs AFTER CharacterRefresh in the pose handler — CharacterRefresh was wiping expression properties before they could be patched.",
+        ],
+    },
+    {
+        version: "2.2.106",
+        changes: [
+            "Fix: Kneel (and all kitty poses) now apply correctly — CharacterRefresh was called with dirty=false which told BC not to recalculate the pose. Now uses CharacterRefresh(false) + ChatRoomCharacterUpdate, matching the applyPoses pattern.",
+            "Kitty Bap: text updated to 'head bap' (was 'nose bap'). Emery now auto-reacts with a startled eeep emote — no popup, fires automatically. Stored text entries migrated.",
+            "Kitty Resistance popup: accept button now sends 'accepts obediently' emote. Timer expiry (failed struggle) sends a separate 'crumbles despite herself' emote. Both are mood-aware.",
+            "Added 'autoreact' kitty command + KittyEmote fields autoreact/autoreactRough for instant auto-sent reactions without a popup.",
+        ],
+    },
+    {
+        version: "2.2.105",
+        changes: [
+            "Fix: Tug counter and button tooltip now correctly reset when the leash is grabbed or released (refreshTugBtn was not being called in the leash button handler).",
+            "Kitty Leash: releasing the leash now runs Caress on ItemNeck (collar relief) in addition to LSCG_ReleaseNeck, and the release emote now describes loosening the collar back to its comfortable fit.",
+        ],
+    },
+    {
+        version: "2.2.104",
+        changes: [
+            "Kitty Leash: Tug no longer fires the Choke activity on ItemNeck — this was triggering LSCG's neck-grab event ('Your neck has been grabbed'). Tug now only sends the room emote and refreshes the HoldLeash signal.",
+            "Kitty Leash: Tug is now limited to 3 tugs per grab. A 4th+ click sends a 'already at max tightness' room emote instead. The counter resets whenever the leash is grabbed or released. Button tooltip shows current count.",
+        ],
+    },
+    {
+        version: "2.2.103",
+        changes: [
+            "Kitty Poses: pose + expression are now applied before the room emote, with a 600 ms delay on the emote so Emery's CharacterUpdate reaches the room first — the pose change is visible before the narration text appears.",
+        ],
+    },
+    {
+        version: "2.2.102",
+        changes: [
+            "Fix: 🐾 Bap rough-mode text corrected from 'flick on the nose' to 'flick to the forehead'. Kind-mode bap already referenced the nose correctly. Existing stored entries with the old rough text are migrated automatically.",
+        ],
+    },
+    {
+        version: "2.2.101",
+        changes: [
+            "Fix: 🐾 Bap no longer fires a BC activity — ActivityRun sends its own chat message ('boops nose') that conflicted with the custom emote text. The bap emote text is descriptive enough on its own. Existing stored bap entries have bcGroup/bcActivity cleared automatically.",
+        ],
+    },
+    {
+        version: "2.2.100",
+        changes: [
+            "Fix: Leash release now fires the LSCG_ReleaseNeck activity (instead of Caress) to correctly tear down LSCG's choke/breath-play pairing — Caress is ignored by LSCG's leash system; only LSCG_ReleaseNeck calls DoRelease and clears both sides of the Leashing pairing.",
+        ],
+    },
+    {
+        version: "2.2.99",
+        changes: [
+            "Kitty Leash: releasing the leash now fires BC's 'Caress' activity on ItemNeck immediately after StopHoldLeash — this resets LSCG's choke/breath-play state so Emery's neck is no longer flagged as constricted.",
+            "Kitty Emotes: 🐾 Bap now uses ItemNose + Pet (BC's 'boops TargetCharacter's nose' action) instead of ItemHead + Pet — gives the correct nose-boop animation and text. Existing stored bap entries are migrated automatically.",
+        ],
+    },
+    {
+        version: "2.2.98",
+        changes: [
+            "Kitty Restraints: removed the Tighten / Loosen per-item section.",
+            "Kitty Leash: Tug now fires BC's 'Choke' activity on ItemNeck — LSCG's breath play module hooks this and triggers the choke / breath-play effect on Emery if she has LSCG installed.",
+            "Fix: Fight back emote now goes through BC's own ChatRoomSendChat pipeline (same path as typing *text* manually) instead of a bare ServerSend — eliminates silent drops from BC's rate-limiting or speech-filter checks on Emery's connection.",
+        ],
+    },
+    {
+        version: "2.2.97",
+        changes: [
+            "Kitty: removed 🔗 Leash from the Emotes list — it is now handled entirely by the standalone leash buttons (Grab / Let Go / Tug).",
+            "Kitty: added ↗ Tug button next to the leash toggle — sends a mood-aware room emote ('gives Emery's leash a sharp tug~' / 'gives a gentle tug, urging her along~') and re-sends the HoldLeash signal to reinforce BC's follow relationship.",
+            "Fix: 🐾 Bap now uses the Pet (gentle touch) BC activity instead of Slap — Slap triggered a face-slap animation; Pet gives a light tap matching the playful bap description. Existing stored bap entries are migrated automatically.",
+        ],
+    },
+    {
+        version: "2.2.96",
+        changes: [
+            "Kitty: Leash button is now a toggle — shows '🔗 Grab Leash' when not held, '🔗 Let Go of Leash' when held. Clicking while leashed sends BC's StopHoldLeash hidden message to Emery (releasing the follow relationship) and a mood-aware room emote ('drops Emery's leash...' / 'gently releases...'). Button label, border and hover colour update immediately to reflect the new state.",
+        ],
+    },
+    {
+        version: "2.2.95",
+        changes: [
+            "Fix: expressions no longer reset when Lucy applies a pose or tightens a restraint — the addon now tracks active expression states and patches them back into Emery's appearance before every ChatRoomCharacterUpdate, so they survive the full appearance-replace that BC performs on other clients.",
+            "Rework: Tighten / Loosen buttons now send a mood-aware room emote from Lucy ('yanks X tighter...' / 'adjusts X snugger...' etc.) so the action is visible to everyone in chat.",
+            "Fix: Tighten / Loosen difficulty display counter now tracks correctly across multiple clicks on the same item (previously the counter froze after the first click).",
+            "Fix: Emery now also reacts in chat when her restraints are tightened or loosened ('winces as her restraints are yanked tighter~' etc.).",
+            "Tighten / Loosen buttons now briefly flash on click to confirm the command was sent.",
+        ],
+    },
+    {
+        version: "2.2.94",
+        changes: [
+            "Fix: Grab Leash now uses BC's actual HoldLeash hidden-message protocol instead of the non-existent GrabLeash activity — activates BC's full leash-follow mechanic when Emery has a leash item.",
+            "Fix: Kneel & Spread now uses KneelingSpread (the correct BC pose) — PresentationKneel does not exist in BC. Stored poses are migrated automatically.",
+            "Fix: Elbow Tie removed — BackElbowTouch conflicts with other upper-body poses and caused broken appearance. Removed from defaults; existing saved poses are cleaned up automatically.",
+            "Fix: Fight back button in the resistance popup no longer triggers a ghost auto-accept after you click it — an isResolved flag now stops the countdown timer once you respond.",
+            "Fix: Fight back emote now reliably sends to chat (wrapped in callBC, proper SourceCharacter dictionary entry).",
+            "Fix: Expression changes via Kitty menu now always sync to all room members — a full ChatRoomCharacterUpdate is pushed after CharacterSetFacialExpression to guarantee visibility.",
+        ],
+    },
+    {
+        version: "2.2.93",
+        changes: [
+            "Fix: Fight back in the resistance popup now sends a mood-aware room emote from Emery ('twists away sharply…' in rough mode, 'squirms and shakes her head…' in kind mode).",
+            "Fix: Kneel & Spread pose now uses PresentationKneel — the previous Kneel+Spread combo conflicted in BC.",
+            "Kitty Poses: removed Hogtied, Tiptoe, Leg up, and Suspend; added Standing Closed Legs (LegsClosed).",
+            "Kitty Restraints: Tighten / Loosen all pills replaced with a live per-item list — each of Emery's current restraints shows individual − / + buttons; sends targeted tighten/loosen command to that group only.",
+            "Kitty: Grab Leash promoted to a big standalone button between the mood toggle and collapsibles; uses BC's GrabLeash activity on the neck accessories slot.",
+            "Kitty Expressions: new Expression Presets system — create named multi-expression combos (e.g. Shy = Blush:Low + Eyes:Shy), fire them from the Expressions section, or reference them as triggers on poses, actions, and restraint presets.",
+        ],
+    },
+    {
+        version: "2.2.92",
+        changes: [
+            "Fix: Kitty interactive emotes (Treat 🍖, Praise 🎀) now correctly send the react beep to Emery — the Accept/Ignore popup will actually appear for her.",
+            "Fix: multi-pose commands (e.g. Kneel + Spread) now split correctly on the receiving side — previously the whole comma-joined string was treated as one pose name.",
+            "Kitty Poses: added 8 new default poses — Kneel & spread, Spread, Box tie, Elbow tie, Hogtied, Tiptoe, Leg up, Suspend. Existing users get them appended automatically.",
+        ],
+    },
+    {
+        version: "2.2.91",
+        changes: [
+            "Kitty Restraints: added 🔧 Tighten / 🔓 Loosen buttons — send a mood-aware room emote and adjust the difficulty of every restraint Emery is wearing up or down by 1 step.",
+            "Kitty Restraints: added Copy Restraints from Member panel — pick any room member, load their restraints into a checklist, select what to include, generate a BC LZ outfit code, and copy it for your wardrobe.",
+            "Kitty Emotes: added 🔗 Leash — sends a mood-aware room emote and runs the BC Yank activity on Emery's neck accessories slot.",
+        ],
+    },
+    {
+        version: "2.2.90",
+        changes: [
+            "Kitty menu: all sections (Emotes, Poses, Actions, Restraints, Arousal, Expressions) are now collapsible — click the section header to expand/collapse; state is remembered.",
+            "Kitty menu: added 🔗 Leash emote button (grabs Emery's leash + runs the BC Yank activity).",
+            "Kitty menu: Poses now have an optional expression trigger — configure which expression fires when the pose is applied (edit mode, 😊 Expr row).",
+            "Kitty menu: Restraint presets now have an optional expression trigger — configure in the preset editor's 😊 Expression dropdown; fires when Apply is pressed.",
+        ],
+    },
+    {
+        version: "2.2.89",
+        changes: [
+            "Slow Leave: removed emoji prefixes from preset names in the dropdown.",
+            "Buttons tab: removed the Fun Actions section (Duration/Preset/Name/Seq editor) — Slow Leave is configured entirely from the sidebar collapsible.",
+        ],
+    },
+    {
+        version: "2.2.88",
+        changes: [
+            "Slow Leave: removed button-category dropdown from the sidebar collapsible — it was confusing and isn't needed there.",
+        ],
+    },
+    {
+        version: "2.2.87",
+        changes: [
+            "Slow Leave: added editable textarea below preset picker — shows the current preset's raw sequence, edit inline to customise it; changes are saved immediately.",
+            "Slow Leave: category dropdown now has a × delete button so you can remove unwanted categories (e.g. Emotes) — prompts for confirmation; last remaining category cannot be deleted.",
+            "Slow Leave: added 😏 Bratty preset (saunters out dramatically).",
+            "Slow Leave: preset migration is now additive — newly added default presets are appended to existing user lists instead of resetting them.",
+        ],
+    },
+    {
+        version: "2.2.86",
+        changes: [
+            "Fix: copy-restraints and rescue item list could silently return empty if any item in the character's appearance had an unresolved asset (mod-injected or mismatched BC version) — both paths now null-guard Asset before filtering, so one bad item no longer wipes the whole list.",
+            "Fix: rescue item list now filters to RESTRAINT_GROUPS only (was showing all appearance items including hair/clothes).",
+            "Fix: KITTY_EXPRESSIONS were using wrong BC state names — Blush used '1'/'3' (should be 'Low'/'Medium'/'High'/'Extreme'), Mouth:Closed does not exist and caused the mouth to go invisible, 'Ears' is not a valid expression group. All states corrected against BC's actual asset directory names. Eyebrows group added.",
+            "Fix: headpat/good girl emote expressions were 'Ears:Wiggle' which is not a valid BC expression — updated to Blush:Low / Blush:Medium.",
+        ],
+    },
+    {
+        version: "2.2.85",
+        changes: [
+            "Sidebar: Slow Leave block (button + preset + category + duration slider) now lives inside a collapsible '🚶 Slow Leave ▾' section — click the header to expand/collapse; state is remembered across sessions.",
+            "Fixed: category dropdown in the sidebar was always empty — it now refreshes whenever the section is expanded (and whenever you enter a room), so Player is guaranteed to be initialised at that point.",
+        ],
+    },
+    {
+        version: "2.2.84",
+        changes: [
+            "Kitty tab: restored Emotes section (Headpat, Good Girl, Treat, Praise, Mine, Snuggle, Spank, Bap pills) with mood-aware room emotes, BC activity sounds, and expression triggers — removed in v2.2.80 by mistake.",
+            "Kitty tab: added Expressions section at the bottom — quick-tap buttons to fire any facial expression (blush, sad eyes, ears wiggle, etc.) directly to Emery via the expression kitty command.",
+        ],
+    },
+    {
+        version: "2.2.83",
+        changes: [
+            "Kitty Restraints section redesigned: now uses a simple create/select/apply/delete pattern — type a name and hit + Create, pick a preset from the dropdown, then Apply to send it to Emery. Item editing (slot+item picker and BC outfit code import) is still available inline below the dropdown when a preset is selected.",
+        ],
+    },
+    {
+        version: "2.2.82",
+        changes: [
+            "Fixed: drawer skeleton now anchored to the DOM immediately at setup start — any unexpected runtime error during panel construction no longer prevents the drawer from appearing.",
+        ],
+    },
+    {
+        version: "2.2.81",
+        changes: [
+            "Fixed: drawer failing to open after v2.2.80 — category dropdown init now guards against Player not yet being available at panel build time.",
+        ],
+    },
+    {
+        version: "2.2.80",
+        changes: [
+            "Kitty tab: removed the Emotes section — emote actions can be built as Action steps instead.",
+            "Kitty tab UX overhaul — mood buttons, action pills, and section headers are now significantly bigger and easier to tap.",
+            "Sidebar: added button category dropdown (switch Classic/Warm/Quiet/etc.) just below the slow leave button — no need to open the Buttons tab to switch.",
+            "Sidebar: added duration slider (⏱) next to slow leave — same accent style as the opacity slider in Drawer Preferences.",
+            "Restraint presets: added 'Paste BC outfit/craft code → Import' row to each preset card, so Lucy can import crafting codes directly.",
+        ],
+    },
+    {
+        version: "2.2.79",
+        changes: [
+            "Kitty tab: added a dedicated Restraints section for managing named restraint presets — create, rename, add/remove items, and delete presets directly without going through a punishment step.",
+            "Fixed: the 💾 Save button in punishment restraint steps now triggers a step rebuild so the Load ↓ dropdown immediately shows the newly saved preset.",
+        ],
+    },
+    {
+        version: "2.2.78",
+        changes: [
+            "Renamed 'Drawer Appearance' settings section to 'Drawer Preferences'.",
+            "Menu Hotkey UI overhauled: now displayed as a prominent bordered card with a large bold key badge, clearer Set/Clear buttons, and a hint line.",
+        ],
+    },
+    {
+        version: "2.2.77",
+        changes: [
+            "Fixed kitty emote/action/pose buttons producing stuck broken messages when clicked outside a chatroom — all buttons now silently no-op if CurrentScreen is not ChatRoom.",
+        ],
+    },
+    {
+        version: "2.2.76",
+        changes: [
+            "Added 🐾 Bap emote (Slap on ItemHead) to default buttons; seeded automatically into existing emote lists so no manual re-add needed.",
+            "Spank emote also seeded automatically for users who didn't have it in their stored list.",
+            "bcGroup/bcActivity fields seeded into existing headpat and spank entries from storage so the sound picker shows them correctly without re-editing.",
+            "Slow Leave: preset dropdown now appears directly below the Slow Leave button in the sidebar — no need to open the settings tab to switch presets.",
+            "Slow Leave: click handler now re-reads presets live so edits made in settings take effect immediately without reloading.",
+            "⛓ Bound timer in header footer now recovers from persisted per-item timestamps — correctly counts offline time instead of starting fresh every session.",
+        ],
+    },
+    {
+        version: "2.2.75",
+        changes: [
+            "Emote editor: each emote now has a 🔊 Sound row — pick a BC body-group and activity (e.g. Head + Pet, Butt + Spank) to trigger real BC sounds/chat on click. Activity list is populated live from BC's own data.",
+            "Headpat/Spank emotes now store their BC activity in data (bcGroup/bcActivity fields) rather than being hardcoded — editing them in the menu will update which activity fires.",
+            "Punishment restraint steps: Load Preset dropdown at top (picks from saved kitty presets), Save as Preset row at bottom (saves step's items as a reusable named preset).",
+            "Restraint presets (EBC_kittyRestraintSets) re-exposed for use across punishment steps.",
+        ],
+    },
+    {
+        version: "2.2.74",
+        changes: [
+            "Headpat and Spank now use BC's ActivityRun pipeline (same as clicking the button in the dialog) — correct sounds, chat description, and BCX/LSCG reactions all trigger properly.",
+        ],
+    },
+    {
+        version: "2.2.73",
+        changes: [
+            "Removed the standalone Restraints section from the kitty menu — restraints are now managed directly inside Actions (punishment steps).",
+            "Actions system overhauled: Lucy can now build custom sequences of Sentence (emote) + Restraints steps in any order.",
+            "Per-action reaction picker: Lucy can choose Emery's expression (blush, sad eyes, etc.) and pose (kneel, all-fours, etc.) when the action is accepted.",
+        ],
+    },
+    {
+        version: "2.2.72",
+        changes: [
+            "Headpat now sends a real BC Pet activity on ItemHead (correct sounds + chat format).",
+            "Added 👋 Spank emote button — sends a real BC Spank activity on ItemButt.",
+            "Slow Leave preset UI redesigned: dropdown + inline name/seq editor below it (no separate toggle).",
+        ],
+    },
+    {
+        version: "2.2.71",
+        changes: [
+            "Restored 'Remove Locks' button and 'Unlock Selected' in the sidebar self-picker (accidentally removed in 2.2.70).",
+            "Restored reaction-back emotes when accepting/ignoring kitty react popup (broken in 2.2.70).",
+            "Fixed headpat button using ActivityPerformActivity for real BC sounds; fallback uses Content:'Caress'.",
+            "Fixed kitty restraint set item picker always showing empty — null-safe BC asset array filtering.",
+            "Slow Leave duration slider now uses the same bordered-box style as the opacity slider.",
+            "Slow Leave presets are now fully editable (name + sequence) with per-preset reset and reset-all.",
+        ],
+    },
+    {
+        version: "2.2.70",
+        changes: [
+            "Removed 'Remove Locks' button from quick actions sidebar and 'Unlock Selected' from the self-picker — locks are no longer managed here.",
+            "Self-picker now only shows restraints.",
+            "Rough resistance popup drops to 1 s (was 3 s) — be quick to fight back!",
+            "Popup fight/accept/ignore buttons no longer auto-send room emotes — you decide what to say.",
+            "Headpat button now registers as a real BC Caress activity on Emery's head.",
+            "Removed '🔓 Release all' button from kitty restraints view.",
+            "Restraint set editor: each item in the set now shows a colour input and a delete button; new 'Add item' builder with slot/item dropdowns populated from BC's asset list.",
+        ],
+    },
+    {
+        version: "2.2.69",
+        changes: [
+            "Slow Leave overhaul: removed the toggle pill from Fun Actions; added a duration slider (2–30 s) and a preset dropdown (🌸 Classic, 🤗 Warm, 😔 Quiet, 💤 Sleepy, 🐾 Playful) in its place.",
+            "Slow Leave sidebar button now toggles to '✕ Cancel Leave' while the sequence is running — clicking it cancels immediately and resets pose.",
+            "Slow Leave is now always visible in the sidebar when inside a chatroom (no toggle needed).",
+        ],
+    },
+    {
+        version: "2.2.68",
+        changes: [
+            "'Copy Restraints from Member' in the DEV tab is now visible to credited members only (Emery, Sin, Lara, Lucy, Sybil) — same gate as the Stat Editor.",
+        ],
+    },
+    {
+        version: "2.2.67",
+        changes: [
+            "Kitty emotes now have rough variants: each emote has a separate ⚡ Rough text shown when mood is Rough (e.g. headpat becomes a hair-tug, snuggle becomes a firm hold). Edit mode shows 🌸 Kind / ⚡ Rough rows per emote. Leave rough blank to reuse the kind text.",
+            "Headpat (and Good Girl) now trigger Emery's ear-wiggle expression (CharacterSetFacialExpression) via a new 'expression' kitty command. Configurable per-emote via the expression field; seeds automatically on first load.",
+            "Kitty restraint set import now accepts LZ-compressed BC outfit codes (same format as BC's own outfit export) — restraint items are extracted automatically. Also added 'From saved restraints' picker: choose any of Emery's saved restraint sets from the outfit manager and use them directly. Craft names/descriptions, item properties, and difficulty are now preserved when items are applied.",
+        ],
+    },
+    {
+        version: "2.2.66",
+        changes: [
+            "Kitty restraint sets now go through the resistance popup (same as punishments) instead of applying directly. Each set gains optional 🌸 Kind / ⚡ Rough emote fields in edit mode — the matching emote is sent to the room before Emery's popup appears. Existing saved sets migrate automatically with empty emotes.",
+        ],
+    },
+    {
+        version: "2.2.65",
+        changes: [
+            "Fix kitty 'Release all': now only removes items in restraint slots (was accidentally removing clothing/hair/body items too). CharacterRefresh now uses Push=true so the change is visible to everyone in the room immediately. Also fixed restraint SET apply button the same way.",
+            "Fix /lock: was sending unsupported Action:'Lock' — now mutates ChatRoomData.Locked and calls ChatRoomAdminUpdate() (BC's own function) so the room actually updates, with fallback to Action:'Update' + full room object.",
+            "Fix /ebc: unknown subcommands now show a short 'Unknown command — type /ebc help' message instead of dumping the full command list. The full list only appears for /ebc, /ebc help, /ebc ?, etc.",
+            "Removed /ebc afk command (was in the list but had no handler, causing the full list to appear when clicked).",
+        ],
+    },
+    {
+        version: "2.2.64",
+        changes: [
+            "Rough punishment timer: 3 s instead of 8 s (kind stays 8 s). Subtitle shows the time remaining so Emery knows how long she has.",
+            "Punishments can now carry a restraint set: in edit mode pick a saved kitty restraint set from the '⛓ Bind' dropdown. When Emery accepts (or timer runs out), those items are applied to her and synced to the room.",
+            "Interactive emotes: treat 🍖 and praise 🎀 now send a react beep. Emery gets a soft 6-second popup to 'Accept~ 🥰' (sends happy emote) or 'Ignore 🙈' (glances away). Toggle per-emote with the 🔔/🔕 button in emote edit mode.",
+        ],
+    },
+    {
+        version: "2.2.63",
+        changes: [
+            "Slow Leave toggle moved from DEV tab to the top of the BUTTONS tab under a new 'Fun Actions' section — visible and accessible to everyone. Removed it from the DEV tab entirely.",
+        ],
+    },
+    {
+        version: "2.2.62",
+        changes: [
+            "Slow Leave button: restored ON/OFF toggle in settings (defaults to ON). Button stays hidden when toggled off, visible in chatroom when on.",
+        ],
+    },
+    {
+        version: "2.2.61",
+        changes: [
+            "Slow Leave quick button: always visible in sidebar when in a chatroom (no more hidden toggle). Clicking it now runs the real sequence — smiles and waves, slowly heads for the door, then leaves — instead of jumping out instantly. Removed the 'Show Slow Leave button' toggle from settings.",
+        ],
+    },
+    {
+        version: "2.2.60",
+        changes: [
+            "Kitty tab overhaul: KIND/ROUGH mood toggle (🌸/⚡) changes the tone of all pose and punishment room emotes. Poses now narrate a mood-aware room emote before applying. New Punishments section (Bad Girl, Gag, Corner, Bind) — each with kind/rough emotes. Resistance popup: when Lucy applies a punishment, Emery gets an 8-second overlay to 'Fight back! 💪' (sends defiance emote) or 'Accept~ 🌸' (sends acceptance emote); auto-accepts on timeout.",
+        ],
+    },
+    {
+        version: "2.2.59",
+        changes: [
+            "Fix /lock: removed hard block on null ChatRoomData ('room data not loaded') — now uses BC's ChatRoomPlayerIsAdmin() as primary check (no ChatRoomData dependency), falls back to Admin array. Duplicate-state check only fires when ChatRoomData is actually available.",
+        ],
+    },
+    {
+        version: "2.2.58",
+        changes: [
+            "Sequence builder: add Leave Room 🚪 step type — selecting it disables text and hides delay. runSequence now handles 'leaveroom' step (restores pose then leaves room). Added '📤 Slow Leave template' button to step builder: smiles and waves, slowly heads for the door, then leaves.",
+        ],
+    },
+    {
+        version: "2.2.57",
+        changes: [
+            "BUTTONS tab fully restored from stable (master) branch — exact actionButtons.ts and renderButtons/buildSeqStepBuilder from v2.2.17. Default buttons (NOD/SHAKE/WAVE/CHEER/POUT/GIGGLE) restored. Canvas sidebar with drag-to-reposition, DrawButton tiles, and click handler all intact. Tab correctly labelled 'BUTTONS', positioned before ANIMS.",
+        ],
+    },
+    {
+        version: "2.2.56",
+        changes: [
+            "Fix BUTTONS tab: tab was labelled 'BTNS' and appeared after ANIMS — now correctly labelled 'BUTTONS' and positioned before ANIMS (matching original order). actionButtons.ts fully restored from v2.2.46 (621 lines, canvas sidebar with drag-to-reposition, DrawButton tiles, click handler). EBC_USER_TABS and EBC_TAB_LABELS updated to include 'buttons'.",
+        ],
+    },
+    {
+        version: "2.2.55",
+        changes: [
+            "Restored BTNS tab from v2.2.46 — full original implementation with categories, accordions, slot rows, seq/macro step builders, colour picker, sidebar ON/OFF toggle, export/import, fun actions, useful buttons. Canvas sidebar with drag-to-reposition also restored. All saved button data in ExtensionSettings is intact.",
+        ],
+    },
+    {
+        version: "2.2.54",
+        changes: [
+            "Restored BTNS tab — categories, slots, sequences/macros, colour picker, move up/down, delete, collapsible categories. All data persists to localStorage. Click any button to run its sequence.",
+        ],
+    },
+    {
+        version: "2.2.53",
+        changes: [
+            "Fix: /lock and /unlock admin check now handles null ChatRoomData gracefully and normalises numeric vs string member IDs — was incorrectly reporting 'not a room admin' even when you were.",
+        ],
+    },
+    {
+        version: "2.2.52",
+        changes: [
+            "Friends: relationship info colours simplified — 👑 owned and 🔒 you-own-them both show in gold; ❤️ lovers stays pink.",
+        ],
+    },
+    {
+        version: "2.2.51",
+        changes: [
+            "Fix: PEOPLE IN ROOM badge now correctly shows 👑 for your owner and 🔒 for someone you own (was reversed).",
+            "New: Kitty menu is now its own 🐱 tab (was buried in Credits). Only visible to Lucy (#230466).",
+            "Fix: Arousal changes (/ebc ameter) now broadcast to the room immediately so others see the meter update.",
+            "New: /ebc help commands are now stacked with descriptions; click any to auto-fill the chat bar.",
+        ],
+    },
+    {
+        version: "2.2.50",
+        changes: [
+            "Added Kitty menu in Credits tab — visible only to Lucy (#230466). Sections: Emotes (customizable room messages/actions), Poses (send pose commands to Emery), Restraints (apply/remove sets via BC code import), Arousal (presets + custom %), and a direct beep button.",
+        ],
+    },
+    {
+        version: "2.2.49",
+        changes: [
+            "Friends: expand panel now stays open through list refreshes instead of closing unexpectedly.",
+            "Friends: expand panel info box now shows relationship info — 👑 owned since, ❤️ lovers since, 🔒 you own them since (room only).",
+        ],
+    },
+    {
+        version: "2.2.48",
+        changes: [
+            "Fix: owner badge in friend list now shows 👑 (you see a crown on your owner) and 🔒 when you own someone — was reversed.",
+            "Fix: /lock and /unlock no longer incorrectly report 'not in a chatroom' when ChatRoomData is transiently null.",
+            "New: /ebc ameter <0-100> sets arousal to a specific percentage. /ebc ameter with no argument still toggles on/off.",
+        ],
+    },
+    {
+        version: "2.2.47",
+        changes: [
+            "Removed canvas action buttons sidebar. Slow Leave is now a simple button in the quick-actions area (default off — toggle it on in the DEV tab).",
+        ],
+    },
+    {
+        version: "2.2.46",
+        changes: [
+            "Fix: toggling a button's mode (seq ↔ macro) no longer resets the panel scroll position.",
+        ],
+    },
+    {
+        version: "2.2.45",
+        changes: [
+            "DEV tab: Panel opacity slider moved inside the Drawer Appearance section where it belongs.",
+        ],
+    },
+    {
+        version: "2.2.44",
+        changes: [
+            "Fix: crash when adding a tag to a friend — insertBefore was targeting beepBtn which is not a direct child of row. Tag area is now correctly re-inserted into metaRow.",
+        ],
+    },
+    {
+        version: "2.2.43",
+        changes: [
+            "Fix: slow leave (leaveroom macro / seq step) no longer freezes the UI — now switches screen first then calls ChatRoomLeave(), matching the safeword pattern.",
+        ],
+    },
+    {
+        version: "2.2.42",
+        changes: [
+            "Panel is now fully opaque by default — no more text bleeding through from behind. DEV tab: new Panel opacity slider (10%–100%) lets you dial in transparency if you want the frosted-glass look.",
+        ],
+    },
+    {
+        version: "2.2.41",
+        changes: [
+            "New commands: /lock and /unlock — lock or unlock the room from chat. Shows an error if you are not a room admin or not in a room.",
+        ],
+    },
+    {
+        version: "2.2.40",
+        changes: [
+            "DOM tab: new Room Admin section — Lock/Unlock room toggle and Kick / Ban / Promote / Demote buttons. Visible whenever you are a room admin regardless of DOM mode.",
+        ],
+    },
+    {
+        version: "2.2.39",
+        changes: [
+            "Fix: clicking any action in the menu (delete, save, reorder, pose buttons, etc.) no longer snaps the scroll position back to the top of the list.",
+        ],
+    },
+    {
+        version: "2.2.38",
+        changes: [
+            "Fix: slow-leave (seq leaveroom step / macro) left the room but UI didn't update — setLeavePending() was called before setTimeout, letting ChatRoomRun clear the guard flag prematurely before ChatRoomData was null.",
+        ],
+    },
+    {
+        version: "2.2.37",
+        changes: [
+            "Outfit Update button now shows a confirm dialog before overwriting.",
+        ],
+    },
+    {
+        version: "2.2.36",
+        changes: [
+            "Roaming panel now opens vertically centred in the viewport instead of anchored near the bottom.",
+        ],
+    },
+    {
+        version: "2.2.35",
+        changes: [
+            "Fix: closed panel still visually bled — added opacity:0 + visibility:hidden to ebc-closed (matching CRABS's approach). Panel is now completely invisible when closed regardless of transform position.",
+        ],
+    },
+    {
+        version: "2.2.34",
+        changes: [
+            "Fix: drawer panel was partially visible when closed outside chatrooms (root right:34px left 18px on-screen). Root is now right:0 so the closed panel is fully off-screen. Tab uses ebc-roaming CSS class to stay fully visible. Tab anchored near the bottom-right to avoid BC's icon grid.",
+        ],
+    },
+    {
+        version: "2.2.33",
+        changes: [
+            "Fix: drawer tab invisible outside chatrooms — closed tab was 34px off the right edge of the viewport. Root is now positioned at right:34px so the tab lands flush with the screen edge.",
+        ],
+    },
+    {
+        version: "2.2.32",
+        changes: [
+            "Menu is now accessible outside chatrooms (main hall, wardrobe, etc.) — floats at the right edge of the screen. Buttons and Poses tabs are hidden outside a room since they require chat.",
+        ],
+    },
+    {
+        version: "2.2.31",
+        changes: [
+            "Fix: map rooms breaking — the v2.2.30 ChatRoomRun guard was too broad and blocked rendering whenever ChatRoomData was null, which map rooms trigger during normal transitions. Guard now only activates when EBC itself initiated the leave.",
+        ],
+    },
+    {
+        version: "2.2.30",
+        changes: [
+            "Fix: Leave Room crash — BC clears ChatRoomData before the screen transition, causing ChatRoomCustomizationRun to null-crash on the next frame. EBC now guards ChatRoomRun at priority 500 (ahead of CRABS/BCOM) and skips the frame when room data is gone.",
+        ],
+    },
+    {
+        version: "2.2.29",
+        changes: [
+            "Macro button: removed Play Scene and Open Beep/IM from action dropdown — options are now Leave Room, Release Restraints, Open Wardrobe, Apply Outfit.",
+        ],
+    },
+    {
+        version: "2.2.28",
+        changes: [
+            "Fix: EBC user detection used wrong OnlineSharedSettings key ('EmeryBC' instead of 'EBC') — EBC badges in friend list and Dev panel now show correctly for all users regardless of build.",
+        ],
+    },
+    {
+        version: "2.2.27",
+        changes: [
+            "Button style cycle is now seq ↔ macro only — chat emote/action styles removed.",
+            "All new button slots default to 🔧 macro style.",
+            "Existing emote/action buttons show 💬 and convert to macro on first style click.",
+        ],
+    },
+    {
+        version: "2.2.26",
+        changes: [
+            "Saved Outfits and Saved Restraints headers now match the arrow style of the other collapsible sections.",
+        ],
+    },
+    {
+        version: "2.2.25",
+        changes: [
+            "Fix: Leave Room now defers by one tick to avoid crashing other mods' draw hooks.",
+            "Remove 'Unlock Items' from macro options.",
+        ],
+    },
+    {
+        version: "2.2.24",
+        changes: [
+            "Action buttons are now full macros — new 🔧 style supports: Leave Room, Release Restraints, Unlock Items, Open Wardrobe, Apply Outfit, Play Scene, Open Beep/IM.",
+            "Style toggle cycles ( ) → * * → ✨ seq → 🔧 macro.",
+        ],
+    },
+    {
+        version: "2.2.23",
+        changes: [
+            "Buttons tab: style toggle now cycles ( ) → * * → ✨ seq so you can create sequence buttons directly from the UI.",
+        ],
+    },
+    {
+        version: "2.2.22",
+        changes: [
+            "Move 'Show EBC tags' toggle into the DEV tab.",
+            "Move 'Show action buttons' toggle into the Buttons tab.",
+        ],
+    },
+    {
+        version: "2.2.21",
+        changes: [
+            "Seq builder: 'Leave Room 🚪' is now a selectable step type — no raw syntax needed.",
+            "Seq builder: '📤 Slow Leave template' button pre-fills a ready-made 2-message slow leave.",
+        ],
+    },
+    {
+        version: "2.2.20",
+        changes: [
+            "Seq buttons: add 'leaveroom' step token — put it at the end of a sequence to leave the room after your messages play out.",
+        ],
+    },
+    {
+        version: "2.2.19",
+        changes: [
+            "Add toggle in settings to show/hide the action buttons sidebar.",
+        ],
+    },
+    {
+        version: "2.2.18",
+        changes: [
+            "Fix: drawer no longer flashes visible on the first room entry — transition is suppressed on initial display:none→block reveal.",
+        ],
+    },
     {
         version: "2.2.17",
         changes: [
@@ -1967,44 +2690,102 @@ function appendLocalLogLine(text: string, color = UI.accent): void {
     }
 }
 
+// Appends a clickable command row to the chat log. Clicking fills the chat input
+// with the command text so the user only has to press Enter to run it.
+function appendClickableCmd(cmd: string, desc: string): void {
+    const doAppend = (): boolean => {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log) return false;
+        const row = document.createElement("div");
+        row.style.cssText = `
+            background: ${UI.cardMuted};
+            border-left: 3px solid ${UI.accent};
+            padding: 3px 8px;
+            margin: 1px 0;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.12s;
+        `;
+        row.title = "Click to fill chat bar";
+        row.addEventListener("mouseenter", () => { row.style.background = "#2a1a2a"; });
+        row.addEventListener("mouseleave", () => { row.style.background = UI.cardMuted; });
+        const cmdSpan = document.createElement("span");
+        cmdSpan.style.cssText = "font-family:monospace;color:#e0b8d8;font-weight:bold;font-size:11px;white-space:nowrap;font-style:normal;";
+        cmdSpan.textContent = cmd;
+        const descSpan = document.createElement("span");
+        descSpan.style.cssText = `color:${UI.textMuted};font-size:10px;font-style:italic;`;
+        descSpan.textContent = desc;
+        row.appendChild(cmdSpan);
+        row.appendChild(descSpan);
+        row.addEventListener("click", () => {
+            const input = document.getElementById("InputChat") as HTMLInputElement | HTMLTextAreaElement | null;
+            if (input) { input.value = cmd; input.focus(); }
+        });
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+        return true;
+    };
+    if (!doAppend()) window.setTimeout(() => doAppend(), 300);
+}
+
 function showVersionInfo(): void {
     appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
 }
 
 function showChangelog(): void {
-    appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
-    for (const entry of CHANGELOG) {
+    // Iterate oldest→newest so the most recent entry lands at the bottom of the
+    // chat log (where you'd naturally look after scrolling down).
+    for (const entry of CHANGELOG.slice().reverse()) {
         appendLocalLogLine(`[EBC] v${entry.version}`, UI.textMuted);
         for (const change of entry.changes) {
             appendLocalLogLine(`- ${change}`, UI.accent);
         }
     }
+    appendLocalLogLine(`[EBC] Current version: ${MOD_VERSION}`, UI.gold);
 }
 
 // Last non-Inactive arousal level, so toggling off → on restores it.
 // Defaults to "Manual" if the setting was already Inactive at load time.
 let lastArousalActive = "Manual";
 
+function getArousalSettings(): Record<string, unknown> | undefined {
+    return (Player as unknown as Record<string, unknown>).ArousalSettings as
+        Record<string, unknown> | undefined;
+}
+
+function syncArousalSettings(arousal: Record<string, unknown>): void {
+    type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
+    const updater = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
+        AccountUpdater | undefined;
+    updater?.QueueData({ ArousalSettings: arousal });
+    // Also broadcast to the room so other players see the change immediately
+    callBC(() => {
+        type W = Record<string, unknown>;
+        const syncFn = (window as unknown as W).ActivityChatRoomArousalSync as ((c: unknown) => void) | undefined;
+        if (typeof syncFn === "function") {
+            syncFn(Player);
+        } else if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+            ServerSend("ChatRoomCharacterUpdate", {
+                ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                ArousalSettings: arousal,
+                Appearance: ServerAppearanceBundle(Player.Appearance),
+            });
+        }
+    });
+}
+
 function toggleArometerCommand(): void {
     try {
-        const arousal = (Player as unknown as Record<string, unknown>).ArousalSettings as
-            Record<string, unknown> | undefined;
-        if (!arousal) {
-            appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger);
-            return;
-        }
+        const arousal = getArousalSettings();
+        if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
         const current = arousal.Active as string | undefined;
         if (current && current !== "Inactive") lastArousalActive = current;
-
         const next = (current === "Inactive") ? lastArousalActive : "Inactive";
         arousal.Active = next;
-
-        // Sync to server the same way the Preference screen does
-        type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
-        const updater = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
-            AccountUpdater | undefined;
-        updater?.QueueData({ ArousalSettings: arousal });
-
+        syncArousalSettings(arousal);
         const label = next === "Inactive" ? "OFF" : `ON (${next})`;
         appendLocalLogLine(`[EBC] Arousal meter: ${label}`, UI.gold);
     } catch (err) {
@@ -2013,13 +2794,490 @@ function toggleArometerCommand(): void {
     }
 }
 
+function setArometerProgress(pct: number): void {
+    try {
+        const arousal = getArousalSettings();
+        if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
+        // Make sure the meter is active — restore last known active mode if currently Inactive
+        if ((arousal.Active as string | undefined) === "Inactive") {
+            arousal.Active = lastArousalActive;
+        }
+        arousal.Progress = pct;
+        syncArousalSettings(arousal);
+        appendLocalLogLine(`[EBC] Arousal set to ${pct}%`, UI.gold);
+    } catch (err) {
+        appendLocalLogLine("[EBC] Failed to set arousal.", UI.danger);
+        console.warn("[EBC] setArometerProgress error:", err);
+    }
+}
+
+function showKittyResistancePopup(
+    label: string,
+    mood: "kind" | "rough",
+    restraintItems: KittyItem[] = [],
+    reaction?: { expression?: string; poses?: string[] }
+): void {
+    if (document.getElementById("ebc-kitty-resist")) return;
+
+    // Extract a clean item name from the label (strip leading emoji/symbols) for use in emotes
+    const itemName = label.replace(/^[^a-zA-Z]+/, "").trim().toLowerCase() || "";
+    const hasItem  = restraintItems.length > 0;
+
+    const overlay = document.createElement("div");
+    overlay.id = "ebc-kitty-resist";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);";
+
+    const box = document.createElement("div");
+    box.style.cssText = "background:linear-gradient(160deg,#1b0d17,#2a0e1e);border:2px solid #6b3048;border-radius:10px;padding:18px 22px;width:300px;text-align:center;font-family:'Trebuchet MS',serif;box-shadow:0 4px 32px #0008;";
+
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:13px;font-weight:bold;color:#cf6f98;margin-bottom:6px;";
+    title.textContent = `💢 ${label}`;
+
+    const sub = document.createElement("div");
+    sub.style.cssText = "font-size:10px;color:#967281;margin-bottom:12px;";
+    sub.textContent = mood === "rough"
+        ? "Miss Lucy is being stern with you... (1 s)"
+        : "Miss Lucy is correcting you gently... (8 s)";
+
+    const timerBar = document.createElement("div");
+    timerBar.style.cssText = "height:4px;background:#3a1928;border-radius:2px;margin-bottom:12px;overflow:hidden;";
+    const timerFill = document.createElement("div");
+    timerFill.style.cssText = "height:100%;background:#cf6f98;border-radius:2px;width:100%;";
+    timerBar.appendChild(timerFill);
+
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display:flex;gap:10px;justify-content:center;";
+
+    // Prevent the auto-accept timer from firing after the user already responded
+    let isResolved = false;
+    const close = (): void => { isResolved = true; overlay.remove(); };
+
+    // ── Fight back ──────────────────────────────────────────────────────────
+    const fightBtn = document.createElement("button");
+    fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
+    fightBtn.textContent = "Fight back! 💪";
+    fightBtn.addEventListener("click", () => {
+        const emoteText = mood === "rough"
+            ? (hasItem ? `*twists away sharply, refusing the ${itemName}~` : "*twists away sharply, refusing to submit~")
+            : (hasItem ? `*squirms and shakes her head, pushing back against the ${itemName} with a pout~` : "*squirms and shakes her head, resisting with a pout~");
+        try {
+            const w = window as unknown as Record<string, unknown>;
+            // Use BC's own ChatRoomSendChat pipeline — identical to the user typing *text* in the
+            // chat box.  This is guaranteed to work whereas a bare ServerSend can be silently
+            // dropped by rate-limiting or speech filters on Emery's connection.
+            const sendFn  = w.ChatRoomSendChat as (() => void) | undefined;
+            const elemVal = w.ElementValue as ((id: string, val?: string) => string) | undefined;
+            if (sendFn && elemVal) {
+                const saved = elemVal("InputChat");          // save any in-progress text
+                elemVal("InputChat", emoteText);
+                sendFn();
+                setTimeout(() => { if (elemVal) elemVal("InputChat", saved); }, 0);
+            } else {
+                // Fallback: direct send (same as sendRoomEmote)
+                ServerSend("ChatRoomChat", { Type: "Emote", Content: emoteText.slice(1), Dictionary: [] });
+            }
+        } catch { /* ignore */ }
+        close();
+    });
+
+    // ── Accept — applies restraints if any ─────────────────────────────────
+    const acceptBtn = document.createElement("button");
+    acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
+    acceptBtn.textContent = "Accept~ 🌸";
+    // Shared accept handler — autoFailed=true when the countdown expires, false when clicked
+    const doAccept = (autoFailed: boolean): void => {
+        if (isResolved) return;
+        isResolved = true;
+        // Auto-fail sends a bratty emote; manual accept is silent — no emote
+        try {
+            if (autoFailed) {
+                const emote = mood === "rough"
+                    ? (hasItem
+                        ? `crumbles at the last second with a huffy exhale, earning herself a ${itemName} for the trouble — she is very much on record as having fought back~`
+                        : "crumbles at the last second with a frustrated huff, resisting right up until she simply doesn't~")
+                    : (hasItem
+                        ? `squirms right up until the very end and goes still with a sulky pout — ends up with a ${itemName} anyway~`
+                        : "squirms right up until the very end and goes still with a sulky exhale~");
+                ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+            }
+        } catch { /* ignore */ }
+        // Apply restraint items to self (with full craft/property/difficulty support)
+        if (restraintItems.length > 0) {
+            try {
+                const w = window as unknown as Record<string, unknown>;
+                const iw = w.InventoryWear as
+                    ((c: unknown, name: string, group: string, color: unknown, diff: number, family: string, craft: unknown) => void) | undefined;
+                for (const item of restraintItems) {
+                    if (iw) {
+                        iw(Player, item.Name, item.Group, item.Color ?? "Default",
+                            item.Difficulty ?? 0, Player.AssetFamily ?? "Female3DCG", item.Craft ?? null);
+                        // InventoryWear doesn't set Property — patch it in afterwards
+                        if (item.Property && Object.keys(item.Property).length > 0) {
+                            const worn = Player.Appearance.find((a: Item) => a.Asset.Group.Name === item.Group);
+                            if (worn) {
+                                worn.Property = {
+                                    ...(worn.Property as Record<string, unknown> ?? {}),
+                                    ...(item.Property as Record<string, unknown>),
+                                } as Record<string, unknown>;
+                            }
+                        }
+                    } else {
+                        (w.InventoryWear as ((c: unknown, name: string, group: string, color: unknown) => void) | undefined)
+                            ?.(Player, item.Name, item.Group, item.Color ?? "Default");
+                    }
+                }
+                (w.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(Player, false, false);
+                if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+                    callBC(() => ServerSend("ChatRoomCharacterUpdate", {
+                        ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                        ActivePose: Player.ActivePose,
+                        Appearance: ServerAppearanceBundle(Player.Appearance),
+                    }));
+                }
+            } catch { /* ignore */ }
+        }
+        // Apply reaction: expression
+        if (reaction?.expression) {
+            try {
+                const colonIdx = reaction.expression.indexOf(":");
+                if (colonIdx > 0) {
+                    const face  = reaction.expression.slice(0, colonIdx);
+                    const state = reaction.expression.slice(colonIdx + 1);
+                    const w2 = window as unknown as Record<string, unknown>;
+                    const setExpr = w2.CharacterSetFacialExpression as
+                        ((c: unknown, face: string, state: string | null) => void) | undefined;
+                    if (setExpr) setExpr(Player, face, state || null);
+                }
+            } catch { /* ignore */ }
+        }
+        // Apply reaction: pose
+        if (reaction?.poses && reaction.poses.length > 0) {
+            try {
+                const w2 = window as unknown as Record<string, unknown>;
+                (Player as unknown as Record<string, unknown>).ActivePose = [...reaction.poses];
+                callBC(() => CharacterRefresh(Player, false));
+                callBC(() => ChatRoomCharacterUpdate(Player));
+            } catch { /* ignore */ }
+        }
+        overlay.remove();
+    };
+
+    acceptBtn.addEventListener("click", () => doAccept(false));
+
+    btnRow.appendChild(fightBtn);
+    btnRow.appendChild(acceptBtn);
+    box.appendChild(title);
+    box.appendChild(sub);
+    box.appendChild(timerBar);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    // Rough = 1 s, Kind = 8 s — auto-accept when timer expires
+    const DURATION = mood === "rough" ? 1000 : 8000;
+    const startTime = Date.now();
+    const tick = (): void => {
+        if (isResolved) return; // user already acted — stop ticking
+        const pct = Math.max(0, 1 - (Date.now() - startTime) / DURATION);
+        try { timerFill.style.width = `${pct * 100}%`; } catch { /* ignore */ }
+        if (pct <= 0) { if (!isResolved) doAccept(true); } else { requestAnimationFrame(tick); }
+    };
+    requestAnimationFrame(tick);
+}
+
+// Shown when Lucy sends an interactive emote (treat, praise, etc.)
+function showKittyReactPopup(label: string): void {
+    if (document.getElementById("ebc-kitty-react")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "ebc-kitty-react";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);";
+
+    const box = document.createElement("div");
+    box.style.cssText = "background:linear-gradient(160deg,#1b0d17,#2a0e1e);border:2px solid #6b3048;border-radius:10px;padding:18px 22px;width:280px;text-align:center;font-family:'Trebuchet MS',serif;box-shadow:0 4px 32px #0008;";
+
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:13px;font-weight:bold;color:#cf6f98;margin-bottom:6px;";
+    title.textContent = label;
+
+    const sub = document.createElement("div");
+    sub.style.cssText = "font-size:10px;color:#967281;margin-bottom:12px;";
+    sub.textContent = "Miss Lucy is being sweet to you~ 💜";
+
+    const timerBar = document.createElement("div");
+    timerBar.style.cssText = "height:4px;background:#3a1928;border-radius:2px;margin-bottom:12px;overflow:hidden;";
+    const timerFill = document.createElement("div");
+    timerFill.style.cssText = "height:100%;background:#79c8a0;border-radius:2px;width:100%;";
+    timerBar.appendChild(timerFill);
+
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display:flex;gap:10px;justify-content:center;";
+
+    const close = (): void => { overlay.remove(); };
+
+    const acceptBtn = document.createElement("button");
+    acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
+    acceptBtn.textContent = "Accept~ 🥰";
+    acceptBtn.addEventListener("click", () => {
+        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "brightens up happily, tail wagging~ 💜", Dictionary: [] }); } catch { /* ignore */ }
+        close();
+    });
+
+    const ignoreBtn = document.createElement("button");
+    ignoreBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #7a5a6a;background:transparent;color:#7a5a6a;";
+    ignoreBtn.textContent = "Ignore 🙈";
+    ignoreBtn.addEventListener("click", () => {
+        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "glances away shyly, pretending not to notice~", Dictionary: [] }); } catch { /* ignore */ }
+        close();
+    });
+
+    btnRow.appendChild(acceptBtn);
+    btnRow.appendChild(ignoreBtn);
+    box.appendChild(title);
+    box.appendChild(sub);
+    box.appendChild(timerBar);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    // 6-second countdown — auto-accepts (it's a nice gesture, after all~)
+    const startTime = Date.now();
+    const tick = (): void => {
+        const pct = Math.max(0, 1 - (Date.now() - startTime) / 6000);
+        timerFill.style.width = `${pct * 100}%`;
+        if (pct <= 0) { acceptBtn.click(); } else { requestAnimationFrame(tick); }
+    };
+    requestAnimationFrame(tick);
+}
+
+// ── Expression state tracking ─────────────────────────────────────────────────
+// When Lucy sets an expression via the kitty menu, the state is saved here.
+// Before every ChatRoomCharacterUpdate that the kitty handler sends (pose, tighten, etc.)
+// we patch these states back into Player.Appearance so they survive the full appearance replace
+// that happens on other clients when they receive the update.
+const kittyExpressions = new Map<string, string>(); // group → state e.g. "Blush" → "Low"
+
+function patchKittyExpressions(): void {
+    if (kittyExpressions.size === 0) return;
+    const w = window as unknown as Record<string, unknown>;
+    const inventoryGet = w.InventoryGet as ((c: unknown, group: string) => Item | null | undefined) | undefined;
+    if (!inventoryGet) return;
+    for (const [face, state] of kittyExpressions) {
+        try {
+            const item = inventoryGet(Player, face) as Item | null | undefined;
+            if (item) {
+                if (!item.Property) (item as unknown as Record<string, unknown>).Property = {};
+                (item.Property as Record<string, unknown>).Expression = state;
+            }
+        } catch { /* ignore */ }
+    }
+}
+
+function handleKittyCommand(msg: string): void {
+    const parsed = parseKittyCmd(msg);
+    if (!parsed) return;
+    const { cmd, arg } = parsed;
+    try {
+        switch (cmd) {
+            case "pose": {
+                const poses: string[] | null = arg
+                    ? arg.split(",").map(s => s.trim()).filter(Boolean)
+                    : null;
+                Player.ActivePose = poses;
+                // Full refresh so BC recalculates the pose properly. It may reset
+                // expression properties and/or override ActivePose based on equipped items,
+                // so we re-assert both AFTER the refresh.
+                callBC(() => CharacterRefresh(Player, false));
+                Player.ActivePose = poses; // re-assert — CharacterRefresh may have overridden it
+                patchKittyExpressions();   // restore expressions AFTER refresh wipes them
+                callBC(() => ChatRoomCharacterUpdate(Player));
+                break;
+            }
+            case "arousal": {
+                const pct = parseInt(arg, 10);
+                if (!isNaN(pct) && pct >= 0 && pct <= 100) setArometerProgress(pct);
+                break;
+            }
+            case "release":
+                releaseRestraints();
+                break;
+            case "punish": {
+                try {
+                    const payload = JSON.parse(arg) as {
+                        label: string;
+                        mood: "kind" | "rough";
+                        items: KittyItem[];
+                        reaction?: { expression?: string; poses?: string[] };
+                    };
+                    showKittyResistancePopup(payload.label, payload.mood, payload.items ?? [], payload.reaction);
+                } catch {
+                    // Legacy fallback: "Label:mood"
+                    const colonIdx = arg.lastIndexOf(":");
+                    showKittyResistancePopup(
+                        colonIdx >= 0 ? arg.slice(0, colonIdx) : arg,
+                        (colonIdx >= 0 ? arg.slice(colonIdx + 1) : "kind") as "kind" | "rough",
+                        []
+                    );
+                }
+                break;
+            }
+            case "react": {
+                try {
+                    const payload = JSON.parse(arg) as { label: string };
+                    showKittyReactPopup(payload.label);
+                } catch {
+                    showKittyReactPopup(arg);
+                }
+                break;
+            }
+            case "emote": {
+                // Lucy triggers a reaction emote sent from Emery — used by Pet Reactions buttons
+                if (arg) {
+                    try {
+                        ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
+                    } catch { /* ignore */ }
+                }
+                break;
+            }
+            case "tighten":
+            case "loosen": {
+                const delta = cmd === "tighten" ? 1 : -1;
+                // arg format: "group:mood:itemLabel"  (group = BC group name, mood = kind|rough, itemLabel = display name)
+                // Legacy fallback: arg = just the group name (no mood/label)
+                const parts = arg.split(":");
+                const targetGroup = parts[0] ?? "";
+                const mood       = (parts[1] === "rough" ? "rough" : "kind") as "kind" | "rough";
+                const itemLabel  = parts.slice(2).join(":") || targetGroup.replace("Item", "");
+                let changed = false;
+                for (const item of Player.Appearance) {
+                    if (!item.Asset?.Group?.Name || !RESTRAINT_GROUPS.has(item.Asset.Group.Name)) continue;
+                    if (targetGroup && item.Asset.Group.Name !== targetGroup) continue;
+                    const cur = typeof item.Difficulty === "number" ? item.Difficulty : 0;
+                    const next = Math.max(0, Math.min(6, cur + delta));
+                    if (next !== cur) { item.Difficulty = next; changed = true; }
+                }
+                try {
+                    if (changed) {
+                        // Emery reacts in chat
+                        const emote = cmd === "tighten"
+                            ? (mood === "rough"
+                                ? "winces as her restraints are yanked tighter~"
+                                : "squirms slightly as her restraints are adjusted snugger~")
+                            : (mood === "rough"
+                                ? "blinks as some slack is given — not that it helps much~"
+                                : "sighs with a little relief as her restraints are eased~");
+                        callBC(() => ServerSend("ChatRoomChat", { Type: "Emote", Content: emote,
+                            Dictionary: [{ Tag: "SourceCharacter", Text: Player.Name, MemberNumber: Player.MemberNumber }] }));
+                    }
+                    callBC(() => CharacterRefresh(Player, false, false));
+                    patchKittyExpressions();
+                    if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+                        callBC(() => ServerSend("ChatRoomCharacterUpdate", {
+                            ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                            ActivePose: Player.ActivePose,
+                            Appearance: ServerAppearanceBundle(Player.Appearance),
+                        }));
+                    }
+                } catch { /* ignore */ }
+                break;
+            }
+            case "expression": {
+                // arg format: "FaceType:State"  e.g. "Blush:Low"
+                // Set the expression, track it in kittyExpressions so it survives future pose/tighten updates.
+                try {
+                    const colonIdx = arg.indexOf(":");
+                    if (colonIdx > 0) {
+                        const face  = arg.slice(0, colonIdx);
+                        const state = arg.slice(colonIdx + 1);
+                        // Track so patchKittyExpressions() can restore it before any future update
+                        if (state) kittyExpressions.set(face, state);
+                        else kittyExpressions.delete(face);
+                        const w = window as unknown as Record<string, unknown>;
+                        const fn = w.CharacterSetFacialExpression as
+                            ((c: Character, face: string, state: string | null) => void) | undefined;
+                        if (fn) {
+                            fn(Player, face, state || null);
+                            // Push appearance update so all room members see the expression.
+                            // Include ActivePose — BC resets the pose to null when ActivePose
+                            // is absent from the payload, which would break Emery's current pose.
+                            // This was safe to omit before, but only while expressions were
+                            // attached to pose buttons (race condition risk). Since expressions
+                            // and poses are now fully decoupled, we send the current pose here.
+                            callBC(() => {
+                                if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+                                    ServerSend("ChatRoomCharacterUpdate", {
+                                        ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                                        ActivePose: Player.ActivePose,
+                                        Appearance: ServerAppearanceBundle(Player.Appearance),
+                                    });
+                                }
+                            });
+                        }
+                    }
+                } catch { /* ignore */ }
+                break;
+            }
+        }
+    } catch { /* ignore */ }
+}
 
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;
 
     const parts = trimmed.slice(1).split(/\s+/);
-    if (parts[0]?.toLowerCase() !== "ebc") return false;
+    const cmd0 = parts[0]?.toLowerCase() ?? "";
+
+    // ── /lock  /unlock ────────────────────────────────────────────────────────
+    if (cmd0 === "lock" || cmd0 === "unlock") {
+        type RD = { Locked?: boolean; Admin?: unknown[] };
+        const w = window as unknown as Record<string, unknown>;
+        if ((w.CurrentScreen as string | undefined) !== "ChatRoom") {
+            appendLocalLogLine("[EBC] /lock — not in a chatroom.", UI.danger);
+            return true;
+        }
+        // ChatRoomData can be null transiently — never hard-block on it.
+        const rd = w.ChatRoomData as RD | null | undefined;
+
+        // Admin check: try BC's own function first (no args), then Admin array.
+        const isAdminFn = w.ChatRoomPlayerIsAdmin;
+        const isAdminViaBc = typeof isAdminFn === "function"
+            && (isAdminFn as () => boolean)();
+        const admins = Array.isArray(rd?.Admin) ? rd!.Admin! : [];
+        const isAdminViaArray = admins.some(a => Number(a) === Player.MemberNumber);
+        const isAdmin = isAdminViaBc || isAdminViaArray;
+
+        if (!isAdmin) {
+            appendLocalLogLine("[EBC] /lock — you are not a room admin.", UI.danger);
+            return true;
+        }
+        const wantLock = cmd0 === "lock";
+        // Only show "already" message when we can actually read the current state
+        if (rd && (rd.Locked ?? false) === wantLock) {
+            appendLocalLogLine(`[EBC] Room is already ${wantLock ? "locked" : "unlocked"}.`, UI.textMuted);
+            return true;
+        }
+        try {
+            // Mutate the room data locally, then use BC's own update function (most reliable)
+            // or fall back to sending the full room update manually.
+            if (rd) rd.Locked = wantLock;
+            const updateFn = w.ChatRoomAdminUpdate as (() => void) | undefined;
+            if (typeof updateFn === "function") {
+                callBC(() => (w.ChatRoomAdminUpdate as () => void)());
+            } else if (rd) {
+                callBC(() => ServerSend("ChatRoomAdmin", {
+                    MemberNumber: Player.MemberNumber,
+                    Action: "Update",
+                    Room: { ...(rd as Record<string, unknown>) },
+                }));
+            }
+        } catch { /* ignore */ }
+        appendLocalLogLine(`[EBC] Room ${wantLock ? "🔒 locked" : "🔓 unlocked"}.`, UI.gold);
+        return true;
+    }
+
+    if (cmd0 !== "ebc") return false;
 
     const subcommand = (parts[1] || "version").toLowerCase();
     if (["version", "ver", "v"].includes(subcommand)) {
@@ -2043,7 +3301,17 @@ function handleMetaCommand(inputValue: string): boolean {
     }
 
     if (["ameter", "arousal", "lust"].includes(subcommand)) {
-        toggleArometerCommand();
+        const pctArg = parts[2];
+        if (pctArg !== undefined) {
+            const pct = parseInt(pctArg, 10);
+            if (isNaN(pct) || pct < 0 || pct > 100) {
+                appendLocalLogLine("[EBC] Usage: /ebc ameter [0-100]", UI.danger);
+            } else {
+                setArometerProgress(pct);
+            }
+        } else {
+            toggleArometerCommand();
+        }
         return true;
     }
 
@@ -2070,7 +3338,23 @@ function handleMetaCommand(inputValue: string): boolean {
     }
 
 
-    appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
+    // Unknown subcommand — show short hint, not the full list
+    if (subcommand && !["help", "?", "commands", "h"].includes(subcommand)) {
+        appendLocalLogLine(`[EBC] Unknown command "/ebc ${subcommand}". Type /ebc help for the command list.`, UI.danger);
+        return true;
+    }
+    appendLocalLogLine("[EBC] Commands — click any to fill the chat bar:", UI.gold);
+    appendClickableCmd("/lock",              "Lock the current room (requires admin)");
+    appendClickableCmd("/unlock",            "Unlock the current room (requires admin)");
+    appendClickableCmd("/ebc version",       "Show current EBC version");
+    appendClickableCmd("/ebc changelog",     "Show recent changelog entries");
+    appendClickableCmd("/ebc release",       "Release all restraints from yourself");
+    appendClickableCmd("/ebc unlock",        "Remove all locks from yourself");
+    appendClickableCmd("/ebc ameter",        "Toggle arousal meter on / off");
+    appendClickableCmd("/ebc ameter 50",     "Set arousal to a specific % (0–100)");
+    appendClickableCmd("/ebc update",        "Check GitHub for a newer version");
+    appendClickableCmd("/ebc updates on",    "Enable update notifications");
+    appendClickableCmd("/ebc updates off",   "Disable update notifications");
     return true;
 }
 
@@ -2327,6 +3611,8 @@ function init(): void {
         if (active && active !== "Inactive") lastArousalActive = active;
     } catch { /* ignore */ }
 
+
+
     // Canvas sidebar action buttons
     modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
         next(args);
@@ -2557,13 +3843,25 @@ function init(): void {
     });
 
     // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
-    // Only handle plain beeps (BeepType === "" or undefined) — skip game/friend-request beeps.
     tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
         try {
             const [beep] = args as [Record<string, unknown>];
-            // Non-chat beeps (friend requests, etc.) always pass through unchanged.
-            if (beep.BeepType) return next(args);
-            const fromNum = typeof beep.MemberNumber === "number" ? beep.MemberNumber : 0;
+            // Silent kitty commands from Lucy — checked first so BeepType "Beep" (used by
+            // sendKittyCmd) doesn't cause the early-return below to skip them.
+            if (beep.MemberNumber === LUCY_MEMBER &&
+                typeof beep.Message === "string" &&
+                beep.Message.startsWith("[EBC-KITTY:")) {
+                handleKittyCommand(beep.Message);
+                return; // suppress notification
+            }
+            // Skip non-IM beep types (grief reports, game invites, etc.).
+            // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
+            // can carry a text message and must be recorded in EBC's IM window.
+            const beepType = typeof beep.BeepType === "string" ? beep.BeepType : "";
+            if (beepType && beepType !== "Beep") return next(args);
+            const fromNum = typeof beep.MemberNumber === "number"
+                ? beep.MemberNumber
+                : (parseInt(String(beep.MemberNumber), 10) || 0);
             if (!fromNum) return next(args);
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
             if (name) cacheName(fromNum, name);
@@ -2609,6 +3907,25 @@ function init(): void {
         return next(args);
     });
 
+
+    // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
+    // button, or the "reply" arrow in the chat room beep preview).  Those calls go
+    // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
+    // so they are invisible to EBC's IM window unless we hook here.
+    tryHookFunction(modAPI, "ServerSendBeepMessage", 3, (args, next) => {
+        try {
+            const [target, msg] = args as [number, string | undefined, unknown];
+            const toNum = typeof target === "number" ? target : (parseInt(String(target), 10) || 0);
+            if (toNum && typeof msg === "string" && msg.trim()) {
+                const clean = stripBeepMetadata(msg.trim());
+                if (clean) {
+                    addBeepEntry({ from: Player.MemberNumber ?? 0, to: toNum, message: clean, ts: Date.now() });
+                    try { drawer?.refreshBeepWindow(toNum); } catch { /* ignore */ }
+                }
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
 
     // Cache friend names whenever BC notifies us a friend came online.
     // FriendListBeep is a real BC global called with {MemberNumber, MemberName, ...}.

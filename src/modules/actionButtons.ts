@@ -138,6 +138,22 @@ export function getDisplayName(): string {
 // Steps run 500 ms apart. Original poses are restored when done.
 
 let seqRunning = false;
+let seqTimeoutId: ReturnType<typeof setTimeout> | null = null;
+let seqDoneCallback: (() => void) | null = null;
+let seqRestoreFn: (() => void) | null = null;
+
+export function isSeqRunning(): boolean { return seqRunning; }
+export function setSeqDoneCallback(fn: (() => void) | null): void { seqDoneCallback = fn; }
+export function cancelSequence(): void {
+    if (!seqRunning) return;
+    if (seqTimeoutId !== null) { window.clearTimeout(seqTimeoutId); seqTimeoutId = null; }
+    seqRestoreFn?.();
+    seqRestoreFn = null;
+    seqRunning = false;
+    const cb = seqDoneCallback;
+    seqDoneCallback = null;
+    cb?.();
+}
 
 // Sends the current ActivePose to the room without triggering a full re-render on each step.
 // appearanceBundle should be pre-built once before the sequence starts and reused - sending
@@ -207,6 +223,7 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
         : null;
     // Build appearance bundle ONCE - reusing it avoids re-render flicker on other clients.
     const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
+    seqRestoreFn = () => { Player.ActivePose = originalPoses; syncPoseToRoom(); };
     let idx = 0;
 
     const next = (): void => {
@@ -216,6 +233,11 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 Player.ActivePose = originalPoses;
                 syncPoseToRoom();
                 seqRunning = false;
+                seqTimeoutId = null;
+                seqRestoreFn = null;
+                const cb = seqDoneCallback;
+                seqDoneCallback = null;
+                cb?.();
                 return;
             }
 
@@ -224,6 +246,19 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
             if (step === "_") {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
+            } else if (step.toLowerCase() === "leaveroom") {
+                Player.ActivePose = originalPoses;
+                seqRunning = false;
+                seqTimeoutId = null;
+                seqRestoreFn = null;
+                const leaveCb = seqDoneCallback;
+                seqDoneCallback = null;
+                window.setTimeout(() => {
+                    leaveCb?.();
+                    callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                    callBC(() => ChatRoomLeave());
+                }, 0);
+                return;
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");
             } else if (step.startsWith("*")) {
@@ -233,9 +268,14 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 sendPoseUpdate(appearanceBundle);
             }
 
-            window.setTimeout(next, delay);
+            seqTimeoutId = window.setTimeout(next, delay);
         } catch (_) {
             seqRunning = false;
+            seqTimeoutId = null;
+            seqRestoreFn = null;
+            const cb = seqDoneCallback;
+            seqDoneCallback = null;
+            cb?.();
         }
     };
 
@@ -440,9 +480,16 @@ function startDrag(cx: number, cy: number): void {
         document.removeEventListener("touchmove",  onMove as EventListener);
         document.removeEventListener("mouseup",    onEnd);
         document.removeEventListener("touchend",   onEnd);
-        // Suppress the click that fires after mouseup so it doesn't hit BC characters
+        // Suppress the click that fires after mouseup so it doesn't hit BC characters.
+        // Only suppress if the click target is the game canvas — HTML panel elements
+        // (like EBC kitty/pose buttons) must not be swallowed by this guard.
         if (hasMoved) {
-            const suppress = (e: Event): void => { e.stopPropagation(); e.preventDefault(); };
+            const suppress = (e: Event): void => {
+                if ((e.target as Element | null)?.id === "MainCanvas") {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            };
             document.addEventListener("click", suppress, { capture: true, once: true });
         }
     };

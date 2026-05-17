@@ -72,16 +72,27 @@ export function timerCheckRestraints(): void {
                 .map(i => i.Asset.Group.Name),
         );
 
-        // Overall bound timer — neck/collar groups excluded
+        // Sync per-item timers — load once, used both for start-time recovery and below
+        const timers = loadRestraintTimers();
+
+        // Overall bound timer — neck/collar groups excluded.
+        // When already bound on load, recover the start from persisted per-item
+        // timers so offline time is included rather than starting fresh.
         const isBound = [...currentGroups].some(g => !NECK_GROUPS.has(g));
         if (isBound) {
-            if (restraintStartTime === null) restraintStartTime = Date.now();
+            if (restraintStartTime === null) {
+                // Find the oldest non-neck per-item timer already in storage
+                const nonNeckGroups = [...currentGroups].filter(g => !NECK_GROUPS.has(g));
+                const oldest = nonNeckGroups
+                    .map(g => timers[g])
+                    .filter((t): t is number => typeof t === "number")
+                    .reduce((min, t) => Math.min(min, t), now);
+                restraintStartTime = oldest; // equals `now` if no persisted timer yet
+            }
         } else {
             restraintStartTime = null;
         }
 
-        // Sync per-item timers
-        const timers = loadRestraintTimers();
         let changed = false;
 
         for (const group of currentGroups) {
