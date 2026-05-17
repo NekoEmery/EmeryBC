@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.103
+// @version      2.2.104
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25014,6 +25014,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const leashList = w.ChatRoomLeashList;
                 return leashList ? leashList.includes(EMERY_MEMBER) : false;
             };
+            // Tug counter — resets when the leash is grabbed or released
+            let tugCount = 0;
+            const MAX_TUGS = 3;
             // Sync button label/style to current leash state
             const refreshLeashBtn = () => {
                 const held = isLeashHeld();
@@ -25051,6 +25054,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     catch ( /* ignore */_a) { /* ignore */ }
                     // LSCG_ReleaseNeck resets LSCG's choke/breath-play pairing on release
                     runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
+                    tugCount = 0;
                 }
                 else {
                     // Grab leash — BC's HoldLeash hidden-message protocol
@@ -25063,6 +25067,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             leashList.push(EMERY_MEMBER);
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
+                    tugCount = 0;
                 }
                 // Update button to reflect new state
                 refreshLeashBtn();
@@ -25072,13 +25077,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const tugBtn = document.createElement("button");
             tugBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:9px 10px;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;white-space:nowrap;";
             tugBtn.textContent = "↗ Tug";
-            tugBtn.title = "Give the leash a tug";
+            const refreshTugBtn = () => {
+                tugBtn.title = tugCount >= MAX_TUGS
+                    ? `Already at max tightness (${MAX_TUGS}/${MAX_TUGS})`
+                    : `Give the leash a tug (${tugCount}/${MAX_TUGS})`;
+                tugBtn.style.opacity = tugCount >= MAX_TUGS ? "0.55" : "1";
+            };
+            refreshTugBtn();
             tugBtn.addEventListener("mouseenter", () => { tugBtn.style.background = "rgba(120,50,80,0.5)"; tugBtn.style.borderColor = "#c090b0"; });
             tugBtn.addEventListener("mouseleave", () => { tugBtn.style.background = "rgba(80,40,60,0.35)"; tugBtn.style.borderColor = "#8a5a7888"; });
             tugBtn.addEventListener("click", () => {
                 if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
                     return;
                 const mood = getKittyMood();
+                if (tugCount >= MAX_TUGS) {
+                    // Already at max — tell the room
+                    sendRoomEmote(mood === "rough"
+                        ? "yanks at the leash again, but it's already pulled as tight as it can go~"
+                        : "gives the leash a little tug, but there's no give left — it's already at full tightness~");
+                    tugBtn.style.background = "rgba(100,40,40,0.55)";
+                    setTimeout(() => { tugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
+                    return;
+                }
+                tugCount++;
                 sendRoomEmote(mood === "rough"
                     ? "gives Emery's leash a sharp, decisive tug~"
                     : "gives Emery's leash a gentle tug, urging her along~");
@@ -25091,9 +25112,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ll.push(EMERY_MEMBER);
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
-                // Choke activity on ItemNeck — triggers LSCG's breath play mechanic if installed
-                runKittyActivity("ItemNeck", "Choke");
                 refreshLeashBtn();
+                refreshTugBtn();
                 // Brief flash
                 tugBtn.style.background = "rgba(140,60,90,0.55)";
                 setTimeout(() => { tugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
@@ -28231,7 +28251,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.103";
+    const MOD_VERSION = "2.2.104";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28242,6 +28262,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.104",
+            changes: [
+                "Kitty Leash: Tug no longer fires the Choke activity on ItemNeck — this was triggering LSCG's neck-grab event ('Your neck has been grabbed'). Tug now only sends the room emote and refreshes the HoldLeash signal.",
+                "Kitty Leash: Tug is now limited to 3 tugs per grab. A 4th+ click sends a 'already at max tightness' room emote instead. The counter resets whenever the leash is grabbed or released. Button tooltip shows current count.",
+            ],
+        },
         {
             version: "2.2.103",
             changes: [
