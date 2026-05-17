@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.109
+// @version      2.2.110
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25295,8 +25295,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const mood = getKittyMood();
                             const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                             sendRoomEmote(text);
-                            if (em.expression)
-                                sendExprOrPreset(em.expression);
                             if (em.bcGroup && em.bcActivity)
                                 runKittyActivity(em.bcGroup, em.bcActivity);
                             if (em.interactive)
@@ -25423,8 +25421,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const mood = getKittyMood();
                             const emoteText = mood === "rough" ? (p.roughEmote || p.kindEmote) : (p.kindEmote || p.roughEmote);
                             sendKittyCmd("pose", p.poses.join(","));
-                            if (p.expression)
-                                sendExprOrPreset(p.expression);
                             setTimeout(() => {
                                 if (typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom") {
                                     sendRoomEmote(emoteText);
@@ -25443,7 +25439,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
                 const cur = getKittyPoses();
                 cur.forEach((p, idx) => {
-                    var _a;
                     const r = document.createElement("div");
                     r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
                     // Row 1: label + pose names + del
@@ -25486,50 +25481,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roughInp.style.cssText = "flex:1;min-width:0;" + INP;
                     roughRow.appendChild(roughLbl);
                     roughRow.appendChild(roughInp);
-                    // Row 4: expression trigger
-                    const exprTrigRow = document.createElement("div");
-                    exprTrigRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    const exprTrigLbl = document.createElement("span");
-                    exprTrigLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:38px;";
-                    exprTrigLbl.textContent = "😊 Expr:";
-                    const exprTrigSel = document.createElement("select");
-                    exprTrigSel.style.cssText = "flex:1;min-width:0;" + INP;
-                    const exprNoneOpt = document.createElement("option");
-                    exprNoneOpt.value = "";
-                    exprNoneOpt.textContent = "— none —";
-                    exprTrigSel.appendChild(exprNoneOpt);
-                    for (const ex of KITTY_EXPRESSIONS) {
-                        const o = document.createElement("option");
-                        o.value = ex.cmd;
-                        o.textContent = ex.label;
-                        exprTrigSel.appendChild(o);
-                    }
-                    const exprPresets1 = getKittyExpressionPresets();
-                    if (exprPresets1.length > 0) {
-                        const grp1 = document.createElement("optgroup");
-                        grp1.label = "★ Presets";
-                        exprTrigSel.appendChild(grp1);
-                        for (const ep of exprPresets1) {
-                            const o = document.createElement("option");
-                            o.value = "preset:" + ep.id;
-                            o.textContent = "★ " + ep.label;
-                            grp1.appendChild(o);
-                        }
-                    }
-                    exprTrigSel.value = (_a = p.expression) !== null && _a !== void 0 ? _a : "";
-                    exprTrigRow.appendChild(exprTrigLbl);
-                    exprTrigRow.appendChild(exprTrigSel);
                     const saveInp = () => {
                         const updated = getKittyPoses();
                         updated[idx].label = lblInp.value;
                         updated[idx].poses = poseInp.value ? poseInp.value.split(",").map(s => s.trim()).filter(Boolean) : [];
                         updated[idx].kindEmote = kindInp.value;
                         updated[idx].roughEmote = roughInp.value;
-                        updated[idx].expression = exprTrigSel.value || undefined;
                         saveKittyPoses(updated);
                     };
                     [lblInp, poseInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
-                    exprTrigSel.addEventListener("change", saveInp);
                     delBtn.addEventListener("click", () => {
                         saveKittyPoses(getKittyPoses().filter((_, i) => i !== idx));
                         renderPoses(true);
@@ -25537,7 +25497,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     r.appendChild(r1);
                     r.appendChild(kindRow);
                     r.appendChild(roughRow);
-                    r.appendChild(exprTrigRow);
                     list.appendChild(r);
                 });
                 const addRow = document.createElement("div");
@@ -26723,6 +26682,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(arousalWrap2);
             // ── EXPRESSIONS ──────────────────────────────────────────────────────────
             const { cBody: exprCBody, wrap: exprWrap2 } = makeCollapsible("EBC_kittyExpressionsOpen", "😊 Expressions", false);
+            // ── Expression Presets (at top) ───────────────────────────────────────
+            const epHdr = document.createElement("div");
+            epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
+            epHdr.textContent = "Expression Presets";
+            exprCBody.appendChild(epHdr);
+            const epHint = document.createElement("div");
+            epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+            epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy + Mouth:Pout) — click a preset to fire all its expressions at once.";
+            exprCBody.appendChild(epHint);
+            const epWrap = document.createElement("div");
+            epWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+            exprCBody.appendChild(epWrap);
+            // ── Individual expressions (below presets) ────────────────────────────
+            const epDivider = divider();
+            epDivider.style.margin = "6px 0";
             const exprWrap = document.createElement("div");
             exprWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
             for (const expr of KITTY_EXPRESSIONS) {
@@ -26739,24 +26713,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             const exprHint = document.createElement("div");
             exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:2px;";
-            exprHint.textContent = "Sends a facial expression command to Emery";
-            exprCBody.appendChild(exprWrap);
-            exprCBody.appendChild(exprHint);
-            // ── Expression Presets ────────────────────────────────────────────────
-            const epDivider = divider();
-            epDivider.style.margin = "6px 0";
-            exprCBody.appendChild(epDivider);
-            const epHdr = document.createElement("div");
-            epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
-            epHdr.textContent = "Expression Presets";
-            exprCBody.appendChild(epHdr);
-            const epHint = document.createElement("div");
-            epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
-            epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy). Use them as expression triggers on poses, actions and emotes.";
-            exprCBody.appendChild(epHint);
-            const epWrap = document.createElement("div");
-            epWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
-            exprCBody.appendChild(epWrap);
+            exprHint.textContent = "Sends a single facial expression command to Emery";
             const renderExprPresets = () => {
                 epWrap.innerHTML = "";
                 const presets = getKittyExpressionPresets();
@@ -26906,6 +26863,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 epWrap.appendChild(editorWrap);
             };
             renderExprPresets();
+            exprCBody.appendChild(epDivider);
+            exprCBody.appendChild(exprWrap);
+            exprCBody.appendChild(exprHint);
             body.appendChild(exprWrap2);
         }
         renderThanks() {
@@ -28304,7 +28264,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.109";
+    const MOD_VERSION = "2.2.110";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28315,6 +28275,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.110",
+            changes: [
+                "Kitty UI: expressions can no longer be attached to emotes or poses — they are now exclusive to the Expressions section. The expression-trigger dropdown has been removed from pose edit cards, and expression firing has been removed from both emote and pose click handlers.",
+                "Kitty UI: in the Expressions section, custom presets (★ buttons + editor) now appear at the top, above the individual expression buttons.",
+            ],
+        },
         {
             version: "2.2.109",
             changes: [
