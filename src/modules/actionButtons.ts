@@ -1,5 +1,126 @@
-// Action button sequence runner — pose/action sequences used by outfits/scenes.
-import { callBC } from "./bcUtils";
+// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
+import { UI } from "./ui";
+import { callBC, getDisplayName } from "./bcUtils";
+import { getActionButtonsVisible } from "./settings";
+import { executeMacro } from "./macros";
+
+export type ActionStyle = "action" | "emote" | "seq" | "macro";
+// "action" = (Name text)
+// "emote"  = * Name text *
+// "seq"    = pose/action sequence (pipe-separated steps)
+
+export interface ActionButton {
+    label:   string;
+    emote:   string;   // for "seq" style: pipe-separated sequence steps
+    color:   string;
+    enabled: boolean;
+    style:   ActionStyle;
+    includeNameInAnnounce?: boolean; // default true; only applies to "action" style
+}
+
+export const DEFAULT_BUTTONS: ActionButton[] = [
+    { label: "", emote: "leaveroom",   color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "releaseself", color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "wardrobe",    color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
+    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
+];
+
+export const ABSOLUTE_MAX  = 12;
+const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
+
+// --- Button categories -------------------------------------------------------
+
+export interface ButtonCategory {
+    name: string;
+    buttons: ActionButton[];
+    slotCount: number;
+}
+
+// --- Storage -----------------------------------------------------------------
+
+function getStore(): Record<string, unknown> {
+    if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
+    return Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+}
+
+/** Returns all categories, migrating from old flat format if needed. */
+export function getCategories(): ButtonCategory[] {
+    const store = getStore();
+    // Migrate old flat actionButtons → first category "Default"
+    if (!store.buttonCategories && store.actionButtons) {
+        const migrated: ButtonCategory[] = [{
+            name: "Default",
+            buttons: store.actionButtons as ActionButton[],
+            slotCount: typeof store.actionSlotCount === "number"
+                ? (store.actionSlotCount as number)
+                : DEFAULT_SLOTS,
+        }];
+        store.buttonCategories = migrated;
+        delete store.actionButtons;
+        delete store.actionSlotCount;
+    }
+    const cats = store.buttonCategories;
+    if (Array.isArray(cats) && cats.length > 0) return cats as ButtonCategory[];
+    return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
+}
+
+export function getActiveCategoryIndex(): number {
+    const store = getStore();
+    const cats  = getCategories();
+    const idx   = store.activeCategoryIndex;
+    if (typeof idx === "number" && idx >= 0 && idx < cats.length) return idx;
+    return 0;
+}
+
+export function setActiveCategoryIndex(idx: number): void {
+    const store = getStore();
+    store.activeCategoryIndex = idx;
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+export function getActiveCategory(): ButtonCategory {
+    const cats = getCategories();
+    return cats[getActiveCategoryIndex()] ?? cats[0];
+}
+
+export function getButtons(): ActionButton[] {
+    return getActiveCategory().buttons;
+}
+
+export function getSlotCount(): number {
+    const cat = getActiveCategory();
+    const n = cat.slotCount;
+    if (typeof n === "number") return Math.min(ABSOLUTE_MAX, Math.max(1, n));
+    return Math.min(ABSOLUTE_MAX, Math.max(DEFAULT_SLOTS, cat.buttons.length));
+}
+
+export function saveButtons(buttons: ActionButton[], slotCount: number): void {
+    const store = getStore();
+    const cats  = getCategories();
+    const idx   = getActiveCategoryIndex();
+    cats[idx].buttons   = buttons;
+    cats[idx].slotCount = slotCount;
+    store.buttonCategories = cats;
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+export function saveCategories(categories: ButtonCategory[], activeIndex: number): void {
+    const store = getStore();
+    store.buttonCategories    = categories;
+    store.activeCategoryIndex = activeIndex;
+    ServerPlayerExtensionSettingsSync("EmeryBC");
+}
+
+export function normalizeHex(value: string | undefined, fallback = "#c2185b"): string {
+    const c = (value ?? "").trim();
+    if (/^#[0-9a-f]{6}$/i.test(c)) return c.toLowerCase();
+    const m = /^#([0-9a-f]{3})$/i.exec(c);
+    if (m) { const [r,g,b] = m[1].split(""); return `#${r}${r}${g}${g}${b}${b}`; }
+    return fallback;
+}
 
 // --- Sequence runner ----------------------------------------------------------
 // Sequence steps are pipe-separated (|). Each step is one of:
@@ -11,10 +132,6 @@ import { callBC } from "./bcUtils";
 
 let seqRunning = false;
 
-// Sends the current ActivePose to the room without triggering a full re-render on each step.
-// appearanceBundle should be pre-built once before the sequence starts and reused - sending
-// a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
-// time, which looks like flickering/glitching.
 function sendPoseUpdate(appearanceBundle: ReturnType<typeof ServerAppearanceBundle>): void {
     const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
         ? Player.ActivePose
@@ -31,9 +148,6 @@ function sendPoseUpdate(appearanceBundle: ReturnType<typeof ServerAppearanceBund
 }
 
 function syncPoseToRoom(): void {
-    // Used for one-shot pose syncs (outside of sequences).
-    // Capture desired pose BEFORE CharacterRefresh - BC may re-apply item-forced poses
-    // during refresh and override what we just set.
     const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
         ? Player.ActivePose
         : null;
@@ -49,9 +163,6 @@ function syncPoseToRoom(): void {
     callBC(() => CharacterRefresh(Player, false, false));
 }
 
-// Parses a single raw step token (may have @NNN suffix) into {content, delay}.
-// E.g. "!waves.@1000" -> { content: "!waves.", delay: 1000 }
-//      "HandsUp"      -> { content: "HandsUp", delay: defaultStepMs }
 export function parseStep(raw: string, defaultStepMs: number): { content: string; delay: number } {
     const atIdx = raw.lastIndexOf("@");
     if (atIdx > 0) {
@@ -64,116 +175,23 @@ export function parseStep(raw: string, defaultStepMs: number): { content: string
     return { content: raw, delay: defaultStepMs };
 }
 
-// Send an action or emote message to the chat room.
-function sendAction(emote: string, style: "action" | "emote"): void {
-    const text = emote.trim();
-    if (!text) return;
-
-    if (style === "emote") {
-        ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
-        return;
-    }
-
-    // Action style: (Name text)
-    const displayName = (Player as unknown as Record<string, unknown>).Nickname as string | undefined
-        ?? (Player as unknown as Record<string, unknown>).Name as string | undefined
-        ?? "";
-    const actionContent = displayName + " " + text;
-    ServerSend("ChatRoomChat", {
-        Type: "Action",
-        Content: actionContent,
-        Dictionary: [
-            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
-            { SourceCharacter: Player.MemberNumber },
-        ],
-    });
-}
-
-// -- Button / category data model -----------------------------------------
-// Persisted to localStorage as EBC_buttonCategories.
-
-export interface ActionButton {
-    id: string;
-    label: string;
-    sequence: string;
-    color?: string; // optional hex color, e.g. "#cf6f98"
-}
-
-export interface ButtonCategory {
-    id: string;
-    name: string;
-    collapsed?: boolean;
-    buttons: ActionButton[];
-}
-
-const BTNS_KEY = "EBC_buttonCategories";
-
-export function makeBtnId(): string {
-    return Math.random().toString(36).slice(2, 9);
-}
-
-function defaultCategories(): ButtonCategory[] {
-    const id = makeBtnId;
-    return [
-        {
-            id: id(), name: "Poses",
-            buttons: [
-                { id: id(), label: "Hands Up",  sequence: "HandsUp" },
-                { id: id(), label: "Kneel",     sequence: "Kneel" },
-                { id: id(), label: "All Fours", sequence: "AllFours" },
-                { id: id(), label: "Neutral",   sequence: "_" },
-            ],
-        },
-        {
-            id: id(), name: "Actions",
-            buttons: [
-                { id: id(), label: "Wave",  sequence: "*waves~" },
-                { id: id(), label: "Bow",   sequence: "Kneel|!bows.|_" },
-            ],
-        },
-    ];
-}
-
-export function getButtonCategories(): ButtonCategory[] {
-    try {
-        const raw = localStorage.getItem(BTNS_KEY);
-        if (raw) {
-            const parsed = JSON.parse(raw) as ButtonCategory[];
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-    } catch { /* ignore */ }
-    const def = defaultCategories();
-    saveButtonCategories(def);
-    return def;
-}
-
-export function saveButtonCategories(cats: ButtonCategory[]): void {
-    try { localStorage.setItem(BTNS_KEY, JSON.stringify(cats)); } catch { /* ignore */ }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function runSequence(sequence: string, defaultStepMs = 600): void {
     if (seqRunning) return;
     const rawSteps = sequence.split("|").map(s => s.trim()).filter(Boolean);
     if (!rawSteps.length) return;
 
-    // Parse each step: strip @NNN suffix for per-step delay, keep content.
     const steps = rawSteps.map(r => parseStep(r, defaultStepMs));
 
     seqRunning = true;
-    // null means "no pose / neutral" in BC - store as null so we restore correctly.
     const originalPoses: string[] | null = (Player.ActivePose && Player.ActivePose.length > 0)
         ? [...Player.ActivePose]
         : null;
-    // Build appearance bundle ONCE - reusing it avoids re-render flicker on other clients.
     const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
     let idx = 0;
 
     const next = (): void => {
         try {
             if (idx >= steps.length) {
-                // Sequence done - restore original pose, do a full sync + local refresh.
                 Player.ActivePose = originalPoses;
                 syncPoseToRoom();
                 seqRunning = false;
@@ -186,9 +204,6 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
             } else if (step.toLowerCase() === "leaveroom") {
-                // Restore pose, switch screen FIRST, then leave — same pattern as
-                // safeword.ts.  CommonSetScreen stops ChatRoomRun before
-                // ChatRoomLeave() clears ChatRoomData, so no mod hook crashes.
                 Player.ActivePose = originalPoses;
                 seqRunning = false;
                 window.setTimeout(() => {
@@ -212,4 +227,342 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
     };
 
     next();
+}
+
+// --- Label-based animation triggers ------------------------------------------
+
+function isArmRestrained(): boolean {
+    return Player.Appearance.some(item => item.Asset.Group.Name === "ItemArms");
+}
+
+function localNotice(msg: string): void {
+    const log = document.getElementById("TextAreaChatLog");
+    if (!log) return;
+    const div = document.createElement("div");
+    div.style.cssText = [
+        `color:${UI.accent}`,
+        `background:${UI.cardMuted}`,
+        `border-left:3px solid ${UI.accent}`,
+        "font-style:italic",
+        "font-size:12px",
+        "padding:2px 8px",
+        "margin:1px 0",
+    ].join(";");
+    div.textContent = "[EBC] " + msg;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+}
+
+function runCheerAnimation(): boolean {
+    if (isArmRestrained()) {
+        localNotice("Your arms are restrained -- can't cheer right now!");
+        return false;
+    }
+    runSequence("Yoked|OverTheHead|Yoked|OverTheHead|Yoked|OverTheHead|_", 600);
+    return true;
+}
+
+const LABEL_ANIMATIONS: Map<string, () => boolean> = new Map([
+    ["CHEER",  runCheerAnimation],
+    ["CHEERS", runCheerAnimation],
+]);
+
+function triggerLabelAnimation(label: string): boolean {
+    const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
+    if (!fn) return true;
+    return fn();
+}
+
+// --- Send chat message --------------------------------------------------------
+
+export function sendAction(emote: string, style: ActionStyle = "action", includeName = true): void {
+    const text = emote.trim();
+    if (!text) return;
+
+    if (style === "seq") { runSequence(text); return; }
+
+    if (style === "emote") {
+        ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
+        return;
+    }
+
+    const actionContent = includeName ? getDisplayName() + " " + text : text;
+    ServerSend("ChatRoomChat", {
+        Type: "Action",
+        Content: actionContent,
+        Dictionary: [
+            { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+            { SourceCharacter: Player.MemberNumber },
+        ],
+    });
+}
+
+// --- In-game sidebar ---------------------------------------------------------
+
+const BTN_SIZE   = 45;
+const CHIP_W     = 45;
+const CHIP_H     = 28;
+const CAT_CHIP_H = 30;
+const CAT_ARR_W  = 22;
+const GRIP_H     = 22;
+
+const SIDEBAR_POS_KEY = "EBC_sidebarPos";
+const SIDEBAR_DEFAULT_X = 0;
+const SIDEBAR_DEFAULT_Y = 270;
+const SIDEBAR_MAX_X_FALLBACK = 700;
+
+let sidebarX = SIDEBAR_DEFAULT_X;
+let sidebarY = SIDEBAR_DEFAULT_Y;
+try {
+    const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
+    if (_saved) {
+        const _p = JSON.parse(_saved) as { x?: number; y?: number };
+        sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X_FALLBACK, _p.x ?? SIDEBAR_DEFAULT_X));
+        sidebarY = Math.max(GRIP_H + 2, Math.min(900, _p.y ?? SIDEBAR_DEFAULT_Y));
+    }
+} catch { /* ignore */ }
+
+function saveSidebarPos(): void {
+    try { localStorage.setItem(SIDEBAR_POS_KEY, JSON.stringify({ x: sidebarX, y: sidebarY })); } catch { /* ignore */ }
+}
+
+export function resetSidebarPos(): void {
+    sidebarX = SIDEBAR_DEFAULT_X;
+    sidebarY = SIDEBAR_DEFAULT_Y;
+    try { localStorage.removeItem(SIDEBAR_POS_KEY); } catch { /* ignore */ }
+}
+
+let sidebarCollapsed = false;
+
+let isDragging = false;
+let dragAnchorMouseX = 0;
+let dragAnchorMouseY = 0;
+let dragAnchorPanelX = 0;
+let dragAnchorPanelY = 0;
+
+function getCanvasScale(): { scaleX: number; scaleY: number; left: number; top: number } {
+    const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
+    if (!canvas) return { scaleX: 1, scaleY: 1, left: 0, top: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+        scaleX: 2000 / (rect.width  || 2000),
+        scaleY: 1000 / (rect.height || 1000),
+        left: rect.left,
+        top:  rect.top,
+    };
+}
+
+function screenToCanvas(clientX: number, clientY: number): { x: number; y: number } {
+    const { scaleX, scaleY, left, top } = getCanvasScale();
+    return { x: (clientX - left) * scaleX, y: (clientY - top) * scaleY };
+}
+
+function isInGrip(cx: number, cy: number): boolean {
+    const gripY = sidebarY - GRIP_H - 2;
+    return cx >= sidebarX && cx <= sidebarX + CHIP_W &&
+           cy >= gripY    && cy <= gripY + GRIP_H;
+}
+
+function getSidebarMaxX(): number {
+    const candidates = [
+        document.getElementById("TextAreaChatLog"),
+        document.getElementById("TextAreaChatInput"),
+        document.querySelector(".ebc-panel") as HTMLElement | null,
+    ];
+    const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
+    if (canvas) {
+        const { left: cLeft, width: cWidth } = canvas.getBoundingClientRect();
+        const scaleX = 2000 / (cWidth || 2000);
+        for (const el of candidates) {
+            if (!el) continue;
+            const elLeft = el.getBoundingClientRect().left;
+            const canvasX = (elLeft - cLeft) * scaleX;
+            if (canvasX > 50) return Math.max(0, canvasX - CHIP_W - 8);
+        }
+    }
+    return SIDEBAR_MAX_X_FALLBACK;
+}
+
+function startDrag(cx: number, cy: number): void {
+    isDragging = true;
+    dragAnchorMouseX = cx;
+    dragAnchorMouseY = cy;
+    dragAnchorPanelX = sidebarX;
+    dragAnchorPanelY = sidebarY;
+    let hasMoved = false;
+    const maxX = getSidebarMaxX();
+
+    const onMove = (e: MouseEvent | TouchEvent): void => {
+        const pt = "touches" in e ? e.touches[0] : e as MouseEvent;
+        const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
+        sidebarX = Math.max(0, Math.min(maxX, dragAnchorPanelX + (x - dragAnchorMouseX)));
+        sidebarY = Math.max(GRIP_H + 2, Math.min(900,  dragAnchorPanelY + (y - dragAnchorMouseY)));
+        hasMoved = true;
+    };
+    const onEnd = (): void => {
+        isDragging = false;
+        saveSidebarPos();
+        document.removeEventListener("mousemove", onMove as EventListener);
+        document.removeEventListener("touchmove",  onMove as EventListener);
+        document.removeEventListener("mouseup",    onEnd);
+        document.removeEventListener("touchend",   onEnd);
+        if (hasMoved) {
+            const suppress = (e: Event): void => { e.stopPropagation(); e.preventDefault(); };
+            document.addEventListener("click", suppress, { capture: true, once: true });
+        }
+    };
+
+    document.addEventListener("mousemove", onMove as EventListener);
+    document.addEventListener("touchmove",  onMove as EventListener, { passive: true });
+    document.addEventListener("mouseup",    onEnd);
+    document.addEventListener("touchend",   onEnd);
+}
+
+export function initDragListener(): void {
+    const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
+    if (!canvas) {
+        window.setTimeout(initDragListener, 200);
+        return;
+    }
+    const onDown = (e: MouseEvent | TouchEvent): void => {
+        const pt = "touches" in e ? (e as TouchEvent).touches[0] : e as MouseEvent;
+        const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
+        if (isInGrip(x, y)) {
+            e.preventDefault();
+            startDrag(x, y);
+        }
+    };
+    canvas.addEventListener("mousedown",  onDown as EventListener);
+    canvas.addEventListener("touchstart", onDown as EventListener, { passive: false });
+}
+
+function withAlpha(hex: string, alpha: number): string {
+    const h = hex.replace("#", "");
+    if (h.length !== 6) return hex;
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export function drawActionButtons(): void {
+    if (CurrentScreen !== "ChatRoom") return;
+    if (!getActionButtonsVisible()) return;
+
+    const gripY      = sidebarY - GRIP_H - 2;
+    const catChipY   = sidebarY + CHIP_H + 4;
+    const btnStartY  = catChipY + CAT_CHIP_H + 4;
+
+    const bgNormal   = withAlpha(UI.cardMuted,   0.88);
+    const bgActive   = withAlpha(UI.accentSoft,  0.88);
+    const bgChip     = withAlpha("#2a0e1e",       0.88);
+    const bgInactive = withAlpha("#1a0a14",       0.88);
+
+    DrawRect(sidebarX, gripY, CHIP_W, GRIP_H,
+        isDragging ? bgActive : bgNormal);
+    DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H,
+        isDragging ? UI.accent : UI.panelEdge, 1);
+    const dotCol    = isDragging ? UI.accent : UI.accentDeep;
+    const dotSize   = 3;
+    const dotGapX   = 6;
+    const dotGapY   = 5;
+    const dotStartX = sidebarX + CHIP_W / 2 - dotGapX / 2 - dotSize / 2;
+    const dotStartY = gripY + GRIP_H / 2 - dotGapY - dotSize / 2;
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 2; col++) {
+            DrawRect(dotStartX + col * dotGapX, dotStartY + row * dotGapY, dotSize, dotSize, dotCol);
+        }
+    }
+
+    DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H,
+        sidebarCollapsed ? bgActive : bgNormal);
+    DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H,
+        sidebarCollapsed ? UI.accent : UI.panelEdge, 1);
+    const bCol = sidebarCollapsed ? UI.accent : UI.accentSoft;
+    const bW   = Math.floor(CHIP_W * 0.55);
+    const bH   = 2;
+    const bX   = sidebarX + Math.floor((CHIP_W - bW) / 2);
+    const bMid = sidebarY + Math.floor(CHIP_H / 2);
+    DrawRect(bX, bMid - 4, bW, bH, bCol);
+    DrawRect(bX, bMid + 2, bW, bH, bCol);
+
+    if (sidebarCollapsed) return;
+
+    const cats  = getCategories();
+    const idx   = getActiveCategoryIndex();
+    const label = cats.length > 1
+        ? cats[idx].name.slice(0, 5)
+        : cats[idx].name.slice(0, 7);
+
+    DrawButton(sidebarX, catChipY, CAT_ARR_W, CAT_CHIP_H,
+        "◀", idx > 0 ? bgChip : bgInactive, "", idx > 0 ? "Previous category" : "");
+    if (cats.length > 1) {
+        DrawButton(sidebarX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H,
+            label, bgChip, "", cats[idx].name);
+        DrawButton(sidebarX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H,
+            "▶", idx < cats.length - 1 ? bgChip : bgInactive, "",
+            idx < cats.length - 1 ? "Next category" : "");
+    } else {
+        DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", cats[idx].name);
+    }
+
+    const buttons = getButtons();
+    for (let i = 0; i < buttons.length; i++) {
+        const btn = buttons[i];
+        if (!btn?.enabled || !btn.label) continue;
+        DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
+            btn.label, withAlpha(btn.color || "#c2185b", 0.90), "", btn.emote);
+    }
+}
+
+export function handleActionButtonClick(): boolean {
+    if (CurrentScreen !== "ChatRoom") return false;
+
+    const mx = (window as unknown as Record<string, number>).MouseX ?? 0;
+    const my = (window as unknown as Record<string, number>).MouseY ?? 0;
+
+    const catChipY  = sidebarY + CHIP_H + 4;
+    const btnStartY = catChipY + CAT_CHIP_H + 4;
+
+    if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
+        my >= sidebarY  && my <= sidebarY + CHIP_H) {
+        sidebarCollapsed = !sidebarCollapsed;
+        return true;
+    }
+
+    if (sidebarCollapsed) return false;
+
+    const cats = getCategories();
+    const idx  = getActiveCategoryIndex();
+    if (my >= catChipY && my <= catChipY + CAT_CHIP_H) {
+        if (cats.length > 1) {
+            if (mx >= sidebarX && mx <= sidebarX + CAT_ARR_W) {
+                if (idx > 0) setActiveCategoryIndex(idx - 1);
+                return true;
+            }
+            if (mx >= sidebarX + CHIP_W - CAT_ARR_W && mx <= sidebarX + CHIP_W) {
+                if (idx < cats.length - 1) setActiveCategoryIndex(idx + 1);
+                return true;
+            }
+        }
+        return true;
+    }
+
+    const buttons = getButtons();
+    for (let i = 0; i < buttons.length; i++) {
+        const btn = buttons[i];
+        if (!btn?.enabled || !btn.label) continue;
+        const y = btnStartY + i * BTN_SIZE;
+        if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
+            my >= y         && my <= y + BTN_SIZE) {
+            if (btn.style === "macro") {
+                executeMacro(btn.emote);
+            } else {
+                const animOk = triggerLabelAnimation(btn.label);
+                if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
+            }
+            return true;
+        }
+    }
+    return false;
 }

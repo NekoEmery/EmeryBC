@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EmeryBC Drawer
  *
  * CRABS-inspired sliding panel aligned to the right edge of the chat log,
@@ -59,7 +59,24 @@ import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPo
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
-import { parseStep, runSequence, ActionButton, ButtonCategory, getButtonCategories, saveButtonCategories, makeBtnId } from "./actionButtons";
+import {
+    getButtons,
+    getSlotCount,
+    saveButtons,
+    normalizeHex,
+    DEFAULT_BUTTONS,
+    ABSOLUTE_MAX,
+    parseStep,
+    getCategories,
+    getActiveCategoryIndex,
+    setActiveCategoryIndex,
+    saveCategories,
+    runSequence,
+    type ActionButton,
+    type ActionStyle,
+    type ButtonCategory,
+    resetSidebarPos,
+} from "./actionButtons";
 import {
     releaseRestraints,
     unlockItems,
@@ -68,7 +85,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getActionButtonsVisible, setActionButtonsVisible } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -2790,7 +2807,6 @@ export class EBCDrawer {
     private tagTooltipEl: HTMLElement | null = null;
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
     private slowLeaveBtn: HTMLButtonElement | null = null;
-    private btnEditMode = false;
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
@@ -12495,269 +12511,1064 @@ export class EBCDrawer {
         body.appendChild(addRow);
     }
 
-    // ── BUTTONS tab ─────────────────────────────────────────────────────────────
+    private buildSeqStepBuilder(btns: ActionButton[], idx: number): HTMLElement {
+        const DEFAULT_DELAY = 600;
+
+        // Parse current emote value into step rows
+        interface SeqStep { type: "action" | "emote" | "pose" | "reset" | "leaveroom"; text: string; delay: number; }
+
+        const parseSteps = (raw: string): SeqStep[] => {
+            if (!raw.trim()) return [];
+            return raw.split("|").map(r => r.trim()).filter(Boolean).map(r => {
+                const { content, delay } = parseStep(r, DEFAULT_DELAY);
+                if (content === "_") return { type: "reset" as const, text: "", delay };
+                if (content.toLowerCase() === "leaveroom") return { type: "leaveroom" as const, text: "", delay };
+                if (content.startsWith("!")) return { type: "action" as const, text: content.slice(1), delay };
+                if (content.startsWith("*")) return { type: "emote" as const, text: content.slice(1), delay };
+                return { type: "pose" as const, text: content, delay };
+            });
+        };
+
+        const serializeSteps = (steps: SeqStep[]): string => {
+            return steps.map(s => {
+                let content = "";
+                if (s.type === "reset") content = "_";
+                else if (s.type === "leaveroom") content = "leaveroom";
+                else if (s.type === "action") content = "!" + s.text;
+                else if (s.type === "emote") content = "*" + s.text;
+                else content = s.text;
+                return s.type === "leaveroom" ? content : `${content}@${s.delay}`;
+            }).join("|");
+        };
+
+        let steps: SeqStep[] = parseSteps(btns[idx].emote);
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "ebc-seq-builder";
+
+        const stepList = document.createElement("div");
+        stepList.style.cssText = "display:flex;flex-direction:column;gap:3px;";
+        wrapper.appendChild(stepList);
+
+        const renderSteps = (): void => {
+            while (stepList.firstChild) stepList.removeChild(stepList.firstChild);
+
+            for (let si = 0; si < steps.length; si++) {
+                const step = steps[si];
+                const stepRow = document.createElement("div");
+                stepRow.className = "ebc-seq-step-row";
+
+                // Type dropdown
+                const typeSelect = document.createElement("select");
+                typeSelect.className = "ebc-seq-type-select";
+                [
+                    { value: "action",    label: "Action !"     },
+                    { value: "emote",     label: "Emote *"      },
+                    { value: "pose",      label: "Pose"         },
+                    { value: "reset",     label: "Reset _"      },
+                    { value: "leaveroom", label: "Leave Room 🚪" },
+                ].forEach(opt => {
+                    const o = document.createElement("option");
+                    o.value = opt.value; o.textContent = opt.label;
+                    if (opt.value === step.type) o.selected = true;
+                    typeSelect.appendChild(o);
+                });
+
+                const noText  = step.type === "reset" || step.type === "leaveroom";
+                const noDelay = step.type === "leaveroom";
+
+                // Text input
+                const textInp = document.createElement("input");
+                textInp.className = "ebc-seq-text-inp";
+                textInp.type = "text";
+                textInp.value = step.text;
+                textInp.placeholder = step.type === "pose" ? "e.g. HandsUp" : "text...";
+                textInp.disabled = noText;
+                textInp.maxLength = 200;
+                if (noText) textInp.style.opacity = "0.35";
+
+                // Delay input (ms) — hidden for leaveroom since nothing follows
+                const delayInp = document.createElement("input");
+                delayInp.className = "ebc-seq-delay-inp";
+                delayInp.type = "number";
+                delayInp.min = "0";
+                delayInp.max = "60000";
+                delayInp.step = "100";
+                delayInp.value = String(step.delay);
+                delayInp.title = "Delay after this step (ms)";
+                if (noDelay) delayInp.style.visibility = "hidden";
+
+                // Delete button
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-seq-step-del";
+                delBtn.textContent = "×";
+                delBtn.title = "Remove step";
+
+                stepRow.appendChild(typeSelect);
+                stepRow.appendChild(textInp);
+                stepRow.appendChild(delayInp);
+                stepRow.appendChild(delBtn);
+                stepList.appendChild(stepRow);
+
+                // Events (capture si)
+                const sidx = si;
+
+                typeSelect.addEventListener("change", () => {
+                    const t = typeSelect.value as SeqStep["type"];
+                    steps[sidx].type = t;
+                    const noTxt = t === "reset" || t === "leaveroom";
+                    const noDly = t === "leaveroom";
+                    textInp.disabled = noTxt;
+                    textInp.style.opacity = noTxt ? "0.35" : "";
+                    delayInp.style.visibility = noDly ? "hidden" : "";
+                    if (noTxt) { steps[sidx].text = ""; textInp.value = ""; }
+                    btns[idx].emote = serializeSteps(steps);
+                });
+
+                textInp.addEventListener("input", () => {
+                    steps[sidx].text = textInp.value;
+                    btns[idx].emote = serializeSteps(steps);
+                });
+
+                delayInp.addEventListener("input", () => {
+                    const v = parseInt(delayInp.value, 10);
+                    steps[sidx].delay = isNaN(v) ? DEFAULT_DELAY : Math.max(0, v);
+                    btns[idx].emote = serializeSteps(steps);
+                });
+
+                delBtn.addEventListener("click", () => {
+                    steps.splice(sidx, 1);
+                    btns[idx].emote = serializeSteps(steps);
+                    renderSteps();
+                });
+            }
+        };
+
+        renderSteps();
+
+        // Button row: template shortcut + add step
+        const seqBtnRow = document.createElement("div");
+        seqBtnRow.style.cssText = "display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;";
+
+        const templateBtn = document.createElement("button");
+        templateBtn.className = "ebc-seq-add-btn";
+        templateBtn.textContent = "📤 Slow Leave template";
+        templateBtn.title = "Fill with a ready-made slow leave (edit messages to your liking)";
+        templateBtn.addEventListener("click", () => {
+            steps = [
+                { type: "emote", text: "smiles softly and gives a little wave.", delay: 3000 },
+                { type: "emote", text: "slips quietly toward the door...",       delay: 3000 },
+                { type: "leaveroom", text: "", delay: 0 },
+            ];
+            btns[idx].emote = serializeSteps(steps);
+            renderSteps();
+        });
+        seqBtnRow.appendChild(templateBtn);
+
+        const addBtn = document.createElement("button");
+        addBtn.className = "ebc-seq-add-btn";
+        addBtn.textContent = "+ Add step";
+        addBtn.addEventListener("click", () => {
+            steps.push({ type: "action", text: "", delay: DEFAULT_DELAY });
+            btns[idx].emote = serializeSteps(steps);
+            renderSteps();
+        });
+        seqBtnRow.appendChild(addBtn);
+
+        wrapper.appendChild(seqBtnRow);
+
+        return wrapper;
+    }
+
+    // -- Macro editor (shown below a slot when style === "macro") ---------------
+
+    private buildMacroEditor(btns: ActionButton[], idx: number): HTMLElement {
+        type MacroType = "leaveroom" | "releaseself" | "wardrobe" | "outfit" | "scene" | "beep";
+
+        const ALL_TYPES: { value: MacroType; label: string; hasArg: boolean }[] = [
+            { value: "leaveroom",   label: "🚪 Leave Room",         hasArg: false },
+            { value: "releaseself", label: "🔓 Release Restraints", hasArg: false },
+            { value: "wardrobe",    label: "👗 Open Wardrobe",      hasArg: false },
+            { value: "outfit",      label: "✨ Apply Outfit",       hasArg: true  },
+        ];
+
+        const parseMacro = (cmd: string): { type: MacroType; arg: string } => {
+            const col = cmd.indexOf(":");
+            const rawType = (col >= 0 ? cmd.slice(0, col) : cmd).toLowerCase().trim();
+            const arg = col >= 0 ? cmd.slice(col + 1).trim() : "";
+            const valid = ALL_TYPES.map(t => t.value);
+            return { type: valid.includes(rawType as MacroType) ? (rawType as MacroType) : "leaveroom", arg };
+        };
+
+        const serialize = (type: MacroType, arg: string): string => arg ? `${type}:${arg}` : type;
+
+        let { type, arg } = parseMacro(btns[idx].emote || "leaveroom");
+
+        const INP_CSS = "background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 4px;outline:none;min-width:0;";
+        const LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
+
+        const wrapper = document.createElement("div");
+        wrapper.style.cssText = "padding:5px 6px;background:rgba(12,4,10,0.5);border-top:1px solid #2a1020;display:flex;flex-direction:column;gap:4px;";
+
+        // Type dropdown row
+        const typeRow = document.createElement("div");
+        typeRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+        const typeLabel = document.createElement("span");
+        typeLabel.style.cssText = LBL_CSS;
+        typeLabel.textContent = "Action:";
+        const typeSelect = document.createElement("select");
+        typeSelect.className = "ebc-seq-type-select";
+        typeSelect.style.width = "160px";
+        ALL_TYPES.forEach(opt => {
+            const o = document.createElement("option");
+            o.value = opt.value; o.textContent = opt.label;
+            if (opt.value === type) o.selected = true;
+            typeSelect.appendChild(o);
+        });
+        typeRow.appendChild(typeLabel);
+        typeRow.appendChild(typeSelect);
+        wrapper.appendChild(typeRow);
+
+        // Arg row (shown only for types that need an argument)
+        const argRow = document.createElement("div");
+        argRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+
+        const buildArgRow = (curType: MacroType, curArg: string): void => {
+            while (argRow.firstChild) argRow.removeChild(argRow.firstChild);
+            if (argRow.parentElement) argRow.remove();
+            const meta = ALL_TYPES.find(t => t.value === curType);
+            if (!meta?.hasArg) return;
+
+            const argLabel = document.createElement("span");
+            argLabel.style.cssText = LBL_CSS;
+
+            if (curType === "outfit") {
+                argLabel.textContent = "Outfit:";
+                const outfits = getOutfits();
+                if (!outfits.length) {
+                    const note = document.createElement("span");
+                    note.style.cssText = LBL_CSS + "font-style:italic;";
+                    note.textContent = "No outfits saved yet";
+                    argRow.appendChild(argLabel); argRow.appendChild(note);
+                } else {
+                    const sel = document.createElement("select");
+                    sel.style.cssText = INP_CSS + "flex:1;";
+                    outfits.forEach(o => {
+                        const opt = document.createElement("option");
+                        opt.value = o.command; opt.textContent = o.displayName;
+                        if (o.command === curArg) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    if (!curArg) btns[idx].emote = serialize(curType, outfits[0].command);
+                    sel.addEventListener("change", () => { btns[idx].emote = serialize(curType, sel.value); });
+                    argRow.appendChild(argLabel); argRow.appendChild(sel);
+                }
+            } else if (curType === "scene") {
+                argLabel.textContent = "Scene:";
+                const scenes = getScenes();
+                if (!scenes.length) {
+                    const note = document.createElement("span");
+                    note.style.cssText = LBL_CSS + "font-style:italic;";
+                    note.textContent = "No scenes saved yet";
+                    argRow.appendChild(argLabel); argRow.appendChild(note);
+                } else {
+                    const sel = document.createElement("select");
+                    sel.style.cssText = INP_CSS + "flex:1;";
+                    scenes.forEach(s => {
+                        const opt = document.createElement("option");
+                        opt.value = s.name; opt.textContent = s.name;
+                        if (s.name === curArg) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    if (!curArg) btns[idx].emote = serialize(curType, scenes[0].name);
+                    sel.addEventListener("change", () => { btns[idx].emote = serialize(curType, sel.value); });
+                    argRow.appendChild(argLabel); argRow.appendChild(sel);
+                }
+            } else if (curType === "beep") {
+                argLabel.textContent = "Member #:";
+                const inp = document.createElement("input");
+                inp.style.cssText = INP_CSS + "width:90px;";
+                inp.type = "text"; inp.placeholder = "e.g. 12345";
+                inp.value = curArg; inp.maxLength = 12;
+                inp.addEventListener("input", () => { btns[idx].emote = serialize(curType, inp.value.trim()); });
+                argRow.appendChild(argLabel); argRow.appendChild(inp);
+            }
+
+            wrapper.appendChild(argRow);
+        };
+
+        buildArgRow(type, arg);
+
+        typeSelect.addEventListener("change", () => {
+            type = typeSelect.value as MacroType;
+            arg = "";
+            btns[idx].emote = serialize(type, arg);
+            buildArgRow(type, arg);
+        });
+
+        return wrapper;
+    }
+
+    // -- Buttons tab -----------------------------------------------------------
 
     private renderButtons(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
-        const savedScroll = body.scrollTop;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        const isEdit = this.btnEditMode;
-        const cats = getButtonCategories();
-        const save = (): void => saveButtonCategories(cats);
-        const rerender = (): void => { save(); this.renderButtons(); };
+        // ── Show action buttons toggle ────────────────────────────────────────
+        const abToggleRow = document.createElement("div");
+        abToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+        const abLbl2 = document.createElement("span");
+        abLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+        abLbl2.textContent = "Show action buttons sidebar";
+        const abToggle2 = document.createElement("button");
+        const updateAbToggle2 = (): void => {
+            const on = getActionButtonsVisible();
+            abToggle2.textContent = on ? "ON" : "OFF";
+            abToggle2.style.cssText = [
+                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                "padding:5px 12px", "border-radius:4px", "cursor:pointer",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+            abToggle2.title = on ? "Sidebar visible — click to hide" : "Sidebar hidden — click to show";
+        };
+        try { updateAbToggle2(); } catch { /* ignore */ }
+        abToggle2.addEventListener("click", () => { setActionButtonsVisible(!getActionButtonsVisible()); updateAbToggle2(); });
+        abToggleRow.appendChild(abLbl2);
+        abToggleRow.appendChild(abToggle2);
+        body.appendChild(abToggleRow);
 
-        // Header row
-        const hdrRow = document.createElement("div");
-        hdrRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
-        const hdrLbl = document.createElement("div");
-        hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;letter-spacing:0.1em;color:#7a5a6a;";
-        hdrLbl.textContent = "BUTTONS";
-        const editToggle = document.createElement("button");
-        editToggle.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid ${isEdit ? "#cf6f98" : "#4c2537"};background:${isEdit ? "#6b3048" : "transparent"};color:${isEdit ? "#f7e6ee" : "#9a7080"};cursor:pointer;transition:all 0.12s;`;
-        editToggle.textContent = isEdit ? "✓ Done" : "✎ Edit";
-        editToggle.addEventListener("click", () => { this.btnEditMode = !this.btnEditMode; this.renderButtons(); });
-        hdrRow.appendChild(hdrLbl);
-        hdrRow.appendChild(editToggle);
-        body.appendChild(hdrRow);
+        // Working category state
+        const cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
+        let activeCatIdx = getActiveCategoryIndex();
+        if (activeCatIdx >= cats.length) activeCatIdx = 0;
 
-        if (isEdit) {
-            const addCatBtn = document.createElement("button");
-            addCatBtn.className = "ebc-btn-footer-btn";
-            addCatBtn.textContent = "+ New Category";
-            addCatBtn.style.marginBottom = "6px";
-            addCatBtn.addEventListener("click", () => {
-                cats.push({ id: makeBtnId(), name: "New Category", buttons: [] });
-                rerender();
-            });
-            body.appendChild(addCatBtn);
+        // ── Accordion: one collapsible section per category ───────────────────
+        // Build all headers; only the active one has its editor body visible.
+        // Clicking a collapsed header switches to it and re-renders.
+
+        // Working copies for the active category's editor
+        let btns: ActionButton[] = cats[activeCatIdx].buttons.map(b => ({ ...b }));
+        let slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
+        while (btns.length < slotCount) {
+            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
         }
 
-        for (let ci = 0; ci < cats.length; ci++) {
-            body.appendChild(this.buildCategorySection(cats[ci], ci, cats, isEdit, rerender));
-        }
+        // ── Build accordion ───────────────────────────────────────────────────
+        // One section per category. The active one is expanded; others collapsed.
+        let activeBodyEl: HTMLElement = document.createElement("div"); // filled below
 
-        if (isEdit) {
-            const hint = document.createElement("div");
-            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;margin-top:10px;line-height:1.6;";
-            hint.innerHTML = [
-                "<span style='color:#7a5a6a;font-weight:bold;'>Sequence syntax</span> — steps separated by <b>|</b>",
-                "PoseName &nbsp;— set pose &nbsp;·&nbsp; <b>_</b> — clear pose",
-                "<b>!text</b> — send action &nbsp;·&nbsp; <b>*text</b> — send emote",
-                "<b>step@500</b> — per-step delay ms &nbsp;·&nbsp; <b>leaveroom</b> — leave",
-            ].join("<br>");
-            body.appendChild(hint);
-        }
+        const HROW_CSS = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;border-radius:6px;margin-bottom:2px;";
+        const CAT_LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        const ICON_BTN_CSS = "background:none;border:none;font-family:'Trebuchet MS',serif;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:3px;color:#7a5a6a;flex-shrink:0;";
 
-        body.scrollTop = savedScroll;
-    }
+        cats.forEach((cat, i) => {
+            const isActive = i === activeCatIdx;
 
-    private buildCategorySection(
-        cat: ButtonCategory,
-        ci: number,
-        allCats: ButtonCategory[],
-        isEdit: boolean,
-        rerender: () => void,
-    ): HTMLElement {
-        const section = document.createElement("div");
-        section.style.marginBottom = "6px";
+            const section = document.createElement("div");
+            section.style.cssText = "border:1px solid " + (isActive ? "#5a2840" : "#2a1421") + ";border-radius:7px;margin-bottom:5px;overflow:hidden;";
 
-        // Category header
-        const hdr = document.createElement("div");
-        hdr.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+            // ── Header ──
+            const hrow = document.createElement("div");
+            hrow.style.cssText = HROW_CSS + "background:" + (isActive ? "#2a0e1e" : "#1b0d17") + ";";
 
-        const collapseBtn = document.createElement("button");
-        collapseBtn.style.cssText = "background:none;border:none;color:#7a5a6a;cursor:pointer;font-size:10px;padding:0 2px;font-family:'Trebuchet MS',serif;flex-shrink:0;";
-        collapseBtn.textContent = cat.collapsed ? "▶" : "▼";
-        collapseBtn.addEventListener("click", () => { cat.collapsed = !cat.collapsed; saveButtonCategories(allCats); rerender(); });
-        hdr.appendChild(collapseBtn);
+            const chevron = document.createElement("span");
+            chevron.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+            chevron.textContent = isActive ? "▼" : "▶";
 
-        if (isEdit) {
-            const nameInp = document.createElement("input");
-            nameInp.type = "text";
-            nameInp.value = cat.name;
-            nameInp.style.cssText = "flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;outline:none;";
-            nameInp.addEventListener("change", () => { cat.name = nameInp.value.trim() || cat.name; saveButtonCategories(allCats); });
-            hdr.appendChild(nameInp);
-
-            if (ci > 0) {
-                const up = document.createElement("button");
-                up.className = "ebc-slot-move"; up.textContent = "↑"; up.title = "Move category up";
-                up.addEventListener("click", () => { [allCats[ci - 1], allCats[ci]] = [allCats[ci], allCats[ci - 1]]; rerender(); });
-                hdr.appendChild(up);
-            }
-            if (ci < allCats.length - 1) {
-                const dn = document.createElement("button");
-                dn.className = "ebc-slot-move"; dn.textContent = "↓"; dn.title = "Move category down";
-                dn.addEventListener("click", () => { [allCats[ci], allCats[ci + 1]] = [allCats[ci + 1], allCats[ci]]; rerender(); });
-                hdr.appendChild(dn);
-            }
-
-            const delCat = document.createElement("button");
-            delCat.className = "ebc-slot-del"; delCat.textContent = "×"; delCat.title = "Delete category";
-            let catDelPending = false;
-            delCat.addEventListener("click", () => {
-                if (!catDelPending) { catDelPending = true; delCat.textContent = "?"; delCat.classList.add("confirm"); return; }
-                allCats.splice(ci, 1); rerender();
-            });
-            delCat.addEventListener("mouseleave", () => { catDelPending = false; delCat.textContent = "×"; delCat.classList.remove("confirm"); });
-            hdr.appendChild(delCat);
-        } else {
             const nameLbl = document.createElement("span");
-            nameLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;letter-spacing:0.08em;color:#7a5a6a;text-transform:uppercase;";
+            nameLbl.style.cssText = CAT_LBL_CSS;
             nameLbl.textContent = cat.name;
-            hdr.appendChild(nameLbl);
-        }
 
-        section.appendChild(hdr);
-        if (cat.collapsed) return section;
-
-        const content = document.createElement("div");
-
-        if (isEdit) {
-            for (let bi = 0; bi < cat.buttons.length; bi++) {
-                content.appendChild(this.buildSlotRow(cat, bi, allCats, rerender));
-            }
-            const addBtn = document.createElement("button");
-            addBtn.className = "ebc-btn-footer-btn";
-            addBtn.textContent = "+ Add Button";
-            addBtn.style.cssText += ";margin-top:3px;display:block;";
-            addBtn.addEventListener("click", () => {
-                cat.buttons.push({ id: makeBtnId(), label: "Button", sequence: "" });
-                rerender();
+            const renameBtn = document.createElement("button");
+            renameBtn.style.cssText = ICON_BTN_CSS;
+            renameBtn.textContent = "✎";
+            renameBtn.title = "Rename";
+            renameBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const newName = window.prompt("New name:", cats[i].name) ?? "";
+                if (!newName.trim()) return;
+                cats[i].name = newName.trim();
+                saveCategories([...cats], activeCatIdx);
+                nameLbl.textContent = newName.trim();
             });
-            content.appendChild(addBtn);
-        } else {
-            const tileRow = document.createElement("div");
-            tileRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding:0 0 4px 14px;";
-            if (cat.buttons.length === 0) {
-                const empty = document.createElement("span");
-                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;font-style:italic;";
-                empty.textContent = "No buttons — use ✎ Edit to add some.";
-                tileRow.appendChild(empty);
-            }
-            for (const btn of cat.buttons) {
-                const tile = document.createElement("button");
-                const col = btn.color ?? "#4c2537";
-                const txtCol = btn.color ?? "#f0e0ea";
-                tile.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 11px;border-radius:5px;background:#1b0d17;border:1px solid ${col};color:${txtCol};cursor:pointer;min-width:50px;text-align:center;transition:background 0.12s,border-color 0.12s;`;
-                tile.textContent = btn.label;
-                tile.title = btn.sequence || "(no sequence)";
-                tile.addEventListener("mouseenter", () => { tile.style.background = "#2a1020"; tile.style.borderColor = btn.color ? btn.color : "#7a4a5e"; });
-                tile.addEventListener("mouseleave", () => { tile.style.background = "#1b0d17"; tile.style.borderColor = col; });
-                tile.addEventListener("click", () => {
-                    if (!btn.sequence.trim()) return;
-                    tile.style.background = "#6b3048";
-                    tile.style.borderColor = "#cf6f98";
-                    window.setTimeout(() => { tile.style.background = "#1b0d17"; tile.style.borderColor = col; }, 350);
-                    runSequence(btn.sequence);
+
+            hrow.appendChild(chevron);
+            hrow.appendChild(nameLbl);
+            hrow.appendChild(renameBtn);
+
+            if (cats.length > 1) {
+                const delBtn = document.createElement("button");
+                delBtn.style.cssText = ICON_BTN_CSS + "color:#7a3040;";
+                delBtn.textContent = "✕";
+                delBtn.title = "Delete category";
+                delBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (!window.confirm(`Delete category "${cats[i].name}"?`)) return;
+                    cats.splice(i, 1);
+                    const newIdx = Math.min(i, cats.length - 1);
+                    saveCategories([...cats], newIdx);
+                    this.rerender();
                 });
-                tileRow.appendChild(tile);
+                hrow.appendChild(delBtn);
             }
-            content.appendChild(tileRow);
-        }
 
-        section.appendChild(content);
-        return section;
+            // Build the body element now so the click handler can reference it for toggling
+            const catBody = document.createElement("div");
+            catBody.style.cssText = "padding:6px 8px 4px;";
+            let isExpanded = isActive;
+            if (isActive) {
+                // Restore persisted collapse state for the active category
+                try { isExpanded = localStorage.getItem("EBC_activeCatExpanded") !== "0"; } catch { /* ignore */ }
+                // Sync visual state to match the restored expansion state
+                chevron.textContent = isExpanded ? "▼" : "▶";
+                section.style.borderColor = isExpanded ? "#5a2840" : "#2a1421";
+                hrow.style.background = isExpanded ? "#2a0e1e" : "#1b0d17";
+            }
+            catBody.style.display = isExpanded ? "" : "none";
+
+            // Clicking a collapsed header switches to it and re-renders.
+            // Clicking the active (expanded) header toggles it open/closed inline.
+            hrow.addEventListener("click", () => {
+                if (i !== activeCatIdx) {
+                    setActiveCategoryIndex(i);
+                    this.rerender();
+                    return;
+                }
+                isExpanded = !isExpanded;
+                catBody.style.display = isExpanded ? "" : "none";
+                chevron.textContent = isExpanded ? "▼" : "▶";
+                section.style.borderColor = isExpanded ? "#5a2840" : "#2a1421";
+                hrow.style.background = isExpanded ? "#2a0e1e" : "#1b0d17";
+                try { localStorage.setItem("EBC_activeCatExpanded", isExpanded ? "1" : "0"); } catch { /* ignore */ }
+            });
+
+            section.appendChild(hrow);
+
+            // ── Body (only rendered for the active category) ──
+            if (isActive) {
+                activeBodyEl = catBody;
+                section.appendChild(catBody);
+            }
+
+            body.appendChild(section);
+        });
+
+        // ── Add Category row ──────────────────────────────────────────────────
+        const addCatRow = document.createElement("div");
+        addCatRow.style.cssText = "margin-bottom:8px;";
+        const addCatBtn = document.createElement("button");
+        addCatBtn.className = "ebc-cat-pill";
+        addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
+        addCatBtn.textContent = "+ Add Category";
+        addCatBtn.addEventListener("click", () => {
+            const name = window.prompt("Category name (e.g. RP, Casual):") ?? "";
+            if (!name.trim()) return;
+            cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" }], slotCount: 1 });
+            const newIdx = cats.length - 1;
+            saveCategories([...cats], newIdx);
+            this.rerender();
+        });
+        addCatRow.appendChild(addCatBtn);
+        body.appendChild(addCatRow);
+
+        // ── Slot list + render fn — appended into the active category body ─────
+        const slotList = document.createElement("div");
+        slotList.id = "ebc-slot-list";
+        activeBodyEl.appendChild(slotList);
+
+        const renderSlots = (): void => {
+            const savedScroll = body.scrollTop;
+            // Always ensure btns has a real object for every slot — prevents "undefined" crashes
+            while (btns.length < slotCount) {
+                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
+            }
+            while (slotList.firstChild) slotList.removeChild(slotList.firstChild);
+
+            for (let i = 0; i < slotCount; i++) {
+                const btn = btns[i];
+
+                const row = document.createElement("div");
+                row.className = "ebc-slot-row";
+
+                // Top line: toggle | label input | color picker | del
+                const topLine = document.createElement("div");
+                topLine.className = "ebc-slot-top";
+
+                const toggle = document.createElement("button");
+                toggle.className = "ebc-slot-toggle" + (btn.enabled ? " on" : "");
+                toggle.textContent = btn.enabled ? "ON" : "OFF";
+                toggle.title = btn.enabled ? "Click to disable" : "Click to enable";
+
+                const labelInp = document.createElement("input");
+                labelInp.className = "ebc-slot-label";
+                labelInp.type = "text";
+                labelInp.maxLength = 6;
+                labelInp.placeholder = "Label";
+                labelInp.value = btn.label;
+                labelInp.title = "Button label (max 6 chars)";
+
+                // Colour preview dot + hex text input; dot opens floating picker
+                const colorWrap = document.createElement("span");
+                colorWrap.style.cssText = "display:inline-flex;align-items:center;gap:3px;flex-shrink:0;";
+                const colorDot = document.createElement("span");
+                colorDot.style.cssText = `width:14px;height:14px;border-radius:3px;border:1px solid #5a2a3e;flex-shrink:0;background:${normalizeHex(btn.color)};cursor:pointer;`;
+                colorDot.title = "Click to open colour picker";
+                const colorInp = document.createElement("input");
+                colorInp.className = "ebc-slot-color";
+                colorInp.type = "text";
+                colorInp.maxLength = 7;
+                colorInp.placeholder = "#hex";
+                colorInp.value = normalizeHex(btn.color);
+                colorInp.title = "Button colour (hex, e.g. #cf6f98)";
+                colorInp.style.cssText = "width:52px;font-size:8px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;";
+                colorWrap.appendChild(colorDot);
+                colorWrap.appendChild(colorInp);
+
+                // Floating picker popup — created on demand, one per slot at a time
+                let slotPickerPopup: HTMLElement | null = null;
+                let slotPickerCleanup: (() => void) | null = null;
+                const closeSlotPicker = (): void => {
+                    if (slotPickerPopup) {
+                        slotPickerCleanup?.();
+                        slotPickerCleanup = null;
+                        slotPickerPopup.remove();
+                        slotPickerPopup = null;
+                    }
+                };
+                colorDot.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (slotPickerPopup) { closeSlotPicker(); return; }
+                    const popup = document.createElement("div");
+                    popup.style.cssText = "position:fixed;z-index:100000;background:#1b0d17;border:1px solid #5a2a3e;border-radius:8px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,0.7);";
+                    const pw = this.buildColorPickerWidget(btns[i].color ?? "#cf6f98", (hex) => {
+                        btns[i].color = hex;
+                        colorDot.style.background = hex;
+                        colorInp.value = hex;
+                        colorInp.style.color = "#f7e6ee";
+                    });
+                    const wpw = pw as unknown as Record<string, unknown>;
+                    slotPickerCleanup = wpw._cleanup as () => void;
+                    const doneBtn = document.createElement("button");
+                    doneBtn.className = "ebc-wear-btn";
+                    doneBtn.style.cssText = "width:100%;margin-top:6px;";
+                    doneBtn.textContent = "✓ Done";
+                    doneBtn.addEventListener("click", closeSlotPicker);
+                    popup.appendChild(pw);
+                    popup.appendChild(doneBtn);
+                    const rect = colorDot.getBoundingClientRect();
+                    popup.style.top = Math.max(4, Math.min(rect.top - 4, window.innerHeight - 280)) + "px";
+                    popup.style.left = Math.max(4, rect.left - 224) + "px";
+                    document.body.appendChild(popup);
+                    slotPickerPopup = popup;
+                    // Close when clicking outside the popup
+                    const onOutside = (ev: MouseEvent): void => {
+                        if (!popup.contains(ev.target as Node)) {
+                            closeSlotPicker();
+                            document.removeEventListener("click", onOutside, true);
+                        }
+                    };
+                    window.setTimeout(() => document.addEventListener("click", onOutside, true), 80);
+                });
+
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-slot-del";
+                delBtn.textContent = "x";
+                delBtn.title = "Remove this slot";
+
+                // ▲ / ▼ reorder buttons
+                const moveUpBtn = document.createElement("button");
+                moveUpBtn.className = "ebc-slot-move";
+                moveUpBtn.textContent = "▲";
+                moveUpBtn.title = "Move up";
+                moveUpBtn.disabled = i === 0;
+
+                const moveDownBtn = document.createElement("button");
+                moveDownBtn.className = "ebc-slot-move";
+                moveDownBtn.textContent = "▼";
+                moveDownBtn.title = "Move down";
+                moveDownBtn.disabled = i === slotCount - 1;
+
+                topLine.appendChild(toggle);
+                topLine.appendChild(labelInp);
+                topLine.appendChild(colorWrap);
+                topLine.appendChild(moveUpBtn);
+                topLine.appendChild(moveDownBtn);
+                topLine.appendChild(delBtn);
+
+                // Bottom line: style toggle (hidden for seq) | emote/seq input
+                const botLine = document.createElement("div");
+                botLine.className = "ebc-slot-bottom";
+
+                const currentStyle: ActionStyle = (btn.style as ActionStyle) ?? "action";
+                const isSeq = currentStyle === "seq";
+
+                const styleBtn = document.createElement("button");
+                const styleBtnLabels: Record<ActionStyle, string> = { action: "💬", emote: "💬", seq: "✨", macro: "🔧" };
+                const styleBtnTitles: Record<ActionStyle, string> = {
+                    action: "Legacy chat style — click to convert to macro",
+                    emote:  "Legacy chat style — click to convert to macro",
+                    seq:    "Style: ✨ sequence — click to switch to macro",
+                    macro:  "Style: 🔧 macro — click to switch to sequence",
+                };
+                styleBtn.className = "ebc-slot-style" + (currentStyle !== "action" ? " emote" : "");
+                styleBtn.textContent = styleBtnLabels[currentStyle] ?? "🔧";
+                styleBtn.title = styleBtnTitles[currentStyle] ?? "";
+
+                // seqBadge kept in DOM for layout but no longer used for display
+                const seqBadge = document.createElement("span");
+                seqBadge.style.display = "none";
+
+                const emoteInp = document.createElement("input");
+                emoteInp.className = "ebc-slot-emote";
+                emoteInp.type = "text";
+                emoteInp.maxLength = 240;
+                emoteInp.placeholder = "e.g. nods.";
+                emoteInp.value = btn.emote;
+                emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
+                emoteInp.style.display = (isSeq || currentStyle === "macro") ? "none" : "";
+
+                // Name-in-announce chip — only meaningful for ( ) action style
+                const nameIncluded = btn.includeNameInAnnounce !== false;
+                const nameChip = document.createElement("button");
+                nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
+                nameChip.textContent = nameIncluded ? "name" : "anon";
+                nameChip.title = nameIncluded
+                    ? "Your name is included — click to send anonymously"
+                    : "Sending without name — click to include name";
+                nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
+                // only show for action style (emote always has name; seq/macro not applicable)
+                nameChip.style.display = (currentStyle === "action") ? "" : "none";
+
+                botLine.appendChild(styleBtn);
+                botLine.appendChild(seqBadge);
+                botLine.appendChild(nameChip);
+                botLine.appendChild(emoteInp);
+
+                row.appendChild(topLine);
+                row.appendChild(botLine);
+                slotList.appendChild(row);
+
+                // -- Seq step builder / Macro editor --
+                if (isSeq) {
+                    const builderEl = this.buildSeqStepBuilder(btns, i);
+                    slotList.appendChild(builderEl);
+                } else if (currentStyle === "macro") {
+                    const macroEl = this.buildMacroEditor(btns, i);
+                    slotList.appendChild(macroEl);
+                }
+
+                // -- Events (capture i) --
+                const idx = i;
+
+                moveUpBtn.addEventListener("click", () => {
+                    if (idx === 0) return;
+                    [btns[idx - 1], btns[idx]] = [btns[idx], btns[idx - 1]];
+                    renderSlots();
+                    updateFooterState();
+                });
+
+                moveDownBtn.addEventListener("click", () => {
+                    if (idx >= slotCount - 1) return;
+                    [btns[idx], btns[idx + 1]] = [btns[idx + 1], btns[idx]];
+                    renderSlots();
+                    updateFooterState();
+                });
+
+                toggle.addEventListener("click", () => {
+                    btns[idx].enabled = !btns[idx].enabled;
+                    toggle.className = "ebc-slot-toggle" + (btns[idx].enabled ? " on" : "");
+                    toggle.textContent = btns[idx].enabled ? "ON" : "OFF";
+                });
+
+                labelInp.addEventListener("input", () => {
+                    btns[idx].label = labelInp.value.trim().slice(0, 6);
+                });
+
+                colorInp.addEventListener("input", () => {
+                    let v = colorInp.value.trim();
+                    if (!v.startsWith("#")) v = "#" + v;
+                    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                        btns[idx].color = v;
+                        colorDot.style.background = v;
+                        colorInp.style.color = "#f7e6ee";
+                    } else {
+                        colorInp.style.color = "#cf3060";
+                    }
+                });
+
+                emoteInp.addEventListener("input", () => {
+                    btns[idx].emote = emoteInp.value;
+                });
+
+                nameChip.addEventListener("click", () => {
+                    const next = btns[idx].includeNameInAnnounce === false; // toggle
+                    btns[idx].includeNameInAnnounce = next;
+                    nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
+                    nameChip.textContent = next ? "name" : "anon";
+                    nameChip.title = next
+                        ? "Your name is included — click to send anonymously"
+                        : "Sending without name — click to include name";
+                });
+
+                styleBtn.addEventListener("click", () => {
+                    const cur: ActionStyle = btns[idx].style ?? "macro";
+                    // action/emote are legacy — clicking converts them to macro
+                    // active cycle is seq ↔ macro
+                    const next: ActionStyle = (cur === "action" || cur === "emote") ? "macro"
+                        : cur === "seq" ? "macro" : "seq";
+                    btns[idx].style = next;
+                    // Always rebuild — seq/macro editors need to appear/disappear
+                    renderSlots();
+                    updateFooterState();
+                });
+
+                let slotDelPending = false;
+                let slotDelTimer: ReturnType<typeof window.setTimeout> | null = null;
+                delBtn.addEventListener("click", () => {
+                    if (!slotDelPending) {
+                        slotDelPending = true;
+                        delBtn.classList.add("confirm");
+                        delBtn.textContent = "?";
+                        delBtn.title = "Click again to remove this slot";
+                        slotDelTimer = window.setTimeout(() => {
+                            slotDelPending = false;
+                            delBtn.classList.remove("confirm");
+                            delBtn.textContent = "x";
+                            delBtn.title = "Remove this slot";
+                        }, 2500);
+                    } else {
+                        if (slotDelTimer !== null) window.clearTimeout(slotDelTimer);
+                        btns.splice(idx, 1);
+                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
+                        slotCount = Math.max(1, slotCount - 1);
+                        renderSlots();
+                        updateFooterState();
+                    }
+                });
+            }
+            body.scrollTop = savedScroll;
+        };
+
+        renderSlots();
+
+        // Footer buttons
+        const footer = document.createElement("div");
+        footer.className = "ebc-btn-footer";
+
+        const addBtn = document.createElement("button");
+        addBtn.className = "ebc-btn-footer-btn";
+        addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "ebc-btn-footer-btn save";
+        saveBtn.textContent = "Save";
+
+        const resetBtn = document.createElement("button");
+        resetBtn.className = "ebc-btn-footer-btn";
+        resetBtn.textContent = "Reset";
+        resetBtn.title = "Reset to defaults";
+
+        footer.appendChild(addBtn);
+        footer.appendChild(saveBtn);
+        footer.appendChild(resetBtn);
+        activeBodyEl.appendChild(footer);
+
+        // Export / Import row — inside the active category body
+        const ioRow = document.createElement("div");
+        ioRow.className = "ebc-btn-footer";
+        ioRow.style.marginTop = "3px";
+
+        const exportBtn = document.createElement("button");
+        exportBtn.className = "ebc-btn-footer-btn";
+        exportBtn.textContent = "↑ Export";
+        exportBtn.title = "Copy button config to clipboard to share with others";
+
+        const importToggleBtn = document.createElement("button");
+        importToggleBtn.className = "ebc-btn-footer-btn";
+        importToggleBtn.textContent = "↓ Import";
+        importToggleBtn.title = "Load a shared button config";
+
+        ioRow.appendChild(exportBtn);
+        ioRow.appendChild(importToggleBtn);
+        activeBodyEl.appendChild(ioRow);
+
+        // Import panel (collapsible)
+        const importPanel = document.createElement("div");
+        importPanel.className = "ebc-import-panel";
+        activeBodyEl.appendChild(importPanel);
+
+        const importHint = document.createElement("div");
+        importHint.className = "ebc-import-hint";
+        importHint.textContent = "Paste exported config here:";
+        importPanel.appendChild(importHint);
+
+        const importTextarea = document.createElement("textarea");
+        importTextarea.className = "ebc-notes-textarea";
+        importTextarea.placeholder = '{"ebc":1,"slotCount":3,"buttons":[...]}';
+        importTextarea.rows = 3;
+        importPanel.appendChild(importTextarea);
+
+        const importError = document.createElement("div");
+        importError.className = "ebc-import-error";
+        importPanel.appendChild(importError);
+
+        const importActionRow = document.createElement("div");
+        importActionRow.style.cssText = "display:flex;gap:5px;";
+        const loadBtn = document.createElement("button");
+        loadBtn.className = "ebc-create-btn";
+        loadBtn.style.marginTop = "0";
+        loadBtn.textContent = "Load";
+        const cancelImportBtn = document.createElement("button");
+        cancelImportBtn.className = "ebc-btn-footer-btn";
+        cancelImportBtn.textContent = "Cancel";
+        importActionRow.appendChild(loadBtn);
+        importActionRow.appendChild(cancelImportBtn);
+        importPanel.appendChild(importActionRow);
+
+        const updateFooterState = (): void => {
+            addBtn.disabled = slotCount >= ABSOLUTE_MAX;
+            addBtn.textContent = `+ Add (${slotCount}/${ABSOLUTE_MAX})`;
+        };
+
+        updateFooterState();
+
+        addBtn.addEventListener("click", () => {
+            if (slotCount >= ABSOLUTE_MAX) return;
+            slotCount++;
+            renderSlots();
+            updateFooterState();
+            // Scroll to bottom so new slot is visible
+            body.scrollTop = body.scrollHeight;
+        });
+
+        saveBtn.addEventListener("click", () => {
+            // Flush any partially typed values from inputs before saving
+            const rows = slotList.querySelectorAll<HTMLElement>(".ebc-slot-row");
+            rows.forEach((row, i) => {
+                const lInp = row.querySelector<HTMLInputElement>(".ebc-slot-label");
+                const cInp = row.querySelector<HTMLInputElement>(".ebc-slot-color");
+                const eInp = row.querySelector<HTMLInputElement>(".ebc-slot-emote");
+                if (lInp) btns[i].label = lInp.value.trim().slice(0, 6);
+                if (cInp) btns[i].color = normalizeHex(cInp.value);
+                if (eInp && btns[i].style !== "seq") btns[i].emote = eInp.value;
+            });
+            // Save into the active category then persist all categories
+            cats[activeCatIdx].buttons   = [...btns];
+            cats[activeCatIdx].slotCount = slotCount;
+            saveCategories([...cats], activeCatIdx);
+                        saveBtn.textContent = "Saved!";
+            window.setTimeout(() => { saveBtn.textContent = "Save"; }, 1200);
+        });
+
+        let resetPending = false;
+        let resetTimer: ReturnType<typeof window.setTimeout> | null = null;
+        resetBtn.addEventListener("click", () => {
+            if (!resetPending) {
+                resetPending = true;
+                resetBtn.classList.add("confirm");
+                resetBtn.textContent = "Sure?";
+                resetBtn.title = "Click again to restore defaults";
+                resetTimer = window.setTimeout(() => {
+                    resetPending = false;
+                    resetBtn.classList.remove("confirm");
+                    resetBtn.textContent = "Reset";
+                    resetBtn.title = "Reset to defaults";
+                }, 2500);
+            } else {
+                if (resetTimer !== null) window.clearTimeout(resetTimer);
+                resetPending = false;
+                resetBtn.classList.remove("confirm");
+                resetBtn.textContent = "Reset";
+                resetBtn.title = "Reset to defaults";
+                importPanel.classList.remove("open");
+                importToggleBtn.classList.remove("open");
+                btns = DEFAULT_BUTTONS.map(b => ({ ...b }));
+                slotCount = DEFAULT_BUTTONS.length;
+                cats[activeCatIdx].buttons   = [...btns];
+                cats[activeCatIdx].slotCount = slotCount;
+                saveCategories([...cats], activeCatIdx);
+                            renderSlots();
+                updateFooterState();
+            }
+        });
+
+        // -- Export ---------------------------------------------------------------
+        exportBtn.addEventListener("click", () => {
+            const payload = JSON.stringify({
+                ebc: 1,
+                slotCount,
+                buttons: btns.slice(0, slotCount).map(b => ({
+                    label: b.label,
+                    emote: b.emote,
+                    color: b.color,
+                    enabled: b.enabled,
+                    style: b.style ?? "action",
+                })),
+            });
+
+            const showInPanel = (): void => {
+                importTextarea.value = payload;
+                importError.textContent = "";
+                importPanel.classList.add("open");
+                importToggleBtn.classList.add("open");
+                importTextarea.select();
+            };
+
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(payload).then(() => {
+                    exportBtn.textContent = "Copied!";
+                    window.setTimeout(() => { exportBtn.textContent = "↑ Export"; }, 1500);
+                }).catch(showInPanel).catch(() => { /* ignore */ });
+            } else {
+                showInPanel();
+            }
+        });
+
+        // -- Import ---------------------------------------------------------------
+        importToggleBtn.addEventListener("click", () => {
+            const willOpen = !importPanel.classList.contains("open");
+            importPanel.classList.toggle("open", willOpen);
+            importToggleBtn.classList.toggle("open", willOpen);
+            if (willOpen) {
+                importTextarea.value = "";
+                importError.textContent = "";
+                importTextarea.focus();
+            }
+        });
+
+        cancelImportBtn.addEventListener("click", () => {
+            importPanel.classList.remove("open");
+            importToggleBtn.classList.remove("open");
+            importTextarea.value = "";
+            importError.textContent = "";
+        });
+
+        loadBtn.addEventListener("click", () => {
+            importError.textContent = "";
+            try {
+                const raw = importTextarea.value.trim();
+                if (!raw) { importError.textContent = "Nothing to import."; return; }
+
+                const data = JSON.parse(raw) as Record<string, unknown>;
+                if (data.ebc !== 1) throw new Error("Not a valid EBC button export (missing version tag).");
+                if (!Array.isArray(data.buttons)) throw new Error("Missing buttons array.");
+
+                const imported: ActionButton[] = (data.buttons as unknown[]).map((item) => {
+                    const b = item as Record<string, unknown>;
+                    const style = (["action", "emote", "seq"].includes(b.style as string)
+                        ? b.style : "action") as ActionStyle;
+                    return {
+                        label:   typeof b.label === "string" ? b.label.slice(0, 6) : "",
+                        emote:   typeof b.emote === "string" ? b.emote.slice(0, 240) : "",
+                        color:   typeof b.color === "string" ? normalizeHex(b.color) : "#c2185b",
+                        enabled: !!b.enabled,
+                        style,
+                    };
+                });
+
+                const newCount = typeof data.slotCount === "number"
+                    ? Math.min(Math.max(1, Math.round(data.slotCount)), ABSOLUTE_MAX)
+                    : Math.min(imported.length, ABSOLUTE_MAX);
+
+                btns = imported;
+                slotCount = newCount;
+                while (btns.length < slotCount) {
+                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
+                }
+
+                saveButtons([...btns], slotCount);
+                importPanel.classList.remove("open");
+                importToggleBtn.classList.remove("open");
+                importTextarea.value = "";
+                renderSlots();
+                updateFooterState();
+
+                loadBtn.textContent = "Loaded!";
+                window.setTimeout(() => { loadBtn.textContent = "Load"; }, 1200);
+            } catch (err) {
+                importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
+            }
+        });
+
+        // -- Fun Actions --------------------------------------------------------
+        const funLbl = document.createElement("div");
+        funLbl.className = "ebc-section-label";
+        funLbl.style.marginTop = "10px";
+        funLbl.textContent = "Fun Actions";
+        body.appendChild(funLbl);
+
+        const boopBtn = document.createElement("button");
+        boopBtn.className = "ebc-create-btn";
+        boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        boopBtn.title = "Send a unique boop message to every friend currently in the room";
+        boopBtn.textContent = "🐾 Boop all friends in room";
+        boopBtn.addEventListener("click", () => {
+            const booped = this.boopFriendsInRoom();
+            if (booped === 0) {
+                boopBtn.textContent = "No friends here~";
+            } else {
+                boopBtn.textContent = `Booped ${booped}!`;
+            }
+            window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
+        });
+        body.appendChild(boopBtn);
+
+        // -- Useful Buttons ------------------------------------------------------
+        const usefulLbl = document.createElement("div");
+        usefulLbl.className = "ebc-section-label";
+        usefulLbl.style.marginTop = "10px";
+        usefulLbl.textContent = "Useful Buttons";
+        body.appendChild(usefulLbl);
+
+        const oocBtn = document.createElement("button");
+        oocBtn.className = "ebc-create-btn";
+        oocBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        const refreshOoc = (): void => {
+            const on = getOocEnabled();
+            oocBtn.textContent = on ? "( OOC Mode: ON  —  click to turn off" : "( OOC Mode: OFF  —  click to turn on";
+            oocBtn.style.opacity = on ? "1" : "0.6";
+        };
+        refreshOoc();
+        oocBtn.addEventListener("click", () => { setOocEnabled(!getOocEnabled()); refreshOoc(); });
+        body.appendChild(oocBtn);
+
+        const copyMemberBtn = document.createElement("button");
+        copyMemberBtn.className = "ebc-create-btn";
+        copyMemberBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        copyMemberBtn.textContent = "Copy My Member Number";
+        copyMemberBtn.addEventListener("click", () => {
+            try {
+                navigator.clipboard.writeText(String(Player.MemberNumber));
+                copyMemberBtn.textContent = "Copied!";
+            } catch {
+                copyMemberBtn.textContent = `#${Player.MemberNumber}`;
+            }
+            window.setTimeout(() => { copyMemberBtn.textContent = "Copy My Member Number"; }, 2000);
+        });
+        body.appendChild(copyMemberBtn);
+
+        const clearPoseBtn = document.createElement("button");
+        clearPoseBtn.className = "ebc-create-btn";
+        clearPoseBtn.style.cssText = "margin:4px 0 0; width:100%;";
+        clearPoseBtn.textContent = "Reset to Default Pose";
+        clearPoseBtn.title = "Clears all active poses back to standing";
+        clearPoseBtn.addEventListener("click", () => {
+            try {
+                (Player as unknown as Record<string, unknown>).ActivePose = [];
+                CharacterRefresh(Player, false);
+                ChatRoomCharacterUpdate(Player);
+                ServerPlayerAppearanceSync();
+            } catch { /* ignore */ }
+        });
+        body.appendChild(clearPoseBtn);
+
     }
 
-    private buildSlotRow(
-        cat: ButtonCategory,
-        bi: number,
-        allCats: ButtonCategory[],
-        rerender: () => void,
-    ): HTMLElement {
-        const btn = cat.buttons[bi];
-        const row = document.createElement("div");
-        row.className = "ebc-slot-row";
-
-        // ── Top: label | color | spacer | up/dn | del
-        const top = document.createElement("div");
-        top.className = "ebc-slot-top";
-
-        const labelInp = document.createElement("input");
-        labelInp.type = "text";
-        labelInp.className = "ebc-slot-label";
-        labelInp.placeholder = "Label";
-        labelInp.value = btn.label;
-        labelInp.style.width = "80px";
-        labelInp.addEventListener("input", () => { btn.label = labelInp.value; saveButtonCategories(allCats); });
-        top.appendChild(labelInp);
-
-        const colorInp = document.createElement("input");
-        colorInp.type = "color";
-        colorInp.className = "ebc-slot-color";
-        colorInp.value = btn.color ?? "#cf6f98";
-        colorInp.title = "Button colour";
-        colorInp.addEventListener("input", () => { btn.color = colorInp.value; saveButtonCategories(allCats); });
-        top.appendChild(colorInp);
-
-        const clearCol = document.createElement("button");
-        clearCol.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 4px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5060;cursor:pointer;flex-shrink:0;";
-        clearCol.textContent = "default";
-        clearCol.title = "Reset to default colour";
-        clearCol.addEventListener("click", () => { delete btn.color; colorInp.value = "#cf6f98"; saveButtonCategories(allCats); });
-        top.appendChild(clearCol);
-
-        const spacer = document.createElement("span");
-        spacer.style.flex = "1";
-        top.appendChild(spacer);
-
-        if (bi > 0) {
-            const up = document.createElement("button");
-            up.className = "ebc-slot-move"; up.textContent = "↑"; up.title = "Move up";
-            up.addEventListener("click", () => { [cat.buttons[bi - 1], cat.buttons[bi]] = [cat.buttons[bi], cat.buttons[bi - 1]]; rerender(); });
-            top.appendChild(up);
-        }
-        if (bi < cat.buttons.length - 1) {
-            const dn = document.createElement("button");
-            dn.className = "ebc-slot-move"; dn.textContent = "↓"; dn.title = "Move down";
-            dn.addEventListener("click", () => { [cat.buttons[bi], cat.buttons[bi + 1]] = [cat.buttons[bi + 1], cat.buttons[bi]]; rerender(); });
-            top.appendChild(dn);
-        }
-
-        const del = document.createElement("button");
-        del.className = "ebc-slot-del"; del.textContent = "×"; del.title = "Delete button";
-        let delPending = false;
-        del.addEventListener("click", () => {
-            if (!delPending) { delPending = true; del.textContent = "?"; del.classList.add("confirm"); return; }
-            cat.buttons.splice(bi, 1); rerender();
-        });
-        del.addEventListener("mouseleave", () => { delPending = false; del.textContent = "×"; del.classList.remove("confirm"); });
-        top.appendChild(del);
-
-        row.appendChild(top);
-
-        // ── Bottom: sequence input + step count badge
-        const bot = document.createElement("div");
-        bot.className = "ebc-slot-bottom";
-
-        const seqInp = document.createElement("input");
-        seqInp.type = "text";
-        seqInp.className = "ebc-slot-emote";
-        seqInp.placeholder = "Sequence: HandsUp|!waves.|_";
-        seqInp.value = btn.sequence;
-        seqInp.addEventListener("input", () => {
-            btn.sequence = seqInp.value;
-            saveButtonCategories(allCats);
-            const n = seqInp.value.split("|").filter(Boolean).length;
-            badge.textContent = n > 1 ? String(n) : "";
-            badge.style.display = n > 1 ? "" : "none";
-        });
-        bot.appendChild(seqInp);
-
-        const steps = btn.sequence ? btn.sequence.split("|").filter(Boolean).length : 0;
-        const badge = document.createElement("span");
-        badge.className = "ebc-slot-seq-badge";
-        badge.textContent = steps > 1 ? String(steps) : "";
-        badge.style.display = steps > 1 ? "" : "none";
-        badge.title = `${steps} steps`;
-        bot.appendChild(badge);
-
-        row.appendChild(bot);
-        return row;
-    }
 
     private renderKittyTab(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;

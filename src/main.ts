@@ -1,4 +1,5 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
+import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
@@ -19,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.54";
+const MOD_VERSION = "2.2.55";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -33,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.55",
+        changes: [
+            "Restored BTNS tab from v2.2.46 — full original implementation with categories, accordions, slot rows, seq/macro step builders, colour picker, sidebar ON/OFF toggle, export/import, fun actions, useful buttons. Canvas sidebar with drag-to-reposition also restored. All saved button data in ExtensionSettings is intact.",
+        ],
+    },
     {
         version: "2.2.54",
         changes: [
@@ -2723,6 +2730,20 @@ function init(): void {
     } catch { /* ignore */ }
 
 
+
+    // Canvas sidebar action buttons
+    modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
+        next(args);
+        try { drawActionButtons(); } catch { /* ignore */ }
+    });
+
+    modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
+        try { if (handleActionButtonClick()) return; } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Attach hold-to-drag for the grip handle (mousedown/touchstart on canvas)
+    try { initDragListener(); } catch { /* ignore */ }
 
     // DOM drawer - outfit switcher panel beside the chat log
     let drawer: EBCDrawer | null = null;

@@ -252,6 +252,21 @@ export function setBeepMuted(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Action buttons sidebar visibility ----------------------------------------
+
+export function getActionButtonsVisible(): boolean {
+    try { return getStore()?.actionButtonsVisible !== false; } catch { return true; }
+}
+
+export function setActionButtonsVisible(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.actionButtonsVisible = value;
+        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+    } catch { /* ignore */ }
+}
+
 // -- People Met ----------------------------------------------------------------
 // Everyone the player has ever shared a room with. Saved server-side so it
 // syncs across devices. Capped at 2000 entries (oldest evicted first).
