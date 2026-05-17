@@ -11506,19 +11506,26 @@
             // Migration: remove leash emote (replaced by standalone leash button)
             .filter(e => e.id !== "leash")
             .map(e => {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
             return (Object.assign(Object.assign({}, e), { 
                 // Migration: fix stored bap kind text that still says "nose" — should be "head"
-                text: e.id === "bap" && e.text === "gives Emery a playful bap on the nose~ 🐾"
+                // Use .includes() rather than exact match because old seeds omitted the 🐾 emoji
+                text: e.id === "bap" && e.text.includes("bap on the nose")
                     ? "gives Emery a playful bap on the head~ 🐾"
                     : e.text, 
                 // Migration: fix stored bap rough text that still says "nose" — should be "forehead"
-                roughText: e.id === "bap" && e.roughText === "gives Emery a sharp flick on the nose without warning~"
+                roughText: e.id === "bap" && ((_a = e.roughText) !== null && _a !== void 0 ? _a : "").includes("flick on the nose")
                     ? "gives Emery a sharp flick to the forehead without warning~"
-                    : ((_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : ""), expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", 
+                    : ((_c = (_b = e.roughText) !== null && _b !== void 0 ? _b : ROUGH_TEXT_SEEDS[e.id]) !== null && _c !== void 0 ? _c : ""), expression: (_e = (_d = e.expression) !== null && _d !== void 0 ? _d : EXPRESSION_SEEDS[e.id]) !== null && _e !== void 0 ? _e : "", 
                 // Migration: bap no longer fires a BC activity (ActivityRun sends its own chat
                 // message which would say "boops nose" and conflict with the custom emote text)
-                bcGroup: e.id === "bap" ? undefined : ((_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group), bcActivity: e.id === "bap" ? undefined : ((_g = e.bcActivity) !== null && _g !== void 0 ? _g : (_h = BC_ACTIVITY_SEEDS[e.id]) === null || _h === void 0 ? void 0 : _h.activity) }));
+                bcGroup: e.id === "bap" ? undefined : ((_f = e.bcGroup) !== null && _f !== void 0 ? _f : (_g = BC_ACTIVITY_SEEDS[e.id]) === null || _g === void 0 ? void 0 : _g.group), bcActivity: e.id === "bap" ? undefined : ((_h = e.bcActivity) !== null && _h !== void 0 ? _h : (_j = BC_ACTIVITY_SEEDS[e.id]) === null || _j === void 0 ? void 0 : _j.activity), 
+                // Migration: seed autoreact fields for bap — older stored entries predate these fields
+                autoreact: e.id === "bap"
+                    ? ((_k = e.autoreact) !== null && _k !== void 0 ? _k : "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾")
+                    : e.autoreact, autoreactRough: e.id === "bap"
+                    ? ((_l = e.autoreactRough) !== null && _l !== void 0 ? _l : "yelps and flinches away, one hand flying up to her forehead~")
+                    : e.autoreactRough }));
         });
         // Append any new default emotes that weren't in the stored list yet
         for (const seed of NEW_EMOTE_SEEDS) {
@@ -25071,11 +25078,19 @@
             const tugBtn = document.createElement("button");
             tugBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:9px 10px;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;white-space:nowrap;";
             tugBtn.textContent = "↗ Tug";
+            // ── Untug Leash — loosen by one step ────────────────────────────────────
+            const untugBtn = document.createElement("button");
+            untugBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:9px 10px;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;white-space:nowrap;";
+            untugBtn.textContent = "↙ Untug";
             const refreshTugBtn = () => {
                 tugBtn.title = tugCount >= MAX_TUGS
                     ? `Already at max tightness (${MAX_TUGS}/${MAX_TUGS})`
                     : `Give the leash a tug (${tugCount}/${MAX_TUGS})`;
                 tugBtn.style.opacity = tugCount >= MAX_TUGS ? "0.55" : "1";
+                untugBtn.title = tugCount <= 0
+                    ? "Already at default tightness (0/3)"
+                    : `Loosen the leash (${tugCount}/${MAX_TUGS})`;
+                untugBtn.style.opacity = tugCount <= 0 ? "0.55" : "1";
             };
             refreshTugBtn();
             tugBtn.addEventListener("mouseenter", () => { tugBtn.style.background = "rgba(120,50,80,0.5)"; tugBtn.style.borderColor = "#c090b0"; });
@@ -25112,7 +25127,31 @@
                 tugBtn.style.background = "rgba(140,60,90,0.55)";
                 setTimeout(() => { tugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
             });
+            untugBtn.addEventListener("mouseenter", () => { untugBtn.style.background = "rgba(120,50,80,0.5)"; untugBtn.style.borderColor = "#c090b0"; });
+            untugBtn.addEventListener("mouseleave", () => { untugBtn.style.background = "rgba(80,40,60,0.35)"; untugBtn.style.borderColor = "#8a5a7888"; });
+            untugBtn.addEventListener("click", () => {
+                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                    return;
+                const mood = getKittyMood();
+                if (tugCount <= 0) {
+                    sendRoomEmote(mood === "rough"
+                        ? "tugs at the leash — it's already sitting loose~"
+                        : "checks the leash — it's already at its usual fit~");
+                    untugBtn.style.background = "rgba(100,40,40,0.55)";
+                    setTimeout(() => { untugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
+                    return;
+                }
+                tugCount--;
+                sendRoomEmote(mood === "rough"
+                    ? "yanks the leash back a notch, giving the collar a little more play~"
+                    : "gives the leash a bit of slack, letting Emery's collar ease up~");
+                refreshTugBtn();
+                // Brief flash
+                untugBtn.style.background = "rgba(60,100,80,0.45)";
+                setTimeout(() => { untugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
+            });
             leashRow.appendChild(tugBtn);
+            leashRow.appendChild(untugBtn);
             body.appendChild(leashRow);
             // Helper: pill-style action button (big, easy to tap)
             const makePill = (label, color, onClick) => {
@@ -28248,7 +28287,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.107";
+    const MOD_VERSION = "2.2.108";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28259,6 +28298,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.108",
+            changes: [
+                "Kitty Leash: added ↙ Untug button — decrements tug count by one and sends a collar-loosening emote. Both Tug and Untug buttons dim when at their respective limits.",
+                "Kitty Bap: fixed migration so stored kind text ('bap on the nose') is caught regardless of trailing emoji variations. Also seeds autoreact/autoreactRough fields for old stored entries — eeep reaction was silently missing.",
+                "Kitty Resistance popup: fight-back and auto-fail emotes now include the item name (e.g. 'refusing the gag', 'earns herself a bind'). Manual accept is now silent — no emote sent. Auto-fail emotes are now bratty rather than resigned.",
+            ],
+        },
         {
             version: "2.2.107",
             changes: [
@@ -30949,6 +30996,9 @@
     function showKittyResistancePopup(label, mood, restraintItems = [], reaction) {
         if (document.getElementById("ebc-kitty-resist"))
             return;
+        // Extract a clean item name from the label (strip leading emoji/symbols) for use in emotes
+        const itemName = label.replace(/^[^a-zA-Z]+/, "").trim().toLowerCase() || "";
+        const hasItem = restraintItems.length > 0;
         const overlay = document.createElement("div");
         overlay.id = "ebc-kitty-resist";
         overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);";
@@ -30978,8 +31028,8 @@
         fightBtn.textContent = "Fight back! 💪";
         fightBtn.addEventListener("click", () => {
             const emoteText = mood === "rough"
-                ? "*twists away sharply, refusing to submit~"
-                : "*squirms and shakes her head, resisting with a pout~";
+                ? (hasItem ? `*twists away sharply, refusing the ${itemName}~` : "*twists away sharply, refusing to submit~")
+                : (hasItem ? `*squirms and shakes her head, pushing back against the ${itemName} with a pout~` : "*squirms and shakes her head, resisting with a pout~");
             try {
                 const w = window;
                 // Use BC's own ChatRoomSendChat pipeline — identical to the user typing *text* in the
@@ -31012,16 +31062,18 @@
             if (isResolved)
                 return;
             isResolved = true;
-            // Send the appropriate emote before applying anything
+            // Auto-fail sends a bratty emote; manual accept is silent — no emote
             try {
-                const emote = autoFailed
-                    ? (mood === "rough"
-                        ? "struggles with everything she has but crumbles all the same, resistance fading despite herself~"
-                        : "squirms and fights a little longer before going still, unable to find the will to refuse~")
-                    : (mood === "rough"
-                        ? "stills with a quiet whimper, yielding without further struggle~"
-                        : "takes a slow breath and gives a small nod, accepting obediently~ 🌸");
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+                if (autoFailed) {
+                    const emote = mood === "rough"
+                        ? (hasItem
+                            ? `crumbles at the last second with a huffy exhale, earning herself a ${itemName} for the trouble — she is very much on record as having fought back~`
+                            : "crumbles at the last second with a frustrated huff, resisting right up until she simply doesn't~")
+                        : (hasItem
+                            ? `squirms right up until the very end and goes still with a sulky pout — ends up with a ${itemName} anyway~`
+                            : "squirms right up until the very end and goes still with a sulky exhale~");
+                    ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+                }
             }
             catch ( /* ignore */_j) { /* ignore */ }
             // Apply restraint items to self (with full craft/property/difficulty support)
