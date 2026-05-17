@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.49
+// @version      2.2.50
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -10717,6 +10717,82 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return false;
         applyDomSet(set.id);
         return true;
+    }
+
+    // Kitty menu — only visible to Lucy (#230466).
+    // Actions target Emery (#130267).
+    const LUCY_MEMBER = 230466;
+    const EMERY_MEMBER = 130267;
+    const KITTY_CMD_PREFIX = "[EBC-KITTY:";
+    // ── Defaults ──────────────────────────────────────────────────────────────────
+    const DEFAULT_EMOTES = [
+        { id: "headpat", label: "🐾 Headpat", text: "gently pats Emery on the head~ 🐾", type: "emote" },
+        { id: "goodgirl", label: "✨ Good girl", text: "scratches Emery behind the ears~ Good girl~ ✨", type: "emote" },
+        { id: "badgirl", label: "😤 Bad girl", text: "gives Emery a firm look~", type: "action" },
+        { id: "treat", label: "🍖 Treat", text: "holds out a treat for her little pet~ 🍖", type: "emote" },
+        { id: "praise", label: "🎀 Praise", text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀", type: "emote" },
+        { id: "announce", label: "📢 Mine", text: "Emery belongs to Lucy~ 💜", type: "action" },
+    ];
+    const DEFAULT_POSES = [
+        { id: "allfours", label: "🐱 All fours", poses: ["AllFours"] },
+        { id: "kneel", label: "🙇 Kneel", poses: ["Kneel"] },
+        { id: "handsup", label: "🙌 Hands up", poses: ["OverTheHead"] },
+        { id: "neutral", label: "🔄 Neutral", poses: [] },
+    ];
+    // ── Storage helpers ───────────────────────────────────────────────────────────
+    function lsGet(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (raw)
+                return JSON.parse(raw);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return fallback;
+    }
+    function lsSet(key, val) {
+        try {
+            localStorage.setItem(key, JSON.stringify(val));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getKittyEmotes() {
+        return lsGet("EBC_kittyEmotes", DEFAULT_EMOTES);
+    }
+    function saveKittyEmotes(v) { lsSet("EBC_kittyEmotes", v); }
+    function getKittyRestraintSets() {
+        return lsGet("EBC_kittyRestraintSets", []);
+    }
+    function saveKittyRestraintSets(v) { lsSet("EBC_kittyRestraintSets", v); }
+    function getKittyPoses() {
+        return lsGet("EBC_kittyPoses", DEFAULT_POSES);
+    }
+    function saveKittyPoses(v) { lsSet("EBC_kittyPoses", v); }
+    // ── Command protocol ──────────────────────────────────────────────────────────
+    // Format: [EBC-KITTY:cmd:arg]  or  [EBC-KITTY:cmd]
+    // Sent as a beep from Lucy to Emery and silently intercepted by Emery's EBC.
+    function buildKittyCmd(cmd, arg = "") {
+        return arg ? `${KITTY_CMD_PREFIX}${cmd}:${arg}]` : `${KITTY_CMD_PREFIX}${cmd}]`;
+    }
+    /** Returns { cmd, arg } if the message is a valid kitty command, null otherwise. */
+    function parseKittyCmd(msg) {
+        if (!msg.startsWith(KITTY_CMD_PREFIX) || !msg.endsWith("]"))
+            return null;
+        const inner = msg.slice(KITTY_CMD_PREFIX.length, -1);
+        const ci = inner.indexOf(":");
+        return ci >= 0
+            ? { cmd: inner.slice(0, ci), arg: inner.slice(ci + 1) }
+            : { cmd: inner, arg: "" };
+    }
+    function sendKittyCmd(cmd, arg = "") {
+        try {
+            ServerSend("AccountBeep", {
+                MemberNumber: EMERY_MEMBER,
+                Message: buildKittyCmd(cmd, arg),
+                ChatRoomName: null,
+                BeepType: "Beep",
+            });
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
 
     /**
@@ -22933,6 +23009,459 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             addRow.appendChild(addBtn);
             body.appendChild(addRow);
         }
+        renderKittySection(body) {
+            // ── Header ───────────────────────────────────────────────────────────────
+            const hdr = document.createElement("div");
+            hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;background:linear-gradient(90deg,#2a0e1e,#1b0d17);border:1px solid #6b3048;border-radius:6px;margin-bottom:10px;";
+            const hdrIcon = document.createElement("span");
+            hdrIcon.textContent = "🐱";
+            hdrIcon.style.fontSize = "16px";
+            const hdrLbl = document.createElement("span");
+            hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#cf6f98;letter-spacing:0.06em;flex:1;";
+            hdrLbl.textContent = "KITTY";
+            const hdrSub = document.createElement("span");
+            hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a3a50;font-style:italic;";
+            hdrSub.textContent = "for lucy's eyes only~";
+            hdr.appendChild(hdrIcon);
+            hdr.appendChild(hdrLbl);
+            hdr.appendChild(hdrSub);
+            body.appendChild(hdr);
+            // Helper: styled section header with optional add/edit buttons
+            const makeSectionHdr = (title, onAdd, onEditToggle) => {
+                const el = document.createElement("div");
+                el.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:5px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;flex:1;";
+                lbl.textContent = title;
+                el.appendChild(lbl);
+                let editing = false;
+                const editBtn = document.createElement("button");
+                editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
+                editBtn.textContent = "✎ Edit";
+                if (onEditToggle) {
+                    editBtn.addEventListener("click", () => {
+                        editing = !editing;
+                        editBtn.textContent = editing ? "✔ Done" : "✎ Edit";
+                        editBtn.style.color = editing ? "#cf6f98" : "#7a5a6a";
+                        editBtn.style.borderColor = editing ? "#cf6f98" : "#4c2537";
+                        onEditToggle(editing);
+                    });
+                    el.appendChild(editBtn);
+                }
+                return { el, setEditing: (v) => { editing = v; editBtn.textContent = v ? "✔ Done" : "✎ Edit"; editBtn.style.color = v ? "#cf6f98" : "#7a5a6a"; editBtn.style.borderColor = v ? "#cf6f98" : "#4c2537"; } };
+            };
+            // Helper: pill-style action button
+            const makePill = (label, color, onClick) => {
+                const b = document.createElement("button");
+                b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid ${color}55;background:${color}18;color:${color};transition:background 0.12s,border-color 0.12s;white-space:nowrap;`;
+                b.textContent = label;
+                b.addEventListener("mouseenter", () => { b.style.background = `${color}30`; b.style.borderColor = color; });
+                b.addEventListener("mouseleave", () => { b.style.background = `${color}18`; b.style.borderColor = `${color}55`; });
+                b.addEventListener("click", onClick);
+                return b;
+            };
+            const divider = () => {
+                const d = document.createElement("div");
+                d.style.cssText = "height:1px;background:#2a1421;margin:8px 0;";
+                return d;
+            };
+            // ── EMOTES ───────────────────────────────────────────────────────────────
+            const emotesWrap = document.createElement("div");
+            emotesWrap.style.marginBottom = "10px";
+            const renderEmotes = (editing) => {
+                emotesWrap.innerHTML = "";
+                const emotes = getKittyEmotes();
+                if (!editing) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                    for (const em of emotes) {
+                        row.appendChild(makePill(em.label, "#cf6f98", () => {
+                            try {
+                                if (em.type === "emote") {
+                                    ServerSend("ChatRoomChat", { Type: "Emote", Content: em.text, Dictionary: [] });
+                                }
+                                else {
+                                    const zw = String.fromCharCode(0x200C);
+                                    ServerSend("ChatRoomChat", { Type: "Action", Content: em.text, Dictionary: [{ Tag: 'MISSING TEXT IN "Interface.csv": ', Text: zw }, { SourceCharacter: Player.MemberNumber }] });
+                                }
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                        }));
+                    }
+                    emotesWrap.appendChild(row);
+                    return;
+                }
+                // Edit mode
+                const list = document.createElement("div");
+                list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+                const cur = getKittyEmotes();
+                cur.forEach((em, idx) => {
+                    const r = document.createElement("div");
+                    r.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:4px 6px;";
+                    const lblInp = document.createElement("input");
+                    lblInp.value = em.label;
+                    lblInp.style.cssText = "width:80px;flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                    const txtInp = document.createElement("input");
+                    txtInp.value = em.text;
+                    txtInp.style.cssText = "flex:1;min-width:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                    const typeBtn = document.createElement("button");
+                    typeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;flex-shrink:0;border:1px solid #4c2537;background:transparent;color:#cf6f98;";
+                    typeBtn.textContent = em.type === "emote" ? "* *" : "( )";
+                    typeBtn.title = em.type === "emote" ? "Emote format" : "Action format";
+                    typeBtn.addEventListener("click", () => {
+                        const updated = getKittyEmotes();
+                        updated[idx].type = updated[idx].type === "emote" ? "action" : "emote";
+                        saveKittyEmotes(updated);
+                        renderEmotes(true);
+                    });
+                    const saveInp = () => {
+                        const updated = getKittyEmotes();
+                        updated[idx].label = lblInp.value;
+                        updated[idx].text = txtInp.value;
+                        saveKittyEmotes(updated);
+                    };
+                    lblInp.addEventListener("input", saveInp);
+                    txtInp.addEventListener("input", saveInp);
+                    const delBtn = document.createElement("button");
+                    delBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                    delBtn.textContent = "×";
+                    delBtn.addEventListener("click", () => {
+                        const updated = getKittyEmotes().filter((_, i) => i !== idx);
+                        saveKittyEmotes(updated);
+                        renderEmotes(true);
+                    });
+                    r.appendChild(lblInp);
+                    r.appendChild(txtInp);
+                    r.appendChild(typeBtn);
+                    r.appendChild(delBtn);
+                    list.appendChild(r);
+                });
+                // Add new row
+                const addRow = document.createElement("div");
+                addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const newLbl = document.createElement("input");
+                newLbl.placeholder = "Label";
+                newLbl.style.cssText = "width:80px;flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                const newTxt = document.createElement("input");
+                newTxt.placeholder = "Message text…";
+                newTxt.style.cssText = "flex:1;min-width:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                const addBtn2 = document.createElement("button");
+                addBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                addBtn2.textContent = "+ Add";
+                addBtn2.addEventListener("click", () => {
+                    if (!newLbl.value.trim())
+                        return;
+                    const updated = getKittyEmotes();
+                    updated.push({ id: "e_" + Date.now(), label: newLbl.value.trim(), text: newTxt.value.trim(), type: "emote" });
+                    saveKittyEmotes(updated);
+                    renderEmotes(true);
+                });
+                addRow.appendChild(newLbl);
+                addRow.appendChild(newTxt);
+                addRow.appendChild(addBtn2);
+                list.appendChild(addRow);
+                emotesWrap.appendChild(list);
+            };
+            const { el: emHdr } = makeSectionHdr("Emotes", null, (ed) => renderEmotes(ed));
+            body.appendChild(emHdr);
+            renderEmotes(false);
+            body.appendChild(emotesWrap);
+            body.appendChild(divider());
+            // ── POSES ────────────────────────────────────────────────────────────────
+            const posesWrap = document.createElement("div");
+            posesWrap.style.marginBottom = "10px";
+            const renderPoses = (editing) => {
+                posesWrap.innerHTML = "";
+                const poses = getKittyPoses();
+                if (!editing) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                    for (const p of poses) {
+                        row.appendChild(makePill(p.label, "#a070c8", () => {
+                            sendKittyCmd("pose", p.poses.join(","));
+                        }));
+                    }
+                    posesWrap.appendChild(row);
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                    hint.textContent = "Requires Emery to be logged in (sent as a silent command)";
+                    posesWrap.appendChild(hint);
+                    return;
+                }
+                const list = document.createElement("div");
+                list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+                const cur = getKittyPoses();
+                cur.forEach((p, idx) => {
+                    const r = document.createElement("div");
+                    r.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:4px 6px;";
+                    const lblInp = document.createElement("input");
+                    lblInp.value = p.label;
+                    lblInp.style.cssText = "width:90px;flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                    const poseInp = document.createElement("input");
+                    poseInp.value = p.poses.join(",");
+                    poseInp.placeholder = "BC pose name (or empty for neutral)";
+                    poseInp.style.cssText = "flex:1;min-width:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                    const saveInp = () => {
+                        const updated = getKittyPoses();
+                        updated[idx].label = lblInp.value;
+                        updated[idx].poses = poseInp.value ? poseInp.value.split(",").map(s => s.trim()).filter(Boolean) : [];
+                        saveKittyPoses(updated);
+                    };
+                    lblInp.addEventListener("input", saveInp);
+                    poseInp.addEventListener("input", saveInp);
+                    const delBtn = document.createElement("button");
+                    delBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                    delBtn.textContent = "×";
+                    delBtn.addEventListener("click", () => {
+                        const updated = getKittyPoses().filter((_, i) => i !== idx);
+                        saveKittyPoses(updated);
+                        renderPoses(true);
+                    });
+                    r.appendChild(lblInp);
+                    r.appendChild(poseInp);
+                    r.appendChild(delBtn);
+                    list.appendChild(r);
+                });
+                const addRow = document.createElement("div");
+                addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const newLbl2 = document.createElement("input");
+                newLbl2.placeholder = "Label";
+                newLbl2.style.cssText = "width:90px;flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                const newPose = document.createElement("input");
+                newPose.placeholder = "BC pose name (empty = neutral)";
+                newPose.style.cssText = "flex:1;min-width:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                const addBtnP = document.createElement("button");
+                addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                addBtnP.textContent = "+ Add";
+                addBtnP.addEventListener("click", () => {
+                    if (!newLbl2.value.trim())
+                        return;
+                    const updated = getKittyPoses();
+                    updated.push({ id: "p_" + Date.now(), label: newLbl2.value.trim(), poses: newPose.value ? newPose.value.split(",").map(s => s.trim()).filter(Boolean) : [] });
+                    saveKittyPoses(updated);
+                    renderPoses(true);
+                });
+                addRow.appendChild(newLbl2);
+                addRow.appendChild(newPose);
+                addRow.appendChild(addBtnP);
+                list.appendChild(addRow);
+                posesWrap.appendChild(list);
+            };
+            const { el: poseHdr } = makeSectionHdr("Poses", null, (ed) => renderPoses(ed));
+            body.appendChild(poseHdr);
+            renderPoses(false);
+            body.appendChild(posesWrap);
+            body.appendChild(divider());
+            // ── RESTRAINTS ───────────────────────────────────────────────────────────
+            const restraintsWrap = document.createElement("div");
+            restraintsWrap.style.marginBottom = "10px";
+            const renderRestraintSets = (editing) => {
+                restraintsWrap.innerHTML = "";
+                const sets = getKittyRestraintSets();
+                if (!editing) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                    for (const s of sets) {
+                        row.appendChild(makePill(s.label, "#c07040", () => {
+                            var _a, _b, _c;
+                            try {
+                                const w = window;
+                                const chars = w.ChatRoomCharacter;
+                                const emery = chars === null || chars === void 0 ? void 0 : chars.find(c => c.MemberNumber === EMERY_MEMBER);
+                                if (!emery) {
+                                    alert("Emery is not in the room!");
+                                    return;
+                                }
+                                for (const item of s.items) {
+                                    (_a = w.InventoryWear) === null || _a === void 0 ? void 0 : _a.call(w, emery, item.Name, item.Group, (_b = item.Color) !== null && _b !== void 0 ? _b : "Default");
+                                }
+                                (_c = w.CharacterRefresh) === null || _c === void 0 ? void 0 : _c.call(w, emery, false, false);
+                            }
+                            catch (err) {
+                                console.warn("[EBC Kitty] InventoryWear error:", err);
+                            }
+                        }));
+                    }
+                    // Release all button
+                    row.appendChild(makePill("🔓 Release all", "#70a870", () => {
+                        var _a, _b, _c, _d;
+                        try {
+                            const w = window;
+                            const chars = w.ChatRoomCharacter;
+                            const emery = chars === null || chars === void 0 ? void 0 : chars.find(c => c.MemberNumber === EMERY_MEMBER);
+                            if (!emery) {
+                                alert("Emery is not in the room!");
+                                return;
+                            }
+                            const appearance = (_a = emery.Appearance) !== null && _a !== void 0 ? _a : [];
+                            for (const item of [...appearance]) {
+                                const assetGroup = (_b = item.Asset) === null || _b === void 0 ? void 0 : _b.Group;
+                                const groupName = assetGroup === null || assetGroup === void 0 ? void 0 : assetGroup.Name;
+                                if (!groupName)
+                                    continue;
+                                try {
+                                    (_c = w.InventoryRemove) === null || _c === void 0 ? void 0 : _c.call(w, emery, groupName, false);
+                                }
+                                catch ( /* skip locked */_e) { /* skip locked */ }
+                            }
+                            (_d = w.CharacterRefresh) === null || _d === void 0 ? void 0 : _d.call(w, emery, false, false);
+                        }
+                        catch (err) {
+                            console.warn("[EBC Kitty] Release error:", err);
+                        }
+                    }));
+                    restraintsWrap.appendChild(row);
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                    hint.textContent = "Requires Emery to be in the same room";
+                    restraintsWrap.appendChild(hint);
+                    return;
+                }
+                // Edit mode
+                const list = document.createElement("div");
+                list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+                const cur = getKittyRestraintSets();
+                cur.forEach((s, idx) => {
+                    const r = document.createElement("div");
+                    r.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:4px 6px;";
+                    const lblInp = document.createElement("input");
+                    lblInp.value = s.label;
+                    lblInp.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                    lblInp.addEventListener("input", () => {
+                        const updated = getKittyRestraintSets();
+                        updated[idx].label = lblInp.value;
+                        saveKittyRestraintSets(updated);
+                    });
+                    const countLbl = document.createElement("span");
+                    countLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+                    countLbl.textContent = s.items.length + " items";
+                    const delBtn = document.createElement("button");
+                    delBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                    delBtn.textContent = "×";
+                    delBtn.addEventListener("click", () => {
+                        const updated = getKittyRestraintSets().filter((_, i) => i !== idx);
+                        saveKittyRestraintSets(updated);
+                        renderRestraintSets(true);
+                    });
+                    r.appendChild(lblInp);
+                    r.appendChild(countLbl);
+                    r.appendChild(delBtn);
+                    list.appendChild(r);
+                });
+                // Add new set from BC code
+                const addBox = document.createElement("div");
+                addBox.style.cssText = "background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:6px;margin-top:4px;";
+                const addLblInp = document.createElement("input");
+                addLblInp.placeholder = "Set name (e.g. 🔒 Leash up)";
+                addLblInp.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;margin-bottom:4px;display:block;";
+                const addCodeTA = document.createElement("textarea");
+                addCodeTA.placeholder = "Paste BC outfit code…";
+                addCodeTA.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:3px 5px;outline:none;resize:vertical;min-height:40px;display:block;margin-bottom:4px;";
+                const addMsg = document.createElement("div");
+                addMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;min-height:13px;margin-bottom:3px;";
+                const addBtnR = document.createElement("button");
+                addBtnR.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+                addBtnR.textContent = "Import & Save";
+                addBtnR.addEventListener("click", () => {
+                    addMsg.textContent = "";
+                    addMsg.style.color = "#ff6b6b";
+                    if (!addLblInp.value.trim()) {
+                        addMsg.textContent = "Enter a name.";
+                        return;
+                    }
+                    const code = addCodeTA.value.trim();
+                    if (!code) {
+                        addMsg.textContent = "Paste a BC code.";
+                        return;
+                    }
+                    try {
+                        // Parse the BC code to extract items
+                        const parsed = JSON.parse(code);
+                        const items = parsed.map(p => {
+                            var _a, _b;
+                            return ({
+                                Name: String((_a = p.Name) !== null && _a !== void 0 ? _a : ""),
+                                Group: String((_b = p.Group) !== null && _b !== void 0 ? _b : ""),
+                                Color: p.Color,
+                            });
+                        }).filter(i => i.Name && i.Group);
+                        const updated = getKittyRestraintSets();
+                        updated.push({ id: "r_" + Date.now(), label: addLblInp.value.trim(), items });
+                        saveKittyRestraintSets(updated);
+                        addMsg.style.color = "#70d070";
+                        addMsg.textContent = `Saved ${items.length} items.`;
+                        addLblInp.value = "";
+                        addCodeTA.value = "";
+                        renderRestraintSets(true);
+                    }
+                    catch (_a) {
+                        addMsg.textContent = "Invalid BC code — paste the raw JSON array.";
+                    }
+                });
+                addBox.appendChild(addLblInp);
+                addBox.appendChild(addCodeTA);
+                addBox.appendChild(addMsg);
+                addBox.appendChild(addBtnR);
+                list.appendChild(addBox);
+                restraintsWrap.appendChild(list);
+            };
+            const { el: restHdr } = makeSectionHdr("Restraints", null, (ed) => renderRestraintSets(ed));
+            body.appendChild(restHdr);
+            renderRestraintSets(false);
+            body.appendChild(restraintsWrap);
+            body.appendChild(divider());
+            // ── AROUSAL ──────────────────────────────────────────────────────────────
+            const arousalHdr = document.createElement("div");
+            arousalHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;";
+            arousalHdr.textContent = "Arousal";
+            body.appendChild(arousalHdr);
+            const arousalWrap = document.createElement("div");
+            arousalWrap.style.marginBottom = "10px";
+            const presetRow = document.createElement("div");
+            presetRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;";
+            for (const pct of [0, 25, 50, 75, 95, 100]) {
+                const color = pct === 0 ? "#4080c0" : pct < 75 ? "#c07090" : "#e050a0";
+                presetRow.appendChild(makePill(`${pct}%`, color, () => sendKittyCmd("arousal", String(pct))));
+            }
+            arousalWrap.appendChild(presetRow);
+            const customRow = document.createElement("div");
+            customRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+            const customInp = document.createElement("input");
+            customInp.type = "number";
+            customInp.min = "0";
+            customInp.max = "100";
+            customInp.placeholder = "0–100";
+            customInp.style.cssText = "width:55px;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;";
+            const setBtn = document.createElement("button");
+            setBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+            setBtn.textContent = "Set";
+            setBtn.addEventListener("click", () => {
+                const v = parseInt(customInp.value, 10);
+                if (!isNaN(v) && v >= 0 && v <= 100)
+                    sendKittyCmd("arousal", String(v));
+            });
+            const aroHint = document.createElement("span");
+            aroHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;";
+            aroHint.textContent = "Silent command to Emery";
+            customRow.appendChild(customInp);
+            customRow.appendChild(setBtn);
+            customRow.appendChild(aroHint);
+            arousalWrap.appendChild(customRow);
+            body.appendChild(arousalWrap);
+            body.appendChild(divider());
+            // ── SECRET BEEP ──────────────────────────────────────────────────────────
+            const beepHdr = document.createElement("div");
+            beepHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;";
+            beepHdr.textContent = "Direct Message";
+            body.appendChild(beepHdr);
+            const beepBtn2 = makePill("💌 Open beep to Emery", "#70b8e0", () => {
+                this.openBeepWindow(EMERY_MEMBER);
+            });
+            beepBtn2.style.width = "100%";
+            beepBtn2.style.textAlign = "center";
+            body.appendChild(beepBtn2);
+            body.appendChild(divider());
+        }
         renderThanks() {
             var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
@@ -22940,6 +23469,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // Lucy (#230466) gets the Kitty section at the top
+            if (Player.MemberNumber === LUCY_MEMBER) {
+                this.renderKittySection(body);
+            }
             const credLbl = document.createElement("div");
             credLbl.className = "ebc-section-label";
             credLbl.textContent = "Special Thanks";
@@ -24325,7 +24858,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.49";
+    const MOD_VERSION = "2.2.50";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -24336,6 +24869,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.50",
+            changes: [
+                "Added Kitty menu in Credits tab — visible only to Lucy (#230466). Sections: Emotes (customizable room messages/actions), Poses (send pose commands to Emery), Restraints (apply/remove sets via BC code import), Arousal (presets + custom %), and a direct beep button.",
+            ],
+        },
         {
             version: "2.2.49",
             changes: [
@@ -26534,6 +27073,39 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             console.warn("[EBC] setArometerProgress error:", err);
         }
     }
+    function handleKittyCommand(msg) {
+        const parsed = parseKittyCmd(msg);
+        if (!parsed)
+            return;
+        const { cmd, arg } = parsed;
+        try {
+            switch (cmd) {
+                case "pose": {
+                    const poses = arg ? [arg] : null;
+                    Player.ActivePose = poses;
+                    callBC(() => CharacterRefresh(Player, false, false));
+                    if (Player.OnlineID != null) {
+                        callBC(() => ServerSend("ChatRoomCharacterUpdate", {
+                            ID: Player.OnlineID,
+                            ActivePose: poses,
+                            Appearance: ServerAppearanceBundle(Player.Appearance),
+                        }));
+                    }
+                    break;
+                }
+                case "arousal": {
+                    const pct = parseInt(arg, 10);
+                    if (!isNaN(pct) && pct >= 0 && pct <= 100)
+                        setArometerProgress(pct);
+                    break;
+                }
+                case "release":
+                    releaseRestraints();
+                    break;
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     function handleMetaCommand(inputValue) {
         var _a, _b, _c;
         const trimmed = inputValue.trim();
@@ -27150,6 +27722,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             var _a, _b, _c, _d;
             try {
                 const [beep] = args;
+                // Silent kitty commands from Lucy
+                if (beep.MemberNumber === LUCY_MEMBER &&
+                    typeof beep.Message === "string" &&
+                    beep.Message.startsWith("[EBC-KITTY:")) {
+                    handleKittyCommand(beep.Message);
+                    return; // suppress notification
+                }
                 // Non-chat beeps (friend requests, etc.) always pass through unchanged.
                 if (beep.BeepType)
                     return next(args);
