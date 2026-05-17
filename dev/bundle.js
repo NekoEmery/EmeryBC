@@ -22531,33 +22531,6 @@
             badgeToggleRow.appendChild(badgeLbl2);
             badgeToggleRow.appendChild(badgeToggle2);
             body.appendChild(badgeToggleRow);
-            // ── Panel opacity slider ──────────────────────────────────────────────
-            const opacityRow = document.createElement("div");
-            opacityRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-            const opacityLbl = document.createElement("span");
-            opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
-            opacityLbl.textContent = "Panel opacity";
-            const opacitySlider = document.createElement("input");
-            opacitySlider.type = "range";
-            opacitySlider.min = "0.1";
-            opacitySlider.max = "1";
-            opacitySlider.step = "0.05";
-            opacitySlider.value = String(loadPanelOpacity());
-            opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            opacitySlider.title = "100% = fully solid, lower = semi-transparent";
-            const opacityVal = document.createElement("span");
-            opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
-            opacityVal.textContent = Math.round(loadPanelOpacity() * 100) + "%";
-            opacitySlider.addEventListener("input", () => {
-                const v = parseFloat(opacitySlider.value);
-                opacityVal.textContent = Math.round(v * 100) + "%";
-                savePanelOpacity(v);
-                this.applyPanelOpacity(v);
-            });
-            opacityRow.appendChild(opacityLbl);
-            opacityRow.appendChild(opacitySlider);
-            opacityRow.appendChild(opacityVal);
-            body.appendChild(opacityRow);
             // Helper: collapsible section wrapper
             const makeSection = (labelText, lsKey, defaultCollapsed, buildContent) => {
                 let collapsed = defaultCollapsed;
@@ -22601,6 +22574,33 @@
             // ── Drawer Appearance ─────────────────────────────────────────────────
             makeSection("DRAWER APPEARANCE", "EBC_devAppearanceCollapsed", false, (cnt) => {
                 var _a, _b;
+                // ── Panel opacity slider ──────────────────────────────────────────
+                const opacityRow = document.createElement("div");
+                opacityRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+                const opacityLbl = document.createElement("span");
+                opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+                opacityLbl.textContent = "Panel opacity";
+                const opacitySlider = document.createElement("input");
+                opacitySlider.type = "range";
+                opacitySlider.min = "0.1";
+                opacitySlider.max = "1";
+                opacitySlider.step = "0.05";
+                opacitySlider.value = String(loadPanelOpacity());
+                opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+                opacitySlider.title = "100% = fully solid, lower = semi-transparent";
+                const opacityVal = document.createElement("span");
+                opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+                opacityVal.textContent = Math.round(loadPanelOpacity() * 100) + "%";
+                opacitySlider.addEventListener("input", () => {
+                    const v = parseFloat(opacitySlider.value);
+                    opacityVal.textContent = Math.round(v * 100) + "%";
+                    savePanelOpacity(v);
+                    this.applyPanelOpacity(v);
+                });
+                opacityRow.appendChild(opacityLbl);
+                opacityRow.appendChild(opacitySlider);
+                opacityRow.appendChild(opacityVal);
+                cnt.appendChild(opacityRow);
                 // Working copy of colours — mutated by pickers, written to storage on every change
                 let liveColors = getCoreColors();
                 // Helper: rebuild all picker values after a preset load / reset
@@ -25864,7 +25864,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.44";
+    const MOD_VERSION = "2.2.45";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25875,6 +25875,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.45",
+            changes: [
+                "DEV tab: Panel opacity slider moved inside the Drawer Appearance section where it belongs.",
+            ],
+        },
         {
             version: "2.2.44",
             changes: [
