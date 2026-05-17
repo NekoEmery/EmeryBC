@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.115";
+const MOD_VERSION = "2.2.116";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.116",
+        changes: [
+            "Fix: kitty buttons (especially poses) sometimes required two clicks. Root cause was a capture-phase click suppressor in the action button sidebar drag code that was too broad — it fired on ANY click after a sidebar drag, including HTML panel buttons. It now only suppresses clicks whose target is the BC game canvas, leaving EBC panel buttons unaffected.",
+            "Fix: pose buttons now show a brief disabled state (700ms) after clicking, covering the 600ms emote delay so there is visual feedback that the click registered and a second click is not needed.",
+            "Kitty menu: added 📟 Beep quick-access button in the Kitty section header to open the IM window directly to Emery.",
+            "Fix: EBC beep window now includes the current chat room name in the AccountBeep payload so recipients see the 'Join room' option in BC's native beep notification.",
+        ],
+    },
     {
         version: "2.2.115",
         changes: [

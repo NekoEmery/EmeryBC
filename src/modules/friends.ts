@@ -522,7 +522,9 @@ export function sendBeep(memberNumber: number, message: string): void {
     // BC drops beeps to offline players, so we resend when they come online.
     markPendingMessage(memberNumber, message);
     try {
-        ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message });
+        // Include ChatRoomName so BC shows the "join room" option on the recipient's side.
+        const roomName = (window as unknown as Record<string, unknown>).ChatRoomData?.Name as string | undefined;
+        ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, ChatRoomName: roomName ?? null });
     } catch { /* ignore */ }
     addBeepEntry({
         from: Player.MemberNumber ?? 0,

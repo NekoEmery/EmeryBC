@@ -13674,11 +13674,19 @@ export class EBCDrawer {
         hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#cf6f98;letter-spacing:0.06em;flex:1;";
         hdrLbl.textContent = "KITTY";
         const hdrSub = document.createElement("span");
-        hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a3a50;font-style:italic;";
+        hdrSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a3a50;font-style:italic;flex:1;";
         hdrSub.textContent = "for lucy's eyes only~";
+        const beepEmeryBtn = document.createElement("button");
+        beepEmeryBtn.textContent = "📟 Beep";
+        beepEmeryBtn.title = "Open IM window to Emery";
+        beepEmeryBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:5px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;flex-shrink:0;";
+        beepEmeryBtn.addEventListener("mouseenter", () => { beepEmeryBtn.style.background = "#3a1020"; beepEmeryBtn.style.borderColor = "#cf6f98"; });
+        beepEmeryBtn.addEventListener("mouseleave", () => { beepEmeryBtn.style.background = "transparent"; beepEmeryBtn.style.borderColor = "#4c2537"; });
+        beepEmeryBtn.addEventListener("click", () => { this.openBeepWindow(EMERY_MEMBER); });
         hdr.appendChild(hdrIcon);
         hdr.appendChild(hdrLbl);
         hdr.appendChild(hdrSub);
+        hdr.appendChild(beepEmeryBtn);
         body.appendChild(hdr);
 
         // ── Mood toggle (big, obvious) ────────────────────────────────────────────
@@ -13903,14 +13911,30 @@ export class EBCDrawer {
             return { el, setEditing: (v) => { editing = v; editBtn.textContent = v ? "✔ Done" : "✎ Edit"; editBtn.style.color = v ? "#cf6f98" : "#7a5a6a"; editBtn.style.borderColor = v ? "#cf6f98" : "#4c2537"; } };
         };
 
-        // Helper: pill-style action button (big, easy to tap)
-        const makePill = (label: string, color: string, onClick: () => void): HTMLButtonElement => {
+        // Helper: pill-style action button (big, easy to tap).
+        // cooldownMs: if > 0, button is briefly disabled after click to prevent
+        // accidental double-firing and give visual confirmation the click registered.
+        const makePill = (label: string, color: string, onClick: () => void, cooldownMs = 0): HTMLButtonElement => {
             const b = document.createElement("button");
             b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 14px;border-radius:8px;cursor:pointer;border:2px solid ${color}66;background:${color}22;color:${color};transition:background 0.12s,border-color 0.12s,transform 0.08s;white-space:nowrap;`;
             b.textContent = label;
-            b.addEventListener("mouseenter", () => { b.style.background = `${color}38`; b.style.borderColor = color; b.style.transform = "scale(1.04)"; });
-            b.addEventListener("mouseleave", () => { b.style.background = `${color}22`; b.style.borderColor = `${color}66`; b.style.transform = ""; });
-            b.addEventListener("click", onClick);
+            b.addEventListener("mouseenter", () => { if (!b.disabled) { b.style.background = `${color}38`; b.style.borderColor = color; b.style.transform = "scale(1.04)"; } });
+            b.addEventListener("mouseleave", () => { if (!b.disabled) { b.style.background = `${color}22`; b.style.borderColor = `${color}66`; b.style.transform = ""; } });
+            b.addEventListener("click", () => {
+                if (b.disabled) return;
+                if (cooldownMs > 0) {
+                    b.disabled = true;
+                    b.style.opacity = "0.5";
+                    b.style.transform = "";
+                    b.style.cursor = "default";
+                    setTimeout(() => {
+                        b.disabled = false;
+                        b.style.opacity = "";
+                        b.style.cursor = "pointer";
+                    }, cooldownMs);
+                }
+                onClick();
+            });
             return b;
         };
 
@@ -14248,6 +14272,8 @@ export class EBCDrawer {
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
                 for (const p of poses) {
+                    // cooldown 700ms: covers the 600ms emote delay so the button stays
+                    // visually disabled until the room emote fires — prevents double-sends.
                     row.appendChild(makePill(p.label, "#a070c8", () => {
                         // Guard: never send chat when not in a room
                         if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
@@ -14261,7 +14287,7 @@ export class EBCDrawer {
                                 sendRoomEmote(emoteText);
                             }
                         }, 600);
-                    }));
+                    }, 700));
                 }
                 posesWrap.appendChild(row);
                 const hint = document.createElement("div");

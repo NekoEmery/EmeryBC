@@ -480,9 +480,16 @@ function startDrag(cx: number, cy: number): void {
         document.removeEventListener("touchmove",  onMove as EventListener);
         document.removeEventListener("mouseup",    onEnd);
         document.removeEventListener("touchend",   onEnd);
-        // Suppress the click that fires after mouseup so it doesn't hit BC characters
+        // Suppress the click that fires after mouseup so it doesn't hit BC characters.
+        // Only suppress if the click target is the game canvas — HTML panel elements
+        // (like EBC kitty/pose buttons) must not be swallowed by this guard.
         if (hasMoved) {
-            const suppress = (e: Event): void => { e.stopPropagation(); e.preventDefault(); };
+            const suppress = (e: Event): void => {
+                if ((e.target as Element | null)?.id === "MainCanvas") {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            };
             document.addEventListener("click", suppress, { capture: true, once: true });
         }
     };
