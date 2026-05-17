@@ -11362,7 +11362,7 @@
         {
             id: "bap", label: "🐾 Bap",
             text: "gives Emery a playful bap on the nose~ 🐾",
-            roughText: "gives Emery a sharp flick on the nose without warning~",
+            roughText: "gives Emery a sharp flick to the forehead without warning~",
             type: "emote",
         },
     ];
@@ -11467,7 +11467,7 @@
         "announce": "Emery is Lucy's. End of discussion.~",
         "snuggle": "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
         "spank": "delivers a sharp smack to Emery's bottom without warning~",
-        "bap": "gives Emery a sharp flick on the nose without warning~",
+        "bap": "gives Emery a sharp flick to the forehead without warning~",
     };
     // "Ears" is not a valid CharacterSetFacialExpression group in BC.
     // Seeds updated to valid Blush states (only applied when the field is still undefined).
@@ -11485,7 +11485,7 @@
         {
             id: "bap", label: "🐾 Bap",
             text: "gives Emery a playful bap on the nose~ 🐾",
-            roughText: "gives Emery a sharp flick on the nose without warning~",
+            roughText: "gives Emery a sharp flick to the forehead without warning~",
             type: "emote",
         },
         {
@@ -11503,7 +11503,11 @@
             .filter(e => e.id !== "leash")
             .map(e => {
             var _a, _b, _c, _d, _e, _f, _g, _h;
-            return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", 
+            return (Object.assign(Object.assign({}, e), { 
+                // Migration: fix stored bap rough text that still says "nose" — should be "forehead"
+                roughText: e.id === "bap" && e.roughText === "gives Emery a sharp flick on the nose without warning~"
+                    ? "gives Emery a sharp flick to the forehead without warning~"
+                    : ((_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : ""), expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", 
                 // Migration: bap no longer fires a BC activity (ActivityRun sends its own chat
                 // message which would say "boops nose" and conflict with the custom emote text)
                 bcGroup: e.id === "bap" ? undefined : ((_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group), bcActivity: e.id === "bap" ? undefined : ((_g = e.bcActivity) !== null && _g !== void 0 ? _g : (_h = BC_ACTIVITY_SEEDS[e.id]) === null || _h === void 0 ? void 0 : _h.activity) }));
@@ -28205,7 +28209,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.101";
+    const MOD_VERSION = "2.2.102";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28216,6 +28220,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.102",
+            changes: [
+                "Fix: 🐾 Bap rough-mode text corrected from 'flick on the nose' to 'flick to the forehead'. Kind-mode bap already referenced the nose correctly. Existing stored entries with the old rough text are migrated automatically.",
+            ],
+        },
         {
             version: "2.2.101",
             changes: [
