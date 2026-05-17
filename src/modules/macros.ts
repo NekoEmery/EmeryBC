@@ -1,7 +1,7 @@
 // Macro execution — triggered when a "macro" style action button is clicked.
 // Handles all BC/EBC built-in actions so actionButtons.ts stays dependency-free.
 
-import { callBC } from "./bcUtils";
+import { callBC, setLeavePending } from "./bcUtils";
 import { releaseRestraints } from "./restraints";
 import { applyOutfit, getOutfits } from "./outfitManager";
 import { runScene, getScenes } from "./scenes";
@@ -48,8 +48,11 @@ export function executeMacro(cmd: string): void {
                 break;
 
             case "leaveroom":
-                // Defer by one tick — calling ChatRoomLeave() mid-frame causes other
-                // mods' ChatRoomRun hooks to fire with null room data on the same frame.
+                // Signal the ChatRoomRun guard before deferring the actual leave call.
+                // The guard skips frames where ChatRoomData is null ONLY while this flag
+                // is set, so map rooms (where ChatRoomData can legitimately be null) are
+                // never affected.
+                setLeavePending();
                 window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
                 break;
         }

@@ -14,6 +14,13 @@ export function callBC(fn: () => unknown): void {
     } catch { /* ignore */ }
 }
 
+// Set to true when EBC initiates a ChatRoomLeave so the ChatRoomRun guard
+// knows to skip null-ChatRoomData frames without affecting map rooms.
+let _leavePending = false;
+export function setLeavePending(): void { _leavePending = true; }
+export function isLeavePending(): boolean { return _leavePending; }
+export function clearLeavePending(): void { _leavePending = false; }
+
 /** Returns the player's display name (nickname if set, otherwise Name). */
 export function getDisplayName(): string {
     const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;

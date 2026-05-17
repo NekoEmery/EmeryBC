@@ -15,10 +15,11 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
+import { isLeavePending, clearLeavePending } from "./modules/bcUtils";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.30";
+const MOD_VERSION = "2.2.31";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -32,6 +33,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.31",
+        changes: [
+            "Fix: map rooms breaking — the v2.2.30 ChatRoomRun guard was too broad and blocked rendering whenever ChatRoomData was null, which map rooms trigger during normal transitions. Guard now only activates when EBC itself initiated the leave.",
+        ],
+    },
     {
         version: "2.2.30",
         changes: [
@@ -2411,12 +2418,17 @@ function init(): void {
         if (active && active !== "Inactive") lastArousalActive = active;
     } catch { /* ignore */ }
 
-    // Guard: when ChatRoomLeave() is called, BC clears ChatRoomData synchronously but
+    // Guard: when EBC calls ChatRoomLeave(), BC clears ChatRoomData synchronously but
     // delays the screen transition until the server ack.  The next animation frame still
     // fires ChatRoomRun → ChatRoomCustomizationRun which reads ChatRoomData.Custom → crash.
-    // Running at priority 500 puts us ahead of CRABS/BCOM/BCX so we can bail early.
+    // We ONLY skip the frame when EBC itself initiated the leave (consumeLeavePending flag),
+    // so map rooms — where ChatRoomData can legitimately be null during transitions — are
+    // completely unaffected.  Priority 500 puts us ahead of CRABS/BCOM/BCX.
     modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
-        if ((window as unknown as Record<string, unknown>).ChatRoomData == null) return;
+        if (isLeavePending()) {
+            if ((window as unknown as Record<string, unknown>).ChatRoomData == null) return; // skip null frames
+            clearLeavePending(); // data is back — we're in a new room, lift the guard
+        }
         return next(args);
     });
 

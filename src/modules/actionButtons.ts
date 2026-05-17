@@ -1,6 +1,6 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
-import { callBC, getDisplayName } from "./bcUtils";
+import { callBC, getDisplayName, setLeavePending } from "./bcUtils";
 import { getActionButtonsVisible } from "./settings";
 import { executeMacro } from "./macros";
 
@@ -218,10 +218,10 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
             } else if (step.toLowerCase() === "leaveroom") {
-                // Restore pose then defer leave by one tick — calling ChatRoomLeave()
-                // mid-frame causes other mods' ChatRoomRun hooks to fire with null room data.
+                // Restore pose, flag the guard, then defer leave by one tick.
                 Player.ActivePose = originalPoses;
                 seqRunning = false;
+                setLeavePending();
                 window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
                 return;
             } else if (step.startsWith("!")) {
