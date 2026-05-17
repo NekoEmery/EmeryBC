@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.106
+// @version      2.2.107
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28265,7 +28265,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.106";
+    const MOD_VERSION = "2.2.107";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28276,6 +28276,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.107",
+            changes: [
+                "Fix: Expression updates no longer propagate ActivePose to other clients — expression-only ServerSend now omits ActivePose, preventing pose-breaks when expressions fire after a pose change.",
+                "Fix: patchKittyExpressions() now runs AFTER CharacterRefresh in the pose handler — CharacterRefresh was wiping expression properties before they could be patched.",
+            ],
+        },
         {
             version: "2.2.106",
             changes: [
@@ -31225,12 +31232,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ? arg.split(",").map(s => s.trim()).filter(Boolean)
                         : null;
                     Player.ActivePose = poses;
-                    // Patch expressions first so they survive the full refresh recalculation
-                    patchKittyExpressions();
-                    // Use BC's own ChatRoomCharacterUpdate (same path as applyPoses) so the
-                    // pose recalculation runs properly — CharacterRefresh(false,false) was
-                    // skipping the dirty/recalculate step which broke Kneel and similar poses.
+                    // Full refresh so BC recalculates the pose properly. It may reset
+                    // expression properties and/or override ActivePose based on equipped items,
+                    // so we re-assert both AFTER the refresh.
                     callBC(() => CharacterRefresh(Player, false));
+                    Player.ActivePose = poses; // re-assert — CharacterRefresh may have overridden it
+                    patchKittyExpressions(); // restore expressions AFTER refresh wipes them
                     callBC(() => ChatRoomCharacterUpdate(Player));
                     break;
                 }
@@ -31340,12 +31347,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const fn = w.CharacterSetFacialExpression;
                             if (fn) {
                                 fn(Player, face, state || null);
-                                // Push a full appearance update so all room members see the change.
+                                // Push appearance update so all room members see the expression.
+                                // Deliberately omit ActivePose — expression updates must not
+                                // touch pose state on other clients (causes pose-breaks when
+                                // the expression fires after a pose change).
                                 callBC(() => {
                                     if (Player.OnlineID != null) {
                                         ServerSend("ChatRoomCharacterUpdate", {
                                             ID: Player.OnlineID,
-                                            ActivePose: Player.ActivePose,
                                             Appearance: ServerAppearanceBundle(Player.Appearance),
                                         });
                                     }
