@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.108";
+const MOD_VERSION = "2.2.109";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.109",
+        changes: [
+            "Fix: beeps sent from inside a BC chatroom (BeepType 'Beep') were being silently passed to BC's native handler without ever reaching EBC's IM window. The BeepType early-return now only skips genuine non-IM types (GriefReport, DominoInvite, etc.) — 'Beep' type flows through to normal friend/IM processing. MemberNumber is now also coerced from string in case BC ever sends it that way.",
+        ],
+    },
     {
         version: "2.2.108",
         changes: [
@@ -3756,20 +3762,25 @@ function init(): void {
     });
 
     // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
-    // Only handle plain beeps (BeepType === "" or undefined) — skip game/friend-request beeps.
     tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
         try {
             const [beep] = args as [Record<string, unknown>];
-            // Silent kitty commands from Lucy
+            // Silent kitty commands from Lucy — checked first so BeepType "Beep" (used by
+            // sendKittyCmd) doesn't cause the early-return below to skip them.
             if (beep.MemberNumber === LUCY_MEMBER &&
                 typeof beep.Message === "string" &&
                 beep.Message.startsWith("[EBC-KITTY:")) {
                 handleKittyCommand(beep.Message);
                 return; // suppress notification
             }
-            // Non-chat beeps (friend requests, etc.) always pass through unchanged.
-            if (beep.BeepType) return next(args);
-            const fromNum = typeof beep.MemberNumber === "number" ? beep.MemberNumber : 0;
+            // Skip non-IM beep types (grief reports, game invites, etc.).
+            // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
+            // can carry a text message and must be recorded in EBC's IM window.
+            const beepType = typeof beep.BeepType === "string" ? beep.BeepType : "";
+            if (beepType && beepType !== "Beep") return next(args);
+            const fromNum = typeof beep.MemberNumber === "number"
+                ? beep.MemberNumber
+                : (parseInt(String(beep.MemberNumber), 10) || 0);
             if (!fromNum) return next(args);
             const name = typeof beep.MemberName === "string" ? beep.MemberName : null;
             if (name) cacheName(fromNum, name);
