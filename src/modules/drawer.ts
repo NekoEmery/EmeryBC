@@ -13913,7 +13913,8 @@ export class EBCDrawer {
                                 (w.InventoryWear as ((c: unknown, name: string, group: string, color: unknown) => void) | undefined)
                                     ?.(emery, item.Name, item.Group, item.Color ?? "Default");
                             }
-                            (w.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(emery, false, false);
+                            // Push=true so other players see the change immediately
+                            (w.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(emery, true, false);
                         } catch (err) { console.warn("[EBC Kitty] InventoryWear error:", err); }
                     }));
                 }
@@ -13927,10 +13928,12 @@ export class EBCDrawer {
                         for (const item of [...appearance]) {
                             const assetGroup = (item.Asset as Record<string, unknown>)?.Group as Record<string, unknown>;
                             const groupName = assetGroup?.Name as string | undefined;
-                            if (!groupName) continue;
+                            // Only remove restraint-slot items — never clothing, hair, body, etc.
+                            if (!groupName || !RESTRAINT_GROUPS.has(groupName)) continue;
                             try { (w.InventoryRemove as ((c: unknown, group: string, push: boolean) => void) | undefined)?.(emery, groupName, false); } catch { /* skip locked */ }
                         }
-                        (w.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(emery, false, false);
+                        // Push=true so the server and other players see the change
+                        (w.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(emery, true, false);
                     } catch (err) { console.warn("[EBC Kitty] Release error:", err); }
                 }));
                 restraintsWrap.appendChild(row);

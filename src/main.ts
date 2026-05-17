@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.64";
+const MOD_VERSION = "2.2.65";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.65",
+        changes: [
+            "Fix kitty 'Release all': now only removes items in restraint slots (was accidentally removing clothing/hair/body items too). CharacterRefresh now uses Push=true so the change is visible to everyone in the room immediately. Also fixed restraint SET apply button the same way.",
+            "Fix /lock: was sending unsupported Action:'Lock' — now mutates ChatRoomData.Locked and calls ChatRoomAdminUpdate() (BC's own function) so the room actually updates, with fallback to Action:'Update' + full room object.",
+            "Fix /ebc: unknown subcommands now show a short 'Unknown command — type /ebc help' message instead of dumping the full command list. The full list only appears for /ebc, /ebc help, /ebc ?, etc.",
+            "Removed /ebc afk command (was in the list but had no handler, causing the full list to appear when clicked).",
+        ],
+    },
     {
         version: "2.2.64",
         changes: [
@@ -2638,7 +2647,21 @@ function handleMetaCommand(inputValue: string): boolean {
             appendLocalLogLine(`[EBC] Room is already ${wantLock ? "locked" : "unlocked"}.`, UI.textMuted);
             return true;
         }
-        callBC(() => ServerSend("ChatRoomAdmin", { MemberNumber: Player.MemberNumber, Action: wantLock ? "Lock" : "Unlock" }));
+        try {
+            // Mutate the room data locally, then use BC's own update function (most reliable)
+            // or fall back to sending the full room update manually.
+            if (rd) rd.Locked = wantLock;
+            const updateFn = w.ChatRoomAdminUpdate as (() => void) | undefined;
+            if (typeof updateFn === "function") {
+                callBC(() => (w.ChatRoomAdminUpdate as () => void)());
+            } else if (rd) {
+                callBC(() => ServerSend("ChatRoomAdmin", {
+                    MemberNumber: Player.MemberNumber,
+                    Action: "Update",
+                    Room: { ...(rd as Record<string, unknown>) },
+                }));
+            }
+        } catch { /* ignore */ }
         appendLocalLogLine(`[EBC] Room ${wantLock ? "🔒 locked" : "🔓 unlocked"}.`, UI.gold);
         return true;
     }
@@ -2704,6 +2727,11 @@ function handleMetaCommand(inputValue: string): boolean {
     }
 
 
+    // Unknown subcommand — show short hint, not the full list
+    if (subcommand && !["help", "?", "commands", "h"].includes(subcommand)) {
+        appendLocalLogLine(`[EBC] Unknown command "/ebc ${subcommand}". Type /ebc help for the command list.`, UI.danger);
+        return true;
+    }
     appendLocalLogLine("[EBC] Commands — click any to fill the chat bar:", UI.gold);
     appendClickableCmd("/lock",              "Lock the current room (requires admin)");
     appendClickableCmd("/unlock",            "Unlock the current room (requires admin)");
@@ -2716,7 +2744,6 @@ function handleMetaCommand(inputValue: string): boolean {
     appendClickableCmd("/ebc update",        "Check GitHub for a newer version");
     appendClickableCmd("/ebc updates on",    "Enable update notifications");
     appendClickableCmd("/ebc updates off",   "Disable update notifications");
-    appendClickableCmd("/ebc afk",           "Toggle AFK mode");
     return true;
 }
 
