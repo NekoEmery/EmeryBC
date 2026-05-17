@@ -22205,8 +22205,8 @@
                                         rebuildChips();
                                         renderTagArea();
                                         if (updated.length > 0) {
-                                            if (!row.contains(tagArea))
-                                                row.insertBefore(tagArea, beepBtn);
+                                            if (!metaRow.contains(tagArea))
+                                                metaRow.appendChild(tagArea);
                                         }
                                         else
                                             tagArea.remove();
@@ -22267,8 +22267,8 @@
                             newTagInput.style.borderColor = "#3a1928";
                             rebuildChips();
                             renderTagArea();
-                            if (!row.contains(tagArea))
-                                row.insertBefore(tagArea, beepBtn);
+                            if (!metaRow.contains(tagArea))
+                                metaRow.appendChild(tagArea);
                         };
                         addTagBtn.addEventListener("click", doAddTag);
                         newTagInput.addEventListener("keydown", e => { if (e.key === "Enter") {
@@ -25864,7 +25864,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.43";
+    const MOD_VERSION = "2.2.44";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25875,6 +25875,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.44",
+            changes: [
+                "Fix: crash when adding a tag to a friend — insertBefore was targeting beepBtn which is not a direct child of row. Tag area is now correctly re-inserted into metaRow.",
+            ],
+        },
         {
             version: "2.2.43",
             changes: [
