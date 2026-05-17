@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.56
+// @version      2.2.57
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -60,7 +60,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     /** Returns the player's display name (nickname if set, otherwise Name). */
-    function getDisplayName() {
+    function getDisplayName$1() {
         const nickFn = window.CharacterNickname;
         if (typeof nickFn === "function")
             return nickFn(Player);
@@ -410,7 +410,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // "MISSING TEXT IN "Interface.csv": ". We strip that prefix with the poison
                     // tag (replaced by a zero-width non-joiner), leaving (​Name text).
                     const announceContent = outfit.nameInAnnounce !== false
-                        ? getDisplayName() + " " + outfit.announceText.trim()
+                        ? getDisplayName$1() + " " + outfit.announceText.trim()
                         : outfit.announceText.trim();
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
@@ -774,7 +774,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             try {
                 if (restraint.announceText.trim()) {
                     const rAnnounceContent = restraint.nameInAnnounce !== false
-                        ? getDisplayName() + " " + restraint.announceText.trim()
+                        ? getDisplayName$1() + " " + restraint.announceText.trim()
                         : restraint.announceText.trim();
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
@@ -1346,7 +1346,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 try {
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
-                        Content: getDisplayName() + " " + combo.announceText.trim(),
+                        Content: getDisplayName$1() + " " + combo.announceText.trim(),
                         Dictionary: [
                             { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                             { SourceCharacter: Player.MemberNumber },
@@ -1696,26 +1696,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // -- Action buttons sidebar visibility ----------------------------------------
-    function getActionButtonsVisible() {
-        var _a;
-        try {
-            return ((_a = getStore$6()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) !== false;
-        }
-        catch (_b) {
-            return true;
-        }
-    }
-    function setActionButtonsVisible(value) {
-        try {
-            const store = getStore$6();
-            if (!store)
-                return;
-            store.actionButtonsVisible = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
     const PEOPLE_MET_CAP = 2000;
     // Debounce handle for batching multiple recordPersonMet calls into one server sync.
     let peopleMetSyncTimer = null;
@@ -2012,7 +1992,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if ((_b = step.text) === null || _b === void 0 ? void 0 : _b.trim()) {
                         ServerSend("ChatRoomChat", {
                             Type: "Action",
-                            Content: getDisplayName() + " " + step.text.trim(),
+                            Content: getDisplayName$1() + " " + step.text.trim(),
                             Dictionary: [
                                 { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                                 { SourceCharacter: Player.MemberNumber },
@@ -2037,7 +2017,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             // Action messages bypass gag speech processing.
                             ServerSend("ChatRoomChat", {
                                 Type: "Action",
-                                Content: getDisplayName() + " " + txt,
+                                Content: getDisplayName$1() + " " + txt,
                                 Dictionary: [
                                     { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: "‌" },
                                     { SourceCharacter: Player.MemberNumber },
@@ -2278,222 +2258,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
 
-    // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
-    // Locks that must never be touched regardless of the operation.
-    function isProtectedLock(item) {
-        var _a, _b;
-        const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
-        if (!lock)
-            return false;
-        return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
-    }
-    // Returns true if this item's slot is in the user's outfit whitelist.
-    function isWhitelisted(item) {
-        try {
-            return getOutfitWhitelist().includes(item.Asset.Group.Name);
-        }
-        catch (_a) {
-            return false;
-        }
-    }
-    // Combined guard: skip if owner/lover/family locked OR in outfit whitelist.
-    function isUntouchable(item) {
-        return isProtectedLock(item) || isWhitelisted(item);
-    }
-    function localNotice$1(msg, color = UI.accent) {
-        const log = document.getElementById("TextAreaChatLog");
-        if (!log)
-            return;
-        const div = document.createElement("div");
-        div.style.cssText = [
-            `color:${color}`,
-            `background:${UI.cardMuted}`,
-            `border-left:3px solid ${UI.accent}`,
-            "font-style:italic",
-            "font-size:12px",
-            "padding:2px 8px",
-            "margin:1px 0",
-        ].join(";");
-        div.textContent = "[EBC] " + msg;
-        log.appendChild(div);
-        log.scrollTop = log.scrollHeight;
-    }
-    // /ebc release - removes restraint items, skips protected locks and whitelisted slots
-    function releaseRestraints() {
-        const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item));
-        const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item));
-        if (toRemove.length === 0) {
-            localNotice$1(skipped.length > 0
-                ? "All restraints are locked or protected — none removed."
-                : "No restraints found to remove.", UI.textMuted);
-            return;
-        }
-        for (const item of toRemove) {
-            InventoryRemove(Player, item.Asset.Group.Name, false);
-        }
-        if (skipped.length > 0) {
-            localNotice$1(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
-        }
-        callBC(() => CharacterRefresh(Player, false));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
-        localNotice$1(`Released ${toRemove.length} restraint(s).`, UI.gold);
-    }
-    // Returns un-protected restraint items currently worn by the player.
-    function getPlayerRestraints() {
-        return Player.Appearance
-            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
-            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
-    }
-    // Returns locked (non-protected) items currently worn by the player.
-    function getPlayerLockedItems() {
-        return Player.Appearance
-            .filter(item => { var _a; return !!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) && !isProtectedLock(item); })
-            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
-    }
-    // Removes specific items by group name from the player. Returns count removed.
-    function removePlayerSpecificItems(groups) {
-        let count = 0;
-        for (const group of groups) {
-            try {
-                InventoryRemove(Player, group, false);
-                count++;
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-        }
-        if (count > 0) {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-        }
-        return count;
-    }
-    // Unlocks specific items by group name on the player. Returns count unlocked.
-    function unlockPlayerSpecificItems(groups) {
-        let count = 0;
-        for (const group of groups) {
-            const item = Player.Appearance.find(a => a.Asset.Group.Name === group);
-            if (!(item === null || item === void 0 ? void 0 : item.Property) || isProtectedLock(item))
-                continue;
-            delete item.Property["LockedBy"];
-            delete item.Property["LockMemberNumber"];
-            delete item.Property["CombinationNumber"];
-            delete item.Property["Password"];
-            delete item.Property["MemberNumberListKeys"];
-            delete item.Property["RemoveItem"];
-            delete item.Property["ShowTimer"];
-            delete item.Property["EnableRandomInput"];
-            count++;
-        }
-        if (count > 0) {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-        }
-        return count;
-    }
-    // /ebc unlock - strips lock data from items, skips protected locks and whitelisted slots
-    function unlockItems() {
-        var _a;
-        let unlocked = 0;
-        let skipped = 0;
-        for (const item of Player.Appearance) {
-            if (!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy))
-                continue;
-            if (isUntouchable(item)) {
-                skipped++;
-                continue;
-            }
-            if (item.Property) {
-                delete item.Property["LockedBy"];
-                delete item.Property["LockMemberNumber"];
-                delete item.Property["CombinationNumber"];
-                delete item.Property["Password"];
-                delete item.Property["MemberNumberListKeys"];
-                delete item.Property["RemoveItem"];
-                delete item.Property["ShowTimer"];
-                delete item.Property["EnableRandomInput"];
-            }
-            unlocked++;
-        }
-        if (unlocked === 0) {
-            localNotice$1(skipped > 0
-                ? "All locks are owner/lover/family protected - none removed."
-                : "No locks found to remove.", UI.textMuted);
-            return;
-        }
-        if (skipped > 0) {
-            localNotice$1(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
-        }
-        callBC(() => CharacterRefresh(Player, false));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
-        localNotice$1(`Removed ${unlocked} lock(s).`, UI.gold);
-    }
-
-    // Macro execution — triggered when a "macro" style action button is clicked.
-    // Handles all BC/EBC built-in actions so actionButtons.ts stays dependency-free.
-    // Registered by EBCDrawer at construction time — avoids a circular import.
-    let _openBeepCb = null;
-    function registerOpenBeepCallback(fn) {
-        _openBeepCb = fn;
-    }
-    function executeMacro(cmd) {
-        if (!(cmd === null || cmd === void 0 ? void 0 : cmd.trim()))
-            return;
-        try {
-            const colonIdx = cmd.indexOf(":");
-            const type = (colonIdx >= 0 ? cmd.slice(0, colonIdx) : cmd).toLowerCase().trim();
-            const arg = colonIdx >= 0 ? cmd.slice(colonIdx + 1).trim() : "";
-            switch (type) {
-                case "wardrobe":
-                    callBC(() => CommonSetScreen("Character", "Wardrobe"));
-                    break;
-                case "outfit": {
-                    const o = getOutfits().find(x => x.command === arg || x.displayName === arg);
-                    if (o)
-                        applyOutfit(o);
-                    break;
-                }
-                case "scene": {
-                    const s = getScenes().find(x => x.name === arg);
-                    if (s)
-                        runScene(s);
-                    break;
-                }
-                case "beep": {
-                    const n = parseInt(arg, 10);
-                    if (!isNaN(n) && n > 0)
-                        _openBeepCb === null || _openBeepCb === void 0 ? void 0 : _openBeepCb(n);
-                    break;
-                }
-                case "releaseself":
-                    releaseRestraints();
-                    break;
-                case "leaveroom":
-                    // Switch screen BEFORE ChatRoomLeave() clears ChatRoomData — same
-                    // pattern as safeword.ts.  Once CommonSetScreen fires, BC's loop
-                    // calls ChatSearchRun instead of ChatRoomRun so no hook can crash
-                    // on a null ChatRoomData frame.
-                    window.setTimeout(() => {
-                        callBC(() => CommonSetScreen("Online", "ChatSearch"));
-                        callBC(() => ChatRoomLeave());
-                    }, 0);
-                    break;
-            }
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-
     var _a, _b;
     const DEFAULT_BUTTONS = [
-        { label: "", emote: "leaveroom", color: "#c2185b", enabled: false, style: "macro" },
-        { label: "", emote: "releaseself", color: "#c2185b", enabled: false, style: "macro" },
-        { label: "", emote: "wardrobe", color: "#c2185b", enabled: false, style: "macro" },
-        { label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" },
-        { label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" },
-        { label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" },
-        { label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" },
+        { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
+        { label: "SHAKE", emote: "shakes their head.", color: "#c2185b", enabled: true, style: "action" },
+        { label: "WAVE", emote: "waves.", color: "#c2185b", enabled: true, style: "action" },
+        { label: "CHEER", emote: "cheers!", color: "#c2185b", enabled: true, style: "action" },
+        { label: "POUT", emote: "pouts.", color: "#c2185b", enabled: true, style: "emote" },
+        { label: "GIGGLE", emote: "giggles.", color: "#c2185b", enabled: true, style: "emote" },
+        { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" },
     ];
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
@@ -2570,6 +2343,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return `#${r}${r}${g}${g}${b}${b}`;
         }
         return fallback;
+    }
+    // --- Display name helper -----------------------------------------------------
+    function getDisplayName() {
+        // CharacterNickname is a BC global not always in the type declarations
+        const nickFn = window.CharacterNickname;
+        if (typeof nickFn === "function")
+            return nickFn(Player);
+        return Player.Nickname || Player.Name || "Player";
     }
     // --- Sequence runner ----------------------------------------------------------
     // Sequence steps are pipe-separated (|). Each step is one of:
@@ -2661,18 +2442,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     Player.ActivePose = originalPoses;
                     sendPoseUpdate(appearanceBundle);
                 }
-                else if (step.toLowerCase() === "leaveroom") {
-                    // Restore pose, switch screen FIRST, then leave — same pattern as
-                    // safeword.ts.  CommonSetScreen stops ChatRoomRun before
-                    // ChatRoomLeave() clears ChatRoomData, so no mod hook crashes.
-                    Player.ActivePose = originalPoses;
-                    seqRunning = false;
-                    window.setTimeout(() => {
-                        callBC(() => CommonSetScreen("Online", "ChatSearch"));
-                        callBC(() => ChatRoomLeave());
-                    }, 0);
-                    return;
-                }
                 else if (step.startsWith("!")) {
                     sendAction(step.slice(1), "action");
                 }
@@ -2700,7 +2469,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // ItemHands covers paws/mittens/gloves which don't lock arm movement, so we skip it.
         return Player.Appearance.some(item => item.Asset.Group.Name === "ItemArms");
     }
-    function localNotice(msg) {
+    function localNotice$1(msg) {
         const log = document.getElementById("TextAreaChatLog");
         if (!log)
             return;
@@ -2721,7 +2490,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Returns true if the animation ran (or will run), false if it was blocked.
     function runCheerAnimation() {
         if (isArmRestrained()) {
-            localNotice("Your arms are restrained -- can't cheer right now!");
+            localNotice$1("Your arms are restrained -- can't cheer right now!");
             return false;
         }
         // Yoked (arms out) -> OverTheHead (arms fully above head) -> repeat -> neutral
@@ -2917,8 +2686,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function drawActionButtons() {
         if (CurrentScreen !== "ChatRoom")
             return;
-        if (!getActionButtonsVisible())
-            return;
         // Derived Y positions
         const gripY = sidebarY - GRIP_H - 2;
         const catChipY = sidebarY + CHIP_H + 4;
@@ -3021,18 +2788,166 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const y = btnStartY + i * BTN_SIZE;
             if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
                 my >= y && my <= y + BTN_SIZE) {
-                if (btn.style === "macro") {
-                    executeMacro(btn.emote);
-                }
-                else {
-                    const animOk = triggerLabelAnimation(btn.label);
-                    if (animOk)
-                        sendAction(btn.emote, (_c = btn.style) !== null && _c !== void 0 ? _c : "action", btn.includeNameInAnnounce !== false);
-                }
+                const animOk = triggerLabelAnimation(btn.label);
+                if (animOk)
+                    sendAction(btn.emote, (_c = btn.style) !== null && _c !== void 0 ? _c : "action", btn.includeNameInAnnounce !== false);
                 return true;
             }
         }
         return false;
+    }
+
+    // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
+    // Locks that must never be touched regardless of the operation.
+    function isProtectedLock(item) {
+        var _a, _b;
+        const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
+        if (!lock)
+            return false;
+        return lock.includes("owner") || lock.includes("lover") || lock.includes("family");
+    }
+    // Returns true if this item's slot is in the user's outfit whitelist.
+    function isWhitelisted(item) {
+        try {
+            return getOutfitWhitelist().includes(item.Asset.Group.Name);
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    // Combined guard: skip if owner/lover/family locked OR in outfit whitelist.
+    function isUntouchable(item) {
+        return isProtectedLock(item) || isWhitelisted(item);
+    }
+    function localNotice(msg, color = UI.accent) {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log)
+            return;
+        const div = document.createElement("div");
+        div.style.cssText = [
+            `color:${color}`,
+            `background:${UI.cardMuted}`,
+            `border-left:3px solid ${UI.accent}`,
+            "font-style:italic",
+            "font-size:12px",
+            "padding:2px 8px",
+            "margin:1px 0",
+        ].join(";");
+        div.textContent = "[EBC] " + msg;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+    }
+    // /ebc release - removes restraint items, skips protected locks and whitelisted slots
+    function releaseRestraints() {
+        const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item));
+        const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isUntouchable(item));
+        if (toRemove.length === 0) {
+            localNotice(skipped.length > 0
+                ? "All restraints are locked or protected — none removed."
+                : "No restraints found to remove.", UI.textMuted);
+            return;
+        }
+        for (const item of toRemove) {
+            InventoryRemove(Player, item.Asset.Group.Name, false);
+        }
+        if (skipped.length > 0) {
+            localNotice(`Skipped ${skipped.length} protected item(s).`, UI.textMuted);
+        }
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
+        localNotice(`Released ${toRemove.length} restraint(s).`, UI.gold);
+    }
+    // Returns un-protected restraint items currently worn by the player.
+    function getPlayerRestraints() {
+        return Player.Appearance
+            .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
+            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
+    }
+    // Returns locked (non-protected) items currently worn by the player.
+    function getPlayerLockedItems() {
+        return Player.Appearance
+            .filter(item => { var _a; return !!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) && !isProtectedLock(item); })
+            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
+    }
+    // Removes specific items by group name from the player. Returns count removed.
+    function removePlayerSpecificItems(groups) {
+        let count = 0;
+        for (const group of groups) {
+            try {
+                InventoryRemove(Player, group, false);
+                count++;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        if (count > 0) {
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
+        }
+        return count;
+    }
+    // Unlocks specific items by group name on the player. Returns count unlocked.
+    function unlockPlayerSpecificItems(groups) {
+        let count = 0;
+        for (const group of groups) {
+            const item = Player.Appearance.find(a => a.Asset.Group.Name === group);
+            if (!(item === null || item === void 0 ? void 0 : item.Property) || isProtectedLock(item))
+                continue;
+            delete item.Property["LockedBy"];
+            delete item.Property["LockMemberNumber"];
+            delete item.Property["CombinationNumber"];
+            delete item.Property["Password"];
+            delete item.Property["MemberNumberListKeys"];
+            delete item.Property["RemoveItem"];
+            delete item.Property["ShowTimer"];
+            delete item.Property["EnableRandomInput"];
+            count++;
+        }
+        if (count > 0) {
+            CharacterRefresh(Player, false);
+            ChatRoomCharacterUpdate(Player);
+            ServerPlayerAppearanceSync();
+        }
+        return count;
+    }
+    // /ebc unlock - strips lock data from items, skips protected locks and whitelisted slots
+    function unlockItems() {
+        var _a;
+        let unlocked = 0;
+        let skipped = 0;
+        for (const item of Player.Appearance) {
+            if (!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy))
+                continue;
+            if (isUntouchable(item)) {
+                skipped++;
+                continue;
+            }
+            if (item.Property) {
+                delete item.Property["LockedBy"];
+                delete item.Property["LockMemberNumber"];
+                delete item.Property["CombinationNumber"];
+                delete item.Property["Password"];
+                delete item.Property["MemberNumberListKeys"];
+                delete item.Property["RemoveItem"];
+                delete item.Property["ShowTimer"];
+                delete item.Property["EnableRandomInput"];
+            }
+            unlocked++;
+        }
+        if (unlocked === 0) {
+            localNotice(skipped > 0
+                ? "All locks are owner/lover/family protected - none removed."
+                : "No locks found to remove.", UI.textMuted);
+            return;
+        }
+        if (skipped > 0) {
+            localNotice(`Skipped ${skipped} protected lock(s).`, UI.textMuted);
+        }
+        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => ChatRoomCharacterUpdate(Player));
+        callBC(() => ServerPlayerAppearanceSync());
+        localNotice(`Removed ${unlocked} lock(s).`, UI.gold);
     }
 
     // Room history — two independent features:
@@ -11073,7 +10988,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         : (_a = applied[0]) !== null && _a !== void 0 ? _a : "");
                     ServerSend("ChatRoomChat", {
                         Type: "Action",
-                        Content: getDisplayName() + " " + text,
+                        Content: getDisplayName$1() + " " + text,
                         Dictionary: [
                             { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
                             { SourceCharacter: Player.MemberNumber },
@@ -14094,7 +14009,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
-            registerOpenBeepCallback((n) => this.openBeepWindow(n));
             if (document.body) {
                 this.setup();
             }
@@ -23675,8 +23589,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const { content, delay } = parseStep(r, DEFAULT_DELAY);
                     if (content === "_")
                         return { type: "reset", text: "", delay };
-                    if (content.toLowerCase() === "leaveroom")
-                        return { type: "leaveroom", text: "", delay };
                     if (content.startsWith("!"))
                         return { type: "action", text: content.slice(1), delay };
                     if (content.startsWith("*"))
@@ -23689,15 +23601,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     let content = "";
                     if (s.type === "reset")
                         content = "_";
-                    else if (s.type === "leaveroom")
-                        content = "leaveroom";
                     else if (s.type === "action")
                         content = "!" + s.text;
                     else if (s.type === "emote")
                         content = "*" + s.text;
                     else
                         content = s.text;
-                    return s.type === "leaveroom" ? content : `${content}@${s.delay}`;
+                    return `${content}@${s.delay}`;
                 }).join("|");
             };
             let steps = parseSteps(btns[idx].emote);
@@ -23721,7 +23631,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         { value: "emote", label: "Emote *" },
                         { value: "pose", label: "Pose" },
                         { value: "reset", label: "Reset _" },
-                        { value: "leaveroom", label: "Leave Room 🚪" },
                     ].forEach(opt => {
                         const o = document.createElement("option");
                         o.value = opt.value;
@@ -23730,19 +23639,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             o.selected = true;
                         typeSelect.appendChild(o);
                     });
-                    const noText = step.type === "reset" || step.type === "leaveroom";
-                    const noDelay = step.type === "leaveroom";
                     // Text input
                     const textInp = document.createElement("input");
                     textInp.className = "ebc-seq-text-inp";
                     textInp.type = "text";
                     textInp.value = step.text;
                     textInp.placeholder = step.type === "pose" ? "e.g. HandsUp" : "text...";
-                    textInp.disabled = noText;
+                    textInp.disabled = step.type === "reset";
                     textInp.maxLength = 200;
-                    if (noText)
-                        textInp.style.opacity = "0.35";
-                    // Delay input (ms) — hidden for leaveroom since nothing follows
+                    // Delay input (ms)
                     const delayInp = document.createElement("input");
                     delayInp.className = "ebc-seq-delay-inp";
                     delayInp.type = "number";
@@ -23751,8 +23656,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     delayInp.step = "100";
                     delayInp.value = String(step.delay);
                     delayInp.title = "Delay after this step (ms)";
-                    if (noDelay)
-                        delayInp.style.visibility = "hidden";
                     // Delete button
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-seq-step-del";
@@ -23768,12 +23671,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     typeSelect.addEventListener("change", () => {
                         const t = typeSelect.value;
                         steps[sidx].type = t;
-                        const noTxt = t === "reset" || t === "leaveroom";
-                        const noDly = t === "leaveroom";
-                        textInp.disabled = noTxt;
-                        textInp.style.opacity = noTxt ? "0.35" : "";
-                        delayInp.style.visibility = noDly ? "hidden" : "";
-                        if (noTxt) {
+                        textInp.disabled = t === "reset";
+                        if (t === "reset") {
                             steps[sidx].text = "";
                             textInp.value = "";
                         }
@@ -23796,23 +23695,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             };
             renderSteps();
-            // Button row: template shortcut + add step
-            const seqBtnRow = document.createElement("div");
-            seqBtnRow.style.cssText = "display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;";
-            const templateBtn = document.createElement("button");
-            templateBtn.className = "ebc-seq-add-btn";
-            templateBtn.textContent = "📤 Slow Leave template";
-            templateBtn.title = "Fill with a ready-made slow leave (edit messages to your liking)";
-            templateBtn.addEventListener("click", () => {
-                steps = [
-                    { type: "emote", text: "smiles softly and gives a little wave.", delay: 3000 },
-                    { type: "emote", text: "slips quietly toward the door...", delay: 3000 },
-                    { type: "leaveroom", text: "", delay: 0 },
-                ];
-                btns[idx].emote = serializeSteps(steps);
-                renderSteps();
-            });
-            seqBtnRow.appendChild(templateBtn);
+            // + Add step button
             const addBtn = document.createElement("button");
             addBtn.className = "ebc-seq-add-btn";
             addBtn.textContent = "+ Add step";
@@ -23821,141 +23704,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 btns[idx].emote = serializeSteps(steps);
                 renderSteps();
             });
-            seqBtnRow.appendChild(addBtn);
-            wrapper.appendChild(seqBtnRow);
-            return wrapper;
-        }
-        // -- Macro editor (shown below a slot when style === "macro") ---------------
-        buildMacroEditor(btns, idx) {
-            const ALL_TYPES = [
-                { value: "leaveroom", label: "🚪 Leave Room", hasArg: false },
-                { value: "releaseself", label: "🔓 Release Restraints", hasArg: false },
-                { value: "wardrobe", label: "👗 Open Wardrobe", hasArg: false },
-                { value: "outfit", label: "✨ Apply Outfit", hasArg: true },
-            ];
-            const parseMacro = (cmd) => {
-                const col = cmd.indexOf(":");
-                const rawType = (col >= 0 ? cmd.slice(0, col) : cmd).toLowerCase().trim();
-                const arg = col >= 0 ? cmd.slice(col + 1).trim() : "";
-                const valid = ALL_TYPES.map(t => t.value);
-                return { type: valid.includes(rawType) ? rawType : "leaveroom", arg };
-            };
-            const serialize = (type, arg) => arg ? `${type}:${arg}` : type;
-            let { type, arg } = parseMacro(btns[idx].emote || "leaveroom");
-            const INP_CSS = "background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 4px;outline:none;min-width:0;";
-            const LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
-            const wrapper = document.createElement("div");
-            wrapper.style.cssText = "padding:5px 6px;background:rgba(12,4,10,0.5);border-top:1px solid #2a1020;display:flex;flex-direction:column;gap:4px;";
-            // Type dropdown row
-            const typeRow = document.createElement("div");
-            typeRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-            const typeLabel = document.createElement("span");
-            typeLabel.style.cssText = LBL_CSS;
-            typeLabel.textContent = "Action:";
-            const typeSelect = document.createElement("select");
-            typeSelect.className = "ebc-seq-type-select";
-            typeSelect.style.width = "160px";
-            ALL_TYPES.forEach(opt => {
-                const o = document.createElement("option");
-                o.value = opt.value;
-                o.textContent = opt.label;
-                if (opt.value === type)
-                    o.selected = true;
-                typeSelect.appendChild(o);
-            });
-            typeRow.appendChild(typeLabel);
-            typeRow.appendChild(typeSelect);
-            wrapper.appendChild(typeRow);
-            // Arg row (shown only for types that need an argument)
-            const argRow = document.createElement("div");
-            argRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-            const buildArgRow = (curType, curArg) => {
-                while (argRow.firstChild)
-                    argRow.removeChild(argRow.firstChild);
-                if (argRow.parentElement)
-                    argRow.remove();
-                const meta = ALL_TYPES.find(t => t.value === curType);
-                if (!(meta === null || meta === void 0 ? void 0 : meta.hasArg))
-                    return;
-                const argLabel = document.createElement("span");
-                argLabel.style.cssText = LBL_CSS;
-                if (curType === "outfit") {
-                    argLabel.textContent = "Outfit:";
-                    const outfits = getOutfits();
-                    if (!outfits.length) {
-                        const note = document.createElement("span");
-                        note.style.cssText = LBL_CSS + "font-style:italic;";
-                        note.textContent = "No outfits saved yet";
-                        argRow.appendChild(argLabel);
-                        argRow.appendChild(note);
-                    }
-                    else {
-                        const sel = document.createElement("select");
-                        sel.style.cssText = INP_CSS + "flex:1;";
-                        outfits.forEach(o => {
-                            const opt = document.createElement("option");
-                            opt.value = o.command;
-                            opt.textContent = o.displayName;
-                            if (o.command === curArg)
-                                opt.selected = true;
-                            sel.appendChild(opt);
-                        });
-                        if (!curArg)
-                            btns[idx].emote = serialize(curType, outfits[0].command);
-                        sel.addEventListener("change", () => { btns[idx].emote = serialize(curType, sel.value); });
-                        argRow.appendChild(argLabel);
-                        argRow.appendChild(sel);
-                    }
-                }
-                else if (curType === "scene") {
-                    argLabel.textContent = "Scene:";
-                    const scenes = getScenes();
-                    if (!scenes.length) {
-                        const note = document.createElement("span");
-                        note.style.cssText = LBL_CSS + "font-style:italic;";
-                        note.textContent = "No scenes saved yet";
-                        argRow.appendChild(argLabel);
-                        argRow.appendChild(note);
-                    }
-                    else {
-                        const sel = document.createElement("select");
-                        sel.style.cssText = INP_CSS + "flex:1;";
-                        scenes.forEach(s => {
-                            const opt = document.createElement("option");
-                            opt.value = s.name;
-                            opt.textContent = s.name;
-                            if (s.name === curArg)
-                                opt.selected = true;
-                            sel.appendChild(opt);
-                        });
-                        if (!curArg)
-                            btns[idx].emote = serialize(curType, scenes[0].name);
-                        sel.addEventListener("change", () => { btns[idx].emote = serialize(curType, sel.value); });
-                        argRow.appendChild(argLabel);
-                        argRow.appendChild(sel);
-                    }
-                }
-                else if (curType === "beep") {
-                    argLabel.textContent = "Member #:";
-                    const inp = document.createElement("input");
-                    inp.style.cssText = INP_CSS + "width:90px;";
-                    inp.type = "text";
-                    inp.placeholder = "e.g. 12345";
-                    inp.value = curArg;
-                    inp.maxLength = 12;
-                    inp.addEventListener("input", () => { btns[idx].emote = serialize(curType, inp.value.trim()); });
-                    argRow.appendChild(argLabel);
-                    argRow.appendChild(inp);
-                }
-                wrapper.appendChild(argRow);
-            };
-            buildArgRow(type, arg);
-            typeSelect.addEventListener("change", () => {
-                type = typeSelect.value;
-                arg = "";
-                btns[idx].emote = serialize(type, arg);
-                buildArgRow(type, arg);
-            });
+            wrapper.appendChild(addBtn);
             return wrapper;
         }
         // -- Buttons tab -----------------------------------------------------------
@@ -23966,34 +23715,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── Show action buttons toggle ────────────────────────────────────────
-            const abToggleRow = document.createElement("div");
-            abToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-            const abLbl2 = document.createElement("span");
-            abLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-            abLbl2.textContent = "Show action buttons sidebar";
-            const abToggle2 = document.createElement("button");
-            const updateAbToggle2 = () => {
-                const on = getActionButtonsVisible();
-                abToggle2.textContent = on ? "ON" : "OFF";
-                abToggle2.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                    "padding:5px 12px", "border-radius:4px", "cursor:pointer",
-                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                    "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-                abToggle2.title = on ? "Sidebar visible — click to hide" : "Sidebar hidden — click to show";
-            };
-            try {
-                updateAbToggle2();
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
-            abToggle2.addEventListener("click", () => { setActionButtonsVisible(!getActionButtonsVisible()); updateAbToggle2(); });
-            abToggleRow.appendChild(abLbl2);
-            abToggleRow.appendChild(abToggle2);
-            body.appendChild(abToggleRow);
             // Working category state
             const cats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
             let activeCatIdx = getActiveCategoryIndex();
@@ -24006,7 +23727,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             let btns = cats[activeCatIdx].buttons.map(b => (Object.assign({}, b)));
             let slotCount = Math.min(ABSOLUTE_MAX, Math.max(1, cats[activeCatIdx].slotCount || cats[activeCatIdx].buttons.length || 1));
             while (btns.length < slotCount) {
-                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
+                btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
             }
             // ── Build accordion ───────────────────────────────────────────────────
             // One section per category. The active one is expanded; others collapsed.
@@ -24056,7 +23777,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         cats.splice(i, 1);
                         const newIdx = Math.min(i, cats.length - 1);
                         saveCategories([...cats], newIdx);
-                        this.rerender();
+                        this.renderButtons();
                     });
                     hrow.appendChild(delBtn);
                 }
@@ -24081,7 +23802,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 hrow.addEventListener("click", () => {
                     if (i !== activeCatIdx) {
                         setActiveCategoryIndex(i);
-                        this.rerender();
+                        this.renderButtons();
                         return;
                     }
                     isExpanded = !isExpanded;
@@ -24114,10 +23835,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const name = (_a = window.prompt("Category name (e.g. RP, Casual):")) !== null && _a !== void 0 ? _a : "";
                 if (!name.trim())
                     return;
-                cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" }], slotCount: 1 });
+                cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" }], slotCount: 1 });
                 const newIdx = cats.length - 1;
                 saveCategories([...cats], newIdx);
-                this.rerender();
+                this.renderButtons();
             });
             addCatRow.appendChild(addCatBtn);
             body.appendChild(addCatRow);
@@ -24126,11 +23847,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slotList.id = "ebc-slot-list";
             activeBodyEl.appendChild(slotList);
             const renderSlots = () => {
-                var _a, _b, _c;
-                const savedScroll = body.scrollTop;
+                var _a;
                 // Always ensure btns has a real object for every slot — prevents "undefined" crashes
                 while (btns.length < slotCount) {
-                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
+                    btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
                 }
                 while (slotList.firstChild)
                     slotList.removeChild(slotList.firstChild);
@@ -24244,19 +23964,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const currentStyle = (_a = btn.style) !== null && _a !== void 0 ? _a : "action";
                     const isSeq = currentStyle === "seq";
                     const styleBtn = document.createElement("button");
-                    const styleBtnLabels = { action: "💬", emote: "💬", seq: "✨", macro: "🔧" };
-                    const styleBtnTitles = {
-                        action: "Legacy chat style — click to convert to macro",
-                        emote: "Legacy chat style — click to convert to macro",
-                        seq: "Style: ✨ sequence — click to switch to macro",
-                        macro: "Style: 🔧 macro — click to switch to sequence",
-                    };
-                    styleBtn.className = "ebc-slot-style" + (currentStyle !== "action" ? " emote" : "");
-                    styleBtn.textContent = (_b = styleBtnLabels[currentStyle]) !== null && _b !== void 0 ? _b : "🔧";
-                    styleBtn.title = (_c = styleBtnTitles[currentStyle]) !== null && _c !== void 0 ? _c : "";
-                    // seqBadge kept in DOM for layout but no longer used for display
+                    styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
+                    styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
+                    styleBtn.title = currentStyle === "emote"
+                        ? "Style: * emote * — click to switch"
+                        : "Style: ( action ) — click to switch";
+                    // Seq buttons don't show the style toggle — animation is internal
+                    styleBtn.style.display = isSeq ? "none" : "";
+                    // For seq buttons, show a small non-interactive badge instead
                     const seqBadge = document.createElement("span");
-                    seqBadge.style.display = "none";
+                    seqBadge.className = "ebc-slot-seq-badge";
+                    seqBadge.textContent = "✨";
+                    seqBadge.title = "Animation button — edit the sequence below";
+                    seqBadge.style.display = isSeq ? "inline" : "none";
                     const emoteInp = document.createElement("input");
                     emoteInp.className = "ebc-slot-emote";
                     emoteInp.type = "text";
@@ -24264,7 +23984,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     emoteInp.placeholder = "e.g. nods.";
                     emoteInp.value = btn.emote;
                     emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                    emoteInp.style.display = (isSeq || currentStyle === "macro") ? "none" : "";
+                    emoteInp.style.display = isSeq ? "none" : "";
                     // Name-in-announce chip — only meaningful for ( ) action style
                     const nameIncluded = btn.includeNameInAnnounce !== false;
                     const nameChip = document.createElement("button");
@@ -24274,7 +23994,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ? "Your name is included — click to send anonymously"
                         : "Sending without name — click to include name";
                     nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
-                    // only show for action style (emote always has name; seq/macro not applicable)
+                    // only show for action style (emote always has name; seq not applicable)
                     nameChip.style.display = (currentStyle === "action") ? "" : "none";
                     botLine.appendChild(styleBtn);
                     botLine.appendChild(seqBadge);
@@ -24283,14 +24003,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     row.appendChild(topLine);
                     row.appendChild(botLine);
                     slotList.appendChild(row);
-                    // -- Seq step builder / Macro editor --
+                    // -- Seq step builder (only for seq style) --
                     if (isSeq) {
                         const builderEl = this.buildSeqStepBuilder(btns, i);
                         slotList.appendChild(builderEl);
-                    }
-                    else if (currentStyle === "macro") {
-                        const macroEl = this.buildMacroEditor(btns, i);
-                        slotList.appendChild(macroEl);
                     }
                     // -- Events (capture i) --
                     const idx = i;
@@ -24343,15 +24059,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     });
                     styleBtn.addEventListener("click", () => {
                         var _a;
-                        const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "macro";
-                        // action/emote are legacy — clicking converts them to macro
-                        // active cycle is seq ↔ macro
-                        const next = (cur === "action" || cur === "emote") ? "macro"
-                            : cur === "seq" ? "macro" : "seq";
+                        const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action";
+                        if (cur === "seq")
+                            return; // seq buttons don't cycle through styles
+                        const next = cur === "action" ? "emote" : "action";
                         btns[idx].style = next;
-                        // Always rebuild — seq/macro editors need to appear/disappear
-                        renderSlots();
-                        updateFooterState();
+                        styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
+                        styleBtn.textContent = next === "emote" ? "* *" : "( )";
+                        styleBtn.title = next === "emote"
+                            ? "Style: * emote * — click to switch"
+                            : "Style: ( action ) — click to switch";
+                        emoteInp.title = next === "emote"
+                            ? "Text sent as * Name text *"
+                            : "Text sent as ( Name text )";
+                        // name chip only applies to action style
+                        nameChip.style.display = next === "action" ? "" : "none";
                     });
                     let slotDelPending = false;
                     let slotDelTimer = null;
@@ -24372,14 +24094,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             if (slotDelTimer !== null)
                                 window.clearTimeout(slotDelTimer);
                             btns.splice(idx, 1);
-                            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
+                            btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
                             slotCount = Math.max(1, slotCount - 1);
                             renderSlots();
                             updateFooterState();
                         }
                     });
                 }
-                body.scrollTop = savedScroll;
             };
             renderSlots();
             // Footer buttons
@@ -24592,7 +24313,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     btns = imported;
                     slotCount = newCount;
                     while (btns.length < slotCount) {
-                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
+                        btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
                     }
                     saveButtons([...btns], slotCount);
                     importPanel.classList.remove("open");
@@ -26535,7 +26256,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.56";
+    const MOD_VERSION = "2.2.57";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26546,6 +26267,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.57",
+            changes: [
+                "BUTTONS tab fully restored from stable (master) branch — exact actionButtons.ts and renderButtons/buildSeqStepBuilder from v2.2.17. Default buttons (NOD/SHAKE/WAVE/CHEER/POUT/GIGGLE) restored. Canvas sidebar with drag-to-reposition, DrawButton tiles, and click handler all intact. Tab correctly labelled 'BUTTONS', positioned before ANIMS.",
+            ],
+        },
         {
             version: "2.2.56",
             changes: [
