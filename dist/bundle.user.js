@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.116
+// @version      2.2.117
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25201,10 +25201,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     setTimeout(() => { untugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
                     return;
                 }
-                tugCount--;
+                // Fully loosen — reset all tug steps at once and release LSCG neck pressure
+                tugCount = 0;
                 sendRoomEmote(mood === "rough"
-                    ? "yanks the leash back a notch, giving the collar a little more play~"
-                    : "gives the leash a bit of slack, letting Emery's collar ease up~");
+                    ? "grabs the leash with both hands and yanks it back sharply, forcing all the tension out of the collar in one go~"
+                    : "gathers the slack in one smooth motion, easing Emery's collar all the way back to its comfortable fit~");
+                runKittyActivity("ItemNeck", "Caress");
+                runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
                 refreshTugBtn();
                 // Brief flash
                 untugBtn.style.background = "rgba(60,100,80,0.45)";
@@ -28469,7 +28472,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.116";
+    const MOD_VERSION = "2.2.117";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28480,6 +28483,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.117",
+            changes: [
+                "Kitty Leash: ↙ Untug now fully resets all tug steps in one click (previously only decremented by 1 per click) and fires Caress + LSCG_ReleaseNeck on ItemNeck to actually release neck pressure — same activities used when the leash is fully dropped.",
+            ],
+        },
         {
             version: "2.2.116",
             changes: [

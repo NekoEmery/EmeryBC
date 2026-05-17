@@ -13859,10 +13859,13 @@ export class EBCDrawer {
                 setTimeout(() => { untugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
                 return;
             }
-            tugCount--;
+            // Fully loosen — reset all tug steps at once and release LSCG neck pressure
+            tugCount = 0;
             sendRoomEmote(mood === "rough"
-                ? "yanks the leash back a notch, giving the collar a little more play~"
-                : "gives the leash a bit of slack, letting Emery's collar ease up~");
+                ? "grabs the leash with both hands and yanks it back sharply, forcing all the tension out of the collar in one go~"
+                : "gathers the slack in one smooth motion, easing Emery's collar all the way back to its comfortable fit~");
+            runKittyActivity("ItemNeck", "Caress");
+            runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
             refreshTugBtn();
             // Brief flash
             untugBtn.style.background = "rgba(60,100,80,0.45)";

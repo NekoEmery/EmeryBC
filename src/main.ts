@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.116";
+const MOD_VERSION = "2.2.117";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.117",
+        changes: [
+            "Kitty Leash: ↙ Untug now fully resets all tug steps in one click (previously only decremented by 1 per click) and fires Caress + LSCG_ReleaseNeck on ItemNeck to actually release neck pressure — same activities used when the leash is fully dropped.",
+        ],
+    },
     {
         version: "2.2.116",
         changes: [
