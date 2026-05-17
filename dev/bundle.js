@@ -11309,60 +11309,6 @@
     const LUCY_MEMBER = 230466;
     const EMERY_MEMBER = 130267;
     const KITTY_CMD_PREFIX = "[EBC-KITTY:";
-    // ── Defaults ──────────────────────────────────────────────────────────────────
-    const DEFAULT_EMOTES = [
-        {
-            id: "headpat", label: "🐾 Headpat",
-            text: "gently pats Emery on the head~ 🐾",
-            roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
-            type: "emote", expression: "Ears:Wiggle",
-            bcGroup: "ItemHead", bcActivity: "Pet",
-        },
-        {
-            id: "goodgirl", label: "✨ Good girl",
-            text: "scratches Emery behind the ears~ Good girl~ ✨",
-            roughText: "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
-            type: "emote", expression: "Ears:Wiggle",
-        },
-        {
-            id: "treat", label: "🍖 Treat",
-            text: "holds out a treat for her little pet~ 🍖",
-            roughText: "tosses a treat at Emery's feet without even looking up~",
-            type: "emote", interactive: true,
-        },
-        {
-            id: "praise", label: "🎀 Praise",
-            text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀",
-            roughText: "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
-            type: "emote", interactive: true,
-        },
-        {
-            id: "announce", label: "💜 Mine",
-            text: "Emery belongs to Lucy~ 💜",
-            roughText: "Emery is Lucy's. End of discussion.~",
-            type: "action",
-        },
-        {
-            id: "snuggle", label: "🤗 Snuggle",
-            text: "pulls Emery into a warm snuggle, resting her chin on her head~",
-            roughText: "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
-            type: "emote",
-        },
-        {
-            id: "spank", label: "👋 Spank",
-            text: "gives Emery a playful swat on the bottom~",
-            roughText: "delivers a sharp smack to Emery's bottom without warning~",
-            type: "emote",
-            bcGroup: "ItemButt", bcActivity: "Spank",
-        },
-        {
-            id: "bap", label: "🐾 Bap",
-            text: "gives Emery a playful bap on the nose~ 🐾",
-            roughText: "gives Emery a sharp flick on the nose without warning~",
-            type: "emote",
-            bcGroup: "ItemHead", bcActivity: "Slap",
-        },
-    ];
     const DEFAULT_POSES = [
         {
             id: "allfours", label: "🐱 All fours", poses: ["AllFours"],
@@ -11434,60 +11380,6 @@
         return v === "rough" ? "rough" : "kind";
     }
     function setKittyMood(m) { lsSet("EBC_kittyMood", m); }
-    // Seed values for existing stored emotes that predate the roughText / expression fields.
-    // Only applied if the field is currently undefined (user hasn't touched it yet).
-    const ROUGH_TEXT_SEEDS = {
-        "headpat": "grabs Emery by the hair and gives her head a firm tug~ 🐾",
-        "goodgirl": "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
-        "treat": "tosses a treat at Emery's feet without even looking up~",
-        "praise": "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
-        "announce": "Emery is Lucy's. End of discussion.~",
-        "snuggle": "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
-        "spank": "delivers a sharp smack to Emery's bottom without warning~",
-        "bap": "gives Emery a sharp flick on the nose without warning~",
-    };
-    const EXPRESSION_SEEDS = {
-        "headpat": "Ears:Wiggle",
-        "goodgirl": "Ears:Wiggle",
-    };
-    // Seed bcGroup/bcActivity for stored emotes that predate these fields (v2.2.75+).
-    const BC_ACTIVITY_SEEDS = {
-        "headpat": { group: "ItemHead", activity: "Pet" },
-        "spank": { group: "ItemButt", activity: "Spank" },
-        "bap": { group: "ItemHead", activity: "Slap" },
-    };
-    // New emotes to seed into existing stored lists that predate them.
-    const NEW_EMOTE_SEEDS = [
-        {
-            id: "bap", label: "🐾 Bap",
-            text: "gives Emery a playful bap on the nose~ 🐾",
-            roughText: "gives Emery a sharp flick on the nose without warning~",
-            type: "emote",
-            bcGroup: "ItemHead", bcActivity: "Slap",
-        },
-        {
-            id: "spank", label: "👋 Spank",
-            text: "gives Emery a playful swat on the bottom~",
-            roughText: "delivers a sharp smack to Emery's bottom without warning~",
-            type: "emote",
-            bcGroup: "ItemButt", bcActivity: "Spank",
-        },
-    ];
-    function getKittyEmotes() {
-        const raw = lsGet("EBC_kittyEmotes", DEFAULT_EMOTES);
-        const emotes = raw.map(e => {
-            var _a, _b, _c, _d, _e, _f, _g, _h;
-            return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", bcGroup: (_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group, bcActivity: (_g = e.bcActivity) !== null && _g !== void 0 ? _g : (_h = BC_ACTIVITY_SEEDS[e.id]) === null || _h === void 0 ? void 0 : _h.activity }));
-        });
-        // Append any new default emotes that weren't in the stored list yet
-        for (const seed of NEW_EMOTE_SEEDS) {
-            if (!emotes.find(e => e.id === seed.id)) {
-                emotes.push(Object.assign({ roughText: "", expression: "" }, seed));
-            }
-        }
-        return emotes;
-    }
-    function saveKittyEmotes(v) { lsSet("EBC_kittyEmotes", v); }
     function getKittyRestraintSets() {
         // Migrate old sets that lack emote fields
         const raw = lsGet("EBC_kittyRestraintSets", []);
@@ -11615,34 +11507,6 @@
         { label: "🐱 All fours", poses: ["AllFours"] },
         { label: "🙌 Hands up", poses: ["OverTheHead"] },
     ];
-    // BC activity slot groups (for the emote sound picker)
-    const ACTIVITY_SLOT_GROUPS = [
-        { label: "Head", value: "ItemHead" },
-        { label: "Ears", value: "ItemEars" },
-        { label: "Nose", value: "ItemNose" },
-        { label: "Mouth", value: "ItemMouth" },
-        { label: "Neck", value: "ItemNeck" },
-        { label: "Chest", value: "ItemBreast" },
-        { label: "Arms", value: "ItemArms" },
-        { label: "Hands", value: "ItemHands" },
-        { label: "Belly", value: "ItemTorso" },
-        { label: "Pelvis", value: "ItemPelvis" },
-        { label: "Butt", value: "ItemButt" },
-        { label: "Legs", value: "ItemLegs" },
-        { label: "Feet", value: "ItemFeet" },
-    ];
-    /** Returns all BC activity names available at runtime (from window.AssetActivity). */
-    function getBCActivityNames() {
-        try {
-            const acts = window.AssetActivity;
-            if (!Array.isArray(acts))
-                return [];
-            return acts.map(a => a.Name).filter((n) => !!n).sort();
-        }
-        catch (_a) {
-            return [];
-        }
-    }
     function getGroupAssets(group) {
         try {
             const w = window;
@@ -14308,6 +14172,9 @@
             this.tagTooltipMoveListener = null;
             this.slowLeaveBtn = null;
             this.slPresetDropdown = null;
+            this.slCatDropdown = null;
+            this.slDurSlider = null;
+            this.slDurVal = null;
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
@@ -14320,6 +14187,7 @@
         }
         // -- Setup -----------------------------------------------------------------
         setup() {
+            var _a;
             if (this.rootEl)
                 return;
             this.injectStyles();
@@ -14605,6 +14473,61 @@
             });
             quickActions.appendChild(slPresetDropdown);
             this.slPresetDropdown = slPresetDropdown;
+            // Button category selector — shown next to slow leave, hides when not in a room
+            const SL_DD_CSS = "display:none;width:100%;margin-top:3px;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+            const slCatDropdown = document.createElement("select");
+            slCatDropdown.style.cssText = SL_DD_CSS;
+            slCatDropdown.title = "Switch action button category";
+            const refreshCatDropdown = () => {
+                while (slCatDropdown.firstChild)
+                    slCatDropdown.removeChild(slCatDropdown.firstChild);
+                const cats = getCategories();
+                cats.forEach((cat, i) => {
+                    const o = document.createElement("option");
+                    o.value = String(i);
+                    o.textContent = cat.name;
+                    slCatDropdown.appendChild(o);
+                });
+                slCatDropdown.value = String(getActiveCategoryIndex());
+            };
+            refreshCatDropdown();
+            slCatDropdown.addEventListener("change", () => {
+                setActiveCategoryIndex(parseInt(slCatDropdown.value, 10));
+                if (this.currentTab === "buttons")
+                    this.rerender();
+            });
+            quickActions.appendChild(slCatDropdown);
+            this.slCatDropdown = slCatDropdown;
+            // Duration slider — shown next to slow leave
+            const slDurRow = document.createElement("div");
+            slDurRow.style.cssText = "display:none;align-items:center;gap:6px;width:100%;margin-top:3px;box-sizing:border-box;";
+            const slDurLbl = document.createElement("span");
+            slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
+            slDurLbl.textContent = "⏱";
+            slDurLbl.title = "Slow leave duration";
+            const slDurSlider = document.createElement("input");
+            slDurSlider.type = "range";
+            slDurSlider.min = "2";
+            slDurSlider.max = "30";
+            slDurSlider.step = "1";
+            slDurSlider.value = (_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5";
+            slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            const slDurVal = document.createElement("span");
+            slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
+            slDurVal.textContent = slDurSlider.value + "s";
+            slDurSlider.addEventListener("input", () => {
+                slDurVal.textContent = slDurSlider.value + "s";
+                try {
+                    localStorage.setItem("EBC_slowLeaveDuration", slDurSlider.value);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            slDurRow.appendChild(slDurLbl);
+            slDurRow.appendChild(slDurSlider);
+            slDurRow.appendChild(slDurVal);
+            quickActions.appendChild(slDurRow);
+            this.slDurSlider = slDurSlider;
+            this.slDurVal = slDurVal;
             // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
             const selfPickPanel = document.createElement("div");
             selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
@@ -15433,13 +15356,17 @@
             this.updateSlowLeaveVisibility();
         }
         updateSlowLeaveVisibility() {
+            var _a;
             if (!this.slowLeaveBtn)
                 return;
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
             this.slowLeaveBtn.style.display = inRoom ? "" : "none";
-            if (this.slPresetDropdown) {
+            if (this.slPresetDropdown)
                 this.slPresetDropdown.style.display = inRoom ? "" : "none";
-            }
+            if (this.slCatDropdown)
+                this.slCatDropdown.style.display = inRoom ? "" : "none";
+            if ((_a = this.slDurSlider) === null || _a === void 0 ? void 0 : _a.parentElement)
+                this.slDurSlider.parentElement.style.display = inRoom ? "flex" : "none";
             // Reset button label if no sequence is currently running
             if (!isSeqRunning()) {
                 this.slowLeaveBtn.textContent = "🚶 Slow Leave";
@@ -24949,18 +24876,14 @@
             hdr.appendChild(hdrLbl);
             hdr.appendChild(hdrSub);
             body.appendChild(hdr);
-            // ── Mood toggle ──────────────────────────────────────────────────────────
+            // ── Mood toggle (big, obvious) ────────────────────────────────────────────
             const moodRow = document.createElement("div");
-            moodRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:5px 8px;background:rgba(20,8,16,0.6);border:1px solid #2a1421;border-radius:6px;";
-            const moodLbl = document.createElement("span");
-            moodLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
-            moodLbl.textContent = "Mood:";
-            moodRow.appendChild(moodLbl);
+            moodRow.style.cssText = "display:flex;gap:6px;margin-bottom:10px;";
             const makeMoodBtn = (m, icon, label, color) => {
                 const b = document.createElement("button");
                 const update = () => {
                     const active = getKittyMood() === m;
-                    b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:3px 10px;border-radius:4px;cursor:pointer;transition:all 0.12s;border:1px solid ${active ? color : "#3a1928"};background:${active ? color + "28" : "transparent"};color:${active ? color : "#5a3a4a"};`;
+                    b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 0;border-radius:8px;cursor:pointer;transition:all 0.14s;border:2px solid ${active ? color : "#3a1928"};background:${active ? color + "30" : "rgba(20,8,16,0.5)"};color:${active ? color : "#5a3a4a"};flex:1;`;
                 };
                 b.textContent = icon + " " + label;
                 update();
@@ -24970,7 +24893,7 @@
                         const isActive = getKittyMood() === (x === kindBtn ? "kind" : "rough");
                         const col = x === kindBtn ? "#79c8a0" : "#e07070";
                         x.style.borderColor = isActive ? col : "#3a1928";
-                        x.style.background = isActive ? col + "28" : "transparent";
+                        x.style.background = isActive ? col + "30" : "rgba(20,8,16,0.5)";
                         x.style.color = isActive ? col : "#5a3a4a";
                     });
                 });
@@ -24986,7 +24909,7 @@
                 const el = document.createElement("div");
                 el.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:5px;";
                 const lbl = document.createElement("span");
-                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;flex:1;";
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;color:#b07090;letter-spacing:0.05em;text-transform:uppercase;flex:1;";
                 lbl.textContent = title;
                 el.appendChild(lbl);
                 let editing = false;
@@ -25005,13 +24928,13 @@
                 }
                 return { el, setEditing: (v) => { editing = v; editBtn.textContent = v ? "✔ Done" : "✎ Edit"; editBtn.style.color = v ? "#cf6f98" : "#7a5a6a"; editBtn.style.borderColor = v ? "#cf6f98" : "#4c2537"; } };
             };
-            // Helper: pill-style action button
+            // Helper: pill-style action button (big, easy to tap)
             const makePill = (label, color, onClick) => {
                 const b = document.createElement("button");
-                b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid ${color}55;background:${color}18;color:${color};transition:background 0.12s,border-color 0.12s;white-space:nowrap;`;
+                b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 14px;border-radius:8px;cursor:pointer;border:2px solid ${color}66;background:${color}22;color:${color};transition:background 0.12s,border-color 0.12s,transform 0.08s;white-space:nowrap;`;
                 b.textContent = label;
-                b.addEventListener("mouseenter", () => { b.style.background = `${color}30`; b.style.borderColor = color; });
-                b.addEventListener("mouseleave", () => { b.style.background = `${color}18`; b.style.borderColor = `${color}55`; });
+                b.addEventListener("mouseenter", () => { b.style.background = `${color}38`; b.style.borderColor = color; b.style.transform = "scale(1.04)"; });
+                b.addEventListener("mouseleave", () => { b.style.background = `${color}22`; b.style.borderColor = `${color}66`; b.style.transform = ""; });
                 b.addEventListener("click", onClick);
                 return b;
             };
@@ -25029,244 +24952,6 @@
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
             };
-            // ── EMOTES ───────────────────────────────────────────────────────────────
-            const emotesWrap = document.createElement("div");
-            emotesWrap.style.marginBottom = "10px";
-            const renderEmotes = (editing) => {
-                emotesWrap.innerHTML = "";
-                const emotes = getKittyEmotes();
-                if (!editing) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
-                    for (const em of emotes) {
-                        row.appendChild(makePill(em.label, "#cf6f98", () => {
-                            // Guard: never send chat when not in a room
-                            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
-                                return;
-                            const mood = getKittyMood();
-                            const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
-                            try {
-                                if (em.bcGroup && em.bcActivity) {
-                                    // Use BC's own ActivityRun pipeline — same as clicking the button in the dialog.
-                                    // This plays sounds, triggers BCX/LSCG reactions, and shows the correct chat line.
-                                    const w = window;
-                                    const ActivityRun = w.ActivityRun;
-                                    const AssetGetActivity = w.AssetGetActivity;
-                                    const ChatRoomChars = w.ChatRoomCharacter;
-                                    if (ActivityRun && AssetGetActivity && ChatRoomChars) {
-                                        const emery = ChatRoomChars.find(c => c.MemberNumber === EMERY_MEMBER);
-                                        const act = AssetGetActivity("Female3DCG", em.bcActivity);
-                                        if (emery && act)
-                                            ActivityRun(Player, emery, { Name: em.bcGroup }, { Activity: act, Item: null });
-                                    }
-                                }
-                                else if (em.type === "emote") {
-                                    ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
-                                }
-                                else {
-                                    const zw = String.fromCharCode(0x200C);
-                                    ServerSend("ChatRoomChat", { Type: "Action", Content: text, Dictionary: [{ Tag: 'MISSING TEXT IN "Interface.csv": ', Text: zw }, { SourceCharacter: Player.MemberNumber }] });
-                                }
-                            }
-                            catch ( /* ignore */_a) { /* ignore */ }
-                            // Expression command (e.g. ear wiggle for headpat)
-                            if (em.expression) {
-                                sendKittyCmd("expression", em.expression);
-                            }
-                            // If interactive, send a react beep so Emery can respond
-                            if (em.interactive) {
-                                sendKittyCmd("react", JSON.stringify({ label: em.label, text }));
-                            }
-                        }));
-                    }
-                    emotesWrap.appendChild(row);
-                    return;
-                }
-                const list = document.createElement("div");
-                list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
-                const cur = getKittyEmotes();
-                cur.forEach((em, idx) => {
-                    var _a, _b;
-                    const r = document.createElement("div");
-                    r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
-                    // Row 1: label + type toggle + react toggle + delete
-                    const r1 = document.createElement("div");
-                    r1.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    const lblInp = document.createElement("input");
-                    lblInp.value = em.label;
-                    lblInp.placeholder = "Label";
-                    lblInp.style.cssText = "width:80px;flex-shrink:0;" + INP;
-                    const typeBtn = document.createElement("button");
-                    typeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;flex-shrink:0;border:1px solid #4c2537;background:transparent;color:#cf6f98;";
-                    typeBtn.textContent = em.type === "emote" ? "* *" : "( )";
-                    typeBtn.title = em.type === "emote" ? "Emote format" : "Action format";
-                    typeBtn.addEventListener("click", () => {
-                        const updated = getKittyEmotes();
-                        updated[idx].type = updated[idx].type === "emote" ? "action" : "emote";
-                        saveKittyEmotes(updated);
-                        renderEmotes(true);
-                    });
-                    const reactBtn = document.createElement("button");
-                    const updateReactBtn = () => {
-                        var _a;
-                        const on = !!((_a = getKittyEmotes()[idx]) === null || _a === void 0 ? void 0 : _a.interactive);
-                        reactBtn.textContent = on ? "🔔" : "🔕";
-                        reactBtn.title = on ? "Emery gets a react popup — click to disable" : "Room emote only — click to make Emery react";
-                        reactBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;cursor:pointer;flex-shrink:0;opacity:" + (on ? "1" : "0.4") + ";";
-                    };
-                    updateReactBtn();
-                    reactBtn.addEventListener("click", () => {
-                        const updated = getKittyEmotes();
-                        updated[idx].interactive = !updated[idx].interactive;
-                        saveKittyEmotes(updated);
-                        updateReactBtn();
-                    });
-                    const delBtn = document.createElement("button");
-                    delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
-                    delBtn.textContent = "×";
-                    delBtn.addEventListener("click", () => {
-                        saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
-                        renderEmotes(true);
-                    });
-                    const spacer = document.createElement("span");
-                    spacer.style.flex = "1";
-                    r1.appendChild(lblInp);
-                    r1.appendChild(spacer);
-                    r1.appendChild(typeBtn);
-                    r1.appendChild(reactBtn);
-                    r1.appendChild(delBtn);
-                    // Row 2: kind text
-                    const kindRowE = document.createElement("div");
-                    kindRowE.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    const kindLblE = document.createElement("span");
-                    kindLblE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;";
-                    kindLblE.textContent = "🌸 Kind:";
-                    const txtInp = document.createElement("input");
-                    txtInp.value = em.text;
-                    txtInp.placeholder = "Kind emote text…";
-                    txtInp.style.cssText = "flex:1;min-width:0;" + INP;
-                    kindRowE.appendChild(kindLblE);
-                    kindRowE.appendChild(txtInp);
-                    // Row 3: rough text
-                    const roughRowE = document.createElement("div");
-                    roughRowE.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    const roughLblE = document.createElement("span");
-                    roughLblE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;";
-                    roughLblE.textContent = "⚡ Rough:";
-                    const roughInp = document.createElement("input");
-                    roughInp.value = (_a = em.roughText) !== null && _a !== void 0 ? _a : "";
-                    roughInp.placeholder = "Rough emote text (leave empty to reuse kind)…";
-                    roughInp.style.cssText = "flex:1;min-width:0;" + INP;
-                    roughRowE.appendChild(roughLblE);
-                    roughRowE.appendChild(roughInp);
-                    const saveInp = () => {
-                        const updated = getKittyEmotes();
-                        updated[idx].label = lblInp.value;
-                        updated[idx].text = txtInp.value;
-                        updated[idx].roughText = roughInp.value;
-                        saveKittyEmotes(updated);
-                    };
-                    [lblInp, txtInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
-                    // Row 4: BC Sound / Activity trigger
-                    const soundRow = document.createElement("div");
-                    soundRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                    const soundLbl = document.createElement("span");
-                    soundLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:38px;";
-                    soundLbl.textContent = "🔊 Sound:";
-                    soundLbl.title = "Trigger a real BC activity when this button is clicked (plays sound + shows BC chat line)";
-                    const grpSel = document.createElement("select");
-                    grpSel.style.cssText = "flex:1;min-width:0;" + INP;
-                    const grpPh = document.createElement("option");
-                    grpPh.value = "";
-                    grpPh.textContent = "— no BC activity —";
-                    grpSel.appendChild(grpPh);
-                    for (const g of ACTIVITY_SLOT_GROUPS) {
-                        const o = document.createElement("option");
-                        o.value = g.value;
-                        o.textContent = g.label;
-                        grpSel.appendChild(o);
-                    }
-                    grpSel.value = (_b = em.bcGroup) !== null && _b !== void 0 ? _b : "";
-                    const actSel = document.createElement("select");
-                    actSel.style.cssText = "flex:1;min-width:0;" + INP;
-                    const populateActSel = () => {
-                        actSel.innerHTML = "";
-                        const names = getBCActivityNames();
-                        if (names.length === 0) {
-                            const o = document.createElement("option");
-                            o.value = "";
-                            o.textContent = "— load game first —";
-                            o.disabled = true;
-                            o.selected = true;
-                            actSel.appendChild(o);
-                        }
-                        else {
-                            const ph = document.createElement("option");
-                            ph.value = "";
-                            ph.textContent = "— pick activity —";
-                            ph.disabled = true;
-                            ph.selected = true;
-                            actSel.appendChild(ph);
-                            for (const n of names) {
-                                const o = document.createElement("option");
-                                o.value = n;
-                                o.textContent = n;
-                                actSel.appendChild(o);
-                            }
-                        }
-                        if (em.bcActivity)
-                            actSel.value = em.bcActivity;
-                    };
-                    populateActSel();
-                    const saveActivity = () => {
-                        const upd = getKittyEmotes();
-                        upd[idx].bcGroup = grpSel.value || undefined;
-                        upd[idx].bcActivity = actSel.value || undefined;
-                        saveKittyEmotes(upd);
-                    };
-                    grpSel.addEventListener("change", saveActivity);
-                    actSel.addEventListener("change", saveActivity);
-                    soundRow.appendChild(soundLbl);
-                    soundRow.appendChild(grpSel);
-                    soundRow.appendChild(actSel);
-                    r.appendChild(r1);
-                    r.appendChild(kindRowE);
-                    r.appendChild(roughRowE);
-                    r.appendChild(soundRow);
-                    list.appendChild(r);
-                });
-                const addRow = document.createElement("div");
-                addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const newLbl = document.createElement("input");
-                newLbl.placeholder = "Label";
-                newLbl.style.cssText = "width:80px;flex-shrink:0;" + INP;
-                const newTxt = document.createElement("input");
-                newTxt.placeholder = "Message text…";
-                newTxt.style.cssText = "flex:1;min-width:0;" + INP;
-                const addBtn2 = document.createElement("button");
-                addBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-                addBtn2.textContent = "+ Add";
-                addBtn2.addEventListener("click", () => {
-                    if (!newLbl.value.trim())
-                        return;
-                    const updated = getKittyEmotes();
-                    updated.push({ id: "e_" + Date.now(), label: newLbl.value.trim(), text: newTxt.value.trim(), type: "emote" });
-                    saveKittyEmotes(updated);
-                    newLbl.value = "";
-                    newTxt.value = "";
-                    renderEmotes(true);
-                });
-                addRow.appendChild(newLbl);
-                addRow.appendChild(newTxt);
-                addRow.appendChild(addBtn2);
-                list.appendChild(addRow);
-                emotesWrap.appendChild(list);
-            };
-            const { el: emHdr } = makeSectionHdr("Emotes", null, (ed) => renderEmotes(ed));
-            body.appendChild(emHdr);
-            renderEmotes(false);
-            body.appendChild(emotesWrap);
-            body.appendChild(divider());
             // ── POSES ────────────────────────────────────────────────────────────────
             const posesWrap = document.createElement("div");
             posesWrap.style.marginBottom = "10px";
@@ -25275,7 +24960,7 @@
                 const poses = getKittyPoses();
                 if (!editing) {
                     const row = document.createElement("div");
-                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
                     for (const p of poses) {
                         row.appendChild(makePill(p.label, "#a070c8", () => {
                             // Guard: never send chat when not in a room
@@ -25409,7 +25094,7 @@
                 if (!editing) {
                     // ── View mode: pills ──────────────────────────────────────────
                     const row = document.createElement("div");
-                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                    row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
                     for (const pun of punishments) {
                         row.appendChild(makePill(pun.label, "#d05070", () => {
                             var _a;
@@ -26131,6 +25816,54 @@
                     r.appendChild(rpSlRow);
                     r.appendChild(rpItemRow);
                     r.appendChild(rpColRow);
+                    // Import from pasted BC outfit/craft code
+                    const rpCodeRow = document.createElement("div");
+                    rpCodeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
+                    const rpCodeInp = document.createElement("input");
+                    rpCodeInp.placeholder = "Paste BC outfit/craft code…";
+                    rpCodeInp.style.cssText = "flex:1;min-width:0;" + INP;
+                    const rpCodeBtn = document.createElement("button");
+                    rpCodeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                    rpCodeBtn.textContent = "Import";
+                    rpCodeBtn.addEventListener("click", () => {
+                        var _a, _b;
+                        const code = rpCodeInp.value.trim();
+                        if (!code)
+                            return;
+                        try {
+                            const LZStr = window.LZString;
+                            const raw2 = (_b = (_a = LZStr === null || LZStr === void 0 ? void 0 : LZStr.decompressFromBase64) === null || _a === void 0 ? void 0 : _a.call(LZStr, code)) !== null && _b !== void 0 ? _b : code;
+                            const parsed = JSON.parse(raw2);
+                            const newItems = parsed
+                                .filter(p => typeof p.Group === "string" && typeof p.Name === "string")
+                                .map(p => ({
+                                Name: String(p.Name), Group: String(p.Group),
+                                Color: p.Color,
+                                Difficulty: typeof p.Difficulty === "number" ? p.Difficulty : undefined,
+                                Property: typeof p.Property === "object" && p.Property !== null ? p.Property : undefined,
+                                Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft : undefined,
+                            }));
+                            if (newItems.length === 0) {
+                                rpCodeInp.style.borderColor = "#e07070";
+                                window.setTimeout(() => { rpCodeInp.style.borderColor = ""; }, 1500);
+                                return;
+                            }
+                            const upd = getKittyRestraintSets();
+                            if (upd[pIdx]) {
+                                upd[pIdx].items.push(...newItems);
+                                saveKittyRestraintSets(upd);
+                            }
+                            rpCodeInp.value = "";
+                            rebuildRPItems();
+                        }
+                        catch (_c) {
+                            rpCodeInp.style.borderColor = "#e07070";
+                            window.setTimeout(() => { rpCodeInp.style.borderColor = ""; }, 1500);
+                        }
+                    });
+                    rpCodeRow.appendChild(rpCodeInp);
+                    rpCodeRow.appendChild(rpCodeBtn);
+                    r.appendChild(rpCodeRow);
                     list.appendChild(r);
                 });
                 // Add new preset
@@ -27592,7 +27325,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.79";
+    const MOD_VERSION = "2.2.80";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27603,6 +27336,16 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.80",
+            changes: [
+                "Kitty tab: removed the Emotes section — emote actions can be built as Action steps instead.",
+                "Kitty tab UX overhaul — mood buttons, action pills, and section headers are now significantly bigger and easier to tap.",
+                "Sidebar: added button category dropdown (switch Classic/Warm/Quiet/etc.) just below the slow leave button — no need to open the Buttons tab to switch.",
+                "Sidebar: added duration slider (⏱) next to slow leave — same accent style as the opacity slider in Drawer Preferences.",
+                "Restraint presets: added 'Paste BC outfit/craft code → Import' row to each preset card, so Lucy can import crafting codes directly.",
+            ],
+        },
         {
             version: "2.2.79",
             changes: [
