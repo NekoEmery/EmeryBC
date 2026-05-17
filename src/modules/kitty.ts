@@ -146,7 +146,7 @@ const DEFAULT_POSES: KittyPose[] = [
         roughEmote: "grips Emery's shoulder firmly and points to the floor~",
     },
     {
-        id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["Kneel", "Spread"],
+        id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["PresentationKneel"],
         kindEmote: "guides Emery down to her knees and nudges her legs apart with a soft smile~",
         roughEmote: "pushes Emery to her knees and kicks her legs apart~",
     },
@@ -154,6 +154,11 @@ const DEFAULT_POSES: KittyPose[] = [
         id: "spread", label: "🦵 Spread", poses: ["Spread"],
         kindEmote: "gently nudges Emery's feet apart~",
         roughEmote: "kicks Emery's feet apart with a sharp look~",
+    },
+    {
+        id: "legs_closed", label: "🧍 Legs closed", poses: ["LegsClosed"],
+        kindEmote: "guides Emery's feet back together with a soft touch~",
+        roughEmote: "snaps her fingers at Emery's feet, making her close them~",
     },
     {
         id: "handsup", label: "🙌 Hands up", poses: ["OverTheHead"],
@@ -169,26 +174,6 @@ const DEFAULT_POSES: KittyPose[] = [
         id: "elbowTie", label: "🔗 Elbow tie", poses: ["BackElbowTie"],
         kindEmote: "draws Emery's elbows together behind her back with care~",
         roughEmote: "wrenches Emery's elbows together behind her back~",
-    },
-    {
-        id: "hogtied", label: "⛓ Hogtied", poses: ["Hogtied"],
-        kindEmote: "carefully arranges Emery into a hogtied position, checking she's comfortable~",
-        roughEmote: "flips Emery over and puts her in a hogtied position without ceremony~",
-    },
-    {
-        id: "tiptoe", label: "💃 Tiptoe", poses: ["TiptoeStrap"],
-        kindEmote: "coaxes Emery up onto her tiptoes with a playful grin~",
-        roughEmote: "yanks Emery up onto her tiptoes with a firm grip~",
-    },
-    {
-        id: "legup", label: "🦵 Leg up", poses: ["LegUp"],
-        kindEmote: "lifts one of Emery's legs up, holding it steady~",
-        roughEmote: "grabs one of Emery's legs and hoists it up sharply~",
-    },
-    {
-        id: "suspension", label: "🔗 Suspend", poses: ["Suspension"],
-        kindEmote: "arranges Emery into a suspension, carefully checking every knot~",
-        roughEmote: "hauls Emery up into a suspension without a word~",
     },
     {
         id: "neutral", label: "🔄 Neutral", poses: [],
@@ -357,6 +342,22 @@ export function getKittyPunishments(): KittyPunishment[] {
     });
 }
 export function saveKittyPunishments(v: KittyPunishment[]): void { lsSet("EBC_kittyPunishments", v); }
+
+// ── Expression Presets ────────────────────────────────────────────────────────
+// Named multi-expression combos (e.g. "Shy" = Blush:Low + Eyes:Shy + Mouth:Pout)
+
+export interface KittyExpressionPreset {
+    id: string;
+    label: string;
+    commands: string[];  // e.g. ["Blush:Low", "Eyes:Shy", "Mouth:Pout"]
+}
+
+export function getKittyExpressionPresets(): KittyExpressionPreset[] {
+    return lsGet<KittyExpressionPreset[]>("EBC_kittyExprPresets", []);
+}
+export function saveKittyExpressionPresets(v: KittyExpressionPreset[]): void {
+    lsSet("EBC_kittyExprPresets", v);
+}
 
 // ── Command protocol ──────────────────────────────────────────────────────────
 // Format: [EBC-KITTY:cmd:arg]  or  [EBC-KITTY:cmd]

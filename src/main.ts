@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.92";
+const MOD_VERSION = "2.2.93";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,17 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.93",
+        changes: [
+            "Fix: Fight back in the resistance popup now sends a mood-aware room emote from Emery ('twists away sharply…' in rough mode, 'squirms and shakes her head…' in kind mode).",
+            "Fix: Kneel & Spread pose now uses PresentationKneel — the previous Kneel+Spread combo conflicted in BC.",
+            "Kitty Poses: removed Hogtied, Tiptoe, Leg up, and Suspend; added Standing Closed Legs (LegsClosed).",
+            "Kitty Restraints: Tighten / Loosen all pills replaced with a live per-item list — each of Emery's current restraints shows individual − / + buttons; sends targeted tighten/loosen command to that group only.",
+            "Kitty: Grab Leash promoted to a big standalone button between the mood toggle and collapsibles; uses BC's GrabLeash activity on the neck accessories slot.",
+            "Kitty Expressions: new Expression Presets system — create named multi-expression combos (e.g. Shy = Blush:Low + Eyes:Shy), fire them from the Expressions section, or reference them as triggers on poses, actions, and restraint presets.",
+        ],
+    },
     {
         version: "2.2.92",
         changes: [
@@ -2644,7 +2655,18 @@ function showKittyResistancePopup(
     const fightBtn = document.createElement("button");
     fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
     fightBtn.textContent = "Fight back! 💪";
-    fightBtn.addEventListener("click", () => { close(); });
+    fightBtn.addEventListener("click", () => {
+        try {
+            ServerSend("ChatRoomChat", {
+                Type: "Emote",
+                Content: mood === "rough"
+                    ? "twists away sharply, refusing to submit~"
+                    : "squirms and shakes her head, resisting with a pout~",
+                Dictionary: [],
+            });
+        } catch { /* ignore */ }
+        close();
+    });
 
     // ── Accept — applies restraints if any ─────────────────────────────────
     const acceptBtn = document.createElement("button");
@@ -2864,8 +2886,10 @@ function handleKittyCommand(msg: string): void {
             case "tighten":
             case "loosen": {
                 const delta = cmd === "tighten" ? 1 : -1;
+                // arg = specific group name (e.g. "ItemArms"), or "" = all restraints
                 for (const item of Player.Appearance) {
                     if (!item.Asset?.Group?.Name || !RESTRAINT_GROUPS.has(item.Asset.Group.Name)) continue;
+                    if (arg && item.Asset.Group.Name !== arg) continue; // skip if targeting specific group
                     const cur = typeof item.Difficulty === "number" ? item.Difficulty : 0;
                     const next = Math.max(0, Math.min(6, cur + delta));
                     if (next !== cur) item.Difficulty = next;
