@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.36
+// @version      2.2.37
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16927,17 +16927,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 window.setTimeout(() => setAllDisabled(false), 500);
             });
             updateBtn.addEventListener("click", () => {
-                setAllDisabled(true);
-                const ok = saveCurrentAppearanceToOutfit(o.id);
-                if (!ok) {
-                    setAllDisabled(false);
-                    return;
-                }
-                updateBtn.textContent = "Saved!";
-                window.setTimeout(() => {
-                    updateBtn.textContent = "Update";
-                    setAllDisabled(false);
-                }, 1200);
+                showConfirmOverlay(`Overwrite "${o.displayName}" with your current look?`, "Cancel", "Update", () => {
+                    setAllDisabled(true);
+                    const ok = saveCurrentAppearanceToOutfit(o.id);
+                    if (!ok) {
+                        setAllDisabled(false);
+                        return;
+                    }
+                    updateBtn.textContent = "Saved!";
+                    window.setTimeout(() => {
+                        updateBtn.textContent = "Update";
+                        setAllDisabled(false);
+                    }, 1200);
+                });
             });
             editBtn.addEventListener("click", () => {
                 const willOpen = !editPanel.classList.contains("open");
@@ -25638,7 +25640,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.36";
+    const MOD_VERSION = "2.2.37";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25649,6 +25651,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.37",
+            changes: [
+                "Outfit Update button now shows a confirm dialog before overwriting.",
+            ],
+        },
         {
             version: "2.2.36",
             changes: [
