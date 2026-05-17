@@ -3561,7 +3561,7 @@ export class EBCDrawer {
         refreshBtn.addEventListener("click", () => {
             refreshBtn.classList.add("spinning");
             refreshBtn.addEventListener("animationend", () => refreshBtn.classList.remove("spinning"), { once: true });
-            this.renderCurrentTab();
+            this.rerender();
         });
 
         outfitTabBtn.addEventListener("click",   () => this.switchTab("outfits"));
@@ -3971,6 +3971,26 @@ export class EBCDrawer {
         else if (this.currentTab === "puppy")    this.renderPuppy();
     }
 
+    /**
+     * Re-render the current tab in-place while preserving the panel's scroll
+     * position.  All within-tab actions (save, delete, reorder, etc.) should
+     * call this instead of renderCurrentTab() directly so the user doesn't
+     * get snapped back to the top of the list after every interaction.
+     *
+     * Tab *switches* intentionally bypass this and call renderCurrentTab()
+     * directly so the new tab always starts at the top.
+     */
+    private rerender(delay = 0): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const scroll = body?.scrollTop ?? 0;
+        const doRender = (): void => {
+            this.renderCurrentTab();
+            if (body) body.scrollTop = scroll;
+        };
+        if (delay > 0) window.setTimeout(doRender, delay);
+        else doRender();
+    }
+
     // -- Timer -----------------------------------------------------------------
 
     private updateTimer(): void {
@@ -4183,7 +4203,7 @@ export class EBCDrawer {
                             }, 2000);
                         } else {
                             deleteOutfitTag(tag.id);
-                            this.renderOutfits();
+                            this.rerender();
                         }
                     });
 
@@ -5524,13 +5544,13 @@ export class EBCDrawer {
         upBtn.textContent = "▲";
         upBtn.title = "Move up";
         upBtn.disabled = thisIdx <= 0;
-        upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.renderOutfits(); });
+        upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.rerender(); });
         const downBtn = document.createElement("button");
         downBtn.className = "ebc-reorder-btn";
         downBtn.textContent = "▼";
         downBtn.title = "Move down";
         downBtn.disabled = thisIdx >= outfitsList.length - 1;
-        downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.renderOutfits(); });
+        downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.rerender(); });
         reorderCol.appendChild(upBtn);
         reorderCol.appendChild(downBtn);
         row.appendChild(reorderCol);
@@ -5766,7 +5786,7 @@ export class EBCDrawer {
                 eNicknameInput.value,
                 eTitleSel.value,
             );
-            if (ok) this.renderOutfits();
+            if (ok) this.rerender();
         });
 
         eExportBtn.addEventListener("click", () => {
@@ -5827,7 +5847,7 @@ export class EBCDrawer {
             } else {
                 if (delTimer !== null) window.clearTimeout(delTimer);
                 deleteOutfit(o.id);
-                this.renderOutfits();
+                this.rerender();
             }
         });
 
@@ -5936,7 +5956,7 @@ export class EBCDrawer {
                 checkbox.checked = false;
                 form.style.display = "none";
                 newBtn.textContent = "+ New Outfit from Current Look";
-                this.renderOutfits();
+                this.rerender();
             } else {
                 createBtn.disabled = false;
                 createBtn.textContent = "Save as New Outfit";
@@ -6067,7 +6087,7 @@ export class EBCDrawer {
                     importOutfitFromJSON(impTextarea.value.trim());
                 }
                 closeImpPanel();
-                this.renderOutfits();
+                this.rerender();
             } catch (err) {
                 impError.textContent = err instanceof Error ? err.message : "Invalid format.";
             }
@@ -7155,7 +7175,7 @@ export class EBCDrawer {
                     cats.splice(i, 1);
                     const newIdx = Math.min(i, cats.length - 1);
                     saveCategories([...cats], newIdx);
-                    this.renderButtons();
+                    this.rerender();
                 });
                 hrow.appendChild(delBtn);
             }
@@ -7179,7 +7199,7 @@ export class EBCDrawer {
             hrow.addEventListener("click", () => {
                 if (i !== activeCatIdx) {
                     setActiveCategoryIndex(i);
-                    this.renderButtons();
+                    this.rerender();
                     return;
                 }
                 isExpanded = !isExpanded;
@@ -7214,7 +7234,7 @@ export class EBCDrawer {
             cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" }], slotCount: 1 });
             const newIdx = cats.length - 1;
             saveCategories([...cats], newIdx);
-            this.renderButtons();
+            this.rerender();
         });
         addCatRow.appendChild(addCatBtn);
         body.appendChild(addCatRow);
@@ -8184,7 +8204,7 @@ export class EBCDrawer {
             clearBtn.title = "Clear all poses";
             clearBtn.addEventListener("click", () => {
                 applyPoses([]);
-                window.setTimeout(() => this.renderPoses(), 150);
+                this.rerender(150);
             });
             statusBar.appendChild(clearBtn);
         }
@@ -8245,7 +8265,7 @@ export class EBCDrawer {
                         );
                         applyPoses([...bodyPoses, preset.key]);
                     }
-                    window.setTimeout(() => this.renderPoses(), 150);
+                    this.rerender(150);
                 });
                 grid.appendChild(btn);
             }
@@ -8313,7 +8333,7 @@ export class EBCDrawer {
                 window.setTimeout(() => {
                     applyBtn.disabled = false;
                     applyBtn.textContent = "▶";
-                    this.renderPoses();
+                    this.rerender();
                 }, totalMs);
             });
 
@@ -8339,7 +8359,7 @@ export class EBCDrawer {
                 } else {
                     if (delTimer) window.clearTimeout(delTimer);
                     deleteCombo(combo.id);
-                    this.renderPoses();
+                    this.rerender();
                 }
             });
 
@@ -8393,7 +8413,7 @@ export class EBCDrawer {
             // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
             topSaveBtn.addEventListener("click", () => {
                 updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                this.renderPoses();
+                this.rerender();
             });
             topSaveBar.appendChild(topSaveBtn);
 
@@ -8406,7 +8426,7 @@ export class EBCDrawer {
             savComboBtn.textContent = "Save Changes";
             savComboBtn.addEventListener("click", () => {
                 updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                this.renderPoses();
+                this.rerender();
             });
             saveBar.appendChild(savComboBtn);
             editor.appendChild(saveBar);
@@ -8478,7 +8498,7 @@ export class EBCDrawer {
             const name = (ncNameInp as HTMLInputElement).value.trim();
             if (!name) { (ncNameInp as HTMLInputElement).style.borderColor = "#cf6f98"; return; }
             createCombo(name, ncGetPoses(), ncGetCommand(), ncGetAnnounce(), ncGetDelay());
-            this.renderPoses();
+            this.rerender();
         };
         ncTopSaveBtn.addEventListener("click", doSave);
         ncTopSaveBar.appendChild(ncTopSaveBtn);
@@ -9319,7 +9339,7 @@ export class EBCDrawer {
                 window.setTimeout(() => {
                     playBtn.disabled = false;
                     playBtn.textContent = "▶";
-                    this.renderPoses();
+                    this.rerender();
                 }, totalMs);
             });
 
@@ -9373,7 +9393,7 @@ export class EBCDrawer {
                 } else {
                     if (delTimer) window.clearTimeout(delTimer);
                     deleteScene(scene.id);
-                    this.renderPoses();
+                    this.rerender();
                 }
             });
 
@@ -9440,7 +9460,7 @@ export class EBCDrawer {
 
             topSaveBtn.addEventListener("click", () => {
                 updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                this.renderPoses();
+                this.rerender();
             });
 
             const botSaveBar = document.createElement("div");
@@ -9451,7 +9471,7 @@ export class EBCDrawer {
             botSaveBtn.textContent = "Save Changes";
             botSaveBtn.addEventListener("click", () => {
                 updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                this.renderPoses();
+                this.rerender();
             });
             botSaveBar.appendChild(botSaveBtn);
             editor.appendChild(botSaveBar);
@@ -9537,7 +9557,7 @@ export class EBCDrawer {
             const name = nsNameInp.value.trim();
             if (!name) { nsNameInp.style.borderColor = "#cf6f98"; return; }
             createScene(name, nsGetSteps(), nsCmdInp.value);
-            this.renderPoses();
+            this.rerender();
         };
 
         nsTopSaveBtn.addEventListener("click", doSaveScene);
@@ -9620,7 +9640,7 @@ export class EBCDrawer {
             try {
                 importScene(impTextarea.value.trim());
                 closeImpPanel();
-                this.renderPoses();
+                this.rerender();
             } catch (err) {
                 impError.textContent = err instanceof Error ? err.message : "Invalid format.";
             }
@@ -10147,7 +10167,7 @@ export class EBCDrawer {
             this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
             this.refreshTabDot();
             if (this.currentTab === "notes") {
-                try { this.renderNotes(); } catch { /* ignore */ }
+                try { this.rerender(); } catch { /* ignore */ }
             }
         }
 
@@ -11304,7 +11324,7 @@ export class EBCDrawer {
                             saveNote(num, name, noteTA.value);
                             noteHint.textContent = noteTA.value.trim() ? "saved" : "saves automatically";
                             window.setTimeout(() => { noteHint.textContent = "saves automatically"; }, 1500);
-                            try { if (this.currentTab === "notes") this.renderNotes(); } catch { /* ignore */ }
+                            try { if (this.currentTab === "notes") this.rerender(); } catch { /* ignore */ }
                         }, 800);
                     });
                 };
