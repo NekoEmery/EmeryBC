@@ -13635,6 +13635,163 @@ export class EBCDrawer {
         whitelistSection.appendChild(wlAddRow);
         body.appendChild(whitelistSection);
 
+        // ── Room Admin ────────────────────────────────────────────────────────
+        const divAdmin = document.createElement("div");
+        divAdmin.className = "ebc-divider";
+        body.appendChild(divAdmin);
+
+        const adminLbl = document.createElement("div");
+        adminLbl.className = "ebc-section-label";
+        adminLbl.textContent = "ROOM ADMIN";
+        body.appendChild(adminLbl);
+
+        type RoomDataShape = { Locked?: boolean; Admin?: number[] };
+        const w = window as unknown as Record<string, unknown>;
+        const roomData = w.ChatRoomData as RoomDataShape | null | undefined;
+        const inRoom   = (w.CurrentScreen as string | undefined) === "ChatRoom" && roomData != null;
+        const isAdmin  = inRoom && Array.isArray(roomData?.Admin) && (roomData.Admin as number[]).includes(Player.MemberNumber);
+
+        if (!inRoom) {
+            const hint = document.createElement("div");
+            hint.className = "ebc-import-hint";
+            hint.style.marginBottom = "6px";
+            hint.textContent = "Not in a chatroom.";
+            body.appendChild(hint);
+        } else if (!isAdmin) {
+            const hint = document.createElement("div");
+            hint.className = "ebc-import-hint";
+            hint.style.marginBottom = "6px";
+            hint.textContent = "You are not a room admin.";
+            body.appendChild(hint);
+        } else {
+            const adminWrap = document.createElement("div");
+            adminWrap.style.cssText = "display:flex;flex-direction:column;gap:7px;margin-bottom:8px;";
+
+            // ── Lock / Unlock ─────────────────────────────────────────────────
+            const locked = roomData?.Locked ?? false;
+            const lockBtn = document.createElement("button");
+            lockBtn.style.cssText = [
+                "width:100%",
+                "font-family:'Trebuchet MS',serif",
+                "font-size:11px",
+                "font-weight:bold",
+                "padding:8px 4px",
+                "border-radius:6px",
+                "cursor:pointer",
+                "transition:background 0.14s,border-color 0.14s",
+                locked
+                    ? "border:1px solid #cf6f98;background:#6b2040;color:#ffd0e0;"
+                    : "border:1px solid #5a9860;background:#1a3e20;color:#a0e090;",
+            ].join(";");
+            lockBtn.textContent = locked ? "🔒 Room Locked — Click to Unlock" : "🔓 Room Unlocked — Click to Lock";
+            lockBtn.title = locked ? "Unlock the room so anyone can join" : "Lock the room to prevent new joins";
+            lockBtn.addEventListener("click", () => {
+                try { ServerSend("ChatRoomAdmin", { MemberNumber: Player.MemberNumber, Action: locked ? "Unlock" : "Lock" }); } catch { /* ignore */ }
+                // Optimistic local update — server will confirm
+                window.setTimeout(() => this.rerender(), 200);
+            });
+            adminWrap.appendChild(lockBtn);
+
+            // ── Member picker + action buttons ────────────────────────────────
+            const memberSel = document.createElement("select");
+            memberSel.className = "ebc-form-input";
+            memberSel.style.cssText = "width:100%;font-size:10px;";
+            const ph = document.createElement("option");
+            ph.value = ""; ph.textContent = "— choose member —";
+            ph.disabled = true; ph.selected = true;
+            memberSel.appendChild(ph);
+
+            const buildMemberOpts = (): void => {
+                while (memberSel.firstChild) memberSel.removeChild(memberSel.firstChild);
+                memberSel.appendChild(ph);
+                for (const m of getRoomMembers()) {
+                    if (m.id === Player.MemberNumber) continue;
+                    const opt = document.createElement("option");
+                    opt.value = String(m.id);
+                    opt.textContent = `${m.name} (#${m.id})`;
+                    memberSel.appendChild(opt);
+                }
+                ph.textContent = memberSel.children.length <= 1 ? "— no other members —" : "— choose member —";
+            };
+            buildMemberOpts();
+
+            const makeBtn = (label: string, title: string, border: string, bg: string, color: string): HTMLButtonElement => {
+                const btn = document.createElement("button");
+                btn.textContent = label;
+                btn.title = title;
+                btn.disabled = true;
+                btn.style.cssText = [
+                    "flex:1",
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:10px",
+                    "font-weight:bold",
+                    "padding:6px 4px",
+                    "border-radius:6px",
+                    "cursor:pointer",
+                    "opacity:0.45",
+                    "transition:background 0.14s,opacity 0.14s",
+                    `border:1px solid ${border}`,
+                    `background:${bg}`,
+                    `color:${color}`,
+                ].join(";");
+                return btn;
+            };
+
+            const kickBtn  = makeBtn("👢 Kick",    "Kick this member from the room",     "#7a3a1a", "#3a1a08", "#f0a060");
+            const banBtn   = makeBtn("🚫 Ban",      "Ban this member from the room",      "#7a2020", "#3a0808", "#ff8888");
+            const promBtn  = makeBtn("⭐ Promote", "Give room admin to this member",      "#3a7030", "#152a10", "#90e080");
+            const demBtn   = makeBtn("⬇ Demote",  "Remove room admin from this member",  "#3a4070", "#101828", "#80a0f0");
+
+            const allActionBtns = [kickBtn, banBtn, promBtn, demBtn];
+
+            const syncBtns = (): void => {
+                const has = memberSel.value !== "";
+                for (const b of allActionBtns) {
+                    b.disabled = !has;
+                    b.style.opacity = has ? "1" : "0.45";
+                    b.style.cursor  = has ? "pointer" : "default";
+                }
+            };
+            memberSel.addEventListener("change", syncBtns);
+
+            const sendAction = (action: string): void => {
+                const id = parseInt(memberSel.value, 10);
+                if (!id) return;
+                try { ServerSend("ChatRoomAdmin", { MemberNumber: id, Action: action }); } catch { /* ignore */ }
+            };
+
+            kickBtn.addEventListener("click", () => sendAction("Kick"));
+            banBtn.addEventListener("click",  () => sendAction("Ban"));
+            promBtn.addEventListener("click", () => sendAction("Promote"));
+            demBtn.addEventListener("click",  () => sendAction("Demote"));
+
+            const refreshBtn2 = document.createElement("button");
+            refreshBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+            refreshBtn2.textContent = "↻";
+            refreshBtn2.title = "Refresh member list";
+            refreshBtn2.addEventListener("click", buildMemberOpts);
+
+            const selRow = document.createElement("div");
+            selRow.style.cssText = "display:flex;gap:5px;align-items:center;";
+            selRow.appendChild(memberSel);
+            selRow.appendChild(refreshBtn2);
+
+            const row1 = document.createElement("div");
+            row1.style.cssText = "display:flex;gap:5px;";
+            row1.appendChild(kickBtn);
+            row1.appendChild(banBtn);
+
+            const row2 = document.createElement("div");
+            row2.style.cssText = "display:flex;gap:5px;";
+            row2.appendChild(promBtn);
+            row2.appendChild(demBtn);
+
+            adminWrap.appendChild(selRow);
+            adminWrap.appendChild(row1);
+            adminWrap.appendChild(row2);
+            body.appendChild(adminWrap);
+        }
+
         // ── DOM Tools (creator-only below this point) ─────────────────────────
         if (!isDomEnabled()) {
             const msg = document.createElement("div");

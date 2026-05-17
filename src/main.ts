@@ -19,7 +19,7 @@ import { isLeavePending, clearLeavePending } from "./modules/bcUtils";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.39";
+const MOD_VERSION = "2.2.40";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -33,6 +33,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.40",
+        changes: [
+            "DOM tab: new Room Admin section — Lock/Unlock room toggle and Kick / Ban / Promote / Demote buttons. Visible whenever you are a room admin regardless of DOM mode.",
+        ],
+    },
     {
         version: "2.2.39",
         changes: [
