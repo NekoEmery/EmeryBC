@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.74";
+const MOD_VERSION = "2.2.75";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.75",
+        changes: [
+            "Emote editor: each emote now has a 🔊 Sound row — pick a BC body-group and activity (e.g. Head + Pet, Butt + Spank) to trigger real BC sounds/chat on click. Activity list is populated live from BC's own data.",
+            "Headpat/Spank emotes now store their BC activity in data (bcGroup/bcActivity fields) rather than being hardcoded — editing them in the menu will update which activity fires.",
+            "Punishment restraint steps: Load Preset dropdown at top (picks from saved kitty presets), Save as Preset row at bottom (saves step's items as a reusable named preset).",
+            "Restraint presets (EBC_kittyRestraintSets) re-exposed for use across punishment steps.",
+        ],
+    },
     {
         version: "2.2.74",
         changes: [

@@ -17,6 +17,8 @@ export interface KittyEmote {
     type: "emote" | "action"; // emote = * Lucy text * , action = (Lucy text)
     interactive?: boolean; // if true, also sends a react beep so Emery can respond
     expression?: string;   // kitty expression command to send on click, e.g. "Ears:Wiggle"
+    bcGroup?: string;      // BC asset group to use for ActivityRun, e.g. "ItemHead"
+    bcActivity?: string;   // BC activity name to use for ActivityRun, e.g. "Pet"
 }
 
 export interface KittyItem {
@@ -75,6 +77,7 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         text:      "gently pats Emery on the head~ 🐾",
         roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
         type: "emote", expression: "Ears:Wiggle",
+        bcGroup: "ItemHead", bcActivity: "Pet",
     },
     {
         id: "goodgirl", label: "✨ Good girl",
@@ -111,6 +114,7 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         text:      "gives Emery a playful swat on the bottom~",
         roughText: "delivers a sharp smack to Emery's bottom without warning~",
         type: "emote",
+        bcGroup: "ItemButt", bcActivity: "Spank",
     },
 ];
 
