@@ -44,12 +44,27 @@ export interface KittyPose {
     roughEmote: string;// emote sent to room in rough mode
 }
 
+export interface KittyPunishmentStep {
+    type: "emote" | "restraint";
+    kindText?: string;    // emote step — kind mode text
+    roughText?: string;   // emote step — rough mode text
+    items?: KittyItem[];  // restraint step — items to apply
+}
+
+export interface KittyPunishmentReaction {
+    expression?: string;  // "FaceType:State" e.g. "Blush:1"
+    poses?: string[];     // BC pose names e.g. ["Kneel"]
+}
+
 export interface KittyPunishment {
     id: string;
     label: string;
-    kindEmote: string;
-    roughEmote: string;
-    restraintSetId?: string; // ID of a saved kitty restraint set to apply when Emery accepts
+    steps: KittyPunishmentStep[];
+    reaction?: KittyPunishmentReaction;
+    // Legacy fields kept only for migration — not written by new code
+    kindEmote?: string;
+    roughEmote?: string;
+    restraintSetId?: string;
 }
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -125,23 +140,29 @@ const DEFAULT_POSES: KittyPose[] = [
 const DEFAULT_PUNISHMENTS: KittyPunishment[] = [
     {
         id: "badgirl", label: "😤 Bad girl",
-        kindEmote: "tilts her head with a disappointed look~ Now now, Emery...",
-        roughEmote: "snaps her fingers sharply and fixes Emery with a stern glare~",
+        steps: [{ type: "emote", kindText: "tilts her head with a disappointed look~ Now now, Emery...", roughText: "snaps her fingers sharply and fixes Emery with a stern glare~" }],
+        reaction: { expression: "Eyes:Sad" },
     },
     {
         id: "gag", label: "😶 Gag",
-        kindEmote: "reaches over and gently presses a gag to Emery's lips~ Shh, little one~",
-        roughEmote: "grabs Emery's chin and firmly presses a gag in with a sharp look~",
+        steps: [
+            { type: "emote", kindText: "reaches over and gently presses a gag to Emery's lips~ Shh, little one~", roughText: "grabs Emery's chin and firmly presses a gag in with a sharp look~" },
+            { type: "restraint", items: [] },
+        ],
+        reaction: { expression: "Blush:1" },
     },
     {
         id: "corner", label: "🧱 Corner",
-        kindEmote: "points to the corner with a firm but patient look~ Go think about what you did.",
-        roughEmote: "marches Emery firmly to the corner by the collar~ Stay.",
+        steps: [{ type: "emote", kindText: "points to the corner with a firm but patient look~ Go think about what you did.", roughText: "marches Emery firmly to the corner by the collar~ Stay." }],
+        reaction: { poses: ["Kneel"] },
     },
     {
         id: "bind", label: "⛓ Bind",
-        kindEmote: "takes Emery's wrists and begins wrapping them together, whispering softly~",
-        roughEmote: "pins Emery's wrists behind her back and binds them without a word~",
+        steps: [
+            { type: "emote", kindText: "takes Emery's wrists and begins wrapping them together, whispering softly~", roughText: "pins Emery's wrists behind her back and binds them without a word~" },
+            { type: "restraint", items: [] },
+        ],
+        reaction: { expression: "Blush:1", poses: ["Kneel"] },
     },
 ];
 
@@ -213,7 +234,16 @@ export function getKittyPoses(): KittyPose[] {
 export function saveKittyPoses(v: KittyPose[]): void { lsSet("EBC_kittyPoses", v); }
 
 export function getKittyPunishments(): KittyPunishment[] {
-    return lsGet("EBC_kittyPunishments", DEFAULT_PUNISHMENTS);
+    const raw = lsGet<KittyPunishment[]>("EBC_kittyPunishments", DEFAULT_PUNISHMENTS);
+    return raw.map(p => {
+        if (p.steps) return p; // already new format
+        // Migrate legacy kindEmote/roughEmote to an emote step
+        const steps: KittyPunishmentStep[] = [];
+        if (p.kindEmote || p.roughEmote) {
+            steps.push({ type: "emote", kindText: p.kindEmote ?? "", roughText: p.roughEmote ?? "" });
+        }
+        return { id: p.id, label: p.label, steps };
+    });
 }
 export function saveKittyPunishments(v: KittyPunishment[]): void { lsSet("EBC_kittyPunishments", v); }
 

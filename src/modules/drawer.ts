@@ -1,4 +1,4 @@
-﻿/**
+/**
  * EmeryBC Drawer
  *
  * CRABS-inspired sliding panel aligned to the right edge of the chat log,
@@ -122,12 +122,11 @@ import {
 import {
     LUCY_MEMBER, EMERY_MEMBER,
     getKittyEmotes, saveKittyEmotes,
-    getKittyRestraintSets, saveKittyRestraintSets,
     getKittyPoses, saveKittyPoses,
     getKittyPunishments, saveKittyPunishments,
     getKittyMood, setKittyMood,
     sendKittyCmd,
-    type KittyEmote, type KittyRestraintSet, type KittyPose, type KittyItem,
+    type KittyEmote, type KittyPose, type KittyItem,
     type KittyPunishment, type KittyMood,
 } from "./kitty";
 
@@ -168,6 +167,47 @@ function showQuickConfirm(message: string, onConfirm: () => void): void {
     btns.appendChild(confirmBtn);
     overlay.appendChild(btns);
     document.body.appendChild(overlay);
+}
+
+// -- Kitty reaction presets ----------------------------------------------------
+
+const KITTY_EXPRESSIONS = [
+    { label: "— None —",         cmd: "" },
+    { label: "😊 Light blush",   cmd: "Blush:1" },
+    { label: "😳 Deep blush",    cmd: "Blush:3" },
+    { label: "😌 Eyes closed",   cmd: "Eyes:Closed" },
+    { label: "😰 Eyes down",     cmd: "Eyes:Downed" },
+    { label: "😠 Glare",         cmd: "Eyes:Glare" },
+    { label: "🥺 Sad eyes",      cmd: "Eyes:Sad" },
+    { label: "👀 Wide eyes",     cmd: "Eyes:Shocked" },
+    { label: "😊 Smile",         cmd: "Mouth:Smiling" },
+    { label: "😢 Sad mouth",     cmd: "Mouth:Sad" },
+    { label: "😤 Pout",          cmd: "Mouth:Pout" },
+    { label: "😶 Closed mouth",  cmd: "Mouth:Closed" },
+    { label: "👂 Ears wiggle",   cmd: "Ears:Wiggle" },
+    { label: "🐾 Ears flat",     cmd: "Ears:Flat" },
+    { label: "✨ Ears up",       cmd: "Ears:Up" },
+];
+
+const KITTY_REACTION_POSES = [
+    { label: "— None —",       poses: [] as string[] },
+    { label: "🙏 Kneel",       poses: ["Kneel"] },
+    { label: "🐱 All fours",   poses: ["AllFours"] },
+    { label: "🙌 Hands up",    poses: ["OverTheHead"] },
+];
+
+function getGroupAssets(group: string): string[] {
+    try {
+        const w = window as unknown as Record<string, unknown>;
+        const bcAssets = w.Asset as Array<{ Name?: string; Group?: { Name?: string; Family?: string } }> | undefined;
+        if (!Array.isArray(bcAssets)) return [];
+        const family = (Player as unknown as Record<string, unknown>).AssetFamily as string | undefined;
+        return bcAssets
+            .filter(a => a?.Group?.Name === group && (!family || !a.Group?.Family || a.Group.Family === family))
+            .map(a => a.Name)
+            .filter((n): n is string => !!n)
+            .sort();
+    } catch { return []; }
 }
 
 // -- Slow Leave preset storage -------------------------------------------------
@@ -13975,449 +14015,271 @@ export class EBCDrawer {
         body.appendChild(posesWrap);
         body.appendChild(divider());
 
-        // ── PUNISHMENTS ──────────────────────────────────────────────────────────
+        // ── ACTIONS (formerly Punishments) ───────────────────────────────────────
         const punishWrap = document.createElement("div");
         punishWrap.style.marginBottom = "10px";
+
+        const colorToStr = (c: string | string[] | undefined): string =>
+            Array.isArray(c) ? c.join(", ") : (c ?? "Default");
+        const strToColor = (v: string): string | string[] => {
+            const t = v.trim();
+            if (!t || t === "Default") return "Default";
+            if (t.includes(",")) return t.split(",").map(x => x.trim()).filter(Boolean);
+            return t;
+        };
 
         const renderPunishments = (editing: boolean): void => {
             punishWrap.innerHTML = "";
             const punishments = getKittyPunishments();
 
             if (!editing) {
+                // ── View mode: pills ──────────────────────────────────────────
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
                 for (const pun of punishments) {
                     row.appendChild(makePill(pun.label, "#d05070", () => {
                         const mood = getKittyMood();
-                        const emoteText = mood === "rough" ? (pun.roughEmote || pun.kindEmote) : (pun.kindEmote || pun.roughEmote);
-                        sendRoomEmote(emoteText);
-                        // Resolve restraint items from the linked set (if any)
-                        const items: KittyItem[] = [];
-                        if (pun.restraintSetId) {
-                            const set = getKittyRestraintSets().find(s => s.id === pun.restraintSetId);
-                            if (set) items.push(...set.items);
+                        // Send all emote steps to room in order
+                        for (const step of pun.steps) {
+                            if (step.type === "emote") {
+                                const txt = (mood === "rough" && step.roughText) ? step.roughText : (step.kindText ?? "");
+                                if (txt) sendRoomEmote(txt);
+                            }
                         }
-                        // Send JSON payload — Emery gets a timed resist popup; if she accepts, items apply
-                        sendKittyCmd("punish", JSON.stringify({ label: pun.label, mood, items }));
+                        // Collect all restraint items from all restraint steps
+                        const items: KittyItem[] = pun.steps
+                            .filter(s => s.type === "restraint")
+                            .reduce((acc: KittyItem[], s) => acc.concat(s.items ?? []), []);
+                        sendKittyCmd("punish", JSON.stringify({ label: pun.label, mood, items, reaction: pun.reaction }));
                     }));
                 }
                 punishWrap.appendChild(row);
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
-                hint.textContent = "Sends a room emote and gives Emery a chance to fight back";
+                hint.textContent = "Sends room emotes + gives Emery a chance to fight back";
                 punishWrap.appendChild(hint);
                 return;
             }
 
+            // ── Edit mode ─────────────────────────────────────────────────────
             const list = document.createElement("div");
-            list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+            list.style.cssText = "display:flex;flex-direction:column;gap:8px;";
             const cur = getKittyPunishments();
+
             cur.forEach((pun, idx) => {
                 const r = document.createElement("div");
-                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
+                r.style.cssText = "display:flex;flex-direction:column;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:6px 8px;";
 
-                const r1 = document.createElement("div");
-                r1.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const lblInp = document.createElement("input"); lblInp.value = pun.label; lblInp.style.cssText = "flex:1;min-width:0;" + INP;
-                const delBtn = document.createElement("button");
-                delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
-                delBtn.textContent = "×";
-                r1.appendChild(lblInp); r1.appendChild(delBtn);
+                // Header: label + delete
+                const hdr = document.createElement("div"); hdr.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const lblInp = document.createElement("input"); lblInp.value = pun.label; lblInp.placeholder = "Action name"; lblInp.style.cssText = "flex:1;min-width:0;" + INP;
+                lblInp.addEventListener("input", () => { const upd = getKittyPunishments(); upd[idx].label = lblInp.value; saveKittyPunishments(upd); });
+                const delBtn = document.createElement("button"); delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delBtn.textContent = "×";
+                delBtn.addEventListener("click", () => { saveKittyPunishments(getKittyPunishments().filter((_, i) => i !== idx)); renderPunishments(true); });
+                hdr.appendChild(lblInp); hdr.appendChild(delBtn);
+                r.appendChild(hdr);
 
-                const kindRow = document.createElement("div");
-                kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
-                const kindInp = document.createElement("input"); kindInp.value = pun.kindEmote; kindInp.placeholder = "Room emote in kind mode…"; kindInp.style.cssText = "flex:1;min-width:0;" + INP;
-                kindRow.appendChild(kindLbl); kindRow.appendChild(kindInp);
+                // Steps header label
+                const stepsHdr = document.createElement("div"); stepsHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;"; stepsHdr.textContent = "Steps";
+                r.appendChild(stepsHdr);
 
-                const roughRow = document.createElement("div");
-                roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
-                const roughInp = document.createElement("input"); roughInp.value = pun.roughEmote; roughInp.placeholder = "Room emote in rough mode…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
-                roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
+                // Steps container
+                const stepsWrap = document.createElement("div"); stepsWrap.style.cssText = "display:flex;flex-direction:column;gap:3px;";
 
-                // Row 4: restraint set to apply on accept
-                const bindRow = document.createElement("div");
-                bindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const bindLbl = document.createElement("span");
-                bindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c07040;flex-shrink:0;width:38px;";
-                bindLbl.textContent = "⛓ Bind:";
-                const bindSel = document.createElement("select");
-                bindSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const noneOpt = document.createElement("option");
-                noneOpt.value = ""; noneOpt.textContent = "— None —";
-                bindSel.appendChild(noneOpt);
-                for (const s of getKittyRestraintSets()) {
-                    const opt = document.createElement("option");
-                    opt.value = s.id; opt.textContent = s.label;
-                    if (s.id === pun.restraintSetId) opt.selected = true;
-                    bindSel.appendChild(opt);
-                }
-                bindSel.addEventListener("change", () => {
-                    const updated = getKittyPunishments();
-                    updated[idx].restraintSetId = bindSel.value || undefined;
-                    saveKittyPunishments(updated);
-                });
-                bindRow.appendChild(bindLbl); bindRow.appendChild(bindSel);
+                const rebuildSteps = (): void => {
+                    stepsWrap.innerHTML = "";
+                    const steps = getKittyPunishments()[idx]?.steps ?? [];
+                    if (steps.length === 0) {
+                        const em = document.createElement("div"); em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;"; em.textContent = "No steps yet.";
+                        stepsWrap.appendChild(em); return;
+                    }
+                    steps.forEach((step, sIdx) => {
+                        const sc = document.createElement("div");
+                        sc.style.cssText = "display:flex;flex-direction:column;gap:2px;padding:4px 5px;border:1px solid #2a1421;border-radius:4px;" +
+                            (step.type === "emote" ? "background:rgba(26,10,26,0.5);" : "background:rgba(20,14,8,0.5);");
 
-                const saveInp = (): void => {
-                    const updated = getKittyPunishments();
-                    updated[idx].label     = lblInp.value;
-                    updated[idx].kindEmote  = kindInp.value;
-                    updated[idx].roughEmote = roughInp.value;
-                    saveKittyPunishments(updated);
+                        // Step header: type badge + delete button
+                        const sh = document.createElement("div"); sh.style.cssText = "display:flex;align-items:center;gap:4px;";
+                        const badge = document.createElement("span");
+                        badge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;padding:1px 5px;border-radius:3px;flex-shrink:0;" +
+                            (step.type === "emote" ? "background:#2a1035;color:#cf6f98;border:1px solid #4c2537;" : "background:#1a1004;color:#c07040;border:1px solid #4a3020;");
+                        badge.textContent = step.type === "emote" ? "🗯 Sentence" : "⛓ Restraints";
+                        const delStep = document.createElement("button"); delStep.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;margin-left:auto;"; delStep.textContent = "×";
+                        delStep.addEventListener("click", () => {
+                            const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].steps.splice(sIdx, 1); saveKittyPunishments(upd); } rebuildSteps();
+                        });
+                        sh.appendChild(badge); sh.appendChild(delStep); sc.appendChild(sh);
+
+                        if (step.type === "emote") {
+                            // Kind text input
+                            const kr = document.createElement("div"); kr.style.cssText = "display:flex;align-items:center;gap:3px;";
+                            const kl = document.createElement("span"); kl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:16px;"; kl.textContent = "🌸";
+                            const ki = document.createElement("input"); ki.value = step.kindText ?? ""; ki.placeholder = "Kind emote"; ki.style.cssText = "flex:1;min-width:0;" + INP;
+                            ki.addEventListener("input", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { upd[idx].steps[sIdx].kindText = ki.value; saveKittyPunishments(upd); } });
+                            kr.appendChild(kl); kr.appendChild(ki); sc.appendChild(kr);
+                            // Rough text input
+                            const rr = document.createElement("div"); rr.style.cssText = "display:flex;align-items:center;gap:3px;";
+                            const rl = document.createElement("span"); rl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:16px;"; rl.textContent = "⚡";
+                            const ri = document.createElement("input"); ri.value = step.roughText ?? ""; ri.placeholder = "Rough emote"; ri.style.cssText = "flex:1;min-width:0;" + INP;
+                            ri.addEventListener("input", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { upd[idx].steps[sIdx].roughText = ri.value; saveKittyPunishments(upd); } });
+                            rr.appendChild(rl); rr.appendChild(ri); sc.appendChild(rr);
+                        } else {
+                            // Restraint step: item list + add-item builder
+                            const itemsWrap = document.createElement("div"); itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+
+                            const rebuildItems = (): void => {
+                                itemsWrap.innerHTML = "";
+                                const liveItems = getKittyPunishments()[idx]?.steps[sIdx]?.items ?? [];
+                                if (liveItems.length === 0) {
+                                    const em2 = document.createElement("div"); em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;"; em2.textContent = "No items yet";
+                                    itemsWrap.appendChild(em2);
+                                } else {
+                                    liveItems.forEach((item, iIdx) => {
+                                        const iRow = document.createElement("div"); iRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 0;";
+                                        const nm = document.createElement("span"); nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"; nm.textContent = item.Name; nm.title = item.Name;
+                                        const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;"; grp.textContent = item.Group.replace("Item", "");
+                                        const colInp = document.createElement("input"); colInp.value = colorToStr(item.Color); colInp.placeholder = "Default"; colInp.style.cssText = "width:72px;flex-shrink:0;" + INP; colInp.title = "Colour";
+                                        colInp.addEventListener("change", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]?.items?.[iIdx]) { upd[idx].steps[sIdx].items![iIdx].Color = strToColor(colInp.value); saveKittyPunishments(upd); } });
+                                        const delI = document.createElement("button"); delI.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delI.textContent = "×";
+                                        delI.addEventListener("click", () => { const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]?.items) { upd[idx].steps[sIdx].items!.splice(iIdx, 1); saveKittyPunishments(upd); } rebuildItems(); });
+                                        iRow.appendChild(nm); iRow.appendChild(grp); iRow.appendChild(colInp); iRow.appendChild(delI);
+                                        itemsWrap.appendChild(iRow);
+                                    });
+                                }
+                            };
+                            rebuildItems();
+                            sc.appendChild(itemsWrap);
+
+                            // Slot → Item → Color → + Add row
+                            const aiSlRow = document.createElement("div"); aiSlRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:3px;border-top:1px solid #2a1421;padding-top:3px;";
+                            const aiSl = document.createElement("select"); aiSl.style.cssText = "flex:1;min-width:0;" + INP;
+                            const aiSlPh = document.createElement("option"); aiSlPh.value = ""; aiSlPh.textContent = "— slot —"; aiSlPh.disabled = true; aiSlPh.selected = true; aiSl.appendChild(aiSlPh);
+                            for (const grp of RESTRAINT_GROUPS) { const o = document.createElement("option"); o.value = grp; o.textContent = grp.replace("Item", ""); aiSl.appendChild(o); }
+                            aiSlRow.appendChild(aiSl);
+
+                            const aiItemRow2 = document.createElement("div"); aiItemRow2.style.cssText = "display:flex;align-items:center;gap:3px;";
+                            const aiItemSel = document.createElement("select"); aiItemSel.style.cssText = "flex:1;min-width:0;" + INP;
+                            const aiIPh = document.createElement("option"); aiIPh.value = ""; aiIPh.textContent = "— pick slot first —"; aiIPh.disabled = true; aiIPh.selected = true; aiItemSel.appendChild(aiIPh);
+                            aiSl.addEventListener("change", () => {
+                                aiItemSel.innerHTML = "";
+                                const names = getGroupAssets(aiSl.value);
+                                if (names.length === 0) { const o = document.createElement("option"); o.value = ""; o.textContent = "— none —"; o.disabled = true; o.selected = true; aiItemSel.appendChild(o); }
+                                else { const ph2 = document.createElement("option"); ph2.value = ""; ph2.textContent = "— pick item —"; ph2.disabled = true; ph2.selected = true; aiItemSel.appendChild(ph2); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; aiItemSel.appendChild(o); } }
+                            });
+                            aiItemRow2.appendChild(aiItemSel);
+
+                            const aiColRow2 = document.createElement("div"); aiColRow2.style.cssText = "display:flex;align-items:center;gap:3px;";
+                            const aiColInp = document.createElement("input"); aiColInp.placeholder = "Default or #rrggbb"; aiColInp.style.cssText = "flex:1;min-width:0;" + INP;
+                            const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = "+ Add";
+                            aiAddBtn.addEventListener("click", () => {
+                                if (!aiSl.value || !aiItemSel.value) return;
+                                const newItem: KittyItem = { Name: aiItemSel.value, Group: aiSl.value, Color: strToColor(aiColInp.value || "Default") };
+                                const upd = getKittyPunishments();
+                                if (upd[idx]?.steps[sIdx]) { if (!upd[idx].steps[sIdx].items) upd[idx].steps[sIdx].items = []; upd[idx].steps[sIdx].items!.push(newItem); saveKittyPunishments(upd); }
+                                aiSl.value = ""; aiItemSel.innerHTML = ""; aiItemSel.appendChild(aiIPh); aiIPh.selected = true; aiColInp.value = "";
+                                rebuildItems();
+                            });
+                            aiColRow2.appendChild(aiColInp); aiColRow2.appendChild(aiAddBtn);
+                            sc.appendChild(aiSlRow); sc.appendChild(aiItemRow2); sc.appendChild(aiColRow2);
+
+                            // Import from Emery's saved restraint sets
+                            const fromSaved = getRestraints();
+                            if (fromSaved.length > 0) {
+                                const fsRow = document.createElement("div"); fsRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
+                                const fsSel = document.createElement("select"); fsSel.style.cssText = "flex:1;min-width:0;" + INP;
+                                const fsPh = document.createElement("option"); fsPh.value = ""; fsPh.textContent = "— import saved set —"; fsPh.disabled = true; fsPh.selected = true; fsSel.appendChild(fsPh);
+                                for (const rs of fromSaved) { const o = document.createElement("option"); o.value = rs.id; o.textContent = rs.displayName + " (" + rs.items.filter((i: { Group: string }) => RESTRAINT_GROUPS.has(i.Group)).length + ")"; fsSel.appendChild(o); }
+                                const fsBtn = document.createElement("button"); fsBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; fsBtn.textContent = "Use ↓";
+                                fsBtn.addEventListener("click", () => {
+                                    const rs = fromSaved.find((s: { id: string }) => s.id === fsSel.value); if (!rs) return;
+                                    const rawItems = rs.items as unknown as Array<Record<string, unknown>>;
+                                    const newItems: KittyItem[] = rawItems.filter(i => RESTRAINT_GROUPS.has(String(i.Group))).map(i => ({ Name: String(i.Name), Group: String(i.Group), Color: i.Color as string | string[] | undefined, Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined, Property: i.Property as Record<string, unknown> | undefined, Craft: i.Craft as Record<string, unknown> | undefined }));
+                                    const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { if (!upd[idx].steps[sIdx].items) upd[idx].steps[sIdx].items = []; upd[idx].steps[sIdx].items!.push(...newItems); saveKittyPunishments(upd); } fsSel.value = ""; rebuildItems();
+                                });
+                                fsRow.appendChild(fsSel); fsRow.appendChild(fsBtn); sc.appendChild(fsRow);
+                            }
+
+                            // Import from pasted BC outfit code
+                            const codeRow = document.createElement("div"); codeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
+                            const codeInp = document.createElement("input"); codeInp.placeholder = "Paste LZ/JSON BC code…"; codeInp.style.cssText = "flex:1;min-width:0;" + INP;
+                            const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
+                            codeBtn.addEventListener("click", () => {
+                                const code = codeInp.value.trim(); if (!code) return;
+                                try {
+                                    const LZStr = (window as unknown as Record<string, unknown>).LZString as { decompressFromBase64?: (s: string) => string | null } | undefined;
+                                    const raw2 = LZStr?.decompressFromBase64?.(code) ?? code;
+                                    const parsed = JSON.parse(raw2) as Array<Record<string, unknown>>;
+                                    const newItems2: KittyItem[] = parsed.filter(p => typeof p.Group === "string" && typeof p.Name === "string" && RESTRAINT_GROUPS.has(String(p.Group))).map(p => ({ Name: String(p.Name), Group: String(p.Group), Color: p.Color as string | string[] | undefined, Difficulty: typeof p.Difficulty === "number" ? p.Difficulty : undefined, Property: typeof p.Property === "object" && p.Property !== null ? p.Property as Record<string, unknown> : undefined, Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft as Record<string, unknown> : undefined }));
+                                    if (newItems2.length === 0) { codeInp.style.borderColor = "#e07070"; window.setTimeout(() => { codeInp.style.borderColor = ""; }, 1500); return; }
+                                    const upd = getKittyPunishments(); if (upd[idx]?.steps[sIdx]) { if (!upd[idx].steps[sIdx].items) upd[idx].steps[sIdx].items = []; upd[idx].steps[sIdx].items!.push(...newItems2); saveKittyPunishments(upd); } codeInp.value = ""; rebuildItems();
+                                } catch { codeInp.style.borderColor = "#e07070"; window.setTimeout(() => { codeInp.style.borderColor = ""; }, 1500); }
+                            });
+                            codeRow.appendChild(codeInp); codeRow.appendChild(codeBtn); sc.appendChild(codeRow);
+                        }
+
+                        stepsWrap.appendChild(sc);
+                    });
                 };
-                [lblInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
-                delBtn.addEventListener("click", () => {
-                    saveKittyPunishments(getKittyPunishments().filter((_, i) => i !== idx));
-                    renderPunishments(true);
-                });
 
-                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow); r.appendChild(bindRow);
+                r.appendChild(stepsWrap);
+                rebuildSteps();
+
+                // Add step buttons
+                const addStepRow = document.createElement("div"); addStepRow.style.cssText = "display:flex;gap:5px;margin-top:3px;";
+                const mkAddBtn = (lbl: string, fn: () => void): HTMLButtonElement => {
+                    const b = document.createElement("button"); b.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px;border-radius:4px;cursor:pointer;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;"; b.textContent = lbl; b.addEventListener("click", fn); return b;
+                };
+                addStepRow.appendChild(mkAddBtn("+ Sentence", () => { const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].steps.push({ type: "emote", kindText: "", roughText: "" }); saveKittyPunishments(upd); } rebuildSteps(); }));
+                addStepRow.appendChild(mkAddBtn("+ Restraints", () => { const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].steps.push({ type: "restraint", items: [] }); saveKittyPunishments(upd); } rebuildSteps(); }));
+                r.appendChild(addStepRow);
+
+                // Reaction section
+                const reactHdr = document.createElement("div"); reactHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:5px;border-top:1px solid #2a1421;padding-top:4px;"; reactHdr.textContent = "Emery reacts (on accept)";
+                r.appendChild(reactHdr);
+
+                // Expression picker
+                const exprRow = document.createElement("div"); exprRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const exprLbl = document.createElement("span"); exprLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:56px;"; exprLbl.textContent = "Expression";
+                const exprSel = document.createElement("select"); exprSel.style.cssText = "flex:1;min-width:0;" + INP;
+                for (const e of KITTY_EXPRESSIONS) { const o = document.createElement("option"); o.value = e.cmd; o.textContent = e.label; exprSel.appendChild(o); }
+                exprSel.value = pun.reaction?.expression ?? "";
+                exprSel.addEventListener("change", () => { const upd = getKittyPunishments(); if (upd[idx]) { upd[idx].reaction = { ...(upd[idx].reaction ?? {}), expression: exprSel.value || undefined }; saveKittyPunishments(upd); } });
+                exprRow.appendChild(exprLbl); exprRow.appendChild(exprSel); r.appendChild(exprRow);
+
+                // Pose picker
+                const poseRow2 = document.createElement("div"); poseRow2.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const poseLbl2 = document.createElement("span"); poseLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:56px;"; poseLbl2.textContent = "Pose";
+                const poseSel2 = document.createElement("select"); poseSel2.style.cssText = "flex:1;min-width:0;" + INP;
+                for (const p2 of KITTY_REACTION_POSES) { const o = document.createElement("option"); o.value = JSON.stringify(p2.poses); o.textContent = p2.label; poseSel2.appendChild(o); }
+                poseSel2.value = JSON.stringify(pun.reaction?.poses ?? []);
+                if (poseSel2.selectedIndex === -1) poseSel2.selectedIndex = 0;
+                poseSel2.addEventListener("change", () => {
+                    const upd = getKittyPunishments(); if (upd[idx]) { try { const poses = JSON.parse(poseSel2.value) as string[]; upd[idx].reaction = { ...(upd[idx].reaction ?? {}), poses: poses.length ? poses : undefined }; } catch { /* ignore */ } saveKittyPunishments(upd); }
+                });
+                poseRow2.appendChild(poseLbl2); poseRow2.appendChild(poseSel2); r.appendChild(poseRow2);
+
                 list.appendChild(r);
             });
 
-            const addRow = document.createElement("div");
-            addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-            const newPunLbl = document.createElement("input"); newPunLbl.placeholder = "😤 Label"; newPunLbl.style.cssText = "flex:1;min-width:0;" + INP;
-            const addBtnPun = document.createElement("button");
-            addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-            addBtnPun.textContent = "+ Add";
+            // Add new action
+            const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+            const newPunLbl = document.createElement("input"); newPunLbl.placeholder = "New action name"; newPunLbl.style.cssText = "flex:1;min-width:0;" + INP;
+            const addBtnPun = document.createElement("button"); addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnPun.textContent = "+ Add";
             addBtnPun.addEventListener("click", () => {
                 if (!newPunLbl.value.trim()) return;
                 const updated = getKittyPunishments();
-                updated.push({ id: "pun_" + Date.now(), label: newPunLbl.value.trim(), kindEmote: "", roughEmote: "" });
-                saveKittyPunishments(updated);
-                newPunLbl.value = "";
-                renderPunishments(true);
+                updated.push({ id: "pun_" + Date.now(), label: newPunLbl.value.trim(), steps: [{ type: "emote", kindText: "", roughText: "" }] });
+                saveKittyPunishments(updated); newPunLbl.value = ""; renderPunishments(true);
             });
             addRow.appendChild(newPunLbl); addRow.appendChild(addBtnPun);
             list.appendChild(addRow);
             punishWrap.appendChild(list);
         };
 
-        const { el: punishHdr } = makeSectionHdr("Punishments", null, (ed) => renderPunishments(ed));
+        const { el: punishHdr } = makeSectionHdr("Actions", null, (ed) => renderPunishments(ed));
         body.appendChild(punishHdr);
         renderPunishments(false);
         body.appendChild(punishWrap);
-        body.appendChild(divider());
-
-        // ── RESTRAINTS ───────────────────────────────────────────────────────────
-        const restraintsWrap = document.createElement("div");
-        restraintsWrap.style.marginBottom = "10px";
-
-        const renderRestraintSets = (editing: boolean): void => {
-            restraintsWrap.innerHTML = "";
-            const sets = getKittyRestraintSets();
-
-            if (!editing) {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
-                for (const s of sets) {
-                    row.appendChild(makePill(s.label, "#c07040", () => {
-                        const mood = getKittyMood();
-                        const emoteText = mood === "rough"
-                            ? (s.roughEmote || s.kindEmote || "")
-                            : (s.kindEmote  || s.roughEmote || "");
-                        if (emoteText) sendRoomEmote(emoteText);
-                        sendKittyCmd("punish", JSON.stringify({ label: s.label, mood, items: s.items }));
-                    }));
-                }
-                restraintsWrap.appendChild(row);
-                const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
-                hint.textContent = "Sends a room emote and gives Emery a chance to fight back";
-                restraintsWrap.appendChild(hint);
-                return;
-            }
-
-            const list = document.createElement("div");
-            list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
-            const cur = getKittyRestraintSets();
-            cur.forEach((s, idx) => {
-                const r = document.createElement("div");
-                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
-
-                // Row 1: label + item count + delete
-                const r1 = document.createElement("div");
-                r1.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const lblInp = document.createElement("input"); lblInp.value = s.label; lblInp.style.cssText = "flex:1;" + INP;
-                const countLbl = document.createElement("span"); countLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;"; countLbl.textContent = s.items.length + " items";
-                const delBtn = document.createElement("button"); delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delBtn.textContent = "×";
-                r1.appendChild(lblInp); r1.appendChild(countLbl); r1.appendChild(delBtn);
-
-                // Row 2: kind emote
-                const kindRowR = document.createElement("div");
-                kindRowR.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const kindLblR = document.createElement("span"); kindLblR.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLblR.textContent = "🌸 Kind:";
-                const kindInpR = document.createElement("input"); kindInpR.value = s.kindEmote ?? ""; kindInpR.placeholder = "Room emote in kind mode…"; kindInpR.style.cssText = "flex:1;min-width:0;" + INP;
-                kindRowR.appendChild(kindLblR); kindRowR.appendChild(kindInpR);
-
-                // Row 3: rough emote
-                const roughRowR = document.createElement("div");
-                roughRowR.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const roughLblR = document.createElement("span"); roughLblR.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLblR.textContent = "⚡ Rough:";
-                const roughInpR = document.createElement("input"); roughInpR.value = s.roughEmote ?? ""; roughInpR.placeholder = "Room emote in rough mode…"; roughInpR.style.cssText = "flex:1;min-width:0;" + INP;
-                roughRowR.appendChild(roughLblR); roughRowR.appendChild(roughInpR);
-
-                const saveInpR = (): void => {
-                    const updated = getKittyRestraintSets();
-                    updated[idx].label      = lblInp.value;
-                    updated[idx].kindEmote  = kindInpR.value;
-                    updated[idx].roughEmote = roughInpR.value;
-                    saveKittyRestraintSets(updated);
-                };
-                [lblInp, kindInpR, roughInpR].forEach(i => i.addEventListener("input", saveInpR));
-                delBtn.addEventListener("click", () => { saveKittyRestraintSets(getKittyRestraintSets().filter((_, i) => i !== idx)); renderRestraintSets(true); });
-
-                // ── Per-item list ───────────────────────────────────────────
-                const itemsHdr = document.createElement("div");
-                itemsHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;";
-                itemsHdr.textContent = "Items";
-                r.appendChild(itemsHdr);
-
-                const colorToStr = (c: string | string[] | undefined): string =>
-                    Array.isArray(c) ? c.join(", ") : (c ?? "Default");
-                const strToColor = (v: string): string | string[] => {
-                    const t = v.trim();
-                    if (!t || t === "Default") return "Default";
-                    if (t.includes(",")) return t.split(",").map(x => x.trim()).filter(Boolean);
-                    return t;
-                };
-
-                const rebuildItemRows = (): void => {
-                    // Remove old item rows (everything after itemsHdr up to the add-row sentinel)
-                    const addSentinel = r.querySelector(".ebc-add-item-sentinel") as HTMLElement | null;
-                    const toRemove: Element[] = [];
-                    let el = itemsHdr.nextElementSibling;
-                    while (el && el !== addSentinel) { toRemove.push(el); el = el.nextElementSibling; }
-                    toRemove.forEach(e => e.remove());
-
-                    const live = getKittyRestraintSets()[idx]?.items ?? [];
-                    if (live.length === 0) {
-                        const empty = document.createElement("div");
-                        empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;";
-                        empty.textContent = "No items yet — add one below.";
-                        r.insertBefore(empty, addSentinel);
-                        return;
-                    }
-                    live.forEach((item, iIdx) => {
-                        const row = document.createElement("div");
-                        row.style.cssText = "display:flex;align-items:center;gap:3px;padding:2px 0;";
-                        const nameLbl = document.createElement("span");
-                        nameLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;";
-                        nameLbl.textContent = item.Name;
-                        nameLbl.title = item.Name;
-                        const grpLbl = document.createElement("span");
-                        grpLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
-                        grpLbl.textContent = item.Group.replace("Item", "");
-                        const colorInp = document.createElement("input");
-                        colorInp.value = colorToStr(item.Color);
-                        colorInp.placeholder = "Default";
-                        colorInp.style.cssText = "width:80px;flex-shrink:0;" + INP;
-                        colorInp.title = "Colour: hex (#rrggbb), comma-separated for layers, or Default";
-                        colorInp.addEventListener("change", () => {
-                            const sets = getKittyRestraintSets();
-                            if (sets[idx]?.items[iIdx]) {
-                                sets[idx].items[iIdx].Color = strToColor(colorInp.value);
-                                saveKittyRestraintSets(sets);
-                            }
-                        });
-                        const delItm = document.createElement("button");
-                        delItm.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
-                        delItm.textContent = "×";
-                        delItm.title = "Remove this item";
-                        delItm.addEventListener("click", () => {
-                            const sets = getKittyRestraintSets();
-                            if (sets[idx]) { sets[idx].items.splice(iIdx, 1); saveKittyRestraintSets(sets); }
-                            rebuildItemRows();
-                        });
-                        row.appendChild(nameLbl); row.appendChild(grpLbl); row.appendChild(colorInp); row.appendChild(delItm);
-                        r.insertBefore(row, addSentinel);
-                    });
-                };
-
-                // ── Add-item builder ────────────────────────────────────────
-                const addItemSentinel = document.createElement("div");
-                addItemSentinel.className = "ebc-add-item-sentinel";
-                addItemSentinel.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:3px;border-top:1px solid #2a1421;padding-top:4px;";
-
-                const getGroupAssets = (group: string): string[] => {
-                    try {
-                        const w = window as unknown as Record<string, unknown>;
-                        const bcAssets = w.Asset as Array<{ Name?: string; Group?: { Name?: string; Family?: string } }> | undefined;
-                        if (!Array.isArray(bcAssets)) return [];
-                        const family = (Player as unknown as Record<string, unknown>).AssetFamily as string | undefined;
-                        return bcAssets
-                            .filter(a => a?.Group?.Name === group && (!family || !a.Group?.Family || a.Group.Family === family))
-                            .map(a => a.Name)
-                            .filter((n): n is string => !!n)
-                            .sort();
-                    } catch { return []; }
-                };
-
-                const aiSlotRow = document.createElement("div");
-                aiSlotRow.style.cssText = "display:flex;align-items:center;gap:3px;";
-                const aiSlotLbl = document.createElement("span"); aiSlotLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;"; aiSlotLbl.textContent = "Slot";
-                const aiSlotSel = document.createElement("select"); aiSlotSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const aiSlotPh = document.createElement("option"); aiSlotPh.value = ""; aiSlotPh.textContent = "— slot —"; aiSlotPh.disabled = true; aiSlotPh.selected = true; aiSlotSel.appendChild(aiSlotPh);
-                for (const grp of RESTRAINT_GROUPS) {
-                    const o = document.createElement("option"); o.value = grp; o.textContent = grp.replace("Item", ""); aiSlotSel.appendChild(o);
-                }
-                aiSlotRow.appendChild(aiSlotLbl); aiSlotRow.appendChild(aiSlotSel);
-
-                const aiItemRow = document.createElement("div");
-                aiItemRow.style.cssText = "display:flex;align-items:center;gap:3px;";
-                const aiItemLbl = document.createElement("span"); aiItemLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;"; aiItemLbl.textContent = "Item";
-                const aiItemSel = document.createElement("select"); aiItemSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const aiItemPh = document.createElement("option"); aiItemPh.value = ""; aiItemPh.textContent = "— pick slot first —"; aiItemPh.disabled = true; aiItemPh.selected = true; aiItemSel.appendChild(aiItemPh);
-                aiItemRow.appendChild(aiItemLbl); aiItemRow.appendChild(aiItemSel);
-
-                aiSlotSel.addEventListener("change", () => {
-                    while (aiItemSel.firstChild) aiItemSel.removeChild(aiItemSel.firstChild);
-                    const names = getGroupAssets(aiSlotSel.value);
-                    if (names.length === 0) {
-                        const o = document.createElement("option"); o.value = ""; o.textContent = "— none found —"; o.disabled = true; o.selected = true; aiItemSel.appendChild(o);
-                    } else {
-                        const ph2 = document.createElement("option"); ph2.value = ""; ph2.textContent = "— pick item —"; ph2.disabled = true; ph2.selected = true; aiItemSel.appendChild(ph2);
-                        for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; aiItemSel.appendChild(o); }
-                    }
-                });
-
-                const aiColorRow = document.createElement("div");
-                aiColorRow.style.cssText = "display:flex;align-items:center;gap:3px;";
-                const aiColorLbl = document.createElement("span"); aiColorLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;"; aiColorLbl.textContent = "Color";
-                const aiColorInp = document.createElement("input"); aiColorInp.placeholder = "Default  or  #rrggbb, #rrggbb2…"; aiColorInp.style.cssText = "flex:1;min-width:0;" + INP;
-                const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = "+ Add";
-                aiColorRow.appendChild(aiColorLbl); aiColorRow.appendChild(aiColorInp); aiColorRow.appendChild(aiAddBtn);
-
-                aiAddBtn.addEventListener("click", () => {
-                    if (!aiSlotSel.value || !aiItemSel.value) return;
-                    const newItem: KittyItem = {
-                        Name: aiItemSel.value,
-                        Group: aiSlotSel.value,
-                        Color: strToColor(aiColorInp.value || "Default"),
-                    };
-                    const sets = getKittyRestraintSets();
-                    if (sets[idx]) { sets[idx].items.push(newItem); saveKittyRestraintSets(sets); }
-                    // Reset fields
-                    aiSlotSel.value = ""; aiItemSel.innerHTML = ""; aiItemSel.appendChild(aiItemPh); aiItemPh.selected = true; aiColorInp.value = "";
-                    rebuildItemRows();
-                    // Update item count label
-                    countLbl.textContent = (getKittyRestraintSets()[idx]?.items.length ?? 0) + " items";
-                });
-
-                addItemSentinel.appendChild(aiSlotRow);
-                addItemSentinel.appendChild(aiItemRow);
-                addItemSentinel.appendChild(aiColorRow);
-
-                r.appendChild(r1); r.appendChild(kindRowR); r.appendChild(roughRowR);
-                r.appendChild(itemsHdr);
-                rebuildItemRows();
-                r.appendChild(addItemSentinel);
-                list.appendChild(r);
-            });
-
-            const addBox = document.createElement("div");
-            addBox.style.cssText = "background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:6px;margin-top:4px;";
-            const addMsg = document.createElement("div"); addMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;min-height:13px;margin-bottom:3px;";
-
-            // Set name input
-            const addLblInp = document.createElement("input"); addLblInp.placeholder = "Set name (e.g. 🔒 Leash up)"; addLblInp.style.cssText = "width:100%;box-sizing:border-box;" + INP + "margin-bottom:6px;display:block;";
-
-            // ── Option A: from Emery's saved restraint sets ───────────────────
-            const fromSavedSets = getRestraints();
-            if (fromSavedSets.length > 0) {
-                const fromSavedLbl = document.createElement("div"); fromSavedLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;"; fromSavedLbl.textContent = "From saved restraint sets";
-                const fromSavedRow = document.createElement("div"); fromSavedRow.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:6px;";
-                const fromSavedSel = document.createElement("select"); fromSavedSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const phOpt = document.createElement("option"); phOpt.value = ""; phOpt.textContent = "— pick a restraint set —"; phOpt.disabled = true; phOpt.selected = true; fromSavedSel.appendChild(phOpt);
-                for (const rs of fromSavedSets) {
-                    const o = document.createElement("option"); o.value = rs.id; o.textContent = rs.displayName + " (" + rs.items.filter(i => RESTRAINT_GROUPS.has(i.Group)).length + " restraints)"; fromSavedSel.appendChild(o);
-                }
-                const useBtn = document.createElement("button"); useBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; useBtn.textContent = "Use ↓";
-                useBtn.addEventListener("click", () => {
-                    addMsg.textContent = ""; addMsg.style.color = "#ff6b6b";
-                    const rs = fromSavedSets.find(s => s.id === fromSavedSel.value);
-                    if (!rs) { addMsg.textContent = "Pick a set first."; return; }
-                    const items: KittyItem[] = rs.items
-                        .filter(i => RESTRAINT_GROUPS.has(i.Group))
-                        .map(i => ({
-                            Name: i.Name, Group: i.Group, Color: i.Color,
-                            Difficulty: i.Difficulty,
-                            Property: i.Property as Record<string, unknown> | undefined,
-                            Craft: i.Craft as Record<string, unknown> | undefined,
-                        }));
-                    if (items.length === 0) { addMsg.textContent = "No restraint items in that set."; return; }
-                    const label = addLblInp.value.trim() || rs.displayName;
-                    const updated = getKittyRestraintSets();
-                    updated.push({ id: "r_" + Date.now(), label, items, kindEmote: "", roughEmote: "" });
-                    saveKittyRestraintSets(updated);
-                    addMsg.style.color = "#70d070"; addMsg.textContent = `Saved "${label}" — ${items.length} items from "${rs.displayName}".`;
-                    addLblInp.value = ""; fromSavedSel.value = "";
-                    renderRestraintSets(true);
-                });
-                fromSavedRow.appendChild(fromSavedSel); fromSavedRow.appendChild(useBtn);
-                addBox.appendChild(fromSavedLbl); addBox.appendChild(fromSavedRow);
-            }
-
-            // ── Option B: paste BC outfit code (LZ-compressed or raw JSON) ───
-            const fromCodeLbl = document.createElement("div"); fromCodeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;"; fromCodeLbl.textContent = "Or paste BC outfit code";
-            const addCodeTA = document.createElement("textarea"); addCodeTA.placeholder = "Paste LZ-compressed BC code or raw JSON array — restraint items will be extracted…"; addCodeTA.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:3px 5px;outline:none;resize:vertical;min-height:40px;display:block;margin-bottom:4px;";
-            const addBtnR = document.createElement("button"); addBtnR.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;"; addBtnR.textContent = "Import & Save";
-            addBtnR.addEventListener("click", () => {
-                addMsg.textContent = ""; addMsg.style.color = "#ff6b6b";
-                if (!addLblInp.value.trim()) { addMsg.textContent = "Enter a name."; return; }
-                const code = addCodeTA.value.trim();
-                if (!code) { addMsg.textContent = "Paste a BC code."; return; }
-                let items: KittyItem[];
-                try {
-                    // Try LZ-compressed BC outfit code first
-                    const LZStr = (window as unknown as Record<string, unknown>).LZString as
-                        { decompressFromBase64?: (s: string) => string | null } | undefined;
-                    const decompressed = LZStr?.decompressFromBase64?.(code) ?? null;
-                    if (decompressed) {
-                        const parsed = JSON.parse(decompressed) as Array<Record<string, unknown>>;
-                        items = parsed
-                            .filter(p => typeof p.Group === "string" && typeof p.Name === "string" && p.Name && RESTRAINT_GROUPS.has(String(p.Group)))
-                            .map(p => ({
-                                Name: String(p.Name), Group: String(p.Group),
-                                Color: p.Color as string | string[] | undefined,
-                                Difficulty: typeof p.Difficulty === "number" ? p.Difficulty : undefined,
-                                Property: typeof p.Property === "object" && p.Property !== null ? p.Property as Record<string, unknown> : undefined,
-                                Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft as Record<string, unknown> : undefined,
-                            }));
-                    } else {
-                        // Plain JSON array fallback
-                        const parsed = JSON.parse(code) as Array<Record<string, unknown>>;
-                        items = parsed
-                            .map(p => ({
-                                Name: String(p.Name ?? ""), Group: String(p.Group ?? ""),
-                                Color: p.Color as string | string[] | undefined,
-                                Difficulty: typeof p.Difficulty === "number" ? p.Difficulty : undefined,
-                                Property: typeof p.Property === "object" && p.Property !== null ? p.Property as Record<string, unknown> : undefined,
-                                Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft as Record<string, unknown> : undefined,
-                            }))
-                            .filter(i => i.Name && i.Group);
-                    }
-                } catch { addMsg.textContent = "Invalid code — paste a BC outfit code or JSON array."; return; }
-                if (items.length === 0) { addMsg.textContent = "No items found in that code."; return; }
-                const updated = getKittyRestraintSets();
-                updated.push({ id: "r_" + Date.now(), label: addLblInp.value.trim(), items, kindEmote: "", roughEmote: "" });
-                saveKittyRestraintSets(updated);
-                addMsg.style.color = "#70d070"; addMsg.textContent = `Saved ${items.length} items.`;
-                addLblInp.value = ""; addCodeTA.value = "";
-                renderRestraintSets(true);
-            });
-            addBox.appendChild(addLblInp); addBox.appendChild(fromCodeLbl); addBox.appendChild(addCodeTA); addBox.appendChild(addMsg); addBox.appendChild(addBtnR);
-            list.appendChild(addBox);
-            restraintsWrap.appendChild(list);
-        };
-
-        const { el: restHdr } = makeSectionHdr("Restraints", null, (ed) => renderRestraintSets(ed));
-        body.appendChild(restHdr);
-        renderRestraintSets(false);
-        body.appendChild(restraintsWrap);
         body.appendChild(divider());
 
         // ── AROUSAL ──────────────────────────────────────────────────────────────

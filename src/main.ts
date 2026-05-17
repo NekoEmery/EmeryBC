@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.72";
+const MOD_VERSION = "2.2.73";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.73",
+        changes: [
+            "Removed the standalone Restraints section from the kitty menu — restraints are now managed directly inside Actions (punishment steps).",
+            "Actions system overhauled: Lucy can now build custom sequences of Sentence (emote) + Restraints steps in any order.",
+            "Per-action reaction picker: Lucy can choose Emery's expression (blush, sad eyes, etc.) and pose (kneel, all-fours, etc.) when the action is accepted.",
+        ],
+    },
     {
         version: "2.2.72",
         changes: [
@@ -2452,7 +2460,12 @@ function setArometerProgress(pct: number): void {
     }
 }
 
-function showKittyResistancePopup(label: string, mood: "kind" | "rough", restraintItems: KittyItem[] = []): void {
+function showKittyResistancePopup(
+    label: string,
+    mood: "kind" | "rough",
+    restraintItems: KittyItem[] = [],
+    reaction?: { expression?: string; poses?: string[] }
+): void {
     if (document.getElementById("ebc-kitty-resist")) return;
 
     const overlay = document.createElement("div");
@@ -2524,6 +2537,35 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough", restrai
                     callBC(() => ServerSend("ChatRoomCharacterUpdate", {
                         ID: (Player as unknown as Record<string, unknown>).OnlineID,
                         ActivePose: Player.ActivePose,
+                        Appearance: ServerAppearanceBundle(Player.Appearance),
+                    }));
+                }
+            } catch { /* ignore */ }
+        }
+        // Apply reaction: expression
+        if (reaction?.expression) {
+            try {
+                const colonIdx = reaction.expression.indexOf(":");
+                if (colonIdx > 0) {
+                    const face  = reaction.expression.slice(0, colonIdx);
+                    const state = reaction.expression.slice(colonIdx + 1);
+                    const w2 = window as unknown as Record<string, unknown>;
+                    const setExpr = w2.CharacterSetFacialExpression as
+                        ((c: unknown, face: string, state: string | null) => void) | undefined;
+                    if (setExpr) setExpr(Player, face, state || null);
+                }
+            } catch { /* ignore */ }
+        }
+        // Apply reaction: pose
+        if (reaction?.poses && reaction.poses.length > 0) {
+            try {
+                const w2 = window as unknown as Record<string, unknown>;
+                (Player as unknown as Record<string, unknown>).ActivePose = [...reaction.poses];
+                (w2.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(Player, false, false);
+                if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+                    callBC(() => ServerSend("ChatRoomCharacterUpdate", {
+                        ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                        ActivePose: reaction!.poses,
                         Appearance: ServerAppearanceBundle(Player.Appearance),
                     }));
                 }
@@ -2646,9 +2688,13 @@ function handleKittyCommand(msg: string): void {
                 break;
             case "punish": {
                 try {
-                    // New format: JSON payload { label, mood, items }
-                    const payload = JSON.parse(arg) as { label: string; mood: "kind" | "rough"; items: KittyItem[] };
-                    showKittyResistancePopup(payload.label, payload.mood, payload.items ?? []);
+                    const payload = JSON.parse(arg) as {
+                        label: string;
+                        mood: "kind" | "rough";
+                        items: KittyItem[];
+                        reaction?: { expression?: string; poses?: string[] };
+                    };
+                    showKittyResistancePopup(payload.label, payload.mood, payload.items ?? [], payload.reaction);
                 } catch {
                     // Legacy fallback: "Label:mood"
                     const colonIdx = arg.lastIndexOf(":");
