@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.62";
+const MOD_VERSION = "2.2.63";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.63",
+        changes: [
+            "Slow Leave toggle moved from DEV tab to the top of the BUTTONS tab under a new 'Fun Actions' section — visible and accessible to everyone. Removed it from the DEV tab entirely.",
+        ],
+    },
     {
         version: "2.2.62",
         changes: [
