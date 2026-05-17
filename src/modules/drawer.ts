@@ -9776,19 +9776,19 @@ export class EBCDrawer {
                 const relBadge = (() => {
                     try {
                         const icons: string[] = [];
-                        // Owned by them
+                        // They own you — crown = "this person is your owner"
                         const own = (Player as unknown as Record<string, unknown>).Ownership as
                             { MemberNumber?: number } | undefined;
-                        if (own?.MemberNumber === num) icons.push("🔒");
+                        if (own?.MemberNumber === num) icons.push("👑");
                         // Lover
                         const loves = (Player as unknown as Record<string, unknown>).Lovership as
                             Array<{ MemberNumber?: number }> | undefined;
                         if (loves?.some(l => l.MemberNumber === num)) icons.push("❤️");
-                        // You own them — need their room data
+                        // You own them — lock = "you have them locked"
                         const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
                             Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number } }> | undefined;
                         const roomChar = room?.find(c => c.MemberNumber === num);
-                        if (roomChar?.Ownership?.MemberNumber === Player.MemberNumber) icons.push("👑");
+                        if (roomChar?.Ownership?.MemberNumber === Player.MemberNumber) icons.push("🔒");
                         return icons.join("");
                     } catch { return ""; }
                 })();

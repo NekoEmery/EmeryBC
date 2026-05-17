@@ -18,7 +18,7 @@ import { callBC } from "./modules/bcUtils";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.47";
+const MOD_VERSION = "2.2.48";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -32,6 +32,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.48",
+        changes: [
+            "Fix: owner badge in friend list now shows 👑 (you see a crown on your owner) and 🔒 when you own someone — was reversed.",
+            "Fix: /lock and /unlock no longer incorrectly report 'not in a chatroom' when ChatRoomData is transiently null.",
+            "New: /ebc ameter <0-100> sets arousal to a specific percentage. /ebc ameter with no argument still toggles on/off.",
+        ],
+    },
     {
         version: "2.2.47",
         changes: [
@@ -2171,31 +2179,49 @@ function showChangelog(): void {
 // Defaults to "Manual" if the setting was already Inactive at load time.
 let lastArousalActive = "Manual";
 
+function getArousalSettings(): Record<string, unknown> | undefined {
+    return (Player as unknown as Record<string, unknown>).ArousalSettings as
+        Record<string, unknown> | undefined;
+}
+
+function syncArousalSettings(arousal: Record<string, unknown>): void {
+    type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
+    const updater = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
+        AccountUpdater | undefined;
+    updater?.QueueData({ ArousalSettings: arousal });
+}
+
 function toggleArometerCommand(): void {
     try {
-        const arousal = (Player as unknown as Record<string, unknown>).ArousalSettings as
-            Record<string, unknown> | undefined;
-        if (!arousal) {
-            appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger);
-            return;
-        }
+        const arousal = getArousalSettings();
+        if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
         const current = arousal.Active as string | undefined;
         if (current && current !== "Inactive") lastArousalActive = current;
-
         const next = (current === "Inactive") ? lastArousalActive : "Inactive";
         arousal.Active = next;
-
-        // Sync to server the same way the Preference screen does
-        type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
-        const updater = (window as unknown as Record<string, unknown>).ServerAccountUpdate as
-            AccountUpdater | undefined;
-        updater?.QueueData({ ArousalSettings: arousal });
-
+        syncArousalSettings(arousal);
         const label = next === "Inactive" ? "OFF" : `ON (${next})`;
         appendLocalLogLine(`[EBC] Arousal meter: ${label}`, UI.gold);
     } catch (err) {
         appendLocalLogLine("[EBC] Failed to toggle arousal meter.", UI.danger);
         console.warn("[EBC] toggleArometerCommand error:", err);
+    }
+}
+
+function setArometerProgress(pct: number): void {
+    try {
+        const arousal = getArousalSettings();
+        if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
+        // Make sure the meter is active — restore last known active mode if currently Inactive
+        if ((arousal.Active as string | undefined) === "Inactive") {
+            arousal.Active = lastArousalActive;
+        }
+        arousal.Progress = pct;
+        syncArousalSettings(arousal);
+        appendLocalLogLine(`[EBC] Arousal set to ${pct}%`, UI.gold);
+    } catch (err) {
+        appendLocalLogLine("[EBC] Failed to set arousal.", UI.danger);
+        console.warn("[EBC] setArometerProgress error:", err);
     }
 }
 
@@ -2211,17 +2237,17 @@ function handleMetaCommand(inputValue: string): boolean {
     if (cmd0 === "lock" || cmd0 === "unlock") {
         type RD = { Locked?: boolean; Admin?: number[] };
         const w = window as unknown as Record<string, unknown>;
-        const rd = w.ChatRoomData as RD | null | undefined;
-        if ((w.CurrentScreen as string | undefined) !== "ChatRoom" || rd == null) {
+        if ((w.CurrentScreen as string | undefined) !== "ChatRoom") {
             appendLocalLogLine("[EBC] /lock — not in a chatroom.", UI.danger);
             return true;
         }
-        if (!Array.isArray(rd.Admin) || !(rd.Admin as number[]).includes(Player.MemberNumber)) {
+        const rd = w.ChatRoomData as RD | null | undefined;
+        if (!Array.isArray(rd?.Admin) || !(rd.Admin as number[]).includes(Player.MemberNumber)) {
             appendLocalLogLine("[EBC] /lock — you are not a room admin.", UI.danger);
             return true;
         }
         const wantLock = cmd0 === "lock";
-        if ((rd.Locked ?? false) === wantLock) {
+        if ((rd?.Locked ?? false) === wantLock) {
             appendLocalLogLine(`[EBC] Room is already ${wantLock ? "locked" : "unlocked"}.`, UI.textMuted);
             return true;
         }
@@ -2254,7 +2280,17 @@ function handleMetaCommand(inputValue: string): boolean {
     }
 
     if (["ameter", "arousal", "lust"].includes(subcommand)) {
-        toggleArometerCommand();
+        const pctArg = parts[2];
+        if (pctArg !== undefined) {
+            const pct = parseInt(pctArg, 10);
+            if (isNaN(pct) || pct < 0 || pct > 100) {
+                appendLocalLogLine("[EBC] Usage: /ebc ameter [0-100]", UI.danger);
+            } else {
+                setArometerProgress(pct);
+            }
+        } else {
+            toggleArometerCommand();
+        }
         return true;
     }
 
@@ -2281,7 +2317,7 @@ function handleMetaCommand(inputValue: string): boolean {
     }
 
 
-    appendLocalLogLine("[EBC] Commands: /lock  /unlock  |  /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
+    appendLocalLogLine("[EBC] Commands: /lock  /unlock  |  /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter [0-100]  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
     return true;
 }
 
