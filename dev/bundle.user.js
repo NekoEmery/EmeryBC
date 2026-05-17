@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.53
+// @version      2.2.54
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2246,6 +2246,196 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
         }
         catch ( /* ignore */_a) { /* ignore */ }
+    }
+
+    // Action button sequence runner — pose/action sequences used by outfits/scenes.
+    // --- Sequence runner ----------------------------------------------------------
+    // Sequence steps are pipe-separated (|). Each step is one of:
+    //   PoseName   - set BC pose (e.g. "HandsUp", "Yoked")
+    //   _          - clear all active poses back to neutral
+    //   !text      - send as (Name text) action message
+    //   *text      - send as * Name text * emote message
+    // Steps run 500 ms apart. Original poses are restored when done.
+    let seqRunning = false;
+    // Sends the current ActivePose to the room without triggering a full re-render on each step.
+    // appearanceBundle should be pre-built once before the sequence starts and reused - sending
+    // a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
+    // time, which looks like flickering/glitching.
+    function sendPoseUpdate(appearanceBundle) {
+        const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
+            ? Player.ActivePose
+            : null;
+        try {
+            if (Player.OnlineID != null) {
+                ServerSend("ChatRoomCharacterUpdate", {
+                    ID: Player.OnlineID,
+                    ActivePose: activePose,
+                    Appearance: appearanceBundle,
+                });
+            }
+        }
+        catch (_) { }
+    }
+    function syncPoseToRoom() {
+        // Used for one-shot pose syncs (outside of sequences).
+        // Capture desired pose BEFORE CharacterRefresh - BC may re-apply item-forced poses
+        // during refresh and override what we just set.
+        const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
+            ? Player.ActivePose
+            : null;
+        try {
+            if (Player.OnlineID != null) {
+                ServerSend("ChatRoomCharacterUpdate", {
+                    ID: Player.OnlineID,
+                    ActivePose: activePose,
+                    Appearance: ServerAppearanceBundle(Player.Appearance),
+                });
+            }
+        }
+        catch (_) { }
+        callBC(() => CharacterRefresh(Player, false, false));
+    }
+    // Parses a single raw step token (may have @NNN suffix) into {content, delay}.
+    // E.g. "!waves.@1000" -> { content: "!waves.", delay: 1000 }
+    //      "HandsUp"      -> { content: "HandsUp", delay: defaultStepMs }
+    function parseStep(raw, defaultStepMs) {
+        const atIdx = raw.lastIndexOf("@");
+        if (atIdx > 0) {
+            const maybeMs = raw.slice(atIdx + 1);
+            const ms = parseInt(maybeMs, 10);
+            if (!isNaN(ms) && ms >= 0 && String(ms) === maybeMs) {
+                return { content: raw.slice(0, atIdx), delay: ms };
+            }
+        }
+        return { content: raw, delay: defaultStepMs };
+    }
+    // Send an action or emote message to the chat room.
+    function sendAction(emote, style) {
+        var _a, _b;
+        const text = emote.trim();
+        if (!text)
+            return;
+        if (style === "emote") {
+            ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
+            return;
+        }
+        // Action style: (Name text)
+        const displayName = (_b = (_a = Player.Nickname) !== null && _a !== void 0 ? _a : Player.Name) !== null && _b !== void 0 ? _b : "";
+        const actionContent = displayName + " " + text;
+        ServerSend("ChatRoomChat", {
+            Type: "Action",
+            Content: actionContent,
+            Dictionary: [
+                { Tag: 'MISSING TEXT IN "Interface.csv": ', Text: String.fromCharCode(0x200C) },
+                { SourceCharacter: Player.MemberNumber },
+            ],
+        });
+    }
+    const BTNS_KEY = "EBC_buttonCategories";
+    function makeBtnId() {
+        return Math.random().toString(36).slice(2, 9);
+    }
+    function defaultCategories() {
+        const id = makeBtnId;
+        return [
+            {
+                id: id(), name: "Poses",
+                buttons: [
+                    { id: id(), label: "Hands Up", sequence: "HandsUp" },
+                    { id: id(), label: "Kneel", sequence: "Kneel" },
+                    { id: id(), label: "All Fours", sequence: "AllFours" },
+                    { id: id(), label: "Neutral", sequence: "_" },
+                ],
+            },
+            {
+                id: id(), name: "Actions",
+                buttons: [
+                    { id: id(), label: "Wave", sequence: "*waves~" },
+                    { id: id(), label: "Bow", sequence: "Kneel|!bows.|_" },
+                ],
+            },
+        ];
+    }
+    function getButtonCategories() {
+        try {
+            const raw = localStorage.getItem(BTNS_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0)
+                    return parsed;
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        const def = defaultCategories();
+        saveButtonCategories(def);
+        return def;
+    }
+    function saveButtonCategories(cats) {
+        try {
+            localStorage.setItem(BTNS_KEY, JSON.stringify(cats));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
+    function runSequence(sequence, defaultStepMs = 600) {
+        if (seqRunning)
+            return;
+        const rawSteps = sequence.split("|").map(s => s.trim()).filter(Boolean);
+        if (!rawSteps.length)
+            return;
+        // Parse each step: strip @NNN suffix for per-step delay, keep content.
+        const steps = rawSteps.map(r => parseStep(r, defaultStepMs));
+        seqRunning = true;
+        // null means "no pose / neutral" in BC - store as null so we restore correctly.
+        const originalPoses = (Player.ActivePose && Player.ActivePose.length > 0)
+            ? [...Player.ActivePose]
+            : null;
+        // Build appearance bundle ONCE - reusing it avoids re-render flicker on other clients.
+        const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
+        let idx = 0;
+        const next = () => {
+            try {
+                if (idx >= steps.length) {
+                    // Sequence done - restore original pose, do a full sync + local refresh.
+                    Player.ActivePose = originalPoses;
+                    syncPoseToRoom();
+                    seqRunning = false;
+                    return;
+                }
+                const { content: step, delay } = steps[idx++];
+                if (step === "_") {
+                    Player.ActivePose = originalPoses;
+                    sendPoseUpdate(appearanceBundle);
+                }
+                else if (step.toLowerCase() === "leaveroom") {
+                    // Restore pose, switch screen FIRST, then leave — same pattern as
+                    // safeword.ts.  CommonSetScreen stops ChatRoomRun before
+                    // ChatRoomLeave() clears ChatRoomData, so no mod hook crashes.
+                    Player.ActivePose = originalPoses;
+                    seqRunning = false;
+                    window.setTimeout(() => {
+                        callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                        callBC(() => ChatRoomLeave());
+                    }, 0);
+                    return;
+                }
+                else if (step.startsWith("!")) {
+                    sendAction(step.slice(1), "action");
+                }
+                else if (step.startsWith("*")) {
+                    sendAction(step.slice(1), "emote");
+                }
+                else {
+                    Player.ActivePose = [step];
+                    sendPoseUpdate(appearanceBundle);
+                }
+                window.setTimeout(next, delay);
+            }
+            catch (_) {
+                seqRunning = false;
+            }
+        };
+        next();
     }
 
     // Shared restraint/lock removal logic used by both /ebc commands and the drawer.
@@ -13457,6 +13647,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.tagTooltipEl = null;
             this.tagTooltipMoveListener = null;
             this.slowLeaveBtn = null;
+            this.btnEditMode = false;
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
@@ -13593,6 +13784,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             posesTabBtn.className = "ebc-tab-btn";
             posesTabBtn.id = "ebc-tab-poses";
             posesTabBtn.textContent = "ANIMS";
+            const btnsTabBtn = document.createElement("button");
+            btnsTabBtn.className = "ebc-tab-btn";
+            btnsTabBtn.id = "ebc-tab-buttons";
+            btnsTabBtn.textContent = "BTNS";
+            btnsTabBtn.title = "Action Buttons";
             const notesTabBtn = document.createElement("button");
             notesTabBtn.className = "ebc-tab-btn";
             notesTabBtn.id = "ebc-tab-notes";
@@ -13630,6 +13826,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
             tabBar.appendChild(outfitTabBtn);
             tabBar.appendChild(posesTabBtn);
+            tabBar.appendChild(btnsTabBtn);
             tabBar.appendChild(notesTabBtn);
             tabBar.appendChild(thanksTabBtn);
             tabBar.appendChild(devTabBtn2);
@@ -14162,6 +14359,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             notesTabBtn.addEventListener("click", () => this.switchTab("notes"));
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
+            btnsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
             domTabBtn.addEventListener("click", () => this.switchTab("dom"));
             puppyTabBtn.addEventListener("click", () => this.switchTab("puppy"));
             kittyTabBtn.addEventListener("click", () => this.switchTab("kitty"));
@@ -14564,6 +14762,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             for (const [id, name] of [
                 ["ebc-tab-outfits", "outfits"],
                 ["ebc-tab-poses", "anims"],
+                ["ebc-tab-buttons", "buttons"],
                 ["ebc-tab-notes", "notes"],
                 ["ebc-tab-thanks", "thanks"],
                 ["ebc-tab-dev", "dev"],
@@ -14582,6 +14781,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.renderOutfits();
             else if (this.currentTab === "anims")
                 this.renderPoses();
+            else if (this.currentTab === "buttons")
+                this.renderButtons();
             else if (this.currentTab === "notes")
                 this.renderNotes();
             else if (this.currentTab === "thanks")
@@ -23021,6 +23222,261 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             addRow.appendChild(addBtn);
             body.appendChild(addRow);
         }
+        // ── BUTTONS tab ─────────────────────────────────────────────────────────────
+        renderButtons() {
+            var _a;
+            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            if (!body)
+                return;
+            const savedScroll = body.scrollTop;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            const isEdit = this.btnEditMode;
+            const cats = getButtonCategories();
+            const save = () => saveButtonCategories(cats);
+            const rerender = () => { save(); this.renderButtons(); };
+            // Header row
+            const hdrRow = document.createElement("div");
+            hdrRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
+            const hdrLbl = document.createElement("div");
+            hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;letter-spacing:0.1em;color:#7a5a6a;";
+            hdrLbl.textContent = "BUTTONS";
+            const editToggle = document.createElement("button");
+            editToggle.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid ${isEdit ? "#cf6f98" : "#4c2537"};background:${isEdit ? "#6b3048" : "transparent"};color:${isEdit ? "#f7e6ee" : "#9a7080"};cursor:pointer;transition:all 0.12s;`;
+            editToggle.textContent = isEdit ? "✓ Done" : "✎ Edit";
+            editToggle.addEventListener("click", () => { this.btnEditMode = !this.btnEditMode; this.renderButtons(); });
+            hdrRow.appendChild(hdrLbl);
+            hdrRow.appendChild(editToggle);
+            body.appendChild(hdrRow);
+            if (isEdit) {
+                const addCatBtn = document.createElement("button");
+                addCatBtn.className = "ebc-btn-footer-btn";
+                addCatBtn.textContent = "+ New Category";
+                addCatBtn.style.marginBottom = "6px";
+                addCatBtn.addEventListener("click", () => {
+                    cats.push({ id: makeBtnId(), name: "New Category", buttons: [] });
+                    rerender();
+                });
+                body.appendChild(addCatBtn);
+            }
+            for (let ci = 0; ci < cats.length; ci++) {
+                body.appendChild(this.buildCategorySection(cats[ci], ci, cats, isEdit, rerender));
+            }
+            if (isEdit) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;margin-top:10px;line-height:1.6;";
+                hint.innerHTML = [
+                    "<span style='color:#7a5a6a;font-weight:bold;'>Sequence syntax</span> — steps separated by <b>|</b>",
+                    "PoseName &nbsp;— set pose &nbsp;·&nbsp; <b>_</b> — clear pose",
+                    "<b>!text</b> — send action &nbsp;·&nbsp; <b>*text</b> — send emote",
+                    "<b>step@500</b> — per-step delay ms &nbsp;·&nbsp; <b>leaveroom</b> — leave",
+                ].join("<br>");
+                body.appendChild(hint);
+            }
+            body.scrollTop = savedScroll;
+        }
+        buildCategorySection(cat, ci, allCats, isEdit, rerender) {
+            var _a, _b;
+            const section = document.createElement("div");
+            section.style.marginBottom = "6px";
+            // Category header
+            const hdr = document.createElement("div");
+            hdr.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+            const collapseBtn = document.createElement("button");
+            collapseBtn.style.cssText = "background:none;border:none;color:#7a5a6a;cursor:pointer;font-size:10px;padding:0 2px;font-family:'Trebuchet MS',serif;flex-shrink:0;";
+            collapseBtn.textContent = cat.collapsed ? "▶" : "▼";
+            collapseBtn.addEventListener("click", () => { cat.collapsed = !cat.collapsed; saveButtonCategories(allCats); rerender(); });
+            hdr.appendChild(collapseBtn);
+            if (isEdit) {
+                const nameInp = document.createElement("input");
+                nameInp.type = "text";
+                nameInp.value = cat.name;
+                nameInp.style.cssText = "flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;outline:none;";
+                nameInp.addEventListener("change", () => { cat.name = nameInp.value.trim() || cat.name; saveButtonCategories(allCats); });
+                hdr.appendChild(nameInp);
+                if (ci > 0) {
+                    const up = document.createElement("button");
+                    up.className = "ebc-slot-move";
+                    up.textContent = "↑";
+                    up.title = "Move category up";
+                    up.addEventListener("click", () => { [allCats[ci - 1], allCats[ci]] = [allCats[ci], allCats[ci - 1]]; rerender(); });
+                    hdr.appendChild(up);
+                }
+                if (ci < allCats.length - 1) {
+                    const dn = document.createElement("button");
+                    dn.className = "ebc-slot-move";
+                    dn.textContent = "↓";
+                    dn.title = "Move category down";
+                    dn.addEventListener("click", () => { [allCats[ci], allCats[ci + 1]] = [allCats[ci + 1], allCats[ci]]; rerender(); });
+                    hdr.appendChild(dn);
+                }
+                const delCat = document.createElement("button");
+                delCat.className = "ebc-slot-del";
+                delCat.textContent = "×";
+                delCat.title = "Delete category";
+                let catDelPending = false;
+                delCat.addEventListener("click", () => {
+                    if (!catDelPending) {
+                        catDelPending = true;
+                        delCat.textContent = "?";
+                        delCat.classList.add("confirm");
+                        return;
+                    }
+                    allCats.splice(ci, 1);
+                    rerender();
+                });
+                delCat.addEventListener("mouseleave", () => { catDelPending = false; delCat.textContent = "×"; delCat.classList.remove("confirm"); });
+                hdr.appendChild(delCat);
+            }
+            else {
+                const nameLbl = document.createElement("span");
+                nameLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;letter-spacing:0.08em;color:#7a5a6a;text-transform:uppercase;";
+                nameLbl.textContent = cat.name;
+                hdr.appendChild(nameLbl);
+            }
+            section.appendChild(hdr);
+            if (cat.collapsed)
+                return section;
+            const content = document.createElement("div");
+            if (isEdit) {
+                for (let bi = 0; bi < cat.buttons.length; bi++) {
+                    content.appendChild(this.buildSlotRow(cat, bi, allCats, rerender));
+                }
+                const addBtn = document.createElement("button");
+                addBtn.className = "ebc-btn-footer-btn";
+                addBtn.textContent = "+ Add Button";
+                addBtn.style.cssText += ";margin-top:3px;display:block;";
+                addBtn.addEventListener("click", () => {
+                    cat.buttons.push({ id: makeBtnId(), label: "Button", sequence: "" });
+                    rerender();
+                });
+                content.appendChild(addBtn);
+            }
+            else {
+                const tileRow = document.createElement("div");
+                tileRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding:0 0 4px 14px;";
+                if (cat.buttons.length === 0) {
+                    const empty = document.createElement("span");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;font-style:italic;";
+                    empty.textContent = "No buttons — use ✎ Edit to add some.";
+                    tileRow.appendChild(empty);
+                }
+                for (const btn of cat.buttons) {
+                    const tile = document.createElement("button");
+                    const col = (_a = btn.color) !== null && _a !== void 0 ? _a : "#4c2537";
+                    const txtCol = (_b = btn.color) !== null && _b !== void 0 ? _b : "#f0e0ea";
+                    tile.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 11px;border-radius:5px;background:#1b0d17;border:1px solid ${col};color:${txtCol};cursor:pointer;min-width:50px;text-align:center;transition:background 0.12s,border-color 0.12s;`;
+                    tile.textContent = btn.label;
+                    tile.title = btn.sequence || "(no sequence)";
+                    tile.addEventListener("mouseenter", () => { tile.style.background = "#2a1020"; tile.style.borderColor = btn.color ? btn.color : "#7a4a5e"; });
+                    tile.addEventListener("mouseleave", () => { tile.style.background = "#1b0d17"; tile.style.borderColor = col; });
+                    tile.addEventListener("click", () => {
+                        if (!btn.sequence.trim())
+                            return;
+                        tile.style.background = "#6b3048";
+                        tile.style.borderColor = "#cf6f98";
+                        window.setTimeout(() => { tile.style.background = "#1b0d17"; tile.style.borderColor = col; }, 350);
+                        runSequence(btn.sequence);
+                    });
+                    tileRow.appendChild(tile);
+                }
+                content.appendChild(tileRow);
+            }
+            section.appendChild(content);
+            return section;
+        }
+        buildSlotRow(cat, bi, allCats, rerender) {
+            var _a;
+            const btn = cat.buttons[bi];
+            const row = document.createElement("div");
+            row.className = "ebc-slot-row";
+            // ── Top: label | color | spacer | up/dn | del
+            const top = document.createElement("div");
+            top.className = "ebc-slot-top";
+            const labelInp = document.createElement("input");
+            labelInp.type = "text";
+            labelInp.className = "ebc-slot-label";
+            labelInp.placeholder = "Label";
+            labelInp.value = btn.label;
+            labelInp.style.width = "80px";
+            labelInp.addEventListener("input", () => { btn.label = labelInp.value; saveButtonCategories(allCats); });
+            top.appendChild(labelInp);
+            const colorInp = document.createElement("input");
+            colorInp.type = "color";
+            colorInp.className = "ebc-slot-color";
+            colorInp.value = (_a = btn.color) !== null && _a !== void 0 ? _a : "#cf6f98";
+            colorInp.title = "Button colour";
+            colorInp.addEventListener("input", () => { btn.color = colorInp.value; saveButtonCategories(allCats); });
+            top.appendChild(colorInp);
+            const clearCol = document.createElement("button");
+            clearCol.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 4px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5060;cursor:pointer;flex-shrink:0;";
+            clearCol.textContent = "default";
+            clearCol.title = "Reset to default colour";
+            clearCol.addEventListener("click", () => { delete btn.color; colorInp.value = "#cf6f98"; saveButtonCategories(allCats); });
+            top.appendChild(clearCol);
+            const spacer = document.createElement("span");
+            spacer.style.flex = "1";
+            top.appendChild(spacer);
+            if (bi > 0) {
+                const up = document.createElement("button");
+                up.className = "ebc-slot-move";
+                up.textContent = "↑";
+                up.title = "Move up";
+                up.addEventListener("click", () => { [cat.buttons[bi - 1], cat.buttons[bi]] = [cat.buttons[bi], cat.buttons[bi - 1]]; rerender(); });
+                top.appendChild(up);
+            }
+            if (bi < cat.buttons.length - 1) {
+                const dn = document.createElement("button");
+                dn.className = "ebc-slot-move";
+                dn.textContent = "↓";
+                dn.title = "Move down";
+                dn.addEventListener("click", () => { [cat.buttons[bi], cat.buttons[bi + 1]] = [cat.buttons[bi + 1], cat.buttons[bi]]; rerender(); });
+                top.appendChild(dn);
+            }
+            const del = document.createElement("button");
+            del.className = "ebc-slot-del";
+            del.textContent = "×";
+            del.title = "Delete button";
+            let delPending = false;
+            del.addEventListener("click", () => {
+                if (!delPending) {
+                    delPending = true;
+                    del.textContent = "?";
+                    del.classList.add("confirm");
+                    return;
+                }
+                cat.buttons.splice(bi, 1);
+                rerender();
+            });
+            del.addEventListener("mouseleave", () => { delPending = false; del.textContent = "×"; del.classList.remove("confirm"); });
+            top.appendChild(del);
+            row.appendChild(top);
+            // ── Bottom: sequence input + step count badge
+            const bot = document.createElement("div");
+            bot.className = "ebc-slot-bottom";
+            const seqInp = document.createElement("input");
+            seqInp.type = "text";
+            seqInp.className = "ebc-slot-emote";
+            seqInp.placeholder = "Sequence: HandsUp|!waves.|_";
+            seqInp.value = btn.sequence;
+            seqInp.addEventListener("input", () => {
+                btn.sequence = seqInp.value;
+                saveButtonCategories(allCats);
+                const n = seqInp.value.split("|").filter(Boolean).length;
+                badge.textContent = n > 1 ? String(n) : "";
+                badge.style.display = n > 1 ? "" : "none";
+            });
+            bot.appendChild(seqInp);
+            const steps = btn.sequence ? btn.sequence.split("|").filter(Boolean).length : 0;
+            const badge = document.createElement("span");
+            badge.className = "ebc-slot-seq-badge";
+            badge.textContent = steps > 1 ? String(steps) : "";
+            badge.style.display = steps > 1 ? "" : "none";
+            badge.title = `${steps} steps`;
+            bot.appendChild(badge);
+            row.appendChild(bot);
+            return row;
+        }
         renderKittyTab() {
             var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
@@ -24879,7 +25335,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.53";
+    const MOD_VERSION = "2.2.54";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -24890,6 +25346,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.54",
+            changes: [
+                "Restored BTNS tab — categories, slots, sequences/macros, colour picker, move up/down, delete, collapsible categories. All data persists to localStorage. Click any button to run its sequence.",
+            ],
+        },
         {
             version: "2.2.53",
             changes: [
