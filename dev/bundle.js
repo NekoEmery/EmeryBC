@@ -42,12 +42,6 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // Set to true when EBC initiates a ChatRoomLeave so the ChatRoomRun guard
-    // knows to skip null-ChatRoomData frames without affecting map rooms.
-    let _leavePending = false;
-    function setLeavePending() { _leavePending = true; }
-    function isLeavePending() { return _leavePending; }
-    function clearLeavePending() { _leavePending = false; }
     /** Returns the player's display name (nickname if set, otherwise Name). */
     function getDisplayName() {
         const nickFn = window.CharacterNickname;
@@ -2053,11 +2047,14 @@
                     releaseRestraints();
                     break;
                 case "leaveroom":
-                    // setLeavePending() must fire in the same tick as ChatRoomLeave() so no
-                    // ChatRoomRun frame runs between the flag being set and the data being
-                    // cleared — otherwise the guard sees ChatRoomData != null and clears the
-                    // flag prematurely, causing the null-crash guard to never fire.
-                    window.setTimeout(() => { setLeavePending(); callBC(() => ChatRoomLeave()); }, 0);
+                    // Switch screen BEFORE ChatRoomLeave() clears ChatRoomData — same
+                    // pattern as safeword.ts.  Once CommonSetScreen fires, BC's loop
+                    // calls ChatSearchRun instead of ChatRoomRun so no hook can crash
+                    // on a null ChatRoomData frame.
+                    window.setTimeout(() => {
+                        callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                        callBC(() => ChatRoomLeave());
+                    }, 0);
                     break;
             }
         }
@@ -2241,12 +2238,15 @@
                     sendPoseUpdate(appearanceBundle);
                 }
                 else if (step.toLowerCase() === "leaveroom") {
-                    // Restore pose, then defer leave by one tick — setLeavePending() goes
-                    // inside the callback so no ChatRoomRun frame fires between the flag
-                    // being set and ChatRoomData actually being cleared.
+                    // Restore pose, switch screen FIRST, then leave — same pattern as
+                    // safeword.ts.  CommonSetScreen stops ChatRoomRun before
+                    // ChatRoomLeave() clears ChatRoomData, so no mod hook crashes.
                     Player.ActivePose = originalPoses;
                     seqRunning = false;
-                    window.setTimeout(() => { setLeavePending(); callBC(() => ChatRoomLeave()); }, 0);
+                    window.setTimeout(() => {
+                        callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                        callBC(() => ChatRoomLeave());
+                    }, 0);
                     return;
                 }
                 else if (step.startsWith("!")) {
@@ -25864,7 +25864,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.42";
+    const MOD_VERSION = "2.2.43";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25875,6 +25875,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.43",
+            changes: [
+                "Fix: slow leave (leaveroom macro / seq step) no longer freezes the UI — now switches screen first then calls ChatRoomLeave(), matching the safeword pattern.",
+            ],
+        },
         {
             version: "2.2.42",
             changes: [
@@ -28309,20 +28315,6 @@
                 lastArousalActive = active;
         }
         catch ( /* ignore */_a) { /* ignore */ }
-        // Guard: when EBC calls ChatRoomLeave(), BC clears ChatRoomData synchronously but
-        // delays the screen transition until the server ack.  The next animation frame still
-        // fires ChatRoomRun → ChatRoomCustomizationRun which reads ChatRoomData.Custom → crash.
-        // We ONLY skip the frame when EBC itself initiated the leave (consumeLeavePending flag),
-        // so map rooms — where ChatRoomData can legitimately be null during transitions — are
-        // completely unaffected.  Priority 500 puts us ahead of CRABS/BCOM/BCX.
-        modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
-            if (isLeavePending()) {
-                if (window.ChatRoomData == null)
-                    return; // skip null frames
-                clearLeavePending(); // data is back — we're in a new room, lift the guard
-            }
-            return next(args);
-        });
         // Canvas sidebar action buttons
         modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
             next(args);
