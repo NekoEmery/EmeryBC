@@ -2891,12 +2891,6 @@
             .filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isUntouchable(item))
             .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
     }
-    // Returns locked (non-protected) items currently worn by the player.
-    function getPlayerLockedItems() {
-        return Player.Appearance
-            .filter(item => { var _a; return !!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) && !isProtectedLock(item); })
-            .map(item => ({ group: item.Asset.Group.Name, name: item.Asset.Name }));
-    }
     // Removes specific items by group name from the player. Returns count removed.
     function removePlayerSpecificItems(groups) {
         let count = 0;
@@ -2906,30 +2900,6 @@
                 count++;
             }
             catch ( /* ignore */_a) { /* ignore */ }
-        }
-        if (count > 0) {
-            CharacterRefresh(Player, false);
-            ChatRoomCharacterUpdate(Player);
-            ServerPlayerAppearanceSync();
-        }
-        return count;
-    }
-    // Unlocks specific items by group name on the player. Returns count unlocked.
-    function unlockPlayerSpecificItems(groups) {
-        let count = 0;
-        for (const group of groups) {
-            const item = Player.Appearance.find(a => a.Asset.Group.Name === group);
-            if (!(item === null || item === void 0 ? void 0 : item.Property) || isProtectedLock(item))
-                continue;
-            delete item.Property["LockedBy"];
-            delete item.Property["LockMemberNumber"];
-            delete item.Property["CombinationNumber"];
-            delete item.Property["Password"];
-            delete item.Property["MemberNumberListKeys"];
-            delete item.Property["RemoveItem"];
-            delete item.Property["ShowTimer"];
-            delete item.Property["EnableRandomInput"];
-            count++;
         }
         if (count > 0) {
             CharacterRefresh(Player, false);
@@ -14334,12 +14304,7 @@
             releaseBtn.className = "ebc-action-btn danger";
             releaseBtn.title = "Remove all restraints (skips owner/lover/family locks)";
             releaseBtn.textContent = "Release Restraints";
-            const unlockBtn = document.createElement("button");
-            unlockBtn.className = "ebc-action-btn danger";
-            unlockBtn.title = "Remove all locks (skips owner/lover/family locks)";
-            unlockBtn.textContent = "Remove Locks";
             qaRow1.appendChild(releaseBtn);
-            qaRow1.appendChild(unlockBtn);
             quickActions.appendChild(qaRow1);
             // Row 1b: confirm-before-escaping (centered, subtle, between danger buttons and picker)
             const qaConfirmRow = document.createElement("div");
@@ -14377,8 +14342,8 @@
             // Row 2: self-picker toggle (full-width, subtle)
             const selfPickToggle = document.createElement("button");
             selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
-            selfPickToggle.textContent = "↓ Pick items to remove from yourself";
-            selfPickToggle.title = "Choose specific restraints or locks to strip from yourself";
+            selfPickToggle.textContent = "↓ Pick restraints to remove";
+            selfPickToggle.title = "Choose specific restraints to strip from yourself";
             selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.color = "#cf6f98"; });
             selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none")
                 selfPickToggle.style.color = "#7a4a5e"; });
@@ -14422,95 +14387,62 @@
             selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
             const selfPickStatus = document.createElement("div");
             selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
-            // Track selections: group → "restraint" | "lock"
-            const selfSelected = new Map();
+            // Track selected restraint groups
+            const selfSelected = new Set();
             const rebuildSelfPicker = () => {
                 while (selfPickPanel.firstChild)
                     selfPickPanel.removeChild(selfPickPanel.firstChild);
                 selfSelected.clear();
                 const restraints = getPlayerRestraints();
-                const locks = getPlayerLockedItems();
-                if (restraints.length === 0 && locks.length === 0) {
+                if (restraints.length === 0) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:2px;";
-                    hint.textContent = "Nothing to remove — no restraints or locks found.";
+                    hint.textContent = "Nothing to remove — no restraints found.";
                     selfPickPanel.appendChild(hint);
                     selfPickPanel.appendChild(selfPickStatus);
                     return;
                 }
-                const makeSection = (title, items, kind) => {
-                    if (items.length === 0)
-                        return;
-                    const hdr = document.createElement("div");
-                    hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;";
-                    hdr.textContent = title;
-                    selfPickPanel.appendChild(hdr);
-                    for (const item of items) {
-                        const lbl = document.createElement("label");
-                        lbl.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
-                        lbl.addEventListener("mouseenter", () => { lbl.style.background = "rgba(42,20,33,0.6)"; });
-                        lbl.addEventListener("mouseleave", () => { lbl.style.background = ""; });
-                        const cb = document.createElement("input");
-                        cb.type = "checkbox";
-                        cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-                        cb.addEventListener("change", () => {
-                            if (cb.checked)
-                                selfSelected.set(item.group, kind);
-                            else
-                                selfSelected.delete(item.group);
-                        });
-                        const nm = document.createElement("span");
-                        nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                        nm.textContent = item.name;
-                        const gr = document.createElement("span");
-                        gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
-                        gr.textContent = item.group.replace("Item", "");
-                        lbl.appendChild(cb);
-                        lbl.appendChild(nm);
-                        lbl.appendChild(gr);
-                        selfPickPanel.appendChild(lbl);
-                    }
-                };
-                makeSection("Restraints", restraints, "restraint");
-                makeSection("Locks", locks, "lock");
-                // Two action buttons
-                const btnRow = document.createElement("div");
-                btnRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;";
+                for (const item of restraints) {
+                    const lbl = document.createElement("label");
+                    lbl.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
+                    lbl.addEventListener("mouseenter", () => { lbl.style.background = "rgba(42,20,33,0.6)"; });
+                    lbl.addEventListener("mouseleave", () => { lbl.style.background = ""; });
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox";
+                    cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                    cb.addEventListener("change", () => {
+                        if (cb.checked)
+                            selfSelected.add(item.group);
+                        else
+                            selfSelected.delete(item.group);
+                    });
+                    const nm = document.createElement("span");
+                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                    nm.textContent = item.name;
+                    const gr = document.createElement("span");
+                    gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                    gr.textContent = item.group.replace("Item", "");
+                    lbl.appendChild(cb);
+                    lbl.appendChild(nm);
+                    lbl.appendChild(gr);
+                    selfPickPanel.appendChild(lbl);
+                }
                 const removeSelBtn = document.createElement("button");
-                removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+                removeSelBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;margin-top:3px;";
                 removeSelBtn.textContent = "↑ Remove Selected";
                 removeSelBtn.addEventListener("mouseenter", () => { removeSelBtn.style.background = "#5a1c30"; });
                 removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a1020"; });
                 removeSelBtn.addEventListener("click", () => {
-                    const groups = [...selfSelected.entries()].filter(([, k]) => k === "restraint").map(([g]) => g);
-                    if (groups.length === 0) {
+                    if (selfSelected.size === 0) {
                         selfPickStatus.textContent = "Select restraints first.";
                         return;
                     }
-                    const n = removePlayerSpecificItems(groups);
+                    const n = removePlayerSpecificItems([...selfSelected]);
                     selfPickStatus.textContent = n > 0 ? ("✓ Removed " + n + " item(s).") : "Nothing removed.";
                     rebuildSelfPicker();
                     window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
                 });
-                const unlockSelBtn = document.createElement("button");
-                unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
-                unlockSelBtn.textContent = "🔓 Unlock Selected";
-                unlockSelBtn.addEventListener("mouseenter", () => { unlockSelBtn.style.background = "#1a4a2a"; });
-                unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#0f2a1a"; });
-                unlockSelBtn.addEventListener("click", () => {
-                    const groups = [...selfSelected.entries()].filter(([, k]) => k === "lock").map(([g]) => g);
-                    if (groups.length === 0) {
-                        selfPickStatus.textContent = "Select locks first.";
-                        return;
-                    }
-                    const n = unlockPlayerSpecificItems(groups);
-                    selfPickStatus.textContent = n > 0 ? ("✓ Unlocked " + n + " item(s).") : "Nothing unlocked.";
-                    rebuildSelfPicker();
-                    window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
-                });
-                btnRow.appendChild(removeSelBtn);
-                btnRow.appendChild(unlockSelBtn);
-                selfPickPanel.appendChild(btnRow);
+                selfPickPanel.appendChild(removeSelBtn);
                 selfPickPanel.appendChild(selfPickStatus);
             };
             selfPickToggle.addEventListener("click", () => {
@@ -14537,23 +14469,6 @@
                 if (selfPickPanel.style.display !== "none")
                     rebuildSelfPicker();
                 window.setTimeout(() => { releaseBtn.disabled = false; }, 1500);
-            });
-            unlockBtn.addEventListener("click", () => {
-                if (getAntiRestraintConfirm()) {
-                    showQuickConfirm("Remove all locks?", () => {
-                        unlockBtn.disabled = true;
-                        unlockItems();
-                        if (selfPickPanel.style.display !== "none")
-                            rebuildSelfPicker();
-                        window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
-                    });
-                    return;
-                }
-                unlockBtn.disabled = true;
-                unlockItems();
-                if (selfPickPanel.style.display !== "none")
-                    rebuildSelfPicker();
-                window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
             });
             // Badge visibility toggle row (below the danger buttons)
             // Safeword permanent row (always visible, any tab)
@@ -24744,7 +24659,20 @@
                             const mood = getKittyMood();
                             const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                             try {
-                                if (em.type === "emote") {
+                                if (em.id === "headpat") {
+                                    // Register as a real BC activity so it shows as a proper headpat
+                                    ServerSend("ChatRoomChat", {
+                                        Type: "Activity",
+                                        Content: "CaressItemHead",
+                                        Dictionary: [
+                                            { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
+                                            { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER },
+                                            { Tag: "ActivityGroup", Text: "ItemHead" },
+                                            { Tag: "ActivityName", Text: "Caress" },
+                                        ],
+                                    });
+                                }
+                                else if (em.type === "emote") {
                                     ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
                                 }
                                 else {
@@ -25171,35 +25099,6 @@
                             sendKittyCmd("punish", JSON.stringify({ label: s.label, mood, items: s.items }));
                         }));
                     }
-                    row.appendChild(makePill("🔓 Release all", "#70a870", () => {
-                        var _a, _b, _c, _d;
-                        try {
-                            const w = window;
-                            const chars = w.ChatRoomCharacter;
-                            const emery = chars === null || chars === void 0 ? void 0 : chars.find(c => c.MemberNumber === EMERY_MEMBER);
-                            if (!emery) {
-                                alert("Emery is not in the room!");
-                                return;
-                            }
-                            const appearance = (_a = emery.Appearance) !== null && _a !== void 0 ? _a : [];
-                            for (const item of [...appearance]) {
-                                const assetGroup = (_b = item.Asset) === null || _b === void 0 ? void 0 : _b.Group;
-                                const groupName = assetGroup === null || assetGroup === void 0 ? void 0 : assetGroup.Name;
-                                // Only remove restraint-slot items — never clothing, hair, body, etc.
-                                if (!groupName || !RESTRAINT_GROUPS.has(groupName))
-                                    continue;
-                                try {
-                                    (_c = w.InventoryRemove) === null || _c === void 0 ? void 0 : _c.call(w, emery, groupName, false);
-                                }
-                                catch ( /* skip locked */_e) { /* skip locked */ }
-                            }
-                            // Push=true so the server and other players see the change
-                            (_d = w.CharacterRefresh) === null || _d === void 0 ? void 0 : _d.call(w, emery, true, false);
-                        }
-                        catch (err) {
-                            console.warn("[EBC Kitty] Release error:", err);
-                        }
-                    }));
                     restraintsWrap.appendChild(row);
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
@@ -25262,9 +25161,206 @@
                     };
                     [lblInp, kindInpR, roughInpR].forEach(i => i.addEventListener("input", saveInpR));
                     delBtn.addEventListener("click", () => { saveKittyRestraintSets(getKittyRestraintSets().filter((_, i) => i !== idx)); renderRestraintSets(true); });
+                    // ── Per-item list ───────────────────────────────────────────
+                    const itemsHdr = document.createElement("div");
+                    itemsHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;";
+                    itemsHdr.textContent = "Items";
+                    r.appendChild(itemsHdr);
+                    const colorToStr = (c) => Array.isArray(c) ? c.join(", ") : (c !== null && c !== void 0 ? c : "Default");
+                    const strToColor = (v) => {
+                        const t = v.trim();
+                        if (!t || t === "Default")
+                            return "Default";
+                        if (t.includes(","))
+                            return t.split(",").map(x => x.trim()).filter(Boolean);
+                        return t;
+                    };
+                    const rebuildItemRows = () => {
+                        var _a, _b;
+                        // Remove old item rows (everything after itemsHdr up to the add-row sentinel)
+                        const addSentinel = r.querySelector(".ebc-add-item-sentinel");
+                        const toRemove = [];
+                        let el = itemsHdr.nextElementSibling;
+                        while (el && el !== addSentinel) {
+                            toRemove.push(el);
+                            el = el.nextElementSibling;
+                        }
+                        toRemove.forEach(e => e.remove());
+                        const live = (_b = (_a = getKittyRestraintSets()[idx]) === null || _a === void 0 ? void 0 : _a.items) !== null && _b !== void 0 ? _b : [];
+                        if (live.length === 0) {
+                            const empty = document.createElement("div");
+                            empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;";
+                            empty.textContent = "No items yet — add one below.";
+                            r.insertBefore(empty, addSentinel);
+                            return;
+                        }
+                        live.forEach((item, iIdx) => {
+                            const row = document.createElement("div");
+                            row.style.cssText = "display:flex;align-items:center;gap:3px;padding:2px 0;";
+                            const nameLbl = document.createElement("span");
+                            nameLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;";
+                            nameLbl.textContent = item.Name;
+                            nameLbl.title = item.Name;
+                            const grpLbl = document.createElement("span");
+                            grpLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                            grpLbl.textContent = item.Group.replace("Item", "");
+                            const colorInp = document.createElement("input");
+                            colorInp.value = colorToStr(item.Color);
+                            colorInp.placeholder = "Default";
+                            colorInp.style.cssText = "width:80px;flex-shrink:0;" + INP;
+                            colorInp.title = "Colour: hex (#rrggbb), comma-separated for layers, or Default";
+                            colorInp.addEventListener("change", () => {
+                                var _a;
+                                const sets = getKittyRestraintSets();
+                                if ((_a = sets[idx]) === null || _a === void 0 ? void 0 : _a.items[iIdx]) {
+                                    sets[idx].items[iIdx].Color = strToColor(colorInp.value);
+                                    saveKittyRestraintSets(sets);
+                                }
+                            });
+                            const delItm = document.createElement("button");
+                            delItm.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                            delItm.textContent = "×";
+                            delItm.title = "Remove this item";
+                            delItm.addEventListener("click", () => {
+                                const sets = getKittyRestraintSets();
+                                if (sets[idx]) {
+                                    sets[idx].items.splice(iIdx, 1);
+                                    saveKittyRestraintSets(sets);
+                                }
+                                rebuildItemRows();
+                            });
+                            row.appendChild(nameLbl);
+                            row.appendChild(grpLbl);
+                            row.appendChild(colorInp);
+                            row.appendChild(delItm);
+                            r.insertBefore(row, addSentinel);
+                        });
+                    };
+                    // ── Add-item builder ────────────────────────────────────────
+                    const addItemSentinel = document.createElement("div");
+                    addItemSentinel.className = "ebc-add-item-sentinel";
+                    addItemSentinel.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:3px;border-top:1px solid #2a1421;padding-top:4px;";
+                    const getGroupAssets = (group) => {
+                        var _a;
+                        try {
+                            const w = window;
+                            const bcAssets = w.Asset;
+                            return (_a = bcAssets === null || bcAssets === void 0 ? void 0 : bcAssets.filter(a => a.Group.Name === group).map(a => a.Name).sort()) !== null && _a !== void 0 ? _a : [];
+                        }
+                        catch (_b) {
+                            return [];
+                        }
+                    };
+                    const aiSlotRow = document.createElement("div");
+                    aiSlotRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                    const aiSlotLbl = document.createElement("span");
+                    aiSlotLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                    aiSlotLbl.textContent = "Slot";
+                    const aiSlotSel = document.createElement("select");
+                    aiSlotSel.style.cssText = "flex:1;min-width:0;" + INP;
+                    const aiSlotPh = document.createElement("option");
+                    aiSlotPh.value = "";
+                    aiSlotPh.textContent = "— slot —";
+                    aiSlotPh.disabled = true;
+                    aiSlotPh.selected = true;
+                    aiSlotSel.appendChild(aiSlotPh);
+                    for (const grp of RESTRAINT_GROUPS) {
+                        const o = document.createElement("option");
+                        o.value = grp;
+                        o.textContent = grp.replace("Item", "");
+                        aiSlotSel.appendChild(o);
+                    }
+                    aiSlotRow.appendChild(aiSlotLbl);
+                    aiSlotRow.appendChild(aiSlotSel);
+                    const aiItemRow = document.createElement("div");
+                    aiItemRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                    const aiItemLbl = document.createElement("span");
+                    aiItemLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                    aiItemLbl.textContent = "Item";
+                    const aiItemSel = document.createElement("select");
+                    aiItemSel.style.cssText = "flex:1;min-width:0;" + INP;
+                    const aiItemPh = document.createElement("option");
+                    aiItemPh.value = "";
+                    aiItemPh.textContent = "— pick slot first —";
+                    aiItemPh.disabled = true;
+                    aiItemPh.selected = true;
+                    aiItemSel.appendChild(aiItemPh);
+                    aiItemRow.appendChild(aiItemLbl);
+                    aiItemRow.appendChild(aiItemSel);
+                    aiSlotSel.addEventListener("change", () => {
+                        while (aiItemSel.firstChild)
+                            aiItemSel.removeChild(aiItemSel.firstChild);
+                        const names = getGroupAssets(aiSlotSel.value);
+                        if (names.length === 0) {
+                            const o = document.createElement("option");
+                            o.value = "";
+                            o.textContent = "— none found —";
+                            o.disabled = true;
+                            o.selected = true;
+                            aiItemSel.appendChild(o);
+                        }
+                        else {
+                            const ph2 = document.createElement("option");
+                            ph2.value = "";
+                            ph2.textContent = "— pick item —";
+                            ph2.disabled = true;
+                            ph2.selected = true;
+                            aiItemSel.appendChild(ph2);
+                            for (const n of names) {
+                                const o = document.createElement("option");
+                                o.value = n;
+                                o.textContent = n;
+                                aiItemSel.appendChild(o);
+                            }
+                        }
+                    });
+                    const aiColorRow = document.createElement("div");
+                    aiColorRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                    const aiColorLbl = document.createElement("span");
+                    aiColorLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;";
+                    aiColorLbl.textContent = "Color";
+                    const aiColorInp = document.createElement("input");
+                    aiColorInp.placeholder = "Default  or  #rrggbb, #rrggbb2…";
+                    aiColorInp.style.cssText = "flex:1;min-width:0;" + INP;
+                    const aiAddBtn = document.createElement("button");
+                    aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                    aiAddBtn.textContent = "+ Add";
+                    aiColorRow.appendChild(aiColorLbl);
+                    aiColorRow.appendChild(aiColorInp);
+                    aiColorRow.appendChild(aiAddBtn);
+                    aiAddBtn.addEventListener("click", () => {
+                        var _a, _b;
+                        if (!aiSlotSel.value || !aiItemSel.value)
+                            return;
+                        const newItem = {
+                            Name: aiItemSel.value,
+                            Group: aiSlotSel.value,
+                            Color: strToColor(aiColorInp.value || "Default"),
+                        };
+                        const sets = getKittyRestraintSets();
+                        if (sets[idx]) {
+                            sets[idx].items.push(newItem);
+                            saveKittyRestraintSets(sets);
+                        }
+                        // Reset fields
+                        aiSlotSel.value = "";
+                        aiItemSel.innerHTML = "";
+                        aiItemSel.appendChild(aiItemPh);
+                        aiItemPh.selected = true;
+                        aiColorInp.value = "";
+                        rebuildItemRows();
+                        // Update item count label
+                        countLbl.textContent = ((_b = (_a = getKittyRestraintSets()[idx]) === null || _a === void 0 ? void 0 : _a.items.length) !== null && _b !== void 0 ? _b : 0) + " items";
+                    });
+                    addItemSentinel.appendChild(aiSlotRow);
+                    addItemSentinel.appendChild(aiItemRow);
+                    addItemSentinel.appendChild(aiColorRow);
                     r.appendChild(r1);
                     r.appendChild(kindRowR);
                     r.appendChild(roughRowR);
+                    r.appendChild(itemsHdr);
+                    rebuildItemRows();
+                    r.appendChild(addItemSentinel);
                     list.appendChild(r);
                 });
                 const addBox = document.createElement("div");
@@ -26853,7 +26949,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.69";
+    const MOD_VERSION = "2.2.70";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26864,6 +26960,18 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.70",
+            changes: [
+                "Removed 'Remove Locks' button from quick actions sidebar and 'Unlock Selected' from the self-picker — locks are no longer managed here.",
+                "Self-picker now only shows restraints.",
+                "Rough resistance popup drops to 1 s (was 3 s) — be quick to fight back!",
+                "Popup fight/accept/ignore buttons no longer auto-send room emotes — you decide what to say.",
+                "Headpat button now registers as a real BC Caress activity on Emery's head.",
+                "Removed '🔓 Release all' button from kitty restraints view.",
+                "Restraint set editor: each item in the set now shows a colour input and a delete button; new 'Add item' builder with slot/item dropdowns populated from BC's asset list.",
+            ],
+        },
         {
             version: "2.2.69",
             changes: [
@@ -29267,7 +29375,7 @@
         const sub = document.createElement("div");
         sub.style.cssText = "font-size:10px;color:#967281;margin-bottom:12px;";
         sub.textContent = mood === "rough"
-            ? "Miss Lucy is being stern with you... (3 s)"
+            ? "Miss Lucy is being stern with you... (1 s)"
             : "Miss Lucy is correcting you gently... (8 s)";
         const timerBar = document.createElement("div");
         timerBar.style.cssText = "height:4px;background:#3a1928;border-radius:2px;margin-bottom:12px;overflow:hidden;";
@@ -29281,16 +29389,7 @@
         const fightBtn = document.createElement("button");
         fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
         fightBtn.textContent = "Fight back! 💪";
-        fightBtn.addEventListener("click", () => {
-            try {
-                const emote = mood === "rough"
-                    ? "squirms and pulls away defiantly, refusing to give in~"
-                    : "pouts and gently shakes her head~ No, no...";
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            close();
-        });
+        fightBtn.addEventListener("click", () => { close(); });
         // ── Accept — applies restraints if any ─────────────────────────────────
         const acceptBtn = document.createElement("button");
         acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
@@ -29328,13 +29427,6 @@
                 }
                 catch ( /* ignore */_j) { /* ignore */ }
             }
-            try {
-                const emote = mood === "rough"
-                    ? "flinches but lowers her gaze, quietly accepting~"
-                    : "gives a tiny nod and lowers her eyes obediently~";
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
-            }
-            catch ( /* ignore */_k) { /* ignore */ }
             close();
         });
         btnRow.appendChild(fightBtn);
@@ -29345,8 +29437,8 @@
         box.appendChild(btnRow);
         overlay.appendChild(box);
         document.body.appendChild(overlay);
-        // Rough = 3 s, Kind = 8 s — auto-accept when timer expires
-        const DURATION = mood === "rough" ? 3000 : 8000;
+        // Rough = 1 s, Kind = 8 s — auto-accept when timer expires
+        const DURATION = mood === "rough" ? 1000 : 8000;
         const startTime = Date.now();
         const tick = () => {
             const pct = Math.max(0, 1 - (Date.now() - startTime) / DURATION);
@@ -29386,23 +29478,11 @@
         const acceptBtn = document.createElement("button");
         acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
         acceptBtn.textContent = "Accept~ 🥰";
-        acceptBtn.addEventListener("click", () => {
-            try {
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: "brightens up happily, tail wagging~ 💜", Dictionary: [] });
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            close();
-        });
+        acceptBtn.addEventListener("click", () => { close(); });
         const ignoreBtn = document.createElement("button");
         ignoreBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #7a5a6a;background:transparent;color:#7a5a6a;";
         ignoreBtn.textContent = "Ignore 🙈";
-        ignoreBtn.addEventListener("click", () => {
-            try {
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: "glances away shyly, pretending not to notice~", Dictionary: [] });
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
-            close();
-        });
+        ignoreBtn.addEventListener("click", () => { close(); });
         btnRow.appendChild(acceptBtn);
         btnRow.appendChild(ignoreBtn);
         box.appendChild(title);
