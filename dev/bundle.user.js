@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.63
+// @version      2.2.64
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11286,8 +11286,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const DEFAULT_EMOTES = [
         { id: "headpat", label: "🐾 Headpat", text: "gently pats Emery on the head~ 🐾", type: "emote" },
         { id: "goodgirl", label: "✨ Good girl", text: "scratches Emery behind the ears~ Good girl~ ✨", type: "emote" },
-        { id: "treat", label: "🍖 Treat", text: "holds out a treat for her little pet~ 🍖", type: "emote" },
-        { id: "praise", label: "🎀 Praise", text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀", type: "emote" },
+        { id: "treat", label: "🍖 Treat", text: "holds out a treat for her little pet~ 🍖", type: "emote", interactive: true },
+        { id: "praise", label: "🎀 Praise", text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀", type: "emote", interactive: true },
         { id: "announce", label: "💜 Mine", text: "Emery belongs to Lucy~ 💜", type: "action" },
         { id: "snuggle", label: "🤗 Snuggle", text: "pulls Emery into a warm snuggle, resting her chin on her head~", type: "emote" },
     ];
@@ -24623,6 +24623,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 }
                             }
                             catch ( /* ignore */_a) { /* ignore */ }
+                            // If interactive, send a react beep so Emery can respond
+                            if (em.interactive) {
+                                sendKittyCmd("react", JSON.stringify({ label: em.label, text: em.text }));
+                            }
                         }));
                     }
                     emotesWrap.appendChild(row);
@@ -24658,6 +24662,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     };
                     lblInp.addEventListener("input", saveInp);
                     txtInp.addEventListener("input", saveInp);
+                    // Interactive toggle — 🔔 = Emery gets a react popup; 🔕 = room-only
+                    const reactBtn = document.createElement("button");
+                    const updateReactBtn = () => {
+                        var _a;
+                        const on = !!((_a = getKittyEmotes()[idx]) === null || _a === void 0 ? void 0 : _a.interactive);
+                        reactBtn.textContent = on ? "🔔" : "🔕";
+                        reactBtn.title = on ? "Emery gets a react popup — click to disable" : "Room emote only — click to make Emery react";
+                        reactBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;cursor:pointer;flex-shrink:0;opacity:" + (on ? "1" : "0.4") + ";";
+                    };
+                    updateReactBtn();
+                    reactBtn.addEventListener("click", () => {
+                        const updated = getKittyEmotes();
+                        updated[idx].interactive = !updated[idx].interactive;
+                        saveKittyEmotes(updated);
+                        updateReactBtn();
+                    });
                     const delBtn = document.createElement("button");
                     delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                     delBtn.textContent = "×";
@@ -24668,6 +24688,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     r.appendChild(lblInp);
                     r.appendChild(txtInp);
                     r.appendChild(typeBtn);
+                    r.appendChild(reactBtn);
                     r.appendChild(delBtn);
                     list.appendChild(r);
                 });
@@ -24838,8 +24859,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const mood = getKittyMood();
                             const emoteText = mood === "rough" ? (pun.roughEmote || pun.kindEmote) : (pun.kindEmote || pun.roughEmote);
                             sendRoomEmote(emoteText);
-                            // Notify Emery so she can fight back
-                            sendKittyCmd("punish", `${pun.label}:${mood}`);
+                            // Resolve restraint items from the linked set (if any)
+                            const items = [];
+                            if (pun.restraintSetId) {
+                                const set = getKittyRestraintSets().find(s => s.id === pun.restraintSetId);
+                                if (set)
+                                    items.push(...set.items);
+                            }
+                            // Send JSON payload — Emery gets a timed resist popup; if she accepts, items apply
+                            sendKittyCmd("punish", JSON.stringify({ label: pun.label, mood, items }));
                         }));
                     }
                     punishWrap.appendChild(row);
@@ -24887,6 +24915,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roughInp.style.cssText = "flex:1;min-width:0;" + INP;
                     roughRow.appendChild(roughLbl);
                     roughRow.appendChild(roughInp);
+                    // Row 4: restraint set to apply on accept
+                    const bindRow = document.createElement("div");
+                    bindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const bindLbl = document.createElement("span");
+                    bindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c07040;flex-shrink:0;width:38px;";
+                    bindLbl.textContent = "⛓ Bind:";
+                    const bindSel = document.createElement("select");
+                    bindSel.style.cssText = "flex:1;min-width:0;" + INP;
+                    const noneOpt = document.createElement("option");
+                    noneOpt.value = "";
+                    noneOpt.textContent = "— None —";
+                    bindSel.appendChild(noneOpt);
+                    for (const s of getKittyRestraintSets()) {
+                        const opt = document.createElement("option");
+                        opt.value = s.id;
+                        opt.textContent = s.label;
+                        if (s.id === pun.restraintSetId)
+                            opt.selected = true;
+                        bindSel.appendChild(opt);
+                    }
+                    bindSel.addEventListener("change", () => {
+                        const updated = getKittyPunishments();
+                        updated[idx].restraintSetId = bindSel.value || undefined;
+                        saveKittyPunishments(updated);
+                    });
+                    bindRow.appendChild(bindLbl);
+                    bindRow.appendChild(bindSel);
                     const saveInp = () => {
                         const updated = getKittyPunishments();
                         updated[idx].label = lblInp.value;
@@ -24902,6 +24957,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     r.appendChild(r1);
                     r.appendChild(kindRow);
                     r.appendChild(roughRow);
+                    r.appendChild(bindRow);
                     list.appendChild(r);
                 });
                 const addRow = document.createElement("div");
@@ -26505,7 +26561,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.63";
+    const MOD_VERSION = "2.2.64";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26516,6 +26572,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.64",
+            changes: [
+                "Rough punishment timer: 3 s instead of 8 s (kind stays 8 s). Subtitle shows the time remaining so Emery knows how long she has.",
+                "Punishments can now carry a restraint set: in edit mode pick a saved kitty restraint set from the '⛓ Bind' dropdown. When Emery accepts (or timer runs out), those items are applied to her and synced to the room.",
+                "Interactive emotes: treat 🍖 and praise 🎀 now send a react beep. Emery gets a soft 6-second popup to 'Accept~ 🥰' (sends happy emote) or 'Ignore 🙈' (glances away). Toggle per-emote with the 🔔/🔕 button in emote edit mode.",
+            ],
+        },
         {
             version: "2.2.63",
             changes: [
@@ -28860,32 +28924,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             console.warn("[EBC] setArometerProgress error:", err);
         }
     }
-    function showKittyResistancePopup(label, mood) {
+    function showKittyResistancePopup(label, mood, restraintItems = []) {
         if (document.getElementById("ebc-kitty-resist"))
             return;
         const overlay = document.createElement("div");
         overlay.id = "ebc-kitty-resist";
-        overlay.style.cssText = [
-            "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;",
-            "display:flex;align-items:center;justify-content:center;",
-            "background:rgba(0,0,0,0.55);",
-        ].join("");
+        overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);";
         const box = document.createElement("div");
-        box.style.cssText = [
-            "background:linear-gradient(160deg,#1b0d17,#2a0e1e);",
-            "border:2px solid #6b3048;border-radius:10px;",
-            "padding:18px 22px;width:300px;text-align:center;",
-            "font-family:'Trebuchet MS',serif;",
-            "box-shadow:0 4px 32px #0008;",
-        ].join("");
+        box.style.cssText = "background:linear-gradient(160deg,#1b0d17,#2a0e1e);border:2px solid #6b3048;border-radius:10px;padding:18px 22px;width:300px;text-align:center;font-family:'Trebuchet MS',serif;box-shadow:0 4px 32px #0008;";
         const title = document.createElement("div");
         title.style.cssText = "font-size:13px;font-weight:bold;color:#cf6f98;margin-bottom:6px;";
         title.textContent = `💢 ${label}`;
         const sub = document.createElement("div");
         sub.style.cssText = "font-size:10px;color:#967281;margin-bottom:12px;";
         sub.textContent = mood === "rough"
-            ? "Miss Lucy is being stern with you..."
-            : "Miss Lucy is correcting you gently...";
+            ? "Miss Lucy is being stern with you... (3 s)"
+            : "Miss Lucy is correcting you gently... (8 s)";
         const timerBar = document.createElement("div");
         timerBar.style.cssText = "height:4px;background:#3a1928;border-radius:2px;margin-bottom:12px;overflow:hidden;";
         const timerFill = document.createElement("div");
@@ -28894,12 +28948,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const btnRow = document.createElement("div");
         btnRow.style.cssText = "display:flex;gap:10px;justify-content:center;";
         const close = () => { overlay.remove(); };
+        // ── Fight back ──────────────────────────────────────────────────────────
         const fightBtn = document.createElement("button");
-        fightBtn.style.cssText = [
-            "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;",
-            "padding:7px 16px;border-radius:6px;cursor:pointer;",
-            "border:1px solid #e07070;background:#e0707018;color:#e07070;",
-        ].join("");
+        fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
         fightBtn.textContent = "Fight back! 💪";
         fightBtn.addEventListener("click", () => {
             try {
@@ -28911,21 +28962,37 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
             close();
         });
+        // ── Accept — applies restraints if any ─────────────────────────────────
         const acceptBtn = document.createElement("button");
-        acceptBtn.style.cssText = [
-            "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;",
-            "padding:7px 16px;border-radius:6px;cursor:pointer;",
-            "border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;",
-        ].join("");
+        acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
         acceptBtn.textContent = "Accept~ 🌸";
         acceptBtn.addEventListener("click", () => {
+            var _a, _b, _c;
+            // Apply restraint items to self
+            if (restraintItems.length > 0) {
+                try {
+                    const w = window;
+                    for (const item of restraintItems) {
+                        (_a = w.InventoryWear) === null || _a === void 0 ? void 0 : _a.call(w, Player, item.Name, item.Group, (_b = item.Color) !== null && _b !== void 0 ? _b : "Default");
+                    }
+                    (_c = w.CharacterRefresh) === null || _c === void 0 ? void 0 : _c.call(w, Player, false, false);
+                    if (Player.OnlineID != null) {
+                        callBC(() => ServerSend("ChatRoomCharacterUpdate", {
+                            ID: Player.OnlineID,
+                            ActivePose: Player.ActivePose,
+                            Appearance: ServerAppearanceBundle(Player.Appearance),
+                        }));
+                    }
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
+            }
             try {
                 const emote = mood === "rough"
                     ? "flinches but lowers her gaze, quietly accepting~"
                     : "gives a tiny nod and lowers her eyes obediently~";
                 ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_e) { /* ignore */ }
             close();
         });
         btnRow.appendChild(fightBtn);
@@ -28936,8 +29003,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         box.appendChild(btnRow);
         overlay.appendChild(box);
         document.body.appendChild(overlay);
-        // 8-second countdown — auto-accept when it expires
-        const DURATION = 8000;
+        // Rough = 3 s, Kind = 8 s — auto-accept when timer expires
+        const DURATION = mood === "rough" ? 3000 : 8000;
         const startTime = Date.now();
         const tick = () => {
             const pct = Math.max(0, 1 - (Date.now() - startTime) / DURATION);
@@ -28951,7 +29018,73 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         };
         requestAnimationFrame(tick);
     }
+    // Shown when Lucy sends an interactive emote (treat, praise, etc.)
+    function showKittyReactPopup(label) {
+        if (document.getElementById("ebc-kitty-react"))
+            return;
+        const overlay = document.createElement("div");
+        overlay.id = "ebc-kitty-react";
+        overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);";
+        const box = document.createElement("div");
+        box.style.cssText = "background:linear-gradient(160deg,#1b0d17,#2a0e1e);border:2px solid #6b3048;border-radius:10px;padding:18px 22px;width:280px;text-align:center;font-family:'Trebuchet MS',serif;box-shadow:0 4px 32px #0008;";
+        const title = document.createElement("div");
+        title.style.cssText = "font-size:13px;font-weight:bold;color:#cf6f98;margin-bottom:6px;";
+        title.textContent = label;
+        const sub = document.createElement("div");
+        sub.style.cssText = "font-size:10px;color:#967281;margin-bottom:12px;";
+        sub.textContent = "Miss Lucy is being sweet to you~ 💜";
+        const timerBar = document.createElement("div");
+        timerBar.style.cssText = "height:4px;background:#3a1928;border-radius:2px;margin-bottom:12px;overflow:hidden;";
+        const timerFill = document.createElement("div");
+        timerFill.style.cssText = "height:100%;background:#79c8a0;border-radius:2px;width:100%;";
+        timerBar.appendChild(timerFill);
+        const btnRow = document.createElement("div");
+        btnRow.style.cssText = "display:flex;gap:10px;justify-content:center;";
+        const close = () => { overlay.remove(); };
+        const acceptBtn = document.createElement("button");
+        acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
+        acceptBtn.textContent = "Accept~ 🥰";
+        acceptBtn.addEventListener("click", () => {
+            try {
+                ServerSend("ChatRoomChat", { Type: "Emote", Content: "brightens up happily, tail wagging~ 💜", Dictionary: [] });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            close();
+        });
+        const ignoreBtn = document.createElement("button");
+        ignoreBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #7a5a6a;background:transparent;color:#7a5a6a;";
+        ignoreBtn.textContent = "Ignore 🙈";
+        ignoreBtn.addEventListener("click", () => {
+            try {
+                ServerSend("ChatRoomChat", { Type: "Emote", Content: "glances away shyly, pretending not to notice~", Dictionary: [] });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            close();
+        });
+        btnRow.appendChild(acceptBtn);
+        btnRow.appendChild(ignoreBtn);
+        box.appendChild(title);
+        box.appendChild(sub);
+        box.appendChild(timerBar);
+        box.appendChild(btnRow);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        // 6-second countdown — auto-accepts (it's a nice gesture, after all~)
+        const startTime = Date.now();
+        const tick = () => {
+            const pct = Math.max(0, 1 - (Date.now() - startTime) / 6000);
+            timerFill.style.width = `${pct * 100}%`;
+            if (pct <= 0) {
+                acceptBtn.click();
+            }
+            else {
+                requestAnimationFrame(tick);
+            }
+        };
+        requestAnimationFrame(tick);
+    }
     function handleKittyCommand(msg) {
+        var _a;
         const parsed = parseKittyCmd(msg);
         if (!parsed)
             return;
@@ -28981,15 +29114,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     releaseRestraints();
                     break;
                 case "punish": {
-                    const colonIdx = arg.lastIndexOf(":");
-                    const punLabel = colonIdx >= 0 ? arg.slice(0, colonIdx) : arg;
-                    const punMood = (colonIdx >= 0 ? arg.slice(colonIdx + 1) : "kind");
-                    showKittyResistancePopup(punLabel, punMood);
+                    try {
+                        // New format: JSON payload { label, mood, items }
+                        const payload = JSON.parse(arg);
+                        showKittyResistancePopup(payload.label, payload.mood, (_a = payload.items) !== null && _a !== void 0 ? _a : []);
+                    }
+                    catch (_b) {
+                        // Legacy fallback: "Label:mood"
+                        const colonIdx = arg.lastIndexOf(":");
+                        showKittyResistancePopup(colonIdx >= 0 ? arg.slice(0, colonIdx) : arg, (colonIdx >= 0 ? arg.slice(colonIdx + 1) : "kind"), []);
+                    }
+                    break;
+                }
+                case "react": {
+                    try {
+                        const payload = JSON.parse(arg);
+                        showKittyReactPopup(payload.label);
+                    }
+                    catch (_c) {
+                        showKittyReactPopup(arg);
+                    }
                     break;
                 }
             }
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
     }
     function handleMetaCommand(inputValue) {
         var _a, _b, _c;
