@@ -76,14 +76,14 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         id: "headpat",  label: "🐾 Headpat",
         text:      "gently pats Emery on the head~ 🐾",
         roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
-        type: "emote", expression: "Ears:Wiggle",
+        type: "emote", expression: "Blush:Low",
         bcGroup: "ItemHead", bcActivity: "Pet",
     },
     {
         id: "goodgirl", label: "✨ Good girl",
         text:      "scratches Emery behind the ears~ Good girl~ ✨",
         roughText: "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
-        type: "emote", expression: "Ears:Wiggle",
+        type: "emote", expression: "Blush:Medium",
     },
     {
         id: "treat",    label: "🍖 Treat",
@@ -208,9 +208,11 @@ const ROUGH_TEXT_SEEDS: Record<string, string> = {
     "spank":    "delivers a sharp smack to Emery's bottom without warning~",
     "bap":      "gives Emery a sharp flick on the nose without warning~",
 };
+// "Ears" is not a valid CharacterSetFacialExpression group in BC.
+// Seeds updated to valid Blush states (only applied when the field is still undefined).
 const EXPRESSION_SEEDS: Record<string, string> = {
-    "headpat":  "Ears:Wiggle",
-    "goodgirl": "Ears:Wiggle",
+    "headpat":  "Blush:Low",
+    "goodgirl": "Blush:Medium",
 };
 // Seed bcGroup/bcActivity for stored emotes that predate these fields (v2.2.75+).
 const BC_ACTIVITY_SEEDS: Record<string, { group: string; activity: string }> = {

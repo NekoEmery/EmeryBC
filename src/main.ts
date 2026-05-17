@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.85";
+const MOD_VERSION = "2.2.86";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.86",
+        changes: [
+            "Fix: copy-restraints and rescue item list could silently return empty if any item in the character's appearance had an unresolved asset (mod-injected or mismatched BC version) — both paths now null-guard Asset before filtering, so one bad item no longer wipes the whole list.",
+            "Fix: rescue item list now filters to RESTRAINT_GROUPS only (was showing all appearance items including hair/clothes).",
+            "Fix: KITTY_EXPRESSIONS were using wrong BC state names — Blush used '1'/'3' (should be 'Low'/'Medium'/'High'/'Extreme'), Mouth:Closed does not exist and caused the mouth to go invisible, 'Ears' is not a valid expression group. All states corrected against BC's actual asset directory names. Eyebrows group added.",
+            "Fix: headpat/good girl emote expressions were 'Ears:Wiggle' which is not a valid BC expression — updated to Blush:Low / Blush:Medium.",
+        ],
+    },
     {
         version: "2.2.85",
         changes: [

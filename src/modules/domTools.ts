@@ -375,11 +375,15 @@ export function getRoomMemberItems(memberId: number): Array<{ group: string; nam
         const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
         const char = room.find(c => c.MemberNumber === memberId);
         if (!char) return [];
-        return char.Appearance.map((item: Item) => {
-            const prop = item.Property as Record<string, unknown> | undefined;
-            const locked = typeof prop?.LockedBy === "string" && prop.LockedBy !== "";
-            return { group: item.Asset.Group.Name, name: item.Asset.Name, locked };
-        });
+        return char.Appearance
+            // Guard against unresolved assets (BC drops unknown assets, but mods can inject items
+            // where Asset is null — one bad entry would throw and return [] without this filter)
+            .filter((item: Item) => item.Asset?.Group?.Name && RESTRAINT_GROUPS.has(item.Asset.Group.Name))
+            .map((item: Item) => {
+                const prop = item.Property as Record<string, unknown> | undefined;
+                const locked = typeof prop?.LockedBy === "string" && prop.LockedBy !== "";
+                return { group: item.Asset.Group.Name, name: item.Asset.Name, locked };
+            });
     } catch { return []; }
 }
 

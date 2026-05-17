@@ -172,22 +172,43 @@ function showQuickConfirm(message: string, onConfirm: () => void): void {
 
 // -- Kitty reaction presets ----------------------------------------------------
 
+// Valid BC facial expression states (verified against Female3DCG asset directories).
+// Groups: Blush, Eyes, Eyes2, Mouth, Eyebrows, Fluids, Emoticon.
+// "Ears" is NOT a valid CharacterSetFacialExpression group — removed.
+// Empty state string → handler sends null → clears that group.
 const KITTY_EXPRESSIONS = [
-    { label: "— None —",         cmd: "" },
-    { label: "😊 Light blush",   cmd: "Blush:1" },
-    { label: "😳 Deep blush",    cmd: "Blush:3" },
-    { label: "😌 Eyes closed",   cmd: "Eyes:Closed" },
-    { label: "😰 Eyes down",     cmd: "Eyes:Downed" },
-    { label: "😠 Glare",         cmd: "Eyes:Glare" },
-    { label: "🥺 Sad eyes",      cmd: "Eyes:Sad" },
-    { label: "👀 Wide eyes",     cmd: "Eyes:Shocked" },
-    { label: "😊 Smile",         cmd: "Mouth:Smiling" },
-    { label: "😢 Sad mouth",     cmd: "Mouth:Sad" },
-    { label: "😤 Pout",          cmd: "Mouth:Pout" },
-    { label: "😶 Closed mouth",  cmd: "Mouth:Closed" },
-    { label: "👂 Ears wiggle",   cmd: "Ears:Wiggle" },
-    { label: "🐾 Ears flat",     cmd: "Ears:Flat" },
-    { label: "✨ Ears up",       cmd: "Ears:Up" },
+    // ── Blush ────────────────────────────────────────────────────
+    { label: "😊 Blush — light",    cmd: "Blush:Low" },
+    { label: "😊 Blush — medium",   cmd: "Blush:Medium" },
+    { label: "😳 Blush — high",     cmd: "Blush:High" },
+    { label: "🔥 Blush — extreme",  cmd: "Blush:Extreme" },
+    { label: "× Blush — clear",     cmd: "Blush:" },
+    // ── Eyes ─────────────────────────────────────────────────────
+    { label: "😌 Eyes — closed",    cmd: "Eyes:Closed" },
+    { label: "😳 Eyes — shy",       cmd: "Eyes:Shy" },
+    { label: "😢 Eyes — sad",       cmd: "Eyes:Sad" },
+    { label: "😱 Eyes — surprised", cmd: "Eyes:Surprised" },
+    { label: "😡 Eyes — angry",     cmd: "Eyes:Angry" },
+    { label: "😵 Eyes — dazed",     cmd: "Eyes:Dazed" },
+    { label: "💕 Eyes — heart",     cmd: "Eyes:Heart" },
+    { label: "😍 Eyes — lewd",      cmd: "Eyes:Lewd" },
+    { label: "× Eyes — clear",      cmd: "Eyes:" },
+    // ── Mouth ────────────────────────────────────────────────────
+    { label: "😊 Mouth — happy",    cmd: "Mouth:Happy" },
+    { label: "😢 Mouth — sad",      cmd: "Mouth:Sad" },
+    { label: "😤 Mouth — pout",     cmd: "Mouth:Pout" },
+    { label: "😠 Mouth — angry",    cmd: "Mouth:Angry" },
+    { label: "😩 Mouth — moan",     cmd: "Mouth:Moan" },
+    { label: "😈 Mouth — devious",  cmd: "Mouth:Devious" },
+    { label: "😬 Mouth — grin",     cmd: "Mouth:Grin" },
+    { label: "😋 Mouth — smirk",    cmd: "Mouth:Smirk" },
+    { label: "× Mouth — clear",     cmd: "Mouth:" },
+    // ── Eyebrows ─────────────────────────────────────────────────
+    { label: "🤨 Brow — raised",    cmd: "Eyebrows:Raised" },
+    { label: "😤 Brow — harsh",     cmd: "Eyebrows:Harsh" },
+    { label: "😡 Brow — angry",     cmd: "Eyebrows:Angry" },
+    { label: "😊 Brow — soft",      cmd: "Eyebrows:Soft" },
+    { label: "× Brow — clear",      cmd: "Eyebrows:" },
 ];
 
 const KITTY_REACTION_POSES = [
@@ -11455,7 +11476,7 @@ export class EBCDrawer {
                 const char = room.find(c => c.MemberNumber === num);
                 if (!char) { statusEl.textContent = "Character not found in room."; statusEl.style.color = "#ff6b6b"; return; }
 
-                const items = char.Appearance.filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+                const items = char.Appearance.filter((i: Item) => i.Asset?.Group?.Name && RESTRAINT_GROUPS.has(i.Asset.Group.Name));
                 if (items.length === 0) {
                     statusEl.textContent = "This character has no restraints.";
                     statusEl.style.color = "#9a7080";
