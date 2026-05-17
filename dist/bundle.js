@@ -25046,7 +25046,7 @@
             moodRow.appendChild(kindBtn);
             moodRow.appendChild(roughBtn);
             body.appendChild(moodRow);
-            // ── Grab Leash — prominent standalone button ──────────────────────────────
+            // ── Grab / Release Leash ─────────────────────────────────────────────────
             const leashRow = document.createElement("div");
             leashRow.style.cssText = "display:flex;gap:6px;margin-bottom:8px;";
             const leashBtn = document.createElement("button");
@@ -25057,9 +25057,6 @@
                 const leashList = w.ChatRoomLeashList;
                 return leashList ? leashList.includes(EMERY_MEMBER) : false;
             };
-            // Tug counter — resets when the leash is grabbed or released
-            let tugCount = 0;
-            const MAX_TUGS = 3;
             // Sync button label/style to current leash state
             const refreshLeashBtn = () => {
                 const held = isLeashHeld();
@@ -25082,7 +25079,7 @@
                 const w = window;
                 const leashList = w.ChatRoomLeashList;
                 if (held) {
-                    // Release leash — loosen collar back if it was tugged tight
+                    // Release leash
                     sendRoomEmote(mood === "rough"
                         ? "drops Emery's leash with a sharp flick, giving her collar a rough adjustment back to its usual fit~"
                         : "gently releases Emery's leash, carefully loosening her collar back to its comfortable fit~");
@@ -25098,8 +25095,6 @@
                     // Loosen neck — Caress to signal collar relief; LSCG_ReleaseNeck clears any choke pairing
                     runKittyActivity("ItemNeck", "Caress");
                     runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
-                    tugCount = 0;
-                    refreshTugBtn();
                 }
                 else {
                     // Grab leash — BC's HoldLeash hidden-message protocol
@@ -25112,92 +25107,10 @@
                             leashList.push(EMERY_MEMBER);
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
-                    tugCount = 0;
-                    refreshTugBtn();
                 }
-                // Update button to reflect new state
                 refreshLeashBtn();
             });
             leashRow.appendChild(leashBtn);
-            // ── Tug Leash — secondary button ────────────────────────────────────────
-            const tugBtn = document.createElement("button");
-            tugBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:9px 10px;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;white-space:nowrap;";
-            tugBtn.textContent = "↗ Tug";
-            // ── Untug Leash — loosen by one step ────────────────────────────────────
-            const untugBtn = document.createElement("button");
-            untugBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:9px 10px;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;white-space:nowrap;";
-            untugBtn.textContent = "↙ Untug";
-            const refreshTugBtn = () => {
-                tugBtn.title = tugCount >= MAX_TUGS
-                    ? `Already at max tightness (${MAX_TUGS}/${MAX_TUGS})`
-                    : `Give the leash a tug (${tugCount}/${MAX_TUGS})`;
-                tugBtn.style.opacity = tugCount >= MAX_TUGS ? "0.55" : "1";
-                // Untug is always active — LoosenLittle can fire even past the tug counter
-                untugBtn.title = `Loosen collar (BC LoosenLittle) — current tugs: ${tugCount}/${MAX_TUGS}`;
-                untugBtn.style.opacity = "1";
-            };
-            refreshTugBtn();
-            tugBtn.addEventListener("mouseenter", () => { tugBtn.style.background = "rgba(120,50,80,0.5)"; tugBtn.style.borderColor = "#c090b0"; });
-            tugBtn.addEventListener("mouseleave", () => { tugBtn.style.background = "rgba(80,40,60,0.35)"; tugBtn.style.borderColor = "#8a5a7888"; });
-            tugBtn.addEventListener("click", () => {
-                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
-                    return;
-                const mood = getKittyMood();
-                if (tugCount >= MAX_TUGS) {
-                    // Already at max — tell the room
-                    sendRoomEmote(mood === "rough"
-                        ? "yanks at the leash again, but it's already pulled as tight as it can go~"
-                        : "gives the leash a little tug, but there's no give left — it's already at full tightness~");
-                    tugBtn.style.background = "rgba(100,40,40,0.55)";
-                    setTimeout(() => { tugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
-                    return;
-                }
-                tugCount++;
-                sendRoomEmote(mood === "rough"
-                    ? "gives Emery's leash a sharp, decisive tug~"
-                    : "gives Emery's leash a gentle tug, urging her along~");
-                // Re-send HoldLeash so BC reinforces the follow relationship
-                try {
-                    ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
-                    const ww = window;
-                    const ll = ww.ChatRoomLeashList;
-                    if (ll && !ll.includes(EMERY_MEMBER))
-                        ll.push(EMERY_MEMBER);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                refreshLeashBtn();
-                refreshTugBtn();
-                // Brief flash
-                tugBtn.style.background = "rgba(140,60,90,0.55)";
-                setTimeout(() => { tugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
-            });
-            untugBtn.addEventListener("mouseenter", () => { untugBtn.style.background = "rgba(120,50,80,0.5)"; untugBtn.style.borderColor = "#c090b0"; });
-            untugBtn.addEventListener("mouseleave", () => { untugBtn.style.background = "rgba(80,40,60,0.35)"; untugBtn.style.borderColor = "#8a5a7888"; });
-            untugBtn.addEventListener("click", () => {
-                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
-                    return;
-                // Always fire BC's native LoosenLittle on the collar — each click loosens one step.
-                // This runs every time regardless of the tug counter so the collar keeps
-                // loosening as long as Lucy keeps clicking.
-                runKittyActivity("ItemNeck", "LoosenLittle");
-                if (tugCount <= 0) {
-                    // Counter already at zero — fire the activity silently (no chat spam)
-                    untugBtn.style.background = "rgba(60,100,80,0.45)";
-                    setTimeout(() => { untugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
-                    return;
-                }
-                tugCount--;
-                const mood = getKittyMood();
-                sendRoomEmote(mood === "rough"
-                    ? "yanks the leash back sharply, forcing some give back into the collar~"
-                    : "lets out slack in the leash, easing the pressure on Emery's collar~");
-                refreshTugBtn();
-                // Brief flash
-                untugBtn.style.background = "rgba(60,100,80,0.45)";
-                setTimeout(() => { untugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
-            });
-            leashRow.appendChild(tugBtn);
-            leashRow.appendChild(untugBtn);
             body.appendChild(leashRow);
             // Helper: pill-style action button (big, easy to tap).
             // cooldownMs: if > 0, button is briefly disabled after click to prevent
@@ -28455,7 +28368,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.119";
+    const MOD_VERSION = "2.2.120";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28466,6 +28379,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.120",
+            changes: [
+                "Kitty Leash: removed tug and untug buttons. The leash section now has only a single Grab / Let Go toggle button.",
+            ],
+        },
         {
             version: "2.2.119",
             changes: [
