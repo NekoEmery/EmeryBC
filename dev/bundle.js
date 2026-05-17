@@ -11321,24 +11321,28 @@
             roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
             type: "emote", expression: "Blush:Low",
             bcGroup: "ItemHead", bcActivity: "Pet",
+            reactionCategory: "reward",
         },
         {
             id: "goodgirl", label: "✨ Good girl",
             text: "scratches Emery behind the ears~ Good girl~ ✨",
             roughText: "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
             type: "emote", expression: "Blush:Medium",
+            reactionCategory: "reward",
         },
         {
             id: "treat", label: "🍖 Treat",
             text: "holds out a treat for her little pet~ 🍖",
             roughText: "tosses a treat at Emery's feet without even looking up~",
             type: "emote", interactive: true,
+            reactionCategory: "reward",
         },
         {
             id: "praise", label: "🎀 Praise",
             text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀",
             roughText: "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
             type: "emote", interactive: true,
+            reactionCategory: "reward",
         },
         {
             id: "announce", label: "💜 Mine",
@@ -11351,6 +11355,7 @@
             text: "pulls Emery into a warm snuggle, resting her chin on her head~",
             roughText: "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
             type: "emote",
+            reactionCategory: "reward",
         },
         {
             id: "spank", label: "👋 Spank",
@@ -11358,12 +11363,14 @@
             roughText: "delivers a sharp smack to Emery's bottom without warning~",
             type: "emote",
             bcGroup: "ItemButt", bcActivity: "Spank",
+            reactionCategory: "punishment",
         },
         {
             id: "bap", label: "🐾 Bap",
             text: "gives Emery a playful bap on the head~ 🐾",
             roughText: "gives Emery a sharp flick to the forehead without warning~",
             type: "emote",
+            reactionCategory: "punishment",
         },
     ];
     const DEFAULT_POSES = [
@@ -11480,6 +11487,16 @@
         "headpat": { group: "ItemHead", activity: "Pet" },
         "spank": { group: "ItemButt", activity: "Spank" },
     };
+    // Seed reactionCategory for stored emotes that predate the field (v2.2.115+).
+    const REACTION_CATEGORY_SEEDS = {
+        "headpat": "reward",
+        "goodgirl": "reward",
+        "treat": "reward",
+        "praise": "reward",
+        "snuggle": "reward",
+        "spank": "punishment",
+        "bap": "punishment",
+    };
     // New emotes to seed into existing stored lists that predate them.
     const NEW_EMOTE_SEEDS = [
         {
@@ -11487,6 +11504,7 @@
             text: "gives Emery a playful bap on the head~ 🐾",
             roughText: "gives Emery a sharp flick to the forehead without warning~",
             type: "emote",
+            reactionCategory: "punishment",
         },
         {
             id: "spank", label: "👋 Spank",
@@ -11494,6 +11512,7 @@
             roughText: "delivers a sharp smack to Emery's bottom without warning~",
             type: "emote",
             bcGroup: "ItemButt", bcActivity: "Spank",
+            reactionCategory: "punishment",
         },
     ];
     function getKittyEmotes() {
@@ -11502,7 +11521,7 @@
             // Migration: remove leash emote (replaced by standalone leash button)
             .filter(e => e.id !== "leash")
             .map(e => {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
             return (Object.assign(Object.assign({}, e), { 
                 // Migration: fix stored bap kind text that still says "nose" — should be "head"
                 // Use .includes() rather than exact match because old seeds omitted the 🐾 emoji
@@ -11515,7 +11534,9 @@
                     : ((_c = (_b = e.roughText) !== null && _b !== void 0 ? _b : ROUGH_TEXT_SEEDS[e.id]) !== null && _c !== void 0 ? _c : ""), expression: (_e = (_d = e.expression) !== null && _d !== void 0 ? _d : EXPRESSION_SEEDS[e.id]) !== null && _e !== void 0 ? _e : "", 
                 // Migration: bap no longer fires a BC activity (ActivityRun sends its own chat
                 // message which would say "boops nose" and conflict with the custom emote text)
-                bcGroup: e.id === "bap" ? undefined : ((_f = e.bcGroup) !== null && _f !== void 0 ? _f : (_g = BC_ACTIVITY_SEEDS[e.id]) === null || _g === void 0 ? void 0 : _g.group), bcActivity: e.id === "bap" ? undefined : ((_h = e.bcActivity) !== null && _h !== void 0 ? _h : (_j = BC_ACTIVITY_SEEDS[e.id]) === null || _j === void 0 ? void 0 : _j.activity) }));
+                bcGroup: e.id === "bap" ? undefined : ((_f = e.bcGroup) !== null && _f !== void 0 ? _f : (_g = BC_ACTIVITY_SEEDS[e.id]) === null || _g === void 0 ? void 0 : _g.group), bcActivity: e.id === "bap" ? undefined : ((_h = e.bcActivity) !== null && _h !== void 0 ? _h : (_j = BC_ACTIVITY_SEEDS[e.id]) === null || _j === void 0 ? void 0 : _j.activity), 
+                // Migration: seed reactionCategory for emotes saved before v2.2.115
+                reactionCategory: (_k = e.reactionCategory) !== null && _k !== void 0 ? _k : REACTION_CATEGORY_SEEDS[e.id] }));
         });
         // Append any new default emotes that weren't in the stored list yet
         for (const seed of NEW_EMOTE_SEEDS) {
@@ -28386,7 +28407,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.114";
+    const MOD_VERSION = "2.2.115";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28397,6 +28418,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.115",
+            changes: [
+                "Fix: built-in emotes (headpat, goodgirl, treat, praise, snuggle → reward; spank, bap → punishment) now correctly seed their reactionCategory for stored emote lists saved before v2.2.114. Previously the category was set on the defaults but never migrated, so existing installations saw no reactions fire.",
+            ],
+        },
         {
             version: "2.2.114",
             changes: [
