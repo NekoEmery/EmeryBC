@@ -11079,7 +11079,8 @@ export class EBCDrawer {
             cnt.appendChild(hookRefreshBtn);
         });
 
-        // ── Copy Restraints from Room Member ──────────────────────────────────
+        // ── Copy Restraints from Room Member (credited members only) ─────────
+        if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
         makeSection("COPY RESTRAINTS FROM MEMBER", "EBC_devCopyRestrCollapsed", true, (cnt) => {
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
@@ -11307,6 +11308,7 @@ export class EBCDrawer {
                 } catch { codeTA.select(); document.execCommand("copy"); }
             });
         });
+        } // end credited-members-only block
 
         // ── LOG ───────────────────────────────────────────────────────────────
         // Hoisted so the auto-refresh poller can reference them without
