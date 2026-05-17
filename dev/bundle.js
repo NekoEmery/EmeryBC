@@ -11338,6 +11338,12 @@
             roughText: "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
             type: "emote",
         },
+        {
+            id: "spank", label: "👋 Spank",
+            text: "gives Emery a playful swat on the bottom~",
+            roughText: "delivers a sharp smack to Emery's bottom without warning~",
+            type: "emote",
+        },
     ];
     const DEFAULT_POSES = [
         {
@@ -11413,6 +11419,7 @@
         "praise": "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
         "announce": "Emery is Lucy's. End of discussion.~",
         "snuggle": "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
+        "spank": "delivers a sharp smack to Emery's bottom without warning~",
     };
     const EXPRESSION_SEEDS = {
         "headpat": "Ears:Wiggle",
@@ -23935,17 +23942,59 @@
             durRow.appendChild(durSlider);
             durRow.appendChild(durVal);
             body.appendChild(durRow);
-            // Preset dropdown row
+            // ── Preset selector + inline editor (one unified bordered card) ───────
             let slPresets = getSlowLeavePresets();
-            const preRow = document.createElement("div");
-            preRow.style.cssText = BOX_CSS + "margin-bottom:8px;";
+            const INP9 = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 5px;min-width:0;";
+            const preCard = document.createElement("div");
+            preCard.style.cssText = "display:flex;flex-direction:column;margin-bottom:10px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);overflow:hidden;";
+            // ── Row 1: Preset dropdown ──
+            const preTopRow = document.createElement("div");
+            preTopRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-bottom:1px solid #2a1421;";
             const preLbl = document.createElement("span");
             preLbl.style.cssText = LBL_CSS;
             preLbl.textContent = "Preset";
             const preSel = document.createElement("select");
-            preSel.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:4px;padding:2px 4px;cursor:pointer;min-width:0;";
+            preSel.style.cssText = "flex:1;" + INP9 + "cursor:pointer;";
+            preTopRow.appendChild(preLbl);
+            preTopRow.appendChild(preSel);
+            preCard.appendChild(preTopRow);
+            // ── Row 2: Editable name + reset ──
+            const pdNameRow = document.createElement("div");
+            pdNameRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:5px 7px 0;";
+            const pdNameLbl = document.createElement("span");
+            pdNameLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;width:32px;";
+            pdNameLbl.textContent = "Name";
+            const pdNameInp = document.createElement("input");
+            pdNameInp.type = "text";
+            pdNameInp.style.cssText = "flex:1;" + INP9 + "color:#cf6f98;";
+            const pdResetBtn = document.createElement("button");
+            pdResetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 5px;border-radius:3px;border:1px solid #3a1928;background:#1b0d17;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
+            pdResetBtn.textContent = "↺";
+            pdResetBtn.title = "Reset this preset to default";
+            pdNameRow.appendChild(pdNameLbl);
+            pdNameRow.appendChild(pdNameInp);
+            pdNameRow.appendChild(pdResetBtn);
+            preCard.appendChild(pdNameRow);
+            // ── Row 3: Sequence textarea ──
+            const pdSeqRow = document.createElement("div");
+            pdSeqRow.style.cssText = "display:flex;align-items:flex-start;gap:5px;padding:4px 7px 7px;";
+            const pdSeqLbl = document.createElement("span");
+            pdSeqLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;width:32px;padding-top:4px;";
+            pdSeqLbl.textContent = "Seq";
+            const pdSeqTa = document.createElement("textarea");
+            pdSeqTa.rows = 3;
+            pdSeqTa.style.cssText = "flex:1;box-sizing:border-box;" + INP9 + "resize:vertical;";
+            pdSeqTa.placeholder = "Steps separated by | — use {DUR} for the delay, leaveroom to leave";
+            pdSeqRow.appendChild(pdSeqLbl);
+            pdSeqRow.appendChild(pdSeqTa);
+            preCard.appendChild(pdSeqRow);
+            body.appendChild(preCard);
+            // ── Wire up preset detail ──────────────────────────────────────────────
+            const getPreIdx = () => Math.max(0, Math.min(slPresets.length - 1, parseInt(preSel.value || "0", 10)));
             const rebuildPreSel = () => {
                 var _a;
+                slPresets = getSlowLeavePresets();
+                const cur = (_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0";
                 while (preSel.firstChild)
                     preSel.removeChild(preSel.firstChild);
                 slPresets.forEach((p, i) => {
@@ -23954,95 +24003,45 @@
                     opt.textContent = p.label;
                     preSel.appendChild(opt);
                 });
-                preSel.value = (_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0";
+                preSel.value = cur;
+            };
+            const updatePresetDetail = () => {
+                slPresets = getSlowLeavePresets();
+                const p = slPresets[getPreIdx()];
+                pdNameInp.value = p.label;
+                pdSeqTa.value = p.seq;
+            };
+            const saveCurrentPreset = () => {
+                slPresets = getSlowLeavePresets();
+                const idx = getPreIdx();
+                slPresets[idx] = {
+                    label: pdNameInp.value.trim() || SLOW_LEAVE_PRESET_DEFAULTS[idx].label,
+                    seq: pdSeqTa.value.trim() || SLOW_LEAVE_PRESET_DEFAULTS[idx].seq,
+                };
+                saveSlowLeavePresets(slPresets);
+                rebuildPreSel();
+                preSel.value = String(idx);
             };
             rebuildPreSel();
+            updatePresetDetail();
             preSel.addEventListener("change", () => {
                 try {
                     localStorage.setItem("EBC_slowLeavePreset", preSel.value);
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
+                updatePresetDetail();
             });
-            preRow.appendChild(preLbl);
-            preRow.appendChild(preSel);
-            body.appendChild(preRow);
-            // ── Edit preset sequences toggle ──────────────────────────────────────
-            const editPresetsToggle = document.createElement("button");
-            editPresetsToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 6px;border-radius:4px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;margin-bottom:6px;text-align:left;transition:color 0.12s;";
-            editPresetsToggle.textContent = "✎ Edit preset sequences";
-            editPresetsToggle.addEventListener("mouseenter", () => { editPresetsToggle.style.color = "#cf6f98"; });
-            editPresetsToggle.addEventListener("mouseleave", () => { if (editPresetsPanel.style.display === "none")
-                editPresetsToggle.style.color = "#7a4a5e"; });
-            body.appendChild(editPresetsToggle);
-            const editPresetsPanel = document.createElement("div");
-            editPresetsPanel.style.cssText = "display:none;flex-direction:column;gap:6px;margin-bottom:10px;padding:7px 8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-            const buildEditPresetsPanel = () => {
-                while (editPresetsPanel.firstChild)
-                    editPresetsPanel.removeChild(editPresetsPanel.firstChild);
+            pdNameInp.addEventListener("change", saveCurrentPreset);
+            pdSeqTa.addEventListener("change", saveCurrentPreset);
+            pdResetBtn.addEventListener("click", () => {
                 slPresets = getSlowLeavePresets();
-                const note = document.createElement("div");
-                note.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a4a5e;line-height:1.4;margin-bottom:2px;";
-                note.textContent = "Use {DUR} for the duration delay. Separate steps with |. Use leaveroom to leave.";
-                editPresetsPanel.appendChild(note);
-                slPresets.forEach((preset, idx) => {
-                    const pRow = document.createElement("div");
-                    pRow.style.cssText = "display:flex;flex-direction:column;gap:3px;padding:5px;border:1px solid #2a1421;border-radius:4px;background:rgba(26,10,18,0.6);";
-                    const pLblRow = document.createElement("div");
-                    pLblRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-                    const pLblInput = document.createElement("input");
-                    pLblInput.type = "text";
-                    pLblInput.value = preset.label;
-                    pLblInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#cf6f98;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;min-width:0;";
-                    pLblInput.placeholder = "Preset name";
-                    const pResetBtn = document.createElement("button");
-                    pResetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 5px;border-radius:3px;border:1px solid #3a1928;background:#1b0d17;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
-                    pResetBtn.textContent = "↺";
-                    pResetBtn.title = "Reset to default";
-                    pResetBtn.addEventListener("click", () => {
-                        pLblInput.value = SLOW_LEAVE_PRESET_DEFAULTS[idx].label;
-                        pSeqInput.value = SLOW_LEAVE_PRESET_DEFAULTS[idx].seq;
-                        slPresets[idx] = Object.assign({}, SLOW_LEAVE_PRESET_DEFAULTS[idx]);
-                        saveSlowLeavePresets(slPresets);
-                        rebuildPreSel();
-                    });
-                    pLblRow.appendChild(pLblInput);
-                    pLblRow.appendChild(pResetBtn);
-                    const pSeqInput = document.createElement("textarea");
-                    pSeqInput.value = preset.seq;
-                    pSeqInput.rows = 2;
-                    pSeqInput.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 5px;resize:vertical;min-width:0;";
-                    pSeqInput.placeholder = "Sequence steps separated by |";
-                    const savePreset = () => {
-                        slPresets[idx] = { label: pLblInput.value.trim() || SLOW_LEAVE_PRESET_DEFAULTS[idx].label, seq: pSeqInput.value.trim() || SLOW_LEAVE_PRESET_DEFAULTS[idx].seq };
-                        saveSlowLeavePresets(slPresets);
-                        rebuildPreSel();
-                    };
-                    pLblInput.addEventListener("change", savePreset);
-                    pSeqInput.addEventListener("change", savePreset);
-                    pRow.appendChild(pLblRow);
-                    pRow.appendChild(pSeqInput);
-                    editPresetsPanel.appendChild(pRow);
-                });
-                const resetAllBtn = document.createElement("button");
-                resetAllBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 0;border-radius:4px;border:1px solid #3a1928;background:#1b0d17;color:#7a4a5e;cursor:pointer;width:100%;";
-                resetAllBtn.textContent = "↺ Reset all presets to default";
-                resetAllBtn.addEventListener("click", () => {
-                    slPresets = SLOW_LEAVE_PRESET_DEFAULTS.map(p => (Object.assign({}, p)));
-                    saveSlowLeavePresets(slPresets);
-                    buildEditPresetsPanel();
-                    rebuildPreSel();
-                });
-                editPresetsPanel.appendChild(resetAllBtn);
-            };
-            editPresetsToggle.addEventListener("click", () => {
-                const isOpen = editPresetsPanel.style.display !== "none";
-                editPresetsPanel.style.display = isOpen ? "none" : "flex";
-                editPresetsToggle.style.color = isOpen ? "#7a4a5e" : "#cf6f98";
-                editPresetsToggle.style.borderStyle = isOpen ? "dashed" : "solid";
-                if (!isOpen)
-                    buildEditPresetsPanel();
+                const idx = getPreIdx();
+                slPresets[idx] = Object.assign({}, SLOW_LEAVE_PRESET_DEFAULTS[idx]);
+                saveSlowLeavePresets(slPresets);
+                updatePresetDetail();
+                rebuildPreSel();
+                preSel.value = String(idx);
             });
-            body.appendChild(editPresetsPanel);
             // divider
             const faDivider = document.createElement("div");
             faDivider.style.cssText = "height:1px;background:#2a1421;margin-bottom:10px;";
@@ -24850,34 +24849,22 @@
                             const mood = getKittyMood();
                             const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                             try {
-                                if (em.id === "headpat") {
-                                    // Register as a real BC activity so it shows as a proper headpat
-                                    const w = window;
-                                    const chars = w.ChatRoomCharacter;
-                                    const emery = chars === null || chars === void 0 ? void 0 : chars.find(c => c.MemberNumber === EMERY_MEMBER);
-                                    // Try BC's native ActivityPerformActivity first (handles sounds + rendering)
-                                    const performFn = w.ActivityPerformActivity;
-                                    const activities = w.AssetActivities;
-                                    const caressAct = activities === null || activities === void 0 ? void 0 : activities.find(a => a.Name === "Caress");
-                                    if (performFn && caressAct && emery) {
-                                        try {
-                                            performFn(Player, emery, caressAct, [], null);
-                                        }
-                                        catch ( /* ignore */_a) { /* ignore */ }
-                                    }
-                                    else {
-                                        // Fallback: send as BC Activity chat message
-                                        ServerSend("ChatRoomChat", {
-                                            Type: "Activity",
-                                            Content: "Caress",
-                                            Dictionary: [
-                                                { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
-                                                { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER },
-                                                { Tag: "ActivityGroup", Text: "ItemHead" },
-                                                { Tag: "ActivityName", Text: "Caress" },
-                                            ],
-                                        });
-                                    }
+                                if (em.id === "headpat" || em.id === "spank") {
+                                    // Trigger a real BC activity so BC shows its own description + plays sounds
+                                    // Content format: "ChatOther-{Group}-{ActivityName}" (BC's own format)
+                                    const bcContent = em.id === "headpat" ? "ChatOther-ItemHead-Pet" : "ChatOther-ItemButt-Spank";
+                                    const bcGroup = em.id === "headpat" ? "ItemHead" : "ItemButt";
+                                    const bcAct = em.id === "headpat" ? "Pet" : "Spank";
+                                    ServerSend("ChatRoomChat", {
+                                        Type: "Activity",
+                                        Content: bcContent,
+                                        Dictionary: [
+                                            { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
+                                            { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER },
+                                            { Tag: "ActivityGroup", Text: bcGroup },
+                                            { Tag: "ActivityName", Text: bcAct },
+                                        ],
+                                    });
                                 }
                                 else if (em.type === "emote") {
                                     ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
@@ -24887,7 +24874,7 @@
                                     ServerSend("ChatRoomChat", { Type: "Action", Content: text, Dictionary: [{ Tag: 'MISSING TEXT IN "Interface.csv": ', Text: zw }, { SourceCharacter: Player.MemberNumber }] });
                                 }
                             }
-                            catch ( /* ignore */_b) { /* ignore */ }
+                            catch ( /* ignore */_a) { /* ignore */ }
                             // Expression command (e.g. ear wiggle for headpat)
                             if (em.expression) {
                                 sendKittyCmd("expression", em.expression);
@@ -27162,7 +27149,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.71";
+    const MOD_VERSION = "2.2.72";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27173,6 +27160,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.72",
+            changes: [
+                "Headpat now sends a real BC Pet activity on ItemHead (correct sounds + chat format).",
+                "Added 👋 Spank emote button — sends a real BC Spank activity on ItemButt.",
+                "Slow Leave preset UI redesigned: dropdown + inline name/seq editor below it (no separate toggle).",
+            ],
+        },
         {
             version: "2.2.71",
             changes: [
