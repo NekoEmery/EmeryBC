@@ -42,6 +42,12 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // Set to true when EBC initiates a ChatRoomLeave so the ChatRoomRun guard
+    // knows to skip null-ChatRoomData frames without affecting map rooms.
+    let _leavePending = false;
+    function setLeavePending() { _leavePending = true; }
+    function isLeavePending() { return _leavePending; }
+    function clearLeavePending() { _leavePending = false; }
     /** Returns the player's display name (nickname if set, otherwise Name). */
     function getDisplayName() {
         const nickFn = window.CharacterNickname;
@@ -2047,8 +2053,11 @@
                     releaseRestraints();
                     break;
                 case "leaveroom":
-                    // Defer by one tick — calling ChatRoomLeave() mid-frame causes other
-                    // mods' ChatRoomRun hooks to fire with null room data on the same frame.
+                    // Signal the ChatRoomRun guard before deferring the actual leave call.
+                    // The guard skips frames where ChatRoomData is null ONLY while this flag
+                    // is set, so map rooms (where ChatRoomData can legitimately be null) are
+                    // never affected.
+                    setLeavePending();
                     window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
                     break;
             }
@@ -2233,10 +2242,10 @@
                     sendPoseUpdate(appearanceBundle);
                 }
                 else if (step.toLowerCase() === "leaveroom") {
-                    // Restore pose then defer leave by one tick — calling ChatRoomLeave()
-                    // mid-frame causes other mods' ChatRoomRun hooks to fire with null room data.
+                    // Restore pose, flag the guard, then defer leave by one tick.
                     Player.ActivePose = originalPoses;
                     seqRunning = false;
+                    setLeavePending();
                     window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
                     return;
                 }
@@ -25562,7 +25571,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.30";
+    const MOD_VERSION = "2.2.31";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25573,6 +25582,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.31",
+            changes: [
+                "Fix: map rooms breaking — the v2.2.30 ChatRoomRun guard was too broad and blocked rendering whenever ChatRoomData was null, which map rooms trigger during normal transitions. Guard now only activates when EBC itself initiated the leave.",
+            ],
+        },
         {
             version: "2.2.30",
             changes: [
@@ -27913,13 +27928,18 @@
                 lastArousalActive = active;
         }
         catch ( /* ignore */_a) { /* ignore */ }
-        // Guard: when ChatRoomLeave() is called, BC clears ChatRoomData synchronously but
+        // Guard: when EBC calls ChatRoomLeave(), BC clears ChatRoomData synchronously but
         // delays the screen transition until the server ack.  The next animation frame still
         // fires ChatRoomRun → ChatRoomCustomizationRun which reads ChatRoomData.Custom → crash.
-        // Running at priority 500 puts us ahead of CRABS/BCOM/BCX so we can bail early.
+        // We ONLY skip the frame when EBC itself initiated the leave (consumeLeavePending flag),
+        // so map rooms — where ChatRoomData can legitimately be null during transitions — are
+        // completely unaffected.  Priority 500 puts us ahead of CRABS/BCOM/BCX.
         modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
-            if (window.ChatRoomData == null)
-                return;
+            if (isLeavePending()) {
+                if (window.ChatRoomData == null)
+                    return; // skip null frames
+                clearLeavePending(); // data is back — we're in a new room, lift the guard
+            }
             return next(args);
         });
         // Canvas sidebar action buttons
