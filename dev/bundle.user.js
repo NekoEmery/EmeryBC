@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.55
+// @version      2.2.56
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2579,6 +2579,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     //   *text      - send as * Name text * emote message
     // Steps run 500 ms apart. Original poses are restored when done.
     let seqRunning = false;
+    // Sends the current ActivePose to the room without triggering a full re-render on each step.
+    // appearanceBundle should be pre-built once before the sequence starts and reused - sending
+    // a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
+    // time, which looks like flickering/glitching.
     function sendPoseUpdate(appearanceBundle) {
         const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
             ? Player.ActivePose
@@ -2595,6 +2599,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch (_) { }
     }
     function syncPoseToRoom() {
+        // Used for one-shot pose syncs (outside of sequences).
+        // Capture desired pose BEFORE CharacterRefresh - BC may re-apply item-forced poses
+        // during refresh and override what we just set.
         const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
             ? Player.ActivePose
             : null;
@@ -2610,6 +2617,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch (_) { }
         callBC(() => CharacterRefresh(Player, false, false));
     }
+    // Parses a single raw step token (may have @NNN suffix) into {content, delay}.
+    // E.g. "!waves.@1000" -> { content: "!waves.", delay: 1000 }
+    //      "HandsUp"      -> { content: "HandsUp", delay: defaultStepMs }
     function parseStep(raw, defaultStepMs) {
         const atIdx = raw.lastIndexOf("@");
         if (atIdx > 0) {
@@ -2627,16 +2637,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const rawSteps = sequence.split("|").map(s => s.trim()).filter(Boolean);
         if (!rawSteps.length)
             return;
+        // Parse each step: strip @NNN suffix for per-step delay, keep content.
         const steps = rawSteps.map(r => parseStep(r, defaultStepMs));
         seqRunning = true;
+        // null means "no pose / neutral" in BC - store as null so we restore correctly.
         const originalPoses = (Player.ActivePose && Player.ActivePose.length > 0)
             ? [...Player.ActivePose]
             : null;
+        // Build appearance bundle ONCE - reusing it avoids re-render flicker on other clients.
         const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
         let idx = 0;
         const next = () => {
             try {
                 if (idx >= steps.length) {
+                    // Sequence done - restore original pose, do a full sync + local refresh.
                     Player.ActivePose = originalPoses;
                     syncPoseToRoom();
                     seqRunning = false;
@@ -2648,6 +2662,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     sendPoseUpdate(appearanceBundle);
                 }
                 else if (step.toLowerCase() === "leaveroom") {
+                    // Restore pose, switch screen FIRST, then leave — same pattern as
+                    // safeword.ts.  CommonSetScreen stops ChatRoomRun before
+                    // ChatRoomLeave() clears ChatRoomData, so no mod hook crashes.
                     Player.ActivePose = originalPoses;
                     seqRunning = false;
                     window.setTimeout(() => {
@@ -2675,7 +2692,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         next();
     }
     // --- Label-based animation triggers ------------------------------------------
+    // If a button's label matches one of these (case-insensitive), the matching
+    // animation plays automatically alongside the normal message. Completely hidden
+    // from the user -- the emote field is just normal text.
     function isArmRestrained() {
+        // Only ItemArms covers actual binding restraints (armbinders, straitjackets, etc.).
+        // ItemHands covers paws/mittens/gloves which don't lock arm movement, so we skip it.
         return Player.Appearance.some(item => item.Asset.Group.Name === "ItemArms");
     }
     function localNotice(msg) {
@@ -2696,11 +2718,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         log.appendChild(div);
         log.scrollTop = log.scrollHeight;
     }
+    // Returns true if the animation ran (or will run), false if it was blocked.
     function runCheerAnimation() {
         if (isArmRestrained()) {
             localNotice("Your arms are restrained -- can't cheer right now!");
             return false;
         }
+        // Yoked (arms out) -> OverTheHead (arms fully above head) -> repeat -> neutral
         runSequence("Yoked|OverTheHead|Yoked|OverTheHead|Yoked|OverTheHead|_", 600);
         return true;
     }
@@ -2708,13 +2732,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         ["CHEER", runCheerAnimation],
         ["CHEERS", runCheerAnimation],
     ]);
+    // Returns false if an animation was attempted but blocked - caller should suppress the chat message.
+    // Returns true if the animation ran fine, or if there is no animation for this label.
     function triggerLabelAnimation(label) {
         const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
         if (!fn)
-            return true;
+            return true; // no animation for this label, proceed normally
         return fn();
     }
     // --- Send chat message --------------------------------------------------------
+    // "action" -> (Name text)   "emote" -> * Name text *   "seq" -> runSequence
     function sendAction(emote, style = "action", includeName = true) {
         const text = emote.trim();
         if (!text)
@@ -2724,9 +2751,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return;
         }
         if (style === "emote") {
+            // BC natively formats Emote as:  * Name text *
             ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
             return;
         }
+        // Action style: (Name text) or (text) when name is excluded
+        // BC can't find the key in Interface.csv so it prepends "MISSING TEXT IN "Interface.csv": ".
+        // We include the player's name directly in Content, then use the poison tag to strip the prefix,
+        // leaving only the zero-width char + text so it renders as (Name text).
         const actionContent = includeName ? getDisplayName() + " " + text : text;
         ServerSend("ChatRoomChat", {
             Type: "Action",
@@ -2743,10 +2775,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const CHIP_H = 28;
     const CAT_CHIP_H = 30;
     const CAT_ARR_W = 22;
-    const GRIP_H = 22;
+    const GRIP_H = 22; // drag handle above collapse toggle — tall enough to tap
+    // Position — mutable, persisted to localStorage
     const SIDEBAR_POS_KEY = "EBC_sidebarPos";
     const SIDEBAR_DEFAULT_X = 0;
     const SIDEBAR_DEFAULT_Y = 270;
+    // Fallback hard cap — overridden at drag time by the live DOM check below.
     const SIDEBAR_MAX_X_FALLBACK = 700;
     let sidebarX = SIDEBAR_DEFAULT_X;
     let sidebarY = SIDEBAR_DEFAULT_Y;
@@ -2766,6 +2800,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     let sidebarCollapsed = false;
+    // Drag state
     let isDragging = false;
     let dragAnchorMouseX = 0;
     let dragAnchorMouseY = 0;
@@ -2792,7 +2827,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return cx >= sidebarX && cx <= sidebarX + CHIP_W &&
             cy >= gripY && cy <= gripY + GRIP_H;
     }
+    /** Returns the maximum canvas-X the sidebar left edge may reach before overlapping the chat. */
     function getSidebarMaxX() {
+        // Try to read the left edge of BC's chat log (or EBC drawer) in real time.
+        // "#TextAreaChatLog" is BC's native chat log element; we also check the EBC drawer.
         const candidates = [
             document.getElementById("TextAreaChatLog"),
             document.getElementById("TextAreaChatInput"),
@@ -2835,6 +2873,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             document.removeEventListener("touchmove", onMove);
             document.removeEventListener("mouseup", onEnd);
             document.removeEventListener("touchend", onEnd);
+            // Suppress the click that fires after mouseup so it doesn't hit BC characters
             if (hasMoved) {
                 const suppress = (e) => { e.stopPropagation(); e.preventDefault(); };
                 document.addEventListener("click", suppress, { capture: true, once: true });
@@ -2845,9 +2884,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         document.addEventListener("mouseup", onEnd);
         document.addEventListener("touchend", onEnd);
     }
+    // Attach hold-to-drag directly on the canvas via mousedown/touchstart so the
+    // drag begins while the button is held — not on click (which would fire after release).
     function initDragListener() {
         const canvas = document.getElementById("MainCanvas");
         if (!canvas) {
+            // Canvas not ready yet — retry shortly
             window.setTimeout(initDragListener, 200);
             return;
         }
@@ -2862,6 +2904,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         canvas.addEventListener("mousedown", onDown);
         canvas.addEventListener("touchstart", onDown, { passive: false });
     }
+    /** Converts a 6-digit hex color to rgba() with the given alpha (0–1). */
     function withAlpha(hex, alpha) {
         const h = hex.replace("#", "");
         if (h.length !== 6)
@@ -2876,15 +2919,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return;
         if (!getActionButtonsVisible())
             return;
+        // Derived Y positions
         const gripY = sidebarY - GRIP_H - 2;
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
+        // Semi-transparent background variants
         const bgNormal = withAlpha(UI.cardMuted, 0.88);
         const bgActive = withAlpha(UI.accentSoft, 0.88);
         const bgChip = withAlpha("#2a0e1e", 0.88);
         const bgInactive = withAlpha("#1a0a14", 0.88);
+        // Drag grip — hold & drag to reposition
         DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? bgActive : bgNormal);
         DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accent : UI.panelEdge, 1);
+        // 2×3 dot grid
         const dotCol = isDragging ? UI.accent : UI.accentDeep;
         const dotSize = 3;
         const dotGapX = 6;
@@ -2896,8 +2943,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 DrawRect(dotStartX + col * dotGapX, dotStartY + row * dotGapY, dotSize, dotSize, dotCol);
             }
         }
+        // Collapse toggle — same palette as grip; lit pink when collapsed so user knows it's there
         DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? bgActive : bgNormal);
         DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? UI.accent : UI.panelEdge, 1);
+        // Two short bars centered — subtle when open, bright when closed
         const bCol = sidebarCollapsed ? UI.accent : UI.accentSoft;
         const bW = Math.floor(CHIP_W * 0.55);
         const bH = 2;
@@ -2907,6 +2956,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         DrawRect(bX, bMid + 2, bW, bH, bCol);
         if (sidebarCollapsed)
             return;
+        // Category switcher chip: [◀] Name [▶]
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         const label = cats.length > 1
@@ -2934,8 +2984,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return false;
         const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
         const my = (_b = window.MouseY) !== null && _b !== void 0 ? _b : 0;
+        // Derived Y positions (same as in draw)
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
+        // Collapse toggle
         if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
             my >= sidebarY && my <= sidebarY + CHIP_H) {
             sidebarCollapsed = !sidebarCollapsed;
@@ -2943,6 +2995,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         if (sidebarCollapsed)
             return false;
+        // Category prev/next arrows
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         if (my >= catChipY && my <= catChipY + CAT_CHIP_H) {
@@ -13803,9 +13856,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // ── Drawer appearance / layout helpers ───────────────────────────────────
     const EBC_COLORS_KEY = "EBC_colors";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
-    const EBC_USER_TABS = ["outfits", "anims", "notes", "thanks", "dev"];
+    const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
-        outfits: "OUTFITS", anims: "ANIMS",
+        outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
         notes: "USERS", thanks: "CREDITS", dev: "DEV",
     };
     const DEFAULT_COLORS = {
@@ -14178,7 +14231,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const btnsTabBtn = document.createElement("button");
             btnsTabBtn.className = "ebc-tab-btn";
             btnsTabBtn.id = "ebc-tab-buttons";
-            btnsTabBtn.textContent = "BTNS";
+            btnsTabBtn.textContent = "BUTTONS";
             btnsTabBtn.title = "Action Buttons";
             const notesTabBtn = document.createElement("button");
             notesTabBtn.className = "ebc-tab-btn";
@@ -14216,8 +14269,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             kittyTabBtn.title = "Kitty";
             kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
             tabBar.appendChild(outfitTabBtn);
-            tabBar.appendChild(posesTabBtn);
             tabBar.appendChild(btnsTabBtn);
+            tabBar.appendChild(posesTabBtn);
             tabBar.appendChild(notesTabBtn);
             tabBar.appendChild(thanksTabBtn);
             tabBar.appendChild(devTabBtn2);
@@ -26482,7 +26535,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.55";
+    const MOD_VERSION = "2.2.56";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26493,6 +26546,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.56",
+            changes: [
+                "Fix BUTTONS tab: tab was labelled 'BTNS' and appeared after ANIMS — now correctly labelled 'BUTTONS' and positioned before ANIMS (matching original order). actionButtons.ts fully restored from v2.2.46 (621 lines, canvas sidebar with drag-to-reposition, DrawButton tiles, click handler). EBC_USER_TABS and EBC_TAB_LABELS updated to include 'buttons'.",
+            ],
+        },
         {
             version: "2.2.55",
             changes: [
