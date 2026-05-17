@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.114";
+const MOD_VERSION = "2.2.115";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.115",
+        changes: [
+            "Fix: built-in emotes (headpat, goodgirl, treat, praise, snuggle → reward; spank, bap → punishment) now correctly seed their reactionCategory for stored emote lists saved before v2.2.114. Previously the category was set on the defaults but never migrated, so existing installations saw no reactions fire.",
+        ],
+    },
     {
         version: "2.2.114",
         changes: [

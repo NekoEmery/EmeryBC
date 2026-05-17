@@ -81,24 +81,28 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
         type: "emote", expression: "Blush:Low",
         bcGroup: "ItemHead", bcActivity: "Pet",
+        reactionCategory: "reward",
     },
     {
         id: "goodgirl", label: "✨ Good girl",
         text:      "scratches Emery behind the ears~ Good girl~ ✨",
         roughText: "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
         type: "emote", expression: "Blush:Medium",
+        reactionCategory: "reward",
     },
     {
         id: "treat",    label: "🍖 Treat",
         text:      "holds out a treat for her little pet~ 🍖",
         roughText: "tosses a treat at Emery's feet without even looking up~",
         type: "emote",  interactive: true,
+        reactionCategory: "reward",
     },
     {
         id: "praise",   label: "🎀 Praise",
         text:      "pats Emery's head with a warm smile~ Such a precious thing~ 🎀",
         roughText: "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
         type: "emote",  interactive: true,
+        reactionCategory: "reward",
     },
     {
         id: "announce", label: "💜 Mine",
@@ -111,6 +115,7 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         text:      "pulls Emery into a warm snuggle, resting her chin on her head~",
         roughText: "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
         type: "emote",
+        reactionCategory: "reward",
     },
     {
         id: "spank",    label: "👋 Spank",
@@ -118,12 +123,14 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         roughText: "delivers a sharp smack to Emery's bottom without warning~",
         type: "emote",
         bcGroup: "ItemButt", bcActivity: "Spank",
+        reactionCategory: "punishment",
     },
     {
         id: "bap",      label: "🐾 Bap",
         text:      "gives Emery a playful bap on the head~ 🐾",
         roughText: "gives Emery a sharp flick to the forehead without warning~",
         type: "emote",
+        reactionCategory: "punishment",
     },
 ];
 
@@ -241,6 +248,16 @@ const BC_ACTIVITY_SEEDS: Record<string, { group: string; activity: string }> = {
     "headpat": { group: "ItemHead", activity: "Pet"   },
     "spank":   { group: "ItemButt", activity: "Spank" },
 };
+// Seed reactionCategory for stored emotes that predate the field (v2.2.115+).
+const REACTION_CATEGORY_SEEDS: Record<string, "punishment" | "reward"> = {
+    "headpat":  "reward",
+    "goodgirl": "reward",
+    "treat":    "reward",
+    "praise":   "reward",
+    "snuggle":  "reward",
+    "spank":    "punishment",
+    "bap":      "punishment",
+};
 // New emotes to seed into existing stored lists that predate them.
 const NEW_EMOTE_SEEDS: KittyEmote[] = [
     {
@@ -248,6 +265,7 @@ const NEW_EMOTE_SEEDS: KittyEmote[] = [
         text:      "gives Emery a playful bap on the head~ 🐾",
         roughText: "gives Emery a sharp flick to the forehead without warning~",
         type: "emote",
+        reactionCategory: "punishment",
     },
     {
         id: "spank",  label: "👋 Spank",
@@ -255,6 +273,7 @@ const NEW_EMOTE_SEEDS: KittyEmote[] = [
         roughText: "delivers a sharp smack to Emery's bottom without warning~",
         type: "emote",
         bcGroup: "ItemButt", bcActivity: "Spank",
+        reactionCategory: "punishment",
     },
 ];
 
@@ -279,6 +298,8 @@ export function getKittyEmotes(): KittyEmote[] {
             // message which would say "boops nose" and conflict with the custom emote text)
             bcGroup:    e.id === "bap" ? undefined : (e.bcGroup    ?? BC_ACTIVITY_SEEDS[e.id]?.group),
             bcActivity: e.id === "bap" ? undefined : (e.bcActivity ?? BC_ACTIVITY_SEEDS[e.id]?.activity),
+            // Migration: seed reactionCategory for emotes saved before v2.2.115
+            reactionCategory: e.reactionCategory ?? REACTION_CATEGORY_SEEDS[e.id],
         }));
     // Append any new default emotes that weren't in the stored list yet
     for (const seed of NEW_EMOTE_SEEDS) {
