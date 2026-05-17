@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.93";
+const MOD_VERSION = "2.2.94";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,17 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.94",
+        changes: [
+            "Fix: Grab Leash now uses BC's actual HoldLeash hidden-message protocol instead of the non-existent GrabLeash activity — activates BC's full leash-follow mechanic when Emery has a leash item.",
+            "Fix: Kneel & Spread now uses KneelingSpread (the correct BC pose) — PresentationKneel does not exist in BC. Stored poses are migrated automatically.",
+            "Fix: Elbow Tie removed — BackElbowTouch conflicts with other upper-body poses and caused broken appearance. Removed from defaults; existing saved poses are cleaned up automatically.",
+            "Fix: Fight back button in the resistance popup no longer triggers a ghost auto-accept after you click it — an isResolved flag now stops the countdown timer once you respond.",
+            "Fix: Fight back emote now reliably sends to chat (wrapped in callBC, proper SourceCharacter dictionary entry).",
+            "Fix: Expression changes via Kitty menu now always sync to all room members — a full ChatRoomCharacterUpdate is pushed after CharacterSetFacialExpression to guarantee visibility.",
+        ],
+    },
     {
         version: "2.2.93",
         changes: [
@@ -2649,22 +2660,22 @@ function showKittyResistancePopup(
     const btnRow = document.createElement("div");
     btnRow.style.cssText = "display:flex;gap:10px;justify-content:center;";
 
-    const close = (): void => { overlay.remove(); };
+    // Prevent the auto-accept timer from firing after the user already responded
+    let isResolved = false;
+    const close = (): void => { isResolved = true; overlay.remove(); };
 
     // ── Fight back ──────────────────────────────────────────────────────────
     const fightBtn = document.createElement("button");
     fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
     fightBtn.textContent = "Fight back! 💪";
     fightBtn.addEventListener("click", () => {
-        try {
-            ServerSend("ChatRoomChat", {
-                Type: "Emote",
-                Content: mood === "rough"
-                    ? "twists away sharply, refusing to submit~"
-                    : "squirms and shakes her head, resisting with a pout~",
-                Dictionary: [],
-            });
-        } catch { /* ignore */ }
+        callBC(() => ServerSend("ChatRoomChat", {
+            Type: "Emote",
+            Content: mood === "rough"
+                ? "twists away sharply, refusing to submit~"
+                : "squirms and shakes her head, resisting with a pout~",
+            Dictionary: [{ Tag: "SourceCharacter", Text: Player.Name, MemberNumber: Player.MemberNumber }],
+        }));
         close();
     });
 
@@ -2753,9 +2764,10 @@ function showKittyResistancePopup(
     const DURATION = mood === "rough" ? 1000 : 8000;
     const startTime = Date.now();
     const tick = (): void => {
+        if (isResolved) return; // user already acted — stop ticking
         const pct = Math.max(0, 1 - (Date.now() - startTime) / DURATION);
-        timerFill.style.width = `${pct * 100}%`;
-        if (pct <= 0) { acceptBtn.click(); } else { requestAnimationFrame(tick); }
+        try { timerFill.style.width = `${pct * 100}%`; } catch { /* ignore */ }
+        if (pct <= 0) { if (!isResolved) acceptBtn.click(); } else { requestAnimationFrame(tick); }
     };
     requestAnimationFrame(tick);
 }
@@ -2907,8 +2919,10 @@ function handleKittyCommand(msg: string): void {
                 break;
             }
             case "expression": {
-                // arg format: "FaceType:State"  e.g. "Ears:Wiggle"
-                // Triggers a BC facial expression on Emery's own character (self-applied).
+                // arg format: "FaceType:State"  e.g. "Blush:Low"
+                // Triggers a BC facial expression on Emery and pushes a full appearance update
+                // to ensure all room members see the change (CharacterSetFacialExpression's
+                // internal ChatRoomCharacterExpressionUpdate can be lossy under some BC versions).
                 try {
                     const colonIdx = arg.indexOf(":");
                     if (colonIdx > 0) {
@@ -2917,7 +2931,20 @@ function handleKittyCommand(msg: string): void {
                         const w = window as unknown as Record<string, unknown>;
                         const fn = w.CharacterSetFacialExpression as
                             ((c: Character, face: string, state: string | null) => void) | undefined;
-                        if (fn) fn(Player, face, state || null);
+                        if (fn) {
+                            fn(Player, face, state || null);
+                            // Belt-and-suspenders: push a full appearance update so the expression
+                            // is visible to everyone even if the internal sync doesn't fire.
+                            callBC(() => {
+                                if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+                                    ServerSend("ChatRoomCharacterUpdate", {
+                                        ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                                        ActivePose: Player.ActivePose,
+                                        Appearance: ServerAppearanceBundle(Player.Appearance),
+                                    });
+                                }
+                            });
+                        }
                     }
                 } catch { /* ignore */ }
                 break;

@@ -13721,10 +13721,20 @@ export class EBCDrawer {
         leashBtn.addEventListener("click", () => {
             if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
             const mood = getKittyMood();
+            // Send mood-aware emote so room sees it
             sendRoomEmote(mood === "rough"
                 ? "snatches up Emery's leash with a firm grip~"
                 : "reaches out and gently takes hold of Emery's leash~");
-            runKittyActivity("ItemNeckAccessories", "GrabLeash");
+            // BC's actual "grab leash" mechanic — NOT an activity; it's a hidden message protocol.
+            // The hidden HoldLeash message tells Emery's BC client to register Lucy as holding her leash.
+            // This enables BC's "follow me" room-change mechanic if Emery has a leash-effect item.
+            try {
+                ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                // Update Lucy's local leash list so BC tracks the follow relationship
+                const w = window as unknown as Record<string, unknown>;
+                const leashList = w.ChatRoomLeashList as number[] | undefined;
+                if (leashList && !leashList.includes(EMERY_MEMBER)) leashList.push(EMERY_MEMBER);
+            } catch { /* ignore */ }
         });
         leashRow.appendChild(leashBtn);
         body.appendChild(leashRow);

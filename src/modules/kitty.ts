@@ -146,7 +146,7 @@ const DEFAULT_POSES: KittyPose[] = [
         roughEmote: "grips Emery's shoulder firmly and points to the floor~",
     },
     {
-        id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["PresentationKneel"],
+        id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["KneelingSpread"],
         kindEmote: "guides Emery down to her knees and nudges her legs apart with a soft smile~",
         roughEmote: "pushes Emery to her knees and kicks her legs apart~",
     },
@@ -169,11 +169,6 @@ const DEFAULT_POSES: KittyPose[] = [
         id: "boxTie", label: "🎀 Box tie", poses: ["BackBoxTie"],
         kindEmote: "guides Emery's arms behind her back into a neat box tie~",
         roughEmote: "pulls Emery's arms behind her back and pins them there~",
-    },
-    {
-        id: "elbowTie", label: "🔗 Elbow tie", poses: ["BackElbowTie"],
-        kindEmote: "draws Emery's elbows together behind her back with care~",
-        roughEmote: "wrenches Emery's elbows together behind her back~",
     },
     {
         id: "neutral", label: "🔄 Neutral", poses: [],
@@ -316,11 +311,18 @@ const NEW_POSE_SEEDS: KittyPose[] = DEFAULT_POSES.filter(p =>
 
 export function getKittyPoses(): KittyPose[] {
     const raw = lsGet<KittyPose[]>("EBC_kittyPoses", DEFAULT_POSES);
-    const poses: KittyPose[] = raw.map(p => ({
-        ...p,
-        kindEmote:  p.kindEmote  ?? "",
-        roughEmote: p.roughEmote ?? "",
-    }));
+    const poses: KittyPose[] = raw
+        // Migration: remove elbow tie (BackElbowTouch conflicts in BC)
+        .filter(p => p.id !== "elbowTie")
+        .map(p => ({
+            ...p,
+            kindEmote:  p.kindEmote  ?? "",
+            roughEmote: p.roughEmote ?? "",
+            // Migration: fix old PresentationKneel → KneelingSpread
+            poses: p.id === "kneel_spread" && p.poses.includes("PresentationKneel")
+                ? ["KneelingSpread"]
+                : p.poses,
+        }));
     // Additive migration: append new defaults not present in stored list
     for (const seed of NEW_POSE_SEEDS) {
         if (!poses.find(p => p.id === seed.id)) poses.push({ ...seed });
