@@ -14295,15 +14295,14 @@
             selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none")
                 selfPickToggle.style.color = "#7a4a5e"; });
             quickActions.appendChild(selfPickToggle);
-            // Slow Leave button (conditionally shown when feature enabled + in chatroom)
+            // Slow Leave button — always shown when in a chatroom
             const slowLeaveBtn = document.createElement("button");
             slowLeaveBtn.className = "ebc-action-btn";
             slowLeaveBtn.textContent = "🚶 Slow Leave";
-            slowLeaveBtn.title = "Walk to the exit and leave the room";
+            slowLeaveBtn.title = "Wave goodbye and slowly head for the door";
             slowLeaveBtn.style.cssText = "display:none;width:100%;";
             slowLeaveBtn.addEventListener("click", () => {
-                callBC(() => CommonSetScreen("Online", "ChatSearch"));
-                callBC(() => ChatRoomLeave());
+                runSequence("*smiles and gives a little wave~@2500|*slowly heads for the door...@0|leaveroom");
             });
             quickActions.appendChild(slowLeaveBtn);
             this.slowLeaveBtn = slowLeaveBtn;
@@ -15137,9 +15136,8 @@
         updateSlowLeaveVisibility() {
             if (!this.slowLeaveBtn)
                 return;
-            const enabled = localStorage.getItem("EBC_slowLeave") === "1";
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
-            this.slowLeaveBtn.style.display = (enabled && inRoom) ? "" : "none";
+            this.slowLeaveBtn.style.display = inRoom ? "" : "none";
         }
         // -- Tab switching ---------------------------------------------------------
         stopDevLogPoller() {
@@ -21651,38 +21649,6 @@
             badgeToggleRow.appendChild(badgeLbl2);
             badgeToggleRow.appendChild(badgeToggle2);
             body.appendChild(badgeToggleRow);
-            // ── Show Slow Leave button toggle ─────────────────────────────────────
-            const slToggleRow = document.createElement("div");
-            slToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-            const slLbl = document.createElement("span");
-            slLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-            slLbl.textContent = "Show Slow Leave button";
-            const slToggle = document.createElement("button");
-            const updateSlToggle = () => {
-                const on = localStorage.getItem("EBC_slowLeave") === "1";
-                slToggle.textContent = on ? "ON" : "OFF";
-                slToggle.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                    "padding:5px 12px", "border-radius:4px", "cursor:pointer",
-                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                    "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-            };
-            updateSlToggle();
-            slToggle.addEventListener("click", () => {
-                const newVal = localStorage.getItem("EBC_slowLeave") !== "1";
-                try {
-                    localStorage.setItem("EBC_slowLeave", newVal ? "1" : "0");
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                updateSlToggle();
-                this.updateSlowLeaveVisibility();
-            });
-            slToggleRow.appendChild(slLbl);
-            slToggleRow.appendChild(slToggle);
-            body.appendChild(slToggleRow);
             // Helper: collapsible section wrapper
             const makeSection = (labelText, lsKey, defaultCollapsed, buildContent) => {
                 let collapsed = defaultCollapsed;
@@ -26483,7 +26449,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.60";
+    const MOD_VERSION = "2.2.61";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26494,6 +26460,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.61",
+            changes: [
+                "Slow Leave quick button: always visible in sidebar when in a chatroom (no more hidden toggle). Clicking it now runs the real sequence — smiles and waves, slowly heads for the door, then leaves — instead of jumping out instantly. Removed the 'Show Slow Leave button' toggle from settings.",
+            ],
+        },
         {
             version: "2.2.60",
             changes: [
