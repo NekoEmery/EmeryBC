@@ -18378,6 +18378,7 @@
             activeBodyEl.appendChild(slotList);
             const renderSlots = () => {
                 var _a, _b, _c;
+                const savedScroll = body.scrollTop;
                 // Always ensure btns has a real object for every slot — prevents "undefined" crashes
                 while (btns.length < slotCount) {
                     btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" });
@@ -18629,6 +18630,7 @@
                         }
                     });
                 }
+                body.scrollTop = savedScroll;
             };
             renderSlots();
             // Footer buttons
@@ -25864,7 +25866,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.45";
+    const MOD_VERSION = "2.2.46";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25875,6 +25877,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.46",
+            changes: [
+                "Fix: toggling a button's mode (seq ↔ macro) no longer resets the panel scroll position.",
+            ],
+        },
         {
             version: "2.2.45",
             changes: [
