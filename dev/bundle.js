@@ -25036,8 +25036,8 @@
                         }
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
-                    // Caress neck to reset LSCG choke/breath-play state on release
-                    runKittyActivity("ItemNeck", "Caress");
+                    // LSCG_ReleaseNeck resets LSCG's choke/breath-play pairing on release
+                    runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
                 }
                 else {
                     // Grab leash — BC's HoldLeash hidden-message protocol
@@ -28213,7 +28213,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.99";
+    const MOD_VERSION = "2.2.100";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28224,6 +28224,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.100",
+            changes: [
+                "Fix: Leash release now fires the LSCG_ReleaseNeck activity (instead of Caress) to correctly tear down LSCG's choke/breath-play pairing — Caress is ignored by LSCG's leash system; only LSCG_ReleaseNeck calls DoRelease and clears both sides of the Leashing pairing.",
+            ],
+        },
         {
             version: "2.2.99",
             changes: [
