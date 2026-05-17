@@ -2929,6 +2929,15 @@ export class EBCDrawer {
         const panel = document.createElement("div");
         panel.className = "ebc-panel";
 
+        // Anchor the skeleton to the DOM immediately — if any later step in setup()
+        // throws, updateVisibility() can still show the tab and the panel won't be
+        // permanently lost (content gets appended to the live panel as setup continues).
+        slideContainer.appendChild(panel);
+        root.appendChild(slideContainer);
+        document.body.appendChild(root);
+        this.rootEl  = root;
+        this.panelEl = slideContainer;
+
         // Header
         const header = document.createElement("div");
         header.className = "ebc-header";
@@ -3681,12 +3690,7 @@ export class EBCDrawer {
         panel.appendChild(safewordRow);
         panel.appendChild(body);
         panel.appendChild(footer);
-        slideContainer.appendChild(panel);
-        root.appendChild(slideContainer);
-
-        document.body.appendChild(root);
-        this.rootEl  = root;
-        this.panelEl = slideContainer;
+        // (slideContainer/root/body already anchored early in setup — see above)
         this.applyPanelOpacity();
 
         // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
