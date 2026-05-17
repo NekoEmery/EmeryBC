@@ -82,11 +82,8 @@ import {
 } from "./actionButtons";
 import {
     releaseRestraints,
-    unlockItems,
     getPlayerRestraints,
-    getPlayerLockedItems,
     removePlayerSpecificItems,
-    unlockPlayerSpecificItems,
 } from "./restraints";
 import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
@@ -3046,13 +3043,7 @@ export class EBCDrawer {
         releaseBtn.title = "Remove all restraints (skips owner/lover/family locks)";
         releaseBtn.textContent = "Release Restraints";
 
-        const unlockBtn = document.createElement("button");
-        unlockBtn.className = "ebc-action-btn danger";
-        unlockBtn.title = "Remove all locks (skips owner/lover/family locks)";
-        unlockBtn.textContent = "Remove Locks";
-
         qaRow1.appendChild(releaseBtn);
-        qaRow1.appendChild(unlockBtn);
         quickActions.appendChild(qaRow1);
 
         // Row 1b: confirm-before-escaping (centered, subtle, between danger buttons and picker)
@@ -3095,8 +3086,8 @@ export class EBCDrawer {
         // Row 2: self-picker toggle (full-width, subtle)
         const selfPickToggle = document.createElement("button");
         selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
-        selfPickToggle.textContent = "↓ Pick items to remove from yourself";
-        selfPickToggle.title = "Choose specific restraints or locks to strip from yourself";
+        selfPickToggle.textContent = "↓ Pick restraints to remove";
+        selfPickToggle.title = "Choose specific restraints to strip from yourself";
         selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.color = "#cf6f98"; });
         selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.color = "#7a4a5e"; });
         quickActions.appendChild(selfPickToggle);
@@ -3142,92 +3133,60 @@ export class EBCDrawer {
         const selfPickStatus = document.createElement("div");
         selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#79a885;min-height:13px;";
 
-        // Track selections: group → "restraint" | "lock"
-        const selfSelected = new Map<string, "restraint" | "lock">();
+        // Track selected restraint groups
+        const selfSelected = new Set<string>();
 
         const rebuildSelfPicker = (): void => {
             while (selfPickPanel.firstChild) selfPickPanel.removeChild(selfPickPanel.firstChild);
             selfSelected.clear();
 
             const restraints = getPlayerRestraints();
-            const locks      = getPlayerLockedItems();
 
-            if (restraints.length === 0 && locks.length === 0) {
+            if (restraints.length === 0) {
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:2px;";
-                hint.textContent = "Nothing to remove — no restraints or locks found.";
+                hint.textContent = "Nothing to remove — no restraints found.";
                 selfPickPanel.appendChild(hint);
                 selfPickPanel.appendChild(selfPickStatus);
                 return;
             }
 
-            const makeSection = (title: string, items: Array<{ group: string; name: string }>, kind: "restraint" | "lock"): void => {
-                if (items.length === 0) return;
-                const hdr = document.createElement("div");
-                hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;";
-                hdr.textContent = title;
-                selfPickPanel.appendChild(hdr);
-                for (const item of items) {
-                    const lbl = document.createElement("label");
-                    lbl.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
-                    lbl.addEventListener("mouseenter", () => { lbl.style.background = "rgba(42,20,33,0.6)"; });
-                    lbl.addEventListener("mouseleave", () => { lbl.style.background = ""; });
-                    const cb = document.createElement("input");
-                    cb.type = "checkbox";
-                    cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
-                    cb.addEventListener("change", () => {
-                        if (cb.checked) selfSelected.set(item.group, kind);
-                        else selfSelected.delete(item.group);
-                    });
-                    const nm = document.createElement("span");
-                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    nm.textContent = item.name;
-                    const gr = document.createElement("span");
-                    gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
-                    gr.textContent = item.group.replace("Item", "");
-                    lbl.appendChild(cb); lbl.appendChild(nm); lbl.appendChild(gr);
-                    selfPickPanel.appendChild(lbl);
-                }
-            };
-
-            makeSection("Restraints", restraints, "restraint");
-            makeSection("Locks", locks, "lock");
-
-            // Two action buttons
-            const btnRow = document.createElement("div");
-            btnRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;";
+            for (const item of restraints) {
+                const lbl = document.createElement("label");
+                lbl.style.cssText = "display:flex;align-items:center;gap:6px;padding:2px 4px;border-radius:3px;cursor:pointer;";
+                lbl.addEventListener("mouseenter", () => { lbl.style.background = "rgba(42,20,33,0.6)"; });
+                lbl.addEventListener("mouseleave", () => { lbl.style.background = ""; });
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.style.cssText = "cursor:pointer;accent-color:#cf6f98;flex-shrink:0;";
+                cb.addEventListener("change", () => {
+                    if (cb.checked) selfSelected.add(item.group);
+                    else selfSelected.delete(item.group);
+                });
+                const nm = document.createElement("span");
+                nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                nm.textContent = item.name;
+                const gr = document.createElement("span");
+                gr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                gr.textContent = item.group.replace("Item", "");
+                lbl.appendChild(cb); lbl.appendChild(nm); lbl.appendChild(gr);
+                selfPickPanel.appendChild(lbl);
+            }
 
             const removeSelBtn = document.createElement("button");
-            removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
+            removeSelBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;margin-top:3px;";
             removeSelBtn.textContent = "↑ Remove Selected";
             removeSelBtn.addEventListener("mouseenter", () => { removeSelBtn.style.background = "#5a1c30"; });
             removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a1020"; });
             removeSelBtn.addEventListener("click", () => {
-                const groups = [...selfSelected.entries()].filter(([, k]) => k === "restraint").map(([g]) => g);
-                if (groups.length === 0) { selfPickStatus.textContent = "Select restraints first."; return; }
-                const n = removePlayerSpecificItems(groups);
+                if (selfSelected.size === 0) { selfPickStatus.textContent = "Select restraints first."; return; }
+                const n = removePlayerSpecificItems([...selfSelected]);
                 selfPickStatus.textContent = n > 0 ? ("✓ Removed " + n + " item(s).") : "Nothing removed.";
                 rebuildSelfPicker();
                 window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
             });
 
-            const unlockSelBtn = document.createElement("button");
-            unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
-            unlockSelBtn.textContent = "🔓 Unlock Selected";
-            unlockSelBtn.addEventListener("mouseenter", () => { unlockSelBtn.style.background = "#1a4a2a"; });
-            unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#0f2a1a"; });
-            unlockSelBtn.addEventListener("click", () => {
-                const groups = [...selfSelected.entries()].filter(([, k]) => k === "lock").map(([g]) => g);
-                if (groups.length === 0) { selfPickStatus.textContent = "Select locks first."; return; }
-                const n = unlockPlayerSpecificItems(groups);
-                selfPickStatus.textContent = n > 0 ? ("✓ Unlocked " + n + " item(s).") : "Nothing unlocked.";
-                rebuildSelfPicker();
-                window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
-            });
-
-            btnRow.appendChild(removeSelBtn);
-            btnRow.appendChild(unlockSelBtn);
-            selfPickPanel.appendChild(btnRow);
+            selfPickPanel.appendChild(removeSelBtn);
             selfPickPanel.appendChild(selfPickStatus);
         };
 
@@ -3254,22 +3213,6 @@ export class EBCDrawer {
             if (selfPickPanel.style.display !== "none") rebuildSelfPicker();
             window.setTimeout(() => { releaseBtn.disabled = false; }, 1500);
         });
-        unlockBtn.addEventListener("click", () => {
-            if (getAntiRestraintConfirm()) {
-                showQuickConfirm("Remove all locks?", () => {
-                    unlockBtn.disabled = true;
-                    unlockItems();
-                    if (selfPickPanel.style.display !== "none") rebuildSelfPicker();
-                    window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
-                });
-                return;
-            }
-            unlockBtn.disabled = true;
-            unlockItems();
-            if (selfPickPanel.style.display !== "none") rebuildSelfPicker();
-            window.setTimeout(() => { unlockBtn.disabled = false; }, 1500);
-        });
-
         // Badge visibility toggle row (below the danger buttons)
         // Safeword permanent row (always visible, any tab)
         const safewordRow = document.createElement("div");
@@ -13621,7 +13564,19 @@ export class EBCDrawer {
                         const mood = getKittyMood();
                         const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                         try {
-                            if (em.type === "emote") {
+                            if (em.id === "headpat") {
+                                // Register as a real BC activity so it shows as a proper headpat
+                                ServerSend("ChatRoomChat", {
+                                    Type: "Activity",
+                                    Content: "CaressItemHead",
+                                    Dictionary: [
+                                        { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
+                                        { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER },
+                                        { Tag: "ActivityGroup", Text: "ItemHead" },
+                                        { Tag: "ActivityName", Text: "Caress" },
+                                    ],
+                                });
+                            } else if (em.type === "emote") {
                                 ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
                             } else {
                                 const zw = String.fromCharCode(0x200C);
@@ -14000,24 +13955,6 @@ export class EBCDrawer {
                         sendKittyCmd("punish", JSON.stringify({ label: s.label, mood, items: s.items }));
                     }));
                 }
-                row.appendChild(makePill("🔓 Release all", "#70a870", () => {
-                    try {
-                        const w = window as unknown as Record<string, unknown>;
-                        const chars = w.ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
-                        const emery = chars?.find(c => (c.MemberNumber as number) === EMERY_MEMBER);
-                        if (!emery) { alert("Emery is not in the room!"); return; }
-                        const appearance = emery.Appearance as Array<Record<string, unknown>> | undefined ?? [];
-                        for (const item of [...appearance]) {
-                            const assetGroup = (item.Asset as Record<string, unknown>)?.Group as Record<string, unknown>;
-                            const groupName = assetGroup?.Name as string | undefined;
-                            // Only remove restraint-slot items — never clothing, hair, body, etc.
-                            if (!groupName || !RESTRAINT_GROUPS.has(groupName)) continue;
-                            try { (w.InventoryRemove as ((c: unknown, group: string, push: boolean) => void) | undefined)?.(emery, groupName, false); } catch { /* skip locked */ }
-                        }
-                        // Push=true so the server and other players see the change
-                        (w.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(emery, true, false);
-                    } catch (err) { console.warn("[EBC Kitty] Release error:", err); }
-                }));
                 restraintsWrap.appendChild(row);
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
@@ -14065,7 +14002,145 @@ export class EBCDrawer {
                 [lblInp, kindInpR, roughInpR].forEach(i => i.addEventListener("input", saveInpR));
                 delBtn.addEventListener("click", () => { saveKittyRestraintSets(getKittyRestraintSets().filter((_, i) => i !== idx)); renderRestraintSets(true); });
 
+                // ── Per-item list ───────────────────────────────────────────
+                const itemsHdr = document.createElement("div");
+                itemsHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;";
+                itemsHdr.textContent = "Items";
+                r.appendChild(itemsHdr);
+
+                const colorToStr = (c: string | string[] | undefined): string =>
+                    Array.isArray(c) ? c.join(", ") : (c ?? "Default");
+                const strToColor = (v: string): string | string[] => {
+                    const t = v.trim();
+                    if (!t || t === "Default") return "Default";
+                    if (t.includes(",")) return t.split(",").map(x => x.trim()).filter(Boolean);
+                    return t;
+                };
+
+                const rebuildItemRows = (): void => {
+                    // Remove old item rows (everything after itemsHdr up to the add-row sentinel)
+                    const addSentinel = r.querySelector(".ebc-add-item-sentinel") as HTMLElement | null;
+                    const toRemove: Element[] = [];
+                    let el = itemsHdr.nextElementSibling;
+                    while (el && el !== addSentinel) { toRemove.push(el); el = el.nextElementSibling; }
+                    toRemove.forEach(e => e.remove());
+
+                    const live = getKittyRestraintSets()[idx]?.items ?? [];
+                    if (live.length === 0) {
+                        const empty = document.createElement("div");
+                        empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;";
+                        empty.textContent = "No items yet — add one below.";
+                        r.insertBefore(empty, addSentinel);
+                        return;
+                    }
+                    live.forEach((item, iIdx) => {
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;align-items:center;gap:3px;padding:2px 0;";
+                        const nameLbl = document.createElement("span");
+                        nameLbl.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;";
+                        nameLbl.textContent = item.Name;
+                        nameLbl.title = item.Name;
+                        const grpLbl = document.createElement("span");
+                        grpLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                        grpLbl.textContent = item.Group.replace("Item", "");
+                        const colorInp = document.createElement("input");
+                        colorInp.value = colorToStr(item.Color);
+                        colorInp.placeholder = "Default";
+                        colorInp.style.cssText = "width:80px;flex-shrink:0;" + INP;
+                        colorInp.title = "Colour: hex (#rrggbb), comma-separated for layers, or Default";
+                        colorInp.addEventListener("change", () => {
+                            const sets = getKittyRestraintSets();
+                            if (sets[idx]?.items[iIdx]) {
+                                sets[idx].items[iIdx].Color = strToColor(colorInp.value);
+                                saveKittyRestraintSets(sets);
+                            }
+                        });
+                        const delItm = document.createElement("button");
+                        delItm.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                        delItm.textContent = "×";
+                        delItm.title = "Remove this item";
+                        delItm.addEventListener("click", () => {
+                            const sets = getKittyRestraintSets();
+                            if (sets[idx]) { sets[idx].items.splice(iIdx, 1); saveKittyRestraintSets(sets); }
+                            rebuildItemRows();
+                        });
+                        row.appendChild(nameLbl); row.appendChild(grpLbl); row.appendChild(colorInp); row.appendChild(delItm);
+                        r.insertBefore(row, addSentinel);
+                    });
+                };
+
+                // ── Add-item builder ────────────────────────────────────────
+                const addItemSentinel = document.createElement("div");
+                addItemSentinel.className = "ebc-add-item-sentinel";
+                addItemSentinel.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-top:3px;border-top:1px solid #2a1421;padding-top:4px;";
+
+                const getGroupAssets = (group: string): string[] => {
+                    try {
+                        const w = window as unknown as Record<string, unknown>;
+                        const bcAssets = w.Asset as Array<{ Name: string; Group: { Name: string } }> | undefined;
+                        return bcAssets?.filter(a => a.Group.Name === group).map(a => a.Name).sort() ?? [];
+                    } catch { return []; }
+                };
+
+                const aiSlotRow = document.createElement("div");
+                aiSlotRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                const aiSlotLbl = document.createElement("span"); aiSlotLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;"; aiSlotLbl.textContent = "Slot";
+                const aiSlotSel = document.createElement("select"); aiSlotSel.style.cssText = "flex:1;min-width:0;" + INP;
+                const aiSlotPh = document.createElement("option"); aiSlotPh.value = ""; aiSlotPh.textContent = "— slot —"; aiSlotPh.disabled = true; aiSlotPh.selected = true; aiSlotSel.appendChild(aiSlotPh);
+                for (const grp of RESTRAINT_GROUPS) {
+                    const o = document.createElement("option"); o.value = grp; o.textContent = grp.replace("Item", ""); aiSlotSel.appendChild(o);
+                }
+                aiSlotRow.appendChild(aiSlotLbl); aiSlotRow.appendChild(aiSlotSel);
+
+                const aiItemRow = document.createElement("div");
+                aiItemRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                const aiItemLbl = document.createElement("span"); aiItemLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;"; aiItemLbl.textContent = "Item";
+                const aiItemSel = document.createElement("select"); aiItemSel.style.cssText = "flex:1;min-width:0;" + INP;
+                const aiItemPh = document.createElement("option"); aiItemPh.value = ""; aiItemPh.textContent = "— pick slot first —"; aiItemPh.disabled = true; aiItemPh.selected = true; aiItemSel.appendChild(aiItemPh);
+                aiItemRow.appendChild(aiItemLbl); aiItemRow.appendChild(aiItemSel);
+
+                aiSlotSel.addEventListener("change", () => {
+                    while (aiItemSel.firstChild) aiItemSel.removeChild(aiItemSel.firstChild);
+                    const names = getGroupAssets(aiSlotSel.value);
+                    if (names.length === 0) {
+                        const o = document.createElement("option"); o.value = ""; o.textContent = "— none found —"; o.disabled = true; o.selected = true; aiItemSel.appendChild(o);
+                    } else {
+                        const ph2 = document.createElement("option"); ph2.value = ""; ph2.textContent = "— pick item —"; ph2.disabled = true; ph2.selected = true; aiItemSel.appendChild(ph2);
+                        for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; aiItemSel.appendChild(o); }
+                    }
+                });
+
+                const aiColorRow = document.createElement("div");
+                aiColorRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                const aiColorLbl = document.createElement("span"); aiColorLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;flex-shrink:0;"; aiColorLbl.textContent = "Color";
+                const aiColorInp = document.createElement("input"); aiColorInp.placeholder = "Default  or  #rrggbb, #rrggbb2…"; aiColorInp.style.cssText = "flex:1;min-width:0;" + INP;
+                const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = "+ Add";
+                aiColorRow.appendChild(aiColorLbl); aiColorRow.appendChild(aiColorInp); aiColorRow.appendChild(aiAddBtn);
+
+                aiAddBtn.addEventListener("click", () => {
+                    if (!aiSlotSel.value || !aiItemSel.value) return;
+                    const newItem: KittyItem = {
+                        Name: aiItemSel.value,
+                        Group: aiSlotSel.value,
+                        Color: strToColor(aiColorInp.value || "Default"),
+                    };
+                    const sets = getKittyRestraintSets();
+                    if (sets[idx]) { sets[idx].items.push(newItem); saveKittyRestraintSets(sets); }
+                    // Reset fields
+                    aiSlotSel.value = ""; aiItemSel.innerHTML = ""; aiItemSel.appendChild(aiItemPh); aiItemPh.selected = true; aiColorInp.value = "";
+                    rebuildItemRows();
+                    // Update item count label
+                    countLbl.textContent = (getKittyRestraintSets()[idx]?.items.length ?? 0) + " items";
+                });
+
+                addItemSentinel.appendChild(aiSlotRow);
+                addItemSentinel.appendChild(aiItemRow);
+                addItemSentinel.appendChild(aiColorRow);
+
                 r.appendChild(r1); r.appendChild(kindRowR); r.appendChild(roughRowR);
+                r.appendChild(itemsHdr);
+                rebuildItemRows();
+                r.appendChild(addItemSentinel);
                 list.appendChild(r);
             });
 

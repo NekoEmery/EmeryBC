@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.69";
+const MOD_VERSION = "2.2.70";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,18 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.70",
+        changes: [
+            "Removed 'Remove Locks' button from quick actions sidebar and 'Unlock Selected' from the self-picker — locks are no longer managed here.",
+            "Self-picker now only shows restraints.",
+            "Rough resistance popup drops to 1 s (was 3 s) — be quick to fight back!",
+            "Popup fight/accept/ignore buttons no longer auto-send room emotes — you decide what to say.",
+            "Headpat button now registers as a real BC Caress activity on Emery's head.",
+            "Removed '🔓 Release all' button from kitty restraints view.",
+            "Restraint set editor: each item in the set now shows a colour input and a delete button; new 'Add item' builder with slot/item dropdowns populated from BC's asset list.",
+        ],
+    },
     {
         version: "2.2.69",
         changes: [
@@ -2438,7 +2450,7 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough", restrai
     const sub = document.createElement("div");
     sub.style.cssText = "font-size:10px;color:#967281;margin-bottom:12px;";
     sub.textContent = mood === "rough"
-        ? "Miss Lucy is being stern with you... (3 s)"
+        ? "Miss Lucy is being stern with you... (1 s)"
         : "Miss Lucy is correcting you gently... (8 s)";
 
     const timerBar = document.createElement("div");
@@ -2456,15 +2468,7 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough", restrai
     const fightBtn = document.createElement("button");
     fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
     fightBtn.textContent = "Fight back! 💪";
-    fightBtn.addEventListener("click", () => {
-        try {
-            const emote = mood === "rough"
-                ? "squirms and pulls away defiantly, refusing to give in~"
-                : "pouts and gently shakes her head~ No, no...";
-            ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
-        } catch { /* ignore */ }
-        close();
-    });
+    fightBtn.addEventListener("click", () => { close(); });
 
     // ── Accept — applies restraints if any ─────────────────────────────────
     const acceptBtn = document.createElement("button");
@@ -2506,12 +2510,6 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough", restrai
                 }
             } catch { /* ignore */ }
         }
-        try {
-            const emote = mood === "rough"
-                ? "flinches but lowers her gaze, quietly accepting~"
-                : "gives a tiny nod and lowers her eyes obediently~";
-            ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
-        } catch { /* ignore */ }
         close();
     });
 
@@ -2524,8 +2522,8 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough", restrai
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    // Rough = 3 s, Kind = 8 s — auto-accept when timer expires
-    const DURATION = mood === "rough" ? 3000 : 8000;
+    // Rough = 1 s, Kind = 8 s — auto-accept when timer expires
+    const DURATION = mood === "rough" ? 1000 : 8000;
     const startTime = Date.now();
     const tick = (): void => {
         const pct = Math.max(0, 1 - (Date.now() - startTime) / DURATION);
@@ -2568,18 +2566,12 @@ function showKittyReactPopup(label: string): void {
     const acceptBtn = document.createElement("button");
     acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
     acceptBtn.textContent = "Accept~ 🥰";
-    acceptBtn.addEventListener("click", () => {
-        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "brightens up happily, tail wagging~ 💜", Dictionary: [] }); } catch { /* ignore */ }
-        close();
-    });
+    acceptBtn.addEventListener("click", () => { close(); });
 
     const ignoreBtn = document.createElement("button");
     ignoreBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #7a5a6a;background:transparent;color:#7a5a6a;";
     ignoreBtn.textContent = "Ignore 🙈";
-    ignoreBtn.addEventListener("click", () => {
-        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "glances away shyly, pretending not to notice~", Dictionary: [] }); } catch { /* ignore */ }
-        close();
-    });
+    ignoreBtn.addEventListener("click", () => { close(); });
 
     btnRow.appendChild(acceptBtn);
     btnRow.appendChild(ignoreBtn);
