@@ -14212,6 +14212,14 @@
             // Inner panel (visual content)
             const panel = document.createElement("div");
             panel.className = "ebc-panel";
+            // Anchor the skeleton to the DOM immediately — if any later step in setup()
+            // throws, updateVisibility() can still show the tab and the panel won't be
+            // permanently lost (content gets appended to the live panel as setup continues).
+            slideContainer.appendChild(panel);
+            root.appendChild(slideContainer);
+            document.body.appendChild(root);
+            this.rootEl = root;
+            this.panelEl = slideContainer;
             // Header
             const header = document.createElement("div");
             header.className = "ebc-header";
@@ -14904,11 +14912,7 @@
             panel.appendChild(safewordRow);
             panel.appendChild(body);
             panel.appendChild(footer);
-            slideContainer.appendChild(panel);
-            root.appendChild(slideContainer);
-            document.body.appendChild(root);
-            this.rootEl = root;
-            this.panelEl = slideContainer;
+            // (slideContainer/root/body already anchored early in setup — see above)
             this.applyPanelOpacity();
             // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
             // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
@@ -27328,7 +27332,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.81";
+    const MOD_VERSION = "2.2.82";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27339,6 +27343,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.82",
+            changes: [
+                "Fixed: drawer skeleton now anchored to the DOM immediately at setup start — any unexpected runtime error during panel construction no longer prevents the drawer from appearing.",
+            ],
+        },
         {
             version: "2.2.81",
             changes: [
