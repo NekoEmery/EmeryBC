@@ -3224,12 +3224,14 @@ export class EBCDrawer {
         slCatDropdown.style.cssText = SL_DD_CSS;
         slCatDropdown.title = "Switch action button category";
         const refreshCatDropdown = (): void => {
-            while (slCatDropdown.firstChild) slCatDropdown.removeChild(slCatDropdown.firstChild);
-            const cats = getCategories();
-            cats.forEach((cat, i) => {
-                const o = document.createElement("option"); o.value = String(i); o.textContent = cat.name; slCatDropdown.appendChild(o);
-            });
-            slCatDropdown.value = String(getActiveCategoryIndex());
+            try {
+                while (slCatDropdown.firstChild) slCatDropdown.removeChild(slCatDropdown.firstChild);
+                const cats = getCategories();
+                cats.forEach((cat, i) => {
+                    const o = document.createElement("option"); o.value = String(i); o.textContent = cat.name; slCatDropdown.appendChild(o);
+                });
+                slCatDropdown.value = String(getActiveCategoryIndex());
+            } catch { /* Player may not be initialised yet */ }
         };
         refreshCatDropdown();
         slCatDropdown.addEventListener("change", () => {
