@@ -25328,19 +25328,24 @@
                             // Guard: never send chat when not in a room
                             if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
                                 return;
-                            // Send mood-aware room emote first, then apply pose
+                            // Apply pose + expression first, then narrate after a short delay so
+                            // Emery's CharacterUpdate reaches everyone before the emote text appears.
                             const mood = getKittyMood();
                             const emoteText = mood === "rough" ? (p.roughEmote || p.kindEmote) : (p.kindEmote || p.roughEmote);
-                            sendRoomEmote(emoteText);
                             sendKittyCmd("pose", p.poses.join(","));
                             if (p.expression)
                                 sendExprOrPreset(p.expression);
+                            setTimeout(() => {
+                                if (typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom") {
+                                    sendRoomEmote(emoteText);
+                                }
+                            }, 600);
                         }));
                     }
                     posesWrap.appendChild(row);
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
-                    hint.textContent = "Sends a room emote then applies the pose on Emery";
+                    hint.textContent = "Applies the pose on Emery then sends a room emote";
                     posesWrap.appendChild(hint);
                     return;
                 }
@@ -28209,7 +28214,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.102";
+    const MOD_VERSION = "2.2.103";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28220,6 +28225,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.103",
+            changes: [
+                "Kitty Poses: pose + expression are now applied before the room emote, with a 600 ms delay on the emote so Emery's CharacterUpdate reaches the room first — the pose change is visible before the narration text appears.",
+            ],
+        },
         {
             version: "2.2.102",
             changes: [
