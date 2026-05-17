@@ -2141,17 +2141,26 @@
             const currentGroups = new Set(Player.Appearance
                 .filter(i => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
                 .map(i => i.Asset.Group.Name));
-            // Overall bound timer — neck/collar groups excluded
+            // Sync per-item timers — load once, used both for start-time recovery and below
+            const timers = loadRestraintTimers();
+            // Overall bound timer — neck/collar groups excluded.
+            // When already bound on load, recover the start from persisted per-item
+            // timers so offline time is included rather than starting fresh.
             const isBound = [...currentGroups].some(g => !NECK_GROUPS$1.has(g));
             if (isBound) {
-                if (restraintStartTime === null)
-                    restraintStartTime = Date.now();
+                if (restraintStartTime === null) {
+                    // Find the oldest non-neck per-item timer already in storage
+                    const nonNeckGroups = [...currentGroups].filter(g => !NECK_GROUPS$1.has(g));
+                    const oldest = nonNeckGroups
+                        .map(g => timers[g])
+                        .filter((t) => typeof t === "number")
+                        .reduce((min, t) => Math.min(min, t), now);
+                    restraintStartTime = oldest; // equals `now` if no persisted timer yet
+                }
             }
             else {
                 restraintStartTime = null;
             }
-            // Sync per-item timers
-            const timers = loadRestraintTimers();
             let changed = false;
             for (const group of currentGroups) {
                 if (!(group in timers)) {
@@ -11346,6 +11355,13 @@
             type: "emote",
             bcGroup: "ItemButt", bcActivity: "Spank",
         },
+        {
+            id: "bap", label: "🐾 Bap",
+            text: "gives Emery a playful bap on the nose~ 🐾",
+            roughText: "gives Emery a sharp flick on the nose without warning~",
+            type: "emote",
+            bcGroup: "ItemHead", bcActivity: "Slap",
+        },
     ];
     const DEFAULT_POSES = [
         {
@@ -11428,17 +11444,48 @@
         "announce": "Emery is Lucy's. End of discussion.~",
         "snuggle": "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
         "spank": "delivers a sharp smack to Emery's bottom without warning~",
+        "bap": "gives Emery a sharp flick on the nose without warning~",
     };
     const EXPRESSION_SEEDS = {
         "headpat": "Ears:Wiggle",
         "goodgirl": "Ears:Wiggle",
     };
+    // Seed bcGroup/bcActivity for stored emotes that predate these fields (v2.2.75+).
+    const BC_ACTIVITY_SEEDS = {
+        "headpat": { group: "ItemHead", activity: "Pet" },
+        "spank": { group: "ItemButt", activity: "Spank" },
+        "bap": { group: "ItemHead", activity: "Slap" },
+    };
+    // New emotes to seed into existing stored lists that predate them.
+    const NEW_EMOTE_SEEDS = [
+        {
+            id: "bap", label: "🐾 Bap",
+            text: "gives Emery a playful bap on the nose~ 🐾",
+            roughText: "gives Emery a sharp flick on the nose without warning~",
+            type: "emote",
+            bcGroup: "ItemHead", bcActivity: "Slap",
+        },
+        {
+            id: "spank", label: "👋 Spank",
+            text: "gives Emery a playful swat on the bottom~",
+            roughText: "delivers a sharp smack to Emery's bottom without warning~",
+            type: "emote",
+            bcGroup: "ItemButt", bcActivity: "Spank",
+        },
+    ];
     function getKittyEmotes() {
         const raw = lsGet("EBC_kittyEmotes", DEFAULT_EMOTES);
-        return raw.map(e => {
-            var _a, _b, _c, _d;
-            return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "" }));
+        const emotes = raw.map(e => {
+            var _a, _b, _c, _d, _e, _f, _g, _h;
+            return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", bcGroup: (_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group, bcActivity: (_g = e.bcActivity) !== null && _g !== void 0 ? _g : (_h = BC_ACTIVITY_SEEDS[e.id]) === null || _h === void 0 ? void 0 : _h.activity }));
         });
+        // Append any new default emotes that weren't in the stored list yet
+        for (const seed of NEW_EMOTE_SEEDS) {
+            if (!emotes.find(e => e.id === seed.id)) {
+                emotes.push(Object.assign({ roughText: "", expression: "" }, seed));
+            }
+        }
+        return emotes;
     }
     function saveKittyEmotes(v) { lsSet("EBC_kittyEmotes", v); }
     function getKittyRestraintSets() {
@@ -14260,6 +14307,7 @@
             this.tagTooltipEl = null;
             this.tagTooltipMoveListener = null;
             this.slowLeaveBtn = null;
+            this.slPresetDropdown = null;
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
@@ -14505,8 +14553,7 @@
             selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none")
                 selfPickToggle.style.color = "#7a4a5e"; });
             quickActions.appendChild(selfPickToggle);
-            // Slow Leave button — always shown when in a chatroom
-            const SLOW_LEAVE_PRESETS = getSlowLeavePresets();
+            // Slow Leave button + preset dropdown — always shown when in a chatroom
             const slowLeaveBtn = document.createElement("button");
             slowLeaveBtn.className = "ebc-action-btn";
             slowLeaveBtn.textContent = "🚶 Slow Leave";
@@ -14518,9 +14565,10 @@
                     cancelSequence();
                     return;
                 }
+                const livePresets = getSlowLeavePresets();
                 const durMs = Math.max(500, (parseInt((_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5", 10)) * 1000);
-                const pIdx = Math.min(SLOW_LEAVE_PRESETS.length - 1, Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10)));
-                const seq = SLOW_LEAVE_PRESETS[pIdx].seq.replace("{DUR}", String(durMs));
+                const pIdx = Math.min(livePresets.length - 1, Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10)));
+                const seq = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
                 setSeqDoneCallback(() => {
                     slowLeaveBtn.textContent = "🚶 Slow Leave";
                     slowLeaveBtn.style.background = "";
@@ -14533,6 +14581,30 @@
             });
             quickActions.appendChild(slowLeaveBtn);
             this.slowLeaveBtn = slowLeaveBtn;
+            // Preset selector — lives just below the slow leave button
+            const slPresetDropdown = document.createElement("select");
+            slPresetDropdown.style.cssText = "display:none;width:100%;margin-top:2px;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+            const populateSlPresets = () => {
+                var _a;
+                while (slPresetDropdown.firstChild)
+                    slPresetDropdown.removeChild(slPresetDropdown.firstChild);
+                getSlowLeavePresets().forEach((p, i) => {
+                    const o = document.createElement("option");
+                    o.value = String(i);
+                    o.textContent = p.label;
+                    slPresetDropdown.appendChild(o);
+                });
+                slPresetDropdown.value = (_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0";
+            };
+            populateSlPresets();
+            slPresetDropdown.addEventListener("change", () => {
+                try {
+                    localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            quickActions.appendChild(slPresetDropdown);
+            this.slPresetDropdown = slPresetDropdown;
             // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
             const selfPickPanel = document.createElement("div");
             selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
@@ -15365,6 +15437,9 @@
                 return;
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
             this.slowLeaveBtn.style.display = inRoom ? "" : "none";
+            if (this.slPresetDropdown) {
+                this.slPresetDropdown.style.display = inRoom ? "" : "none";
+            }
             // Reset button label if no sequence is currently running
             if (!isSeqRunning()) {
                 this.slowLeaveBtn.textContent = "🚶 Slow Leave";
@@ -27269,7 +27344,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.75";
+    const MOD_VERSION = "2.2.76";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27280,6 +27355,17 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.76",
+            changes: [
+                "Added 🐾 Bap emote (Slap on ItemHead) to default buttons; seeded automatically into existing emote lists so no manual re-add needed.",
+                "Spank emote also seeded automatically for users who didn't have it in their stored list.",
+                "bcGroup/bcActivity fields seeded into existing headpat and spank entries from storage so the sound picker shows them correctly without re-editing.",
+                "Slow Leave: preset dropdown now appears directly below the Slow Leave button in the sidebar — no need to open the settings tab to switch presets.",
+                "Slow Leave: click handler now re-reads presets live so edits made in settings take effect immediately without reloading.",
+                "⛓ Bound timer in header footer now recovers from persisted per-item timestamps — correctly counts offline time instead of starting fresh every session.",
+            ],
+        },
         {
             version: "2.2.75",
             changes: [
