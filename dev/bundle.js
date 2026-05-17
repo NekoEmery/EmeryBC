@@ -2053,12 +2053,11 @@
                     releaseRestraints();
                     break;
                 case "leaveroom":
-                    // Signal the ChatRoomRun guard before deferring the actual leave call.
-                    // The guard skips frames where ChatRoomData is null ONLY while this flag
-                    // is set, so map rooms (where ChatRoomData can legitimately be null) are
-                    // never affected.
-                    setLeavePending();
-                    window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
+                    // setLeavePending() must fire in the same tick as ChatRoomLeave() so no
+                    // ChatRoomRun frame runs between the flag being set and the data being
+                    // cleared — otherwise the guard sees ChatRoomData != null and clears the
+                    // flag prematurely, causing the null-crash guard to never fire.
+                    window.setTimeout(() => { setLeavePending(); callBC(() => ChatRoomLeave()); }, 0);
                     break;
             }
         }
@@ -2242,11 +2241,12 @@
                     sendPoseUpdate(appearanceBundle);
                 }
                 else if (step.toLowerCase() === "leaveroom") {
-                    // Restore pose, flag the guard, then defer leave by one tick.
+                    // Restore pose, then defer leave by one tick — setLeavePending() goes
+                    // inside the callback so no ChatRoomRun frame fires between the flag
+                    // being set and ChatRoomData actually being cleared.
                     Player.ActivePose = originalPoses;
                     seqRunning = false;
-                    setLeavePending();
-                    window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
+                    window.setTimeout(() => { setLeavePending(); callBC(() => ChatRoomLeave()); }, 0);
                     return;
                 }
                 else if (step.startsWith("!")) {
@@ -25623,7 +25623,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.37";
+    const MOD_VERSION = "2.2.38";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25634,6 +25634,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.38",
+            changes: [
+                "Fix: slow-leave (seq leaveroom step / macro) left the room but UI didn't update — setLeavePending() was called before setTimeout, letting ChatRoomRun clear the guard flag prematurely before ChatRoomData was null.",
+            ],
+        },
         {
             version: "2.2.37",
             changes: [
