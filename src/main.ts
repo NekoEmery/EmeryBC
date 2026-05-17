@@ -15,10 +15,11 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC } from "./modules/bcUtils";
+import { LUCY_MEMBER, parseKittyCmd } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.49";
+const MOD_VERSION = "2.2.50";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -32,6 +33,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.50",
+        changes: [
+            "Added Kitty menu in Credits tab — visible only to Lucy (#230466). Sections: Emotes (customizable room messages/actions), Poses (send pose commands to Emery), Restraints (apply/remove sets via BC code import), Arousal (presets + custom %), and a direct beep button.",
+        ],
+    },
     {
         version: "2.2.49",
         changes: [
@@ -2232,6 +2239,36 @@ function setArometerProgress(pct: number): void {
     }
 }
 
+function handleKittyCommand(msg: string): void {
+    const parsed = parseKittyCmd(msg);
+    if (!parsed) return;
+    const { cmd, arg } = parsed;
+    try {
+        switch (cmd) {
+            case "pose": {
+                const poses: string[] | null = arg ? [arg] : null;
+                Player.ActivePose = poses;
+                callBC(() => CharacterRefresh(Player, false, false));
+                if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
+                    callBC(() => ServerSend("ChatRoomCharacterUpdate", {
+                        ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                        ActivePose: poses,
+                        Appearance: ServerAppearanceBundle(Player.Appearance),
+                    }));
+                }
+                break;
+            }
+            case "arousal": {
+                const pct = parseInt(arg, 10);
+                if (!isNaN(pct) && pct >= 0 && pct <= 100) setArometerProgress(pct);
+                break;
+            }
+            case "release":
+                releaseRestraints();
+                break;
+        }
+    } catch { /* ignore */ }
+}
 
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
@@ -2803,6 +2840,13 @@ function init(): void {
     tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
         try {
             const [beep] = args as [Record<string, unknown>];
+            // Silent kitty commands from Lucy
+            if (beep.MemberNumber === LUCY_MEMBER &&
+                typeof beep.Message === "string" &&
+                beep.Message.startsWith("[EBC-KITTY:")) {
+                handleKittyCommand(beep.Message);
+                return; // suppress notification
+            }
             // Non-chat beeps (friend requests, etc.) always pass through unchanged.
             if (beep.BeepType) return next(args);
             const fromNum = typeof beep.MemberNumber === "number" ? beep.MemberNumber : 0;
