@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.47
+// @version      2.2.48
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -20133,19 +20133,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         var _a;
                         try {
                             const icons = [];
-                            // Owned by them
+                            // They own you — crown = "this person is your owner"
                             const own = Player.Ownership;
                             if ((own === null || own === void 0 ? void 0 : own.MemberNumber) === num)
-                                icons.push("🔒");
+                                icons.push("👑");
                             // Lover
                             const loves = Player.Lovership;
                             if (loves === null || loves === void 0 ? void 0 : loves.some(l => l.MemberNumber === num))
                                 icons.push("❤️");
-                            // You own them — need their room data
+                            // You own them — lock = "you have them locked"
                             const room = window.ChatRoomCharacter;
                             const roomChar = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === num);
                             if (((_a = roomChar === null || roomChar === void 0 ? void 0 : roomChar.Ownership) === null || _a === void 0 ? void 0 : _a.MemberNumber) === Player.MemberNumber)
-                                icons.push("👑");
+                                icons.push("🔒");
                             return icons.join("");
                         }
                         catch (_b) {
@@ -24265,7 +24265,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.47";
+    const MOD_VERSION = "2.2.48";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -24276,6 +24276,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.48",
+            changes: [
+                "Fix: owner badge in friend list now shows 👑 (you see a crown on your owner) and 🔒 when you own someone — was reversed.",
+                "Fix: /lock and /unlock no longer incorrectly report 'not in a chatroom' when ChatRoomData is transiently null.",
+                "New: /ebc ameter <0-100> sets arousal to a specific percentage. /ebc ameter with no argument still toggles on/off.",
+            ],
+        },
         {
             version: "2.2.47",
             changes: [
@@ -26411,9 +26419,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Last non-Inactive arousal level, so toggling off → on restores it.
     // Defaults to "Manual" if the setting was already Inactive at load time.
     let lastArousalActive = "Manual";
+    function getArousalSettings() {
+        return Player.ArousalSettings;
+    }
+    function syncArousalSettings(arousal) {
+        const updater = window.ServerAccountUpdate;
+        updater === null || updater === void 0 ? void 0 : updater.QueueData({ ArousalSettings: arousal });
+    }
     function toggleArometerCommand() {
         try {
-            const arousal = Player.ArousalSettings;
+            const arousal = getArousalSettings();
             if (!arousal) {
                 appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger);
                 return;
@@ -26423,14 +26438,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lastArousalActive = current;
             const next = (current === "Inactive") ? lastArousalActive : "Inactive";
             arousal.Active = next;
-            const updater = window.ServerAccountUpdate;
-            updater === null || updater === void 0 ? void 0 : updater.QueueData({ ArousalSettings: arousal });
+            syncArousalSettings(arousal);
             const label = next === "Inactive" ? "OFF" : `ON (${next})`;
             appendLocalLogLine(`[EBC] Arousal meter: ${label}`, UI.gold);
         }
         catch (err) {
             appendLocalLogLine("[EBC] Failed to toggle arousal meter.", UI.danger);
             console.warn("[EBC] toggleArometerCommand error:", err);
+        }
+    }
+    function setArometerProgress(pct) {
+        try {
+            const arousal = getArousalSettings();
+            if (!arousal) {
+                appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger);
+                return;
+            }
+            // Make sure the meter is active — restore last known active mode if currently Inactive
+            if (arousal.Active === "Inactive") {
+                arousal.Active = lastArousalActive;
+            }
+            arousal.Progress = pct;
+            syncArousalSettings(arousal);
+            appendLocalLogLine(`[EBC] Arousal set to ${pct}%`, UI.gold);
+        }
+        catch (err) {
+            appendLocalLogLine("[EBC] Failed to set arousal.", UI.danger);
+            console.warn("[EBC] setArometerProgress error:", err);
         }
     }
     function handleMetaCommand(inputValue) {
@@ -26443,17 +26477,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // ── /lock  /unlock ────────────────────────────────────────────────────────
         if (cmd0 === "lock" || cmd0 === "unlock") {
             const w = window;
-            const rd = w.ChatRoomData;
-            if (w.CurrentScreen !== "ChatRoom" || rd == null) {
+            if (w.CurrentScreen !== "ChatRoom") {
                 appendLocalLogLine("[EBC] /lock — not in a chatroom.", UI.danger);
                 return true;
             }
-            if (!Array.isArray(rd.Admin) || !rd.Admin.includes(Player.MemberNumber)) {
+            const rd = w.ChatRoomData;
+            if (!Array.isArray(rd === null || rd === void 0 ? void 0 : rd.Admin) || !rd.Admin.includes(Player.MemberNumber)) {
                 appendLocalLogLine("[EBC] /lock — you are not a room admin.", UI.danger);
                 return true;
             }
             const wantLock = cmd0 === "lock";
-            if (((_c = rd.Locked) !== null && _c !== void 0 ? _c : false) === wantLock) {
+            if (((_c = rd === null || rd === void 0 ? void 0 : rd.Locked) !== null && _c !== void 0 ? _c : false) === wantLock) {
                 appendLocalLogLine(`[EBC] Room is already ${wantLock ? "locked" : "unlocked"}.`, UI.textMuted);
                 return true;
             }
@@ -26481,7 +26515,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return true;
         }
         if (["ameter", "arousal", "lust"].includes(subcommand)) {
-            toggleArometerCommand();
+            const pctArg = parts[2];
+            if (pctArg !== undefined) {
+                const pct = parseInt(pctArg, 10);
+                if (isNaN(pct) || pct < 0 || pct > 100) {
+                    appendLocalLogLine("[EBC] Usage: /ebc ameter [0-100]", UI.danger);
+                }
+                else {
+                    setArometerProgress(pct);
+                }
+            }
+            else {
+                toggleArometerCommand();
+            }
             return true;
         }
         if (["update", "checkupdate", "check"].includes(subcommand)) {
@@ -26506,7 +26552,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             return true;
         }
-        appendLocalLogLine("[EBC] Commands: /lock  /unlock  |  /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
+        appendLocalLogLine("[EBC] Commands: /lock  /unlock  |  /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter [0-100]  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
         return true;
     }
     // -- Update notification -------------------------------------------------------
