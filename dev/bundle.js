@@ -28368,7 +28368,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.121";
+    const MOD_VERSION = "2.3.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28380,37 +28380,37 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "2.2.121",
+            version: "2.3.6",
             changes: [
                 "Fix: beeps sent via BC's native UI (the /beep command, the friend-list beep button, or the chat-room beep reply arrow) now appear in EBC's IM window. Previously only beeps sent through EBC's own interface were recorded; native BC beeps went through ServerSendBeepMessage which EBC never saw.",
             ],
         },
         {
-            version: "2.2.120",
+            version: "2.3.5",
             changes: [
                 "Kitty Leash: removed tug and untug buttons. The leash section now has only a single Grab / Let Go toggle button.",
             ],
         },
         {
-            version: "2.2.119",
+            version: "2.3.4",
             changes: [
                 "Fix: beep room name now actually works. The previous fix (v2.2.116) sent ChatRoomName from the client, but the BC server ignores that — it derives the room from the sender's session. The correct flag is IsSecret: false, which tells the server to attach the sender's current room to the delivered beep. Recipients now see 'in room X' with a join button.",
             ],
         },
         {
-            version: "2.2.118",
+            version: "2.3.3",
             changes: [
                 "Kitty Leash: ↙ Untug now fires BC's native LoosenLittle activity on ItemNeck on every single click — same event as the in-game 'Loosen → A little' collar button. The tug counter still decrements for emote purposes but the activity fires every time regardless, so clicking repeatedly keeps loosening the collar further.",
             ],
         },
         {
-            version: "2.2.117",
+            version: "2.3.2",
             changes: [
                 "Kitty Leash: ↙ Untug now fully resets all tug steps in one click (previously only decremented by 1 per click) and fires Caress + LSCG_ReleaseNeck on ItemNeck to actually release neck pressure — same activities used when the leash is fully dropped.",
             ],
         },
         {
-            version: "2.2.116",
+            version: "2.3.1",
             changes: [
                 "Fix: kitty buttons (especially poses) sometimes required two clicks. Root cause was a capture-phase click suppressor in the action button sidebar drag code that was too broad — it fired on ANY click after a sidebar drag, including HTML panel buttons. It now only suppresses clicks whose target is the BC game canvas, leaving EBC panel buttons unaffected.",
                 "Fix: pose buttons now show a brief disabled state (700ms) after clicking, covering the 600ms emote delay so there is visual feedback that the click registered and a second click is not needed.",
@@ -28419,7 +28419,7 @@
             ],
         },
         {
-            version: "2.2.115",
+            version: "2.3.0",
             changes: [
                 "Fix: built-in emotes (headpat, goodgirl, treat, praise, snuggle → reward; spank, bap → punishment) now correctly seed their reactionCategory for stored emote lists saved before v2.2.114. Previously the category was set on the defaults but never migrated, so existing installations saw no reactions fire.",
             ],
@@ -31083,13 +31083,15 @@
         appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
     }
     function showChangelog() {
-        appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
-        for (const entry of CHANGELOG) {
+        // Iterate oldest→newest so the most recent entry lands at the bottom of the
+        // chat log (where you'd naturally look after scrolling down).
+        for (const entry of CHANGELOG.slice().reverse()) {
             appendLocalLogLine(`[EBC] v${entry.version}`, UI.textMuted);
             for (const change of entry.changes) {
                 appendLocalLogLine(`- ${change}`, UI.accent);
             }
         }
+        appendLocalLogLine(`[EBC] Current version: ${MOD_VERSION}`, UI.gold);
     }
     // Last non-Inactive arousal level, so toggling off → on restores it.
     // Defaults to "Manual" if the setting was already Inactive at load time.
