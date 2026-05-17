@@ -292,6 +292,13 @@ const CSS = `
     left: -10px;
     cursor: pointer;
 }
+/* Outside chatrooms (roaming mode) the root sits at right:0 so there is no
+   chat-log column to overlap — keep the tab fully visible at all times. */
+#emerybc-root.ebc-roaming #ebc-tab,
+#emerybc-root.ebc-roaming #ebc-tab.ebc-tab-closed {
+    left: -44px;
+    cursor: pointer;
+}
 
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
@@ -3816,13 +3823,16 @@ export class EBCDrawer {
             }
             if ((ROOM_ONLY as string[]).includes(this.currentTab)) this.switchTab("outfits");
 
-            // Float the tab at the right edge of the viewport, vertically centred.
-            // The closed tab sits at left:-10px on the zero-width root, so the root
-            // needs right:34px for the tab's right edge (−10+44=34) to land exactly
-            // at the viewport boundary and be fully visible.
-            const h = Math.min(Math.max(300, window.innerHeight - 80), 700);
-            this.rootEl.style.top    = `${Math.max(20, Math.round((window.innerHeight - h) / 2))}px`;
-            this.rootEl.style.right  = "34px";
+            // Roaming mode: root at right:0 so the closed panel (translateX(W+60))
+            // lands at vw+16 — completely off-screen.  A CSS class keeps the tab
+            // fully visible (overrides the in-room left:-10px collapsed state).
+            // Position near the bottom-right to avoid BC's icon grid at the top.
+            this.rootEl.classList.add("ebc-roaming");
+            const h = Math.min(Math.max(300, window.innerHeight - 120), 650);
+            // Anchor root so the tab (top:58px on the root) appears ~100px from the bottom
+            const tabTop = window.innerHeight - 100 - 22; // centre of 44px tab
+            this.rootEl.style.top    = `${Math.max(20, tabTop - 58)}px`;
+            this.rootEl.style.right  = "0px";
             this.rootEl.style.height = `${h}px`;
             this.panelEl.style.height = `${h}px`;
             // Mark as not anchored to the chat log so syncToChat re-runs on next room enter
@@ -3843,6 +3853,9 @@ export class EBCDrawer {
         }
 
         // ── In chatroom: restore room-only tabs and re-anchor to the chat log ────
+
+        // Drop roaming mode so normal closed-tab CSS applies again
+        this.rootEl.classList.remove("ebc-roaming");
 
         // Restore room-only tab buttons (respects user hidden-tab preferences)
         this.applyTabVisibility();
