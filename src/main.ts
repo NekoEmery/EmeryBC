@@ -19,7 +19,7 @@ import { LUCY_MEMBER, parseKittyCmd } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.52";
+const MOD_VERSION = "2.2.53";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -33,6 +33,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.53",
+        changes: [
+            "Fix: /lock and /unlock admin check now handles null ChatRoomData gracefully and normalises numeric vs string member IDs — was incorrectly reporting 'not a room admin' even when you were.",
+        ],
+    },
     {
         version: "2.2.52",
         changes: [
@@ -2349,19 +2355,29 @@ function handleMetaCommand(inputValue: string): boolean {
 
     // ── /lock  /unlock ────────────────────────────────────────────────────────
     if (cmd0 === "lock" || cmd0 === "unlock") {
-        type RD = { Locked?: boolean; Admin?: number[] };
+        type RD = { Locked?: boolean; Admin?: unknown[] };
         const w = window as unknown as Record<string, unknown>;
         if ((w.CurrentScreen as string | undefined) !== "ChatRoom") {
             appendLocalLogLine("[EBC] /lock — not in a chatroom.", UI.danger);
             return true;
         }
         const rd = w.ChatRoomData as RD | null | undefined;
-        if (!Array.isArray(rd?.Admin) || !(rd.Admin as number[]).includes(Player.MemberNumber)) {
+        if (!rd) {
+            appendLocalLogLine("[EBC] /lock — room data not loaded yet, try again.", UI.danger);
+            return true;
+        }
+        // Admin list can contain numbers or numeric strings depending on BC version — normalise both
+        const admins = Array.isArray(rd.Admin) ? rd.Admin : [];
+        const isAdmin = admins.some(a => Number(a) === Player.MemberNumber)
+            // Fallback: BC sometimes exposes ChatRoomPlayerIsAdmin() directly
+            || (typeof (w.ChatRoomPlayerIsAdmin as unknown) === "function"
+                && (w.ChatRoomPlayerIsAdmin as (c: unknown) => boolean)(Player));
+        if (!isAdmin) {
             appendLocalLogLine("[EBC] /lock — you are not a room admin.", UI.danger);
             return true;
         }
         const wantLock = cmd0 === "lock";
-        if ((rd?.Locked ?? false) === wantLock) {
+        if ((rd.Locked ?? false) === wantLock) {
             appendLocalLogLine(`[EBC] Room is already ${wantLock ? "locked" : "unlocked"}.`, UI.textMuted);
             return true;
         }
