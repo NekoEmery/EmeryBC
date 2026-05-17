@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.62
+// @version      2.2.63
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -21667,38 +21667,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             badgeToggleRow.appendChild(badgeLbl2);
             badgeToggleRow.appendChild(badgeToggle2);
             body.appendChild(badgeToggleRow);
-            // ── Show Slow Leave button toggle ─────────────────────────────────────
-            const slToggleRow = document.createElement("div");
-            slToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-            const slLbl = document.createElement("span");
-            slLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-            slLbl.textContent = "Show Slow Leave button";
-            const slToggle = document.createElement("button");
-            const getSlEnabled = () => localStorage.getItem("EBC_slowLeave") !== "0"; // default ON
-            const updateSlToggle = () => {
-                const on = getSlEnabled();
-                slToggle.textContent = on ? "ON" : "OFF";
-                slToggle.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                    "padding:5px 12px", "border-radius:4px", "cursor:pointer",
-                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                    "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-            };
-            updateSlToggle();
-            slToggle.addEventListener("click", () => {
-                try {
-                    localStorage.setItem("EBC_slowLeave", getSlEnabled() ? "0" : "1");
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                updateSlToggle();
-                this.updateSlowLeaveVisibility();
-            });
-            slToggleRow.appendChild(slLbl);
-            slToggleRow.appendChild(slToggle);
-            body.appendChild(slToggleRow);
             // Helper: collapsible section wrapper
             const makeSection = (labelText, lsKey, defaultCollapsed, buildContent) => {
                 let collapsed = defaultCollapsed;
@@ -23807,6 +23775,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Fun Actions ──────────────────────────────────────────────────────
+            const faHdr = document.createElement("div");
+            faHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;";
+            faHdr.textContent = "Fun Actions";
+            body.appendChild(faHdr);
+            const faRow = document.createElement("div");
+            faRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;";
+            // Slow Leave toggle pill
+            const getSlOn = () => localStorage.getItem("EBC_slowLeave") !== "0";
+            const slPill = document.createElement("button");
+            const updateSlPill = () => {
+                const on = getSlOn();
+                slPill.textContent = (on ? "✅" : "⬜") + " Slow Leave";
+                slPill.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:10px",
+                    "padding:4px 10px", "border-radius:5px", "cursor:pointer",
+                    "border:1px solid " + (on ? "#cf6f9855" : "#3a1928"),
+                    "background:" + (on ? "#cf6f9818" : "transparent"),
+                    "color:" + (on ? "#cf6f98" : "#7a5a6a"),
+                    "transition:background 0.12s,border-color 0.12s",
+                ].join(";");
+            };
+            updateSlPill();
+            slPill.title = "Show the 🚶 Slow Leave quick button in the drawer when you're in a chatroom";
+            slPill.addEventListener("click", () => {
+                try {
+                    localStorage.setItem("EBC_slowLeave", getSlOn() ? "0" : "1");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                updateSlPill();
+                this.updateSlowLeaveVisibility();
+            });
+            faRow.appendChild(slPill);
+            body.appendChild(faRow);
+            // divider
+            const faDivider = document.createElement("div");
+            faDivider.style.cssText = "height:1px;background:#2a1421;margin-bottom:10px;";
+            body.appendChild(faDivider);
             // Working category state
             const cats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
             let activeCatIdx = getActiveCategoryIndex();
@@ -26499,7 +26505,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.62";
+    const MOD_VERSION = "2.2.63";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26510,6 +26516,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.63",
+            changes: [
+                "Slow Leave toggle moved from DEV tab to the top of the BUTTONS tab under a new 'Fun Actions' section — visible and accessible to everyone. Removed it from the DEV tab entirely.",
+            ],
+        },
         {
             version: "2.2.62",
             changes: [
