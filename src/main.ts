@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.100";
+const MOD_VERSION = "2.2.101";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.101",
+        changes: [
+            "Fix: 🐾 Bap no longer fires a BC activity — ActivityRun sends its own chat message ('boops nose') that conflicted with the custom emote text. The bap emote text is descriptive enough on its own. Existing stored bap entries have bcGroup/bcActivity cleared automatically.",
+        ],
+    },
     {
         version: "2.2.100",
         changes: [

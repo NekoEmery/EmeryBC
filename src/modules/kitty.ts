@@ -123,7 +123,6 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         text:      "gives Emery a playful bap on the nose~ 🐾",
         roughText: "gives Emery a sharp flick on the nose without warning~",
         type: "emote",
-        bcGroup: "ItemNose", bcActivity: "Pet",
     },
 ];
 
@@ -240,7 +239,6 @@ const EXPRESSION_SEEDS: Record<string, string> = {
 const BC_ACTIVITY_SEEDS: Record<string, { group: string; activity: string }> = {
     "headpat": { group: "ItemHead", activity: "Pet"   },
     "spank":   { group: "ItemButt", activity: "Spank" },
-    "bap":     { group: "ItemNose", activity: "Pet"   },
 };
 // New emotes to seed into existing stored lists that predate them.
 const NEW_EMOTE_SEEDS: KittyEmote[] = [
@@ -249,7 +247,6 @@ const NEW_EMOTE_SEEDS: KittyEmote[] = [
         text:      "gives Emery a playful bap on the nose~ 🐾",
         roughText: "gives Emery a sharp flick on the nose without warning~",
         type: "emote",
-        bcGroup: "ItemNose", bcActivity: "Pet",
     },
     {
         id: "spank",  label: "👋 Spank",
@@ -269,14 +266,10 @@ export function getKittyEmotes(): KittyEmote[] {
             ...e,
             roughText:  e.roughText  ?? ROUGH_TEXT_SEEDS[e.id]  ?? "",
             expression: e.expression ?? EXPRESSION_SEEDS[e.id]  ?? "",
-            // Migration: fix stored bap that used ItemHead — should be ItemNose (real boop action)
-            bcGroup: e.id === "bap" && e.bcGroup === "ItemHead"
-                ? "ItemNose"
-                : (e.bcGroup ?? BC_ACTIVITY_SEEDS[e.id]?.group),
-            // Migration: fix stored bap that had Slap (face-slap) — should be Pet (light tap)
-            bcActivity: e.id === "bap" && e.bcActivity === "Slap"
-                ? "Pet"
-                : (e.bcActivity ?? BC_ACTIVITY_SEEDS[e.id]?.activity),
+            // Migration: bap no longer fires a BC activity (ActivityRun sends its own chat
+            // message which would say "boops nose" and conflict with the custom emote text)
+            bcGroup:    e.id === "bap" ? undefined : (e.bcGroup    ?? BC_ACTIVITY_SEEDS[e.id]?.group),
+            bcActivity: e.id === "bap" ? undefined : (e.bcActivity ?? BC_ACTIVITY_SEEDS[e.id]?.activity),
         }));
     // Append any new default emotes that weren't in the stored list yet
     for (const seed of NEW_EMOTE_SEEDS) {
