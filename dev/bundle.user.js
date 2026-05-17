@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.120
+// @version      2.2.121
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -28385,7 +28385,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.120";
+    const MOD_VERSION = "2.2.121";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28396,6 +28396,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.121",
+            changes: [
+                "Fix: beeps sent via BC's native UI (the /beep command, the friend-list beep button, or the chat-room beep reply arrow) now appear in EBC's IM window. Previously only beeps sent through EBC's own interface were recorded; native BC beeps went through ServerSendBeepMessage which EBC never saw.",
+            ],
+        },
         {
             version: "2.2.120",
             changes: [
@@ -32331,6 +32337,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return;
             }
             catch ( /* ignore */_k) { /* ignore */ }
+            return next(args);
+        });
+        // Capture beeps sent via BC's native UI (the /beep command, the friend-list beep
+        // button, or the "reply" arrow in the chat room beep preview).  Those calls go
+        // through ServerSendBeepMessage(target, msg, options) — EBC never touches them,
+        // so they are invisible to EBC's IM window unless we hook here.
+        tryHookFunction(modAPI, "ServerSendBeepMessage", 3, (args, next) => {
+            var _a;
+            try {
+                const [target, msg] = args;
+                const toNum = typeof target === "number" ? target : (parseInt(String(target), 10) || 0);
+                if (toNum && typeof msg === "string" && msg.trim()) {
+                    const clean = stripBeepMetadata(msg.trim());
+                    if (clean) {
+                        addBeepEntry({ from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0, to: toNum, message: clean, ts: Date.now() });
+                        try {
+                            drawer === null || drawer === void 0 ? void 0 : drawer.refreshBeepWindow(toNum);
+                        }
+                        catch ( /* ignore */_b) { /* ignore */ }
+                    }
+                }
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             return next(args);
         });
         // Cache friend names whenever BC notifies us a friend came online.
