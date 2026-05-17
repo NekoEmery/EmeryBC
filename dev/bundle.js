@@ -11520,6 +11520,13 @@
     left: -10px;
     cursor: pointer;
 }
+/* Outside chatrooms (roaming mode) the root sits at right:0 so there is no
+   chat-log column to overlap — keep the tab fully visible at all times. */
+#emerybc-root.ebc-roaming #ebc-tab,
+#emerybc-root.ebc-roaming #ebc-tab.ebc-tab-closed {
+    left: -44px;
+    cursor: pointer;
+}
 
 /* Sliding panel - only this element transforms, not the tab */
 #emerybc-panel {
@@ -14943,13 +14950,16 @@
                 }
                 if (ROOM_ONLY.includes(this.currentTab))
                     this.switchTab("outfits");
-                // Float the tab at the right edge of the viewport, vertically centred.
-                // The closed tab sits at left:-10px on the zero-width root, so the root
-                // needs right:34px for the tab's right edge (−10+44=34) to land exactly
-                // at the viewport boundary and be fully visible.
-                const h = Math.min(Math.max(300, window.innerHeight - 80), 700);
-                this.rootEl.style.top = `${Math.max(20, Math.round((window.innerHeight - h) / 2))}px`;
-                this.rootEl.style.right = "34px";
+                // Roaming mode: root at right:0 so the closed panel (translateX(W+60))
+                // lands at vw+16 — completely off-screen.  A CSS class keeps the tab
+                // fully visible (overrides the in-room left:-10px collapsed state).
+                // Position near the bottom-right to avoid BC's icon grid at the top.
+                this.rootEl.classList.add("ebc-roaming");
+                const h = Math.min(Math.max(300, window.innerHeight - 120), 650);
+                // Anchor root so the tab (top:58px on the root) appears ~100px from the bottom
+                const tabTop = window.innerHeight - 100 - 22; // centre of 44px tab
+                this.rootEl.style.top = `${Math.max(20, tabTop - 58)}px`;
+                this.rootEl.style.right = "0px";
                 this.rootEl.style.height = `${h}px`;
                 this.panelEl.style.height = `${h}px`;
                 // Mark as not anchored to the chat log so syncToChat re-runs on next room enter
@@ -14970,6 +14980,8 @@
                 return;
             }
             // ── In chatroom: restore room-only tabs and re-anchor to the chat log ────
+            // Drop roaming mode so normal closed-tab CSS applies again
+            this.rootEl.classList.remove("ebc-roaming");
             // Restore room-only tab buttons (respects user hidden-tab preferences)
             this.applyTabVisibility();
             // Restore any beep windows that were hidden while outside the chat room
@@ -25600,7 +25612,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.33";
+    const MOD_VERSION = "2.2.34";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25611,6 +25623,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.34",
+            changes: [
+                "Fix: drawer panel was partially visible when closed outside chatrooms (root right:34px left 18px on-screen). Root is now right:0 so the closed panel is fully off-screen. Tab uses ebc-roaming CSS class to stay fully visible. Tab anchored near the bottom-right to avoid BC's icon grid.",
+            ],
+        },
         {
             version: "2.2.33",
             changes: [
