@@ -3816,10 +3816,13 @@ export class EBCDrawer {
             }
             if ((ROOM_ONLY as string[]).includes(this.currentTab)) this.switchTab("outfits");
 
-            // Float at the right edge of the viewport, vertically centred
+            // Float the tab at the right edge of the viewport, vertically centred.
+            // The closed tab sits at left:-10px on the zero-width root, so the root
+            // needs right:34px for the tab's right edge (−10+44=34) to land exactly
+            // at the viewport boundary and be fully visible.
             const h = Math.min(Math.max(300, window.innerHeight - 80), 700);
             this.rootEl.style.top    = `${Math.max(20, Math.round((window.innerHeight - h) / 2))}px`;
-            this.rootEl.style.right  = "0px";
+            this.rootEl.style.right  = "34px";
             this.rootEl.style.height = `${h}px`;
             this.panelEl.style.height = `${h}px`;
             // Mark as not anchored to the chat log so syncToChat re-runs on next room enter
