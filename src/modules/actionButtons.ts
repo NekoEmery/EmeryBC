@@ -138,6 +138,22 @@ export function getDisplayName(): string {
 // Steps run 500 ms apart. Original poses are restored when done.
 
 let seqRunning = false;
+let seqTimeoutId: ReturnType<typeof setTimeout> | null = null;
+let seqDoneCallback: (() => void) | null = null;
+let seqRestoreFn: (() => void) | null = null;
+
+export function isSeqRunning(): boolean { return seqRunning; }
+export function setSeqDoneCallback(fn: (() => void) | null): void { seqDoneCallback = fn; }
+export function cancelSequence(): void {
+    if (!seqRunning) return;
+    if (seqTimeoutId !== null) { window.clearTimeout(seqTimeoutId); seqTimeoutId = null; }
+    seqRestoreFn?.();
+    seqRestoreFn = null;
+    seqRunning = false;
+    const cb = seqDoneCallback;
+    seqDoneCallback = null;
+    cb?.();
+}
 
 // Sends the current ActivePose to the room without triggering a full re-render on each step.
 // appearanceBundle should be pre-built once before the sequence starts and reused - sending
@@ -207,6 +223,7 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
         : null;
     // Build appearance bundle ONCE - reusing it avoids re-render flicker on other clients.
     const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
+    seqRestoreFn = () => { Player.ActivePose = originalPoses; syncPoseToRoom(); };
     let idx = 0;
 
     const next = (): void => {
@@ -216,6 +233,11 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 Player.ActivePose = originalPoses;
                 syncPoseToRoom();
                 seqRunning = false;
+                seqTimeoutId = null;
+                seqRestoreFn = null;
+                const cb = seqDoneCallback;
+                seqDoneCallback = null;
+                cb?.();
                 return;
             }
 
@@ -227,7 +249,12 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
             } else if (step.toLowerCase() === "leaveroom") {
                 Player.ActivePose = originalPoses;
                 seqRunning = false;
+                seqTimeoutId = null;
+                seqRestoreFn = null;
+                const leaveCb = seqDoneCallback;
+                seqDoneCallback = null;
                 window.setTimeout(() => {
+                    leaveCb?.();
                     callBC(() => CommonSetScreen("Online", "ChatSearch"));
                     callBC(() => ChatRoomLeave());
                 }, 0);
@@ -241,9 +268,14 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 sendPoseUpdate(appearanceBundle);
             }
 
-            window.setTimeout(next, delay);
+            seqTimeoutId = window.setTimeout(next, delay);
         } catch (_) {
             seqRunning = false;
+            seqTimeoutId = null;
+            seqRestoreFn = null;
+            const cb = seqDoneCallback;
+            seqDoneCallback = null;
+            cb?.();
         }
     };
 
