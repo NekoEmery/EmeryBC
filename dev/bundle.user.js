@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.80
+// @version      2.2.81
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -14496,16 +14496,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slCatDropdown.style.cssText = SL_DD_CSS;
             slCatDropdown.title = "Switch action button category";
             const refreshCatDropdown = () => {
-                while (slCatDropdown.firstChild)
-                    slCatDropdown.removeChild(slCatDropdown.firstChild);
-                const cats = getCategories();
-                cats.forEach((cat, i) => {
-                    const o = document.createElement("option");
-                    o.value = String(i);
-                    o.textContent = cat.name;
-                    slCatDropdown.appendChild(o);
-                });
-                slCatDropdown.value = String(getActiveCategoryIndex());
+                try {
+                    while (slCatDropdown.firstChild)
+                        slCatDropdown.removeChild(slCatDropdown.firstChild);
+                    const cats = getCategories();
+                    cats.forEach((cat, i) => {
+                        const o = document.createElement("option");
+                        o.value = String(i);
+                        o.textContent = cat.name;
+                        slCatDropdown.appendChild(o);
+                    });
+                    slCatDropdown.value = String(getActiveCategoryIndex());
+                }
+                catch ( /* Player may not be initialised yet */_a) { /* Player may not be initialised yet */ }
             };
             refreshCatDropdown();
             slCatDropdown.addEventListener("change", () => {
@@ -27342,7 +27345,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.80";
+    const MOD_VERSION = "2.2.81";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27353,6 +27356,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.81",
+            changes: [
+                "Fixed: drawer failing to open after v2.2.80 — category dropdown init now guards against Player not yet being available at panel build time.",
+            ],
+        },
         {
             version: "2.2.80",
             changes: [
