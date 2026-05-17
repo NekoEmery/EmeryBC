@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.75";
+const MOD_VERSION = "2.2.76";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,17 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.76",
+        changes: [
+            "Added 🐾 Bap emote (Slap on ItemHead) to default buttons; seeded automatically into existing emote lists so no manual re-add needed.",
+            "Spank emote also seeded automatically for users who didn't have it in their stored list.",
+            "bcGroup/bcActivity fields seeded into existing headpat and spank entries from storage so the sound picker shows them correctly without re-editing.",
+            "Slow Leave: preset dropdown now appears directly below the Slow Leave button in the sidebar — no need to open the settings tab to switch presets.",
+            "Slow Leave: click handler now re-reads presets live so edits made in settings take effect immediately without reloading.",
+            "⛓ Bound timer in header footer now recovers from persisted per-item timestamps — correctly counts offline time instead of starting fresh every session.",
+        ],
+    },
     {
         version: "2.2.75",
         changes: [

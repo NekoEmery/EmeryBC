@@ -116,6 +116,13 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         type: "emote",
         bcGroup: "ItemButt", bcActivity: "Spank",
     },
+    {
+        id: "bap",      label: "🐾 Bap",
+        text:      "gives Emery a playful bap on the nose~ 🐾",
+        roughText: "gives Emery a sharp flick on the nose without warning~",
+        type: "emote",
+        bcGroup: "ItemHead", bcActivity: "Slap",
+    },
 ];
 
 const DEFAULT_POSES: KittyPose[] = [
@@ -199,19 +206,52 @@ const ROUGH_TEXT_SEEDS: Record<string, string> = {
     "announce": "Emery is Lucy's. End of discussion.~",
     "snuggle":  "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
     "spank":    "delivers a sharp smack to Emery's bottom without warning~",
+    "bap":      "gives Emery a sharp flick on the nose without warning~",
 };
 const EXPRESSION_SEEDS: Record<string, string> = {
     "headpat":  "Ears:Wiggle",
     "goodgirl": "Ears:Wiggle",
 };
+// Seed bcGroup/bcActivity for stored emotes that predate these fields (v2.2.75+).
+const BC_ACTIVITY_SEEDS: Record<string, { group: string; activity: string }> = {
+    "headpat": { group: "ItemHead", activity: "Pet"   },
+    "spank":   { group: "ItemButt", activity: "Spank" },
+    "bap":     { group: "ItemHead", activity: "Slap"  },
+};
+// New emotes to seed into existing stored lists that predate them.
+const NEW_EMOTE_SEEDS: KittyEmote[] = [
+    {
+        id: "bap",    label: "🐾 Bap",
+        text:      "gives Emery a playful bap on the nose~ 🐾",
+        roughText: "gives Emery a sharp flick on the nose without warning~",
+        type: "emote",
+        bcGroup: "ItemHead", bcActivity: "Slap",
+    },
+    {
+        id: "spank",  label: "👋 Spank",
+        text:      "gives Emery a playful swat on the bottom~",
+        roughText: "delivers a sharp smack to Emery's bottom without warning~",
+        type: "emote",
+        bcGroup: "ItemButt", bcActivity: "Spank",
+    },
+];
 
 export function getKittyEmotes(): KittyEmote[] {
     const raw = lsGet<KittyEmote[]>("EBC_kittyEmotes", DEFAULT_EMOTES);
-    return raw.map(e => ({
+    const emotes: KittyEmote[] = raw.map(e => ({
         ...e,
         roughText:  e.roughText  ?? ROUGH_TEXT_SEEDS[e.id]  ?? "",
         expression: e.expression ?? EXPRESSION_SEEDS[e.id]  ?? "",
+        bcGroup:    e.bcGroup    ?? BC_ACTIVITY_SEEDS[e.id]?.group,
+        bcActivity: e.bcActivity ?? BC_ACTIVITY_SEEDS[e.id]?.activity,
     }));
+    // Append any new default emotes that weren't in the stored list yet
+    for (const seed of NEW_EMOTE_SEEDS) {
+        if (!emotes.find(e => e.id === seed.id)) {
+            emotes.push({ roughText: "", expression: "", ...seed });
+        }
+    }
+    return emotes;
 }
 export function saveKittyEmotes(v: KittyEmote[]): void { lsSet("EBC_kittyEmotes", v); }
 

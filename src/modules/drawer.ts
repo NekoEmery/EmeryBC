@@ -2908,6 +2908,7 @@ export class EBCDrawer {
     private tagTooltipEl: HTMLElement | null = null;
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
     private slowLeaveBtn: HTMLButtonElement | null = null;
+    private slPresetDropdown: HTMLSelectElement | null = null;
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
@@ -3196,8 +3197,7 @@ export class EBCDrawer {
         selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.color = "#7a4a5e"; });
         quickActions.appendChild(selfPickToggle);
 
-        // Slow Leave button — always shown when in a chatroom
-        const SLOW_LEAVE_PRESETS = getSlowLeavePresets();
+        // Slow Leave button + preset dropdown — always shown when in a chatroom
         const slowLeaveBtn = document.createElement("button");
         slowLeaveBtn.className = "ebc-action-btn";
         slowLeaveBtn.textContent = "🚶 Slow Leave";
@@ -3208,9 +3208,10 @@ export class EBCDrawer {
                 cancelSequence();
                 return;
             }
+            const livePresets = getSlowLeavePresets();
             const durMs = Math.max(500, (parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10)) * 1000);
-            const pIdx  = Math.min(SLOW_LEAVE_PRESETS.length - 1, Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10)));
-            const seq   = SLOW_LEAVE_PRESETS[pIdx].seq.replace("{DUR}", String(durMs));
+            const pIdx  = Math.min(livePresets.length - 1, Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10)));
+            const seq   = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
             setSeqDoneCallback(() => {
                 slowLeaveBtn.textContent = "🚶 Slow Leave";
                 slowLeaveBtn.style.background = "";
@@ -3223,6 +3224,23 @@ export class EBCDrawer {
         });
         quickActions.appendChild(slowLeaveBtn);
         this.slowLeaveBtn = slowLeaveBtn;
+
+        // Preset selector — lives just below the slow leave button
+        const slPresetDropdown = document.createElement("select");
+        slPresetDropdown.style.cssText = "display:none;width:100%;margin-top:2px;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+        const populateSlPresets = (): void => {
+            while (slPresetDropdown.firstChild) slPresetDropdown.removeChild(slPresetDropdown.firstChild);
+            getSlowLeavePresets().forEach((p, i) => {
+                const o = document.createElement("option"); o.value = String(i); o.textContent = p.label; slPresetDropdown.appendChild(o);
+            });
+            slPresetDropdown.value = localStorage.getItem("EBC_slowLeavePreset") ?? "0";
+        };
+        populateSlPresets();
+        slPresetDropdown.addEventListener("change", () => {
+            try { localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value); } catch { /* ignore */ }
+        });
+        quickActions.appendChild(slPresetDropdown);
+        this.slPresetDropdown = slPresetDropdown;
 
         // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
         const selfPickPanel = document.createElement("div");
@@ -4091,6 +4109,9 @@ export class EBCDrawer {
         if (!this.slowLeaveBtn) return;
         const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
         this.slowLeaveBtn.style.display = inRoom ? "" : "none";
+        if (this.slPresetDropdown) {
+            this.slPresetDropdown.style.display = inRoom ? "" : "none";
+        }
         // Reset button label if no sequence is currently running
         if (!isSeqRunning()) {
             this.slowLeaveBtn.textContent = "🚶 Slow Leave";
