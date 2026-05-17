@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.98";
+const MOD_VERSION = "2.2.99";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.99",
+        changes: [
+            "Kitty Leash: releasing the leash now fires BC's 'Caress' activity on ItemNeck immediately after StopHoldLeash — this resets LSCG's choke/breath-play state so Emery's neck is no longer flagged as constricted.",
+            "Kitty Emotes: 🐾 Bap now uses ItemNose + Pet (BC's 'boops TargetCharacter's nose' action) instead of ItemHead + Pet — gives the correct nose-boop animation and text. Existing stored bap entries are migrated automatically.",
+        ],
+    },
     {
         version: "2.2.98",
         changes: [

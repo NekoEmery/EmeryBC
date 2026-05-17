@@ -13756,6 +13756,8 @@ export class EBCDrawer {
                         if (idx >= 0) leashList.splice(idx, 1);
                     }
                 } catch { /* ignore */ }
+                // Caress neck to reset LSCG choke/breath-play state on release
+                runKittyActivity("ItemNeck", "Caress");
             } else {
                 // Grab leash — BC's HoldLeash hidden-message protocol
                 sendRoomEmote(mood === "rough"
