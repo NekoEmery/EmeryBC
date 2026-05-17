@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.65
+// @version      2.2.66
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11361,7 +11361,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function saveKittyEmotes(v) { lsSet("EBC_kittyEmotes", v); }
     function getKittyRestraintSets() {
-        return lsGet("EBC_kittyRestraintSets", []);
+        // Migrate old sets that lack emote fields
+        const raw = lsGet("EBC_kittyRestraintSets", []);
+        return raw.map(s => {
+            var _a, _b;
+            return (Object.assign(Object.assign({}, s), { kindEmote: (_a = s.kindEmote) !== null && _a !== void 0 ? _a : "", roughEmote: (_b = s.roughEmote) !== null && _b !== void 0 ? _b : "" }));
+        });
     }
     function saveKittyRestraintSets(v) { lsSet("EBC_kittyRestraintSets", v); }
     function getKittyPoses() {
@@ -24998,24 +25003,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
                     for (const s of sets) {
                         row.appendChild(makePill(s.label, "#c07040", () => {
-                            var _a, _b, _c;
-                            try {
-                                const w = window;
-                                const chars = w.ChatRoomCharacter;
-                                const emery = chars === null || chars === void 0 ? void 0 : chars.find(c => c.MemberNumber === EMERY_MEMBER);
-                                if (!emery) {
-                                    alert("Emery is not in the room!");
-                                    return;
-                                }
-                                for (const item of s.items) {
-                                    (_a = w.InventoryWear) === null || _a === void 0 ? void 0 : _a.call(w, emery, item.Name, item.Group, (_b = item.Color) !== null && _b !== void 0 ? _b : "Default");
-                                }
-                                // Push=true so other players see the change immediately
-                                (_c = w.CharacterRefresh) === null || _c === void 0 ? void 0 : _c.call(w, emery, true, false);
-                            }
-                            catch (err) {
-                                console.warn("[EBC Kitty] InventoryWear error:", err);
-                            }
+                            const mood = getKittyMood();
+                            const emoteText = mood === "rough"
+                                ? (s.roughEmote || s.kindEmote || "")
+                                : (s.kindEmote || s.roughEmote || "");
+                            if (emoteText)
+                                sendRoomEmote(emoteText);
+                            sendKittyCmd("punish", JSON.stringify({ label: s.label, mood, items: s.items }));
                         }));
                     }
                     row.appendChild(makePill("🔓 Release all", "#70a870", () => {
@@ -25050,7 +25044,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     restraintsWrap.appendChild(row);
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
-                    hint.textContent = "Requires Emery to be in the same room";
+                    hint.textContent = "Sends a room emote and gives Emery a chance to fight back";
                     restraintsWrap.appendChild(hint);
                     return;
                 }
@@ -25058,26 +25052,60 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
                 const cur = getKittyRestraintSets();
                 cur.forEach((s, idx) => {
+                    var _a, _b;
                     const r = document.createElement("div");
-                    r.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:4px 6px;";
+                    r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
+                    // Row 1: label + item count + delete
+                    const r1 = document.createElement("div");
+                    r1.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const lblInp = document.createElement("input");
                     lblInp.value = s.label;
                     lblInp.style.cssText = "flex:1;" + INP;
-                    lblInp.addEventListener("input", () => {
-                        const updated = getKittyRestraintSets();
-                        updated[idx].label = lblInp.value;
-                        saveKittyRestraintSets(updated);
-                    });
                     const countLbl = document.createElement("span");
                     countLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
                     countLbl.textContent = s.items.length + " items";
                     const delBtn = document.createElement("button");
                     delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                     delBtn.textContent = "×";
+                    r1.appendChild(lblInp);
+                    r1.appendChild(countLbl);
+                    r1.appendChild(delBtn);
+                    // Row 2: kind emote
+                    const kindRowR = document.createElement("div");
+                    kindRowR.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const kindLblR = document.createElement("span");
+                    kindLblR.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;";
+                    kindLblR.textContent = "🌸 Kind:";
+                    const kindInpR = document.createElement("input");
+                    kindInpR.value = (_a = s.kindEmote) !== null && _a !== void 0 ? _a : "";
+                    kindInpR.placeholder = "Room emote in kind mode…";
+                    kindInpR.style.cssText = "flex:1;min-width:0;" + INP;
+                    kindRowR.appendChild(kindLblR);
+                    kindRowR.appendChild(kindInpR);
+                    // Row 3: rough emote
+                    const roughRowR = document.createElement("div");
+                    roughRowR.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const roughLblR = document.createElement("span");
+                    roughLblR.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;";
+                    roughLblR.textContent = "⚡ Rough:";
+                    const roughInpR = document.createElement("input");
+                    roughInpR.value = (_b = s.roughEmote) !== null && _b !== void 0 ? _b : "";
+                    roughInpR.placeholder = "Room emote in rough mode…";
+                    roughInpR.style.cssText = "flex:1;min-width:0;" + INP;
+                    roughRowR.appendChild(roughLblR);
+                    roughRowR.appendChild(roughInpR);
+                    const saveInpR = () => {
+                        const updated = getKittyRestraintSets();
+                        updated[idx].label = lblInp.value;
+                        updated[idx].kindEmote = kindInpR.value;
+                        updated[idx].roughEmote = roughInpR.value;
+                        saveKittyRestraintSets(updated);
+                    };
+                    [lblInp, kindInpR, roughInpR].forEach(i => i.addEventListener("input", saveInpR));
                     delBtn.addEventListener("click", () => { saveKittyRestraintSets(getKittyRestraintSets().filter((_, i) => i !== idx)); renderRestraintSets(true); });
-                    r.appendChild(lblInp);
-                    r.appendChild(countLbl);
-                    r.appendChild(delBtn);
+                    r.appendChild(r1);
+                    r.appendChild(kindRowR);
+                    r.appendChild(roughRowR);
                     list.appendChild(r);
                 });
                 const addBox = document.createElement("div");
@@ -25109,7 +25137,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const parsed = JSON.parse(code);
                         const items = parsed.map(p => { var _a, _b; return ({ Name: String((_a = p.Name) !== null && _a !== void 0 ? _a : ""), Group: String((_b = p.Group) !== null && _b !== void 0 ? _b : ""), Color: p.Color }); }).filter(i => i.Name && i.Group);
                         const updated = getKittyRestraintSets();
-                        updated.push({ id: "r_" + Date.now(), label: addLblInp.value.trim(), items });
+                        updated.push({ id: "r_" + Date.now(), label: addLblInp.value.trim(), items, kindEmote: "", roughEmote: "" });
                         saveKittyRestraintSets(updated);
                         addMsg.style.color = "#70d070";
                         addMsg.textContent = `Saved ${items.length} items.`;
@@ -26564,7 +26592,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.65";
+    const MOD_VERSION = "2.2.66";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26575,6 +26603,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.66",
+            changes: [
+                "Kitty restraint sets now go through the resistance popup (same as punishments) instead of applying directly. Each set gains optional 🌸 Kind / ⚡ Rough emote fields in edit mode — the matching emote is sent to the room before Emery's popup appears. Existing saved sets migrate automatically with empty emotes.",
+            ],
+        },
         {
             version: "2.2.65",
             changes: [
