@@ -89,6 +89,70 @@ function sendAction(emote: string, style: "action" | "emote"): void {
     });
 }
 
+// -- Button / category data model -----------------------------------------
+// Persisted to localStorage as EBC_buttonCategories.
+
+export interface ActionButton {
+    id: string;
+    label: string;
+    sequence: string;
+    color?: string; // optional hex color, e.g. "#cf6f98"
+}
+
+export interface ButtonCategory {
+    id: string;
+    name: string;
+    collapsed?: boolean;
+    buttons: ActionButton[];
+}
+
+const BTNS_KEY = "EBC_buttonCategories";
+
+export function makeBtnId(): string {
+    return Math.random().toString(36).slice(2, 9);
+}
+
+function defaultCategories(): ButtonCategory[] {
+    const id = makeBtnId;
+    return [
+        {
+            id: id(), name: "Poses",
+            buttons: [
+                { id: id(), label: "Hands Up",  sequence: "HandsUp" },
+                { id: id(), label: "Kneel",     sequence: "Kneel" },
+                { id: id(), label: "All Fours", sequence: "AllFours" },
+                { id: id(), label: "Neutral",   sequence: "_" },
+            ],
+        },
+        {
+            id: id(), name: "Actions",
+            buttons: [
+                { id: id(), label: "Wave",  sequence: "*waves~" },
+                { id: id(), label: "Bow",   sequence: "Kneel|!bows.|_" },
+            ],
+        },
+    ];
+}
+
+export function getButtonCategories(): ButtonCategory[] {
+    try {
+        const raw = localStorage.getItem(BTNS_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw) as ButtonCategory[];
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch { /* ignore */ }
+    const def = defaultCategories();
+    saveButtonCategories(def);
+    return def;
+}
+
+export function saveButtonCategories(cats: ButtonCategory[]): void {
+    try { localStorage.setItem(BTNS_KEY, JSON.stringify(cats)); } catch { /* ignore */ }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function runSequence(sequence: string, defaultStepMs = 600): void {
     if (seqRunning) return;
     const rawSteps = sequence.split("|").map(s => s.trim()).filter(Boolean);

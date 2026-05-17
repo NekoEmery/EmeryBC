@@ -59,7 +59,7 @@ import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPo
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration } from "./timer";
 import { getNotes, saveNote, type CharacterNote } from "./notes";
-import { parseStep } from "./actionButtons";
+import { parseStep, runSequence, ActionButton, ButtonCategory, getButtonCategories, saveButtonCategories, makeBtnId } from "./actionButtons";
 import {
     releaseRestraints,
     unlockItems,
@@ -2720,7 +2720,7 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "anims" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
+type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
 
 const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
 
@@ -2790,6 +2790,7 @@ export class EBCDrawer {
     private tagTooltipEl: HTMLElement | null = null;
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
     private slowLeaveBtn: HTMLButtonElement | null = null;
+    private btnEditMode = false;
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
@@ -2952,6 +2953,12 @@ export class EBCDrawer {
         posesTabBtn.id = "ebc-tab-poses";
         posesTabBtn.textContent = "ANIMS";
 
+        const btnsTabBtn = document.createElement("button");
+        btnsTabBtn.className = "ebc-tab-btn";
+        btnsTabBtn.id = "ebc-tab-buttons";
+        btnsTabBtn.textContent = "BTNS";
+        btnsTabBtn.title = "Action Buttons";
+
         const notesTabBtn = document.createElement("button");
         notesTabBtn.className = "ebc-tab-btn";
         notesTabBtn.id = "ebc-tab-notes";
@@ -2995,6 +3002,7 @@ export class EBCDrawer {
 
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(posesTabBtn);
+        tabBar.appendChild(btnsTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(thanksTabBtn);
         tabBar.appendChild(devTabBtn2);
@@ -3589,6 +3597,7 @@ export class EBCDrawer {
         notesTabBtn.addEventListener("click",    () => this.switchTab("notes"));
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
         devTabBtn2.addEventListener("click",     () => this.switchTab("dev"));
+        btnsTabBtn.addEventListener("click",      () => this.switchTab("buttons"));
         domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
         puppyTabBtn.addEventListener("click",    () => this.switchTab("puppy"));
         kittyTabBtn.addEventListener("click",    () => this.switchTab("kitty"));
@@ -3975,6 +3984,7 @@ export class EBCDrawer {
         for (const [id, name] of [
             ["ebc-tab-outfits", "outfits"],
             ["ebc-tab-poses",   "anims"],
+            ["ebc-tab-buttons", "buttons"],
             ["ebc-tab-notes",   "notes"],
             ["ebc-tab-thanks",  "thanks"],
             ["ebc-tab-dev",     "dev"],
@@ -3992,6 +4002,7 @@ export class EBCDrawer {
     private renderCurrentTab(): void {
         if      (this.currentTab === "outfits")  this.renderOutfits();
         else if (this.currentTab === "anims")    this.renderPoses();
+        else if (this.currentTab === "buttons")  this.renderButtons();
         else if (this.currentTab === "notes")    this.renderNotes();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
@@ -12482,6 +12493,270 @@ export class EBCDrawer {
         addRow.appendChild(addInp);
         addRow.appendChild(addBtn);
         body.appendChild(addRow);
+    }
+
+    // ── BUTTONS tab ─────────────────────────────────────────────────────────────
+
+    private renderButtons(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        const savedScroll = body.scrollTop;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        const isEdit = this.btnEditMode;
+        const cats = getButtonCategories();
+        const save = (): void => saveButtonCategories(cats);
+        const rerender = (): void => { save(); this.renderButtons(); };
+
+        // Header row
+        const hdrRow = document.createElement("div");
+        hdrRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
+        const hdrLbl = document.createElement("div");
+        hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;letter-spacing:0.1em;color:#7a5a6a;";
+        hdrLbl.textContent = "BUTTONS";
+        const editToggle = document.createElement("button");
+        editToggle.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid ${isEdit ? "#cf6f98" : "#4c2537"};background:${isEdit ? "#6b3048" : "transparent"};color:${isEdit ? "#f7e6ee" : "#9a7080"};cursor:pointer;transition:all 0.12s;`;
+        editToggle.textContent = isEdit ? "✓ Done" : "✎ Edit";
+        editToggle.addEventListener("click", () => { this.btnEditMode = !this.btnEditMode; this.renderButtons(); });
+        hdrRow.appendChild(hdrLbl);
+        hdrRow.appendChild(editToggle);
+        body.appendChild(hdrRow);
+
+        if (isEdit) {
+            const addCatBtn = document.createElement("button");
+            addCatBtn.className = "ebc-btn-footer-btn";
+            addCatBtn.textContent = "+ New Category";
+            addCatBtn.style.marginBottom = "6px";
+            addCatBtn.addEventListener("click", () => {
+                cats.push({ id: makeBtnId(), name: "New Category", buttons: [] });
+                rerender();
+            });
+            body.appendChild(addCatBtn);
+        }
+
+        for (let ci = 0; ci < cats.length; ci++) {
+            body.appendChild(this.buildCategorySection(cats[ci], ci, cats, isEdit, rerender));
+        }
+
+        if (isEdit) {
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;margin-top:10px;line-height:1.6;";
+            hint.innerHTML = [
+                "<span style='color:#7a5a6a;font-weight:bold;'>Sequence syntax</span> — steps separated by <b>|</b>",
+                "PoseName &nbsp;— set pose &nbsp;·&nbsp; <b>_</b> — clear pose",
+                "<b>!text</b> — send action &nbsp;·&nbsp; <b>*text</b> — send emote",
+                "<b>step@500</b> — per-step delay ms &nbsp;·&nbsp; <b>leaveroom</b> — leave",
+            ].join("<br>");
+            body.appendChild(hint);
+        }
+
+        body.scrollTop = savedScroll;
+    }
+
+    private buildCategorySection(
+        cat: ButtonCategory,
+        ci: number,
+        allCats: ButtonCategory[],
+        isEdit: boolean,
+        rerender: () => void,
+    ): HTMLElement {
+        const section = document.createElement("div");
+        section.style.marginBottom = "6px";
+
+        // Category header
+        const hdr = document.createElement("div");
+        hdr.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+
+        const collapseBtn = document.createElement("button");
+        collapseBtn.style.cssText = "background:none;border:none;color:#7a5a6a;cursor:pointer;font-size:10px;padding:0 2px;font-family:'Trebuchet MS',serif;flex-shrink:0;";
+        collapseBtn.textContent = cat.collapsed ? "▶" : "▼";
+        collapseBtn.addEventListener("click", () => { cat.collapsed = !cat.collapsed; saveButtonCategories(allCats); rerender(); });
+        hdr.appendChild(collapseBtn);
+
+        if (isEdit) {
+            const nameInp = document.createElement("input");
+            nameInp.type = "text";
+            nameInp.value = cat.name;
+            nameInp.style.cssText = "flex:1;min-width:0;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 5px;outline:none;";
+            nameInp.addEventListener("change", () => { cat.name = nameInp.value.trim() || cat.name; saveButtonCategories(allCats); });
+            hdr.appendChild(nameInp);
+
+            if (ci > 0) {
+                const up = document.createElement("button");
+                up.className = "ebc-slot-move"; up.textContent = "↑"; up.title = "Move category up";
+                up.addEventListener("click", () => { [allCats[ci - 1], allCats[ci]] = [allCats[ci], allCats[ci - 1]]; rerender(); });
+                hdr.appendChild(up);
+            }
+            if (ci < allCats.length - 1) {
+                const dn = document.createElement("button");
+                dn.className = "ebc-slot-move"; dn.textContent = "↓"; dn.title = "Move category down";
+                dn.addEventListener("click", () => { [allCats[ci], allCats[ci + 1]] = [allCats[ci + 1], allCats[ci]]; rerender(); });
+                hdr.appendChild(dn);
+            }
+
+            const delCat = document.createElement("button");
+            delCat.className = "ebc-slot-del"; delCat.textContent = "×"; delCat.title = "Delete category";
+            let catDelPending = false;
+            delCat.addEventListener("click", () => {
+                if (!catDelPending) { catDelPending = true; delCat.textContent = "?"; delCat.classList.add("confirm"); return; }
+                allCats.splice(ci, 1); rerender();
+            });
+            delCat.addEventListener("mouseleave", () => { catDelPending = false; delCat.textContent = "×"; delCat.classList.remove("confirm"); });
+            hdr.appendChild(delCat);
+        } else {
+            const nameLbl = document.createElement("span");
+            nameLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;letter-spacing:0.08em;color:#7a5a6a;text-transform:uppercase;";
+            nameLbl.textContent = cat.name;
+            hdr.appendChild(nameLbl);
+        }
+
+        section.appendChild(hdr);
+        if (cat.collapsed) return section;
+
+        const content = document.createElement("div");
+
+        if (isEdit) {
+            for (let bi = 0; bi < cat.buttons.length; bi++) {
+                content.appendChild(this.buildSlotRow(cat, bi, allCats, rerender));
+            }
+            const addBtn = document.createElement("button");
+            addBtn.className = "ebc-btn-footer-btn";
+            addBtn.textContent = "+ Add Button";
+            addBtn.style.cssText += ";margin-top:3px;display:block;";
+            addBtn.addEventListener("click", () => {
+                cat.buttons.push({ id: makeBtnId(), label: "Button", sequence: "" });
+                rerender();
+            });
+            content.appendChild(addBtn);
+        } else {
+            const tileRow = document.createElement("div");
+            tileRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding:0 0 4px 14px;";
+            if (cat.buttons.length === 0) {
+                const empty = document.createElement("span");
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4a;font-style:italic;";
+                empty.textContent = "No buttons — use ✎ Edit to add some.";
+                tileRow.appendChild(empty);
+            }
+            for (const btn of cat.buttons) {
+                const tile = document.createElement("button");
+                const col = btn.color ?? "#4c2537";
+                const txtCol = btn.color ?? "#f0e0ea";
+                tile.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 11px;border-radius:5px;background:#1b0d17;border:1px solid ${col};color:${txtCol};cursor:pointer;min-width:50px;text-align:center;transition:background 0.12s,border-color 0.12s;`;
+                tile.textContent = btn.label;
+                tile.title = btn.sequence || "(no sequence)";
+                tile.addEventListener("mouseenter", () => { tile.style.background = "#2a1020"; tile.style.borderColor = btn.color ? btn.color : "#7a4a5e"; });
+                tile.addEventListener("mouseleave", () => { tile.style.background = "#1b0d17"; tile.style.borderColor = col; });
+                tile.addEventListener("click", () => {
+                    if (!btn.sequence.trim()) return;
+                    tile.style.background = "#6b3048";
+                    tile.style.borderColor = "#cf6f98";
+                    window.setTimeout(() => { tile.style.background = "#1b0d17"; tile.style.borderColor = col; }, 350);
+                    runSequence(btn.sequence);
+                });
+                tileRow.appendChild(tile);
+            }
+            content.appendChild(tileRow);
+        }
+
+        section.appendChild(content);
+        return section;
+    }
+
+    private buildSlotRow(
+        cat: ButtonCategory,
+        bi: number,
+        allCats: ButtonCategory[],
+        rerender: () => void,
+    ): HTMLElement {
+        const btn = cat.buttons[bi];
+        const row = document.createElement("div");
+        row.className = "ebc-slot-row";
+
+        // ── Top: label | color | spacer | up/dn | del
+        const top = document.createElement("div");
+        top.className = "ebc-slot-top";
+
+        const labelInp = document.createElement("input");
+        labelInp.type = "text";
+        labelInp.className = "ebc-slot-label";
+        labelInp.placeholder = "Label";
+        labelInp.value = btn.label;
+        labelInp.style.width = "80px";
+        labelInp.addEventListener("input", () => { btn.label = labelInp.value; saveButtonCategories(allCats); });
+        top.appendChild(labelInp);
+
+        const colorInp = document.createElement("input");
+        colorInp.type = "color";
+        colorInp.className = "ebc-slot-color";
+        colorInp.value = btn.color ?? "#cf6f98";
+        colorInp.title = "Button colour";
+        colorInp.addEventListener("input", () => { btn.color = colorInp.value; saveButtonCategories(allCats); });
+        top.appendChild(colorInp);
+
+        const clearCol = document.createElement("button");
+        clearCol.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 4px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5060;cursor:pointer;flex-shrink:0;";
+        clearCol.textContent = "default";
+        clearCol.title = "Reset to default colour";
+        clearCol.addEventListener("click", () => { delete btn.color; colorInp.value = "#cf6f98"; saveButtonCategories(allCats); });
+        top.appendChild(clearCol);
+
+        const spacer = document.createElement("span");
+        spacer.style.flex = "1";
+        top.appendChild(spacer);
+
+        if (bi > 0) {
+            const up = document.createElement("button");
+            up.className = "ebc-slot-move"; up.textContent = "↑"; up.title = "Move up";
+            up.addEventListener("click", () => { [cat.buttons[bi - 1], cat.buttons[bi]] = [cat.buttons[bi], cat.buttons[bi - 1]]; rerender(); });
+            top.appendChild(up);
+        }
+        if (bi < cat.buttons.length - 1) {
+            const dn = document.createElement("button");
+            dn.className = "ebc-slot-move"; dn.textContent = "↓"; dn.title = "Move down";
+            dn.addEventListener("click", () => { [cat.buttons[bi], cat.buttons[bi + 1]] = [cat.buttons[bi + 1], cat.buttons[bi]]; rerender(); });
+            top.appendChild(dn);
+        }
+
+        const del = document.createElement("button");
+        del.className = "ebc-slot-del"; del.textContent = "×"; del.title = "Delete button";
+        let delPending = false;
+        del.addEventListener("click", () => {
+            if (!delPending) { delPending = true; del.textContent = "?"; del.classList.add("confirm"); return; }
+            cat.buttons.splice(bi, 1); rerender();
+        });
+        del.addEventListener("mouseleave", () => { delPending = false; del.textContent = "×"; del.classList.remove("confirm"); });
+        top.appendChild(del);
+
+        row.appendChild(top);
+
+        // ── Bottom: sequence input + step count badge
+        const bot = document.createElement("div");
+        bot.className = "ebc-slot-bottom";
+
+        const seqInp = document.createElement("input");
+        seqInp.type = "text";
+        seqInp.className = "ebc-slot-emote";
+        seqInp.placeholder = "Sequence: HandsUp|!waves.|_";
+        seqInp.value = btn.sequence;
+        seqInp.addEventListener("input", () => {
+            btn.sequence = seqInp.value;
+            saveButtonCategories(allCats);
+            const n = seqInp.value.split("|").filter(Boolean).length;
+            badge.textContent = n > 1 ? String(n) : "";
+            badge.style.display = n > 1 ? "" : "none";
+        });
+        bot.appendChild(seqInp);
+
+        const steps = btn.sequence ? btn.sequence.split("|").filter(Boolean).length : 0;
+        const badge = document.createElement("span");
+        badge.className = "ebc-slot-seq-badge";
+        badge.textContent = steps > 1 ? String(steps) : "";
+        badge.style.display = steps > 1 ? "" : "none";
+        badge.title = `${steps} steps`;
+        bot.appendChild(badge);
+
+        row.appendChild(bot);
+        return row;
     }
 
     private renderKittyTab(): void {
