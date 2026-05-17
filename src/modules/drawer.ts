@@ -10782,8 +10782,8 @@ export class EBCDrawer {
             body.appendChild(div);
         };
 
-        // ── Drawer Appearance ─────────────────────────────────────────────────
-        makeSection("DRAWER APPEARANCE", "EBC_devAppearanceCollapsed", false, (cnt) => {
+        // ── Drawer Preferences ────────────────────────────────────────────────
+        makeSection("DRAWER PREFERENCES", "EBC_devAppearanceCollapsed", false, (cnt) => {
 
             // ── Panel opacity slider ──────────────────────────────────────────
             const opacityRow = document.createElement("div");
@@ -10956,55 +10956,90 @@ export class EBCDrawer {
             cnt.appendChild(tabVisGrid);
 
             // ── Menu hotkey ────────────────────────────────────────────────────────
+            const hotkeyWrap = document.createElement("div");
+            hotkeyWrap.style.cssText = "margin-top:8px;padding:8px 10px;border:1px solid #3a1928;border-radius:6px;background:rgba(20,8,16,0.5);";
+
+            const hotkeyTitle = document.createElement("div");
+            hotkeyTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;margin-bottom:6px;letter-spacing:0.03em;";
+            hotkeyTitle.textContent = "⌨ Menu Hotkey";
+            hotkeyWrap.appendChild(hotkeyTitle);
+
             const hotkeyRow = document.createElement("div");
-            hotkeyRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-top:6px;";
-            const hotkeyLbl = document.createElement("span");
-            hotkeyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
-            hotkeyLbl.textContent = "Menu hotkey";
+            hotkeyRow.style.cssText = "display:flex;align-items:center;gap:8px;";
+
             const hotkeyDisplay = document.createElement("span");
             const refreshHotkeyDisplay = (): void => {
                 const k = getMenuHotkey();
-                hotkeyDisplay.textContent = k || "None";
-                hotkeyDisplay.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;border:1px solid #3a1928;background:#1b0d17;color:${k ? "#cf6f98" : "#4c2537"};min-width:36px;text-align:center;`;
+                // Convert "KeyF" → "F", "Space" → "Space", etc. for readability
+                const pretty = k
+                    ? k.replace(/^Key/, "").replace(/^Digit/, "").replace(/^Numpad/, "Num ")
+                    : "None";
+                hotkeyDisplay.textContent = pretty;
+                hotkeyDisplay.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:14px",
+                    "font-weight:bold",
+                    "padding:4px 14px",
+                    "border-radius:5px",
+                    "border:1px solid " + (k ? "#cf6f98" : "#3a1928"),
+                    "background:" + (k ? "rgba(207,111,152,0.15)" : "#1b0d17"),
+                    "color:" + (k ? "#f0a0c0" : "#4c3040"),
+                    "min-width:52px",
+                    "text-align:center",
+                    "flex-shrink:0",
+                    "letter-spacing:0.05em",
+                ].join(";");
             };
             refreshHotkeyDisplay();
+
+            const BTN = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
             const setHotkeyBtn = document.createElement("button");
-            setHotkeyBtn.textContent = "Set key";
-            setHotkeyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            setHotkeyBtn.textContent = "Set Key";
+            setHotkeyBtn.style.cssText = BTN + "border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;";
+            setHotkeyBtn.addEventListener("mouseenter", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#5a1c30"; });
+            setHotkeyBtn.addEventListener("mouseleave", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#3a1020"; });
+
             const clearHotkeyBtn = document.createElement("button");
             clearHotkeyBtn.textContent = "Clear";
-            clearHotkeyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+            clearHotkeyBtn.style.cssText = BTN + "border:1px solid #3a2530;background:transparent;color:#7a5a6a;";
+            clearHotkeyBtn.addEventListener("mouseenter", () => { clearHotkeyBtn.style.background = "rgba(122,90,106,0.15)"; });
+            clearHotkeyBtn.addEventListener("mouseleave", () => { clearHotkeyBtn.style.background = "transparent"; });
+
             let capturingHotkey = false;
             setHotkeyBtn.addEventListener("click", () => {
                 if (capturingHotkey) return;
                 capturingHotkey = true;
-                setHotkeyBtn.textContent = "Press key…";
-                setHotkeyBtn.style.color = "#cf6f98";
+                setHotkeyBtn.textContent = "Press a key…";
+                setHotkeyBtn.style.background = "#4a1a2a";
+                setHotkeyBtn.style.color = "#ff9ab8";
                 setHotkeyBtn.style.borderColor = "#cf6f98";
                 const capture = (ev: KeyboardEvent): void => {
                     if (ev.key === "Control" || ev.key === "Shift" || ev.key === "Alt" || ev.key === "Meta") return;
                     ev.preventDefault();
                     ev.stopPropagation();
-                    if (ev.key === "Escape") {
-                        // cancel capture
-                    } else {
-                        setMenuHotkey(ev.code);
-                    }
+                    if (ev.key !== "Escape") setMenuHotkey(ev.code);
                     capturingHotkey = false;
-                    setHotkeyBtn.textContent = "Set key";
-                    setHotkeyBtn.style.color = "#7a5a6a";
-                    setHotkeyBtn.style.borderColor = "#4c2537";
+                    setHotkeyBtn.textContent = "Set Key";
+                    setHotkeyBtn.style.background = "#3a1020";
+                    setHotkeyBtn.style.color = "#cf6f98";
+                    setHotkeyBtn.style.borderColor = "#7a3a50";
                     document.removeEventListener("keydown", capture, true);
                     refreshHotkeyDisplay();
                 };
                 document.addEventListener("keydown", capture, true);
             });
             clearHotkeyBtn.addEventListener("click", () => { setMenuHotkey(""); refreshHotkeyDisplay(); });
-            hotkeyRow.appendChild(hotkeyLbl);
+
             hotkeyRow.appendChild(hotkeyDisplay);
             hotkeyRow.appendChild(setHotkeyBtn);
             hotkeyRow.appendChild(clearHotkeyBtn);
-            cnt.appendChild(hotkeyRow);
+            hotkeyWrap.appendChild(hotkeyRow);
+
+            const hotkeyHint = document.createElement("div");
+            hotkeyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a4a;margin-top:5px;";
+            hotkeyHint.textContent = "Press the key to open / close the EBC menu from anywhere in the game.";
+            hotkeyWrap.appendChild(hotkeyHint);
+            cnt.appendChild(hotkeyWrap);
         });
 
         // ── EBC Users In This Room ─────────────────────────────────────────────
