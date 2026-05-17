@@ -2912,10 +2912,8 @@ export class EBCDrawer {
     private slCollapseHdr: HTMLElement | null = null;
     private slCollapseBody: HTMLElement | null = null;
     private slPresetDropdown: HTMLSelectElement | null = null;
-    private slCatDropdown: HTMLSelectElement | null = null;
     private slDurSlider: HTMLInputElement | null = null;
     private slDurVal: HTMLSpanElement | null = null;
-    private slRefreshCat: (() => void) | null = null;
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
@@ -3246,7 +3244,6 @@ export class EBCDrawer {
             slCollapseBody.style.display = open ? "flex" : "none";
             slHdrArrow.textContent = open ? "▲" : "▼";
             try { localStorage.setItem("EBC_slowLeaveOpen", open ? "1" : "0"); } catch { /* ignore */ }
-            if (open) refreshCatDropdown(); // refresh now that Player is initialised
         });
 
         // Slow Leave action button
@@ -3317,49 +3314,6 @@ export class EBCDrawer {
             }
         });
         slCollapseBody.appendChild(slSeqArea);
-
-        // Button category selector (with × delete)
-        const slCatRow = document.createElement("div");
-        slCatRow.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;box-sizing:border-box;";
-        const slCatDropdown = document.createElement("select");
-        slCatDropdown.style.cssText = DD_CSS + "flex:1;";
-        slCatDropdown.title = "Switch action button category";
-        const refreshCatDropdown = (): void => {
-            try {
-                while (slCatDropdown.firstChild) slCatDropdown.removeChild(slCatDropdown.firstChild);
-                const cats = getCategories();
-                cats.forEach((cat, i) => {
-                    const o = document.createElement("option"); o.value = String(i); o.textContent = cat.name; slCatDropdown.appendChild(o);
-                });
-                slCatDropdown.value = String(getActiveCategoryIndex());
-            } catch { /* Player may not be initialised yet */ }
-        };
-        refreshCatDropdown();
-        slCatDropdown.addEventListener("change", () => {
-            setActiveCategoryIndex(parseInt(slCatDropdown.value, 10));
-            if (this.currentTab === "buttons") this.rerender();
-        });
-        const slCatDelBtn = document.createElement("button");
-        slCatDelBtn.textContent = "×";
-        slCatDelBtn.title = "Delete this category";
-        slCatDelBtn.style.cssText = "flex-shrink:0;padding:0 5px;height:18px;font-size:11px;line-height:1;background:#2a0d18;color:#cf6f98;border:1px solid #3a1928;border-radius:3px;cursor:pointer;";
-        slCatDelBtn.addEventListener("click", () => {
-            const cats = getCategories();
-            if (cats.length <= 1) return; // never delete the last category
-            const delIdx = parseInt(slCatDropdown.value, 10);
-            if (delIdx < 0 || delIdx >= cats.length) return;
-            if (!confirm(`Delete category "${cats[delIdx].name}"? Its buttons will be lost.`)) return;
-            cats.splice(delIdx, 1);
-            const newIdx = Math.min(delIdx, cats.length - 1);
-            saveCategories(cats, newIdx);
-            refreshCatDropdown();
-            if (this.currentTab === "buttons") this.rerender();
-        });
-        slCatRow.appendChild(slCatDropdown);
-        slCatRow.appendChild(slCatDelBtn);
-        slCollapseBody.appendChild(slCatRow);
-        this.slCatDropdown = slCatDropdown;
-        this.slRefreshCat = refreshCatDropdown;
 
         // Duration slider
         const slDurRow = document.createElement("div");
@@ -4248,8 +4202,6 @@ export class EBCDrawer {
         // Show/hide the outer collapsible wrapper
         const wrapper = this.slCollapseHdr?.parentElement;
         if (wrapper) wrapper.style.display = inRoom ? "flex" : "none";
-        // When entering a room refresh the category dropdown (Player is now available)
-        if (inRoom) { try { this.slRefreshCat?.(); } catch { /* ignore */ } }
         // Reset button label if no sequence is currently running
         if (!isSeqRunning()) {
             this.slowLeaveBtn.textContent = "🚶 Slow Leave";
