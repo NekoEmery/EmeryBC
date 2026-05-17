@@ -11170,7 +11170,11 @@
             const char = room.find(c => c.MemberNumber === memberId);
             if (!char)
                 return [];
-            return char.Appearance.map((item) => {
+            return char.Appearance
+                // Guard against unresolved assets (BC drops unknown assets, but mods can inject items
+                // where Asset is null — one bad entry would throw and return [] without this filter)
+                .filter((item) => { var _a, _b; return ((_b = (_a = item.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) && RESTRAINT_GROUPS.has(item.Asset.Group.Name); })
+                .map((item) => {
                 const prop = item.Property;
                 const locked = typeof (prop === null || prop === void 0 ? void 0 : prop.LockedBy) === "string" && prop.LockedBy !== "";
                 return { group: item.Asset.Group.Name, name: item.Asset.Name, locked };
@@ -11315,14 +11319,14 @@
             id: "headpat", label: "🐾 Headpat",
             text: "gently pats Emery on the head~ 🐾",
             roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
-            type: "emote", expression: "Ears:Wiggle",
+            type: "emote", expression: "Blush:Low",
             bcGroup: "ItemHead", bcActivity: "Pet",
         },
         {
             id: "goodgirl", label: "✨ Good girl",
             text: "scratches Emery behind the ears~ Good girl~ ✨",
             roughText: "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
-            type: "emote", expression: "Ears:Wiggle",
+            type: "emote", expression: "Blush:Medium",
         },
         {
             id: "treat", label: "🍖 Treat",
@@ -11446,9 +11450,11 @@
         "spank": "delivers a sharp smack to Emery's bottom without warning~",
         "bap": "gives Emery a sharp flick on the nose without warning~",
     };
+    // "Ears" is not a valid CharacterSetFacialExpression group in BC.
+    // Seeds updated to valid Blush states (only applied when the field is still undefined).
     const EXPRESSION_SEEDS = {
-        "headpat": "Ears:Wiggle",
-        "goodgirl": "Ears:Wiggle",
+        "headpat": "Blush:Low",
+        "goodgirl": "Blush:Medium",
     };
     // Seed bcGroup/bcActivity for stored emotes that predate these fields (v2.2.75+).
     const BC_ACTIVITY_SEEDS = {
@@ -11592,22 +11598,43 @@
         document.body.appendChild(overlay);
     }
     // -- Kitty reaction presets ----------------------------------------------------
+    // Valid BC facial expression states (verified against Female3DCG asset directories).
+    // Groups: Blush, Eyes, Eyes2, Mouth, Eyebrows, Fluids, Emoticon.
+    // "Ears" is NOT a valid CharacterSetFacialExpression group — removed.
+    // Empty state string → handler sends null → clears that group.
     const KITTY_EXPRESSIONS = [
-        { label: "— None —", cmd: "" },
-        { label: "😊 Light blush", cmd: "Blush:1" },
-        { label: "😳 Deep blush", cmd: "Blush:3" },
-        { label: "😌 Eyes closed", cmd: "Eyes:Closed" },
-        { label: "😰 Eyes down", cmd: "Eyes:Downed" },
-        { label: "😠 Glare", cmd: "Eyes:Glare" },
-        { label: "🥺 Sad eyes", cmd: "Eyes:Sad" },
-        { label: "👀 Wide eyes", cmd: "Eyes:Shocked" },
-        { label: "😊 Smile", cmd: "Mouth:Smiling" },
-        { label: "😢 Sad mouth", cmd: "Mouth:Sad" },
-        { label: "😤 Pout", cmd: "Mouth:Pout" },
-        { label: "😶 Closed mouth", cmd: "Mouth:Closed" },
-        { label: "👂 Ears wiggle", cmd: "Ears:Wiggle" },
-        { label: "🐾 Ears flat", cmd: "Ears:Flat" },
-        { label: "✨ Ears up", cmd: "Ears:Up" },
+        // ── Blush ────────────────────────────────────────────────────
+        { label: "😊 Blush — light", cmd: "Blush:Low" },
+        { label: "😊 Blush — medium", cmd: "Blush:Medium" },
+        { label: "😳 Blush — high", cmd: "Blush:High" },
+        { label: "🔥 Blush — extreme", cmd: "Blush:Extreme" },
+        { label: "× Blush — clear", cmd: "Blush:" },
+        // ── Eyes ─────────────────────────────────────────────────────
+        { label: "😌 Eyes — closed", cmd: "Eyes:Closed" },
+        { label: "😳 Eyes — shy", cmd: "Eyes:Shy" },
+        { label: "😢 Eyes — sad", cmd: "Eyes:Sad" },
+        { label: "😱 Eyes — surprised", cmd: "Eyes:Surprised" },
+        { label: "😡 Eyes — angry", cmd: "Eyes:Angry" },
+        { label: "😵 Eyes — dazed", cmd: "Eyes:Dazed" },
+        { label: "💕 Eyes — heart", cmd: "Eyes:Heart" },
+        { label: "😍 Eyes — lewd", cmd: "Eyes:Lewd" },
+        { label: "× Eyes — clear", cmd: "Eyes:" },
+        // ── Mouth ────────────────────────────────────────────────────
+        { label: "😊 Mouth — happy", cmd: "Mouth:Happy" },
+        { label: "😢 Mouth — sad", cmd: "Mouth:Sad" },
+        { label: "😤 Mouth — pout", cmd: "Mouth:Pout" },
+        { label: "😠 Mouth — angry", cmd: "Mouth:Angry" },
+        { label: "😩 Mouth — moan", cmd: "Mouth:Moan" },
+        { label: "😈 Mouth — devious", cmd: "Mouth:Devious" },
+        { label: "😬 Mouth — grin", cmd: "Mouth:Grin" },
+        { label: "😋 Mouth — smirk", cmd: "Mouth:Smirk" },
+        { label: "× Mouth — clear", cmd: "Mouth:" },
+        // ── Eyebrows ─────────────────────────────────────────────────
+        { label: "🤨 Brow — raised", cmd: "Eyebrows:Raised" },
+        { label: "😤 Brow — harsh", cmd: "Eyebrows:Harsh" },
+        { label: "😡 Brow — angry", cmd: "Eyebrows:Angry" },
+        { label: "😊 Brow — soft", cmd: "Eyebrows:Soft" },
+        { label: "× Brow — clear", cmd: "Eyebrows:" },
     ];
     const KITTY_REACTION_POSES = [
         { label: "— None —", poses: [] },
@@ -22684,7 +22711,7 @@
                             statusEl.style.color = "#ff6b6b";
                             return;
                         }
-                        const items = char.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
+                        const items = char.Appearance.filter((i) => { var _a, _b; return ((_b = (_a = i.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) && RESTRAINT_GROUPS.has(i.Asset.Group.Name); });
                         if (items.length === 0) {
                             statusEl.textContent = "This character has no restraints.";
                             statusEl.style.color = "#9a7080";
@@ -27704,7 +27731,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.85";
+    const MOD_VERSION = "2.2.86";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27715,6 +27742,15 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.86",
+            changes: [
+                "Fix: copy-restraints and rescue item list could silently return empty if any item in the character's appearance had an unresolved asset (mod-injected or mismatched BC version) — both paths now null-guard Asset before filtering, so one bad item no longer wipes the whole list.",
+                "Fix: rescue item list now filters to RESTRAINT_GROUPS only (was showing all appearance items including hair/clothes).",
+                "Fix: KITTY_EXPRESSIONS were using wrong BC state names — Blush used '1'/'3' (should be 'Low'/'Medium'/'High'/'Extreme'), Mouth:Closed does not exist and caused the mouth to go invisible, 'Ears' is not a valid expression group. All states corrected against BC's actual asset directory names. Eyebrows group added.",
+                "Fix: headpat/good girl emote expressions were 'Ears:Wiggle' which is not a valid BC expression — updated to Blush:Low / Blush:Medium.",
+            ],
+        },
         {
             version: "2.2.85",
             changes: [
