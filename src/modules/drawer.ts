@@ -2755,6 +2755,7 @@ export class EBCDrawer {
     private refreshSwEnableBtn: (() => void) | null = null;
     private beepWins = new Map<number, { el: HTMLElement; minimized: boolean }>();
     private beepUnread = new Map<number, number>();
+    private expandedFriends = new Set<number>();
     private friendsSectionEl: HTMLElement | null = null;
     private friendPollTick = 0;
     private friendRefreshDebounce: ReturnType<typeof window.setTimeout> | null = null;
@@ -10129,6 +10130,57 @@ export class EBCDrawer {
                         infoBox.appendChild(lsFullEl);
                     }
 
+                    // ── Relationship info ──────────────────────────────────────
+                    const parseRelStart = (s: string | number | undefined): number | null => {
+                        if (s === undefined || s === null) return null;
+                        if (typeof s === "number") return s > 0 ? s : null;
+                        const t = Date.parse(String(s));
+                        return isNaN(t) ? null : t;
+                    };
+                    const relFmt = (ts: number): string =>
+                        new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+
+                    try {
+                        // They own you
+                        const own = (Player as unknown as Record<string, unknown>).Ownership as
+                            { MemberNumber?: number; Start?: string | number } | undefined;
+                        if (own?.MemberNumber === num) {
+                            const ownEl = document.createElement("div");
+                            ownEl.style.color = "#cf6f98";
+                            const ts = parseRelStart(own.Start);
+                            ownEl.textContent = ts
+                                ? `👑 Owned since: ${relFmt(ts)}`
+                                : "👑 Owned by them";
+                            infoBox.appendChild(ownEl);
+                        }
+                        // Lovership
+                        const loves = (Player as unknown as Record<string, unknown>).Lovership as
+                            Array<{ MemberNumber?: number; Start?: string | number }> | undefined;
+                        const love = loves?.find(l => l.MemberNumber === num);
+                        if (love) {
+                            const loveEl = document.createElement("div");
+                            loveEl.style.color = "#e87090";
+                            const ts = parseRelStart(love.Start);
+                            loveEl.textContent = ts
+                                ? `❤️ Lovers since: ${relFmt(ts)}`
+                                : "❤️ Lovers";
+                            infoBox.appendChild(loveEl);
+                        }
+                        // You own them (room data only — offline skip)
+                        const roomChars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                            Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number; Start?: string | number } }> | undefined;
+                        const rc = roomChars?.find(c => c.MemberNumber === num);
+                        if (rc?.Ownership?.MemberNumber === Player.MemberNumber) {
+                            const ownedByMeEl = document.createElement("div");
+                            ownedByMeEl.style.color = "#a0d0a0";
+                            const ts = parseRelStart(rc.Ownership.Start);
+                            ownedByMeEl.textContent = ts
+                                ? `🔒 Owns them since: ${relFmt(ts)}`
+                                : "🔒 You own them";
+                            infoBox.appendChild(ownedByMeEl);
+                        }
+                    } catch { /* ignore */ }
+
                     expand.appendChild(infoBox);
 
                     // Tags label
@@ -10305,10 +10357,20 @@ export class EBCDrawer {
                     const open = expand.classList.toggle("visible");
                     row.classList.toggle("expanded", open);
                     if (open) {
+                        this.expandedFriends.add(num);
                         try { refreshExpandNote?.(); } catch { /* ignore */ }
                         window.setTimeout(() => newTagInputRef?.focus(), 50);
+                    } else {
+                        this.expandedFriends.delete(num);
                     }
                 });
+
+                // Restore open state if this panel was open before a list refresh
+                if (this.expandedFriends.has(num)) {
+                    buildExpandPanel();
+                    expand.classList.add("visible");
+                    row.classList.add("expanded");
+                }
 
                 wrap.appendChild(row);
                 wrap.appendChild(expand);
