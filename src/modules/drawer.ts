@@ -2556,9 +2556,9 @@ function setMenuHotkey(key: string): void { try { if (key) localStorage.setItem(
 // ── Drawer appearance / layout helpers ───────────────────────────────────
 const EBC_COLORS_KEY = "EBC_colors";
 const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
-const EBC_USER_TABS      = ["outfits", "anims", "notes", "thanks", "dev"] as const;
+const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "thanks", "dev"] as const;
 const EBC_TAB_LABELS: Record<string, string> = {
-    outfits: "OUTFITS", anims: "ANIMS",
+    outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
     notes: "USERS", thanks: "CREDITS", dev: "DEV",
 };
 
@@ -2972,7 +2972,7 @@ export class EBCDrawer {
         const btnsTabBtn = document.createElement("button");
         btnsTabBtn.className = "ebc-tab-btn";
         btnsTabBtn.id = "ebc-tab-buttons";
-        btnsTabBtn.textContent = "BTNS";
+        btnsTabBtn.textContent = "BUTTONS";
         btnsTabBtn.title = "Action Buttons";
 
         const notesTabBtn = document.createElement("button");
@@ -3017,8 +3017,8 @@ export class EBCDrawer {
         kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
 
         tabBar.appendChild(outfitTabBtn);
-        tabBar.appendChild(posesTabBtn);
         tabBar.appendChild(btnsTabBtn);
+        tabBar.appendChild(posesTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(thanksTabBtn);
         tabBar.appendChild(devTabBtn2);

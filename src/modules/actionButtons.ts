@@ -1,4 +1,4 @@
-// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
+﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
 import { callBC, getDisplayName } from "./bcUtils";
 import { getActionButtonsVisible } from "./settings";
@@ -132,6 +132,10 @@ export function normalizeHex(value: string | undefined, fallback = "#c2185b"): s
 
 let seqRunning = false;
 
+// Sends the current ActivePose to the room without triggering a full re-render on each step.
+// appearanceBundle should be pre-built once before the sequence starts and reused - sending
+// a freshly built bundle every 600ms causes other clients to fully re-render the avatar each
+// time, which looks like flickering/glitching.
 function sendPoseUpdate(appearanceBundle: ReturnType<typeof ServerAppearanceBundle>): void {
     const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
         ? Player.ActivePose
@@ -148,6 +152,9 @@ function sendPoseUpdate(appearanceBundle: ReturnType<typeof ServerAppearanceBund
 }
 
 function syncPoseToRoom(): void {
+    // Used for one-shot pose syncs (outside of sequences).
+    // Capture desired pose BEFORE CharacterRefresh - BC may re-apply item-forced poses
+    // during refresh and override what we just set.
     const activePose = (Player.ActivePose && Player.ActivePose.length > 0)
         ? Player.ActivePose
         : null;
@@ -163,6 +170,9 @@ function syncPoseToRoom(): void {
     callBC(() => CharacterRefresh(Player, false, false));
 }
 
+// Parses a single raw step token (may have @NNN suffix) into {content, delay}.
+// E.g. "!waves.@1000" -> { content: "!waves.", delay: 1000 }
+//      "HandsUp"      -> { content: "HandsUp", delay: defaultStepMs }
 export function parseStep(raw: string, defaultStepMs: number): { content: string; delay: number } {
     const atIdx = raw.lastIndexOf("@");
     if (atIdx > 0) {
@@ -180,18 +190,22 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
     const rawSteps = sequence.split("|").map(s => s.trim()).filter(Boolean);
     if (!rawSteps.length) return;
 
+    // Parse each step: strip @NNN suffix for per-step delay, keep content.
     const steps = rawSteps.map(r => parseStep(r, defaultStepMs));
 
     seqRunning = true;
+    // null means "no pose / neutral" in BC - store as null so we restore correctly.
     const originalPoses: string[] | null = (Player.ActivePose && Player.ActivePose.length > 0)
         ? [...Player.ActivePose]
         : null;
+    // Build appearance bundle ONCE - reusing it avoids re-render flicker on other clients.
     const appearanceBundle = ServerAppearanceBundle(Player.Appearance);
     let idx = 0;
 
     const next = (): void => {
         try {
             if (idx >= steps.length) {
+                // Sequence done - restore original pose, do a full sync + local refresh.
                 Player.ActivePose = originalPoses;
                 syncPoseToRoom();
                 seqRunning = false;
@@ -204,6 +218,9 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
             } else if (step.toLowerCase() === "leaveroom") {
+                // Restore pose, switch screen FIRST, then leave — same pattern as
+                // safeword.ts.  CommonSetScreen stops ChatRoomRun before
+                // ChatRoomLeave() clears ChatRoomData, so no mod hook crashes.
                 Player.ActivePose = originalPoses;
                 seqRunning = false;
                 window.setTimeout(() => {
@@ -230,8 +247,13 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
 }
 
 // --- Label-based animation triggers ------------------------------------------
+// If a button's label matches one of these (case-insensitive), the matching
+// animation plays automatically alongside the normal message. Completely hidden
+// from the user -- the emote field is just normal text.
 
 function isArmRestrained(): boolean {
+    // Only ItemArms covers actual binding restraints (armbinders, straitjackets, etc.).
+    // ItemHands covers paws/mittens/gloves which don't lock arm movement, so we skip it.
     return Player.Appearance.some(item => item.Asset.Group.Name === "ItemArms");
 }
 
@@ -253,11 +275,13 @@ function localNotice(msg: string): void {
     log.scrollTop = log.scrollHeight;
 }
 
+// Returns true if the animation ran (or will run), false if it was blocked.
 function runCheerAnimation(): boolean {
     if (isArmRestrained()) {
         localNotice("Your arms are restrained -- can't cheer right now!");
         return false;
     }
+    // Yoked (arms out) -> OverTheHead (arms fully above head) -> repeat -> neutral
     runSequence("Yoked|OverTheHead|Yoked|OverTheHead|Yoked|OverTheHead|_", 600);
     return true;
 }
@@ -267,13 +291,16 @@ const LABEL_ANIMATIONS: Map<string, () => boolean> = new Map([
     ["CHEERS", runCheerAnimation],
 ]);
 
+// Returns false if an animation was attempted but blocked - caller should suppress the chat message.
+// Returns true if the animation ran fine, or if there is no animation for this label.
 function triggerLabelAnimation(label: string): boolean {
     const fn = LABEL_ANIMATIONS.get(label.toUpperCase().trim());
-    if (!fn) return true;
+    if (!fn) return true;   // no animation for this label, proceed normally
     return fn();
 }
 
 // --- Send chat message --------------------------------------------------------
+// "action" -> (Name text)   "emote" -> * Name text *   "seq" -> runSequence
 
 export function sendAction(emote: string, style: ActionStyle = "action", includeName = true): void {
     const text = emote.trim();
@@ -282,10 +309,15 @@ export function sendAction(emote: string, style: ActionStyle = "action", include
     if (style === "seq") { runSequence(text); return; }
 
     if (style === "emote") {
+        // BC natively formats Emote as:  * Name text *
         ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
         return;
     }
 
+    // Action style: (Name text) or (text) when name is excluded
+    // BC can't find the key in Interface.csv so it prepends "MISSING TEXT IN "Interface.csv": ".
+    // We include the player's name directly in Content, then use the poison tag to strip the prefix,
+    // leaving only the zero-width char + text so it renders as (Name text).
     const actionContent = includeName ? getDisplayName() + " " + text : text;
     ServerSend("ChatRoomChat", {
         Type: "Action",
@@ -304,11 +336,13 @@ const CHIP_W     = 45;
 const CHIP_H     = 28;
 const CAT_CHIP_H = 30;
 const CAT_ARR_W  = 22;
-const GRIP_H     = 22;
+const GRIP_H     = 22;  // drag handle above collapse toggle — tall enough to tap
 
+// Position — mutable, persisted to localStorage
 const SIDEBAR_POS_KEY = "EBC_sidebarPos";
 const SIDEBAR_DEFAULT_X = 0;
 const SIDEBAR_DEFAULT_Y = 270;
+// Fallback hard cap — overridden at drag time by the live DOM check below.
 const SIDEBAR_MAX_X_FALLBACK = 700;
 
 let sidebarX = SIDEBAR_DEFAULT_X;
@@ -334,6 +368,7 @@ export function resetSidebarPos(): void {
 
 let sidebarCollapsed = false;
 
+// Drag state
 let isDragging = false;
 let dragAnchorMouseX = 0;
 let dragAnchorMouseY = 0;
@@ -363,7 +398,10 @@ function isInGrip(cx: number, cy: number): boolean {
            cy >= gripY    && cy <= gripY + GRIP_H;
 }
 
+/** Returns the maximum canvas-X the sidebar left edge may reach before overlapping the chat. */
 function getSidebarMaxX(): number {
+    // Try to read the left edge of BC's chat log (or EBC drawer) in real time.
+    // "#TextAreaChatLog" is BC's native chat log element; we also check the EBC drawer.
     const candidates = [
         document.getElementById("TextAreaChatLog"),
         document.getElementById("TextAreaChatInput"),
@@ -406,6 +444,7 @@ function startDrag(cx: number, cy: number): void {
         document.removeEventListener("touchmove",  onMove as EventListener);
         document.removeEventListener("mouseup",    onEnd);
         document.removeEventListener("touchend",   onEnd);
+        // Suppress the click that fires after mouseup so it doesn't hit BC characters
         if (hasMoved) {
             const suppress = (e: Event): void => { e.stopPropagation(); e.preventDefault(); };
             document.addEventListener("click", suppress, { capture: true, once: true });
@@ -418,9 +457,12 @@ function startDrag(cx: number, cy: number): void {
     document.addEventListener("touchend",   onEnd);
 }
 
+// Attach hold-to-drag directly on the canvas via mousedown/touchstart so the
+// drag begins while the button is held — not on click (which would fire after release).
 export function initDragListener(): void {
     const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
     if (!canvas) {
+        // Canvas not ready yet — retry shortly
         window.setTimeout(initDragListener, 200);
         return;
     }
@@ -436,6 +478,7 @@ export function initDragListener(): void {
     canvas.addEventListener("touchstart", onDown as EventListener, { passive: false });
 }
 
+/** Converts a 6-digit hex color to rgba() with the given alpha (0–1). */
 function withAlpha(hex: string, alpha: number): string {
     const h = hex.replace("#", "");
     if (h.length !== 6) return hex;
@@ -449,19 +492,23 @@ export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
     if (!getActionButtonsVisible()) return;
 
+    // Derived Y positions
     const gripY      = sidebarY - GRIP_H - 2;
     const catChipY   = sidebarY + CHIP_H + 4;
     const btnStartY  = catChipY + CAT_CHIP_H + 4;
 
+    // Semi-transparent background variants
     const bgNormal   = withAlpha(UI.cardMuted,   0.88);
     const bgActive   = withAlpha(UI.accentSoft,  0.88);
     const bgChip     = withAlpha("#2a0e1e",       0.88);
     const bgInactive = withAlpha("#1a0a14",       0.88);
 
+    // Drag grip — hold & drag to reposition
     DrawRect(sidebarX, gripY, CHIP_W, GRIP_H,
         isDragging ? bgActive : bgNormal);
     DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H,
         isDragging ? UI.accent : UI.panelEdge, 1);
+    // 2×3 dot grid
     const dotCol    = isDragging ? UI.accent : UI.accentDeep;
     const dotSize   = 3;
     const dotGapX   = 6;
@@ -474,10 +521,12 @@ export function drawActionButtons(): void {
         }
     }
 
+    // Collapse toggle — same palette as grip; lit pink when collapsed so user knows it's there
     DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H,
         sidebarCollapsed ? bgActive : bgNormal);
     DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H,
         sidebarCollapsed ? UI.accent : UI.panelEdge, 1);
+    // Two short bars centered — subtle when open, bright when closed
     const bCol = sidebarCollapsed ? UI.accent : UI.accentSoft;
     const bW   = Math.floor(CHIP_W * 0.55);
     const bH   = 2;
@@ -488,6 +537,7 @@ export function drawActionButtons(): void {
 
     if (sidebarCollapsed) return;
 
+    // Category switcher chip: [◀] Name [▶]
     const cats  = getCategories();
     const idx   = getActiveCategoryIndex();
     const label = cats.length > 1
@@ -521,9 +571,11 @@ export function handleActionButtonClick(): boolean {
     const mx = (window as unknown as Record<string, number>).MouseX ?? 0;
     const my = (window as unknown as Record<string, number>).MouseY ?? 0;
 
+    // Derived Y positions (same as in draw)
     const catChipY  = sidebarY + CHIP_H + 4;
     const btnStartY = catChipY + CAT_CHIP_H + 4;
 
+    // Collapse toggle
     if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
         my >= sidebarY  && my <= sidebarY + CHIP_H) {
         sidebarCollapsed = !sidebarCollapsed;
@@ -532,6 +584,7 @@ export function handleActionButtonClick(): boolean {
 
     if (sidebarCollapsed) return false;
 
+    // Category prev/next arrows
     const cats = getCategories();
     const idx  = getActiveCategoryIndex();
     if (my >= catChipY && my <= catChipY + CAT_CHIP_H) {
