@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.95";
+const MOD_VERSION = "2.2.96";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.96",
+        changes: [
+            "Kitty: Leash button is now a toggle — shows '🔗 Grab Leash' when not held, '🔗 Let Go of Leash' when held. Clicking while leashed sends BC's StopHoldLeash hidden message to Emery (releasing the follow relationship) and a mood-aware room emote ('drops Emery's leash...' / 'gently releases...'). Button label, border and hover colour update immediately to reflect the new state.",
+        ],
+    },
     {
         version: "2.2.95",
         changes: [

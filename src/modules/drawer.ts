@@ -13715,26 +13715,59 @@ export class EBCDrawer {
         leashRow.style.cssText = "display:flex;gap:6px;margin-bottom:8px;";
         const leashBtn = document.createElement("button");
         leashBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 0;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;";
-        leashBtn.textContent = "🔗 Grab Leash";
-        leashBtn.addEventListener("mouseenter", () => { leashBtn.style.background = "rgba(120,50,80,0.5)"; leashBtn.style.borderColor = "#c090b0"; });
-        leashBtn.addEventListener("mouseleave", () => { leashBtn.style.background = "rgba(80,40,60,0.35)"; leashBtn.style.borderColor = "#8a5a7888"; });
+
+        // Helper: check whether Lucy is currently holding Emery's leash
+        const isLeashHeld = (): boolean => {
+            const w = window as unknown as Record<string, unknown>;
+            const leashList = w.ChatRoomLeashList as number[] | undefined;
+            return leashList ? leashList.includes(EMERY_MEMBER) : false;
+        };
+
+        // Sync button label/style to current leash state
+        const refreshLeashBtn = (): void => {
+            const held = isLeashHeld();
+            leashBtn.textContent = held ? "🔗 Let Go of Leash" : "🔗 Grab Leash";
+            leashBtn.style.borderColor = held ? "#e07070aa" : "#8a5a7888";
+            leashBtn.style.color       = held ? "#e0a090"   : "#c090b0";
+        };
+        refreshLeashBtn();
+
+        leashBtn.addEventListener("mouseenter", () => {
+            leashBtn.style.background = isLeashHeld() ? "rgba(120,40,40,0.45)" : "rgba(120,50,80,0.5)";
+        });
+        leashBtn.addEventListener("mouseleave", () => {
+            leashBtn.style.background = "rgba(80,40,60,0.35)";
+        });
         leashBtn.addEventListener("click", () => {
             if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
             const mood = getKittyMood();
-            // Send mood-aware emote so room sees it
-            sendRoomEmote(mood === "rough"
-                ? "snatches up Emery's leash with a firm grip~"
-                : "reaches out and gently takes hold of Emery's leash~");
-            // BC's actual "grab leash" mechanic — NOT an activity; it's a hidden message protocol.
-            // The hidden HoldLeash message tells Emery's BC client to register Lucy as holding her leash.
-            // This enables BC's "follow me" room-change mechanic if Emery has a leash-effect item.
-            try {
-                ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
-                // Update Lucy's local leash list so BC tracks the follow relationship
-                const w = window as unknown as Record<string, unknown>;
-                const leashList = w.ChatRoomLeashList as number[] | undefined;
-                if (leashList && !leashList.includes(EMERY_MEMBER)) leashList.push(EMERY_MEMBER);
-            } catch { /* ignore */ }
+            const held = isLeashHeld();
+            const w = window as unknown as Record<string, unknown>;
+            const leashList = w.ChatRoomLeashList as number[] | undefined;
+            if (held) {
+                // Release leash
+                sendRoomEmote(mood === "rough"
+                    ? "drops Emery's leash with a dismissive flick~"
+                    : "gently releases Emery's leash~");
+                try {
+                    ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                    if (leashList) {
+                        const idx = leashList.indexOf(EMERY_MEMBER);
+                        if (idx >= 0) leashList.splice(idx, 1);
+                    }
+                } catch { /* ignore */ }
+            } else {
+                // Grab leash — BC's HoldLeash hidden-message protocol
+                sendRoomEmote(mood === "rough"
+                    ? "snatches up Emery's leash with a firm grip~"
+                    : "reaches out and gently takes hold of Emery's leash~");
+                try {
+                    ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                    if (leashList && !leashList.includes(EMERY_MEMBER)) leashList.push(EMERY_MEMBER);
+                } catch { /* ignore */ }
+            }
+            // Update button to reflect new state
+            refreshLeashBtn();
         });
         leashRow.appendChild(leashBtn);
         body.appendChild(leashRow);
