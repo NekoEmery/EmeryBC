@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.105";
+const MOD_VERSION = "2.2.106";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.106",
+        changes: [
+            "Fix: Kneel (and all kitty poses) now apply correctly — CharacterRefresh was called with dirty=false which told BC not to recalculate the pose. Now uses CharacterRefresh(false) + ChatRoomCharacterUpdate, matching the applyPoses pattern.",
+            "Kitty Bap: text updated to 'head bap' (was 'nose bap'). Emery now auto-reacts with a startled eeep emote — no popup, fires automatically. Stored text entries migrated.",
+            "Kitty Resistance popup: accept button now sends 'accepts obediently' emote. Timer expiry (failed struggle) sends a separate 'crumbles despite herself' emote. Both are mood-aware.",
+            "Added 'autoreact' kitty command + KittyEmote fields autoreact/autoreactRough for instant auto-sent reactions without a popup.",
+        ],
+    },
     {
         version: "2.2.105",
         changes: [
@@ -2773,7 +2782,21 @@ function showKittyResistancePopup(
     const acceptBtn = document.createElement("button");
     acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
     acceptBtn.textContent = "Accept~ 🌸";
-    acceptBtn.addEventListener("click", () => {
+    // Shared accept handler — autoFailed=true when the countdown expires, false when clicked
+    const doAccept = (autoFailed: boolean): void => {
+        if (isResolved) return;
+        isResolved = true;
+        // Send the appropriate emote before applying anything
+        try {
+            const emote = autoFailed
+                ? (mood === "rough"
+                    ? "struggles with everything she has but crumbles all the same, resistance fading despite herself~"
+                    : "squirms and fights a little longer before going still, unable to find the will to refuse~")
+                : (mood === "rough"
+                    ? "stills with a quiet whimper, yielding without further struggle~"
+                    : "takes a slow breath and gives a small nod, accepting obediently~ 🌸");
+            ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+        } catch { /* ignore */ }
         // Apply restraint items to self (with full craft/property/difficulty support)
         if (restraintItems.length > 0) {
             try {
@@ -2828,18 +2851,14 @@ function showKittyResistancePopup(
             try {
                 const w2 = window as unknown as Record<string, unknown>;
                 (Player as unknown as Record<string, unknown>).ActivePose = [...reaction.poses];
-                (w2.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(Player, false, false);
-                if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
-                    callBC(() => ServerSend("ChatRoomCharacterUpdate", {
-                        ID: (Player as unknown as Record<string, unknown>).OnlineID,
-                        ActivePose: reaction!.poses,
-                        Appearance: ServerAppearanceBundle(Player.Appearance),
-                    }));
-                }
+                callBC(() => CharacterRefresh(Player, false));
+                callBC(() => ChatRoomCharacterUpdate(Player));
             } catch { /* ignore */ }
         }
-        close();
-    });
+        overlay.remove();
+    };
+
+    acceptBtn.addEventListener("click", () => doAccept(false));
 
     btnRow.appendChild(fightBtn);
     btnRow.appendChild(acceptBtn);
@@ -2857,7 +2876,7 @@ function showKittyResistancePopup(
         if (isResolved) return; // user already acted — stop ticking
         const pct = Math.max(0, 1 - (Date.now() - startTime) / DURATION);
         try { timerFill.style.width = `${pct * 100}%`; } catch { /* ignore */ }
-        if (pct <= 0) { if (!isResolved) acceptBtn.click(); } else { requestAnimationFrame(tick); }
+        if (pct <= 0) { if (!isResolved) doAccept(true); } else { requestAnimationFrame(tick); }
     };
     requestAnimationFrame(tick);
 }
@@ -2961,16 +2980,13 @@ function handleKittyCommand(msg: string): void {
                     ? arg.split(",").map(s => s.trim()).filter(Boolean)
                     : null;
                 Player.ActivePose = poses;
-                callBC(() => CharacterRefresh(Player, false, false));
-                // Re-patch tracked expressions into appearance so they survive the update
+                // Patch expressions first so they survive the full refresh recalculation
                 patchKittyExpressions();
-                if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
-                    callBC(() => ServerSend("ChatRoomCharacterUpdate", {
-                        ID: (Player as unknown as Record<string, unknown>).OnlineID,
-                        ActivePose: poses,
-                        Appearance: ServerAppearanceBundle(Player.Appearance),
-                    }));
-                }
+                // Use BC's own ChatRoomCharacterUpdate (same path as applyPoses) so the
+                // pose recalculation runs properly — CharacterRefresh(false,false) was
+                // skipping the dirty/recalculate step which broke Kneel and similar poses.
+                callBC(() => CharacterRefresh(Player, false));
+                callBC(() => ChatRoomCharacterUpdate(Player));
                 break;
             }
             case "arousal": {
@@ -3007,6 +3023,15 @@ function handleKittyCommand(msg: string): void {
                     showKittyReactPopup(payload.label);
                 } catch {
                     showKittyReactPopup(arg);
+                }
+                break;
+            }
+            case "autoreact": {
+                // Auto-send a reaction emote with no popup — used for instant reactions like bap eeep
+                if (arg) {
+                    try {
+                        ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
+                    } catch { /* ignore */ }
                 }
                 break;
             }

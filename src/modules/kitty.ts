@@ -15,10 +15,12 @@ export interface KittyEmote {
     text: string;          // message body in kind mode (no asterisks / parens — those are added by BC)
     roughText?: string;    // message body used when mood is "rough" (falls back to text if empty)
     type: "emote" | "action"; // emote = * Lucy text * , action = (Lucy text)
-    interactive?: boolean; // if true, also sends a react beep so Emery can respond
-    expression?: string;   // kitty expression command to send on click, e.g. "Ears:Wiggle"
-    bcGroup?: string;      // BC asset group to use for ActivityRun, e.g. "ItemHead"
-    bcActivity?: string;   // BC activity name to use for ActivityRun, e.g. "Pet"
+    interactive?: boolean;    // if true, also sends a react beep so Emery can respond
+    expression?: string;      // kitty expression command to send on click, e.g. "Ears:Wiggle"
+    bcGroup?: string;         // BC asset group to use for ActivityRun, e.g. "ItemHead"
+    bcActivity?: string;      // BC activity name to use for ActivityRun, e.g. "Pet"
+    autoreact?: string;       // auto-reaction emote Emery sends immediately (kind mode)
+    autoreactRough?: string;  // auto-reaction emote Emery sends in rough mode (falls back to autoreact)
 }
 
 export interface KittyItem {
@@ -120,9 +122,11 @@ const DEFAULT_EMOTES: KittyEmote[] = [
     },
     {
         id: "bap",      label: "🐾 Bap",
-        text:      "gives Emery a playful bap on the nose~ 🐾",
+        text:      "gives Emery a playful bap on the head~ 🐾",
         roughText: "gives Emery a sharp flick to the forehead without warning~",
         type: "emote",
+        autoreact:      "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾",
+        autoreactRough: "yelps and flinches away, one hand flying up to her forehead~",
     },
 ];
 
@@ -244,9 +248,11 @@ const BC_ACTIVITY_SEEDS: Record<string, { group: string; activity: string }> = {
 const NEW_EMOTE_SEEDS: KittyEmote[] = [
     {
         id: "bap",    label: "🐾 Bap",
-        text:      "gives Emery a playful bap on the nose~ 🐾",
+        text:      "gives Emery a playful bap on the head~ 🐾",
         roughText: "gives Emery a sharp flick to the forehead without warning~",
         type: "emote",
+        autoreact:      "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾",
+        autoreactRough: "yelps and flinches away, one hand flying up to her forehead~",
     },
     {
         id: "spank",  label: "👋 Spank",
@@ -264,6 +270,10 @@ export function getKittyEmotes(): KittyEmote[] {
         .filter(e => e.id !== "leash")
         .map(e => ({
             ...e,
+            // Migration: fix stored bap kind text that still says "nose" — should be "head"
+            text: e.id === "bap" && e.text === "gives Emery a playful bap on the nose~ 🐾"
+                ? "gives Emery a playful bap on the head~ 🐾"
+                : e.text,
             // Migration: fix stored bap rough text that still says "nose" — should be "forehead"
             roughText: e.id === "bap" && e.roughText === "gives Emery a sharp flick on the nose without warning~"
                 ? "gives Emery a sharp flick to the forehead without warning~"
