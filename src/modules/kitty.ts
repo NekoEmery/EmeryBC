@@ -27,6 +27,8 @@ export interface KittyRestraintSet {
     id: string;
     label: string;
     items: KittyItem[];
+    kindEmote?: string;
+    roughEmote?: string;
 }
 
 export interface KittyPose {
@@ -127,7 +129,13 @@ export function getKittyEmotes(): KittyEmote[] {
 export function saveKittyEmotes(v: KittyEmote[]): void { lsSet("EBC_kittyEmotes", v); }
 
 export function getKittyRestraintSets(): KittyRestraintSet[] {
-    return lsGet("EBC_kittyRestraintSets", []);
+    // Migrate old sets that lack emote fields
+    const raw = lsGet<KittyRestraintSet[]>("EBC_kittyRestraintSets", []);
+    return raw.map(s => ({
+        ...s,
+        kindEmote:  s.kindEmote  ?? "",
+        roughEmote: s.roughEmote ?? "",
+    }));
 }
 export function saveKittyRestraintSets(v: KittyRestraintSet[]): void { lsSet("EBC_kittyRestraintSets", v); }
 

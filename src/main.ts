@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.65";
+const MOD_VERSION = "2.2.66";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.66",
+        changes: [
+            "Kitty restraint sets now go through the resistance popup (same as punishments) instead of applying directly. Each set gains optional 🌸 Kind / ⚡ Rough emote fields in edit mode — the matching emote is sent to the room before Emery's popup appears. Existing saved sets migrate automatically with empty emotes.",
+        ],
+    },
     {
         version: "2.2.65",
         changes: [
