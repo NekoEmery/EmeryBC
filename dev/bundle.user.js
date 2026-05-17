@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.61
+// @version      2.2.62
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15153,8 +15153,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         updateSlowLeaveVisibility() {
             if (!this.slowLeaveBtn)
                 return;
+            const enabled = localStorage.getItem("EBC_slowLeave") !== "0"; // default ON
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
-            this.slowLeaveBtn.style.display = inRoom ? "" : "none";
+            this.slowLeaveBtn.style.display = (enabled && inRoom) ? "" : "none";
         }
         // -- Tab switching ---------------------------------------------------------
         stopDevLogPoller() {
@@ -21666,6 +21667,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             badgeToggleRow.appendChild(badgeLbl2);
             badgeToggleRow.appendChild(badgeToggle2);
             body.appendChild(badgeToggleRow);
+            // ── Show Slow Leave button toggle ─────────────────────────────────────
+            const slToggleRow = document.createElement("div");
+            slToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+            const slLbl = document.createElement("span");
+            slLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+            slLbl.textContent = "Show Slow Leave button";
+            const slToggle = document.createElement("button");
+            const getSlEnabled = () => localStorage.getItem("EBC_slowLeave") !== "0"; // default ON
+            const updateSlToggle = () => {
+                const on = getSlEnabled();
+                slToggle.textContent = on ? "ON" : "OFF";
+                slToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                    "padding:5px 12px", "border-radius:4px", "cursor:pointer",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            updateSlToggle();
+            slToggle.addEventListener("click", () => {
+                try {
+                    localStorage.setItem("EBC_slowLeave", getSlEnabled() ? "0" : "1");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                updateSlToggle();
+                this.updateSlowLeaveVisibility();
+            });
+            slToggleRow.appendChild(slLbl);
+            slToggleRow.appendChild(slToggle);
+            body.appendChild(slToggleRow);
             // Helper: collapsible section wrapper
             const makeSection = (labelText, lsKey, defaultCollapsed, buildContent) => {
                 let collapsed = defaultCollapsed;
@@ -26466,7 +26499,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.61";
+    const MOD_VERSION = "2.2.62";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26477,6 +26510,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.62",
+            changes: [
+                "Slow Leave button: restored ON/OFF toggle in settings (defaults to ON). Button stays hidden when toggled off, visible in chatroom when on.",
+            ],
+        },
         {
             version: "2.2.61",
             changes: [
