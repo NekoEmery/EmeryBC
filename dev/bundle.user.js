@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.76
+// @version      2.2.77
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25026,6 +25026,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
                     for (const em of emotes) {
                         row.appendChild(makePill(em.label, "#cf6f98", () => {
+                            // Guard: never send chat when not in a room
+                            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                                return;
                             const mood = getKittyMood();
                             const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                             try {
@@ -25261,6 +25264,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
                     for (const p of poses) {
                         row.appendChild(makePill(p.label, "#a070c8", () => {
+                            // Guard: never send chat when not in a room
+                            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                                return;
                             // Send mood-aware room emote first, then apply pose
                             const mood = getKittyMood();
                             const emoteText = mood === "rough" ? (p.roughEmote || p.kindEmote) : (p.kindEmote || p.roughEmote);
@@ -25393,6 +25399,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     for (const pun of punishments) {
                         row.appendChild(makePill(pun.label, "#d05070", () => {
                             var _a;
+                            // Guard: never send chat when not in a room
+                            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                                return;
                             const mood = getKittyMood();
                             // Send all emote steps to room in order
                             for (const step of pun.steps) {
@@ -27361,7 +27370,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.76";
+    const MOD_VERSION = "2.2.77";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27372,6 +27381,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.77",
+            changes: [
+                "Fixed kitty emote/action/pose buttons producing stuck broken messages when clicked outside a chatroom — all buttons now silently no-op if CurrentScreen is not ChatRoom.",
+            ],
+        },
         {
             version: "2.2.76",
             changes: [
