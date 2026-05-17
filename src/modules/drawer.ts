@@ -14269,111 +14269,155 @@ export class EBCDrawer {
         const rpWrap = document.createElement("div");
         rpWrap.style.marginBottom = "10px";
 
-        const renderRestraintPresets = (editing: boolean): void => {
+        const renderRestraintPresets = (): void => {
             rpWrap.innerHTML = "";
             const presets = getKittyRestraintSets();
 
-            if (!editing) {
-                if (presets.length === 0) {
-                    const em = document.createElement("div");
-                    em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;";
-                    em.textContent = "No presets yet — use 💾 Save in a restraint step, or create one here.";
-                    rpWrap.appendChild(em);
-                    return;
-                }
-                for (const preset of presets) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09070;padding:1px 0;";
-                    row.textContent = `🔒 ${preset.label} (${preset.items.length} item${preset.items.length === 1 ? "" : "s"})`;
-                    rpWrap.appendChild(row);
-                }
+            // ── Create new preset row (always visible) ────────────────────────
+            const createRow = document.createElement("div");
+            createRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
+            const newNameInp = document.createElement("input");
+            newNameInp.placeholder = "New preset name…";
+            newNameInp.style.cssText = "flex:1;min-width:0;" + INP;
+            const createBtn = document.createElement("button");
+            createBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+            createBtn.textContent = "+ Create";
+            createBtn.addEventListener("click", () => {
+                if (!newNameInp.value.trim()) return;
+                const upd = getKittyRestraintSets();
+                upd.push({ id: "r_" + Date.now(), label: newNameInp.value.trim(), items: [], kindEmote: "", roughEmote: "" });
+                saveKittyRestraintSets(upd);
+                newNameInp.value = "";
+                renderRestraintPresets();
+            });
+            createRow.appendChild(newNameInp);
+            createRow.appendChild(createBtn);
+            rpWrap.appendChild(createRow);
+
+            if (presets.length === 0) {
+                const em = document.createElement("div");
+                em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:2px 0;";
+                em.textContent = "No restraint presets yet — create one above.";
+                rpWrap.appendChild(em);
                 return;
             }
 
-            // Edit mode
-            const list = document.createElement("div");
-            list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+            // ── Select + apply row ────────────────────────────────────────────
+            const selectRow = document.createElement("div");
+            selectRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
 
-            presets.forEach((preset, pIdx) => {
-                const r = document.createElement("div");
-                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(20,10,5,0.5);border:1px solid #3a2010;border-radius:5px;padding:5px 7px;";
+            const presetSel = document.createElement("select");
+            presetSel.style.cssText = "flex:1;min-width:0;" + INP;
+            const selPh = document.createElement("option");
+            selPh.value = ""; selPh.textContent = "— select preset —"; selPh.disabled = true; selPh.selected = true;
+            presetSel.appendChild(selPh);
+            for (const p of presets) {
+                const o = document.createElement("option");
+                o.value = p.id;
+                o.textContent = `🔒 ${p.label} (${p.items.length})`;
+                presetSel.appendChild(o);
+            }
 
-                // Header: label + delete
-                const hdr2 = document.createElement("div"); hdr2.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const lblInp2 = document.createElement("input"); lblInp2.value = preset.label; lblInp2.placeholder = "Preset name"; lblInp2.style.cssText = "flex:1;min-width:0;" + INP;
-                lblInp2.addEventListener("input", () => { const upd = getKittyRestraintSets(); if (upd[pIdx]) { upd[pIdx].label = lblInp2.value; saveKittyRestraintSets(upd); } });
-                const delBtn2 = document.createElement("button"); delBtn2.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delBtn2.textContent = "×";
-                delBtn2.addEventListener("click", () => { saveKittyRestraintSets(getKittyRestraintSets().filter((_, i) => i !== pIdx)); renderRestraintPresets(true); });
-                hdr2.appendChild(lblInp2); hdr2.appendChild(delBtn2); r.appendChild(hdr2);
+            const applyBtn = document.createElement("button");
+            applyBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:3px;cursor:pointer;border:1px solid #8a4060;background:#3a1a2a;color:#cf6f98;flex-shrink:0;opacity:0.45;";
+            applyBtn.textContent = "Apply 🔒";
+            applyBtn.disabled = true;
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #5a2030;background:transparent;color:#8a4050;flex-shrink:0;opacity:0.45;";
+            deleteBtn.textContent = "Delete";
+            deleteBtn.disabled = true;
+
+            selectRow.appendChild(presetSel);
+            selectRow.appendChild(applyBtn);
+            selectRow.appendChild(deleteBtn);
+            rpWrap.appendChild(selectRow);
+
+            // ── Collapsible item editor (shown when a preset is selected) ─────
+            const editWrap = document.createElement("div");
+            editWrap.style.cssText = "display:none;flex-direction:column;gap:3px;background:rgba(20,10,5,0.4);border:1px solid #3a2010;border-radius:5px;padding:5px 7px;margin-top:2px;";
+            rpWrap.appendChild(editWrap);
+
+            const rebuildEditSection = (presetId: string): void => {
+                editWrap.innerHTML = "";
+                const liveSets = getKittyRestraintSets();
+                const preset = liveSets.find(p => p.id === presetId);
+                if (!preset) return;
 
                 // Item list
-                const itemsWrap2 = document.createElement("div"); itemsWrap2.style.cssText = "display:flex;flex-direction:column;gap:2px;";
-                const rebuildRPItems = (): void => {
-                    itemsWrap2.innerHTML = "";
-                    const liveItems = getKittyRestraintSets()[pIdx]?.items ?? [];
+                const itemsWrap = document.createElement("div");
+                itemsWrap.style.cssText = "display:flex;flex-direction:column;gap:2px;margin-bottom:3px;";
+                const rebuildItems = (): void => {
+                    itemsWrap.innerHTML = "";
+                    const liveItems = (getKittyRestraintSets().find(p => p.id === presetId) ?? preset).items;
+                    // Update dropdown label to reflect new item count
+                    const opt = presetSel.querySelector(`option[value="${presetId}"]`) as HTMLOptionElement | null;
+                    if (opt) opt.textContent = `🔒 ${preset.label} (${liveItems.length})`;
                     if (liveItems.length === 0) {
-                        const em2 = document.createElement("div"); em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;"; em2.textContent = "No items yet";
-                        itemsWrap2.appendChild(em2);
+                        const em2 = document.createElement("div");
+                        em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;";
+                        em2.textContent = "No items yet";
+                        itemsWrap.appendChild(em2);
                     } else {
                         liveItems.forEach((item, iIdx) => {
                             const iRow = document.createElement("div"); iRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 0;";
-                            const nm2 = document.createElement("span"); nm2.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"; nm2.textContent = item.Name; nm2.title = item.Name;
-                            const grp2 = document.createElement("span"); grp2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;"; grp2.textContent = item.Group.replace("Item", "");
-                            const colInp2 = document.createElement("input"); colInp2.value = colorToStr(item.Color); colInp2.placeholder = "Default"; colInp2.style.cssText = "width:72px;flex-shrink:0;" + INP; colInp2.title = "Colour";
-                            colInp2.addEventListener("change", () => { const upd = getKittyRestraintSets(); if (upd[pIdx]?.items?.[iIdx]) { upd[pIdx].items[iIdx].Color = strToColor(colInp2.value); saveKittyRestraintSets(upd); } });
-                            const delI2 = document.createElement("button"); delI2.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delI2.textContent = "×";
-                            delI2.addEventListener("click", () => { const upd = getKittyRestraintSets(); if (upd[pIdx]?.items) { upd[pIdx].items.splice(iIdx, 1); saveKittyRestraintSets(upd); } rebuildRPItems(); });
-                            iRow.appendChild(nm2); iRow.appendChild(grp2); iRow.appendChild(colInp2); iRow.appendChild(delI2);
-                            itemsWrap2.appendChild(iRow);
+                            const nm = document.createElement("span"); nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;"; nm.textContent = item.Name; nm.title = item.Name;
+                            const grp = document.createElement("span"); grp.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;"; grp.textContent = item.Group.replace("Item", "");
+                            const colInp = document.createElement("input"); colInp.value = colorToStr(item.Color); colInp.placeholder = "Default"; colInp.style.cssText = "width:72px;flex-shrink:0;" + INP; colInp.title = "Colour";
+                            colInp.addEventListener("change", () => {
+                                const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
+                                if (pp?.items?.[iIdx]) { pp.items[iIdx].Color = strToColor(colInp.value); saveKittyRestraintSets(upd); }
+                            });
+                            const delI = document.createElement("button"); delI.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delI.textContent = "×";
+                            delI.addEventListener("click", () => {
+                                const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
+                                if (pp?.items) { pp.items.splice(iIdx, 1); saveKittyRestraintSets(upd); } rebuildItems();
+                            });
+                            iRow.appendChild(nm); iRow.appendChild(grp); iRow.appendChild(colInp); iRow.appendChild(delI);
+                            itemsWrap.appendChild(iRow);
                         });
                     }
                 };
-                rebuildRPItems();
-                r.appendChild(itemsWrap2);
+                rebuildItems();
+                editWrap.appendChild(itemsWrap);
 
-                // Add item builder
-                const rpSlRow = document.createElement("div"); rpSlRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:3px;border-top:1px solid #3a2010;padding-top:3px;";
-                const rpSl = document.createElement("select"); rpSl.style.cssText = "flex:1;min-width:0;" + INP;
-                const rpSlPh = document.createElement("option"); rpSlPh.value = ""; rpSlPh.textContent = "— slot —"; rpSlPh.disabled = true; rpSlPh.selected = true; rpSl.appendChild(rpSlPh);
-                for (const grp of RESTRAINT_GROUPS) { const o = document.createElement("option"); o.value = grp; o.textContent = grp.replace("Item", ""); rpSl.appendChild(o); }
-                rpSlRow.appendChild(rpSl);
-
-                const rpItemRow = document.createElement("div"); rpItemRow.style.cssText = "display:flex;align-items:center;gap:3px;";
-                const rpItemSel = document.createElement("select"); rpItemSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const rpIPh = document.createElement("option"); rpIPh.value = ""; rpIPh.textContent = "— pick slot first —"; rpIPh.disabled = true; rpIPh.selected = true; rpItemSel.appendChild(rpIPh);
-                rpSl.addEventListener("change", () => {
-                    rpItemSel.innerHTML = "";
-                    const names = getGroupAssets(rpSl.value);
-                    if (names.length === 0) { const o = document.createElement("option"); o.value = ""; o.textContent = "— none —"; o.disabled = true; o.selected = true; rpItemSel.appendChild(o); }
-                    else { const ph2 = document.createElement("option"); ph2.value = ""; ph2.textContent = "— pick item —"; ph2.disabled = true; ph2.selected = true; rpItemSel.appendChild(ph2); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; rpItemSel.appendChild(o); } }
+                // Slot + item + colour + Add
+                const slRow = document.createElement("div"); slRow.style.cssText = "display:flex;align-items:center;gap:3px;border-top:1px solid #3a2010;padding-top:4px;flex-wrap:wrap;";
+                const sl = document.createElement("select"); sl.style.cssText = "flex:1;min-width:0;" + INP;
+                const slPh = document.createElement("option"); slPh.value = ""; slPh.textContent = "— slot —"; slPh.disabled = true; slPh.selected = true; sl.appendChild(slPh);
+                for (const grp of RESTRAINT_GROUPS) { const o = document.createElement("option"); o.value = grp; o.textContent = grp.replace("Item", ""); sl.appendChild(o); }
+                const itemSel = document.createElement("select"); itemSel.style.cssText = "flex:1;min-width:0;" + INP;
+                const itemPh = document.createElement("option"); itemPh.value = ""; itemPh.textContent = "— pick slot —"; itemPh.disabled = true; itemPh.selected = true; itemSel.appendChild(itemPh);
+                sl.addEventListener("change", () => {
+                    itemSel.innerHTML = "";
+                    const names = getGroupAssets(sl.value);
+                    if (names.length === 0) { const o = document.createElement("option"); o.value = ""; o.textContent = "— none —"; o.disabled = true; o.selected = true; itemSel.appendChild(o); }
+                    else { const ph = document.createElement("option"); ph.value = ""; ph.textContent = "— item —"; ph.disabled = true; ph.selected = true; itemSel.appendChild(ph); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; itemSel.appendChild(o); } }
                 });
-                rpItemRow.appendChild(rpItemSel);
-
-                const rpColRow = document.createElement("div"); rpColRow.style.cssText = "display:flex;align-items:center;gap:3px;";
-                const rpColInp = document.createElement("input"); rpColInp.placeholder = "Default or #rrggbb"; rpColInp.style.cssText = "flex:1;min-width:0;" + INP;
-                const rpAddBtn = document.createElement("button"); rpAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; rpAddBtn.textContent = "+ Add";
-                rpAddBtn.addEventListener("click", () => {
-                    if (!rpSl.value || !rpItemSel.value) return;
-                    const newItem: KittyItem = { Name: rpItemSel.value, Group: rpSl.value, Color: strToColor(rpColInp.value || "Default") };
-                    const upd = getKittyRestraintSets();
-                    if (upd[pIdx]) { upd[pIdx].items.push(newItem); saveKittyRestraintSets(upd); }
-                    rpSl.value = ""; rpItemSel.innerHTML = ""; rpItemSel.appendChild(rpIPh); rpIPh.selected = true; rpColInp.value = "";
-                    rebuildRPItems();
+                const colInp2 = document.createElement("input"); colInp2.placeholder = "#rrggbb"; colInp2.style.cssText = "width:64px;flex-shrink:0;" + INP; colInp2.title = "Colour (optional)";
+                const addItemBtn = document.createElement("button"); addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addItemBtn.textContent = "+ Add";
+                addItemBtn.addEventListener("click", () => {
+                    if (!sl.value || !itemSel.value) return;
+                    const newItem: KittyItem = { Name: itemSel.value, Group: sl.value, Color: strToColor(colInp2.value || "Default") };
+                    const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
+                    if (pp) { pp.items.push(newItem); saveKittyRestraintSets(upd); }
+                    sl.value = ""; itemSel.innerHTML = ""; itemSel.appendChild(itemPh); itemPh.selected = true; colInp2.value = "";
+                    rebuildItems();
                 });
-                rpColRow.appendChild(rpColInp); rpColRow.appendChild(rpAddBtn);
-                r.appendChild(rpSlRow); r.appendChild(rpItemRow); r.appendChild(rpColRow);
+                slRow.appendChild(sl); slRow.appendChild(itemSel); slRow.appendChild(colInp2); slRow.appendChild(addItemBtn);
+                editWrap.appendChild(slRow);
 
-                // Import from pasted BC outfit/craft code
-                const rpCodeRow = document.createElement("div"); rpCodeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
-                const rpCodeInp = document.createElement("input"); rpCodeInp.placeholder = "Paste BC outfit/craft code…"; rpCodeInp.style.cssText = "flex:1;min-width:0;" + INP;
-                const rpCodeBtn = document.createElement("button"); rpCodeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; rpCodeBtn.textContent = "Import";
-                rpCodeBtn.addEventListener("click", () => {
-                    const code = rpCodeInp.value.trim(); if (!code) return;
+                // BC outfit/craft code import
+                const codeRow = document.createElement("div"); codeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
+                const codeInp = document.createElement("input"); codeInp.placeholder = "Paste BC outfit/craft code…"; codeInp.style.cssText = "flex:1;min-width:0;" + INP;
+                const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
+                codeBtn.addEventListener("click", () => {
+                    const code = codeInp.value.trim(); if (!code) return;
                     try {
                         const LZStr = (window as unknown as Record<string, unknown>).LZString as { decompressFromBase64?: (s: string) => string | null } | undefined;
                         const raw2 = LZStr?.decompressFromBase64?.(code) ?? code;
-                        const parsed = JSON.parse(raw2) as Array<Record<string, unknown>>;
-                        const newItems: KittyItem[] = parsed
+                        const parsed2 = JSON.parse(raw2) as Array<Record<string, unknown>>;
+                        const newItems: KittyItem[] = parsed2
                             .filter(p => typeof p.Group === "string" && typeof p.Name === "string")
                             .map(p => ({
                                 Name: String(p.Name), Group: String(p.Group),
@@ -14382,37 +14426,51 @@ export class EBCDrawer {
                                 Property: typeof p.Property === "object" && p.Property !== null ? p.Property as Record<string, unknown> : undefined,
                                 Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft as Record<string, unknown> : undefined,
                             }));
-                        if (newItems.length === 0) { rpCodeInp.style.borderColor = "#e07070"; window.setTimeout(() => { rpCodeInp.style.borderColor = ""; }, 1500); return; }
-                        const upd = getKittyRestraintSets();
-                        if (upd[pIdx]) { upd[pIdx].items.push(...newItems); saveKittyRestraintSets(upd); }
-                        rpCodeInp.value = ""; rebuildRPItems();
-                    } catch { rpCodeInp.style.borderColor = "#e07070"; window.setTimeout(() => { rpCodeInp.style.borderColor = ""; }, 1500); }
+                        if (newItems.length === 0) { codeInp.style.borderColor = "#e07070"; window.setTimeout(() => { codeInp.style.borderColor = ""; }, 1500); return; }
+                        const upd = getKittyRestraintSets(); const pp = upd.find(p => p.id === presetId);
+                        if (pp) { pp.items.push(...newItems); saveKittyRestraintSets(upd); }
+                        codeInp.value = ""; rebuildItems();
+                    } catch { codeInp.style.borderColor = "#e07070"; window.setTimeout(() => { codeInp.style.borderColor = ""; }, 1500); }
                 });
-                rpCodeRow.appendChild(rpCodeInp); rpCodeRow.appendChild(rpCodeBtn); r.appendChild(rpCodeRow);
+                codeRow.appendChild(codeInp); codeRow.appendChild(codeBtn);
+                editWrap.appendChild(codeRow);
+            };
 
-                list.appendChild(r);
+            // Wire up preset selection
+            presetSel.addEventListener("change", () => {
+                const id = presetSel.value; if (!id) return;
+                applyBtn.disabled = false; applyBtn.style.opacity = "1";
+                deleteBtn.disabled = false; deleteBtn.style.opacity = "1";
+                editWrap.style.display = "flex";
+                rebuildEditSection(id);
             });
 
-            // Add new preset
-            const newPresetRow = document.createElement("div"); newPresetRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
-            const newPresetLbl = document.createElement("input"); newPresetLbl.placeholder = "New preset name…"; newPresetLbl.style.cssText = "flex:1;min-width:0;" + INP;
-            const addPresetBtn = document.createElement("button"); addPresetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addPresetBtn.textContent = "+ Create";
-            addPresetBtn.addEventListener("click", () => {
-                if (!newPresetLbl.value.trim()) return;
-                const upd = getKittyRestraintSets();
-                upd.push({ id: "r_" + Date.now(), label: newPresetLbl.value.trim(), items: [], kindEmote: "", roughEmote: "" });
-                saveKittyRestraintSets(upd);
-                newPresetLbl.value = "";
-                renderRestraintPresets(true);
+            applyBtn.addEventListener("click", () => {
+                const id = presetSel.value; if (!id) return;
+                const mood = getKittyMood();
+                const set = getKittyRestraintSets().find(p => p.id === id);
+                if (!set) return;
+                const emoteText = mood === "rough" ? (set.roughEmote || set.kindEmote) : (set.kindEmote || set.roughEmote);
+                if (emoteText) sendRoomEmote(emoteText);
+                sendKittyCmd("punish", JSON.stringify({ label: set.label, mood, items: set.items, reaction: undefined }));
             });
-            newPresetRow.appendChild(newPresetLbl); newPresetRow.appendChild(addPresetBtn);
-            list.appendChild(newPresetRow);
-            rpWrap.appendChild(list);
+
+            deleteBtn.addEventListener("click", () => {
+                const id = presetSel.value; if (!id) return;
+                saveKittyRestraintSets(getKittyRestraintSets().filter(p => p.id !== id));
+                renderRestraintPresets();
+            });
+
+            // Hint
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+            hint.textContent = "Select a preset and Apply to send restraints to Emery";
+            rpWrap.appendChild(hint);
         };
 
-        const { el: rpHdr } = makeSectionHdr("Restraints", null, (ed) => renderRestraintPresets(ed));
+        const { el: rpHdr } = makeSectionHdr("Restraints", null, null);
         body.appendChild(rpHdr);
-        renderRestraintPresets(false);
+        renderRestraintPresets();
         body.appendChild(rpWrap);
         body.appendChild(divider());
 
