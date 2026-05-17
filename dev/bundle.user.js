@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.112
+// @version      2.2.113
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11575,6 +11575,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return poses;
     }
     function saveKittyPoses(v) { lsSet("EBC_kittyPoses", v); }
+    const DEFAULT_REACTIONS = [
+        { id: "pu1", text: "eeep~", category: "punishment" },
+        { id: "pu2", text: "lets out a small startled squeak, ears pinning back~ >_<", category: "punishment" },
+        { id: "pu3", text: "squints and makes a tiny disgruntled noise~ nuu~", category: "punishment" },
+        { id: "pu4", text: "gives a flustered huff, cheeks going pink~", category: "punishment" },
+        { id: "rw1", text: "purrs softly~ 🐾", category: "reward" },
+        { id: "rw2", text: "meows happily and nuzzles in close~", category: "reward" },
+        { id: "rw3", text: "gives a content little chirp and flicks her tail~ ♪", category: "reward" },
+        { id: "rw4", text: "rumbles with a deep pleased purr, going all soft~", category: "reward" },
+    ];
+    function getKittyReactions() {
+        return lsGet("EBC_kittyReactions", DEFAULT_REACTIONS);
+    }
+    function saveKittyReactions(v) { lsSet("EBC_kittyReactions", v); }
     function getKittyPunishments() {
         const raw = lsGet("EBC_kittyPunishments", DEFAULT_PUNISHMENTS);
         return raw.map(p => {
@@ -25389,6 +25403,116 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             renderEmotes(false);
             emotesCBody.appendChild(emotesWrap);
             body.appendChild(emotesWrap2);
+            // ── PET REACTIONS ─────────────────────────────────────────────────────────
+            const reactionsWrap = document.createElement("div");
+            reactionsWrap.style.marginBottom = "10px";
+            const renderReactions = (editing) => {
+                reactionsWrap.innerHTML = "";
+                const reactions = getKittyReactions();
+                const punishments = reactions.filter(r => r.category === "punishment");
+                const rewards = reactions.filter(r => r.category === "reward");
+                const makeCatLabel = (text, color) => {
+                    const el = document.createElement("div");
+                    el.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:${color};letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;margin-top:6px;`;
+                    el.textContent = text;
+                    return el;
+                };
+                if (!editing) {
+                    // ── View mode ──────────────────────────────────────────────────
+                    const renderCatRow = (entries, color) => {
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                        for (const r of entries) {
+                            const b = document.createElement("button");
+                            b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid ${color}66;background:${color}18;color:${color};transition:background 0.12s,border-color 0.12s;`;
+                            b.textContent = r.text;
+                            b.title = r.text;
+                            b.addEventListener("mouseenter", () => { b.style.background = `${color}30`; b.style.borderColor = color; });
+                            b.addEventListener("mouseleave", () => { b.style.background = `${color}18`; b.style.borderColor = `${color}66`; });
+                            b.addEventListener("click", () => {
+                                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                                    return;
+                                sendKittyCmd("emote", r.text);
+                            });
+                            row.appendChild(b);
+                        }
+                        return row;
+                    };
+                    reactionsWrap.appendChild(makeCatLabel("⚡ Punishment", "#e07070"));
+                    reactionsWrap.appendChild(renderCatRow(punishments, "#e07070"));
+                    reactionsWrap.appendChild(makeCatLabel("🌸 Reward", "#79c8a0"));
+                    reactionsWrap.appendChild(renderCatRow(rewards, "#79c8a0"));
+                    const hint = document.createElement("div");
+                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                    hint.textContent = "Sends a reaction emote from Emery";
+                    reactionsWrap.appendChild(hint);
+                    return;
+                }
+                // ── Edit mode ──────────────────────────────────────────────────────
+                const renderCatEdit = (category, color, catLabel) => {
+                    const wrap = document.createElement("div");
+                    wrap.style.cssText = `display:flex;flex-direction:column;gap:4px;border:1px solid ${color}44;border-radius:6px;padding:6px 8px;`;
+                    const lbl = makeCatLabel(catLabel, color);
+                    lbl.style.marginTop = "0";
+                    wrap.appendChild(lbl);
+                    const cur = getKittyReactions();
+                    cur.forEach((r, idx) => {
+                        if (r.category !== category)
+                            return;
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;align-items:center;gap:4px;";
+                        const inp = document.createElement("input");
+                        inp.value = r.text;
+                        inp.style.cssText = "flex:1;min-width:0;" + INP;
+                        inp.addEventListener("input", () => {
+                            const upd = getKittyReactions();
+                            if (upd[idx]) {
+                                upd[idx].text = inp.value;
+                                saveKittyReactions(upd);
+                            }
+                        });
+                        const del = document.createElement("button");
+                        del.textContent = "×";
+                        del.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                        del.addEventListener("click", () => {
+                            saveKittyReactions(getKittyReactions().filter((_, i) => i !== idx));
+                            renderReactions(true);
+                        });
+                        row.appendChild(inp);
+                        row.appendChild(del);
+                        wrap.appendChild(row);
+                    });
+                    // Add row
+                    const addRow = document.createElement("div");
+                    addRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-top:2px;";
+                    const newInp = document.createElement("input");
+                    newInp.placeholder = "New reaction text…";
+                    newInp.style.cssText = "flex:1;min-width:0;" + INP;
+                    const addBtn = document.createElement("button");
+                    addBtn.textContent = "+ Add";
+                    addBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid ${color}66;background:transparent;color:${color};flex-shrink:0;`;
+                    addBtn.addEventListener("click", () => {
+                        const text = newInp.value.trim();
+                        if (!text)
+                            return;
+                        const upd = getKittyReactions();
+                        upd.push({ id: category[0] + "_" + Date.now(), text, category });
+                        saveKittyReactions(upd);
+                        newInp.value = "";
+                        renderReactions(true);
+                    });
+                    addRow.appendChild(newInp);
+                    addRow.appendChild(addBtn);
+                    wrap.appendChild(addRow);
+                    return wrap;
+                };
+                reactionsWrap.appendChild(renderCatEdit("punishment", "#e07070", "⚡ Punishment"));
+                reactionsWrap.appendChild(renderCatEdit("reward", "#79c8a0", "🌸 Reward"));
+            };
+            const { cBody: reactionsCBody, wrap: reactionsWrap2 } = makeCollapsible("EBC_kittyReactionsOpen", "🐾 Pet Reactions", true, (ed) => renderReactions(ed));
+            renderReactions(false);
+            reactionsCBody.appendChild(reactionsWrap);
+            body.appendChild(reactionsWrap2);
             // ── POSES ────────────────────────────────────────────────────────────────
             const posesWrap = document.createElement("div");
             posesWrap.style.marginBottom = "10px";
@@ -28251,7 +28375,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.112";
+    const MOD_VERSION = "2.2.113";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28262,6 +28386,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.113",
+            changes: [
+                "New: 🐾 Pet Reactions section in the Kitty menu — two categories of one-click emotes Emery sends when Lucy triggers them. ⚡ Punishment (eeep~, startled squeak, disgruntled noises) and 🌸 Reward (purrs, meows, chirps). Fully editable — add, edit, or delete any reaction per category.",
+            ],
+        },
         {
             version: "2.2.112",
             changes: [
@@ -31296,6 +31426,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     break;
                 }
+                case "emote": {
+                    // Lucy triggers a reaction emote sent from Emery — used by Pet Reactions buttons
+                    if (arg) {
+                        try {
+                            ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
+                        }
+                        catch ( /* ignore */_g) { /* ignore */ }
+                    }
+                    break;
+                }
                 case "tighten":
                 case "loosen": {
                     const delta = cmd === "tighten" ? 1 : -1;
@@ -31341,7 +31481,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }));
                         }
                     }
-                    catch ( /* ignore */_g) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                     break;
                 }
                 case "expression": {
@@ -31379,12 +31519,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }
                         }
                     }
-                    catch ( /* ignore */_h) { /* ignore */ }
+                    catch ( /* ignore */_j) { /* ignore */ }
                     break;
                 }
             }
         }
-        catch ( /* ignore */_j) { /* ignore */ }
+        catch ( /* ignore */_k) { /* ignore */ }
     }
     function handleMetaCommand(inputValue) {
         var _a, _b, _c;
