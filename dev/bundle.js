@@ -2425,6 +2425,15 @@
                     Player.ActivePose = originalPoses;
                     sendPoseUpdate(appearanceBundle);
                 }
+                else if (step.toLowerCase() === "leaveroom") {
+                    Player.ActivePose = originalPoses;
+                    seqRunning = false;
+                    window.setTimeout(() => {
+                        callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                        callBC(() => ChatRoomLeave());
+                    }, 0);
+                    return;
+                }
                 else if (step.startsWith("!")) {
                     sendAction(step.slice(1), "action");
                 }
@@ -23572,6 +23581,8 @@
                     const { content, delay } = parseStep(r, DEFAULT_DELAY);
                     if (content === "_")
                         return { type: "reset", text: "", delay };
+                    if (content.toLowerCase() === "leaveroom")
+                        return { type: "leaveroom", text: "", delay };
                     if (content.startsWith("!"))
                         return { type: "action", text: content.slice(1), delay };
                     if (content.startsWith("*"))
@@ -23581,6 +23592,8 @@
             };
             const serializeSteps = (steps) => {
                 return steps.map(s => {
+                    if (s.type === "leaveroom")
+                        return "leaveroom";
                     let content = "";
                     if (s.type === "reset")
                         content = "_";
@@ -23614,6 +23627,7 @@
                         { value: "emote", label: "Emote *" },
                         { value: "pose", label: "Pose" },
                         { value: "reset", label: "Reset _" },
+                        { value: "leaveroom", label: "Leave Room 🚪" },
                     ].forEach(opt => {
                         const o = document.createElement("option");
                         o.value = opt.value;
@@ -23622,15 +23636,19 @@
                             o.selected = true;
                         typeSelect.appendChild(o);
                     });
+                    const noText = step.type === "reset" || step.type === "leaveroom";
+                    const noDelay = step.type === "leaveroom";
                     // Text input
                     const textInp = document.createElement("input");
                     textInp.className = "ebc-seq-text-inp";
                     textInp.type = "text";
                     textInp.value = step.text;
                     textInp.placeholder = step.type === "pose" ? "e.g. HandsUp" : "text...";
-                    textInp.disabled = step.type === "reset";
+                    textInp.disabled = noText;
                     textInp.maxLength = 200;
-                    // Delay input (ms)
+                    if (noText)
+                        textInp.style.opacity = "0.35";
+                    // Delay input (ms) — hidden for leaveroom since nothing follows
                     const delayInp = document.createElement("input");
                     delayInp.className = "ebc-seq-delay-inp";
                     delayInp.type = "number";
@@ -23639,6 +23657,8 @@
                     delayInp.step = "100";
                     delayInp.value = String(step.delay);
                     delayInp.title = "Delay after this step (ms)";
+                    if (noDelay)
+                        delayInp.style.visibility = "hidden";
                     // Delete button
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-seq-step-del";
@@ -23654,8 +23674,12 @@
                     typeSelect.addEventListener("change", () => {
                         const t = typeSelect.value;
                         steps[sidx].type = t;
-                        textInp.disabled = t === "reset";
-                        if (t === "reset") {
+                        const noTxt = t === "reset" || t === "leaveroom";
+                        const noDly = t === "leaveroom";
+                        textInp.disabled = noTxt;
+                        textInp.style.opacity = noTxt ? "0.35" : "";
+                        delayInp.style.visibility = noDly ? "hidden" : "";
+                        if (noTxt) {
                             steps[sidx].text = "";
                             textInp.value = "";
                         }
@@ -23678,7 +23702,23 @@
                 }
             };
             renderSteps();
-            // + Add step button
+            // Button row: template shortcut + add step
+            const seqBtnRow = document.createElement("div");
+            seqBtnRow.style.cssText = "display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;";
+            const templateBtn = document.createElement("button");
+            templateBtn.className = "ebc-seq-add-btn";
+            templateBtn.textContent = "📤 Slow Leave template";
+            templateBtn.title = "Fill with a simple slow leave sequence";
+            templateBtn.addEventListener("click", () => {
+                steps = [
+                    { type: "emote", text: "smiles and gives a little wave~", delay: 2500 },
+                    { type: "emote", text: "slowly heads for the door...", delay: 0 },
+                    { type: "leaveroom", text: "", delay: 0 },
+                ];
+                btns[idx].emote = serializeSteps(steps);
+                renderSteps();
+            });
+            seqBtnRow.appendChild(templateBtn);
             const addBtn = document.createElement("button");
             addBtn.className = "ebc-seq-add-btn";
             addBtn.textContent = "+ Add step";
@@ -23687,7 +23727,8 @@
                 btns[idx].emote = serializeSteps(steps);
                 renderSteps();
             });
-            wrapper.appendChild(addBtn);
+            seqBtnRow.appendChild(addBtn);
+            wrapper.appendChild(seqBtnRow);
             return wrapper;
         }
         // -- Buttons tab -----------------------------------------------------------
@@ -26239,7 +26280,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.57";
+    const MOD_VERSION = "2.2.58";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26250,6 +26291,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.58",
+            changes: [
+                "Sequence builder: add Leave Room 🚪 step type — selecting it disables text and hides delay. runSequence now handles 'leaveroom' step (restores pose then leaves room). Added '📤 Slow Leave template' button to step builder: smiles and waves, slowly heads for the door, then leaves.",
+            ],
+        },
         {
             version: "2.2.57",
             changes: [
