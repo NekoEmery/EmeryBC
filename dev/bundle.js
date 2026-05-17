@@ -11395,6 +11395,24 @@
         + '<circle cx="56" cy="43" r="4" fill="#f7e6ee"/>'
         + '<path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/>'
         + '</svg>';
+    // -- Panel opacity (persisted to localStorage) --------------------------------
+    const PANEL_OPACITY_KEY = "EBC_panelOpacity";
+    function loadPanelOpacity() {
+        var _a;
+        try {
+            const v = parseFloat((_a = localStorage.getItem(PANEL_OPACITY_KEY)) !== null && _a !== void 0 ? _a : "1");
+            return isNaN(v) ? 1 : Math.max(0.1, Math.min(1, v));
+        }
+        catch (_b) {
+            return 1;
+        }
+    }
+    function savePanelOpacity(v) {
+        try {
+            localStorage.setItem(PANEL_OPACITY_KEY, String(Math.round(v * 100) / 100));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Styles --------------------------------------------------------------------
     const CSS = `
 /*
@@ -11414,9 +11432,7 @@
     pointer-events: auto;
     width: 44px;
     height: 44px;
-    background: rgba(42, 20, 33, 0.85);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: #2a1421;
     border: 1px solid #cf6f9833;
     border-right: none;
     border-radius: 8px 0 0 8px;
@@ -11554,9 +11570,7 @@
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
-    background: #1b0d17f7;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    background: #1b0d17; /* fully opaque by default; opacity is applied dynamically via applyPanelOpacity() */
     border-left: 2px solid #4c2537;
     display: flex;
     flex-direction: column;
@@ -11581,7 +11595,7 @@
     justify-content: space-between;
     padding: 6px 10px;
     border-bottom: 1px solid #4c2537;
-    background: rgba(36, 17, 29, 0.9);
+    background: #24111d;
     flex-shrink: 0;
     gap: 6px;
 }
@@ -14606,6 +14620,7 @@
             document.body.appendChild(root);
             this.rootEl = root;
             this.panelEl = slideContainer;
+            this.applyPanelOpacity();
             // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
             // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
             // Works with both mouse and touch input via addPointerDown / addPointerTracking.
@@ -15110,6 +15125,31 @@
                 this.renderDomTools();
             else if (this.currentTab === "puppy")
                 this.renderPuppy();
+        }
+        /**
+         * Apply the stored panel opacity to the .ebc-panel element.
+         * At opacity 1 the panel is fully opaque (no backdrop blur).
+         * Below 1 the background becomes semi-transparent and a proportional blur
+         * is added so the frosted-glass effect looks intentional.
+         */
+        applyPanelOpacity(alpha = loadPanelOpacity()) {
+            var _a;
+            const panel = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(".ebc-panel");
+            if (!panel)
+                return;
+            panel.style.background = `rgba(27, 13, 23, ${alpha})`;
+            const style = panel.style;
+            if (alpha < 0.99) {
+                const blur = `blur(${Math.round((1 - alpha) * 20)}px)`;
+                panel.style.backdropFilter = blur;
+                if (style.webkitBackdropFilter !== undefined)
+                    style.webkitBackdropFilter = blur;
+            }
+            else {
+                panel.style.backdropFilter = "none";
+                if (style.webkitBackdropFilter !== undefined)
+                    style.webkitBackdropFilter = "none";
+            }
         }
         /**
          * Re-render the current tab in-place while preserving the panel's scroll
@@ -22491,6 +22531,33 @@
             badgeToggleRow.appendChild(badgeLbl2);
             badgeToggleRow.appendChild(badgeToggle2);
             body.appendChild(badgeToggleRow);
+            // ── Panel opacity slider ──────────────────────────────────────────────
+            const opacityRow = document.createElement("div");
+            opacityRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+            const opacityLbl = document.createElement("span");
+            opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+            opacityLbl.textContent = "Panel opacity";
+            const opacitySlider = document.createElement("input");
+            opacitySlider.type = "range";
+            opacitySlider.min = "0.1";
+            opacitySlider.max = "1";
+            opacitySlider.step = "0.05";
+            opacitySlider.value = String(loadPanelOpacity());
+            opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            opacitySlider.title = "100% = fully solid, lower = semi-transparent";
+            const opacityVal = document.createElement("span");
+            opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+            opacityVal.textContent = Math.round(loadPanelOpacity() * 100) + "%";
+            opacitySlider.addEventListener("input", () => {
+                const v = parseFloat(opacitySlider.value);
+                opacityVal.textContent = Math.round(v * 100) + "%";
+                savePanelOpacity(v);
+                this.applyPanelOpacity(v);
+            });
+            opacityRow.appendChild(opacityLbl);
+            opacityRow.appendChild(opacitySlider);
+            opacityRow.appendChild(opacityVal);
+            body.appendChild(opacityRow);
             // Helper: collapsible section wrapper
             const makeSection = (labelText, lsKey, defaultCollapsed, buildContent) => {
                 let collapsed = defaultCollapsed;
@@ -25797,7 +25864,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.41";
+    const MOD_VERSION = "2.2.42";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25808,6 +25875,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.42",
+            changes: [
+                "Panel is now fully opaque by default — no more text bleeding through from behind. DEV tab: new Panel opacity slider (10%–100%) lets you dial in transparency if you want the frosted-glass look.",
+            ],
+        },
         {
             version: "2.2.41",
             changes: [
