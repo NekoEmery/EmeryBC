@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.79";
+const MOD_VERSION = "2.2.80";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,16 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.80",
+        changes: [
+            "Kitty tab: removed the Emotes section — emote actions can be built as Action steps instead.",
+            "Kitty tab UX overhaul — mood buttons, action pills, and section headers are now significantly bigger and easier to tap.",
+            "Sidebar: added button category dropdown (switch Classic/Warm/Quiet/etc.) just below the slow leave button — no need to open the Buttons tab to switch.",
+            "Sidebar: added duration slider (⏱) next to slow leave — same accent style as the opacity slider in Drawer Preferences.",
+            "Restraint presets: added 'Paste BC outfit/craft code → Import' row to each preset card, so Lucy can import crafting codes directly.",
+        ],
+    },
     {
         version: "2.2.79",
         changes: [

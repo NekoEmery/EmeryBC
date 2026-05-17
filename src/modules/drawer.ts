@@ -121,13 +121,12 @@ import {
 } from "./domTools";
 import {
     LUCY_MEMBER, EMERY_MEMBER,
-    getKittyEmotes, saveKittyEmotes,
     getKittyRestraintSets, saveKittyRestraintSets,
     getKittyPoses, saveKittyPoses,
     getKittyPunishments, saveKittyPunishments,
     getKittyMood, setKittyMood,
     sendKittyCmd,
-    type KittyEmote, type KittyRestraintSet, type KittyPose, type KittyItem,
+    type KittyRestraintSet, type KittyPose, type KittyItem,
     type KittyPunishment, type KittyMood,
 } from "./kitty";
 
@@ -197,32 +196,6 @@ const KITTY_REACTION_POSES = [
     { label: "🙌 Hands up",    poses: ["OverTheHead"] },
 ];
 
-// BC activity slot groups (for the emote sound picker)
-const ACTIVITY_SLOT_GROUPS: Array<{ label: string; value: string }> = [
-    { label: "Head",    value: "ItemHead" },
-    { label: "Ears",    value: "ItemEars" },
-    { label: "Nose",    value: "ItemNose" },
-    { label: "Mouth",   value: "ItemMouth" },
-    { label: "Neck",    value: "ItemNeck" },
-    { label: "Chest",   value: "ItemBreast" },
-    { label: "Arms",    value: "ItemArms" },
-    { label: "Hands",   value: "ItemHands" },
-    { label: "Belly",   value: "ItemTorso" },
-    { label: "Pelvis",  value: "ItemPelvis" },
-    { label: "Butt",    value: "ItemButt" },
-    { label: "Legs",    value: "ItemLegs" },
-    { label: "Feet",    value: "ItemFeet" },
-];
-
-/** Returns all BC activity names available at runtime (from window.AssetActivity). */
-function getBCActivityNames(): string[] {
-    try {
-        const acts = (window as unknown as Record<string, unknown>).AssetActivity as
-            Array<{ Name?: string }> | undefined;
-        if (!Array.isArray(acts)) return [];
-        return acts.map(a => a.Name).filter((n): n is string => !!n).sort();
-    } catch { return []; }
-}
 
 function getGroupAssets(group: string): string[] {
     try {
@@ -2909,6 +2882,9 @@ export class EBCDrawer {
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
     private slowLeaveBtn: HTMLButtonElement | null = null;
     private slPresetDropdown: HTMLSelectElement | null = null;
+    private slCatDropdown: HTMLSelectElement | null = null;
+    private slDurSlider: HTMLInputElement | null = null;
+    private slDurVal: HTMLSpanElement | null = null;
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
@@ -3241,6 +3217,50 @@ export class EBCDrawer {
         });
         quickActions.appendChild(slPresetDropdown);
         this.slPresetDropdown = slPresetDropdown;
+
+        // Button category selector — shown next to slow leave, hides when not in a room
+        const SL_DD_CSS = "display:none;width:100%;margin-top:3px;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+        const slCatDropdown = document.createElement("select");
+        slCatDropdown.style.cssText = SL_DD_CSS;
+        slCatDropdown.title = "Switch action button category";
+        const refreshCatDropdown = (): void => {
+            while (slCatDropdown.firstChild) slCatDropdown.removeChild(slCatDropdown.firstChild);
+            const cats = getCategories();
+            cats.forEach((cat, i) => {
+                const o = document.createElement("option"); o.value = String(i); o.textContent = cat.name; slCatDropdown.appendChild(o);
+            });
+            slCatDropdown.value = String(getActiveCategoryIndex());
+        };
+        refreshCatDropdown();
+        slCatDropdown.addEventListener("change", () => {
+            setActiveCategoryIndex(parseInt(slCatDropdown.value, 10));
+            if (this.currentTab === "buttons") this.rerender();
+        });
+        quickActions.appendChild(slCatDropdown);
+        this.slCatDropdown = slCatDropdown;
+
+        // Duration slider — shown next to slow leave
+        const slDurRow = document.createElement("div");
+        slDurRow.style.cssText = "display:none;align-items:center;gap:6px;width:100%;margin-top:3px;box-sizing:border-box;";
+        const slDurLbl = document.createElement("span");
+        slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
+        slDurLbl.textContent = "⏱";
+        slDurLbl.title = "Slow leave duration";
+        const slDurSlider = document.createElement("input");
+        slDurSlider.type = "range"; slDurSlider.min = "2"; slDurSlider.max = "30"; slDurSlider.step = "1";
+        slDurSlider.value = localStorage.getItem("EBC_slowLeaveDuration") ?? "5";
+        slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+        const slDurVal = document.createElement("span");
+        slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
+        slDurVal.textContent = slDurSlider.value + "s";
+        slDurSlider.addEventListener("input", () => {
+            slDurVal.textContent = slDurSlider.value + "s";
+            try { localStorage.setItem("EBC_slowLeaveDuration", slDurSlider.value); } catch { /* ignore */ }
+        });
+        slDurRow.appendChild(slDurLbl); slDurRow.appendChild(slDurSlider); slDurRow.appendChild(slDurVal);
+        quickActions.appendChild(slDurRow);
+        this.slDurSlider = slDurSlider;
+        this.slDurVal = slDurVal;
 
         // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
         const selfPickPanel = document.createElement("div");
@@ -4109,9 +4129,9 @@ export class EBCDrawer {
         if (!this.slowLeaveBtn) return;
         const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
         this.slowLeaveBtn.style.display = inRoom ? "" : "none";
-        if (this.slPresetDropdown) {
-            this.slPresetDropdown.style.display = inRoom ? "" : "none";
-        }
+        if (this.slPresetDropdown) this.slPresetDropdown.style.display = inRoom ? "" : "none";
+        if (this.slCatDropdown)    this.slCatDropdown.style.display    = inRoom ? "" : "none";
+        if (this.slDurSlider?.parentElement) this.slDurSlider.parentElement.style.display = inRoom ? "flex" : "none";
         // Reset button label if no sequence is currently running
         if (!isSeqRunning()) {
             this.slowLeaveBtn.textContent = "🚶 Slow Leave";
@@ -13739,19 +13759,15 @@ export class EBCDrawer {
         hdr.appendChild(hdrSub);
         body.appendChild(hdr);
 
-        // ── Mood toggle ──────────────────────────────────────────────────────────
+        // ── Mood toggle (big, obvious) ────────────────────────────────────────────
         const moodRow = document.createElement("div");
-        moodRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:5px 8px;background:rgba(20,8,16,0.6);border:1px solid #2a1421;border-radius:6px;";
-        const moodLbl = document.createElement("span");
-        moodLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
-        moodLbl.textContent = "Mood:";
-        moodRow.appendChild(moodLbl);
+        moodRow.style.cssText = "display:flex;gap:6px;margin-bottom:10px;";
 
         const makeMoodBtn = (m: KittyMood, icon: string, label: string, color: string): HTMLButtonElement => {
             const b = document.createElement("button");
             const update = (): void => {
                 const active = getKittyMood() === m;
-                b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:3px 10px;border-radius:4px;cursor:pointer;transition:all 0.12s;border:1px solid ${active ? color : "#3a1928"};background:${active ? color + "28" : "transparent"};color:${active ? color : "#5a3a4a"};`;
+                b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 0;border-radius:8px;cursor:pointer;transition:all 0.14s;border:2px solid ${active ? color : "#3a1928"};background:${active ? color + "30" : "rgba(20,8,16,0.5)"};color:${active ? color : "#5a3a4a"};flex:1;`;
             };
             b.textContent = icon + " " + label;
             update();
@@ -13761,8 +13777,8 @@ export class EBCDrawer {
                     const isActive = getKittyMood() === (x === kindBtn ? "kind" : "rough");
                     const col = x === kindBtn ? "#79c8a0" : "#e07070";
                     x.style.borderColor = isActive ? col : "#3a1928";
-                    x.style.background = isActive ? col + "28" : "transparent";
-                    x.style.color = isActive ? col : "#5a3a4a";
+                    x.style.background  = isActive ? col + "30" : "rgba(20,8,16,0.5)";
+                    x.style.color       = isActive ? col : "#5a3a4a";
                 });
             });
             return b;
@@ -13783,7 +13799,7 @@ export class EBCDrawer {
             const el = document.createElement("div");
             el.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:5px;";
             const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;flex:1;";
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;color:#b07090;letter-spacing:0.05em;text-transform:uppercase;flex:1;";
             lbl.textContent = title;
             el.appendChild(lbl);
             let editing = false;
@@ -13812,13 +13828,13 @@ export class EBCDrawer {
             return { el, setEditing: (v) => { editing = v; editBtn.textContent = v ? "✔ Done" : "✎ Edit"; editBtn.style.color = v ? "#cf6f98" : "#7a5a6a"; editBtn.style.borderColor = v ? "#cf6f98" : "#4c2537"; } };
         };
 
-        // Helper: pill-style action button
+        // Helper: pill-style action button (big, easy to tap)
         const makePill = (label: string, color: string, onClick: () => void): HTMLButtonElement => {
             const b = document.createElement("button");
-            b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 10px;border-radius:5px;cursor:pointer;border:1px solid ${color}55;background:${color}18;color:${color};transition:background 0.12s,border-color 0.12s;white-space:nowrap;`;
+            b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 14px;border-radius:8px;cursor:pointer;border:2px solid ${color}66;background:${color}22;color:${color};transition:background 0.12s,border-color 0.12s,transform 0.08s;white-space:nowrap;`;
             b.textContent = label;
-            b.addEventListener("mouseenter", () => { b.style.background = `${color}30`; b.style.borderColor = color; });
-            b.addEventListener("mouseleave", () => { b.style.background = `${color}18`; b.style.borderColor = `${color}55`; });
+            b.addEventListener("mouseenter", () => { b.style.background = `${color}38`; b.style.borderColor = color; b.style.transform = "scale(1.04)"; });
+            b.addEventListener("mouseleave", () => { b.style.background = `${color}22`; b.style.borderColor = `${color}66`; b.style.transform = ""; });
             b.addEventListener("click", onClick);
             return b;
         };
@@ -13836,202 +13852,6 @@ export class EBCDrawer {
             try { ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] }); } catch { /* ignore */ }
         };
 
-        // ── EMOTES ───────────────────────────────────────────────────────────────
-        const emotesWrap = document.createElement("div");
-        emotesWrap.style.marginBottom = "10px";
-
-        const renderEmotes = (editing: boolean): void => {
-            emotesWrap.innerHTML = "";
-            const emotes = getKittyEmotes();
-
-            if (!editing) {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
-                for (const em of emotes) {
-                    row.appendChild(makePill(em.label, "#cf6f98", () => {
-                        // Guard: never send chat when not in a room
-                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
-                        const mood = getKittyMood();
-                        const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
-                        try {
-                            if (em.bcGroup && em.bcActivity) {
-                                // Use BC's own ActivityRun pipeline — same as clicking the button in the dialog.
-                                // This plays sounds, triggers BCX/LSCG reactions, and shows the correct chat line.
-                                const w = window as unknown as Record<string, unknown>;
-                                const ActivityRun = w.ActivityRun as
-                                    ((actor: Character, acted: Character, group: { Name: string }, item: { Activity: unknown; Item: null }) => void) | undefined;
-                                const AssetGetActivity = w.AssetGetActivity as
-                                    ((family: string, name: string) => unknown) | undefined;
-                                const ChatRoomChars = w.ChatRoomCharacter as Character[] | undefined;
-                                if (ActivityRun && AssetGetActivity && ChatRoomChars) {
-                                    const emery = ChatRoomChars.find(c => (c as unknown as { MemberNumber: number }).MemberNumber === EMERY_MEMBER);
-                                    const act = AssetGetActivity("Female3DCG", em.bcActivity);
-                                    if (emery && act) ActivityRun(Player, emery, { Name: em.bcGroup }, { Activity: act, Item: null });
-                                }
-                            } else if (em.type === "emote") {
-                                ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
-                            } else {
-                                const zw = String.fromCharCode(0x200C);
-                                ServerSend("ChatRoomChat", { Type: "Action", Content: text, Dictionary: [{ Tag: 'MISSING TEXT IN "Interface.csv": ', Text: zw }, { SourceCharacter: Player.MemberNumber }] });
-                            }
-                        } catch { /* ignore */ }
-                        // Expression command (e.g. ear wiggle for headpat)
-                        if (em.expression) {
-                            sendKittyCmd("expression", em.expression);
-                        }
-                        // If interactive, send a react beep so Emery can respond
-                        if (em.interactive) {
-                            sendKittyCmd("react", JSON.stringify({ label: em.label, text }));
-                        }
-                    }));
-                }
-                emotesWrap.appendChild(row);
-                return;
-            }
-
-            const list = document.createElement("div");
-            list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
-            const cur = getKittyEmotes();
-            cur.forEach((em, idx) => {
-                const r = document.createElement("div");
-                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
-
-                // Row 1: label + type toggle + react toggle + delete
-                const r1 = document.createElement("div");
-                r1.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const lblInp = document.createElement("input");
-                lblInp.value = em.label;
-                lblInp.placeholder = "Label";
-                lblInp.style.cssText = "width:80px;flex-shrink:0;" + INP;
-                const typeBtn = document.createElement("button");
-                typeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;flex-shrink:0;border:1px solid #4c2537;background:transparent;color:#cf6f98;";
-                typeBtn.textContent = em.type === "emote" ? "* *" : "( )";
-                typeBtn.title = em.type === "emote" ? "Emote format" : "Action format";
-                typeBtn.addEventListener("click", () => {
-                    const updated = getKittyEmotes();
-                    updated[idx].type = updated[idx].type === "emote" ? "action" : "emote";
-                    saveKittyEmotes(updated);
-                    renderEmotes(true);
-                });
-                const reactBtn = document.createElement("button");
-                const updateReactBtn = (): void => {
-                    const on = !!getKittyEmotes()[idx]?.interactive;
-                    reactBtn.textContent = on ? "🔔" : "🔕";
-                    reactBtn.title = on ? "Emery gets a react popup — click to disable" : "Room emote only — click to make Emery react";
-                    reactBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;cursor:pointer;flex-shrink:0;opacity:" + (on ? "1" : "0.4") + ";";
-                };
-                updateReactBtn();
-                reactBtn.addEventListener("click", () => {
-                    const updated = getKittyEmotes();
-                    updated[idx].interactive = !updated[idx].interactive;
-                    saveKittyEmotes(updated);
-                    updateReactBtn();
-                });
-                const delBtn = document.createElement("button");
-                delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
-                delBtn.textContent = "×";
-                delBtn.addEventListener("click", () => {
-                    saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
-                    renderEmotes(true);
-                });
-                const spacer = document.createElement("span"); spacer.style.flex = "1";
-                r1.appendChild(lblInp); r1.appendChild(spacer); r1.appendChild(typeBtn); r1.appendChild(reactBtn); r1.appendChild(delBtn);
-
-                // Row 2: kind text
-                const kindRowE = document.createElement("div");
-                kindRowE.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const kindLblE = document.createElement("span"); kindLblE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLblE.textContent = "🌸 Kind:";
-                const txtInp = document.createElement("input");
-                txtInp.value = em.text;
-                txtInp.placeholder = "Kind emote text…";
-                txtInp.style.cssText = "flex:1;min-width:0;" + INP;
-                kindRowE.appendChild(kindLblE); kindRowE.appendChild(txtInp);
-
-                // Row 3: rough text
-                const roughRowE = document.createElement("div");
-                roughRowE.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const roughLblE = document.createElement("span"); roughLblE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLblE.textContent = "⚡ Rough:";
-                const roughInp = document.createElement("input");
-                roughInp.value = em.roughText ?? "";
-                roughInp.placeholder = "Rough emote text (leave empty to reuse kind)…";
-                roughInp.style.cssText = "flex:1;min-width:0;" + INP;
-                roughRowE.appendChild(roughLblE); roughRowE.appendChild(roughInp);
-
-                const saveInp = (): void => {
-                    const updated = getKittyEmotes();
-                    updated[idx].label     = lblInp.value;
-                    updated[idx].text      = txtInp.value;
-                    updated[idx].roughText = roughInp.value;
-                    saveKittyEmotes(updated);
-                };
-                [lblInp, txtInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
-
-                // Row 4: BC Sound / Activity trigger
-                const soundRow = document.createElement("div");
-                soundRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-                const soundLbl = document.createElement("span");
-                soundLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:38px;";
-                soundLbl.textContent = "🔊 Sound:";
-                soundLbl.title = "Trigger a real BC activity when this button is clicked (plays sound + shows BC chat line)";
-
-                const grpSel = document.createElement("select"); grpSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const grpPh = document.createElement("option"); grpPh.value = ""; grpPh.textContent = "— no BC activity —"; grpSel.appendChild(grpPh);
-                for (const g of ACTIVITY_SLOT_GROUPS) { const o = document.createElement("option"); o.value = g.value; o.textContent = g.label; grpSel.appendChild(o); }
-                grpSel.value = em.bcGroup ?? "";
-
-                const actSel = document.createElement("select"); actSel.style.cssText = "flex:1;min-width:0;" + INP;
-                const populateActSel = (): void => {
-                    actSel.innerHTML = "";
-                    const names = getBCActivityNames();
-                    if (names.length === 0) {
-                        const o = document.createElement("option"); o.value = ""; o.textContent = "— load game first —"; o.disabled = true; o.selected = true; actSel.appendChild(o);
-                    } else {
-                        const ph = document.createElement("option"); ph.value = ""; ph.textContent = "— pick activity —"; ph.disabled = true; ph.selected = true; actSel.appendChild(ph);
-                        for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; actSel.appendChild(o); }
-                    }
-                    if (em.bcActivity) actSel.value = em.bcActivity;
-                };
-                populateActSel();
-
-                const saveActivity = (): void => {
-                    const upd = getKittyEmotes();
-                    upd[idx].bcGroup    = grpSel.value   || undefined;
-                    upd[idx].bcActivity = actSel.value   || undefined;
-                    saveKittyEmotes(upd);
-                };
-                grpSel.addEventListener("change", saveActivity);
-                actSel.addEventListener("change", saveActivity);
-                soundRow.appendChild(soundLbl); soundRow.appendChild(grpSel); soundRow.appendChild(actSel);
-
-                r.appendChild(r1); r.appendChild(kindRowE); r.appendChild(roughRowE); r.appendChild(soundRow);
-                list.appendChild(r);
-            });
-
-            const addRow = document.createElement("div");
-            addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-            const newLbl = document.createElement("input"); newLbl.placeholder = "Label"; newLbl.style.cssText = "width:80px;flex-shrink:0;" + INP;
-            const newTxt = document.createElement("input"); newTxt.placeholder = "Message text…"; newTxt.style.cssText = "flex:1;min-width:0;" + INP;
-            const addBtn2 = document.createElement("button");
-            addBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-            addBtn2.textContent = "+ Add";
-            addBtn2.addEventListener("click", () => {
-                if (!newLbl.value.trim()) return;
-                const updated = getKittyEmotes();
-                updated.push({ id: "e_" + Date.now(), label: newLbl.value.trim(), text: newTxt.value.trim(), type: "emote" });
-                saveKittyEmotes(updated);
-                newLbl.value = ""; newTxt.value = "";
-                renderEmotes(true);
-            });
-            addRow.appendChild(newLbl); addRow.appendChild(newTxt); addRow.appendChild(addBtn2);
-            list.appendChild(addRow);
-            emotesWrap.appendChild(list);
-        };
-
-        const { el: emHdr } = makeSectionHdr("Emotes", null, (ed) => renderEmotes(ed));
-        body.appendChild(emHdr);
-        renderEmotes(false);
-        body.appendChild(emotesWrap);
-        body.appendChild(divider());
 
         // ── POSES ────────────────────────────────────────────────────────────────
         const posesWrap = document.createElement("div");
@@ -14043,7 +13863,7 @@ export class EBCDrawer {
 
             if (!editing) {
                 const row = document.createElement("div");
-                row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
                 for (const p of poses) {
                     row.appendChild(makePill(p.label, "#a070c8", () => {
                         // Guard: never send chat when not in a room
@@ -14158,7 +13978,7 @@ export class EBCDrawer {
             if (!editing) {
                 // ── View mode: pills ──────────────────────────────────────────
                 const row = document.createElement("div");
-                row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
                 for (const pun of punishments) {
                     row.appendChild(makePill(pun.label, "#d05070", () => {
                         // Guard: never send chat when not in a room
@@ -14536,6 +14356,33 @@ export class EBCDrawer {
                 });
                 rpColRow.appendChild(rpColInp); rpColRow.appendChild(rpAddBtn);
                 r.appendChild(rpSlRow); r.appendChild(rpItemRow); r.appendChild(rpColRow);
+
+                // Import from pasted BC outfit/craft code
+                const rpCodeRow = document.createElement("div"); rpCodeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
+                const rpCodeInp = document.createElement("input"); rpCodeInp.placeholder = "Paste BC outfit/craft code…"; rpCodeInp.style.cssText = "flex:1;min-width:0;" + INP;
+                const rpCodeBtn = document.createElement("button"); rpCodeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; rpCodeBtn.textContent = "Import";
+                rpCodeBtn.addEventListener("click", () => {
+                    const code = rpCodeInp.value.trim(); if (!code) return;
+                    try {
+                        const LZStr = (window as unknown as Record<string, unknown>).LZString as { decompressFromBase64?: (s: string) => string | null } | undefined;
+                        const raw2 = LZStr?.decompressFromBase64?.(code) ?? code;
+                        const parsed = JSON.parse(raw2) as Array<Record<string, unknown>>;
+                        const newItems: KittyItem[] = parsed
+                            .filter(p => typeof p.Group === "string" && typeof p.Name === "string")
+                            .map(p => ({
+                                Name: String(p.Name), Group: String(p.Group),
+                                Color: p.Color as string | string[] | undefined,
+                                Difficulty: typeof p.Difficulty === "number" ? p.Difficulty : undefined,
+                                Property: typeof p.Property === "object" && p.Property !== null ? p.Property as Record<string, unknown> : undefined,
+                                Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft as Record<string, unknown> : undefined,
+                            }));
+                        if (newItems.length === 0) { rpCodeInp.style.borderColor = "#e07070"; window.setTimeout(() => { rpCodeInp.style.borderColor = ""; }, 1500); return; }
+                        const upd = getKittyRestraintSets();
+                        if (upd[pIdx]) { upd[pIdx].items.push(...newItems); saveKittyRestraintSets(upd); }
+                        rpCodeInp.value = ""; rebuildRPItems();
+                    } catch { rpCodeInp.style.borderColor = "#e07070"; window.setTimeout(() => { rpCodeInp.style.borderColor = ""; }, 1500); }
+                });
+                rpCodeRow.appendChild(rpCodeInp); rpCodeRow.appendChild(rpCodeBtn); r.appendChild(rpCodeRow);
 
                 list.appendChild(r);
             });
