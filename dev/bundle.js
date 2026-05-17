@@ -26398,18 +26398,34 @@
                     const diffEl = document.createElement("span");
                     diffEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:14px;text-align:center;";
                     diffEl.textContent = String(diff);
+                    // Mutable counter so multiple clicks track correctly
+                    let liveDiff = diff;
                     const mkAdjBtn = (icon, delta, cmd) => {
                         const b = document.createElement("button");
                         b.textContent = icon;
                         b.title = (delta > 0 ? "Tighten" : "Loosen") + " " + label;
-                        b.style.cssText = "flex-shrink:0;font-size:11px;line-height:1;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;";
+                        b.style.cssText = "flex-shrink:0;font-size:11px;line-height:1;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;transition:background 0.1s;";
                         b.addEventListener("click", () => {
                             if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
                                 return;
-                            sendKittyCmd(cmd, group);
-                            // Optimistically update display
-                            const newDiff = Math.max(0, Math.min(6, diff + delta));
-                            diffEl.textContent = String(newDiff);
+                            const mood = getKittyMood();
+                            // Mood-aware room emote from Lucy
+                            const emoteText = cmd === "tighten"
+                                ? (mood === "rough"
+                                    ? `yanks ${label} tighter without a word~`
+                                    : `adjusts ${label} snugger, making sure it's secure~`)
+                                : (mood === "rough"
+                                    ? `gives ${label} a bit of slack — just enough to tease~`
+                                    : `loosens ${label} gently, giving Emery a little breathing room~`);
+                            sendRoomEmote(emoteText);
+                            // Send command with group:mood:label so Emery's handler can react correctly
+                            sendKittyCmd(cmd, `${group}:${mood}:${label}`);
+                            // Update display counter correctly across multiple clicks
+                            liveDiff = Math.max(0, Math.min(6, liveDiff + delta));
+                            diffEl.textContent = String(liveDiff);
+                            // Brief flash to confirm the command was sent
+                            b.style.background = delta > 0 ? "rgba(100,60,80,0.5)" : "rgba(60,40,70,0.5)";
+                            setTimeout(() => { b.style.background = "transparent"; }, 300);
                         });
                         return b;
                     };
@@ -28230,7 +28246,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.94";
+    const MOD_VERSION = "2.2.95";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28241,6 +28257,16 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.95",
+            changes: [
+                "Fix: expressions no longer reset when Lucy applies a pose or tightens a restraint — the addon now tracks active expression states and patches them back into Emery's appearance before every ChatRoomCharacterUpdate, so they survive the full appearance-replace that BC performs on other clients.",
+                "Rework: Tighten / Loosen buttons now send a mood-aware room emote from Lucy ('yanks X tighter...' / 'adjusts X snugger...' etc.) so the action is visible to everyone in chat.",
+                "Fix: Tighten / Loosen difficulty display counter now tracks correctly across multiple clicks on the same item (previously the counter froze after the first click).",
+                "Fix: Emery now also reacts in chat when her restraints are tightened or loosened ('winces as her restraints are yanked tighter~' etc.).",
+                "Tighten / Loosen buttons now briefly flash on click to confirm the command was sent.",
+            ],
+        },
         {
             version: "2.2.94",
             changes: [
@@ -31039,8 +31065,33 @@
         };
         requestAnimationFrame(tick);
     }
+    // ── Expression state tracking ─────────────────────────────────────────────────
+    // When Lucy sets an expression via the kitty menu, the state is saved here.
+    // Before every ChatRoomCharacterUpdate that the kitty handler sends (pose, tighten, etc.)
+    // we patch these states back into Player.Appearance so they survive the full appearance replace
+    // that happens on other clients when they receive the update.
+    const kittyExpressions = new Map(); // group → state e.g. "Blush" → "Low"
+    function patchKittyExpressions() {
+        if (kittyExpressions.size === 0)
+            return;
+        const w = window;
+        const inventoryGet = w.InventoryGet;
+        if (!inventoryGet)
+            return;
+        for (const [face, state] of kittyExpressions) {
+            try {
+                const item = inventoryGet(Player, face);
+                if (item) {
+                    if (!item.Property)
+                        item.Property = {};
+                    item.Property.Expression = state;
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+    }
     function handleKittyCommand(msg) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         const parsed = parseKittyCmd(msg);
         if (!parsed)
             return;
@@ -31053,6 +31104,8 @@
                         : null;
                     Player.ActivePose = poses;
                     callBC(() => CharacterRefresh(Player, false, false));
+                    // Re-patch tracked expressions into appearance so they survive the update
+                    patchKittyExpressions();
                     if (Player.OnlineID != null) {
                         callBC(() => ServerSend("ChatRoomCharacterUpdate", {
                             ID: Player.OnlineID,
@@ -31076,7 +31129,7 @@
                         const payload = JSON.parse(arg);
                         showKittyResistancePopup(payload.label, payload.mood, (_a = payload.items) !== null && _a !== void 0 ? _a : [], payload.reaction);
                     }
-                    catch (_d) {
+                    catch (_e) {
                         // Legacy fallback: "Label:mood"
                         const colonIdx = arg.lastIndexOf(":");
                         showKittyResistancePopup(colonIdx >= 0 ? arg.slice(0, colonIdx) : arg, (colonIdx >= 0 ? arg.slice(colonIdx + 1) : "kind"), []);
@@ -31088,7 +31141,7 @@
                         const payload = JSON.parse(arg);
                         showKittyReactPopup(payload.label);
                     }
-                    catch (_e) {
+                    catch (_f) {
                         showKittyReactPopup(arg);
                     }
                     break;
@@ -31096,19 +31149,40 @@
                 case "tighten":
                 case "loosen": {
                     const delta = cmd === "tighten" ? 1 : -1;
-                    // arg = specific group name (e.g. "ItemArms"), or "" = all restraints
+                    // arg format: "group:mood:itemLabel"  (group = BC group name, mood = kind|rough, itemLabel = display name)
+                    // Legacy fallback: arg = just the group name (no mood/label)
+                    const parts = arg.split(":");
+                    const targetGroup = (_b = parts[0]) !== null && _b !== void 0 ? _b : "";
+                    const mood = (parts[1] === "rough" ? "rough" : "kind");
+                    const itemLabel = parts.slice(2).join(":") || targetGroup.replace("Item", "");
+                    let changed = false;
                     for (const item of Player.Appearance) {
-                        if (!((_c = (_b = item.Asset) === null || _b === void 0 ? void 0 : _b.Group) === null || _c === void 0 ? void 0 : _c.Name) || !RESTRAINT_GROUPS.has(item.Asset.Group.Name))
+                        if (!((_d = (_c = item.Asset) === null || _c === void 0 ? void 0 : _c.Group) === null || _d === void 0 ? void 0 : _d.Name) || !RESTRAINT_GROUPS.has(item.Asset.Group.Name))
                             continue;
-                        if (arg && item.Asset.Group.Name !== arg)
-                            continue; // skip if targeting specific group
+                        if (targetGroup && item.Asset.Group.Name !== targetGroup)
+                            continue;
                         const cur = typeof item.Difficulty === "number" ? item.Difficulty : 0;
                         const next = Math.max(0, Math.min(6, cur + delta));
-                        if (next !== cur)
+                        if (next !== cur) {
                             item.Difficulty = next;
+                            changed = true;
+                        }
                     }
                     try {
+                        if (changed) {
+                            // Emery reacts in chat
+                            const emote = cmd === "tighten"
+                                ? (mood === "rough"
+                                    ? "winces as her restraints are yanked tighter~"
+                                    : "squirms slightly as her restraints are adjusted snugger~")
+                                : (mood === "rough"
+                                    ? "blinks as some slack is given — not that it helps much~"
+                                    : "sighs with a little relief as her restraints are eased~");
+                            callBC(() => ServerSend("ChatRoomChat", { Type: "Emote", Content: emote,
+                                Dictionary: [{ Tag: "SourceCharacter", Text: Player.Name, MemberNumber: Player.MemberNumber }] }));
+                        }
                         callBC(() => CharacterRefresh(Player, false, false));
+                        patchKittyExpressions();
                         if (Player.OnlineID != null) {
                             callBC(() => ServerSend("ChatRoomCharacterUpdate", {
                                 ID: Player.OnlineID,
@@ -31117,25 +31191,27 @@
                             }));
                         }
                     }
-                    catch ( /* ignore */_f) { /* ignore */ }
+                    catch ( /* ignore */_g) { /* ignore */ }
                     break;
                 }
                 case "expression": {
                     // arg format: "FaceType:State"  e.g. "Blush:Low"
-                    // Triggers a BC facial expression on Emery and pushes a full appearance update
-                    // to ensure all room members see the change (CharacterSetFacialExpression's
-                    // internal ChatRoomCharacterExpressionUpdate can be lossy under some BC versions).
+                    // Set the expression, track it in kittyExpressions so it survives future pose/tighten updates.
                     try {
                         const colonIdx = arg.indexOf(":");
                         if (colonIdx > 0) {
                             const face = arg.slice(0, colonIdx);
                             const state = arg.slice(colonIdx + 1);
+                            // Track so patchKittyExpressions() can restore it before any future update
+                            if (state)
+                                kittyExpressions.set(face, state);
+                            else
+                                kittyExpressions.delete(face);
                             const w = window;
                             const fn = w.CharacterSetFacialExpression;
                             if (fn) {
                                 fn(Player, face, state || null);
-                                // Belt-and-suspenders: push a full appearance update so the expression
-                                // is visible to everyone even if the internal sync doesn't fire.
+                                // Push a full appearance update so all room members see the change.
                                 callBC(() => {
                                     if (Player.OnlineID != null) {
                                         ServerSend("ChatRoomCharacterUpdate", {
@@ -31148,12 +31224,12 @@
                             }
                         }
                     }
-                    catch ( /* ignore */_g) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                     break;
                 }
             }
         }
-        catch ( /* ignore */_h) { /* ignore */ }
+        catch ( /* ignore */_j) { /* ignore */ }
     }
     function handleMetaCommand(inputValue) {
         var _a, _b, _c;
