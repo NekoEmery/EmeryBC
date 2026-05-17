@@ -121,12 +121,13 @@ import {
 } from "./domTools";
 import {
     LUCY_MEMBER, EMERY_MEMBER,
+    getKittyEmotes, saveKittyEmotes,
     getKittyRestraintSets, saveKittyRestraintSets,
     getKittyPoses, saveKittyPoses,
     getKittyPunishments, saveKittyPunishments,
     getKittyMood, setKittyMood,
     sendKittyCmd,
-    type KittyRestraintSet, type KittyPose, type KittyItem,
+    type KittyEmote, type KittyRestraintSet, type KittyPose, type KittyItem,
     type KittyPunishment, type KittyMood,
 } from "./kitty";
 
@@ -13859,6 +13860,118 @@ export class EBCDrawer {
         };
 
 
+        // Helper: run a BC activity on Emery (who must be in the room)
+        const runKittyActivity = (bcGroup: string, bcActivity: string): void => {
+            try {
+                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+                const w = window as unknown as Record<string, unknown>;
+                const room = w.ChatRoomCharacter as Character[] | undefined;
+                const emery = room?.find(c => c.MemberNumber === EMERY_MEMBER);
+                if (!emery) return;
+                const ActivityRun = w.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, item: { Activity: unknown; Item: null }) => void) | undefined;
+                const AssetGetActivity = w.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
+                if (!ActivityRun || !AssetGetActivity) return;
+                const act = AssetGetActivity((Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG", bcActivity);
+                if (!act) return;
+                ActivityRun(Player, emery, { Name: bcGroup }, { Activity: act, Item: null });
+            } catch { /* ignore */ }
+        };
+
+        // ── EMOTES ───────────────────────────────────────────────────────────────
+        const emotesWrap = document.createElement("div");
+        emotesWrap.style.marginBottom = "10px";
+
+        const renderEmotes = (editing: boolean): void => {
+            emotesWrap.innerHTML = "";
+            const emotes = getKittyEmotes();
+
+            if (!editing) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;flex-wrap:wrap;gap:7px;";
+                for (const em of emotes) {
+                    row.appendChild(makePill(em.label, "#c8a040", () => {
+                        if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+                        const mood = getKittyMood();
+                        const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
+                        sendRoomEmote(text);
+                        if (em.expression) sendKittyCmd("expression", em.expression);
+                        if (em.bcGroup && em.bcActivity) runKittyActivity(em.bcGroup, em.bcActivity);
+                    }));
+                }
+                emotesWrap.appendChild(row);
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.textContent = "Sends emote to room; mood-aware text";
+                emotesWrap.appendChild(hint);
+                return;
+            }
+
+            // Edit mode
+            const list = document.createElement("div");
+            list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+            const cur = getKittyEmotes();
+            cur.forEach((em, idx) => {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
+
+                // Row 1: label + delete
+                const r1 = document.createElement("div"); r1.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const lblInp = document.createElement("input"); lblInp.value = em.label; lblInp.style.cssText = "width:90px;flex-shrink:0;" + INP;
+                const delBtn = document.createElement("button"); delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delBtn.textContent = "×";
+                r1.appendChild(lblInp); r1.appendChild(delBtn);
+
+                // Row 2: kind text
+                const kindRow = document.createElement("div"); kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
+                const kindInp = document.createElement("input"); kindInp.value = em.text; kindInp.placeholder = "Kind mode text…"; kindInp.style.cssText = "flex:1;min-width:0;" + INP;
+                kindRow.appendChild(kindLbl); kindRow.appendChild(kindInp);
+
+                // Row 3: rough text
+                const roughRow = document.createElement("div"); roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
+                const roughInp = document.createElement("input"); roughInp.value = em.roughText ?? ""; roughInp.placeholder = "Rough mode text (optional)…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
+                roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
+
+                const saveRow = (): void => {
+                    const updated = getKittyEmotes();
+                    updated[idx].label = lblInp.value;
+                    updated[idx].text  = kindInp.value;
+                    updated[idx].roughText = roughInp.value;
+                    saveKittyEmotes(updated);
+                };
+                [lblInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveRow));
+                delBtn.addEventListener("click", () => {
+                    saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
+                    renderEmotes(true);
+                });
+
+                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow);
+                list.appendChild(r);
+            });
+
+            const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+            const newLbl = document.createElement("input"); newLbl.placeholder = "Label"; newLbl.style.cssText = "width:90px;flex-shrink:0;" + INP;
+            const newText = document.createElement("input"); newText.placeholder = "Emote text…"; newText.style.cssText = "flex:1;min-width:0;" + INP;
+            const addBtnE = document.createElement("button"); addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnE.textContent = "+ Add";
+            addBtnE.addEventListener("click", () => {
+                if (!newLbl.value.trim()) return;
+                const updated = getKittyEmotes();
+                updated.push({ id: "e_" + Date.now(), label: newLbl.value.trim(), text: newText.value.trim(), type: "emote", roughText: "", expression: "" });
+                saveKittyEmotes(updated);
+                newLbl.value = ""; newText.value = "";
+                renderEmotes(true);
+            });
+            addRow.appendChild(newLbl); addRow.appendChild(newText); addRow.appendChild(addBtnE);
+            list.appendChild(addRow);
+            emotesWrap.appendChild(list);
+        };
+
+        const { el: emoteHdr } = makeSectionHdr("Emotes", null, (ed) => renderEmotes(ed));
+        body.appendChild(emoteHdr);
+        renderEmotes(false);
+        body.appendChild(emotesWrap);
+        body.appendChild(divider());
+
         // ── POSES ────────────────────────────────────────────────────────────────
         const posesWrap = document.createElement("div");
         posesWrap.style.marginBottom = "10px";
@@ -14504,6 +14617,32 @@ export class EBCDrawer {
         customRow.appendChild(customInp); customRow.appendChild(setBtn);
         arousalWrap.appendChild(customRow);
         body.appendChild(arousalWrap);
+        body.appendChild(divider());
+
+        // ── EXPRESSIONS ──────────────────────────────────────────────────────────
+        const exprSectionHdr = document.createElement("div");
+        exprSectionHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;";
+        exprSectionHdr.textContent = "Expressions";
+        body.appendChild(exprSectionHdr);
+
+        const exprWrap = document.createElement("div");
+        exprWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;";
+        for (const expr of KITTY_EXPRESSIONS) {
+            if (!expr.cmd) continue; // skip "— None —"
+            const b = document.createElement("button");
+            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid #5a3050;background:rgba(40,15,30,0.5);color:#c090b0;transition:background 0.12s,border-color 0.12s;";
+            b.textContent = expr.label;
+            b.title = expr.cmd;
+            b.addEventListener("mouseenter", () => { b.style.background = "rgba(90,30,60,0.5)"; b.style.borderColor = "#a06080"; });
+            b.addEventListener("mouseleave", () => { b.style.background = "rgba(40,15,30,0.5)"; b.style.borderColor = "#5a3050"; });
+            b.addEventListener("click", () => { sendKittyCmd("expression", expr.cmd); });
+            exprWrap.appendChild(b);
+        }
+        const exprHint = document.createElement("div");
+        exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:2px;";
+        exprHint.textContent = "Sends a facial expression command to Emery";
+        body.appendChild(exprWrap);
+        body.appendChild(exprHint);
     }
 
     private renderThanks(): void {
