@@ -25286,6 +25286,14 @@
                                 runKittyActivity(em.bcGroup, em.bcActivity);
                             if (em.interactive)
                                 sendKittyCmd("react", JSON.stringify({ label: em.label }));
+                            // Fire a random pet reaction from the emote's assigned category
+                            if (em.reactionCategory) {
+                                const pool = getKittyReactions().filter(r => r.category === em.reactionCategory);
+                                if (pool.length > 0) {
+                                    const pick = pool[Math.floor(Math.random() * pool.length)];
+                                    sendKittyCmd("emote", pick.text);
+                                }
+                            }
                         }));
                     }
                     emotesWrap.appendChild(row);
@@ -25300,7 +25308,7 @@
                 list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
                 const cur = getKittyEmotes();
                 cur.forEach((em, idx) => {
-                    var _a;
+                    var _a, _b;
                     const r = document.createElement("div");
                     r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
                     // Row 1: label + delete
@@ -25338,14 +25346,33 @@
                     roughInp.style.cssText = "flex:1;min-width:0;" + INP;
                     roughRow.appendChild(roughLbl);
                     roughRow.appendChild(roughInp);
+                    // Row 4: reaction category
+                    const catRow = document.createElement("div");
+                    catRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const catLbl = document.createElement("span");
+                    catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:38px;";
+                    catLbl.textContent = "😊 React:";
+                    const catSel = document.createElement("select");
+                    catSel.style.cssText = "flex:1;min-width:0;" + INP;
+                    for (const [v, t] of [["", "— none —"], ["punishment", "⚡ Punishment"], ["reward", "🌸 Reward"]]) {
+                        const o = document.createElement("option");
+                        o.value = v;
+                        o.textContent = t;
+                        catSel.appendChild(o);
+                    }
+                    catSel.value = (_b = em.reactionCategory) !== null && _b !== void 0 ? _b : "";
+                    catRow.appendChild(catLbl);
+                    catRow.appendChild(catSel);
                     const saveRow = () => {
                         const updated = getKittyEmotes();
                         updated[idx].label = lblInp.value;
                         updated[idx].text = kindInp.value;
                         updated[idx].roughText = roughInp.value;
+                        updated[idx].reactionCategory = catSel.value || undefined;
                         saveKittyEmotes(updated);
                     };
                     [lblInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveRow));
+                    catSel.addEventListener("change", saveRow);
                     delBtn.addEventListener("click", () => {
                         saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
                         renderEmotes(true);
@@ -25353,6 +25380,7 @@
                     r.appendChild(r1);
                     r.appendChild(kindRow);
                     r.appendChild(roughRow);
+                    r.appendChild(catRow);
                     list.appendChild(r);
                 });
                 const addRow = document.createElement("div");
@@ -28358,7 +28386,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.113";
+    const MOD_VERSION = "2.2.114";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28369,6 +28397,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.114",
+            changes: [
+                "Kitty Emotes: each emote can now be tagged with a reaction category (⚡ Punishment or 🌸 Reward) via the edit panel. When the emote fires, a random reaction from that pool is auto-sent by Emery. The pool is whatever is configured in the 🐾 Pet Reactions section.",
+            ],
+        },
         {
             version: "2.2.113",
             changes: [
