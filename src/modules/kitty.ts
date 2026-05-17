@@ -271,11 +271,12 @@ export function getKittyEmotes(): KittyEmote[] {
         .map(e => ({
             ...e,
             // Migration: fix stored bap kind text that still says "nose" — should be "head"
-            text: e.id === "bap" && e.text === "gives Emery a playful bap on the nose~ 🐾"
+            // Use .includes() rather than exact match because old seeds omitted the 🐾 emoji
+            text: e.id === "bap" && e.text.includes("bap on the nose")
                 ? "gives Emery a playful bap on the head~ 🐾"
                 : e.text,
             // Migration: fix stored bap rough text that still says "nose" — should be "forehead"
-            roughText: e.id === "bap" && e.roughText === "gives Emery a sharp flick on the nose without warning~"
+            roughText: e.id === "bap" && (e.roughText ?? "").includes("flick on the nose")
                 ? "gives Emery a sharp flick to the forehead without warning~"
                 : (e.roughText ?? ROUGH_TEXT_SEEDS[e.id] ?? ""),
             expression: e.expression ?? EXPRESSION_SEEDS[e.id]  ?? "",
@@ -283,6 +284,13 @@ export function getKittyEmotes(): KittyEmote[] {
             // message which would say "boops nose" and conflict with the custom emote text)
             bcGroup:    e.id === "bap" ? undefined : (e.bcGroup    ?? BC_ACTIVITY_SEEDS[e.id]?.group),
             bcActivity: e.id === "bap" ? undefined : (e.bcActivity ?? BC_ACTIVITY_SEEDS[e.id]?.activity),
+            // Migration: seed autoreact fields for bap — older stored entries predate these fields
+            autoreact:      e.id === "bap"
+                ? (e.autoreact      ?? "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾")
+                : e.autoreact,
+            autoreactRough: e.id === "bap"
+                ? (e.autoreactRough ?? "yelps and flinches away, one hand flying up to her forehead~")
+                : e.autoreactRough,
         }));
     // Append any new default emotes that weren't in the stored list yet
     for (const seed of NEW_EMOTE_SEEDS) {

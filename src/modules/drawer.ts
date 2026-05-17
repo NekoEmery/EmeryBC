@@ -13787,11 +13787,20 @@ export class EBCDrawer {
         tugBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:9px 10px;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;white-space:nowrap;";
         tugBtn.textContent = "↗ Tug";
 
+        // ── Untug Leash — loosen by one step ────────────────────────────────────
+        const untugBtn = document.createElement("button");
+        untugBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:9px 10px;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;white-space:nowrap;";
+        untugBtn.textContent = "↙ Untug";
+
         const refreshTugBtn = (): void => {
             tugBtn.title = tugCount >= MAX_TUGS
                 ? `Already at max tightness (${MAX_TUGS}/${MAX_TUGS})`
                 : `Give the leash a tug (${tugCount}/${MAX_TUGS})`;
             tugBtn.style.opacity = tugCount >= MAX_TUGS ? "0.55" : "1";
+            untugBtn.title = tugCount <= 0
+                ? "Already at default tightness (0/3)"
+                : `Loosen the leash (${tugCount}/${MAX_TUGS})`;
+            untugBtn.style.opacity = tugCount <= 0 ? "0.55" : "1";
         };
         refreshTugBtn();
 
@@ -13826,7 +13835,32 @@ export class EBCDrawer {
             tugBtn.style.background = "rgba(140,60,90,0.55)";
             setTimeout(() => { tugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
         });
+
+        untugBtn.addEventListener("mouseenter", () => { untugBtn.style.background = "rgba(120,50,80,0.5)"; untugBtn.style.borderColor = "#c090b0"; });
+        untugBtn.addEventListener("mouseleave", () => { untugBtn.style.background = "rgba(80,40,60,0.35)"; untugBtn.style.borderColor = "#8a5a7888"; });
+        untugBtn.addEventListener("click", () => {
+            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+            const mood = getKittyMood();
+            if (tugCount <= 0) {
+                sendRoomEmote(mood === "rough"
+                    ? "tugs at the leash — it's already sitting loose~"
+                    : "checks the leash — it's already at its usual fit~");
+                untugBtn.style.background = "rgba(100,40,40,0.55)";
+                setTimeout(() => { untugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
+                return;
+            }
+            tugCount--;
+            sendRoomEmote(mood === "rough"
+                ? "yanks the leash back a notch, giving the collar a little more play~"
+                : "gives the leash a bit of slack, letting Emery's collar ease up~");
+            refreshTugBtn();
+            // Brief flash
+            untugBtn.style.background = "rgba(60,100,80,0.45)";
+            setTimeout(() => { untugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
+        });
+
         leashRow.appendChild(tugBtn);
+        leashRow.appendChild(untugBtn);
         body.appendChild(leashRow);
 
         // Helper: styled section header with optional edit toggle

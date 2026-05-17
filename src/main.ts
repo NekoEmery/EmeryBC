@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.107";
+const MOD_VERSION = "2.2.108";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.108",
+        changes: [
+            "Kitty Leash: added ↙ Untug button — decrements tug count by one and sends a collar-loosening emote. Both Tug and Untug buttons dim when at their respective limits.",
+            "Kitty Bap: fixed migration so stored kind text ('bap on the nose') is caught regardless of trailing emoji variations. Also seeds autoreact/autoreactRough fields for old stored entries — eeep reaction was silently missing.",
+            "Kitty Resistance popup: fight-back and auto-fail emotes now include the item name (e.g. 'refusing the gag', 'earns herself a bind'). Manual accept is now silent — no emote sent. Auto-fail emotes are now bratty rather than resigned.",
+        ],
+    },
     {
         version: "2.2.107",
         changes: [
@@ -2727,6 +2735,10 @@ function showKittyResistancePopup(
 ): void {
     if (document.getElementById("ebc-kitty-resist")) return;
 
+    // Extract a clean item name from the label (strip leading emoji/symbols) for use in emotes
+    const itemName = label.replace(/^[^a-zA-Z]+/, "").trim().toLowerCase() || "";
+    const hasItem  = restraintItems.length > 0;
+
     const overlay = document.createElement("div");
     overlay.id = "ebc-kitty-resist";
     overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);";
@@ -2763,8 +2775,8 @@ function showKittyResistancePopup(
     fightBtn.textContent = "Fight back! 💪";
     fightBtn.addEventListener("click", () => {
         const emoteText = mood === "rough"
-            ? "*twists away sharply, refusing to submit~"
-            : "*squirms and shakes her head, resisting with a pout~";
+            ? (hasItem ? `*twists away sharply, refusing the ${itemName}~` : "*twists away sharply, refusing to submit~")
+            : (hasItem ? `*squirms and shakes her head, pushing back against the ${itemName} with a pout~` : "*squirms and shakes her head, resisting with a pout~");
         try {
             const w = window as unknown as Record<string, unknown>;
             // Use BC's own ChatRoomSendChat pipeline — identical to the user typing *text* in the
@@ -2793,16 +2805,18 @@ function showKittyResistancePopup(
     const doAccept = (autoFailed: boolean): void => {
         if (isResolved) return;
         isResolved = true;
-        // Send the appropriate emote before applying anything
+        // Auto-fail sends a bratty emote; manual accept is silent — no emote
         try {
-            const emote = autoFailed
-                ? (mood === "rough"
-                    ? "struggles with everything she has but crumbles all the same, resistance fading despite herself~"
-                    : "squirms and fights a little longer before going still, unable to find the will to refuse~")
-                : (mood === "rough"
-                    ? "stills with a quiet whimper, yielding without further struggle~"
-                    : "takes a slow breath and gives a small nod, accepting obediently~ 🌸");
-            ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+            if (autoFailed) {
+                const emote = mood === "rough"
+                    ? (hasItem
+                        ? `crumbles at the last second with a huffy exhale, earning herself a ${itemName} for the trouble — she is very much on record as having fought back~`
+                        : "crumbles at the last second with a frustrated huff, resisting right up until she simply doesn't~")
+                    : (hasItem
+                        ? `squirms right up until the very end and goes still with a sulky pout — ends up with a ${itemName} anyway~`
+                        : "squirms right up until the very end and goes still with a sulky exhale~");
+                ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+            }
         } catch { /* ignore */ }
         // Apply restraint items to self (with full craft/property/difficulty support)
         if (restraintItems.length > 0) {
