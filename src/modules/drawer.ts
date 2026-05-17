@@ -11238,7 +11238,7 @@ export class EBCDrawer {
                                     setFriendTagList(num, updated);
                                     rebuildChips();
                                     renderTagArea();
-                                    if (updated.length > 0) { if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn); }
+                                    if (updated.length > 0) { if (!metaRow.contains(tagArea)) metaRow.appendChild(tagArea); }
                                     else tagArea.remove();
                                 });
                                 chip.appendChild(dot2);
@@ -11299,7 +11299,7 @@ export class EBCDrawer {
                         newTagInput.style.borderColor = "#3a1928";
                         rebuildChips();
                         renderTagArea();
-                        if (!row.contains(tagArea)) row.insertBefore(tagArea, beepBtn);
+                        if (!metaRow.contains(tagArea)) metaRow.appendChild(tagArea);
                     };
                     addTagBtn.addEventListener("click", doAddTag);
                     newTagInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); doAddTag(); } });
