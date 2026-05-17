@@ -224,6 +224,14 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
             if (step === "_") {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
+            } else if (step.toLowerCase() === "leaveroom") {
+                Player.ActivePose = originalPoses;
+                seqRunning = false;
+                window.setTimeout(() => {
+                    callBC(() => CommonSetScreen("Online", "ChatSearch"));
+                    callBC(() => ChatRoomLeave());
+                }, 0);
+                return;
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");
             } else if (step.startsWith("*")) {

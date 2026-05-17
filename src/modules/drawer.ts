@@ -12514,13 +12514,14 @@ export class EBCDrawer {
         const DEFAULT_DELAY = 600;
 
         // Parse current emote value into step rows
-        interface SeqStep { type: "action" | "emote" | "pose" | "reset"; text: string; delay: number; }
+        interface SeqStep { type: "action" | "emote" | "pose" | "reset" | "leaveroom"; text: string; delay: number; }
 
         const parseSteps = (raw: string): SeqStep[] => {
             if (!raw.trim()) return [];
             return raw.split("|").map(r => r.trim()).filter(Boolean).map(r => {
                 const { content, delay } = parseStep(r, DEFAULT_DELAY);
                 if (content === "_") return { type: "reset" as const, text: "", delay };
+                if (content.toLowerCase() === "leaveroom") return { type: "leaveroom" as const, text: "", delay };
                 if (content.startsWith("!")) return { type: "action" as const, text: content.slice(1), delay };
                 if (content.startsWith("*")) return { type: "emote" as const, text: content.slice(1), delay };
                 return { type: "pose" as const, text: content, delay };
@@ -12529,6 +12530,7 @@ export class EBCDrawer {
 
         const serializeSteps = (steps: SeqStep[]): string => {
             return steps.map(s => {
+                if (s.type === "leaveroom") return "leaveroom";
                 let content = "";
                 if (s.type === "reset") content = "_";
                 else if (s.type === "action") content = "!" + s.text;
@@ -12559,10 +12561,11 @@ export class EBCDrawer {
                 const typeSelect = document.createElement("select");
                 typeSelect.className = "ebc-seq-type-select";
                 [
-                    { value: "action", label: "Action !" },
-                    { value: "emote",  label: "Emote *"  },
-                    { value: "pose",   label: "Pose"     },
-                    { value: "reset",  label: "Reset _"  },
+                    { value: "action",    label: "Action !"     },
+                    { value: "emote",     label: "Emote *"      },
+                    { value: "pose",      label: "Pose"         },
+                    { value: "reset",     label: "Reset _"      },
+                    { value: "leaveroom", label: "Leave Room 🚪" },
                 ].forEach(opt => {
                     const o = document.createElement("option");
                     o.value = opt.value; o.textContent = opt.label;
@@ -12570,16 +12573,20 @@ export class EBCDrawer {
                     typeSelect.appendChild(o);
                 });
 
+                const noText  = step.type === "reset" || step.type === "leaveroom";
+                const noDelay = step.type === "leaveroom";
+
                 // Text input
                 const textInp = document.createElement("input");
                 textInp.className = "ebc-seq-text-inp";
                 textInp.type = "text";
                 textInp.value = step.text;
                 textInp.placeholder = step.type === "pose" ? "e.g. HandsUp" : "text...";
-                textInp.disabled = step.type === "reset";
+                textInp.disabled = noText;
                 textInp.maxLength = 200;
+                if (noText) textInp.style.opacity = "0.35";
 
-                // Delay input (ms)
+                // Delay input (ms) — hidden for leaveroom since nothing follows
                 const delayInp = document.createElement("input");
                 delayInp.className = "ebc-seq-delay-inp";
                 delayInp.type = "number";
@@ -12588,6 +12595,7 @@ export class EBCDrawer {
                 delayInp.step = "100";
                 delayInp.value = String(step.delay);
                 delayInp.title = "Delay after this step (ms)";
+                if (noDelay) delayInp.style.visibility = "hidden";
 
                 // Delete button
                 const delBtn = document.createElement("button");
@@ -12607,8 +12615,12 @@ export class EBCDrawer {
                 typeSelect.addEventListener("change", () => {
                     const t = typeSelect.value as SeqStep["type"];
                     steps[sidx].type = t;
-                    textInp.disabled = t === "reset";
-                    if (t === "reset") { steps[sidx].text = ""; textInp.value = ""; }
+                    const noTxt = t === "reset" || t === "leaveroom";
+                    const noDly = t === "leaveroom";
+                    textInp.disabled = noTxt;
+                    textInp.style.opacity = noTxt ? "0.35" : "";
+                    delayInp.style.visibility = noDly ? "hidden" : "";
+                    if (noTxt) { steps[sidx].text = ""; textInp.value = ""; }
                     btns[idx].emote = serializeSteps(steps);
                 });
 
@@ -12633,7 +12645,25 @@ export class EBCDrawer {
 
         renderSteps();
 
-        // + Add step button
+        // Button row: template shortcut + add step
+        const seqBtnRow = document.createElement("div");
+        seqBtnRow.style.cssText = "display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;";
+
+        const templateBtn = document.createElement("button");
+        templateBtn.className = "ebc-seq-add-btn";
+        templateBtn.textContent = "📤 Slow Leave template";
+        templateBtn.title = "Fill with a simple slow leave sequence";
+        templateBtn.addEventListener("click", () => {
+            steps = [
+                { type: "emote",     text: "smiles and gives a little wave~",  delay: 2500 },
+                { type: "emote",     text: "slowly heads for the door...",      delay: 0    },
+                { type: "leaveroom", text: "",                                  delay: 0    },
+            ];
+            btns[idx].emote = serializeSteps(steps);
+            renderSteps();
+        });
+        seqBtnRow.appendChild(templateBtn);
+
         const addBtn = document.createElement("button");
         addBtn.className = "ebc-seq-add-btn";
         addBtn.textContent = "+ Add step";
@@ -12642,7 +12672,9 @@ export class EBCDrawer {
             btns[idx].emote = serializeSteps(steps);
             renderSteps();
         });
-        wrapper.appendChild(addBtn);
+        seqBtnRow.appendChild(addBtn);
+
+        wrapper.appendChild(seqBtnRow);
 
         return wrapper;
     }
