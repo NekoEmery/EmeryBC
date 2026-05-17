@@ -25797,7 +25797,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.40";
+    const MOD_VERSION = "2.2.41";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25808,6 +25808,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.41",
+            changes: [
+                "New commands: /lock and /unlock — lock or unlock the room from chat. Shows an error if you are not a room admin or not in a room.",
+            ],
+        },
         {
             version: "2.2.40",
             changes: [
@@ -27924,12 +27930,34 @@
         }
     }
     function handleMetaCommand(inputValue) {
-        var _a;
+        var _a, _b, _c;
         const trimmed = inputValue.trim();
         if (!trimmed.startsWith("/"))
             return false;
         const parts = trimmed.slice(1).split(/\s+/);
-        if (((_a = parts[0]) === null || _a === void 0 ? void 0 : _a.toLowerCase()) !== "ebc")
+        const cmd0 = (_b = (_a = parts[0]) === null || _a === void 0 ? void 0 : _a.toLowerCase()) !== null && _b !== void 0 ? _b : "";
+        // ── /lock  /unlock ────────────────────────────────────────────────────────
+        if (cmd0 === "lock" || cmd0 === "unlock") {
+            const w = window;
+            const rd = w.ChatRoomData;
+            if (w.CurrentScreen !== "ChatRoom" || rd == null) {
+                appendLocalLogLine("[EBC] /lock — not in a chatroom.", UI.danger);
+                return true;
+            }
+            if (!Array.isArray(rd.Admin) || !rd.Admin.includes(Player.MemberNumber)) {
+                appendLocalLogLine("[EBC] /lock — you are not a room admin.", UI.danger);
+                return true;
+            }
+            const wantLock = cmd0 === "lock";
+            if (((_c = rd.Locked) !== null && _c !== void 0 ? _c : false) === wantLock) {
+                appendLocalLogLine(`[EBC] Room is already ${wantLock ? "locked" : "unlocked"}.`, UI.textMuted);
+                return true;
+            }
+            callBC(() => ServerSend("ChatRoomAdmin", { MemberNumber: Player.MemberNumber, Action: wantLock ? "Lock" : "Unlock" }));
+            appendLocalLogLine(`[EBC] Room ${wantLock ? "🔒 locked" : "🔓 unlocked"}.`, UI.gold);
+            return true;
+        }
+        if (cmd0 !== "ebc")
             return false;
         const subcommand = (parts[1] || "version").toLowerCase();
         if (["version", "ver", "v"].includes(subcommand)) {
@@ -27974,7 +28002,7 @@
             }
             return true;
         }
-        appendLocalLogLine("[EBC] Commands: /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
+        appendLocalLogLine("[EBC] Commands: /lock  /unlock  |  /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
         return true;
     }
     // -- Update notification -------------------------------------------------------
