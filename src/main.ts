@@ -1,5 +1,4 @@
-﻿import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
-import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
+﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
 import { handleOutfitCommand, handleRestraintCommand } from "./modules/outfitManager";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
@@ -19,7 +18,7 @@ import { callBC } from "./modules/bcUtils";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.46";
+const MOD_VERSION = "2.2.47";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -33,6 +32,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.47",
+        changes: [
+            "Removed canvas action buttons sidebar. Slow Leave is now a simple button in the quick-actions area (default off — toggle it on in the DEV tab).",
+        ],
+    },
     {
         version: "2.2.46",
         changes: [
@@ -2534,19 +2539,6 @@ function init(): void {
     } catch { /* ignore */ }
 
 
-    // Canvas sidebar action buttons
-    modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
-        next(args);
-        try { drawActionButtons(); } catch { /* ignore */ }
-    });
-
-    modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
-        try { if (handleActionButtonClick()) return; } catch { /* ignore */ }
-        return next(args);
-    });
-
-    // Attach hold-to-drag for the grip handle (mousedown/touchstart on canvas)
-    try { initDragListener(); } catch { /* ignore */ }
 
     // DOM drawer - outfit switcher panel beside the chat log
     let drawer: EBCDrawer | null = null;

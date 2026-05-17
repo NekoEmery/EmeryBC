@@ -237,22 +237,6 @@ export function setRestraintLogEnabled(value: boolean): void {
     } catch { /* ignore */ }
 }
 
-// -- Action buttons sidebar visibility ----------------------------------------
-// When off, the entire quick-action button sidebar is hidden from the canvas.
-
-export function getActionButtonsVisible(): boolean {
-    try { return getStore()?.actionButtonsVisible !== false; } catch { return true; }
-}
-
-export function setActionButtonsVisible(value: boolean): void {
-    try {
-        const store = getStore();
-        if (!store) return;
-        store.actionButtonsVisible = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
-    } catch { /* ignore */ }
-}
-
 // -- Beep mute -----------------------------------------------------------------
 
 export function getBeepMuted(): boolean {
