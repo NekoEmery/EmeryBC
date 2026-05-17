@@ -14316,10 +14316,8 @@
             this.slCollapseHdr = null;
             this.slCollapseBody = null;
             this.slPresetDropdown = null;
-            this.slCatDropdown = null;
             this.slDurSlider = null;
             this.slDurVal = null;
-            this.slRefreshCat = null;
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
@@ -14607,8 +14605,6 @@
                     localStorage.setItem("EBC_slowLeaveOpen", open ? "1" : "0");
                 }
                 catch ( /* ignore */_a) { /* ignore */ }
-                if (open)
-                    refreshCatDropdown(); // refresh now that Player is initialised
             });
             // Slow Leave action button
             const slowLeaveBtn = document.createElement("button");
@@ -14686,58 +14682,6 @@
                 }
             });
             slCollapseBody.appendChild(slSeqArea);
-            // Button category selector (with × delete)
-            const slCatRow = document.createElement("div");
-            slCatRow.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;box-sizing:border-box;";
-            const slCatDropdown = document.createElement("select");
-            slCatDropdown.style.cssText = DD_CSS + "flex:1;";
-            slCatDropdown.title = "Switch action button category";
-            const refreshCatDropdown = () => {
-                try {
-                    while (slCatDropdown.firstChild)
-                        slCatDropdown.removeChild(slCatDropdown.firstChild);
-                    const cats = getCategories();
-                    cats.forEach((cat, i) => {
-                        const o = document.createElement("option");
-                        o.value = String(i);
-                        o.textContent = cat.name;
-                        slCatDropdown.appendChild(o);
-                    });
-                    slCatDropdown.value = String(getActiveCategoryIndex());
-                }
-                catch ( /* Player may not be initialised yet */_a) { /* Player may not be initialised yet */ }
-            };
-            refreshCatDropdown();
-            slCatDropdown.addEventListener("change", () => {
-                setActiveCategoryIndex(parseInt(slCatDropdown.value, 10));
-                if (this.currentTab === "buttons")
-                    this.rerender();
-            });
-            const slCatDelBtn = document.createElement("button");
-            slCatDelBtn.textContent = "×";
-            slCatDelBtn.title = "Delete this category";
-            slCatDelBtn.style.cssText = "flex-shrink:0;padding:0 5px;height:18px;font-size:11px;line-height:1;background:#2a0d18;color:#cf6f98;border:1px solid #3a1928;border-radius:3px;cursor:pointer;";
-            slCatDelBtn.addEventListener("click", () => {
-                const cats = getCategories();
-                if (cats.length <= 1)
-                    return; // never delete the last category
-                const delIdx = parseInt(slCatDropdown.value, 10);
-                if (delIdx < 0 || delIdx >= cats.length)
-                    return;
-                if (!confirm(`Delete category "${cats[delIdx].name}"? Its buttons will be lost.`))
-                    return;
-                cats.splice(delIdx, 1);
-                const newIdx = Math.min(delIdx, cats.length - 1);
-                saveCategories(cats, newIdx);
-                refreshCatDropdown();
-                if (this.currentTab === "buttons")
-                    this.rerender();
-            });
-            slCatRow.appendChild(slCatDropdown);
-            slCatRow.appendChild(slCatDelBtn);
-            slCollapseBody.appendChild(slCatRow);
-            this.slCatDropdown = slCatDropdown;
-            this.slRefreshCat = refreshCatDropdown;
             // Duration slider
             const slDurRow = document.createElement("div");
             slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
@@ -15592,7 +15536,7 @@
             this.updateSlowLeaveVisibility();
         }
         updateSlowLeaveVisibility() {
-            var _a, _b;
+            var _a;
             if (!this.slowLeaveBtn)
                 return;
             const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
@@ -15600,13 +15544,6 @@
             const wrapper = (_a = this.slCollapseHdr) === null || _a === void 0 ? void 0 : _a.parentElement;
             if (wrapper)
                 wrapper.style.display = inRoom ? "flex" : "none";
-            // When entering a room refresh the category dropdown (Player is now available)
-            if (inRoom) {
-                try {
-                    (_b = this.slRefreshCat) === null || _b === void 0 ? void 0 : _b.call(this);
-                }
-                catch ( /* ignore */_c) { /* ignore */ }
-            }
             // Reset button label if no sequence is currently running
             if (!isSeqRunning()) {
                 this.slowLeaveBtn.textContent = "🚶 Slow Leave";
@@ -27785,7 +27722,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.87";
+    const MOD_VERSION = "2.2.88";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27796,6 +27733,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.88",
+            changes: [
+                "Slow Leave: removed button-category dropdown from the sidebar collapsible — it was confusing and isn't needed there.",
+            ],
+        },
         {
             version: "2.2.87",
             changes: [
