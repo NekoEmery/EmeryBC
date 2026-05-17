@@ -11661,13 +11661,13 @@
     }
     // -- Slow Leave preset storage -------------------------------------------------
     const SLOW_LEAVE_PRESET_DEFAULTS = [
-        { label: "🌸 Classic", seq: "*smiles and gives a little wave~@{DUR}|*slowly heads for the door...@0|leaveroom" },
-        { label: "🤗 Warm", seq: "*gives everyone a warm hug before leaving~@{DUR}|*heads for the door with a soft smile~@0|leaveroom" },
-        { label: "😔 Quiet", seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
-        { label: "💤 Sleepy", seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
-        { label: "🐾 Playful", seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
-        { label: "😏 Bratty", seq: "*stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much.@{DUR}|*saunters out without a single look back~@0|leaveroom" },
-        { label: "✏️ Custom", seq: "*waves and heads for the door~@{DUR}|leaveroom" },
+        { label: "Classic", seq: "*smiles and gives a little wave~@{DUR}|*slowly heads for the door...@0|leaveroom" },
+        { label: "Warm", seq: "*gives everyone a warm hug before leaving~@{DUR}|*heads for the door with a soft smile~@0|leaveroom" },
+        { label: "Quiet", seq: "*quietly slips toward the door...@{DUR}|leaveroom" },
+        { label: "Sleepy", seq: "*yawns softly and stretches~@{DUR}|*pads sleepily toward the door...@0|leaveroom" },
+        { label: "Playful", seq: "*bounces happily and waves her tail~@{DUR}|*skips her way out the door~@0|leaveroom" },
+        { label: "Bratty", seq: "*stretches dramatically and rolls her eyes~ Fine, leaving. Don't miss me too much.@{DUR}|*saunters out without a single look back~@0|leaveroom" },
+        { label: "Custom", seq: "*waves and heads for the door~@{DUR}|leaveroom" },
     ];
     function getSlowLeavePresets() {
         try {
@@ -24196,154 +24196,12 @@
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a, _b;
+            var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── Fun Actions ──────────────────────────────────────────────────────
-            const faHdr = document.createElement("div");
-            faHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;";
-            faHdr.textContent = "Fun Actions";
-            body.appendChild(faHdr);
-            // ── Slow Leave config ─────────────────────────────────────────────────
-            const BOX_CSS = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-            const LBL_CSS = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
-            const VAL_CSS = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
-            const SL_CSS = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            // Duration slider row
-            const durRow = document.createElement("div");
-            durRow.style.cssText = BOX_CSS;
-            const durLbl = document.createElement("span");
-            durLbl.style.cssText = LBL_CSS;
-            durLbl.textContent = "Duration";
-            const durVal = document.createElement("span");
-            durVal.style.cssText = VAL_CSS;
-            const durSlider = document.createElement("input");
-            durSlider.type = "range";
-            durSlider.min = "2";
-            durSlider.max = "30";
-            durSlider.step = "1";
-            durSlider.value = (_b = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _b !== void 0 ? _b : "5";
-            durSlider.style.cssText = SL_CSS;
-            const updateDurVal = () => { durVal.textContent = durSlider.value + "s"; };
-            updateDurVal();
-            durSlider.addEventListener("input", () => {
-                updateDurVal();
-                try {
-                    localStorage.setItem("EBC_slowLeaveDuration", durSlider.value);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            });
-            durRow.appendChild(durLbl);
-            durRow.appendChild(durSlider);
-            durRow.appendChild(durVal);
-            body.appendChild(durRow);
-            // ── Preset selector + inline editor (one unified bordered card) ───────
-            let slPresets = getSlowLeavePresets();
-            const INP9 = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 5px;min-width:0;";
-            const preCard = document.createElement("div");
-            preCard.style.cssText = "display:flex;flex-direction:column;margin-bottom:10px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);overflow:hidden;";
-            // ── Row 1: Preset dropdown ──
-            const preTopRow = document.createElement("div");
-            preTopRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-bottom:1px solid #2a1421;";
-            const preLbl = document.createElement("span");
-            preLbl.style.cssText = LBL_CSS;
-            preLbl.textContent = "Preset";
-            const preSel = document.createElement("select");
-            preSel.style.cssText = "flex:1;" + INP9 + "cursor:pointer;";
-            preTopRow.appendChild(preLbl);
-            preTopRow.appendChild(preSel);
-            preCard.appendChild(preTopRow);
-            // ── Row 2: Editable name + reset ──
-            const pdNameRow = document.createElement("div");
-            pdNameRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:5px 7px 0;";
-            const pdNameLbl = document.createElement("span");
-            pdNameLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;width:32px;";
-            pdNameLbl.textContent = "Name";
-            const pdNameInp = document.createElement("input");
-            pdNameInp.type = "text";
-            pdNameInp.style.cssText = "flex:1;" + INP9 + "color:#cf6f98;";
-            const pdResetBtn = document.createElement("button");
-            pdResetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 5px;border-radius:3px;border:1px solid #3a1928;background:#1b0d17;color:#7a4a5e;cursor:pointer;flex-shrink:0;";
-            pdResetBtn.textContent = "↺";
-            pdResetBtn.title = "Reset this preset to default";
-            pdNameRow.appendChild(pdNameLbl);
-            pdNameRow.appendChild(pdNameInp);
-            pdNameRow.appendChild(pdResetBtn);
-            preCard.appendChild(pdNameRow);
-            // ── Row 3: Sequence textarea ──
-            const pdSeqRow = document.createElement("div");
-            pdSeqRow.style.cssText = "display:flex;align-items:flex-start;gap:5px;padding:4px 7px 7px;";
-            const pdSeqLbl = document.createElement("span");
-            pdSeqLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;width:32px;padding-top:4px;";
-            pdSeqLbl.textContent = "Seq";
-            const pdSeqTa = document.createElement("textarea");
-            pdSeqTa.rows = 3;
-            pdSeqTa.style.cssText = "flex:1;box-sizing:border-box;" + INP9 + "resize:vertical;";
-            pdSeqTa.placeholder = "Steps separated by | — use {DUR} for the delay, leaveroom to leave";
-            pdSeqRow.appendChild(pdSeqLbl);
-            pdSeqRow.appendChild(pdSeqTa);
-            preCard.appendChild(pdSeqRow);
-            body.appendChild(preCard);
-            // ── Wire up preset detail ──────────────────────────────────────────────
-            const getPreIdx = () => Math.max(0, Math.min(slPresets.length - 1, parseInt(preSel.value || "0", 10)));
-            const rebuildPreSel = () => {
-                var _a;
-                slPresets = getSlowLeavePresets();
-                const cur = (_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0";
-                while (preSel.firstChild)
-                    preSel.removeChild(preSel.firstChild);
-                slPresets.forEach((p, i) => {
-                    const opt = document.createElement("option");
-                    opt.value = String(i);
-                    opt.textContent = p.label;
-                    preSel.appendChild(opt);
-                });
-                preSel.value = cur;
-            };
-            const updatePresetDetail = () => {
-                slPresets = getSlowLeavePresets();
-                const p = slPresets[getPreIdx()];
-                pdNameInp.value = p.label;
-                pdSeqTa.value = p.seq;
-            };
-            const saveCurrentPreset = () => {
-                slPresets = getSlowLeavePresets();
-                const idx = getPreIdx();
-                slPresets[idx] = {
-                    label: pdNameInp.value.trim() || SLOW_LEAVE_PRESET_DEFAULTS[idx].label,
-                    seq: pdSeqTa.value.trim() || SLOW_LEAVE_PRESET_DEFAULTS[idx].seq,
-                };
-                saveSlowLeavePresets(slPresets);
-                rebuildPreSel();
-                preSel.value = String(idx);
-            };
-            rebuildPreSel();
-            updatePresetDetail();
-            preSel.addEventListener("change", () => {
-                try {
-                    localStorage.setItem("EBC_slowLeavePreset", preSel.value);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                updatePresetDetail();
-            });
-            pdNameInp.addEventListener("change", saveCurrentPreset);
-            pdSeqTa.addEventListener("change", saveCurrentPreset);
-            pdResetBtn.addEventListener("click", () => {
-                slPresets = getSlowLeavePresets();
-                const idx = getPreIdx();
-                slPresets[idx] = Object.assign({}, SLOW_LEAVE_PRESET_DEFAULTS[idx]);
-                saveSlowLeavePresets(slPresets);
-                updatePresetDetail();
-                rebuildPreSel();
-                preSel.value = String(idx);
-            });
-            // divider
-            const faDivider = document.createElement("div");
-            faDivider.style.cssText = "height:1px;background:#2a1421;margin-bottom:10px;";
-            body.appendChild(faDivider);
             // Working category state
             const cats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
             let activeCatIdx = getActiveCategoryIndex();
@@ -27722,7 +27580,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.88";
+    const MOD_VERSION = "2.2.89";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27733,6 +27591,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.89",
+            changes: [
+                "Slow Leave: removed emoji prefixes from preset names in the dropdown.",
+                "Buttons tab: removed the Fun Actions section (Duration/Preset/Name/Seq editor) — Slow Leave is configured entirely from the sidebar collapsible.",
+            ],
+        },
         {
             version: "2.2.88",
             changes: [
