@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.66";
+const MOD_VERSION = "2.2.67";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.67",
+        changes: [
+            "Kitty emotes now have rough variants: each emote has a separate ⚡ Rough text shown when mood is Rough (e.g. headpat becomes a hair-tug, snuggle becomes a firm hold). Edit mode shows 🌸 Kind / ⚡ Rough rows per emote. Leave rough blank to reuse the kind text.",
+            "Headpat (and Good Girl) now trigger Emery's ear-wiggle expression (CharacterSetFacialExpression) via a new 'expression' kitty command. Configurable per-emote via the expression field; seeds automatically on first load.",
+            "Kitty restraint set import now accepts LZ-compressed BC outfit codes (same format as BC's own outfit export) — restraint items are extracted automatically. Also added 'From saved restraints' picker: choose any of Emery's saved restraint sets from the outfit manager and use them directly. Craft names/descriptions, item properties, and difficulty are now preserved when items are applied.",
+        ],
+    },
     {
         version: "2.2.66",
         changes: [
@@ -2449,13 +2457,30 @@ function showKittyResistancePopup(label: string, mood: "kind" | "rough", restrai
     acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
     acceptBtn.textContent = "Accept~ 🌸";
     acceptBtn.addEventListener("click", () => {
-        // Apply restraint items to self
+        // Apply restraint items to self (with full craft/property/difficulty support)
         if (restraintItems.length > 0) {
             try {
                 const w = window as unknown as Record<string, unknown>;
+                const iw = w.InventoryWear as
+                    ((c: unknown, name: string, group: string, color: unknown, diff: number, family: string, craft: unknown) => void) | undefined;
                 for (const item of restraintItems) {
-                    (w.InventoryWear as ((c: unknown, name: string, group: string, color: unknown) => void) | undefined)
-                        ?.(Player, item.Name, item.Group, item.Color ?? "Default");
+                    if (iw) {
+                        iw(Player, item.Name, item.Group, item.Color ?? "Default",
+                            item.Difficulty ?? 0, Player.AssetFamily ?? "Female3DCG", item.Craft ?? null);
+                        // InventoryWear doesn't set Property — patch it in afterwards
+                        if (item.Property && Object.keys(item.Property).length > 0) {
+                            const worn = Player.Appearance.find((a: Item) => a.Asset.Group.Name === item.Group);
+                            if (worn) {
+                                worn.Property = {
+                                    ...(worn.Property as Record<string, unknown> ?? {}),
+                                    ...(item.Property as Record<string, unknown>),
+                                } as Record<string, unknown>;
+                            }
+                        }
+                    } else {
+                        (w.InventoryWear as ((c: unknown, name: string, group: string, color: unknown) => void) | undefined)
+                            ?.(Player, item.Name, item.Group, item.Color ?? "Default");
+                    }
                 }
                 (w.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(Player, false, false);
                 if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
@@ -2611,6 +2636,22 @@ function handleKittyCommand(msg: string): void {
                 } catch {
                     showKittyReactPopup(arg);
                 }
+                break;
+            }
+            case "expression": {
+                // arg format: "FaceType:State"  e.g. "Ears:Wiggle"
+                // Triggers a BC facial expression on Emery's own character (self-applied).
+                try {
+                    const colonIdx = arg.indexOf(":");
+                    if (colonIdx > 0) {
+                        const face  = arg.slice(0, colonIdx);
+                        const state = arg.slice(colonIdx + 1);
+                        const w = window as unknown as Record<string, unknown>;
+                        const fn = w.CharacterSetFacialExpression as
+                            ((c: Character, face: string, state: string | null) => void) | undefined;
+                        if (fn) fn(Player, face, state || null);
+                    }
+                } catch { /* ignore */ }
                 break;
             }
         }

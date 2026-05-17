@@ -12,15 +12,20 @@ export type KittyMood = "kind" | "rough";
 export interface KittyEmote {
     id: string;
     label: string;         // button label shown in the menu
-    text: string;          // message body (no asterisks / parens — those are added by BC)
+    text: string;          // message body in kind mode (no asterisks / parens — those are added by BC)
+    roughText?: string;    // message body used when mood is "rough" (falls back to text if empty)
     type: "emote" | "action"; // emote = * Lucy text * , action = (Lucy text)
     interactive?: boolean; // if true, also sends a react beep so Emery can respond
+    expression?: string;   // kitty expression command to send on click, e.g. "Ears:Wiggle"
 }
 
 export interface KittyItem {
     Name: string;
     Group: string;
     Color?: string | string[];
+    Difficulty?: number;
+    Property?: Record<string, unknown>;
+    Craft?: Record<string, unknown>;
 }
 
 export interface KittyRestraintSet {
@@ -50,12 +55,42 @@ export interface KittyPunishment {
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_EMOTES: KittyEmote[] = [
-    { id: "headpat",   label: "🐾 Headpat",   text: "gently pats Emery on the head~ 🐾",                              type: "emote"  },
-    { id: "goodgirl",  label: "✨ Good girl",  text: "scratches Emery behind the ears~ Good girl~ ✨",                  type: "emote"  },
-    { id: "treat",     label: "🍖 Treat",      text: "holds out a treat for her little pet~ 🍖",                        type: "emote",  interactive: true },
-    { id: "praise",    label: "🎀 Praise",     text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀", type: "emote",  interactive: true },
-    { id: "announce",  label: "💜 Mine",       text: "Emery belongs to Lucy~ 💜",                                      type: "action" },
-    { id: "snuggle",   label: "🤗 Snuggle",    text: "pulls Emery into a warm snuggle, resting her chin on her head~", type: "emote"  },
+    {
+        id: "headpat",  label: "🐾 Headpat",
+        text:      "gently pats Emery on the head~ 🐾",
+        roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
+        type: "emote", expression: "Ears:Wiggle",
+    },
+    {
+        id: "goodgirl", label: "✨ Good girl",
+        text:      "scratches Emery behind the ears~ Good girl~ ✨",
+        roughText: "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
+        type: "emote", expression: "Ears:Wiggle",
+    },
+    {
+        id: "treat",    label: "🍖 Treat",
+        text:      "holds out a treat for her little pet~ 🍖",
+        roughText: "tosses a treat at Emery's feet without even looking up~",
+        type: "emote",  interactive: true,
+    },
+    {
+        id: "praise",   label: "🎀 Praise",
+        text:      "pats Emery's head with a warm smile~ Such a precious thing~ 🎀",
+        roughText: "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
+        type: "emote",  interactive: true,
+    },
+    {
+        id: "announce", label: "💜 Mine",
+        text:      "Emery belongs to Lucy~ 💜",
+        roughText: "Emery is Lucy's. End of discussion.~",
+        type: "action",
+    },
+    {
+        id: "snuggle",  label: "🤗 Snuggle",
+        text:      "pulls Emery into a warm snuggle, resting her chin on her head~",
+        roughText: "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
+        type: "emote",
+    },
 ];
 
 const DEFAULT_POSES: KittyPose[] = [
@@ -123,8 +158,28 @@ export function getKittyMood(): KittyMood {
 }
 export function setKittyMood(m: KittyMood): void { lsSet("EBC_kittyMood", m); }
 
+// Seed values for existing stored emotes that predate the roughText / expression fields.
+// Only applied if the field is currently undefined (user hasn't touched it yet).
+const ROUGH_TEXT_SEEDS: Record<string, string> = {
+    "headpat":  "grabs Emery by the hair and gives her head a firm tug~ 🐾",
+    "goodgirl": "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
+    "treat":    "tosses a treat at Emery's feet without even looking up~",
+    "praise":   "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
+    "announce": "Emery is Lucy's. End of discussion.~",
+    "snuggle":  "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
+};
+const EXPRESSION_SEEDS: Record<string, string> = {
+    "headpat":  "Ears:Wiggle",
+    "goodgirl": "Ears:Wiggle",
+};
+
 export function getKittyEmotes(): KittyEmote[] {
-    return lsGet("EBC_kittyEmotes", DEFAULT_EMOTES);
+    const raw = lsGet<KittyEmote[]>("EBC_kittyEmotes", DEFAULT_EMOTES);
+    return raw.map(e => ({
+        ...e,
+        roughText:  e.roughText  ?? ROUGH_TEXT_SEEDS[e.id]  ?? "",
+        expression: e.expression ?? EXPRESSION_SEEDS[e.id]  ?? "",
+    }));
 }
 export function saveKittyEmotes(v: KittyEmote[]): void { lsSet("EBC_kittyEmotes", v); }
 
