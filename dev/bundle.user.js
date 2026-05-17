@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.64
+// @version      2.2.65
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25010,7 +25010,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 for (const item of s.items) {
                                     (_a = w.InventoryWear) === null || _a === void 0 ? void 0 : _a.call(w, emery, item.Name, item.Group, (_b = item.Color) !== null && _b !== void 0 ? _b : "Default");
                                 }
-                                (_c = w.CharacterRefresh) === null || _c === void 0 ? void 0 : _c.call(w, emery, false, false);
+                                // Push=true so other players see the change immediately
+                                (_c = w.CharacterRefresh) === null || _c === void 0 ? void 0 : _c.call(w, emery, true, false);
                             }
                             catch (err) {
                                 console.warn("[EBC Kitty] InventoryWear error:", err);
@@ -25031,14 +25032,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             for (const item of [...appearance]) {
                                 const assetGroup = (_b = item.Asset) === null || _b === void 0 ? void 0 : _b.Group;
                                 const groupName = assetGroup === null || assetGroup === void 0 ? void 0 : assetGroup.Name;
-                                if (!groupName)
+                                // Only remove restraint-slot items — never clothing, hair, body, etc.
+                                if (!groupName || !RESTRAINT_GROUPS.has(groupName))
                                     continue;
                                 try {
                                     (_c = w.InventoryRemove) === null || _c === void 0 ? void 0 : _c.call(w, emery, groupName, false);
                                 }
                                 catch ( /* skip locked */_e) { /* skip locked */ }
                             }
-                            (_d = w.CharacterRefresh) === null || _d === void 0 ? void 0 : _d.call(w, emery, false, false);
+                            // Push=true so the server and other players see the change
+                            (_d = w.CharacterRefresh) === null || _d === void 0 ? void 0 : _d.call(w, emery, true, false);
                         }
                         catch (err) {
                             console.warn("[EBC Kitty] Release error:", err);
@@ -26561,7 +26564,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.64";
+    const MOD_VERSION = "2.2.65";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26572,6 +26575,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.65",
+            changes: [
+                "Fix kitty 'Release all': now only removes items in restraint slots (was accidentally removing clothing/hair/body items too). CharacterRefresh now uses Push=true so the change is visible to everyone in the room immediately. Also fixed restraint SET apply button the same way.",
+                "Fix /lock: was sending unsupported Action:'Lock' — now mutates ChatRoomData.Locked and calls ChatRoomAdminUpdate() (BC's own function) so the room actually updates, with fallback to Action:'Update' + full room object.",
+                "Fix /ebc: unknown subcommands now show a short 'Unknown command — type /ebc help' message instead of dumping the full command list. The full list only appears for /ebc, /ebc help, /ebc ?, etc.",
+                "Removed /ebc afk command (was in the list but had no handler, causing the full list to appear when clicked).",
+            ],
+        },
         {
             version: "2.2.64",
             changes: [
@@ -29173,7 +29185,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 appendLocalLogLine(`[EBC] Room is already ${wantLock ? "locked" : "unlocked"}.`, UI.textMuted);
                 return true;
             }
-            callBC(() => ServerSend("ChatRoomAdmin", { MemberNumber: Player.MemberNumber, Action: wantLock ? "Lock" : "Unlock" }));
+            try {
+                // Mutate the room data locally, then use BC's own update function (most reliable)
+                // or fall back to sending the full room update manually.
+                if (rd)
+                    rd.Locked = wantLock;
+                const updateFn = w.ChatRoomAdminUpdate;
+                if (typeof updateFn === "function") {
+                    callBC(() => w.ChatRoomAdminUpdate());
+                }
+                else if (rd) {
+                    callBC(() => ServerSend("ChatRoomAdmin", {
+                        MemberNumber: Player.MemberNumber,
+                        Action: "Update",
+                        Room: Object.assign({}, rd),
+                    }));
+                }
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
             appendLocalLogLine(`[EBC] Room ${wantLock ? "🔒 locked" : "🔓 unlocked"}.`, UI.gold);
             return true;
         }
@@ -29234,6 +29263,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             return true;
         }
+        // Unknown subcommand — show short hint, not the full list
+        if (subcommand && !["help", "?", "commands", "h"].includes(subcommand)) {
+            appendLocalLogLine(`[EBC] Unknown command "/ebc ${subcommand}". Type /ebc help for the command list.`, UI.danger);
+            return true;
+        }
         appendLocalLogLine("[EBC] Commands — click any to fill the chat bar:", UI.gold);
         appendClickableCmd("/lock", "Lock the current room (requires admin)");
         appendClickableCmd("/unlock", "Unlock the current room (requires admin)");
@@ -29246,7 +29280,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         appendClickableCmd("/ebc update", "Check GitHub for a newer version");
         appendClickableCmd("/ebc updates on", "Enable update notifications");
         appendClickableCmd("/ebc updates off", "Disable update notifications");
-        appendClickableCmd("/ebc afk", "Toggle AFK mode");
         return true;
     }
     // -- Update notification -------------------------------------------------------
