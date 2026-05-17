@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.96";
+const MOD_VERSION = "2.2.97";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.97",
+        changes: [
+            "Kitty: removed 🔗 Leash from the Emotes list — it is now handled entirely by the standalone leash buttons (Grab / Let Go / Tug).",
+            "Kitty: added ↗ Tug button next to the leash toggle — sends a mood-aware room emote ('gives Emery's leash a sharp tug~' / 'gives a gentle tug, urging her along~') and re-sends the HoldLeash signal to reinforce BC's follow relationship.",
+            "Fix: 🐾 Bap now uses the Pet (gentle touch) BC activity instead of Slap — Slap triggered a face-slap animation; Pet gives a light tap matching the playful bap description. Existing stored bap entries are migrated automatically.",
+        ],
+    },
     {
         version: "2.2.96",
         changes: [

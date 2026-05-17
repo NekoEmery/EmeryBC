@@ -13770,6 +13770,33 @@ export class EBCDrawer {
             refreshLeashBtn();
         });
         leashRow.appendChild(leashBtn);
+
+        // ── Tug Leash — secondary button ────────────────────────────────────────
+        const tugBtn = document.createElement("button");
+        tugBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:9px 10px;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;white-space:nowrap;";
+        tugBtn.textContent = "↗ Tug";
+        tugBtn.title = "Give the leash a tug";
+        tugBtn.addEventListener("mouseenter", () => { tugBtn.style.background = "rgba(120,50,80,0.5)"; tugBtn.style.borderColor = "#c090b0"; });
+        tugBtn.addEventListener("mouseleave", () => { tugBtn.style.background = "rgba(80,40,60,0.35)"; tugBtn.style.borderColor = "#8a5a7888"; });
+        tugBtn.addEventListener("click", () => {
+            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+            const mood = getKittyMood();
+            sendRoomEmote(mood === "rough"
+                ? "gives Emery's leash a sharp, decisive tug~"
+                : "gives Emery's leash a gentle tug, urging her along~");
+            // Re-send HoldLeash so BC reinforces the follow relationship
+            try {
+                ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                const ww = window as unknown as Record<string, unknown>;
+                const ll = ww.ChatRoomLeashList as number[] | undefined;
+                if (ll && !ll.includes(EMERY_MEMBER)) ll.push(EMERY_MEMBER);
+            } catch { /* ignore */ }
+            refreshLeashBtn();
+            // Brief flash
+            tugBtn.style.background = "rgba(140,60,90,0.55)";
+            setTimeout(() => { tugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
+        });
+        leashRow.appendChild(tugBtn);
         body.appendChild(leashRow);
 
         // Helper: styled section header with optional edit toggle
