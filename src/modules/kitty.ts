@@ -19,8 +19,6 @@ export interface KittyEmote {
     expression?: string;      // kitty expression command to send on click, e.g. "Ears:Wiggle"
     bcGroup?: string;         // BC asset group to use for ActivityRun, e.g. "ItemHead"
     bcActivity?: string;      // BC activity name to use for ActivityRun, e.g. "Pet"
-    autoreact?: string;       // auto-reaction emote Emery sends immediately (kind mode)
-    autoreactRough?: string;  // auto-reaction emote Emery sends in rough mode (falls back to autoreact)
 }
 
 export interface KittyItem {
@@ -125,8 +123,6 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         text:      "gives Emery a playful bap on the head~ 🐾",
         roughText: "gives Emery a sharp flick to the forehead without warning~",
         type: "emote",
-        autoreact:      "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾",
-        autoreactRough: "yelps and flinches away, one hand flying up to her forehead~",
     },
 ];
 
@@ -251,8 +247,6 @@ const NEW_EMOTE_SEEDS: KittyEmote[] = [
         text:      "gives Emery a playful bap on the head~ 🐾",
         roughText: "gives Emery a sharp flick to the forehead without warning~",
         type: "emote",
-        autoreact:      "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾",
-        autoreactRough: "yelps and flinches away, one hand flying up to her forehead~",
     },
     {
         id: "spank",  label: "👋 Spank",
@@ -284,13 +278,6 @@ export function getKittyEmotes(): KittyEmote[] {
             // message which would say "boops nose" and conflict with the custom emote text)
             bcGroup:    e.id === "bap" ? undefined : (e.bcGroup    ?? BC_ACTIVITY_SEEDS[e.id]?.group),
             bcActivity: e.id === "bap" ? undefined : (e.bcActivity ?? BC_ACTIVITY_SEEDS[e.id]?.activity),
-            // Migration: seed autoreact fields for bap — older stored entries predate these fields
-            autoreact:      e.id === "bap"
-                ? (e.autoreact      ?? "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾")
-                : e.autoreact,
-            autoreactRough: e.id === "bap"
-                ? (e.autoreactRough ?? "yelps and flinches away, one hand flying up to her forehead~")
-                : e.autoreactRough,
         }));
     // Append any new default emotes that weren't in the stored list yet
     for (const seed of NEW_EMOTE_SEEDS) {

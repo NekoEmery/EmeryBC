@@ -14024,8 +14024,6 @@ export class EBCDrawer {
                         sendRoomEmote(text);
                         if (em.bcGroup && em.bcActivity) runKittyActivity(em.bcGroup, em.bcActivity);
                         if (em.interactive) sendKittyCmd("react", JSON.stringify({ label: em.label }));
-                        const reactText = mood === "rough" ? (em.autoreactRough || em.autoreact) : em.autoreact;
-                        if (reactText) sendKittyCmd("autoreact", reactText);
                     }));
                 }
                 emotesWrap.appendChild(row);

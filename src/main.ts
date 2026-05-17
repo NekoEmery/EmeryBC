@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.110";
+const MOD_VERSION = "2.2.111";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.111",
+        changes: [
+            "Removed autoreact feature entirely — emote buttons no longer auto-send a reaction emote on Emery's behalf. Removed autoreact/autoreactRough fields from KittyEmote, removed the autoreact kitty command handler, and cleaned up all related migrations.",
+        ],
+    },
     {
         version: "2.2.110",
         changes: [
@@ -3057,15 +3063,6 @@ function handleKittyCommand(msg: string): void {
                     showKittyReactPopup(payload.label);
                 } catch {
                     showKittyReactPopup(arg);
-                }
-                break;
-            }
-            case "autoreact": {
-                // Auto-send a reaction emote with no popup — used for instant reactions like bap eeep
-                if (arg) {
-                    try {
-                        ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
-                    } catch { /* ignore */ }
                 }
                 break;
             }
