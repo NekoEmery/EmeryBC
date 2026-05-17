@@ -14681,16 +14681,32 @@ export class EBCDrawer {
                 diffEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:14px;text-align:center;";
                 diffEl.textContent = String(diff);
 
+                // Mutable counter so multiple clicks track correctly
+                let liveDiff = diff;
                 const mkAdjBtn = (icon: string, delta: number, cmd: "tighten" | "loosen"): HTMLButtonElement => {
                     const b = document.createElement("button");
                     b.textContent = icon; b.title = (delta > 0 ? "Tighten" : "Loosen") + " " + label;
-                    b.style.cssText = "flex-shrink:0;font-size:11px;line-height:1;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;";
+                    b.style.cssText = "flex-shrink:0;font-size:11px;line-height:1;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;transition:background 0.1s;";
                     b.addEventListener("click", () => {
                         if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
-                        sendKittyCmd(cmd, group);
-                        // Optimistically update display
-                        const newDiff = Math.max(0, Math.min(6, diff + delta));
-                        diffEl.textContent = String(newDiff);
+                        const mood = getKittyMood();
+                        // Mood-aware room emote from Lucy
+                        const emoteText = cmd === "tighten"
+                            ? (mood === "rough"
+                                ? `yanks ${label} tighter without a word~`
+                                : `adjusts ${label} snugger, making sure it's secure~`)
+                            : (mood === "rough"
+                                ? `gives ${label} a bit of slack — just enough to tease~`
+                                : `loosens ${label} gently, giving Emery a little breathing room~`);
+                        sendRoomEmote(emoteText);
+                        // Send command with group:mood:label so Emery's handler can react correctly
+                        sendKittyCmd(cmd, `${group}:${mood}:${label}`);
+                        // Update display counter correctly across multiple clicks
+                        liveDiff = Math.max(0, Math.min(6, liveDiff + delta));
+                        diffEl.textContent = String(liveDiff);
+                        // Brief flash to confirm the command was sent
+                        b.style.background = delta > 0 ? "rgba(100,60,80,0.5)" : "rgba(60,40,70,0.5)";
+                        setTimeout(() => { b.style.background = "transparent"; }, 300);
                     });
                     return b;
                 };

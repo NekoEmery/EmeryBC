@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.94";
+const MOD_VERSION = "2.2.95";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,16 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.95",
+        changes: [
+            "Fix: expressions no longer reset when Lucy applies a pose or tightens a restraint — the addon now tracks active expression states and patches them back into Emery's appearance before every ChatRoomCharacterUpdate, so they survive the full appearance-replace that BC performs on other clients.",
+            "Rework: Tighten / Loosen buttons now send a mood-aware room emote from Lucy ('yanks X tighter...' / 'adjusts X snugger...' etc.) so the action is visible to everyone in chat.",
+            "Fix: Tighten / Loosen difficulty display counter now tracks correctly across multiple clicks on the same item (previously the counter froze after the first click).",
+            "Fix: Emery now also reacts in chat when her restraints are tightened or loosened ('winces as her restraints are yanked tighter~' etc.).",
+            "Tighten / Loosen buttons now briefly flash on click to confirm the command was sent.",
+        ],
+    },
     {
         version: "2.2.94",
         changes: [
@@ -2837,6 +2847,29 @@ function showKittyReactPopup(label: string): void {
     requestAnimationFrame(tick);
 }
 
+// ── Expression state tracking ─────────────────────────────────────────────────
+// When Lucy sets an expression via the kitty menu, the state is saved here.
+// Before every ChatRoomCharacterUpdate that the kitty handler sends (pose, tighten, etc.)
+// we patch these states back into Player.Appearance so they survive the full appearance replace
+// that happens on other clients when they receive the update.
+const kittyExpressions = new Map<string, string>(); // group → state e.g. "Blush" → "Low"
+
+function patchKittyExpressions(): void {
+    if (kittyExpressions.size === 0) return;
+    const w = window as unknown as Record<string, unknown>;
+    const inventoryGet = w.InventoryGet as ((c: unknown, group: string) => Item | null | undefined) | undefined;
+    if (!inventoryGet) return;
+    for (const [face, state] of kittyExpressions) {
+        try {
+            const item = inventoryGet(Player, face) as Item | null | undefined;
+            if (item) {
+                if (!item.Property) (item as unknown as Record<string, unknown>).Property = {};
+                (item.Property as Record<string, unknown>).Expression = state;
+            }
+        } catch { /* ignore */ }
+    }
+}
+
 function handleKittyCommand(msg: string): void {
     const parsed = parseKittyCmd(msg);
     if (!parsed) return;
@@ -2849,6 +2882,8 @@ function handleKittyCommand(msg: string): void {
                     : null;
                 Player.ActivePose = poses;
                 callBC(() => CharacterRefresh(Player, false, false));
+                // Re-patch tracked expressions into appearance so they survive the update
+                patchKittyExpressions();
                 if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
                     callBC(() => ServerSend("ChatRoomCharacterUpdate", {
                         ID: (Player as unknown as Record<string, unknown>).OnlineID,
@@ -2898,16 +2933,35 @@ function handleKittyCommand(msg: string): void {
             case "tighten":
             case "loosen": {
                 const delta = cmd === "tighten" ? 1 : -1;
-                // arg = specific group name (e.g. "ItemArms"), or "" = all restraints
+                // arg format: "group:mood:itemLabel"  (group = BC group name, mood = kind|rough, itemLabel = display name)
+                // Legacy fallback: arg = just the group name (no mood/label)
+                const parts = arg.split(":");
+                const targetGroup = parts[0] ?? "";
+                const mood       = (parts[1] === "rough" ? "rough" : "kind") as "kind" | "rough";
+                const itemLabel  = parts.slice(2).join(":") || targetGroup.replace("Item", "");
+                let changed = false;
                 for (const item of Player.Appearance) {
                     if (!item.Asset?.Group?.Name || !RESTRAINT_GROUPS.has(item.Asset.Group.Name)) continue;
-                    if (arg && item.Asset.Group.Name !== arg) continue; // skip if targeting specific group
+                    if (targetGroup && item.Asset.Group.Name !== targetGroup) continue;
                     const cur = typeof item.Difficulty === "number" ? item.Difficulty : 0;
                     const next = Math.max(0, Math.min(6, cur + delta));
-                    if (next !== cur) item.Difficulty = next;
+                    if (next !== cur) { item.Difficulty = next; changed = true; }
                 }
                 try {
+                    if (changed) {
+                        // Emery reacts in chat
+                        const emote = cmd === "tighten"
+                            ? (mood === "rough"
+                                ? "winces as her restraints are yanked tighter~"
+                                : "squirms slightly as her restraints are adjusted snugger~")
+                            : (mood === "rough"
+                                ? "blinks as some slack is given — not that it helps much~"
+                                : "sighs with a little relief as her restraints are eased~");
+                        callBC(() => ServerSend("ChatRoomChat", { Type: "Emote", Content: emote,
+                            Dictionary: [{ Tag: "SourceCharacter", Text: Player.Name, MemberNumber: Player.MemberNumber }] }));
+                    }
                     callBC(() => CharacterRefresh(Player, false, false));
+                    patchKittyExpressions();
                     if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
                         callBC(() => ServerSend("ChatRoomCharacterUpdate", {
                             ID: (Player as unknown as Record<string, unknown>).OnlineID,
@@ -2920,21 +2974,21 @@ function handleKittyCommand(msg: string): void {
             }
             case "expression": {
                 // arg format: "FaceType:State"  e.g. "Blush:Low"
-                // Triggers a BC facial expression on Emery and pushes a full appearance update
-                // to ensure all room members see the change (CharacterSetFacialExpression's
-                // internal ChatRoomCharacterExpressionUpdate can be lossy under some BC versions).
+                // Set the expression, track it in kittyExpressions so it survives future pose/tighten updates.
                 try {
                     const colonIdx = arg.indexOf(":");
                     if (colonIdx > 0) {
                         const face  = arg.slice(0, colonIdx);
                         const state = arg.slice(colonIdx + 1);
+                        // Track so patchKittyExpressions() can restore it before any future update
+                        if (state) kittyExpressions.set(face, state);
+                        else kittyExpressions.delete(face);
                         const w = window as unknown as Record<string, unknown>;
                         const fn = w.CharacterSetFacialExpression as
                             ((c: Character, face: string, state: string | null) => void) | undefined;
                         if (fn) {
                             fn(Player, face, state || null);
-                            // Belt-and-suspenders: push a full appearance update so the expression
-                            // is visible to everyone even if the internal sync doesn't fire.
+                            // Push a full appearance update so all room members see the change.
                             callBC(() => {
                                 if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
                                     ServerSend("ChatRoomCharacterUpdate", {
