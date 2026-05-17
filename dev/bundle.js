@@ -11364,14 +11364,7 @@
             text: "gives Emery a playful bap on the nose~ 🐾",
             roughText: "gives Emery a sharp flick on the nose without warning~",
             type: "emote",
-            bcGroup: "ItemHead", bcActivity: "Slap",
-        },
-        {
-            id: "leash", label: "🔗 Leash",
-            text: "reaches out and takes hold of Emery's leash with a gentle smile~",
-            roughText: "snatches up Emery's leash and gives it a firm tug~",
-            type: "emote",
-            bcGroup: "ItemNeckAccessories", bcActivity: "Yank",
+            bcGroup: "ItemHead", bcActivity: "Pet",
         },
     ];
     const DEFAULT_POSES = [
@@ -11487,7 +11480,7 @@
     const BC_ACTIVITY_SEEDS = {
         "headpat": { group: "ItemHead", activity: "Pet" },
         "spank": { group: "ItemButt", activity: "Spank" },
-        "bap": { group: "ItemHead", activity: "Slap" },
+        "bap": { group: "ItemHead", activity: "Pet" },
     };
     // New emotes to seed into existing stored lists that predate them.
     const NEW_EMOTE_SEEDS = [
@@ -11496,7 +11489,7 @@
             text: "gives Emery a playful bap on the nose~ 🐾",
             roughText: "gives Emery a sharp flick on the nose without warning~",
             type: "emote",
-            bcGroup: "ItemHead", bcActivity: "Slap",
+            bcGroup: "ItemHead", bcActivity: "Pet",
         },
         {
             id: "spank", label: "👋 Spank",
@@ -11505,19 +11498,19 @@
             type: "emote",
             bcGroup: "ItemButt", bcActivity: "Spank",
         },
-        {
-            id: "leash", label: "🔗 Leash",
-            text: "reaches out and takes hold of Emery's leash with a gentle smile~",
-            roughText: "snatches up Emery's leash and gives it a firm tug~",
-            type: "emote",
-            bcGroup: "ItemNeckAccessories", bcActivity: "Yank",
-        },
     ];
     function getKittyEmotes() {
         const raw = lsGet("EBC_kittyEmotes", DEFAULT_EMOTES);
-        const emotes = raw.map(e => {
+        const emotes = raw
+            // Migration: remove leash emote (replaced by standalone leash button)
+            .filter(e => e.id !== "leash")
+            .map(e => {
             var _a, _b, _c, _d, _e, _f, _g, _h;
-            return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", bcGroup: (_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group, bcActivity: (_g = e.bcActivity) !== null && _g !== void 0 ? _g : (_h = BC_ACTIVITY_SEEDS[e.id]) === null || _h === void 0 ? void 0 : _h.activity }));
+            return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", bcGroup: (_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group, 
+                // Migration: fix stored bap that had Slap (face-slap) — should be Pet (light tap)
+                bcActivity: e.id === "bap" && e.bcActivity === "Slap"
+                    ? "Pet"
+                    : ((_g = e.bcActivity) !== null && _g !== void 0 ? _g : (_h = BC_ACTIVITY_SEEDS[e.id]) === null || _h === void 0 ? void 0 : _h.activity) }));
         });
         // Append any new default emotes that weren't in the stored list yet
         for (const seed of NEW_EMOTE_SEEDS) {
@@ -25056,6 +25049,35 @@
                 refreshLeashBtn();
             });
             leashRow.appendChild(leashBtn);
+            // ── Tug Leash — secondary button ────────────────────────────────────────
+            const tugBtn = document.createElement("button");
+            tugBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:9px 10px;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;white-space:nowrap;";
+            tugBtn.textContent = "↗ Tug";
+            tugBtn.title = "Give the leash a tug";
+            tugBtn.addEventListener("mouseenter", () => { tugBtn.style.background = "rgba(120,50,80,0.5)"; tugBtn.style.borderColor = "#c090b0"; });
+            tugBtn.addEventListener("mouseleave", () => { tugBtn.style.background = "rgba(80,40,60,0.35)"; tugBtn.style.borderColor = "#8a5a7888"; });
+            tugBtn.addEventListener("click", () => {
+                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                    return;
+                const mood = getKittyMood();
+                sendRoomEmote(mood === "rough"
+                    ? "gives Emery's leash a sharp, decisive tug~"
+                    : "gives Emery's leash a gentle tug, urging her along~");
+                // Re-send HoldLeash so BC reinforces the follow relationship
+                try {
+                    ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
+                    const ww = window;
+                    const ll = ww.ChatRoomLeashList;
+                    if (ll && !ll.includes(EMERY_MEMBER))
+                        ll.push(EMERY_MEMBER);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                refreshLeashBtn();
+                // Brief flash
+                tugBtn.style.background = "rgba(140,60,90,0.55)";
+                setTimeout(() => { tugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
+            });
+            leashRow.appendChild(tugBtn);
             body.appendChild(leashRow);
             // Helper: pill-style action button (big, easy to tap)
             const makePill = (label, color, onClick) => {
@@ -28279,7 +28301,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.96";
+    const MOD_VERSION = "2.2.97";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28290,6 +28312,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.97",
+            changes: [
+                "Kitty: removed 🔗 Leash from the Emotes list — it is now handled entirely by the standalone leash buttons (Grab / Let Go / Tug).",
+                "Kitty: added ↗ Tug button next to the leash toggle — sends a mood-aware room emote ('gives Emery's leash a sharp tug~' / 'gives a gentle tug, urging her along~') and re-sends the HoldLeash signal to reinforce BC's follow relationship.",
+                "Fix: 🐾 Bap now uses the Pet (gentle touch) BC activity instead of Slap — Slap triggered a face-slap animation; Pet gives a light tap matching the playful bap description. Existing stored bap entries are migrated automatically.",
+            ],
+        },
         {
             version: "2.2.96",
             changes: [
