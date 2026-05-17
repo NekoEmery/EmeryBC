@@ -19,6 +19,7 @@ export interface KittyEmote {
     expression?: string;      // kitty expression command to send on click, e.g. "Ears:Wiggle"
     bcGroup?: string;         // BC asset group to use for ActivityRun, e.g. "ItemHead"
     bcActivity?: string;      // BC activity name to use for ActivityRun, e.g. "Pet"
+    reactionCategory?: "punishment" | "reward"; // if set, fires a random reaction from that pool
 }
 
 export interface KittyItem {

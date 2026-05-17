@@ -14026,6 +14026,14 @@ export class EBCDrawer {
                         sendRoomEmote(text);
                         if (em.bcGroup && em.bcActivity) runKittyActivity(em.bcGroup, em.bcActivity);
                         if (em.interactive) sendKittyCmd("react", JSON.stringify({ label: em.label }));
+                        // Fire a random pet reaction from the emote's assigned category
+                        if (em.reactionCategory) {
+                            const pool = getKittyReactions().filter(r => r.category === em.reactionCategory);
+                            if (pool.length > 0) {
+                                const pick = pool[Math.floor(Math.random() * pool.length)];
+                                sendKittyCmd("emote", pick.text);
+                            }
+                        }
                     }));
                 }
                 emotesWrap.appendChild(row);
@@ -14062,20 +14070,32 @@ export class EBCDrawer {
                 const roughInp = document.createElement("input"); roughInp.value = em.roughText ?? ""; roughInp.placeholder = "Rough mode text (optional)…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
                 roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
 
+                // Row 4: reaction category
+                const catRow = document.createElement("div"); catRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const catLbl = document.createElement("span"); catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;flex-shrink:0;width:38px;"; catLbl.textContent = "😊 React:";
+                const catSel = document.createElement("select"); catSel.style.cssText = "flex:1;min-width:0;" + INP;
+                for (const [v, t] of [["", "— none —"], ["punishment", "⚡ Punishment"], ["reward", "🌸 Reward"]] as [string, string][]) {
+                    const o = document.createElement("option"); o.value = v; o.textContent = t; catSel.appendChild(o);
+                }
+                catSel.value = em.reactionCategory ?? "";
+                catRow.appendChild(catLbl); catRow.appendChild(catSel);
+
                 const saveRow = (): void => {
                     const updated = getKittyEmotes();
                     updated[idx].label = lblInp.value;
                     updated[idx].text  = kindInp.value;
                     updated[idx].roughText = roughInp.value;
+                    updated[idx].reactionCategory = (catSel.value as "punishment" | "reward") || undefined;
                     saveKittyEmotes(updated);
                 };
                 [lblInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveRow));
+                catSel.addEventListener("change", saveRow);
                 delBtn.addEventListener("click", () => {
                     saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
                     renderEmotes(true);
                 });
 
-                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow);
+                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow); r.appendChild(catRow);
                 list.appendChild(r);
             });
 

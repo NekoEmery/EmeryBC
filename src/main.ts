@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.113";
+const MOD_VERSION = "2.2.114";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.114",
+        changes: [
+            "Kitty Emotes: each emote can now be tagged with a reaction category (⚡ Punishment or 🌸 Reward) via the edit panel. When the emote fires, a random reaction from that pool is auto-sent by Emery. The pool is whatever is configured in the 🐾 Pet Reactions section.",
+        ],
+    },
     {
         version: "2.2.113",
         changes: [
