@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.111";
+const MOD_VERSION = "2.2.112";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.112",
+        changes: [
+            "Fix: expression updates now include ActivePose again — BC treats a missing ActivePose field as 'reset to null', so omitting it was causing every expression click to wipe Emery's current pose for all room members. The original omission was a workaround for a race condition caused by expression triggers on pose buttons; since those were removed in v2.2.110 the race condition is gone and it is safe to send the current pose.",
+        ],
+    },
     {
         version: "2.2.111",
         changes: [
@@ -3125,13 +3131,16 @@ function handleKittyCommand(msg: string): void {
                         if (fn) {
                             fn(Player, face, state || null);
                             // Push appearance update so all room members see the expression.
-                            // Deliberately omit ActivePose — expression updates must not
-                            // touch pose state on other clients (causes pose-breaks when
-                            // the expression fires after a pose change).
+                            // Include ActivePose — BC resets the pose to null when ActivePose
+                            // is absent from the payload, which would break Emery's current pose.
+                            // This was safe to omit before, but only while expressions were
+                            // attached to pose buttons (race condition risk). Since expressions
+                            // and poses are now fully decoupled, we send the current pose here.
                             callBC(() => {
                                 if ((Player as unknown as Record<string, unknown>).OnlineID != null) {
                                     ServerSend("ChatRoomCharacterUpdate", {
                                         ID: (Player as unknown as Record<string, unknown>).OnlineID,
+                                        ActivePose: Player.ActivePose,
                                         Appearance: ServerAppearanceBundle(Player.Appearance),
                                     });
                                 }
