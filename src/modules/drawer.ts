@@ -120,8 +120,11 @@ import {
     getKittyEmotes, saveKittyEmotes,
     getKittyRestraintSets, saveKittyRestraintSets,
     getKittyPoses, saveKittyPoses,
+    getKittyPunishments, saveKittyPunishments,
+    getKittyMood, setKittyMood,
     sendKittyCmd,
     type KittyEmote, type KittyRestraintSet, type KittyPose, type KittyItem,
+    type KittyPunishment, type KittyMood,
 } from "./kitty";
 
 // -- Shared UI helpers ---------------------------------------------------------
@@ -13424,7 +13427,7 @@ export class EBCDrawer {
     private renderKittySection(body: HTMLElement): void {
         // ── Header ───────────────────────────────────────────────────────────────
         const hdr = document.createElement("div");
-        hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;background:linear-gradient(90deg,#2a0e1e,#1b0d17);border:1px solid #6b3048;border-radius:6px;margin-bottom:10px;";
+        hdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:6px 8px;background:linear-gradient(90deg,#2a0e1e,#1b0d17);border:1px solid #6b3048;border-radius:6px;margin-bottom:6px;";
         const hdrIcon = document.createElement("span");
         hdrIcon.textContent = "🐱";
         hdrIcon.style.fontSize = "16px";
@@ -13439,7 +13442,42 @@ export class EBCDrawer {
         hdr.appendChild(hdrSub);
         body.appendChild(hdr);
 
-        // Helper: styled section header with optional add/edit buttons
+        // ── Mood toggle ──────────────────────────────────────────────────────────
+        const moodRow = document.createElement("div");
+        moodRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:5px 8px;background:rgba(20,8,16,0.6);border:1px solid #2a1421;border-radius:6px;";
+        const moodLbl = document.createElement("span");
+        moodLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex:1;";
+        moodLbl.textContent = "Mood:";
+        moodRow.appendChild(moodLbl);
+
+        const makeMoodBtn = (m: KittyMood, icon: string, label: string, color: string): HTMLButtonElement => {
+            const b = document.createElement("button");
+            const update = (): void => {
+                const active = getKittyMood() === m;
+                b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:3px 10px;border-radius:4px;cursor:pointer;transition:all 0.12s;border:1px solid ${active ? color : "#3a1928"};background:${active ? color + "28" : "transparent"};color:${active ? color : "#5a3a4a"};`;
+            };
+            b.textContent = icon + " " + label;
+            update();
+            b.addEventListener("click", () => {
+                setKittyMood(m);
+                [kindBtn, roughBtn].forEach(x => {
+                    const isActive = getKittyMood() === (x === kindBtn ? "kind" : "rough");
+                    const col = x === kindBtn ? "#79c8a0" : "#e07070";
+                    x.style.borderColor = isActive ? col : "#3a1928";
+                    x.style.background = isActive ? col + "28" : "transparent";
+                    x.style.color = isActive ? col : "#5a3a4a";
+                });
+            });
+            return b;
+        };
+
+        const kindBtn  = makeMoodBtn("kind",  "🌸", "Kind",  "#79c8a0");
+        const roughBtn = makeMoodBtn("rough", "⚡", "Rough", "#e07070");
+        moodRow.appendChild(kindBtn);
+        moodRow.appendChild(roughBtn);
+        body.appendChild(moodRow);
+
+        // Helper: styled section header with optional edit toggle
         const makeSectionHdr = (
             title: string,
             onAdd: (() => void) | null,
@@ -13494,6 +13532,13 @@ export class EBCDrawer {
             return d;
         };
 
+        const INP = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+
+        const sendRoomEmote = (text: string): void => {
+            if (!text) return;
+            try { ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] }); } catch { /* ignore */ }
+        };
+
         // ── EMOTES ───────────────────────────────────────────────────────────────
         const emotesWrap = document.createElement("div");
         emotesWrap.style.marginBottom = "10px";
@@ -13521,7 +13566,6 @@ export class EBCDrawer {
                 return;
             }
 
-            // Edit mode
             const list = document.createElement("div");
             list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
             const cur = getKittyEmotes();
@@ -13530,10 +13574,10 @@ export class EBCDrawer {
                 r.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:4px 6px;";
                 const lblInp = document.createElement("input");
                 lblInp.value = em.label;
-                lblInp.style.cssText = "width:80px;flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                lblInp.style.cssText = "width:80px;flex-shrink:0;" + INP;
                 const txtInp = document.createElement("input");
                 txtInp.value = em.text;
-                txtInp.style.cssText = "flex:1;min-width:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                txtInp.style.cssText = "flex:1;min-width:0;" + INP;
                 const typeBtn = document.createElement("button");
                 typeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;flex-shrink:0;border:1px solid #4c2537;background:transparent;color:#cf6f98;";
                 typeBtn.textContent = em.type === "emote" ? "* *" : "( )";
@@ -13553,29 +13597,20 @@ export class EBCDrawer {
                 lblInp.addEventListener("input", saveInp);
                 txtInp.addEventListener("input", saveInp);
                 const delBtn = document.createElement("button");
-                delBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                 delBtn.textContent = "×";
                 delBtn.addEventListener("click", () => {
-                    const updated = getKittyEmotes().filter((_, i) => i !== idx);
-                    saveKittyEmotes(updated);
+                    saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
                     renderEmotes(true);
                 });
-                r.appendChild(lblInp);
-                r.appendChild(txtInp);
-                r.appendChild(typeBtn);
-                r.appendChild(delBtn);
+                r.appendChild(lblInp); r.appendChild(txtInp); r.appendChild(typeBtn); r.appendChild(delBtn);
                 list.appendChild(r);
             });
 
-            // Add new row
             const addRow = document.createElement("div");
             addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-            const newLbl = document.createElement("input");
-            newLbl.placeholder = "Label";
-            newLbl.style.cssText = "width:80px;flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
-            const newTxt = document.createElement("input");
-            newTxt.placeholder = "Message text…";
-            newTxt.style.cssText = "flex:1;min-width:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+            const newLbl = document.createElement("input"); newLbl.placeholder = "Label"; newLbl.style.cssText = "width:80px;flex-shrink:0;" + INP;
+            const newTxt = document.createElement("input"); newTxt.placeholder = "Message text…"; newTxt.style.cssText = "flex:1;min-width:0;" + INP;
             const addBtn2 = document.createElement("button");
             addBtn2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
             addBtn2.textContent = "+ Add";
@@ -13584,11 +13619,10 @@ export class EBCDrawer {
                 const updated = getKittyEmotes();
                 updated.push({ id: "e_" + Date.now(), label: newLbl.value.trim(), text: newTxt.value.trim(), type: "emote" });
                 saveKittyEmotes(updated);
+                newLbl.value = ""; newTxt.value = "";
                 renderEmotes(true);
             });
-            addRow.appendChild(newLbl);
-            addRow.appendChild(newTxt);
-            addRow.appendChild(addBtn2);
+            addRow.appendChild(newLbl); addRow.appendChild(newTxt); addRow.appendChild(addBtn2);
             list.appendChild(addRow);
             emotesWrap.appendChild(list);
         };
@@ -13612,73 +13646,86 @@ export class EBCDrawer {
                 row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
                 for (const p of poses) {
                     row.appendChild(makePill(p.label, "#a070c8", () => {
+                        // Send mood-aware room emote first, then apply pose
+                        const mood = getKittyMood();
+                        const emoteText = mood === "rough" ? (p.roughEmote || p.kindEmote) : (p.kindEmote || p.roughEmote);
+                        sendRoomEmote(emoteText);
                         sendKittyCmd("pose", p.poses.join(","));
                     }));
                 }
                 posesWrap.appendChild(row);
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
-                hint.textContent = "Requires Emery to be logged in (sent as a silent command)";
+                hint.textContent = "Sends a room emote then applies the pose on Emery";
                 posesWrap.appendChild(hint);
                 return;
             }
 
             const list = document.createElement("div");
-            list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+            list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
             const cur = getKittyPoses();
             cur.forEach((p, idx) => {
                 const r = document.createElement("div");
-                r.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:4px 6px;";
-                const lblInp = document.createElement("input");
-                lblInp.value = p.label;
-                lblInp.style.cssText = "width:90px;flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
-                const poseInp = document.createElement("input");
-                poseInp.value = p.poses.join(",");
-                poseInp.placeholder = "BC pose name (or empty for neutral)";
-                poseInp.style.cssText = "flex:1;min-width:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
+
+                // Row 1: label + pose names + del
+                const r1 = document.createElement("div");
+                r1.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const lblInp = document.createElement("input"); lblInp.value = p.label; lblInp.style.cssText = "width:90px;flex-shrink:0;" + INP;
+                const poseInp = document.createElement("input"); poseInp.value = p.poses.join(","); poseInp.placeholder = "BC pose name (empty = neutral)"; poseInp.style.cssText = "flex:1;min-width:0;" + INP;
+                const delBtn = document.createElement("button");
+                delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                delBtn.textContent = "×";
+                r1.appendChild(lblInp); r1.appendChild(poseInp); r1.appendChild(delBtn);
+
+                // Row 2: kind emote
+                const kindRow = document.createElement("div");
+                kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
+                const kindInp = document.createElement("input"); kindInp.value = p.kindEmote; kindInp.placeholder = "Room emote in kind mode…"; kindInp.style.cssText = "flex:1;min-width:0;" + INP;
+                kindRow.appendChild(kindLbl); kindRow.appendChild(kindInp);
+
+                // Row 3: rough emote
+                const roughRow = document.createElement("div");
+                roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
+                const roughInp = document.createElement("input"); roughInp.value = p.roughEmote; roughInp.placeholder = "Room emote in rough mode…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
+                roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
+
                 const saveInp = (): void => {
                     const updated = getKittyPoses();
                     updated[idx].label = lblInp.value;
                     updated[idx].poses = poseInp.value ? poseInp.value.split(",").map(s => s.trim()).filter(Boolean) : [];
+                    updated[idx].kindEmote  = kindInp.value;
+                    updated[idx].roughEmote = roughInp.value;
                     saveKittyPoses(updated);
                 };
-                lblInp.addEventListener("input", saveInp);
-                poseInp.addEventListener("input", saveInp);
-                const delBtn = document.createElement("button");
-                delBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
-                delBtn.textContent = "×";
+                [lblInp, poseInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
                 delBtn.addEventListener("click", () => {
-                    const updated = getKittyPoses().filter((_, i) => i !== idx);
-                    saveKittyPoses(updated);
+                    saveKittyPoses(getKittyPoses().filter((_, i) => i !== idx));
                     renderPoses(true);
                 });
-                r.appendChild(lblInp);
-                r.appendChild(poseInp);
-                r.appendChild(delBtn);
+
+                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow);
                 list.appendChild(r);
             });
 
             const addRow = document.createElement("div");
             addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-            const newLbl2 = document.createElement("input");
-            newLbl2.placeholder = "Label";
-            newLbl2.style.cssText = "width:90px;flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
-            const newPose = document.createElement("input");
-            newPose.placeholder = "BC pose name (empty = neutral)";
-            newPose.style.cssText = "flex:1;min-width:0;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+            const newLbl2 = document.createElement("input"); newLbl2.placeholder = "Label"; newLbl2.style.cssText = "width:90px;flex-shrink:0;" + INP;
+            const newPose = document.createElement("input"); newPose.placeholder = "BC pose (empty = neutral)"; newPose.style.cssText = "flex:1;min-width:0;" + INP;
             const addBtnP = document.createElement("button");
             addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
             addBtnP.textContent = "+ Add";
             addBtnP.addEventListener("click", () => {
                 if (!newLbl2.value.trim()) return;
                 const updated = getKittyPoses();
-                updated.push({ id: "p_" + Date.now(), label: newLbl2.value.trim(), poses: newPose.value ? newPose.value.split(",").map(s => s.trim()).filter(Boolean) : [] });
+                updated.push({ id: "p_" + Date.now(), label: newLbl2.value.trim(), poses: newPose.value ? newPose.value.split(",").map(s => s.trim()).filter(Boolean) : [], kindEmote: "", roughEmote: "" });
                 saveKittyPoses(updated);
+                newLbl2.value = ""; newPose.value = "";
                 renderPoses(true);
             });
-            addRow.appendChild(newLbl2);
-            addRow.appendChild(newPose);
-            addRow.appendChild(addBtnP);
+            addRow.appendChild(newLbl2); addRow.appendChild(newPose); addRow.appendChild(addBtnP);
             list.appendChild(addRow);
             posesWrap.appendChild(list);
         };
@@ -13687,6 +13734,103 @@ export class EBCDrawer {
         body.appendChild(poseHdr);
         renderPoses(false);
         body.appendChild(posesWrap);
+        body.appendChild(divider());
+
+        // ── PUNISHMENTS ──────────────────────────────────────────────────────────
+        const punishWrap = document.createElement("div");
+        punishWrap.style.marginBottom = "10px";
+
+        const renderPunishments = (editing: boolean): void => {
+            punishWrap.innerHTML = "";
+            const punishments = getKittyPunishments();
+
+            if (!editing) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                for (const pun of punishments) {
+                    row.appendChild(makePill(pun.label, "#d05070", () => {
+                        const mood = getKittyMood();
+                        const emoteText = mood === "rough" ? (pun.roughEmote || pun.kindEmote) : (pun.kindEmote || pun.roughEmote);
+                        sendRoomEmote(emoteText);
+                        // Notify Emery so she can fight back
+                        sendKittyCmd("punish", `${pun.label}:${mood}`);
+                    }));
+                }
+                punishWrap.appendChild(row);
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
+                hint.textContent = "Sends a room emote and gives Emery a chance to fight back";
+                punishWrap.appendChild(hint);
+                return;
+            }
+
+            const list = document.createElement("div");
+            list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+            const cur = getKittyPunishments();
+            cur.forEach((pun, idx) => {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
+
+                const r1 = document.createElement("div");
+                r1.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const lblInp = document.createElement("input"); lblInp.value = pun.label; lblInp.style.cssText = "flex:1;min-width:0;" + INP;
+                const delBtn = document.createElement("button");
+                delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                delBtn.textContent = "×";
+                r1.appendChild(lblInp); r1.appendChild(delBtn);
+
+                const kindRow = document.createElement("div");
+                kindRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const kindLbl = document.createElement("span"); kindLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;"; kindLbl.textContent = "🌸 Kind:";
+                const kindInp = document.createElement("input"); kindInp.value = pun.kindEmote; kindInp.placeholder = "Room emote in kind mode…"; kindInp.style.cssText = "flex:1;min-width:0;" + INP;
+                kindRow.appendChild(kindLbl); kindRow.appendChild(kindInp);
+
+                const roughRow = document.createElement("div");
+                roughRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const roughLbl = document.createElement("span"); roughLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;"; roughLbl.textContent = "⚡ Rough:";
+                const roughInp = document.createElement("input"); roughInp.value = pun.roughEmote; roughInp.placeholder = "Room emote in rough mode…"; roughInp.style.cssText = "flex:1;min-width:0;" + INP;
+                roughRow.appendChild(roughLbl); roughRow.appendChild(roughInp);
+
+                const saveInp = (): void => {
+                    const updated = getKittyPunishments();
+                    updated[idx].label     = lblInp.value;
+                    updated[idx].kindEmote  = kindInp.value;
+                    updated[idx].roughEmote = roughInp.value;
+                    saveKittyPunishments(updated);
+                };
+                [lblInp, kindInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
+                delBtn.addEventListener("click", () => {
+                    saveKittyPunishments(getKittyPunishments().filter((_, i) => i !== idx));
+                    renderPunishments(true);
+                });
+
+                r.appendChild(r1); r.appendChild(kindRow); r.appendChild(roughRow);
+                list.appendChild(r);
+            });
+
+            const addRow = document.createElement("div");
+            addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+            const newPunLbl = document.createElement("input"); newPunLbl.placeholder = "😤 Label"; newPunLbl.style.cssText = "flex:1;min-width:0;" + INP;
+            const addBtnPun = document.createElement("button");
+            addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+            addBtnPun.textContent = "+ Add";
+            addBtnPun.addEventListener("click", () => {
+                if (!newPunLbl.value.trim()) return;
+                const updated = getKittyPunishments();
+                updated.push({ id: "pun_" + Date.now(), label: newPunLbl.value.trim(), kindEmote: "", roughEmote: "" });
+                saveKittyPunishments(updated);
+                newPunLbl.value = "";
+                renderPunishments(true);
+            });
+            addRow.appendChild(newPunLbl); addRow.appendChild(addBtnPun);
+            list.appendChild(addRow);
+            punishWrap.appendChild(list);
+        };
+
+        const { el: punishHdr } = makeSectionHdr("Punishments", null, (ed) => renderPunishments(ed));
+        body.appendChild(punishHdr);
+        renderPunishments(false);
+        body.appendChild(punishWrap);
         body.appendChild(divider());
 
         // ── RESTRAINTS ───────────────────────────────────────────────────────────
@@ -13715,7 +13859,6 @@ export class EBCDrawer {
                         } catch (err) { console.warn("[EBC Kitty] InventoryWear error:", err); }
                     }));
                 }
-                // Release all button
                 row.appendChild(makePill("🔓 Release all", "#70a870", () => {
                     try {
                         const w = window as unknown as Record<string, unknown>;
@@ -13727,10 +13870,7 @@ export class EBCDrawer {
                             const assetGroup = (item.Asset as Record<string, unknown>)?.Group as Record<string, unknown>;
                             const groupName = assetGroup?.Name as string | undefined;
                             if (!groupName) continue;
-                            try {
-                                (w.InventoryRemove as ((c: unknown, group: string, push: boolean) => void) | undefined)
-                                    ?.(emery, groupName, false);
-                            } catch { /* skip locked */ }
+                            try { (w.InventoryRemove as ((c: unknown, group: string, push: boolean) => void) | undefined)?.(emery, groupName, false); } catch { /* skip locked */ }
                         }
                         (w.CharacterRefresh as ((c: unknown, f: boolean, f2: boolean) => void) | undefined)?.(emery, false, false);
                     } catch (err) { console.warn("[EBC Kitty] Release error:", err); }
@@ -13743,82 +13883,48 @@ export class EBCDrawer {
                 return;
             }
 
-            // Edit mode
             const list = document.createElement("div");
             list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
             const cur = getKittyRestraintSets();
             cur.forEach((s, idx) => {
                 const r = document.createElement("div");
                 r.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:4px 6px;";
-                const lblInp = document.createElement("input");
-                lblInp.value = s.label;
-                lblInp.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 4px;outline:none;";
+                const lblInp = document.createElement("input"); lblInp.value = s.label; lblInp.style.cssText = "flex:1;" + INP;
                 lblInp.addEventListener("input", () => {
                     const updated = getKittyRestraintSets();
                     updated[idx].label = lblInp.value;
                     saveKittyRestraintSets(updated);
                 });
-                const countLbl = document.createElement("span");
-                countLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
-                countLbl.textContent = s.items.length + " items";
-                const delBtn = document.createElement("button");
-                delBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
-                delBtn.textContent = "×";
-                delBtn.addEventListener("click", () => {
-                    const updated = getKittyRestraintSets().filter((_, i) => i !== idx);
-                    saveKittyRestraintSets(updated);
-                    renderRestraintSets(true);
-                });
-                r.appendChild(lblInp);
-                r.appendChild(countLbl);
-                r.appendChild(delBtn);
+                const countLbl = document.createElement("span"); countLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;"; countLbl.textContent = s.items.length + " items";
+                const delBtn = document.createElement("button"); delBtn.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;"; delBtn.textContent = "×";
+                delBtn.addEventListener("click", () => { saveKittyRestraintSets(getKittyRestraintSets().filter((_, i) => i !== idx)); renderRestraintSets(true); });
+                r.appendChild(lblInp); r.appendChild(countLbl); r.appendChild(delBtn);
                 list.appendChild(r);
             });
 
-            // Add new set from BC code
             const addBox = document.createElement("div");
             addBox.style.cssText = "background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:6px;margin-top:4px;";
-            const addLblInp = document.createElement("input");
-            addLblInp.placeholder = "Set name (e.g. 🔒 Leash up)";
-            addLblInp.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;margin-bottom:4px;display:block;";
-            const addCodeTA = document.createElement("textarea");
-            addCodeTA.placeholder = "Paste BC outfit code…";
-            addCodeTA.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:3px 5px;outline:none;resize:vertical;min-height:40px;display:block;margin-bottom:4px;";
-            const addMsg = document.createElement("div");
-            addMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;min-height:13px;margin-bottom:3px;";
-            const addBtnR = document.createElement("button");
-            addBtnR.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
-            addBtnR.textContent = "Import & Save";
+            const addLblInp = document.createElement("input"); addLblInp.placeholder = "Set name (e.g. 🔒 Leash up)"; addLblInp.style.cssText = "width:100%;box-sizing:border-box;" + INP + "margin-bottom:4px;display:block;";
+            const addCodeTA = document.createElement("textarea"); addCodeTA.placeholder = "Paste BC outfit code…"; addCodeTA.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:3px 5px;outline:none;resize:vertical;min-height:40px;display:block;margin-bottom:4px;";
+            const addMsg = document.createElement("div"); addMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;min-height:13px;margin-bottom:3px;";
+            const addBtnR = document.createElement("button"); addBtnR.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;"; addBtnR.textContent = "Import & Save";
             addBtnR.addEventListener("click", () => {
-                addMsg.textContent = "";
-                addMsg.style.color = "#ff6b6b";
+                addMsg.textContent = ""; addMsg.style.color = "#ff6b6b";
                 if (!addLblInp.value.trim()) { addMsg.textContent = "Enter a name."; return; }
                 const code = addCodeTA.value.trim();
                 if (!code) { addMsg.textContent = "Paste a BC code."; return; }
                 try {
-                    // Parse the BC code to extract items
                     const parsed = JSON.parse(code) as Array<Record<string, unknown>>;
-                    const items: KittyItem[] = parsed.map(p => ({
-                        Name: String(p.Name ?? ""),
-                        Group: String(p.Group ?? ""),
-                        Color: p.Color as string | string[] | undefined,
-                    })).filter(i => i.Name && i.Group);
+                    const items: KittyItem[] = parsed.map(p => ({ Name: String(p.Name ?? ""), Group: String(p.Group ?? ""), Color: p.Color as string | string[] | undefined })).filter(i => i.Name && i.Group);
                     const updated = getKittyRestraintSets();
                     updated.push({ id: "r_" + Date.now(), label: addLblInp.value.trim(), items });
                     saveKittyRestraintSets(updated);
-                    addMsg.style.color = "#70d070";
-                    addMsg.textContent = `Saved ${items.length} items.`;
-                    addLblInp.value = "";
-                    addCodeTA.value = "";
+                    addMsg.style.color = "#70d070"; addMsg.textContent = `Saved ${items.length} items.`;
+                    addLblInp.value = ""; addCodeTA.value = "";
                     renderRestraintSets(true);
-                } catch {
-                    addMsg.textContent = "Invalid BC code — paste the raw JSON array.";
-                }
+                } catch { addMsg.textContent = "Invalid BC code — paste the raw JSON array."; }
             });
-            addBox.appendChild(addLblInp);
-            addBox.appendChild(addCodeTA);
-            addBox.appendChild(addMsg);
-            addBox.appendChild(addBtnR);
+            addBox.appendChild(addLblInp); addBox.appendChild(addCodeTA); addBox.appendChild(addMsg); addBox.appendChild(addBtnR);
             list.appendChild(addBox);
             restraintsWrap.appendChild(list);
         };
@@ -13847,11 +13953,8 @@ export class EBCDrawer {
         const customRow = document.createElement("div");
         customRow.style.cssText = "display:flex;align-items:center;gap:5px;";
         const customInp = document.createElement("input");
-        customInp.type = "number";
-        customInp.min = "0";
-        customInp.max = "100";
-        customInp.placeholder = "0–100";
-        customInp.style.cssText = "width:55px;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;";
+        customInp.type = "number"; customInp.min = "0"; customInp.max = "100"; customInp.placeholder = "0–100";
+        customInp.style.cssText = "width:55px;" + INP;
         const setBtn = document.createElement("button");
         setBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
         setBtn.textContent = "Set";
@@ -13859,29 +13962,9 @@ export class EBCDrawer {
             const v = parseInt(customInp.value, 10);
             if (!isNaN(v) && v >= 0 && v <= 100) sendKittyCmd("arousal", String(v));
         });
-        const aroHint = document.createElement("span");
-        aroHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;";
-        aroHint.textContent = "Silent command to Emery";
-        customRow.appendChild(customInp);
-        customRow.appendChild(setBtn);
-        customRow.appendChild(aroHint);
+        customRow.appendChild(customInp); customRow.appendChild(setBtn);
         arousalWrap.appendChild(customRow);
         body.appendChild(arousalWrap);
-        body.appendChild(divider());
-
-        // ── SECRET BEEP ──────────────────────────────────────────────────────────
-        const beepHdr = document.createElement("div");
-        beepHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:5px;";
-        beepHdr.textContent = "Direct Message";
-        body.appendChild(beepHdr);
-        const beepBtn2 = makePill("💌 Open beep to Emery", "#70b8e0", () => {
-            this.openBeepWindow(EMERY_MEMBER);
-        });
-        beepBtn2.style.width = "100%";
-        beepBtn2.style.textAlign = "center";
-        body.appendChild(beepBtn2);
-
-        body.appendChild(divider());
     }
 
     private renderThanks(): void {

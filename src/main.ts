@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.59";
+const MOD_VERSION = "2.2.60";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.60",
+        changes: [
+            "Kitty tab overhaul: KIND/ROUGH mood toggle (🌸/⚡) changes the tone of all pose and punishment room emotes. Poses now narrate a mood-aware room emote before applying. New Punishments section (Bad Girl, Gag, Corner, Bind) — each with kind/rough emotes. Resistance popup: when Lucy applies a punishment, Emery gets an 8-second overlay to 'Fight back! 💪' (sends defiance emote) or 'Accept~ 🌸' (sends acceptance emote); auto-accepts on timeout.",
+        ],
+    },
     {
         version: "2.2.59",
         changes: [
@@ -2352,6 +2358,101 @@ function setArometerProgress(pct: number): void {
     }
 }
 
+function showKittyResistancePopup(label: string, mood: "kind" | "rough"): void {
+    if (document.getElementById("ebc-kitty-resist")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "ebc-kitty-resist";
+    overlay.style.cssText = [
+        "position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;",
+        "display:flex;align-items:center;justify-content:center;",
+        "background:rgba(0,0,0,0.55);",
+    ].join("");
+
+    const box = document.createElement("div");
+    box.style.cssText = [
+        "background:linear-gradient(160deg,#1b0d17,#2a0e1e);",
+        "border:2px solid #6b3048;border-radius:10px;",
+        "padding:18px 22px;width:300px;text-align:center;",
+        "font-family:'Trebuchet MS',serif;",
+        "box-shadow:0 4px 32px #0008;",
+    ].join("");
+
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:13px;font-weight:bold;color:#cf6f98;margin-bottom:6px;";
+    title.textContent = `💢 ${label}`;
+
+    const sub = document.createElement("div");
+    sub.style.cssText = "font-size:10px;color:#967281;margin-bottom:12px;";
+    sub.textContent = mood === "rough"
+        ? "Miss Lucy is being stern with you..."
+        : "Miss Lucy is correcting you gently...";
+
+    const timerBar = document.createElement("div");
+    timerBar.style.cssText = "height:4px;background:#3a1928;border-radius:2px;margin-bottom:12px;overflow:hidden;";
+    const timerFill = document.createElement("div");
+    timerFill.style.cssText = "height:100%;background:#cf6f98;border-radius:2px;width:100%;";
+    timerBar.appendChild(timerFill);
+
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display:flex;gap:10px;justify-content:center;";
+
+    const close = (): void => { overlay.remove(); };
+
+    const fightBtn = document.createElement("button");
+    fightBtn.style.cssText = [
+        "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;",
+        "padding:7px 16px;border-radius:6px;cursor:pointer;",
+        "border:1px solid #e07070;background:#e0707018;color:#e07070;",
+    ].join("");
+    fightBtn.textContent = "Fight back! 💪";
+    fightBtn.addEventListener("click", () => {
+        try {
+            const emote = mood === "rough"
+                ? "squirms and pulls away defiantly, refusing to give in~"
+                : "pouts and gently shakes her head~ No, no...";
+            ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+        } catch { /* ignore */ }
+        close();
+    });
+
+    const acceptBtn = document.createElement("button");
+    acceptBtn.style.cssText = [
+        "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;",
+        "padding:7px 16px;border-radius:6px;cursor:pointer;",
+        "border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;",
+    ].join("");
+    acceptBtn.textContent = "Accept~ 🌸";
+    acceptBtn.addEventListener("click", () => {
+        try {
+            const emote = mood === "rough"
+                ? "flinches but lowers her gaze, quietly accepting~"
+                : "gives a tiny nod and lowers her eyes obediently~";
+            ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+        } catch { /* ignore */ }
+        close();
+    });
+
+    btnRow.appendChild(fightBtn);
+    btnRow.appendChild(acceptBtn);
+    box.appendChild(title);
+    box.appendChild(sub);
+    box.appendChild(timerBar);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    // 8-second countdown — auto-accept when it expires
+    const DURATION = 8000;
+    const startTime = Date.now();
+    const tick = (): void => {
+        const pct = Math.max(0, 1 - (Date.now() - startTime) / DURATION);
+        timerFill.style.width = `${pct * 100}%`;
+        if (pct <= 0) { acceptBtn.click(); } else { requestAnimationFrame(tick); }
+    };
+    requestAnimationFrame(tick);
+}
+
 function handleKittyCommand(msg: string): void {
     const parsed = parseKittyCmd(msg);
     if (!parsed) return;
@@ -2379,6 +2480,13 @@ function handleKittyCommand(msg: string): void {
             case "release":
                 releaseRestraints();
                 break;
+            case "punish": {
+                const colonIdx = arg.lastIndexOf(":");
+                const punLabel = colonIdx >= 0 ? arg.slice(0, colonIdx) : arg;
+                const punMood  = (colonIdx >= 0 ? arg.slice(colonIdx + 1) : "kind") as "kind" | "rough";
+                showKittyResistancePopup(punLabel, punMood);
+                break;
+            }
         }
     } catch { /* ignore */ }
 }

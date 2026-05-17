@@ -5,6 +5,8 @@ export const LUCY_MEMBER   = 230466;
 export const EMERY_MEMBER  = 130267;
 const KITTY_CMD_PREFIX = "[EBC-KITTY:";
 
+export type KittyMood = "kind" | "rough";
+
 // ── Data types ────────────────────────────────────────────────────────────────
 
 export interface KittyEmote {
@@ -30,24 +32,72 @@ export interface KittyPose {
     id: string;
     label: string;
     poses: string[];   // BC pose names — empty = neutral
+    kindEmote: string; // emote sent to room in kind mode
+    roughEmote: string;// emote sent to room in rough mode
+}
+
+export interface KittyPunishment {
+    id: string;
+    label: string;
+    kindEmote: string;
+    roughEmote: string;
 }
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_EMOTES: KittyEmote[] = [
-    { id: "headpat",   label: "🐾 Headpat",   text: "gently pats Emery on the head~ 🐾",                       type: "emote"  },
-    { id: "goodgirl",  label: "✨ Good girl",  text: "scratches Emery behind the ears~ Good girl~ ✨",           type: "emote"  },
-    { id: "badgirl",   label: "😤 Bad girl",   text: "gives Emery a firm look~",                                 type: "action" },
-    { id: "treat",     label: "🍖 Treat",      text: "holds out a treat for her little pet~ 🍖",                 type: "emote"  },
-    { id: "praise",    label: "🎀 Praise",     text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀", type: "emote" },
-    { id: "announce",  label: "📢 Mine",       text: "Emery belongs to Lucy~ 💜",                               type: "action" },
+    { id: "headpat",   label: "🐾 Headpat",   text: "gently pats Emery on the head~ 🐾",                              type: "emote"  },
+    { id: "goodgirl",  label: "✨ Good girl",  text: "scratches Emery behind the ears~ Good girl~ ✨",                  type: "emote"  },
+    { id: "treat",     label: "🍖 Treat",      text: "holds out a treat for her little pet~ 🍖",                        type: "emote"  },
+    { id: "praise",    label: "🎀 Praise",     text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀", type: "emote"  },
+    { id: "announce",  label: "💜 Mine",       text: "Emery belongs to Lucy~ 💜",                                      type: "action" },
+    { id: "snuggle",   label: "🤗 Snuggle",    text: "pulls Emery into a warm snuggle, resting her chin on her head~", type: "emote"  },
 ];
 
 const DEFAULT_POSES: KittyPose[] = [
-    { id: "allfours", label: "🐱 All fours",  poses: ["AllFours"]    },
-    { id: "kneel",    label: "🙇 Kneel",       poses: ["Kneel"]       },
-    { id: "handsup",  label: "🙌 Hands up",    poses: ["OverTheHead"] },
-    { id: "neutral",  label: "🔄 Neutral",     poses: []              },
+    {
+        id: "allfours", label: "🐱 All fours", poses: ["AllFours"],
+        kindEmote: "gently guides Emery down onto all fours, patting her head softly~",
+        roughEmote: "places a firm hand on Emery's back and pushes her down to all fours~",
+    },
+    {
+        id: "kneel", label: "🙇 Kneel", poses: ["Kneel"],
+        kindEmote: "gently presses on Emery's shoulder, guiding her to kneel with a warm smile~",
+        roughEmote: "grips Emery's shoulder firmly and points to the floor~",
+    },
+    {
+        id: "handsup", label: "🙌 Hands up", poses: ["OverTheHead"],
+        kindEmote: "lifts Emery's hands above her head, humming softly to herself~",
+        roughEmote: "grabs Emery's wrists and raises them sharply above her head~",
+    },
+    {
+        id: "neutral", label: "🔄 Neutral", poses: [],
+        kindEmote: "releases Emery from her position with a gentle pat on the cheek~",
+        roughEmote: "releases her hold with a curt nod~",
+    },
+];
+
+const DEFAULT_PUNISHMENTS: KittyPunishment[] = [
+    {
+        id: "badgirl", label: "😤 Bad girl",
+        kindEmote: "tilts her head with a disappointed look~ Now now, Emery...",
+        roughEmote: "snaps her fingers sharply and fixes Emery with a stern glare~",
+    },
+    {
+        id: "gag", label: "😶 Gag",
+        kindEmote: "reaches over and gently presses a gag to Emery's lips~ Shh, little one~",
+        roughEmote: "grabs Emery's chin and firmly presses a gag in with a sharp look~",
+    },
+    {
+        id: "corner", label: "🧱 Corner",
+        kindEmote: "points to the corner with a firm but patient look~ Go think about what you did.",
+        roughEmote: "marches Emery firmly to the corner by the collar~ Stay.",
+    },
+    {
+        id: "bind", label: "⛓ Bind",
+        kindEmote: "takes Emery's wrists and begins wrapping them together, whispering softly~",
+        roughEmote: "pins Emery's wrists behind her back and binds them without a word~",
+    },
 ];
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
@@ -63,6 +113,12 @@ function lsSet(key: string, val: unknown): void {
     try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* ignore */ }
 }
 
+export function getKittyMood(): KittyMood {
+    const v = lsGet<string>("EBC_kittyMood", "kind");
+    return v === "rough" ? "rough" : "kind";
+}
+export function setKittyMood(m: KittyMood): void { lsSet("EBC_kittyMood", m); }
+
 export function getKittyEmotes(): KittyEmote[] {
     return lsGet("EBC_kittyEmotes", DEFAULT_EMOTES);
 }
@@ -74,9 +130,20 @@ export function getKittyRestraintSets(): KittyRestraintSet[] {
 export function saveKittyRestraintSets(v: KittyRestraintSet[]): void { lsSet("EBC_kittyRestraintSets", v); }
 
 export function getKittyPoses(): KittyPose[] {
-    return lsGet("EBC_kittyPoses", DEFAULT_POSES);
+    // Migrate old poses that lack emote fields
+    const raw = lsGet<KittyPose[]>("EBC_kittyPoses", DEFAULT_POSES);
+    return raw.map(p => ({
+        ...p,
+        kindEmote:  p.kindEmote  ?? "",
+        roughEmote: p.roughEmote ?? "",
+    }));
 }
 export function saveKittyPoses(v: KittyPose[]): void { lsSet("EBC_kittyPoses", v); }
+
+export function getKittyPunishments(): KittyPunishment[] {
+    return lsGet("EBC_kittyPunishments", DEFAULT_PUNISHMENTS);
+}
+export function saveKittyPunishments(v: KittyPunishment[]): void { lsSet("EBC_kittyPunishments", v); }
 
 // ── Command protocol ──────────────────────────────────────────────────────────
 // Format: [EBC-KITTY:cmd:arg]  or  [EBC-KITTY:cmd]
