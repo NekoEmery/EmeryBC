@@ -25022,10 +25022,10 @@
                 const w = window;
                 const leashList = w.ChatRoomLeashList;
                 if (held) {
-                    // Release leash
+                    // Release leash — loosen collar back if it was tugged tight
                     sendRoomEmote(mood === "rough"
-                        ? "drops Emery's leash with a dismissive flick~"
-                        : "gently releases Emery's leash~");
+                        ? "drops Emery's leash with a sharp flick, giving her collar a rough adjustment back to its usual fit~"
+                        : "gently releases Emery's leash, carefully loosening her collar back to its comfortable fit~");
                     try {
                         ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
                         if (leashList) {
@@ -25035,9 +25035,11 @@
                         }
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
-                    // LSCG_ReleaseNeck resets LSCG's choke/breath-play pairing on release
+                    // Loosen neck — Caress to signal collar relief; LSCG_ReleaseNeck clears any choke pairing
+                    runKittyActivity("ItemNeck", "Caress");
                     runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
                     tugCount = 0;
+                    refreshTugBtn();
                 }
                 else {
                     // Grab leash — BC's HoldLeash hidden-message protocol
@@ -25051,6 +25053,7 @@
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
                     tugCount = 0;
+                    refreshTugBtn();
                 }
                 // Update button to reflect new state
                 refreshLeashBtn();
@@ -28234,7 +28237,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.104";
+    const MOD_VERSION = "2.2.105";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28245,6 +28248,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.105",
+            changes: [
+                "Fix: Tug counter and button tooltip now correctly reset when the leash is grabbed or released (refreshTugBtn was not being called in the leash button handler).",
+                "Kitty Leash: releasing the leash now runs Caress on ItemNeck (collar relief) in addition to LSCG_ReleaseNeck, and the release emote now describes loosening the collar back to its comfortable fit.",
+            ],
+        },
         {
             version: "2.2.104",
             changes: [
