@@ -11535,14 +11535,22 @@
     top: 0;
     width: 360px;
     height: 100%;  /* full chat log height — no vertical conflict with tab */
-    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-    will-change: transform;
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                visibility 0.35s;
+    will-change: transform, opacity;
     pointer-events: none;
 }
 
-/* +60px extra so the panel clears the 44px tab offset when closed */
-#emerybc-panel.ebc-closed { transform: translateX(calc(100% + 60px)); }
-#emerybc-panel.ebc-open   { transform: translateX(0); pointer-events: auto; }
+/* +60px extra so the panel clears the 44px tab offset when closed.
+   opacity+visibility mirror what CRABS does — ensures zero visual bleed
+   even if the transform doesn't push every pixel off-screen. */
+#emerybc-panel.ebc-closed {
+    transform: translateX(calc(100% + 60px));
+    opacity: 0;
+    visibility: hidden;
+}
+#emerybc-panel.ebc-open { transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto; }
 
 .ebc-panel {
     pointer-events: inherit; /* inherits none/auto from #emerybc-panel so closed panel passes clicks through */
@@ -13469,11 +13477,13 @@
 }
 #emerybc-panel.ebc-free-mode.ebc-closed {
     opacity: 0 !important;
+    visibility: hidden !important;
     pointer-events: none !important;
     transform: none !important;
 }
 #emerybc-panel.ebc-free-mode.ebc-open {
     opacity: 1 !important;
+    visibility: visible !important;
     pointer-events: auto !important;
     transform: none !important;
 }
@@ -25612,7 +25622,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.34";
+    const MOD_VERSION = "2.2.35";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25623,6 +25633,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.35",
+            changes: [
+                "Fix: closed panel still visually bled — added opacity:0 + visibility:hidden to ebc-closed (matching CRABS's approach). Panel is now completely invisible when closed regardless of transform position.",
+            ],
+        },
         {
             version: "2.2.34",
             changes: [
