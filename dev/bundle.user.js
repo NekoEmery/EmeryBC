@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.98
+// @version      2.2.99
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11381,7 +11381,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             text: "gives Emery a playful bap on the nose~ 🐾",
             roughText: "gives Emery a sharp flick on the nose without warning~",
             type: "emote",
-            bcGroup: "ItemHead", bcActivity: "Pet",
+            bcGroup: "ItemNose", bcActivity: "Pet",
         },
     ];
     const DEFAULT_POSES = [
@@ -11497,7 +11497,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const BC_ACTIVITY_SEEDS = {
         "headpat": { group: "ItemHead", activity: "Pet" },
         "spank": { group: "ItemButt", activity: "Spank" },
-        "bap": { group: "ItemHead", activity: "Pet" },
+        "bap": { group: "ItemNose", activity: "Pet" },
     };
     // New emotes to seed into existing stored lists that predate them.
     const NEW_EMOTE_SEEDS = [
@@ -11506,7 +11506,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             text: "gives Emery a playful bap on the nose~ 🐾",
             roughText: "gives Emery a sharp flick on the nose without warning~",
             type: "emote",
-            bcGroup: "ItemHead", bcActivity: "Pet",
+            bcGroup: "ItemNose", bcActivity: "Pet",
         },
         {
             id: "spank", label: "👋 Spank",
@@ -11523,7 +11523,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             .filter(e => e.id !== "leash")
             .map(e => {
             var _a, _b, _c, _d, _e, _f, _g, _h;
-            return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", bcGroup: (_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group, 
+            return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "", 
+                // Migration: fix stored bap that used ItemHead — should be ItemNose (real boop action)
+                bcGroup: e.id === "bap" && e.bcGroup === "ItemHead"
+                    ? "ItemNose"
+                    : ((_e = e.bcGroup) !== null && _e !== void 0 ? _e : (_f = BC_ACTIVITY_SEEDS[e.id]) === null || _f === void 0 ? void 0 : _f.group), 
                 // Migration: fix stored bap that had Slap (face-slap) — should be Pet (light tap)
                 bcActivity: e.id === "bap" && e.bcActivity === "Slap"
                     ? "Pet"
@@ -25049,6 +25053,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
+                    // Caress neck to reset LSCG choke/breath-play state on release
+                    runKittyActivity("ItemNeck", "Caress");
                 }
                 else {
                     // Grab leash — BC's HoldLeash hidden-message protocol
@@ -28224,7 +28230,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.98";
+    const MOD_VERSION = "2.2.99";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28235,6 +28241,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.99",
+            changes: [
+                "Kitty Leash: releasing the leash now fires BC's 'Caress' activity on ItemNeck immediately after StopHoldLeash — this resets LSCG's choke/breath-play state so Emery's neck is no longer flagged as constricted.",
+                "Kitty Emotes: 🐾 Bap now uses ItemNose + Pet (BC's 'boops TargetCharacter's nose' action) instead of ItemHead + Pet — gives the correct nose-boop animation and text. Existing stored bap entries are migrated automatically.",
+            ],
+        },
         {
             version: "2.2.98",
             changes: [
