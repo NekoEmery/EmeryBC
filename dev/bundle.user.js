@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.38
+// @version      2.2.39
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -14696,7 +14696,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             refreshBtn.addEventListener("click", () => {
                 refreshBtn.classList.add("spinning");
                 refreshBtn.addEventListener("animationend", () => refreshBtn.classList.remove("spinning"), { once: true });
-                this.renderCurrentTab();
+                this.rerender();
             });
             outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
             buttonsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
@@ -15128,6 +15128,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             else if (this.currentTab === "puppy")
                 this.renderPuppy();
         }
+        /**
+         * Re-render the current tab in-place while preserving the panel's scroll
+         * position.  All within-tab actions (save, delete, reorder, etc.) should
+         * call this instead of renderCurrentTab() directly so the user doesn't
+         * get snapped back to the top of the list after every interaction.
+         *
+         * Tab *switches* intentionally bypass this and call renderCurrentTab()
+         * directly so the new tab always starts at the top.
+         */
+        rerender(delay = 0) {
+            var _a, _b;
+            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            const scroll = (_b = body === null || body === void 0 ? void 0 : body.scrollTop) !== null && _b !== void 0 ? _b : 0;
+            const doRender = () => {
+                this.renderCurrentTab();
+                if (body)
+                    body.scrollTop = scroll;
+            };
+            if (delay > 0)
+                window.setTimeout(doRender, delay);
+            else
+                doRender();
+        }
         // -- Timer -----------------------------------------------------------------
         updateTimer() {
             if (!this.timerEl)
@@ -15336,7 +15359,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }
                             else {
                                 deleteOutfitTag(tag.id);
-                                this.renderOutfits();
+                                this.rerender();
                             }
                         });
                         chip.appendChild(colorDot);
@@ -16744,13 +16767,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             upBtn.textContent = "▲";
             upBtn.title = "Move up";
             upBtn.disabled = thisIdx <= 0;
-            upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.renderOutfits(); });
+            upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.rerender(); });
             const downBtn = document.createElement("button");
             downBtn.className = "ebc-reorder-btn";
             downBtn.textContent = "▼";
             downBtn.title = "Move down";
             downBtn.disabled = thisIdx >= outfitsList.length - 1;
-            downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.renderOutfits(); });
+            downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.rerender(); });
             reorderCol.appendChild(upBtn);
             reorderCol.appendChild(downBtn);
             row.appendChild(reorderCol);
@@ -16958,7 +16981,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return;
                 const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked, eNicknameInput.value, eTitleSel.value);
                 if (ok)
-                    this.renderOutfits();
+                    this.rerender();
             });
             eExportBtn.addEventListener("click", () => {
                 var _a;
@@ -17022,7 +17045,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (delTimer !== null)
                         window.clearTimeout(delTimer);
                     deleteOutfit(o.id);
-                    this.renderOutfits();
+                    this.rerender();
                 }
             });
             return wrapper;
@@ -17115,7 +17138,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     checkbox.checked = false;
                     form.style.display = "none";
                     newBtn.textContent = "+ New Outfit from Current Look";
-                    this.renderOutfits();
+                    this.rerender();
                 }
                 else {
                     createBtn.disabled = false;
@@ -17237,7 +17260,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         importOutfitFromJSON(impTextarea.value.trim());
                     }
                     closeImpPanel();
-                    this.renderOutfits();
+                    this.rerender();
                 }
                 catch (err) {
                     impError.textContent = err instanceof Error ? err.message : "Invalid format.";
@@ -18261,7 +18284,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         cats.splice(i, 1);
                         const newIdx = Math.min(i, cats.length - 1);
                         saveCategories([...cats], newIdx);
-                        this.renderButtons();
+                        this.rerender();
                     });
                     hrow.appendChild(delBtn);
                 }
@@ -18286,7 +18309,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 hrow.addEventListener("click", () => {
                     if (i !== activeCatIdx) {
                         setActiveCategoryIndex(i);
-                        this.renderButtons();
+                        this.rerender();
                         return;
                     }
                     isExpanded = !isExpanded;
@@ -18322,7 +18345,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 cats.push({ name: name.trim(), buttons: [{ label: "", emote: "", color: "#c2185b", enabled: false, style: "macro" }], slotCount: 1 });
                 const newIdx = cats.length - 1;
                 saveCategories([...cats], newIdx);
-                this.renderButtons();
+                this.rerender();
             });
             addCatRow.appendChild(addCatBtn);
             body.appendChild(addCatRow);
@@ -19239,7 +19262,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 clearBtn.title = "Clear all poses";
                 clearBtn.addEventListener("click", () => {
                     applyPoses([]);
-                    window.setTimeout(() => this.renderPoses(), 150);
+                    this.rerender(150);
                 });
                 statusBar.appendChild(clearBtn);
             }
@@ -19293,7 +19316,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const bodyPoses = currentPoses.filter(p => { var _a; return (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses.some(x => x.key === p); });
                             applyPoses([...bodyPoses, preset.key]);
                         }
-                        window.setTimeout(() => this.renderPoses(), 150);
+                        this.rerender(150);
                     });
                     grid.appendChild(btn);
                 }
@@ -19356,7 +19379,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     window.setTimeout(() => {
                         applyBtn.disabled = false;
                         applyBtn.textContent = "▶";
-                        this.renderPoses();
+                        this.rerender();
                     }, totalMs);
                 });
                 const editBtn = document.createElement("button");
@@ -19384,7 +19407,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         if (delTimer)
                             window.clearTimeout(delTimer);
                         deleteCombo(combo.id);
-                        this.renderPoses();
+                        this.rerender();
                     }
                 });
                 row.appendChild(nameEl);
@@ -19427,7 +19450,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
                 topSaveBtn.addEventListener("click", () => {
                     updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                    this.renderPoses();
+                    this.rerender();
                 });
                 topSaveBar.appendChild(topSaveBtn);
                 // Full save button at the bottom too
@@ -19439,7 +19462,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 savComboBtn.textContent = "Save Changes";
                 savComboBtn.addEventListener("click", () => {
                     updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                    this.renderPoses();
+                    this.rerender();
                 });
                 saveBar.appendChild(savComboBtn);
                 editor.appendChild(saveBar);
@@ -19505,7 +19528,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return;
                 }
                 createCombo(name, ncGetPoses(), ncGetCommand(), ncGetAnnounce(), ncGetDelay());
-                this.renderPoses();
+                this.rerender();
             };
             ncTopSaveBtn.addEventListener("click", doSave);
             ncTopSaveBar.appendChild(ncTopSaveBtn);
@@ -20271,7 +20294,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     window.setTimeout(() => {
                         playBtn.disabled = false;
                         playBtn.textContent = "▶";
-                        this.renderPoses();
+                        this.rerender();
                     }, totalMs);
                 });
                 const editBtn = document.createElement("button");
@@ -20332,7 +20355,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         if (delTimer)
                             window.clearTimeout(delTimer);
                         deleteScene(scene.id);
-                        this.renderPoses();
+                        this.rerender();
                     }
                 });
                 row.appendChild(nameEl);
@@ -20391,7 +20414,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const { getSteps } = buildSceneEditor(editor, scene.steps);
                 topSaveBtn.addEventListener("click", () => {
                     updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                    this.renderPoses();
+                    this.rerender();
                 });
                 const botSaveBar = document.createElement("div");
                 botSaveBar.className = "ebc-editor-save-bar";
@@ -20401,7 +20424,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 botSaveBtn.textContent = "Save Changes";
                 botSaveBtn.addEventListener("click", () => {
                     updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                    this.renderPoses();
+                    this.rerender();
                 });
                 botSaveBar.appendChild(botSaveBtn);
                 editor.appendChild(botSaveBar);
@@ -20480,7 +20503,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return;
                 }
                 createScene(name, nsGetSteps(), nsCmdInp.value);
-                this.renderPoses();
+                this.rerender();
             };
             nsTopSaveBtn.addEventListener("click", doSaveScene);
             const nsBotSaveBar = document.createElement("div");
@@ -20554,7 +20577,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 try {
                     importScene(impTextarea.value.trim());
                     closeImpPanel();
-                    this.renderPoses();
+                    this.rerender();
                 }
                 catch (err) {
                     impError.textContent = err instanceof Error ? err.message : "Invalid format.";
@@ -21084,7 +21107,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.refreshTabDot();
                 if (this.currentTab === "notes") {
                     try {
-                        this.renderNotes();
+                        this.rerender();
                     }
                     catch ( /* ignore */_c) { /* ignore */ }
                 }
@@ -22283,7 +22306,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 window.setTimeout(() => { noteHint.textContent = "saves automatically"; }, 1500);
                                 try {
                                     if (this.currentTab === "notes")
-                                        this.renderNotes();
+                                        this.rerender();
                                 }
                                 catch ( /* ignore */_a) { /* ignore */ }
                             }, 800);
@@ -25640,7 +25663,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.38";
+    const MOD_VERSION = "2.2.39";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -25651,6 +25674,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.39",
+            changes: [
+                "Fix: clicking any action in the menu (delete, save, reorder, pose buttons, etc.) no longer snaps the scroll position back to the top of the list.",
+            ],
+        },
         {
             version: "2.2.38",
             changes: [
