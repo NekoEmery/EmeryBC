@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.50
+// @version      2.2.51
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13621,6 +13621,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             puppyTabBtn.textContent = "🐾";
             puppyTabBtn.title = "Puppy";
             puppyTabBtn.style.display = "none"; // revealed in open() for Lucy only
+            // Kitty tab — Lucy only (member 230466)
+            const kittyTabBtn = document.createElement("button");
+            kittyTabBtn.className = "ebc-tab-btn";
+            kittyTabBtn.id = "ebc-tab-kitty";
+            kittyTabBtn.textContent = "🐱";
+            kittyTabBtn.title = "Kitty";
+            kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
             tabBar.appendChild(outfitTabBtn);
             tabBar.appendChild(posesTabBtn);
             tabBar.appendChild(notesTabBtn);
@@ -13628,6 +13635,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tabBar.appendChild(devTabBtn2);
             tabBar.appendChild(domTabBtn);
             tabBar.appendChild(puppyTabBtn);
+            tabBar.appendChild(kittyTabBtn);
             // Quick actions bar (always visible below tabs)
             const quickActions = document.createElement("div");
             quickActions.className = "ebc-quick-actions";
@@ -14156,6 +14164,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
             domTabBtn.addEventListener("click", () => this.switchTab("dom"));
             puppyTabBtn.addEventListener("click", () => this.switchTab("puppy"));
+            kittyTabBtn.addEventListener("click", () => this.switchTab("kitty"));
             document.addEventListener("keydown", (e) => {
                 var _a, _b;
                 if (e.key === "Escape" && this.isOpen) {
@@ -14560,6 +14569,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ["ebc-tab-dev", "dev"],
                 ["ebc-tab-dom", "dom"],
                 ["ebc-tab-puppy", "puppy"],
+                ["ebc-tab-kitty", "kitty"],
             ]) {
                 const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(`#${id}`);
                 if (el)
@@ -14582,6 +14592,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.renderDomTools();
             else if (this.currentTab === "puppy")
                 this.renderPuppy();
+            else if (this.currentTab === "kitty")
+                this.renderKittyTab();
         }
         /**
          * Apply the stored panel opacity to the .ebc-panel element.
@@ -19897,13 +19909,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 const icons = [];
                                 const own = Player.Ownership;
                                 if ((own === null || own === void 0 ? void 0 : own.MemberNumber) === num)
-                                    icons.push("🔒");
+                                    icons.push("👑");
                                 const loves = Player.Lovership;
                                 if (loves === null || loves === void 0 ? void 0 : loves.some(l => l.MemberNumber === num))
                                     icons.push("❤️");
                                 const charOwn = char.Ownership;
                                 if ((charOwn === null || charOwn === void 0 ? void 0 : charOwn.MemberNumber) === Player.MemberNumber)
-                                    icons.push("👑");
+                                    icons.push("🔒");
                                 return icons.join("");
                             }
                             catch (_a) {
@@ -23009,6 +23021,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             addRow.appendChild(addBtn);
             body.appendChild(addRow);
         }
+        renderKittyTab() {
+            var _a;
+            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            if (!body)
+                return;
+            while (body.firstChild)
+                body.removeChild(body.firstChild);
+            this.renderKittySection(body);
+        }
         renderKittySection(body) {
             // ── Header ───────────────────────────────────────────────────────────────
             const hdr = document.createElement("div");
@@ -23469,10 +23490,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // Lucy (#230466) gets the Kitty section at the top
-            if (Player.MemberNumber === LUCY_MEMBER) {
-                this.renderKittySection(body);
-            }
             const credLbl = document.createElement("div");
             credLbl.className = "ebc-section-label";
             credLbl.textContent = "Special Thanks";
@@ -24748,7 +24765,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         open() {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e;
             if (!this.panelEl)
                 return;
             this.isOpen = true;
@@ -24779,7 +24796,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             try {
                 (_b = this.refreshSwEnableBtn) === null || _b === void 0 ? void 0 : _b.call(this);
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             // Show the DOM tab only for the creator
             const domTabEl = (_c = this.rootEl) === null || _c === void 0 ? void 0 : _c.querySelector("#ebc-tab-dom");
             if (domTabEl)
@@ -24787,12 +24804,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Show the Puppy tab only for Lucy (#230466)
             const puppyTabEl = (_d = this.rootEl) === null || _d === void 0 ? void 0 : _d.querySelector("#ebc-tab-puppy");
             if (puppyTabEl)
-                puppyTabEl.style.display = Player.MemberNumber === 230466 ? "" : "none";
+                puppyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
+            // Show the Kitty tab only for Lucy (#230466)
+            const kittyTabEl = (_e = this.rootEl) === null || _e === void 0 ? void 0 : _e.querySelector("#ebc-tab-kitty");
+            if (kittyTabEl)
+                kittyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
             this.updateTimer();
             try {
                 this.applyTabVisibility();
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             this.renderCurrentTab();
         }
         close() {
@@ -24858,7 +24879,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.50";
+    const MOD_VERSION = "2.2.51";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -24869,6 +24890,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.51",
+            changes: [
+                "Fix: PEOPLE IN ROOM badge now correctly shows 👑 for your owner and 🔒 for someone you own (was reversed).",
+                "New: Kitty menu is now its own 🐱 tab (was buried in Credits). Only visible to Lucy (#230466).",
+                "Fix: Arousal changes (/ebc ameter) now broadcast to the room immediately so others see the meter update.",
+                "New: /ebc help commands are now stacked with descriptions; click any to auto-fill the chat bar.",
+            ],
+        },
         {
             version: "2.2.50",
             changes: [
@@ -27010,6 +27040,51 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             window.setTimeout(() => doAppend(), 300);
         }
     }
+    // Appends a clickable command row to the chat log. Clicking fills the chat input
+    // with the command text so the user only has to press Enter to run it.
+    function appendClickableCmd(cmd, desc) {
+        const doAppend = () => {
+            const log = document.getElementById("TextAreaChatLog");
+            if (!log)
+                return false;
+            const row = document.createElement("div");
+            row.style.cssText = `
+            background: ${UI.cardMuted};
+            border-left: 3px solid ${UI.accent};
+            padding: 3px 8px;
+            margin: 1px 0;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.12s;
+        `;
+            row.title = "Click to fill chat bar";
+            row.addEventListener("mouseenter", () => { row.style.background = "#2a1a2a"; });
+            row.addEventListener("mouseleave", () => { row.style.background = UI.cardMuted; });
+            const cmdSpan = document.createElement("span");
+            cmdSpan.style.cssText = "font-family:monospace;color:#e0b8d8;font-weight:bold;font-size:11px;white-space:nowrap;font-style:normal;";
+            cmdSpan.textContent = cmd;
+            const descSpan = document.createElement("span");
+            descSpan.style.cssText = `color:${UI.textMuted};font-size:10px;font-style:italic;`;
+            descSpan.textContent = desc;
+            row.appendChild(cmdSpan);
+            row.appendChild(descSpan);
+            row.addEventListener("click", () => {
+                const input = document.getElementById("InputChat");
+                if (input) {
+                    input.value = cmd;
+                    input.focus();
+                }
+            });
+            log.appendChild(row);
+            log.scrollTop = log.scrollHeight;
+            return true;
+        };
+        if (!doAppend())
+            window.setTimeout(() => doAppend(), 300);
+    }
     function showVersionInfo() {
         appendLocalLogLine(`[EBC] Version ${MOD_VERSION}`, UI.gold);
     }
@@ -27031,6 +27106,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function syncArousalSettings(arousal) {
         const updater = window.ServerAccountUpdate;
         updater === null || updater === void 0 ? void 0 : updater.QueueData({ ArousalSettings: arousal });
+        // Also broadcast to the room so other players see the change immediately
+        callBC(() => {
+            const syncFn = window.ActivityChatRoomArousalSync;
+            if (typeof syncFn === "function") {
+                syncFn(Player);
+            }
+            else if (Player.OnlineID != null) {
+                ServerSend("ChatRoomCharacterUpdate", {
+                    ID: Player.OnlineID,
+                    ArousalSettings: arousal,
+                    Appearance: ServerAppearanceBundle(Player.Appearance),
+                });
+            }
+        });
     }
     function toggleArometerCommand() {
         try {
@@ -27191,7 +27280,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             return true;
         }
-        appendLocalLogLine("[EBC] Commands: /lock  /unlock  |  /ebc version  |  /ebc changelog  |  /ebc release  |  /ebc unlock  |  /ebc ameter [0-100]  |  /ebc update  |  /ebc updates on/off  |  /ebc afk", UI.gold);
+        appendLocalLogLine("[EBC] Commands — click any to fill the chat bar:", UI.gold);
+        appendClickableCmd("/lock", "Lock the current room (requires admin)");
+        appendClickableCmd("/unlock", "Unlock the current room (requires admin)");
+        appendClickableCmd("/ebc version", "Show current EBC version");
+        appendClickableCmd("/ebc changelog", "Show recent changelog entries");
+        appendClickableCmd("/ebc release", "Release all restraints from yourself");
+        appendClickableCmd("/ebc unlock", "Remove all locks from yourself");
+        appendClickableCmd("/ebc ameter", "Toggle arousal meter on / off");
+        appendClickableCmd("/ebc ameter 50", "Set arousal to a specific % (0–100)");
+        appendClickableCmd("/ebc update", "Check GitHub for a newer version");
+        appendClickableCmd("/ebc updates on", "Enable update notifications");
+        appendClickableCmd("/ebc updates off", "Disable update notifications");
+        appendClickableCmd("/ebc afk", "Toggle AFK mode");
         return true;
     }
     // -- Update notification -------------------------------------------------------
