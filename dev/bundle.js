@@ -25832,9 +25832,7 @@
                                     const presets = getKittyRestraintSets();
                                     presets.push({ id: "r_" + Date.now(), label: name, items: items.map(i => (Object.assign({}, i))), kindEmote: "", roughEmote: "" });
                                     saveKittyRestraintSets(presets);
-                                    spInp.value = "";
-                                    spBtn.textContent = "✓ Saved!";
-                                    window.setTimeout(() => { spBtn.textContent = "💾 Save"; }, 1500);
+                                    rebuildSteps(); // rebuild so the Load dropdown shows the new preset
                                 });
                                 spRow.appendChild(spInp);
                                 spRow.appendChild(spBtn);
@@ -25952,6 +25950,216 @@
             body.appendChild(punishHdr);
             renderPunishments(false);
             body.appendChild(punishWrap);
+            body.appendChild(divider());
+            // ── RESTRAINT PRESETS ────────────────────────────────────────────────────
+            const rpWrap = document.createElement("div");
+            rpWrap.style.marginBottom = "10px";
+            const renderRestraintPresets = (editing) => {
+                rpWrap.innerHTML = "";
+                const presets = getKittyRestraintSets();
+                if (!editing) {
+                    if (presets.length === 0) {
+                        const em = document.createElement("div");
+                        em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;";
+                        em.textContent = "No presets yet — use 💾 Save in a restraint step, or create one here.";
+                        rpWrap.appendChild(em);
+                        return;
+                    }
+                    for (const preset of presets) {
+                        const row = document.createElement("div");
+                        row.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09070;padding:1px 0;";
+                        row.textContent = `🔒 ${preset.label} (${preset.items.length} item${preset.items.length === 1 ? "" : "s"})`;
+                        rpWrap.appendChild(row);
+                    }
+                    return;
+                }
+                // Edit mode
+                const list = document.createElement("div");
+                list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+                presets.forEach((preset, pIdx) => {
+                    const r = document.createElement("div");
+                    r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(20,10,5,0.5);border:1px solid #3a2010;border-radius:5px;padding:5px 7px;";
+                    // Header: label + delete
+                    const hdr2 = document.createElement("div");
+                    hdr2.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const lblInp2 = document.createElement("input");
+                    lblInp2.value = preset.label;
+                    lblInp2.placeholder = "Preset name";
+                    lblInp2.style.cssText = "flex:1;min-width:0;" + INP;
+                    lblInp2.addEventListener("input", () => { const upd = getKittyRestraintSets(); if (upd[pIdx]) {
+                        upd[pIdx].label = lblInp2.value;
+                        saveKittyRestraintSets(upd);
+                    } });
+                    const delBtn2 = document.createElement("button");
+                    delBtn2.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                    delBtn2.textContent = "×";
+                    delBtn2.addEventListener("click", () => { saveKittyRestraintSets(getKittyRestraintSets().filter((_, i) => i !== pIdx)); renderRestraintPresets(true); });
+                    hdr2.appendChild(lblInp2);
+                    hdr2.appendChild(delBtn2);
+                    r.appendChild(hdr2);
+                    // Item list
+                    const itemsWrap2 = document.createElement("div");
+                    itemsWrap2.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+                    const rebuildRPItems = () => {
+                        var _a, _b;
+                        itemsWrap2.innerHTML = "";
+                        const liveItems = (_b = (_a = getKittyRestraintSets()[pIdx]) === null || _a === void 0 ? void 0 : _a.items) !== null && _b !== void 0 ? _b : [];
+                        if (liveItems.length === 0) {
+                            const em2 = document.createElement("div");
+                            em2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;padding:1px 0;";
+                            em2.textContent = "No items yet";
+                            itemsWrap2.appendChild(em2);
+                        }
+                        else {
+                            liveItems.forEach((item, iIdx) => {
+                                const iRow = document.createElement("div");
+                                iRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:1px 0;";
+                                const nm2 = document.createElement("span");
+                                nm2.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
+                                nm2.textContent = item.Name;
+                                nm2.title = item.Name;
+                                const grp2 = document.createElement("span");
+                                grp2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#8a6070;white-space:nowrap;flex-shrink:0;";
+                                grp2.textContent = item.Group.replace("Item", "");
+                                const colInp2 = document.createElement("input");
+                                colInp2.value = colorToStr(item.Color);
+                                colInp2.placeholder = "Default";
+                                colInp2.style.cssText = "width:72px;flex-shrink:0;" + INP;
+                                colInp2.title = "Colour";
+                                colInp2.addEventListener("change", () => { var _a, _b; const upd = getKittyRestraintSets(); if ((_b = (_a = upd[pIdx]) === null || _a === void 0 ? void 0 : _a.items) === null || _b === void 0 ? void 0 : _b[iIdx]) {
+                                    upd[pIdx].items[iIdx].Color = strToColor(colInp2.value);
+                                    saveKittyRestraintSets(upd);
+                                } });
+                                const delI2 = document.createElement("button");
+                                delI2.style.cssText = "font-size:10px;line-height:1;padding:0 3px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                                delI2.textContent = "×";
+                                delI2.addEventListener("click", () => { var _a; const upd = getKittyRestraintSets(); if ((_a = upd[pIdx]) === null || _a === void 0 ? void 0 : _a.items) {
+                                    upd[pIdx].items.splice(iIdx, 1);
+                                    saveKittyRestraintSets(upd);
+                                } rebuildRPItems(); });
+                                iRow.appendChild(nm2);
+                                iRow.appendChild(grp2);
+                                iRow.appendChild(colInp2);
+                                iRow.appendChild(delI2);
+                                itemsWrap2.appendChild(iRow);
+                            });
+                        }
+                    };
+                    rebuildRPItems();
+                    r.appendChild(itemsWrap2);
+                    // Add item builder
+                    const rpSlRow = document.createElement("div");
+                    rpSlRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:3px;border-top:1px solid #3a2010;padding-top:3px;";
+                    const rpSl = document.createElement("select");
+                    rpSl.style.cssText = "flex:1;min-width:0;" + INP;
+                    const rpSlPh = document.createElement("option");
+                    rpSlPh.value = "";
+                    rpSlPh.textContent = "— slot —";
+                    rpSlPh.disabled = true;
+                    rpSlPh.selected = true;
+                    rpSl.appendChild(rpSlPh);
+                    for (const grp of RESTRAINT_GROUPS) {
+                        const o = document.createElement("option");
+                        o.value = grp;
+                        o.textContent = grp.replace("Item", "");
+                        rpSl.appendChild(o);
+                    }
+                    rpSlRow.appendChild(rpSl);
+                    const rpItemRow = document.createElement("div");
+                    rpItemRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                    const rpItemSel = document.createElement("select");
+                    rpItemSel.style.cssText = "flex:1;min-width:0;" + INP;
+                    const rpIPh = document.createElement("option");
+                    rpIPh.value = "";
+                    rpIPh.textContent = "— pick slot first —";
+                    rpIPh.disabled = true;
+                    rpIPh.selected = true;
+                    rpItemSel.appendChild(rpIPh);
+                    rpSl.addEventListener("change", () => {
+                        rpItemSel.innerHTML = "";
+                        const names = getGroupAssets(rpSl.value);
+                        if (names.length === 0) {
+                            const o = document.createElement("option");
+                            o.value = "";
+                            o.textContent = "— none —";
+                            o.disabled = true;
+                            o.selected = true;
+                            rpItemSel.appendChild(o);
+                        }
+                        else {
+                            const ph2 = document.createElement("option");
+                            ph2.value = "";
+                            ph2.textContent = "— pick item —";
+                            ph2.disabled = true;
+                            ph2.selected = true;
+                            rpItemSel.appendChild(ph2);
+                            for (const n of names) {
+                                const o = document.createElement("option");
+                                o.value = n;
+                                o.textContent = n;
+                                rpItemSel.appendChild(o);
+                            }
+                        }
+                    });
+                    rpItemRow.appendChild(rpItemSel);
+                    const rpColRow = document.createElement("div");
+                    rpColRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                    const rpColInp = document.createElement("input");
+                    rpColInp.placeholder = "Default or #rrggbb";
+                    rpColInp.style.cssText = "flex:1;min-width:0;" + INP;
+                    const rpAddBtn = document.createElement("button");
+                    rpAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                    rpAddBtn.textContent = "+ Add";
+                    rpAddBtn.addEventListener("click", () => {
+                        if (!rpSl.value || !rpItemSel.value)
+                            return;
+                        const newItem = { Name: rpItemSel.value, Group: rpSl.value, Color: strToColor(rpColInp.value || "Default") };
+                        const upd = getKittyRestraintSets();
+                        if (upd[pIdx]) {
+                            upd[pIdx].items.push(newItem);
+                            saveKittyRestraintSets(upd);
+                        }
+                        rpSl.value = "";
+                        rpItemSel.innerHTML = "";
+                        rpItemSel.appendChild(rpIPh);
+                        rpIPh.selected = true;
+                        rpColInp.value = "";
+                        rebuildRPItems();
+                    });
+                    rpColRow.appendChild(rpColInp);
+                    rpColRow.appendChild(rpAddBtn);
+                    r.appendChild(rpSlRow);
+                    r.appendChild(rpItemRow);
+                    r.appendChild(rpColRow);
+                    list.appendChild(r);
+                });
+                // Add new preset
+                const newPresetRow = document.createElement("div");
+                newPresetRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
+                const newPresetLbl = document.createElement("input");
+                newPresetLbl.placeholder = "New preset name…";
+                newPresetLbl.style.cssText = "flex:1;min-width:0;" + INP;
+                const addPresetBtn = document.createElement("button");
+                addPresetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                addPresetBtn.textContent = "+ Create";
+                addPresetBtn.addEventListener("click", () => {
+                    if (!newPresetLbl.value.trim())
+                        return;
+                    const upd = getKittyRestraintSets();
+                    upd.push({ id: "r_" + Date.now(), label: newPresetLbl.value.trim(), items: [], kindEmote: "", roughEmote: "" });
+                    saveKittyRestraintSets(upd);
+                    newPresetLbl.value = "";
+                    renderRestraintPresets(true);
+                });
+                newPresetRow.appendChild(newPresetLbl);
+                newPresetRow.appendChild(addPresetBtn);
+                list.appendChild(newPresetRow);
+                rpWrap.appendChild(list);
+            };
+            const { el: rpHdr } = makeSectionHdr("Restraints", null, (ed) => renderRestraintPresets(ed));
+            body.appendChild(rpHdr);
+            renderRestraintPresets(false);
+            body.appendChild(rpWrap);
             body.appendChild(divider());
             // ── AROUSAL ──────────────────────────────────────────────────────────────
             const arousalHdr = document.createElement("div");
@@ -27384,7 +27592,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.78";
+    const MOD_VERSION = "2.2.79";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27395,6 +27603,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.79",
+            changes: [
+                "Kitty tab: added a dedicated Restraints section for managing named restraint presets — create, rename, add/remove items, and delete presets directly without going through a punishment step.",
+                "Fixed: the 💾 Save button in punishment restraint steps now triggers a step rebuild so the Load ↓ dropdown immediately shows the newly saved preset.",
+            ],
+        },
         {
             version: "2.2.78",
             changes: [
