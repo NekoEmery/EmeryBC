@@ -121,7 +121,7 @@ const DEFAULT_EMOTES: KittyEmote[] = [
     {
         id: "bap",      label: "🐾 Bap",
         text:      "gives Emery a playful bap on the nose~ 🐾",
-        roughText: "gives Emery a sharp flick on the nose without warning~",
+        roughText: "gives Emery a sharp flick to the forehead without warning~",
         type: "emote",
     },
 ];
@@ -227,7 +227,7 @@ const ROUGH_TEXT_SEEDS: Record<string, string> = {
     "announce": "Emery is Lucy's. End of discussion.~",
     "snuggle":  "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
     "spank":    "delivers a sharp smack to Emery's bottom without warning~",
-    "bap":      "gives Emery a sharp flick on the nose without warning~",
+    "bap":      "gives Emery a sharp flick to the forehead without warning~",
 };
 // "Ears" is not a valid CharacterSetFacialExpression group in BC.
 // Seeds updated to valid Blush states (only applied when the field is still undefined).
@@ -245,7 +245,7 @@ const NEW_EMOTE_SEEDS: KittyEmote[] = [
     {
         id: "bap",    label: "🐾 Bap",
         text:      "gives Emery a playful bap on the nose~ 🐾",
-        roughText: "gives Emery a sharp flick on the nose without warning~",
+        roughText: "gives Emery a sharp flick to the forehead without warning~",
         type: "emote",
     },
     {
@@ -264,7 +264,10 @@ export function getKittyEmotes(): KittyEmote[] {
         .filter(e => e.id !== "leash")
         .map(e => ({
             ...e,
-            roughText:  e.roughText  ?? ROUGH_TEXT_SEEDS[e.id]  ?? "",
+            // Migration: fix stored bap rough text that still says "nose" — should be "forehead"
+            roughText: e.id === "bap" && e.roughText === "gives Emery a sharp flick on the nose without warning~"
+                ? "gives Emery a sharp flick to the forehead without warning~"
+                : (e.roughText ?? ROUGH_TEXT_SEEDS[e.id] ?? ""),
             expression: e.expression ?? EXPRESSION_SEEDS[e.id]  ?? "",
             // Migration: bap no longer fires a BC activity (ActivityRun sends its own chat
             // message which would say "boops nose" and conflict with the custom emote text)
