@@ -11557,39 +11557,6 @@ export class EBCDrawer {
         badgeToggleRow.appendChild(badgeToggle2);
         body.appendChild(badgeToggleRow);
 
-        // ── Panel opacity slider ──────────────────────────────────────────────
-        const opacityRow = document.createElement("div");
-        opacityRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-
-        const opacityLbl = document.createElement("span");
-        opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
-        opacityLbl.textContent = "Panel opacity";
-
-        const opacitySlider = document.createElement("input");
-        opacitySlider.type = "range";
-        opacitySlider.min = "0.1";
-        opacitySlider.max = "1";
-        opacitySlider.step = "0.05";
-        opacitySlider.value = String(loadPanelOpacity());
-        opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-        opacitySlider.title = "100% = fully solid, lower = semi-transparent";
-
-        const opacityVal = document.createElement("span");
-        opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
-        opacityVal.textContent = Math.round(loadPanelOpacity() * 100) + "%";
-
-        opacitySlider.addEventListener("input", () => {
-            const v = parseFloat(opacitySlider.value);
-            opacityVal.textContent = Math.round(v * 100) + "%";
-            savePanelOpacity(v);
-            this.applyPanelOpacity(v);
-        });
-
-        opacityRow.appendChild(opacityLbl);
-        opacityRow.appendChild(opacitySlider);
-        opacityRow.appendChild(opacityVal);
-        body.appendChild(opacityRow);
-
         // Helper: collapsible section wrapper
         const makeSection = (
             labelText: string,
@@ -11630,6 +11597,39 @@ export class EBCDrawer {
 
         // ── Drawer Appearance ─────────────────────────────────────────────────
         makeSection("DRAWER APPEARANCE", "EBC_devAppearanceCollapsed", false, (cnt) => {
+
+            // ── Panel opacity slider ──────────────────────────────────────────
+            const opacityRow = document.createElement("div");
+            opacityRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+
+            const opacityLbl = document.createElement("span");
+            opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+            opacityLbl.textContent = "Panel opacity";
+
+            const opacitySlider = document.createElement("input");
+            opacitySlider.type = "range";
+            opacitySlider.min = "0.1";
+            opacitySlider.max = "1";
+            opacitySlider.step = "0.05";
+            opacitySlider.value = String(loadPanelOpacity());
+            opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            opacitySlider.title = "100% = fully solid, lower = semi-transparent";
+
+            const opacityVal = document.createElement("span");
+            opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+            opacityVal.textContent = Math.round(loadPanelOpacity() * 100) + "%";
+
+            opacitySlider.addEventListener("input", () => {
+                const v = parseFloat(opacitySlider.value);
+                opacityVal.textContent = Math.round(v * 100) + "%";
+                savePanelOpacity(v);
+                this.applyPanelOpacity(v);
+            });
+
+            opacityRow.appendChild(opacityLbl);
+            opacityRow.appendChild(opacitySlider);
+            opacityRow.appendChild(opacityVal);
+            cnt.appendChild(opacityRow);
 
             // Working copy of colours — mutated by pickers, written to storage on every change
             let liveColors = getCoreColors();
