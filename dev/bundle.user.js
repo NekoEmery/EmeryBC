@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.48
+// @version      2.2.49
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13354,6 +13354,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.refreshSwEnableBtn = null;
             this.beepWins = new Map();
             this.beepUnread = new Map();
+            this.expandedFriends = new Set();
             this.friendsSectionEl = null;
             this.friendPollTick = 0;
             this.friendRefreshDebounce = null;
@@ -20465,6 +20466,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     let newTagInputRef = null;
                     let refreshExpandNote = null;
                     const buildExpandPanel = () => {
+                        var _a;
                         if (expandBuilt)
                             return;
                         expandBuilt = true;
@@ -20498,17 +20500,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                         const syncFn = window.ServerPlayerExtensionSettingsSync;
                                         syncFn === null || syncFn === void 0 ? void 0 : syncFn("EmeryBC");
                                     }
-                                    catch ( /* ignore */_a) { /* ignore */ }
+                                    catch ( /* ignore */_b) { /* ignore */ }
                                 }
                             }
                         }
-                        catch ( /* ignore */_b) { /* ignore */ }
+                        catch ( /* ignore */_c) { /* ignore */ }
                         // Fallback: try the module helper too
                         if (!sinceTs) {
                             try {
                                 sinceTs = getFriendSince(num);
                             }
-                            catch ( /* ignore */_c) { /* ignore */ }
+                            catch ( /* ignore */_d) { /* ignore */ }
                         }
                         const sinceEl = document.createElement("div");
                         if (sinceTs) {
@@ -20529,6 +20531,54 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             lsFullEl.textContent = `🕑 Last seen: ${label2} (${formatLastSeen(lsTsFull)})`;
                             infoBox.appendChild(lsFullEl);
                         }
+                        // ── Relationship info ──────────────────────────────────────
+                        const parseRelStart = (s) => {
+                            if (s === undefined || s === null)
+                                return null;
+                            if (typeof s === "number")
+                                return s > 0 ? s : null;
+                            const t = Date.parse(String(s));
+                            return isNaN(t) ? null : t;
+                        };
+                        const relFmt = (ts) => new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+                        try {
+                            // They own you
+                            const own = Player.Ownership;
+                            if ((own === null || own === void 0 ? void 0 : own.MemberNumber) === num) {
+                                const ownEl = document.createElement("div");
+                                ownEl.style.color = "#cf6f98";
+                                const ts = parseRelStart(own.Start);
+                                ownEl.textContent = ts
+                                    ? `👑 Owned since: ${relFmt(ts)}`
+                                    : "👑 Owned by them";
+                                infoBox.appendChild(ownEl);
+                            }
+                            // Lovership
+                            const loves = Player.Lovership;
+                            const love = loves === null || loves === void 0 ? void 0 : loves.find(l => l.MemberNumber === num);
+                            if (love) {
+                                const loveEl = document.createElement("div");
+                                loveEl.style.color = "#e87090";
+                                const ts = parseRelStart(love.Start);
+                                loveEl.textContent = ts
+                                    ? `❤️ Lovers since: ${relFmt(ts)}`
+                                    : "❤️ Lovers";
+                                infoBox.appendChild(loveEl);
+                            }
+                            // You own them (room data only — offline skip)
+                            const roomChars = window.ChatRoomCharacter;
+                            const rc = roomChars === null || roomChars === void 0 ? void 0 : roomChars.find(c => c.MemberNumber === num);
+                            if (((_a = rc === null || rc === void 0 ? void 0 : rc.Ownership) === null || _a === void 0 ? void 0 : _a.MemberNumber) === Player.MemberNumber) {
+                                const ownedByMeEl = document.createElement("div");
+                                ownedByMeEl.style.color = "#a0d0a0";
+                                const ts = parseRelStart(rc.Ownership.Start);
+                                ownedByMeEl.textContent = ts
+                                    ? `🔒 Owns them since: ${relFmt(ts)}`
+                                    : "🔒 You own them";
+                                infoBox.appendChild(ownedByMeEl);
+                            }
+                        }
+                        catch ( /* ignore */_e) { /* ignore */ }
                         expand.appendChild(infoBox);
                         // Tags label
                         const tagsLbl = document.createElement("div");
@@ -20710,13 +20760,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const open = expand.classList.toggle("visible");
                         row.classList.toggle("expanded", open);
                         if (open) {
+                            this.expandedFriends.add(num);
                             try {
                                 refreshExpandNote === null || refreshExpandNote === void 0 ? void 0 : refreshExpandNote();
                             }
                             catch ( /* ignore */_a) { /* ignore */ }
                             window.setTimeout(() => newTagInputRef === null || newTagInputRef === void 0 ? void 0 : newTagInputRef.focus(), 50);
                         }
+                        else {
+                            this.expandedFriends.delete(num);
+                        }
                     });
+                    // Restore open state if this panel was open before a list refresh
+                    if (this.expandedFriends.has(num)) {
+                        buildExpandPanel();
+                        expand.classList.add("visible");
+                        row.classList.add("expanded");
+                    }
                     wrap.appendChild(row);
                     wrap.appendChild(expand);
                     container.appendChild(wrap);
@@ -24265,7 +24325,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.48";
+    const MOD_VERSION = "2.2.49";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -24276,6 +24336,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.49",
+            changes: [
+                "Friends: expand panel now stays open through list refreshes instead of closing unexpectedly.",
+                "Friends: expand panel info box now shows relationship info — 👑 owned since, ❤️ lovers since, 🔒 you own them since (room only).",
+            ],
+        },
         {
             version: "2.2.48",
             changes: [
