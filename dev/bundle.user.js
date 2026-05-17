@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.110
+// @version      2.2.111
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11381,8 +11381,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             text: "gives Emery a playful bap on the head~ 🐾",
             roughText: "gives Emery a sharp flick to the forehead without warning~",
             type: "emote",
-            autoreact: "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾",
-            autoreactRough: "yelps and flinches away, one hand flying up to her forehead~",
         },
     ];
     const DEFAULT_POSES = [
@@ -11506,8 +11504,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             text: "gives Emery a playful bap on the head~ 🐾",
             roughText: "gives Emery a sharp flick to the forehead without warning~",
             type: "emote",
-            autoreact: "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾",
-            autoreactRough: "yelps and flinches away, one hand flying up to her forehead~",
         },
         {
             id: "spank", label: "👋 Spank",
@@ -11523,7 +11519,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Migration: remove leash emote (replaced by standalone leash button)
             .filter(e => e.id !== "leash")
             .map(e => {
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j;
             return (Object.assign(Object.assign({}, e), { 
                 // Migration: fix stored bap kind text that still says "nose" — should be "head"
                 // Use .includes() rather than exact match because old seeds omitted the 🐾 emoji
@@ -11536,13 +11532,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     : ((_c = (_b = e.roughText) !== null && _b !== void 0 ? _b : ROUGH_TEXT_SEEDS[e.id]) !== null && _c !== void 0 ? _c : ""), expression: (_e = (_d = e.expression) !== null && _d !== void 0 ? _d : EXPRESSION_SEEDS[e.id]) !== null && _e !== void 0 ? _e : "", 
                 // Migration: bap no longer fires a BC activity (ActivityRun sends its own chat
                 // message which would say "boops nose" and conflict with the custom emote text)
-                bcGroup: e.id === "bap" ? undefined : ((_f = e.bcGroup) !== null && _f !== void 0 ? _f : (_g = BC_ACTIVITY_SEEDS[e.id]) === null || _g === void 0 ? void 0 : _g.group), bcActivity: e.id === "bap" ? undefined : ((_h = e.bcActivity) !== null && _h !== void 0 ? _h : (_j = BC_ACTIVITY_SEEDS[e.id]) === null || _j === void 0 ? void 0 : _j.activity), 
-                // Migration: seed autoreact fields for bap — older stored entries predate these fields
-                autoreact: e.id === "bap"
-                    ? ((_k = e.autoreact) !== null && _k !== void 0 ? _k : "lets out a startled eeep! and blinks rapidly, ears going flat~ 🐾")
-                    : e.autoreact, autoreactRough: e.id === "bap"
-                    ? ((_l = e.autoreactRough) !== null && _l !== void 0 ? _l : "yelps and flinches away, one hand flying up to her forehead~")
-                    : e.autoreactRough }));
+                bcGroup: e.id === "bap" ? undefined : ((_f = e.bcGroup) !== null && _f !== void 0 ? _f : (_g = BC_ACTIVITY_SEEDS[e.id]) === null || _g === void 0 ? void 0 : _g.group), bcActivity: e.id === "bap" ? undefined : ((_h = e.bcActivity) !== null && _h !== void 0 ? _h : (_j = BC_ACTIVITY_SEEDS[e.id]) === null || _j === void 0 ? void 0 : _j.activity) }));
         });
         // Append any new default emotes that weren't in the stored list yet
         for (const seed of NEW_EMOTE_SEEDS) {
@@ -25299,9 +25289,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 runKittyActivity(em.bcGroup, em.bcActivity);
                             if (em.interactive)
                                 sendKittyCmd("react", JSON.stringify({ label: em.label }));
-                            const reactText = mood === "rough" ? (em.autoreactRough || em.autoreact) : em.autoreact;
-                            if (reactText)
-                                sendKittyCmd("autoreact", reactText);
                         }));
                     }
                     emotesWrap.appendChild(row);
@@ -28264,7 +28251,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.110";
+    const MOD_VERSION = "2.2.111";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28275,6 +28262,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.111",
+            changes: [
+                "Removed autoreact feature entirely — emote buttons no longer auto-send a reaction emote on Emery's behalf. Removed autoreact/autoreactRough fields from KittyEmote, removed the autoreact kitty command handler, and cleaned up all related migrations.",
+            ],
+        },
         {
             version: "2.2.110",
             changes: [
@@ -31297,16 +31290,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     break;
                 }
-                case "autoreact": {
-                    // Auto-send a reaction emote with no popup — used for instant reactions like bap eeep
-                    if (arg) {
-                        try {
-                            ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
-                        }
-                        catch ( /* ignore */_g) { /* ignore */ }
-                    }
-                    break;
-                }
                 case "tighten":
                 case "loosen": {
                     const delta = cmd === "tighten" ? 1 : -1;
@@ -31352,7 +31335,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }));
                         }
                     }
-                    catch ( /* ignore */_h) { /* ignore */ }
+                    catch ( /* ignore */_g) { /* ignore */ }
                     break;
                 }
                 case "expression": {
@@ -31387,12 +31370,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             }
                         }
                     }
-                    catch ( /* ignore */_j) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                     break;
                 }
             }
         }
-        catch ( /* ignore */_k) { /* ignore */ }
+        catch ( /* ignore */_j) { /* ignore */ }
     }
     function handleMetaCommand(inputValue) {
         var _a, _b, _c;
