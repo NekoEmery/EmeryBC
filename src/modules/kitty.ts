@@ -36,14 +36,16 @@ export interface KittyRestraintSet {
     items: KittyItem[];
     kindEmote?: string;
     roughEmote?: string;
+    expression?: string;    // optional expression triggered when preset is applied
 }
 
 export interface KittyPose {
     id: string;
     label: string;
-    poses: string[];   // BC pose names — empty = neutral
-    kindEmote: string; // emote sent to room in kind mode
-    roughEmote: string;// emote sent to room in rough mode
+    poses: string[];        // BC pose names — empty = neutral
+    kindEmote: string;      // emote sent to room in kind mode
+    roughEmote: string;     // emote sent to room in rough mode
+    expression?: string;    // optional expression triggered when pose is applied e.g. "Blush:Medium"
 }
 
 export interface KittyPunishmentStep {
@@ -122,6 +124,13 @@ const DEFAULT_EMOTES: KittyEmote[] = [
         roughText: "gives Emery a sharp flick on the nose without warning~",
         type: "emote",
         bcGroup: "ItemHead", bcActivity: "Slap",
+    },
+    {
+        id: "leash",    label: "🔗 Leash",
+        text:      "reaches out and takes hold of Emery's leash with a gentle smile~",
+        roughText: "snatches up Emery's leash and gives it a firm tug~",
+        type: "emote",
+        bcGroup: "ItemNeckAccessories", bcActivity: "Yank",
     },
 ];
 
@@ -235,6 +244,13 @@ const NEW_EMOTE_SEEDS: KittyEmote[] = [
         roughText: "delivers a sharp smack to Emery's bottom without warning~",
         type: "emote",
         bcGroup: "ItemButt", bcActivity: "Spank",
+    },
+    {
+        id: "leash",  label: "🔗 Leash",
+        text:      "reaches out and takes hold of Emery's leash with a gentle smile~",
+        roughText: "snatches up Emery's leash and gives it a firm tug~",
+        type: "emote",
+        bcGroup: "ItemNeckAccessories", bcActivity: "Yank",
     },
 ];
 

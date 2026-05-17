@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.89";
+const MOD_VERSION = "2.2.90";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.90",
+        changes: [
+            "Kitty menu: all sections (Emotes, Poses, Actions, Restraints, Arousal, Expressions) are now collapsible — click the section header to expand/collapse; state is remembered.",
+            "Kitty menu: added 🔗 Leash emote button (grabs Emery's leash + runs the BC Yank activity).",
+            "Kitty menu: Poses now have an optional expression trigger — configure which expression fires when the pose is applied (edit mode, 😊 Expr row).",
+            "Kitty menu: Restraint presets now have an optional expression trigger — configure in the preset editor's 😊 Expression dropdown; fires when Apply is pressed.",
+        ],
+    },
     {
         version: "2.2.89",
         changes: [
