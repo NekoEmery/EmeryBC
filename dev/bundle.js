@@ -11386,7 +11386,7 @@
             roughEmote: "grips Emery's shoulder firmly and points to the floor~",
         },
         {
-            id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["Kneel", "Spread"],
+            id: "kneel_spread", label: "🙇 Kneel & spread", poses: ["PresentationKneel"],
             kindEmote: "guides Emery down to her knees and nudges her legs apart with a soft smile~",
             roughEmote: "pushes Emery to her knees and kicks her legs apart~",
         },
@@ -11394,6 +11394,11 @@
             id: "spread", label: "🦵 Spread", poses: ["Spread"],
             kindEmote: "gently nudges Emery's feet apart~",
             roughEmote: "kicks Emery's feet apart with a sharp look~",
+        },
+        {
+            id: "legs_closed", label: "🧍 Legs closed", poses: ["LegsClosed"],
+            kindEmote: "guides Emery's feet back together with a soft touch~",
+            roughEmote: "snaps her fingers at Emery's feet, making her close them~",
         },
         {
             id: "handsup", label: "🙌 Hands up", poses: ["OverTheHead"],
@@ -11409,26 +11414,6 @@
             id: "elbowTie", label: "🔗 Elbow tie", poses: ["BackElbowTie"],
             kindEmote: "draws Emery's elbows together behind her back with care~",
             roughEmote: "wrenches Emery's elbows together behind her back~",
-        },
-        {
-            id: "hogtied", label: "⛓ Hogtied", poses: ["Hogtied"],
-            kindEmote: "carefully arranges Emery into a hogtied position, checking she's comfortable~",
-            roughEmote: "flips Emery over and puts her in a hogtied position without ceremony~",
-        },
-        {
-            id: "tiptoe", label: "💃 Tiptoe", poses: ["TiptoeStrap"],
-            kindEmote: "coaxes Emery up onto her tiptoes with a playful grin~",
-            roughEmote: "yanks Emery up onto her tiptoes with a firm grip~",
-        },
-        {
-            id: "legup", label: "🦵 Leg up", poses: ["LegUp"],
-            kindEmote: "lifts one of Emery's legs up, holding it steady~",
-            roughEmote: "grabs one of Emery's legs and hoists it up sharply~",
-        },
-        {
-            id: "suspension", label: "🔗 Suspend", poses: ["Suspension"],
-            kindEmote: "arranges Emery into a suspension, carefully checking every knot~",
-            roughEmote: "hauls Emery up into a suspension without a word~",
         },
         {
             id: "neutral", label: "🔄 Neutral", poses: [],
@@ -11588,6 +11573,12 @@
         });
     }
     function saveKittyPunishments(v) { lsSet("EBC_kittyPunishments", v); }
+    function getKittyExpressionPresets() {
+        return lsGet("EBC_kittyExprPresets", []);
+    }
+    function saveKittyExpressionPresets(v) {
+        lsSet("EBC_kittyExprPresets", v);
+    }
     // ── Command protocol ──────────────────────────────────────────────────────────
     // Format: [EBC-KITTY:cmd:arg]  or  [EBC-KITTY:cmd]
     // Sent as a beep from Lucy to Emery and silently intercepted by Emery's EBC.
@@ -25000,6 +24991,25 @@
             moodRow.appendChild(kindBtn);
             moodRow.appendChild(roughBtn);
             body.appendChild(moodRow);
+            // ── Grab Leash — prominent standalone button ──────────────────────────────
+            const leashRow = document.createElement("div");
+            leashRow.style.cssText = "display:flex;gap:6px;margin-bottom:8px;";
+            const leashBtn = document.createElement("button");
+            leashBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 0;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;";
+            leashBtn.textContent = "🔗 Grab Leash";
+            leashBtn.addEventListener("mouseenter", () => { leashBtn.style.background = "rgba(120,50,80,0.5)"; leashBtn.style.borderColor = "#c090b0"; });
+            leashBtn.addEventListener("mouseleave", () => { leashBtn.style.background = "rgba(80,40,60,0.35)"; leashBtn.style.borderColor = "#8a5a7888"; });
+            leashBtn.addEventListener("click", () => {
+                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                    return;
+                const mood = getKittyMood();
+                sendRoomEmote(mood === "rough"
+                    ? "snatches up Emery's leash with a firm grip~"
+                    : "reaches out and gently takes hold of Emery's leash~");
+                runKittyActivity("ItemNeckAccessories", "GrabLeash");
+            });
+            leashRow.appendChild(leashBtn);
+            body.appendChild(leashRow);
             // Helper: pill-style action button (big, easy to tap)
             const makePill = (label, color, onClick) => {
                 const b = document.createElement("button");
@@ -25045,6 +25055,22 @@
                     ActivityRun(Player, emery, { Name: bcGroup }, { Activity: act, Item: null });
                 }
                 catch ( /* ignore */_b) { /* ignore */ }
+            };
+            // Helper: send a single expression OR fire all commands in a named preset
+            // expr can be "Group:State" (single) or "preset:<id>" (multi-expression preset)
+            const sendExprOrPreset = (expr) => {
+                if (!expr)
+                    return;
+                if (expr.startsWith("preset:")) {
+                    const id = expr.slice(7);
+                    const preset = getKittyExpressionPresets().find(p => p.id === id);
+                    if (preset)
+                        preset.commands.forEach(c => { if (c)
+                            sendKittyCmd("expression", c); });
+                }
+                else {
+                    sendKittyCmd("expression", expr);
+                }
             };
             // Helper: collapsible section wrapper with optional edit-toggle button in the header
             const makeCollapsible = (key, title, defaultOpen, onEditToggle) => {
@@ -25110,7 +25136,7 @@
                             const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                             sendRoomEmote(text);
                             if (em.expression)
-                                sendKittyCmd("expression", em.expression);
+                                sendExprOrPreset(em.expression);
                             if (em.bcGroup && em.bcActivity)
                                 runKittyActivity(em.bcGroup, em.bcActivity);
                             if (em.interactive)
@@ -25235,7 +25261,7 @@
                             sendRoomEmote(emoteText);
                             sendKittyCmd("pose", p.poses.join(","));
                             if (p.expression)
-                                sendKittyCmd("expression", p.expression);
+                                sendExprOrPreset(p.expression);
                         }));
                     }
                     posesWrap.appendChild(row);
@@ -25309,6 +25335,18 @@
                         o.value = ex.cmd;
                         o.textContent = ex.label;
                         exprTrigSel.appendChild(o);
+                    }
+                    const exprPresets1 = getKittyExpressionPresets();
+                    if (exprPresets1.length > 0) {
+                        const grp1 = document.createElement("optgroup");
+                        grp1.label = "★ Presets";
+                        exprTrigSel.appendChild(grp1);
+                        for (const ep of exprPresets1) {
+                            const o = document.createElement("option");
+                            o.value = "preset:" + ep.id;
+                            o.textContent = "★ " + ep.label;
+                            grp1.appendChild(o);
+                        }
                     }
                     exprTrigSel.value = (_a = p.expression) !== null && _a !== void 0 ? _a : "";
                     exprTrigRow.appendChild(exprTrigLbl);
@@ -25855,6 +25893,18 @@
                         o.textContent = e.label;
                         exprSel.appendChild(o);
                     }
+                    const exprPresets2 = getKittyExpressionPresets();
+                    if (exprPresets2.length > 0) {
+                        const grp2 = document.createElement("optgroup");
+                        grp2.label = "★ Presets";
+                        exprSel.appendChild(grp2);
+                        for (const ep of exprPresets2) {
+                            const o = document.createElement("option");
+                            o.value = "preset:" + ep.id;
+                            o.textContent = "★ " + ep.label;
+                            grp2.appendChild(o);
+                        }
+                    }
                     exprSel.value = (_b = (_a = pun.reaction) === null || _a === void 0 ? void 0 : _a.expression) !== null && _b !== void 0 ? _b : "";
                     exprSel.addEventListener("change", () => { var _a; const upd = getKittyPunishments(); if (upd[idx]) {
                         upd[idx].reaction = Object.assign(Object.assign({}, ((_a = upd[idx].reaction) !== null && _a !== void 0 ? _a : {})), { expression: exprSel.value || undefined });
@@ -26080,6 +26130,18 @@
                         o.textContent = ex.label;
                         rpExprSel.appendChild(o);
                     }
+                    const exprPresets3 = getKittyExpressionPresets();
+                    if (exprPresets3.length > 0) {
+                        const grp3 = document.createElement("optgroup");
+                        grp3.label = "★ Presets";
+                        rpExprSel.appendChild(grp3);
+                        for (const ep of exprPresets3) {
+                            const o = document.createElement("option");
+                            o.value = "preset:" + ep.id;
+                            o.textContent = "★ " + ep.label;
+                            grp3.appendChild(o);
+                        }
+                    }
                     const liveSet = getKittyRestraintSets().find(p => p.id === presetId);
                     rpExprSel.value = (_a = liveSet === null || liveSet === void 0 ? void 0 : liveSet.expression) !== null && _a !== void 0 ? _a : "";
                     rpExprSel.addEventListener("change", () => {
@@ -26266,28 +26328,86 @@
             const { cBody: rpCBody, wrap: rpWrap2 } = makeCollapsible("EBC_kittyRestraintsOpen", "🔒 Restraints", false);
             renderRestraintPresets();
             rpCBody.appendChild(rpWrap);
-            // ── Tighten / Loosen ────────────────────────────────────────────────────
+            // ── Tighten / Loosen per item ────────────────────────────────────────────
             const tlDiv = divider();
             rpCBody.appendChild(tlDiv);
-            const tlRow = document.createElement("div");
-            tlRow.style.cssText = "display:flex;gap:7px;flex-wrap:wrap;";
-            tlRow.appendChild(makePill("🔧 Tighten", "#c07838", () => {
-                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+            const tlHdr = document.createElement("div");
+            tlHdr.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:3px;";
+            const tlLbl = document.createElement("span");
+            tlLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;flex:1;";
+            tlLbl.textContent = "Tighten / Loosen";
+            const tlRefresh = document.createElement("button");
+            tlRefresh.textContent = "↻";
+            tlRefresh.title = "Refresh restraint list from Emery";
+            tlRefresh.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;";
+            tlHdr.appendChild(tlLbl);
+            tlHdr.appendChild(tlRefresh);
+            rpCBody.appendChild(tlHdr);
+            const tlList = document.createElement("div");
+            tlList.style.cssText = "display:flex;flex-direction:column;gap:3px;";
+            rpCBody.appendChild(tlList);
+            const tlStatus = document.createElement("div");
+            tlStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;min-height:12px;";
+            rpCBody.appendChild(tlStatus);
+            const buildTlList = () => {
+                var _a, _b;
+                tlList.innerHTML = "";
+                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") {
+                    tlStatus.textContent = "Not in a room.";
                     return;
-                sendRoomEmote(getKittyMood() === "rough"
-                    ? "yanks every restraint on Emery tighter without a word~"
-                    : "carefully tightens each of Emery's restraints with a soft smile~");
-                sendKittyCmd("tighten", "");
-            }));
-            tlRow.appendChild(makePill("🔓 Loosen", "#3878c0", () => {
-                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                }
+                const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+                const emery = room.find(c => c.MemberNumber === EMERY_MEMBER);
+                if (!emery) {
+                    tlStatus.textContent = "Emery not in room.";
                     return;
-                sendRoomEmote(getKittyMood() === "rough"
-                    ? "loosens Emery's restraints just a little — enough to breathe, nothing more~"
-                    : "gently eases Emery's restraints to give her a little more comfort~");
-                sendKittyCmd("loosen", "");
-            }));
-            rpCBody.appendChild(tlRow);
+                }
+                const items = emery.Appearance.filter((i) => { var _a, _b; return ((_b = (_a = i.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) && RESTRAINT_GROUPS.has(i.Asset.Group.Name); });
+                if (items.length === 0) {
+                    tlStatus.textContent = "No restraints on Emery.";
+                    return;
+                }
+                tlStatus.textContent = "";
+                for (const item of items) {
+                    const craft = item.Craft;
+                    const craftName = (_b = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _b === void 0 ? void 0 : _b.trim();
+                    const baseName = item.Asset.Description || item.Asset.Name;
+                    const label = craftName ? `${craftName} (${baseName})` : baseName;
+                    const group = item.Asset.Group.Name;
+                    const diff = typeof item.Difficulty === "number" ? item.Difficulty : 0;
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;padding:2px 0;";
+                    const nm = document.createElement("span");
+                    nm.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:9px;color:#f7e6ee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;";
+                    nm.textContent = label;
+                    nm.title = `${label} (${group.replace("Item", "")})`;
+                    const diffEl = document.createElement("span");
+                    diffEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a7080;flex-shrink:0;width:14px;text-align:center;";
+                    diffEl.textContent = String(diff);
+                    const mkAdjBtn = (icon, delta, cmd) => {
+                        const b = document.createElement("button");
+                        b.textContent = icon;
+                        b.title = (delta > 0 ? "Tighten" : "Loosen") + " " + label;
+                        b.style.cssText = "flex-shrink:0;font-size:11px;line-height:1;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#cf6f98;";
+                        b.addEventListener("click", () => {
+                            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                                return;
+                            sendKittyCmd(cmd, group);
+                            // Optimistically update display
+                            const newDiff = Math.max(0, Math.min(6, diff + delta));
+                            diffEl.textContent = String(newDiff);
+                        });
+                        return b;
+                    };
+                    row.appendChild(nm);
+                    row.appendChild(diffEl);
+                    row.appendChild(mkAdjBtn("−", -1, "loosen"));
+                    row.appendChild(mkAdjBtn("+", 1, "tighten"));
+                    tlList.appendChild(row);
+                }
+            };
+            buildTlList();
+            tlRefresh.addEventListener("click", buildTlList);
             // ── Copy Restraints from Member ─────────────────────────────────────────
             const crDiv = divider();
             rpCBody.appendChild(crDiv);
@@ -26534,6 +26654,170 @@
             exprHint.textContent = "Sends a facial expression command to Emery";
             exprCBody.appendChild(exprWrap);
             exprCBody.appendChild(exprHint);
+            // ── Expression Presets ────────────────────────────────────────────────
+            const epDivider = divider();
+            epDivider.style.margin = "6px 0";
+            exprCBody.appendChild(epDivider);
+            const epHdr = document.createElement("div");
+            epHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;";
+            epHdr.textContent = "Expression Presets";
+            exprCBody.appendChild(epHdr);
+            const epHint = document.createElement("div");
+            epHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
+            epHint.textContent = "Create named combos (e.g. Shy = Blush:Low + Eyes:Shy). Use them as expression triggers on poses, actions and emotes.";
+            exprCBody.appendChild(epHint);
+            const epWrap = document.createElement("div");
+            epWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+            exprCBody.appendChild(epWrap);
+            const renderExprPresets = () => {
+                epWrap.innerHTML = "";
+                const presets = getKittyExpressionPresets();
+                // Fire buttons for existing presets
+                if (presets.length > 0) {
+                    const fireRow = document.createElement("div");
+                    fireRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px;";
+                    for (const ep of presets) {
+                        const fireBtn = document.createElement("button");
+                        fireBtn.textContent = "★ " + ep.label;
+                        fireBtn.title = ep.commands.join(", ") || "No commands";
+                        fireBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid #5a3868;background:rgba(50,20,50,0.5);color:#c090d0;";
+                        fireBtn.addEventListener("mouseenter", () => { fireBtn.style.background = "rgba(80,30,80,0.6)"; });
+                        fireBtn.addEventListener("mouseleave", () => { fireBtn.style.background = "rgba(50,20,50,0.5)"; });
+                        fireBtn.addEventListener("click", () => { sendExprOrPreset("preset:" + ep.id); });
+                        fireRow.appendChild(fireBtn);
+                    }
+                    epWrap.appendChild(fireRow);
+                }
+                // Editor: list of presets (edit/delete each) + create new
+                const editorWrap = document.createElement("div");
+                editorWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+                const epMkBtn = (label) => {
+                    const b = document.createElement("button");
+                    b.textContent = label;
+                    b.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
+                    return b;
+                };
+                const EP_GROUPS = ["Blush", "Eyes", "Eyes2", "Mouth", "Eyebrows", "Emoticon"];
+                presets.forEach((ep, pIdx) => {
+                    const card = document.createElement("div");
+                    card.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(30,10,30,0.5);border:1px solid #3a1538;border-radius:5px;padding:5px 7px;";
+                    // Header: label + delete
+                    const cardHdr = document.createElement("div");
+                    cardHdr.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const epLblInp = document.createElement("input");
+                    epLblInp.value = ep.label;
+                    epLblInp.style.cssText = "flex:1;min-width:0;" + INP;
+                    epLblInp.addEventListener("change", () => {
+                        const upd = getKittyExpressionPresets();
+                        if (upd[pIdx]) {
+                            upd[pIdx].label = epLblInp.value.trim() || ep.label;
+                            saveKittyExpressionPresets(upd);
+                            renderExprPresets();
+                        }
+                    });
+                    const epDel = document.createElement("button");
+                    epDel.textContent = "×";
+                    epDel.style.cssText = "font-size:11px;line-height:1;padding:0 4px;border:none;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
+                    epDel.addEventListener("click", () => { saveKittyExpressionPresets(getKittyExpressionPresets().filter((_, i) => i !== pIdx)); renderExprPresets(); });
+                    cardHdr.appendChild(epLblInp);
+                    cardHdr.appendChild(epDel);
+                    card.appendChild(cardHdr);
+                    // Commands list
+                    const cmdsWrap = document.createElement("div");
+                    cmdsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+                    ep.commands.forEach((cmd, cIdx) => {
+                        const chip = document.createElement("span");
+                        chip.style.cssText = "display:flex;align-items:center;gap:2px;font-family:'Trebuchet MS',serif;font-size:8px;background:#2a0f2a;border:1px solid #5a2558;border-radius:3px;padding:1px 5px;color:#c090d0;";
+                        chip.textContent = cmd;
+                        const removeChip = document.createElement("button");
+                        removeChip.textContent = "×";
+                        removeChip.style.cssText = "font-size:9px;line-height:1;padding:0 2px;border:none;background:transparent;color:#9a6080;cursor:pointer;";
+                        removeChip.addEventListener("click", () => {
+                            const upd = getKittyExpressionPresets();
+                            if (upd[pIdx]) {
+                                upd[pIdx].commands.splice(cIdx, 1);
+                                saveKittyExpressionPresets(upd);
+                            }
+                            renderExprPresets();
+                        });
+                        chip.appendChild(removeChip);
+                        cmdsWrap.appendChild(chip);
+                    });
+                    if (ep.commands.length === 0) {
+                        const em = document.createElement("span");
+                        em.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;";
+                        em.textContent = "No expressions yet";
+                        cmdsWrap.appendChild(em);
+                    }
+                    card.appendChild(cmdsWrap);
+                    // Add expression row
+                    const addExprRow = document.createElement("div");
+                    addExprRow.style.cssText = "display:flex;align-items:center;gap:3px;";
+                    const grpSel = document.createElement("select");
+                    grpSel.style.cssText = "flex-shrink:0;width:80px;" + INP;
+                    EP_GROUPS.forEach(g => { const o = document.createElement("option"); o.value = g; o.textContent = g; grpSel.appendChild(o); });
+                    const stateSel = document.createElement("select");
+                    stateSel.style.cssText = "flex:1;min-width:0;" + INP;
+                    const EP_STATES = {
+                        Blush: ["Low", "Medium", "High", "VeryHigh", "Extreme", ""],
+                        Eyes: ["Closed", "Shy", "Sad", "Surprised", "Angry", "Dazed", "Heart", "Lewd", ""],
+                        Eyes2: ["Closed", "Shy", "Sad", "Surprised", "Angry", "Dazed", "Heart", "Lewd", ""],
+                        Mouth: ["Happy", "Sad", "Pout", "Angry", "Moan", "Devious", "Grin", "Smirk", ""],
+                        Eyebrows: ["Raised", "Harsh", "Angry", "Soft", ""],
+                        Emoticon: ["Afk", "Hearing_Loss", "Whisper", "Sleep", ""],
+                    };
+                    const refreshStateSel = () => {
+                        var _a;
+                        stateSel.innerHTML = "";
+                        const states = (_a = EP_STATES[grpSel.value]) !== null && _a !== void 0 ? _a : [""];
+                        states.forEach(s => {
+                            const o = document.createElement("option");
+                            o.value = s;
+                            o.textContent = s || "(clear)";
+                            stateSel.appendChild(o);
+                        });
+                    };
+                    refreshStateSel();
+                    grpSel.addEventListener("change", refreshStateSel);
+                    const addCmdBtn = epMkBtn("+ Add");
+                    addCmdBtn.addEventListener("click", () => {
+                        const cmd = `${grpSel.value}:${stateSel.value}`;
+                        const upd = getKittyExpressionPresets();
+                        if (upd[pIdx]) {
+                            upd[pIdx].commands.push(cmd);
+                            saveKittyExpressionPresets(upd);
+                        }
+                        renderExprPresets();
+                    });
+                    addExprRow.appendChild(grpSel);
+                    addExprRow.appendChild(stateSel);
+                    addExprRow.appendChild(addCmdBtn);
+                    card.appendChild(addExprRow);
+                    editorWrap.appendChild(card);
+                });
+                // Create new preset
+                const createRow = document.createElement("div");
+                createRow.style.cssText = "display:flex;align-items:center;gap:4px;";
+                const newLblInp = document.createElement("input");
+                newLblInp.placeholder = "New preset name…";
+                newLblInp.style.cssText = "flex:1;min-width:0;" + INP;
+                const createBtn = epMkBtn("+ Create");
+                createBtn.addEventListener("click", () => {
+                    const name = newLblInp.value.trim();
+                    if (!name)
+                        return;
+                    const upd = getKittyExpressionPresets();
+                    upd.push({ id: "ep_" + Date.now(), label: name, commands: [] });
+                    saveKittyExpressionPresets(upd);
+                    newLblInp.value = "";
+                    renderExprPresets();
+                });
+                createRow.appendChild(newLblInp);
+                createRow.appendChild(createBtn);
+                editorWrap.appendChild(createRow);
+                epWrap.appendChild(editorWrap);
+            };
+            renderExprPresets();
             body.appendChild(exprWrap2);
         }
         renderThanks() {
@@ -27932,7 +28216,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.92";
+    const MOD_VERSION = "2.2.93";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27943,6 +28227,17 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.93",
+            changes: [
+                "Fix: Fight back in the resistance popup now sends a mood-aware room emote from Emery ('twists away sharply…' in rough mode, 'squirms and shakes her head…' in kind mode).",
+                "Fix: Kneel & Spread pose now uses PresentationKneel — the previous Kneel+Spread combo conflicted in BC.",
+                "Kitty Poses: removed Hogtied, Tiptoe, Leg up, and Suspend; added Standing Closed Legs (LegsClosed).",
+                "Kitty Restraints: Tighten / Loosen all pills replaced with a live per-item list — each of Emery's current restraints shows individual − / + buttons; sends targeted tighten/loosen command to that group only.",
+                "Kitty: Grab Leash promoted to a big standalone button between the mood toggle and collapsibles; uses BC's GrabLeash activity on the neck accessories slot.",
+                "Kitty Expressions: new Expression Presets system — create named multi-expression combos (e.g. Shy = Blush:Low + Eyes:Shy), fire them from the Expressions section, or reference them as triggers on poses, actions, and restraint presets.",
+            ],
+        },
         {
             version: "2.2.92",
             changes: [
@@ -30543,7 +30838,19 @@
         const fightBtn = document.createElement("button");
         fightBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #e07070;background:#e0707018;color:#e07070;";
         fightBtn.textContent = "Fight back! 💪";
-        fightBtn.addEventListener("click", () => { close(); });
+        fightBtn.addEventListener("click", () => {
+            try {
+                ServerSend("ChatRoomChat", {
+                    Type: "Emote",
+                    Content: mood === "rough"
+                        ? "twists away sharply, refusing to submit~"
+                        : "squirms and shakes her head, resisting with a pout~",
+                    Dictionary: [],
+                });
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            close();
+        });
         // ── Accept — applies restraints if any ─────────────────────────────────
         const acceptBtn = document.createElement("button");
         acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
@@ -30759,9 +31066,12 @@
                 case "tighten":
                 case "loosen": {
                     const delta = cmd === "tighten" ? 1 : -1;
+                    // arg = specific group name (e.g. "ItemArms"), or "" = all restraints
                     for (const item of Player.Appearance) {
                         if (!((_c = (_b = item.Asset) === null || _b === void 0 ? void 0 : _b.Group) === null || _c === void 0 ? void 0 : _c.Name) || !RESTRAINT_GROUPS.has(item.Asset.Group.Name))
                             continue;
+                        if (arg && item.Asset.Group.Name !== arg)
+                            continue; // skip if targeting specific group
                         const cur = typeof item.Difficulty === "number" ? item.Difficulty : 0;
                         const next = Math.max(0, Math.min(6, cur + delta));
                         if (next !== cur)
