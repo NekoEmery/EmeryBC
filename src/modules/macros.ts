@@ -48,12 +48,11 @@ export function executeMacro(cmd: string): void {
                 break;
 
             case "leaveroom":
-                // Signal the ChatRoomRun guard before deferring the actual leave call.
-                // The guard skips frames where ChatRoomData is null ONLY while this flag
-                // is set, so map rooms (where ChatRoomData can legitimately be null) are
-                // never affected.
-                setLeavePending();
-                window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
+                // setLeavePending() must fire in the same tick as ChatRoomLeave() so no
+                // ChatRoomRun frame runs between the flag being set and the data being
+                // cleared — otherwise the guard sees ChatRoomData != null and clears the
+                // flag prematurely, causing the null-crash guard to never fire.
+                window.setTimeout(() => { setLeavePending(); callBC(() => ChatRoomLeave()); }, 0);
                 break;
         }
     } catch { /* ignore */ }

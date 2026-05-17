@@ -218,11 +218,12 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
             } else if (step.toLowerCase() === "leaveroom") {
-                // Restore pose, flag the guard, then defer leave by one tick.
+                // Restore pose, then defer leave by one tick — setLeavePending() goes
+                // inside the callback so no ChatRoomRun frame fires between the flag
+                // being set and ChatRoomData actually being cleared.
                 Player.ActivePose = originalPoses;
                 seqRunning = false;
-                setLeavePending();
-                window.setTimeout(() => callBC(() => ChatRoomLeave()), 0);
+                window.setTimeout(() => { setLeavePending(); callBC(() => ChatRoomLeave()); }, 0);
                 return;
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");
