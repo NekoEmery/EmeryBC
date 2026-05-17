@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.2.66
+// @version      2.2.67
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -11284,12 +11284,42 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const KITTY_CMD_PREFIX = "[EBC-KITTY:";
     // ── Defaults ──────────────────────────────────────────────────────────────────
     const DEFAULT_EMOTES = [
-        { id: "headpat", label: "🐾 Headpat", text: "gently pats Emery on the head~ 🐾", type: "emote" },
-        { id: "goodgirl", label: "✨ Good girl", text: "scratches Emery behind the ears~ Good girl~ ✨", type: "emote" },
-        { id: "treat", label: "🍖 Treat", text: "holds out a treat for her little pet~ 🍖", type: "emote", interactive: true },
-        { id: "praise", label: "🎀 Praise", text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀", type: "emote", interactive: true },
-        { id: "announce", label: "💜 Mine", text: "Emery belongs to Lucy~ 💜", type: "action" },
-        { id: "snuggle", label: "🤗 Snuggle", text: "pulls Emery into a warm snuggle, resting her chin on her head~", type: "emote" },
+        {
+            id: "headpat", label: "🐾 Headpat",
+            text: "gently pats Emery on the head~ 🐾",
+            roughText: "grabs Emery by the hair and gives her head a firm tug~ 🐾",
+            type: "emote", expression: "Ears:Wiggle",
+        },
+        {
+            id: "goodgirl", label: "✨ Good girl",
+            text: "scratches Emery behind the ears~ Good girl~ ✨",
+            roughText: "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
+            type: "emote", expression: "Ears:Wiggle",
+        },
+        {
+            id: "treat", label: "🍖 Treat",
+            text: "holds out a treat for her little pet~ 🍖",
+            roughText: "tosses a treat at Emery's feet without even looking up~",
+            type: "emote", interactive: true,
+        },
+        {
+            id: "praise", label: "🎀 Praise",
+            text: "pats Emery's head with a warm smile~ Such a precious thing~ 🎀",
+            roughText: "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
+            type: "emote", interactive: true,
+        },
+        {
+            id: "announce", label: "💜 Mine",
+            text: "Emery belongs to Lucy~ 💜",
+            roughText: "Emery is Lucy's. End of discussion.~",
+            type: "action",
+        },
+        {
+            id: "snuggle", label: "🤗 Snuggle",
+            text: "pulls Emery into a warm snuggle, resting her chin on her head~",
+            roughText: "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
+            type: "emote",
+        },
     ];
     const DEFAULT_POSES = [
         {
@@ -11356,8 +11386,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return v === "rough" ? "rough" : "kind";
     }
     function setKittyMood(m) { lsSet("EBC_kittyMood", m); }
+    // Seed values for existing stored emotes that predate the roughText / expression fields.
+    // Only applied if the field is currently undefined (user hasn't touched it yet).
+    const ROUGH_TEXT_SEEDS = {
+        "headpat": "grabs Emery by the hair and gives her head a firm tug~ 🐾",
+        "goodgirl": "grabs Emery's chin and tilts it up sharply~ Good girl. For once.~",
+        "treat": "tosses a treat at Emery's feet without even looking up~",
+        "praise": "grabs the back of Emery's head and tilts it back, examining her with a smirk~ Not bad.~",
+        "announce": "Emery is Lucy's. End of discussion.~",
+        "snuggle": "yanks Emery close and holds her firmly in place, not letting her wiggle free~",
+    };
+    const EXPRESSION_SEEDS = {
+        "headpat": "Ears:Wiggle",
+        "goodgirl": "Ears:Wiggle",
+    };
     function getKittyEmotes() {
-        return lsGet("EBC_kittyEmotes", DEFAULT_EMOTES);
+        const raw = lsGet("EBC_kittyEmotes", DEFAULT_EMOTES);
+        return raw.map(e => {
+            var _a, _b, _c, _d;
+            return (Object.assign(Object.assign({}, e), { roughText: (_b = (_a = e.roughText) !== null && _a !== void 0 ? _a : ROUGH_TEXT_SEEDS[e.id]) !== null && _b !== void 0 ? _b : "", expression: (_d = (_c = e.expression) !== null && _c !== void 0 ? _c : EXPRESSION_SEEDS[e.id]) !== null && _d !== void 0 ? _d : "" }));
+        });
     }
     function saveKittyEmotes(v) { lsSet("EBC_kittyEmotes", v); }
     function getKittyRestraintSets() {
@@ -24618,19 +24666,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     row.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
                     for (const em of emotes) {
                         row.appendChild(makePill(em.label, "#cf6f98", () => {
+                            const mood = getKittyMood();
+                            const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                             try {
                                 if (em.type === "emote") {
-                                    ServerSend("ChatRoomChat", { Type: "Emote", Content: em.text, Dictionary: [] });
+                                    ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
                                 }
                                 else {
                                     const zw = String.fromCharCode(0x200C);
-                                    ServerSend("ChatRoomChat", { Type: "Action", Content: em.text, Dictionary: [{ Tag: 'MISSING TEXT IN "Interface.csv": ', Text: zw }, { SourceCharacter: Player.MemberNumber }] });
+                                    ServerSend("ChatRoomChat", { Type: "Action", Content: text, Dictionary: [{ Tag: 'MISSING TEXT IN "Interface.csv": ', Text: zw }, { SourceCharacter: Player.MemberNumber }] });
                                 }
                             }
                             catch ( /* ignore */_a) { /* ignore */ }
+                            // Expression command (e.g. ear wiggle for headpat)
+                            if (em.expression) {
+                                sendKittyCmd("expression", em.expression);
+                            }
                             // If interactive, send a react beep so Emery can respond
                             if (em.interactive) {
-                                sendKittyCmd("react", JSON.stringify({ label: em.label, text: em.text }));
+                                sendKittyCmd("react", JSON.stringify({ label: em.label, text }));
                             }
                         }));
                     }
@@ -24641,14 +24695,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 list.style.cssText = "display:flex;flex-direction:column;gap:4px;";
                 const cur = getKittyEmotes();
                 cur.forEach((em, idx) => {
+                    var _a;
                     const r = document.createElement("div");
-                    r.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:4px 6px;";
+                    r.style.cssText = "display:flex;flex-direction:column;gap:3px;background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:5px 7px;";
+                    // Row 1: label + type toggle + react toggle + delete
+                    const r1 = document.createElement("div");
+                    r1.style.cssText = "display:flex;align-items:center;gap:4px;";
                     const lblInp = document.createElement("input");
                     lblInp.value = em.label;
+                    lblInp.placeholder = "Label";
                     lblInp.style.cssText = "width:80px;flex-shrink:0;" + INP;
-                    const txtInp = document.createElement("input");
-                    txtInp.value = em.text;
-                    txtInp.style.cssText = "flex:1;min-width:0;" + INP;
                     const typeBtn = document.createElement("button");
                     typeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 5px;border-radius:3px;cursor:pointer;flex-shrink:0;border:1px solid #4c2537;background:transparent;color:#cf6f98;";
                     typeBtn.textContent = em.type === "emote" ? "* *" : "( )";
@@ -24659,15 +24715,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         saveKittyEmotes(updated);
                         renderEmotes(true);
                     });
-                    const saveInp = () => {
-                        const updated = getKittyEmotes();
-                        updated[idx].label = lblInp.value;
-                        updated[idx].text = txtInp.value;
-                        saveKittyEmotes(updated);
-                    };
-                    lblInp.addEventListener("input", saveInp);
-                    txtInp.addEventListener("input", saveInp);
-                    // Interactive toggle — 🔔 = Emery gets a react popup; 🔕 = room-only
                     const reactBtn = document.createElement("button");
                     const updateReactBtn = () => {
                         var _a;
@@ -24690,11 +24737,48 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         saveKittyEmotes(getKittyEmotes().filter((_, i) => i !== idx));
                         renderEmotes(true);
                     });
-                    r.appendChild(lblInp);
-                    r.appendChild(txtInp);
-                    r.appendChild(typeBtn);
-                    r.appendChild(reactBtn);
-                    r.appendChild(delBtn);
+                    const spacer = document.createElement("span");
+                    spacer.style.flex = "1";
+                    r1.appendChild(lblInp);
+                    r1.appendChild(spacer);
+                    r1.appendChild(typeBtn);
+                    r1.appendChild(reactBtn);
+                    r1.appendChild(delBtn);
+                    // Row 2: kind text
+                    const kindRowE = document.createElement("div");
+                    kindRowE.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const kindLblE = document.createElement("span");
+                    kindLblE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#79c8a0;flex-shrink:0;width:38px;";
+                    kindLblE.textContent = "🌸 Kind:";
+                    const txtInp = document.createElement("input");
+                    txtInp.value = em.text;
+                    txtInp.placeholder = "Kind emote text…";
+                    txtInp.style.cssText = "flex:1;min-width:0;" + INP;
+                    kindRowE.appendChild(kindLblE);
+                    kindRowE.appendChild(txtInp);
+                    // Row 3: rough text
+                    const roughRowE = document.createElement("div");
+                    roughRowE.style.cssText = "display:flex;align-items:center;gap:4px;";
+                    const roughLblE = document.createElement("span");
+                    roughLblE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#e07070;flex-shrink:0;width:38px;";
+                    roughLblE.textContent = "⚡ Rough:";
+                    const roughInp = document.createElement("input");
+                    roughInp.value = (_a = em.roughText) !== null && _a !== void 0 ? _a : "";
+                    roughInp.placeholder = "Rough emote text (leave empty to reuse kind)…";
+                    roughInp.style.cssText = "flex:1;min-width:0;" + INP;
+                    roughRowE.appendChild(roughLblE);
+                    roughRowE.appendChild(roughInp);
+                    const saveInp = () => {
+                        const updated = getKittyEmotes();
+                        updated[idx].label = lblInp.value;
+                        updated[idx].text = txtInp.value;
+                        updated[idx].roughText = roughInp.value;
+                        saveKittyEmotes(updated);
+                    };
+                    [lblInp, txtInp, roughInp].forEach(i => i.addEventListener("input", saveInp));
+                    r.appendChild(r1);
+                    r.appendChild(kindRowE);
+                    r.appendChild(roughRowE);
                     list.appendChild(r);
                 });
                 const addRow = document.createElement("div");
@@ -25110,18 +25194,84 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
                 const addBox = document.createElement("div");
                 addBox.style.cssText = "background:rgba(42,20,33,0.4);border:1px solid #2a1421;border-radius:5px;padding:6px;margin-top:4px;";
-                const addLblInp = document.createElement("input");
-                addLblInp.placeholder = "Set name (e.g. 🔒 Leash up)";
-                addLblInp.style.cssText = "width:100%;box-sizing:border-box;" + INP + "margin-bottom:4px;display:block;";
-                const addCodeTA = document.createElement("textarea");
-                addCodeTA.placeholder = "Paste BC outfit code…";
-                addCodeTA.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:3px 5px;outline:none;resize:vertical;min-height:40px;display:block;margin-bottom:4px;";
                 const addMsg = document.createElement("div");
                 addMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;min-height:13px;margin-bottom:3px;";
+                // Set name input
+                const addLblInp = document.createElement("input");
+                addLblInp.placeholder = "Set name (e.g. 🔒 Leash up)";
+                addLblInp.style.cssText = "width:100%;box-sizing:border-box;" + INP + "margin-bottom:6px;display:block;";
+                // ── Option A: from Emery's saved restraint sets ───────────────────
+                const fromSavedSets = getRestraints();
+                if (fromSavedSets.length > 0) {
+                    const fromSavedLbl = document.createElement("div");
+                    fromSavedLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;";
+                    fromSavedLbl.textContent = "From saved restraint sets";
+                    const fromSavedRow = document.createElement("div");
+                    fromSavedRow.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:6px;";
+                    const fromSavedSel = document.createElement("select");
+                    fromSavedSel.style.cssText = "flex:1;min-width:0;" + INP;
+                    const phOpt = document.createElement("option");
+                    phOpt.value = "";
+                    phOpt.textContent = "— pick a restraint set —";
+                    phOpt.disabled = true;
+                    phOpt.selected = true;
+                    fromSavedSel.appendChild(phOpt);
+                    for (const rs of fromSavedSets) {
+                        const o = document.createElement("option");
+                        o.value = rs.id;
+                        o.textContent = rs.displayName + " (" + rs.items.filter(i => RESTRAINT_GROUPS.has(i.Group)).length + " restraints)";
+                        fromSavedSel.appendChild(o);
+                    }
+                    const useBtn = document.createElement("button");
+                    useBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
+                    useBtn.textContent = "Use ↓";
+                    useBtn.addEventListener("click", () => {
+                        addMsg.textContent = "";
+                        addMsg.style.color = "#ff6b6b";
+                        const rs = fromSavedSets.find(s => s.id === fromSavedSel.value);
+                        if (!rs) {
+                            addMsg.textContent = "Pick a set first.";
+                            return;
+                        }
+                        const items = rs.items
+                            .filter(i => RESTRAINT_GROUPS.has(i.Group))
+                            .map(i => ({
+                            Name: i.Name, Group: i.Group, Color: i.Color,
+                            Difficulty: i.Difficulty,
+                            Property: i.Property,
+                            Craft: i.Craft,
+                        }));
+                        if (items.length === 0) {
+                            addMsg.textContent = "No restraint items in that set.";
+                            return;
+                        }
+                        const label = addLblInp.value.trim() || rs.displayName;
+                        const updated = getKittyRestraintSets();
+                        updated.push({ id: "r_" + Date.now(), label, items, kindEmote: "", roughEmote: "" });
+                        saveKittyRestraintSets(updated);
+                        addMsg.style.color = "#70d070";
+                        addMsg.textContent = `Saved "${label}" — ${items.length} items from "${rs.displayName}".`;
+                        addLblInp.value = "";
+                        fromSavedSel.value = "";
+                        renderRestraintSets(true);
+                    });
+                    fromSavedRow.appendChild(fromSavedSel);
+                    fromSavedRow.appendChild(useBtn);
+                    addBox.appendChild(fromSavedLbl);
+                    addBox.appendChild(fromSavedRow);
+                }
+                // ── Option B: paste BC outfit code (LZ-compressed or raw JSON) ───
+                const fromCodeLbl = document.createElement("div");
+                fromCodeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a6a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;";
+                fromCodeLbl.textContent = "Or paste BC outfit code";
+                const addCodeTA = document.createElement("textarea");
+                addCodeTA.placeholder = "Paste LZ-compressed BC code or raw JSON array — restraint items will be extracted…";
+                addCodeTA.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:3px 5px;outline:none;resize:vertical;min-height:40px;display:block;margin-bottom:4px;";
                 const addBtnR = document.createElement("button");
                 addBtnR.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;padding:3px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;";
                 addBtnR.textContent = "Import & Save";
                 addBtnR.addEventListener("click", () => {
+                    var _a, _b;
                     addMsg.textContent = "";
                     addMsg.style.color = "#ff6b6b";
                     if (!addLblInp.value.trim()) {
@@ -25133,23 +25283,59 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         addMsg.textContent = "Paste a BC code.";
                         return;
                     }
+                    let items;
                     try {
-                        const parsed = JSON.parse(code);
-                        const items = parsed.map(p => { var _a, _b; return ({ Name: String((_a = p.Name) !== null && _a !== void 0 ? _a : ""), Group: String((_b = p.Group) !== null && _b !== void 0 ? _b : ""), Color: p.Color }); }).filter(i => i.Name && i.Group);
-                        const updated = getKittyRestraintSets();
-                        updated.push({ id: "r_" + Date.now(), label: addLblInp.value.trim(), items, kindEmote: "", roughEmote: "" });
-                        saveKittyRestraintSets(updated);
-                        addMsg.style.color = "#70d070";
-                        addMsg.textContent = `Saved ${items.length} items.`;
-                        addLblInp.value = "";
-                        addCodeTA.value = "";
-                        renderRestraintSets(true);
+                        // Try LZ-compressed BC outfit code first
+                        const LZStr = window.LZString;
+                        const decompressed = (_b = (_a = LZStr === null || LZStr === void 0 ? void 0 : LZStr.decompressFromBase64) === null || _a === void 0 ? void 0 : _a.call(LZStr, code)) !== null && _b !== void 0 ? _b : null;
+                        if (decompressed) {
+                            const parsed = JSON.parse(decompressed);
+                            items = parsed
+                                .filter(p => typeof p.Group === "string" && typeof p.Name === "string" && p.Name && RESTRAINT_GROUPS.has(String(p.Group)))
+                                .map(p => ({
+                                Name: String(p.Name), Group: String(p.Group),
+                                Color: p.Color,
+                                Difficulty: typeof p.Difficulty === "number" ? p.Difficulty : undefined,
+                                Property: typeof p.Property === "object" && p.Property !== null ? p.Property : undefined,
+                                Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft : undefined,
+                            }));
+                        }
+                        else {
+                            // Plain JSON array fallback
+                            const parsed = JSON.parse(code);
+                            items = parsed
+                                .map(p => {
+                                var _a, _b;
+                                return ({
+                                    Name: String((_a = p.Name) !== null && _a !== void 0 ? _a : ""), Group: String((_b = p.Group) !== null && _b !== void 0 ? _b : ""),
+                                    Color: p.Color,
+                                    Difficulty: typeof p.Difficulty === "number" ? p.Difficulty : undefined,
+                                    Property: typeof p.Property === "object" && p.Property !== null ? p.Property : undefined,
+                                    Craft: typeof p.Craft === "object" && p.Craft !== null ? p.Craft : undefined,
+                                });
+                            })
+                                .filter(i => i.Name && i.Group);
+                        }
                     }
-                    catch (_a) {
-                        addMsg.textContent = "Invalid BC code — paste the raw JSON array.";
+                    catch (_c) {
+                        addMsg.textContent = "Invalid code — paste a BC outfit code or JSON array.";
+                        return;
                     }
+                    if (items.length === 0) {
+                        addMsg.textContent = "No items found in that code.";
+                        return;
+                    }
+                    const updated = getKittyRestraintSets();
+                    updated.push({ id: "r_" + Date.now(), label: addLblInp.value.trim(), items, kindEmote: "", roughEmote: "" });
+                    saveKittyRestraintSets(updated);
+                    addMsg.style.color = "#70d070";
+                    addMsg.textContent = `Saved ${items.length} items.`;
+                    addLblInp.value = "";
+                    addCodeTA.value = "";
+                    renderRestraintSets(true);
                 });
                 addBox.appendChild(addLblInp);
+                addBox.appendChild(fromCodeLbl);
                 addBox.appendChild(addCodeTA);
                 addBox.appendChild(addMsg);
                 addBox.appendChild(addBtnR);
@@ -26592,7 +26778,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.66";
+    const MOD_VERSION = "2.2.67";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -26603,6 +26789,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.67",
+            changes: [
+                "Kitty emotes now have rough variants: each emote has a separate ⚡ Rough text shown when mood is Rough (e.g. headpat becomes a hair-tug, snuggle becomes a firm hold). Edit mode shows 🌸 Kind / ⚡ Rough rows per emote. Leave rough blank to reuse the kind text.",
+                "Headpat (and Good Girl) now trigger Emery's ear-wiggle expression (CharacterSetFacialExpression) via a new 'expression' kitty command. Configurable per-emote via the expression field; seeds automatically on first load.",
+                "Kitty restraint set import now accepts LZ-compressed BC outfit codes (same format as BC's own outfit export) — restraint items are extracted automatically. Also added 'From saved restraints' picker: choose any of Emery's saved restraint sets from the outfit manager and use them directly. Craft names/descriptions, item properties, and difficulty are now preserved when items are applied.",
+            ],
+        },
         {
             version: "2.2.66",
             changes: [
@@ -29013,15 +29207,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
         acceptBtn.textContent = "Accept~ 🌸";
         acceptBtn.addEventListener("click", () => {
-            var _a, _b, _c;
-            // Apply restraint items to self
+            var _a, _b, _c, _d, _e, _f, _g, _h;
+            // Apply restraint items to self (with full craft/property/difficulty support)
             if (restraintItems.length > 0) {
                 try {
                     const w = window;
+                    const iw = w.InventoryWear;
                     for (const item of restraintItems) {
-                        (_a = w.InventoryWear) === null || _a === void 0 ? void 0 : _a.call(w, Player, item.Name, item.Group, (_b = item.Color) !== null && _b !== void 0 ? _b : "Default");
+                        if (iw) {
+                            iw(Player, item.Name, item.Group, (_a = item.Color) !== null && _a !== void 0 ? _a : "Default", (_b = item.Difficulty) !== null && _b !== void 0 ? _b : 0, (_c = Player.AssetFamily) !== null && _c !== void 0 ? _c : "Female3DCG", (_d = item.Craft) !== null && _d !== void 0 ? _d : null);
+                            // InventoryWear doesn't set Property — patch it in afterwards
+                            if (item.Property && Object.keys(item.Property).length > 0) {
+                                const worn = Player.Appearance.find((a) => a.Asset.Group.Name === item.Group);
+                                if (worn) {
+                                    worn.Property = Object.assign(Object.assign({}, ((_e = worn.Property) !== null && _e !== void 0 ? _e : {})), item.Property);
+                                }
+                            }
+                        }
+                        else {
+                            (_f = w.InventoryWear) === null || _f === void 0 ? void 0 : _f.call(w, Player, item.Name, item.Group, (_g = item.Color) !== null && _g !== void 0 ? _g : "Default");
+                        }
                     }
-                    (_c = w.CharacterRefresh) === null || _c === void 0 ? void 0 : _c.call(w, Player, false, false);
+                    (_h = w.CharacterRefresh) === null || _h === void 0 ? void 0 : _h.call(w, Player, false, false);
                     if (Player.OnlineID != null) {
                         callBC(() => ServerSend("ChatRoomCharacterUpdate", {
                             ID: Player.OnlineID,
@@ -29030,7 +29237,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }));
                     }
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
+                catch ( /* ignore */_j) { /* ignore */ }
             }
             try {
                 const emote = mood === "rough"
@@ -29038,7 +29245,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     : "gives a tiny nod and lowers her eyes obediently~";
                 ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_k) { /* ignore */ }
             close();
         });
         btnRow.appendChild(fightBtn);
@@ -29182,9 +29389,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     break;
                 }
+                case "expression": {
+                    // arg format: "FaceType:State"  e.g. "Ears:Wiggle"
+                    // Triggers a BC facial expression on Emery's own character (self-applied).
+                    try {
+                        const colonIdx = arg.indexOf(":");
+                        if (colonIdx > 0) {
+                            const face = arg.slice(0, colonIdx);
+                            const state = arg.slice(colonIdx + 1);
+                            const w = window;
+                            const fn = w.CharacterSetFacialExpression;
+                            if (fn)
+                                fn(Player, face, state || null);
+                        }
+                    }
+                    catch ( /* ignore */_d) { /* ignore */ }
+                    break;
+                }
             }
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
     }
     function handleMetaCommand(inputValue) {
         var _a, _b, _c;
