@@ -10166,7 +10166,7 @@ export class EBCDrawer {
                             { MemberNumber?: number; Start?: string | number } | undefined;
                         if (own?.MemberNumber === num) {
                             const ownEl = document.createElement("div");
-                            ownEl.style.color = "#cf6f98";
+                            ownEl.style.color = "#e8c060";
                             const ts = parseRelStart(own.Start);
                             ownEl.textContent = ts
                                 ? `👑 Owned since: ${relFmt(ts)}`
@@ -10192,7 +10192,7 @@ export class EBCDrawer {
                         const rc = roomChars?.find(c => c.MemberNumber === num);
                         if (rc?.Ownership?.MemberNumber === Player.MemberNumber) {
                             const ownedByMeEl = document.createElement("div");
-                            ownedByMeEl.style.color = "#a0d0a0";
+                            ownedByMeEl.style.color = "#e8c060";
                             const ts = parseRelStart(rc.Ownership.Start);
                             ownedByMeEl.textContent = ts
                                 ? `🔒 Owns them since: ${relFmt(ts)}`
