@@ -14055,18 +14055,23 @@ export class EBCDrawer {
                     row.appendChild(makePill(p.label, "#a070c8", () => {
                         // Guard: never send chat when not in a room
                         if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
-                        // Send mood-aware room emote first, then apply pose
+                        // Apply pose + expression first, then narrate after a short delay so
+                        // Emery's CharacterUpdate reaches everyone before the emote text appears.
                         const mood = getKittyMood();
                         const emoteText = mood === "rough" ? (p.roughEmote || p.kindEmote) : (p.kindEmote || p.roughEmote);
-                        sendRoomEmote(emoteText);
                         sendKittyCmd("pose", p.poses.join(","));
                         if (p.expression) sendExprOrPreset(p.expression);
+                        setTimeout(() => {
+                            if (typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom") {
+                                sendRoomEmote(emoteText);
+                            }
+                        }, 600);
                     }));
                 }
                 posesWrap.appendChild(row);
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a5a;margin-top:3px;";
-                hint.textContent = "Sends a room emote then applies the pose on Emery";
+                hint.textContent = "Applies the pose on Emery then sends a room emote";
                 posesWrap.appendChild(hint);
                 return;
             }

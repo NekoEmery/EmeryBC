@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.102";
+const MOD_VERSION = "2.2.103";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.103",
+        changes: [
+            "Kitty Poses: pose + expression are now applied before the room emote, with a 600 ms delay on the emote so Emery's CharacterUpdate reaches the room first — the pose change is visible before the narration text appears.",
+        ],
+    },
     {
         version: "2.2.102",
         changes: [
