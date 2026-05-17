@@ -13807,10 +13807,9 @@ export class EBCDrawer {
                 ? `Already at max tightness (${MAX_TUGS}/${MAX_TUGS})`
                 : `Give the leash a tug (${tugCount}/${MAX_TUGS})`;
             tugBtn.style.opacity = tugCount >= MAX_TUGS ? "0.55" : "1";
-            untugBtn.title = tugCount <= 0
-                ? "Already at default tightness (0/3)"
-                : `Loosen the leash (${tugCount}/${MAX_TUGS})`;
-            untugBtn.style.opacity = tugCount <= 0 ? "0.55" : "1";
+            // Untug is always active — LoosenLittle can fire even past the tug counter
+            untugBtn.title = `Loosen collar (BC LoosenLittle) — current tugs: ${tugCount}/${MAX_TUGS}`;
+            untugBtn.style.opacity = "1";
         };
         refreshTugBtn();
 
@@ -13850,22 +13849,21 @@ export class EBCDrawer {
         untugBtn.addEventListener("mouseleave", () => { untugBtn.style.background = "rgba(80,40,60,0.35)"; untugBtn.style.borderColor = "#8a5a7888"; });
         untugBtn.addEventListener("click", () => {
             if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
-            const mood = getKittyMood();
+            // Always fire BC's native LoosenLittle on the collar — each click loosens one step.
+            // This runs every time regardless of the tug counter so the collar keeps
+            // loosening as long as Lucy keeps clicking.
+            runKittyActivity("ItemNeck", "LoosenLittle");
             if (tugCount <= 0) {
-                sendRoomEmote(mood === "rough"
-                    ? "tugs at the leash — it's already sitting loose~"
-                    : "checks the leash — it's already at its usual fit~");
-                untugBtn.style.background = "rgba(100,40,40,0.55)";
+                // Counter already at zero — fire the activity silently (no chat spam)
+                untugBtn.style.background = "rgba(60,100,80,0.45)";
                 setTimeout(() => { untugBtn.style.background = "rgba(80,40,60,0.35)"; }, 250);
                 return;
             }
-            // Fully loosen — reset all tug steps at once and release LSCG neck pressure
-            tugCount = 0;
+            tugCount--;
+            const mood = getKittyMood();
             sendRoomEmote(mood === "rough"
-                ? "grabs the leash with both hands and yanks it back sharply, forcing all the tension out of the collar in one go~"
-                : "gathers the slack in one smooth motion, easing Emery's collar all the way back to its comfortable fit~");
-            runKittyActivity("ItemNeck", "Caress");
-            runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
+                ? "yanks the leash back sharply, forcing some give back into the collar~"
+                : "lets out slack in the leash, easing the pressure on Emery's collar~");
             refreshTugBtn();
             // Brief flash
             untugBtn.style.background = "rgba(60,100,80,0.45)";
