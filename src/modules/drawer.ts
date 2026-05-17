@@ -3836,12 +3836,11 @@ export class EBCDrawer {
             // Roaming mode: root at right:0 so the closed panel (translateX(W+60))
             // lands at vw+16 — completely off-screen.  A CSS class keeps the tab
             // fully visible (overrides the in-room left:-10px collapsed state).
-            // Position near the bottom-right to avoid BC's icon grid at the top.
+            // Centre the panel vertically in the viewport.
             this.rootEl.classList.add("ebc-roaming");
-            const h = Math.min(Math.max(300, window.innerHeight - 120), 650);
-            // Anchor root so the tab (top:58px on the root) appears ~100px from the bottom
-            const tabTop = window.innerHeight - 100 - 22; // centre of 44px tab
-            this.rootEl.style.top    = `${Math.max(20, tabTop - 58)}px`;
+            const h = Math.min(Math.max(300, Math.round(window.innerHeight * 0.65)), 520);
+            const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
+            this.rootEl.style.top    = `${top}px`;
             this.rootEl.style.right  = "0px";
             this.rootEl.style.height = `${h}px`;
             this.panelEl.style.height = `${h}px`;
