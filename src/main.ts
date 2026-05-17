@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.56";
+const MOD_VERSION = "2.2.57";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.57",
+        changes: [
+            "BUTTONS tab fully restored from stable (master) branch — exact actionButtons.ts and renderButtons/buildSeqStepBuilder from v2.2.17. Default buttons (NOD/SHAKE/WAVE/CHEER/POUT/GIGGLE) restored. Canvas sidebar with drag-to-reposition, DrawButton tiles, and click handler all intact. Tab correctly labelled 'BUTTONS', positioned before ANIMS.",
+        ],
+    },
     {
         version: "2.2.56",
         changes: [

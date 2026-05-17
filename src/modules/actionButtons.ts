@@ -1,10 +1,8 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
-import { callBC, getDisplayName } from "./bcUtils";
-import { getActionButtonsVisible } from "./settings";
-import { executeMacro } from "./macros";
+import { callBC } from "./bcUtils";
 
-export type ActionStyle = "action" | "emote" | "seq" | "macro";
+export type ActionStyle = "action" | "emote" | "seq";
 // "action" = (Name text)
 // "emote"  = * Name text *
 // "seq"    = pose/action sequence (pipe-separated steps)
@@ -19,13 +17,13 @@ export interface ActionButton {
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
-    { label: "", emote: "leaveroom",   color: "#c2185b", enabled: false, style: "macro" },
-    { label: "", emote: "releaseself", color: "#c2185b", enabled: false, style: "macro" },
-    { label: "", emote: "wardrobe",    color: "#c2185b", enabled: false, style: "macro" },
-    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
-    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
-    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
-    { label: "", emote: "",            color: "#c2185b", enabled: false, style: "macro" },
+    { label: "NOD",    emote: "nods.",              color: "#c2185b", enabled: true,  style: "action" },
+    { label: "SHAKE",  emote: "shakes their head.", color: "#c2185b", enabled: true,  style: "action" },
+    { label: "WAVE",   emote: "waves.",             color: "#c2185b", enabled: true,  style: "action" },
+    { label: "CHEER",  emote: "cheers!",            color: "#c2185b", enabled: true,  style: "action" },
+    { label: "POUT",   emote: "pouts.",             color: "#c2185b", enabled: true,  style: "emote"  },
+    { label: "GIGGLE", emote: "giggles.",           color: "#c2185b", enabled: true,  style: "emote"  },
+    { label: "",       emote: "",                   color: "#c2185b", enabled: false, style: "action" },
 ];
 
 export const ABSOLUTE_MAX  = 12;
@@ -120,6 +118,15 @@ export function normalizeHex(value: string | undefined, fallback = "#c2185b"): s
     const m = /^#([0-9a-f]{3})$/i.exec(c);
     if (m) { const [r,g,b] = m[1].split(""); return `#${r}${r}${g}${g}${b}${b}`; }
     return fallback;
+}
+
+// --- Display name helper -----------------------------------------------------
+
+export function getDisplayName(): string {
+    // CharacterNickname is a BC global not always in the type declarations
+    const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
+    if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
+    return (Player as unknown as Record<string, unknown>).Nickname as string || Player.Name || "Player";
 }
 
 // --- Sequence runner ----------------------------------------------------------
@@ -217,17 +224,6 @@ export function runSequence(sequence: string, defaultStepMs = 600): void {
             if (step === "_") {
                 Player.ActivePose = originalPoses;
                 sendPoseUpdate(appearanceBundle);
-            } else if (step.toLowerCase() === "leaveroom") {
-                // Restore pose, switch screen FIRST, then leave — same pattern as
-                // safeword.ts.  CommonSetScreen stops ChatRoomRun before
-                // ChatRoomLeave() clears ChatRoomData, so no mod hook crashes.
-                Player.ActivePose = originalPoses;
-                seqRunning = false;
-                window.setTimeout(() => {
-                    callBC(() => CommonSetScreen("Online", "ChatSearch"));
-                    callBC(() => ChatRoomLeave());
-                }, 0);
-                return;
             } else if (step.startsWith("!")) {
                 sendAction(step.slice(1), "action");
             } else if (step.startsWith("*")) {
@@ -490,7 +486,6 @@ function withAlpha(hex: string, alpha: number): string {
 
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") return;
-    if (!getActionButtonsVisible()) return;
 
     // Derived Y positions
     const gripY      = sidebarY - GRIP_H - 2;
@@ -608,12 +603,8 @@ export function handleActionButtonClick(): boolean {
         const y = btnStartY + i * BTN_SIZE;
         if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
             my >= y         && my <= y + BTN_SIZE) {
-            if (btn.style === "macro") {
-                executeMacro(btn.emote);
-            } else {
-                const animOk = triggerLabelAnimation(btn.label);
-                if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
-            }
+            const animOk = triggerLabelAnimation(btn.label);
+            if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
             return true;
         }
     }
