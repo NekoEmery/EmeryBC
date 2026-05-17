@@ -10487,18 +10487,20 @@
     }
     // -- Sending -------------------------------------------------------------------
     function sendBeep(memberNumber, message) {
-        var _a, _b;
+        var _a;
         // Queue the message for re-delivery if the recipient is currently offline.
         // BC drops beeps to offline players, so we resend when they come online.
         markPendingMessage(memberNumber, message);
         try {
-            // Include ChatRoomName so BC shows the "join room" option on the recipient's side.
-            const roomName = (_a = window.ChatRoomData) === null || _a === void 0 ? void 0 : _a.Name;
-            ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, ChatRoomName: roomName !== null && roomName !== void 0 ? roomName : null });
+            // IsSecret: false tells the BC server to include the sender's current room
+            // in the beep it delivers to the recipient, so they see "in room X" with a
+            // join button.  The server derives the room name itself — sending ChatRoomName
+            // from the client has no effect; only IsSecret matters.
+            ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
         addBeepEntry({
-            from: (_b = Player.MemberNumber) !== null && _b !== void 0 ? _b : 0,
+            from: (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0,
             to: memberNumber,
             message,
             ts: Date.now(),
@@ -28453,7 +28455,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.118";
+    const MOD_VERSION = "2.2.119";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28464,6 +28466,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.119",
+            changes: [
+                "Fix: beep room name now actually works. The previous fix (v2.2.116) sent ChatRoomName from the client, but the BC server ignores that — it derives the room from the sender's session. The correct flag is IsSecret: false, which tells the server to attach the sender's current room to the delivered beep. Recipients now see 'in room X' with a join button.",
+            ],
+        },
         {
             version: "2.2.118",
             changes: [

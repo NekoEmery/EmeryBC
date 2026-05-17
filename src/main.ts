@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.2.118";
+const MOD_VERSION = "2.2.119";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.2.119",
+        changes: [
+            "Fix: beep room name now actually works. The previous fix (v2.2.116) sent ChatRoomName from the client, but the BC server ignores that — it derives the room from the sender's session. The correct flag is IsSecret: false, which tells the server to attach the sender's current room to the delivered beep. Recipients now see 'in room X' with a join button.",
+        ],
+    },
     {
         version: "2.2.118",
         changes: [
