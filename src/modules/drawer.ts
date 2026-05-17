@@ -13769,21 +13769,21 @@ export class EBCDrawer {
                         const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                         try {
                             if (em.id === "headpat" || em.id === "spank") {
-                                // Trigger a real BC activity so BC shows its own description + plays sounds
-                                // Content format: "ChatOther-{Group}-{ActivityName}" (BC's own format)
-                                const bcContent = em.id === "headpat" ? "ChatOther-ItemHead-Pet"    : "ChatOther-ItemButt-Spank";
-                                const bcGroup   = em.id === "headpat" ? "ItemHead"                  : "ItemButt";
-                                const bcAct     = em.id === "headpat" ? "Pet"                       : "Spank";
-                                ServerSend("ChatRoomChat", {
-                                    Type: "Activity",
-                                    Content: bcContent,
-                                    Dictionary: [
-                                        { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
-                                        { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER },
-                                        { Tag: "ActivityGroup",   Text: bcGroup },
-                                        { Tag: "ActivityName",    Text: bcAct   },
-                                    ],
-                                });
+                                // Use BC's own ActivityRun pipeline — same as clicking the button in the dialog.
+                                // This plays sounds, triggers BCX/LSCG reactions, and shows the correct chat line.
+                                const w = window as unknown as Record<string, unknown>;
+                                const ActivityRun = w.ActivityRun as
+                                    ((actor: Character, acted: Character, group: { Name: string }, item: { Activity: unknown; Item: null }) => void) | undefined;
+                                const AssetGetActivity = w.AssetGetActivity as
+                                    ((family: string, name: string) => unknown) | undefined;
+                                const ChatRoomChars = w.ChatRoomCharacter as Character[] | undefined;
+                                if (ActivityRun && AssetGetActivity && ChatRoomChars) {
+                                    const emery = ChatRoomChars.find(c => (c as unknown as { MemberNumber: number }).MemberNumber === EMERY_MEMBER);
+                                    const actName = em.id === "headpat" ? "Pet"     : "Spank";
+                                    const grpName = em.id === "headpat" ? "ItemHead": "ItemButt";
+                                    const act = AssetGetActivity("Female3DCG", actName);
+                                    if (emery && act) ActivityRun(Player, emery, { Name: grpName }, { Activity: act, Item: null });
+                                }
                             } else if (em.type === "emote") {
                                 ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
                             } else {
