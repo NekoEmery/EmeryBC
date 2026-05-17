@@ -24899,21 +24899,20 @@
                             const text = (mood === "rough" && em.roughText) ? em.roughText : em.text;
                             try {
                                 if (em.id === "headpat" || em.id === "spank") {
-                                    // Trigger a real BC activity so BC shows its own description + plays sounds
-                                    // Content format: "ChatOther-{Group}-{ActivityName}" (BC's own format)
-                                    const bcContent = em.id === "headpat" ? "ChatOther-ItemHead-Pet" : "ChatOther-ItemButt-Spank";
-                                    const bcGroup = em.id === "headpat" ? "ItemHead" : "ItemButt";
-                                    const bcAct = em.id === "headpat" ? "Pet" : "Spank";
-                                    ServerSend("ChatRoomChat", {
-                                        Type: "Activity",
-                                        Content: bcContent,
-                                        Dictionary: [
-                                            { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber },
-                                            { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER },
-                                            { Tag: "ActivityGroup", Text: bcGroup },
-                                            { Tag: "ActivityName", Text: bcAct },
-                                        ],
-                                    });
+                                    // Use BC's own ActivityRun pipeline — same as clicking the button in the dialog.
+                                    // This plays sounds, triggers BCX/LSCG reactions, and shows the correct chat line.
+                                    const w = window;
+                                    const ActivityRun = w.ActivityRun;
+                                    const AssetGetActivity = w.AssetGetActivity;
+                                    const ChatRoomChars = w.ChatRoomCharacter;
+                                    if (ActivityRun && AssetGetActivity && ChatRoomChars) {
+                                        const emery = ChatRoomChars.find(c => c.MemberNumber === EMERY_MEMBER);
+                                        const actName = em.id === "headpat" ? "Pet" : "Spank";
+                                        const grpName = em.id === "headpat" ? "ItemHead" : "ItemButt";
+                                        const act = AssetGetActivity("Female3DCG", actName);
+                                        if (emery && act)
+                                            ActivityRun(Player, emery, { Name: grpName }, { Activity: act, Item: null });
+                                    }
                                 }
                                 else if (em.type === "emote") {
                                     ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
@@ -27097,7 +27096,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.2.73";
+    const MOD_VERSION = "2.2.74";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -27108,6 +27107,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.2.74",
+            changes: [
+                "Headpat and Spank now use BC's ActivityRun pipeline (same as clicking the button in the dialog) — correct sounds, chat description, and BCX/LSCG reactions all trigger properly.",
+            ],
+        },
         {
             version: "2.2.73",
             changes: [
