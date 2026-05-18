@@ -33,7 +33,7 @@ export interface ConfiguredOutfit {
 
 export const RESTRAINT_GROUPS = new Set([
     "ItemArms", "ItemHands", "ItemLegs", "ItemFeet", "ItemBoots",
-    "ItemMouth", "ItemMouthAccessory", "ItemHead", "ItemHood",
+    "ItemMouth", "ItemMouth2", "ItemMouth3", "ItemMouthAccessory", "ItemHead", "ItemHood",
     "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
     "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
     "ItemTorso", "ItemTorso2", "ItemBody",
