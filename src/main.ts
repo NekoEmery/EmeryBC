@@ -20,7 +20,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.3.6";
+const MOD_VERSION = "2.3.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +34,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.3.7",
+        changes: [
+            "Fix: quick emote sidebar buttons are broken in the new BC version. BC deprecated ChatRoomMenuDraw as a canvas draw function (migrated to DOM); EBC's hook on it no longer fired. Now hooks DrawProcess — the actual per-frame draw function — so buttons render every frame regardless of BC version.",
+            "Fix: EBC version badge continued showing above players who had disabled the addon. The presence check fell back to ExtensionSettings which persists indefinitely. Removed the fallback — only OnlineSharedSettings (the live broadcast state) is now checked, so disabling the addon immediately clears the badge.",
+            "Fix: Remove Restraints was not removing gags in the ItemMouth2 and ItemMouth3 slots (BC's layered mouth groups). Only ItemMouth and ItemMouthAccessory were in RESTRAINT_GROUPS; gag items like the Futuristic Muzzle that live in the layered slots were skipped.",
+        ],
+    },
     {
         version: "2.3.6",
         changes: [
@@ -3458,16 +3466,15 @@ function getSharedPresence(character: Character | null | undefined): EmeryPresen
     if (!character) return null;
 
     // OnlineSharedSettings are broadcast to all room members via ChatRoomSync
-    // and CharacterUpdate - this is the reliable cross-client path.
+    // and CharacterUpdate — this is the only live/authoritative path.
+    // Do NOT fall back to ExtensionSettings: that data persists indefinitely and
+    // would make the badge keep appearing for users who have since disabled EBC.
     const shared = character.OnlineSharedSettings?.[MOD_NAME];
     if (shared && typeof shared === "object") {
         const presence = (shared as EmeryAddonSettings).presence;
         if (presence?.marker === "EBC") return presence;
     }
-
-    // Fallback: ExtensionSettings (visible if they were synced before room join)
-    const addon = getAddonSettings(character, false)?.presence;
-    return addon?.marker === "EBC" ? addon : null;
+    return null;
 }
 
 function getAddonSettings(character: Character | null | undefined, create = false): EmeryAddonSettings | null {
@@ -3613,10 +3620,16 @@ function init(): void {
 
 
 
-    // Canvas sidebar action buttons
-    modAPI.hookFunction("ChatRoomMenuDraw", 3, (args, next) => {
-        next(args);
+    // Canvas sidebar action buttons.
+    // BC deprecated ChatRoomMenuDraw as a canvas function (it is now empty — the menu
+    // was migrated to DOM). Hook DrawProcess instead, which is the actual per-frame
+    // draw function called from GameRun on every animation frame.
+    // drawActionButtons() already guards with `if (CurrentScreen !== "ChatRoom") return`
+    // so this is a no-op outside the chat room.
+    tryHookFunction(modAPI, "DrawProcess", 3, (args, next) => {
+        const result = next(args);
         try { drawActionButtons(); } catch { /* ignore */ }
+        return result;
     });
 
     modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
