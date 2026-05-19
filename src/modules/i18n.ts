@@ -232,6 +232,19 @@ const S: Record<string, T> = {
     "dev.enableDevLogging":   { en: "📟 Enable dev logging", de: "📟 Protokollierung aktivieren", zh: "📟 启用开发日志",  fr: "📟 Activer la journalisation", es: "📟 Activar registro dev"   },
     "dev.injectTestEntry":    { en: "Inject test entry",     de: "Testeintrag einfügen",      zh: "注入测试条目",      fr: "Injecter entrée test",        es: "Inyectar entrada prueba"   },
     "dev.clearLog":           { en: "Clear",                 de: "Löschen",                   zh: "清除",              fr: "Effacer",                     es: "Borrar"                    },
+    "dev.ebcTags":            { en: "EBC TAGS",              de: "EBC-ETIKETTEN",             zh: "EBC 标签",          fr: "ÉTIQUETTES EBC",              es: "ETIQUETAS EBC"             },
+    "dev.showMyTag":          { en: "My EBC tag (visible to others)",     de: "Mein EBC-Etikett (für andere sichtbar)",    zh: "我的 EBC 标签（其他人可见）",   fr: "Mon étiquette EBC (visible par les autres)",  es: "Mi etiqueta EBC (visible para otros)"         },
+    "dev.showOthersTags":     { en: "Others' EBC tags (on your screen)",  de: "EBC-Etiketten anderer (auf deinem Bildschirm)", zh: "他人的 EBC 标签（你的屏幕）", fr: "Étiquettes EBC des autres (sur votre écran)", es: "Etiquetas EBC de otros (en tu pantalla)"      },
+    "dev.drawerPrefs":        { en: "DRAWER PREFERENCES",   de: "FENSTER-EINSTELLUNGEN",     zh: "面板偏好",          fr: "PRÉFÉRENCES DU PANNEAU",      es: "PREFERENCIAS DEL PANEL"    },
+    "dev.ebcUsersInRoom":     { en: "EBC USERS IN THIS ROOM", de: "EBC-NUTZER IM RAUM",      zh: "房间中的 EBC 用户", fr: "UTILISATEURS EBC DANS LA SALLE", es: "USUARIOS EBC EN LA SALA"   },
+    "dev.developerTools":     { en: "DEVELOPER TOOLS",      de: "ENTWICKLER-WERKZEUGE",      zh: "开发者工具",        fr: "OUTILS DÉVELOPPEUR",          es: "HERRAMIENTAS DEV"          },
+    "dev.copyRestraintsFromMember": { en: "COPY RESTRAINTS FROM MEMBER", de: "FESSELN VON MITGLIED KOPIEREN", zh: "从成员复制束缚", fr: "COPIER LES LIENS D'UN MEMBRE", es: "COPIAR ATADURAS DE MIEMBRO" },
+    "dev.statEditor":         { en: "STAT EDITOR",          de: "STATISTIK-EDITOR",          zh: "属性编辑器",        fr: "ÉDITEUR DE STATS",            es: "EDITOR DE STATS"           },
+    "dev.peopleMet":          { en: "PEOPLE MET",           de: "BEKANNTE PERSONEN",         zh: "已认识的人",        fr: "PERSONNES RENCONTRÉES",       es: "PERSONAS CONOCIDAS"        },
+
+    // ─── CREDITS TAB ───────────────────────────────────────────────────────────
+    "credits.specialThanks":  { en: "Special Thanks",       de: "Besonderer Dank",           zh: "特别感谢",          fr: "Remerciements spéciaux",      es: "Agradecimientos especiales" },
+    "credits.intro":          { en: "People who made EBC possible.", de: "Menschen, die EBC möglich gemacht haben.", zh: "让 EBC 成为可能的人们。", fr: "Les personnes qui ont rendu EBC possible.", es: "Las personas que hicieron posible EBC." },
 
     // ─── DOM TAB ───────────────────────────────────────────────────────────
     "dom.domSets":       { en: "DOM Sets",                de: "DOM-Sets",                  zh: "DOM 集合",          fr: "Sets DOM",                    es: "Conjuntos DOM"             },

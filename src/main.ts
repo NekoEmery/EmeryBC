@@ -6,7 +6,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.14";
+const MOD_VERSION = "2.5.15";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.15",
+        changes: [
+            "i18n: translate remaining hardcoded strings — Credits tab (Special Thanks header, intro text); DEV tab section headers (DRAWER PREFERENCES, EBC USERS IN THIS ROOM, DEVELOPER TOOLS, COPY RESTRAINTS FROM MEMBER, STAT EDITOR, PEOPLE MET).",
+            "Feature: EBC tag toggle split into two independent controls — 'My EBC tag (visible to others)' controls whether your presence is broadcast; 'Others' EBC tags (on your screen)' controls whether others' tags are rendered on your client. Previously one toggle controlled both.",
+            "UX: EBC Tags panel given its own named section header (🏷 EBC TAGS) so it's easy to find at the top of the DEV tab.",
+        ],
+    },
     {
         version: "2.5.14",
         changes: [
@@ -3730,8 +3738,6 @@ function hasEmeryBC(character: Character | null | undefined): boolean {
 
 function drawPresenceMarker(args: unknown[]): void {
     if (CurrentScreen !== "ChatRoom") return;
-    // Local display toggle — if off, skip drawing badges on everyone (client-side only)
-    if (!getBadgeEnabled()) return;
 
     const character = args[0] as Character | undefined;
     const left = typeof args[1] === "number" ? args[1] : null;
@@ -3739,6 +3745,10 @@ function drawPresenceMarker(args: unknown[]): void {
     const zoom = typeof args[3] === "number" ? args[3] : 1;
     if (!character || left == null || top == null) return;
     const isSelf = character.MemberNumber === Player.MemberNumber;
+
+    // Separate display toggles: own badge vs others' badges (both client-side only)
+    if (isSelf && !getBadgeEnabled()) return;
+    if (!isSelf && !getShowOthersBadge()) return;
     if (!isSelf && !hasEmeryBC(character)) return;
 
     const presence = getSharedPresence(character);

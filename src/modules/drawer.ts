@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -11085,31 +11085,53 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // ── Show EBC tags toggle ──────────────────────────────────────────────
-        const badgeToggleRow = document.createElement("div");
-        badgeToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-        const badgeLbl2 = document.createElement("span");
-        badgeLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-        badgeLbl2.textContent = "Show EBC tags above players";
-        const badgeToggle2 = document.createElement("button");
-        const updateBadgeToggle2 = (): void => {
-            const on = getBadgeEnabled();
-            badgeToggle2.textContent = on ? t("core.on") : t("core.off");
-            badgeToggle2.style.cssText = [
-                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                "padding:5px 12px", "border-radius:4px", "cursor:pointer",
-                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                "background:" + (on ? "#6b3048" : "#1b0d17"),
-                "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                "transition:background 0.14s,color 0.14s,border-color 0.14s",
-            ].join(";");
-            badgeToggle2.title = on ? "EBC tags visible — click to hide" : "EBC tags hidden — click to show";
+        // ── EBC Tags panel — two separate toggles ──────────────────────────────
+        const tagPanel = document.createElement("div");
+        tagPanel.style.cssText = "border:1px solid #3a1928;border-radius:6px;background:rgba(20,8,16,0.55);margin-bottom:8px;overflow:hidden;";
+
+        const tagHeader = document.createElement("div");
+        tagHeader.style.cssText = "display:flex;align-items:center;gap:5px;padding:5px 8px;background:rgba(42,10,22,0.5);border-bottom:1px solid #2a1020;";
+        const tagHeaderIcon = document.createElement("span");
+        tagHeaderIcon.textContent = "🏷";
+        tagHeaderIcon.style.cssText = "font-size:11px;";
+        const tagHeaderLbl = document.createElement("span");
+        tagHeaderLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;letter-spacing:0.06em;";
+        tagHeaderLbl.textContent = t("dev.ebcTags");
+        tagHeader.appendChild(tagHeaderIcon);
+        tagHeader.appendChild(tagHeaderLbl);
+        tagPanel.appendChild(tagHeader);
+
+        const makeTagToggle = (getVal: () => boolean, setVal: (v: boolean) => void, label: string): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 9px;border-bottom:1px solid #1e0a14;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+            lbl.textContent = label;
+            const btn = document.createElement("button");
+            const refresh = (): void => {
+                const on = getVal();
+                btn.textContent = on ? t("core.on") : t("core.off");
+                btn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                    "padding:3px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            try { refresh(); } catch { /* ignore */ }
+            btn.addEventListener("click", () => { setVal(!getVal()); refresh(); });
+            row.appendChild(lbl);
+            row.appendChild(btn);
+            tagPanel.appendChild(row);
         };
-        try { updateBadgeToggle2(); } catch { /* ignore */ }
-        badgeToggle2.addEventListener("click", () => { setBadgeEnabled(!getBadgeEnabled()); updateBadgeToggle2(); });
-        badgeToggleRow.appendChild(badgeLbl2);
-        badgeToggleRow.appendChild(badgeToggle2);
-        body.appendChild(badgeToggleRow);
+        makeTagToggle(getBadgeEnabled,    setBadgeEnabled,    t("dev.showMyTag"));
+        makeTagToggle(getShowOthersBadge, setShowOthersBadge, t("dev.showOthersTags"));
+
+        // Remove the bottom border from the last row
+        (tagPanel.lastElementChild as HTMLElement | null)?.style.setProperty("border-bottom", "none");
+        body.appendChild(tagPanel);
 
         // Helper: collapsible section wrapper
         const makeSection = (
@@ -11238,7 +11260,7 @@ export class EBCDrawer {
         });
 
         // ── Drawer Preferences ────────────────────────────────────────────────
-        makeSection("DRAWER PREFERENCES", "EBC_devAppearanceCollapsed", false, (cnt) => {
+        makeSection(t("dev.drawerPrefs"), "EBC_devAppearanceCollapsed", false, (cnt) => {
 
             // ── Panel opacity slider ──────────────────────────────────────────
             const opacityRow = document.createElement("div");
@@ -11498,7 +11520,7 @@ export class EBCDrawer {
         });
 
         // ── EBC Users In This Room ─────────────────────────────────────────────
-        makeSection("EBC USERS IN THIS ROOM", "EBC_devEbcUsersCollapsed", true, (cnt) => {
+        makeSection(t("dev.ebcUsersInRoom"), "EBC_devEbcUsersCollapsed", true, (cnt) => {
             const presListEl = document.createElement("div");
             cnt.appendChild(presListEl);
 
@@ -11559,7 +11581,7 @@ export class EBCDrawer {
         });
 
         // ── Developer Tools ────────────────────────────────────────────────────
-        makeSection("DEVELOPER TOOLS", "EBC_devToolsCollapsed", true, (cnt) => {
+        makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
             // Version badge toggle
             const verRow = document.createElement("div");
             verRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
@@ -11710,7 +11732,7 @@ export class EBCDrawer {
 
         // ── Copy Restraints from Room Member (credited members only) ─────────
         if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
-        makeSection("COPY RESTRAINTS FROM MEMBER", "EBC_devCopyRestrCollapsed", true, (cnt) => {
+        makeSection(t("dev.copyRestraintsFromMember"), "EBC_devCopyRestrCollapsed", true, (cnt) => {
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
             hint.textContent = "Export a room member's restraints as a BC outfit code. Choose which items to include, then import via BC's wardrobe.";
@@ -12465,7 +12487,7 @@ export class EBCDrawer {
         // ── Stat Editor (credited members only) ───────────────────────────────
         const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
         if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
-            makeSection("Stat Editor", "EBC_statEditorCollapsed", true, (cnt) => {
+            makeSection(t("dev.statEditor"), "EBC_statEditorCollapsed", true, (cnt) => {
                 const FONT = "font-family:'Trebuchet MS',serif;";
 
                 // Helper: sub-label
@@ -12766,7 +12788,7 @@ export class EBCDrawer {
         }
 
         // ── People Met ────────────────────────────────────────────────────────
-        makeSection("PEOPLE MET", "EBC_peoplemetCollapsed", true, (cnt) => {
+        makeSection(t("dev.peopleMet"), "EBC_peoplemetCollapsed", true, (cnt) => {
             const PFONT = "font-family:'Trebuchet MS',serif;";
 
             // Controls row: count + search + clear
@@ -15898,12 +15920,12 @@ export class EBCDrawer {
 
         const credLbl = document.createElement("div");
         credLbl.className = "ebc-section-label";
-        credLbl.textContent = "Special Thanks";
+        credLbl.textContent = t("credits.specialThanks");
         body.appendChild(credLbl);
 
         const intro = document.createElement("div");
         intro.className = "ebc-thanks-intro";
-        intro.textContent = "People who made EBC possible. ";
+        intro.textContent = t("credits.intro") + " ";
         const introSub = document.createElement("span");
         introSub.style.cssText = "font-size:9px;color:#6a4a5e;font-family:'Trebuchet MS',serif;";
         introSub.textContent = "EmeryBC";

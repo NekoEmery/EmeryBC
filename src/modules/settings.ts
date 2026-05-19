@@ -34,6 +34,23 @@ export function setBadgeEnabled(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Others' badge visibility --------------------------------------------------
+// Client-side only: when off, other players' EBC overhead tags are not drawn.
+// Does NOT affect broadcasting your own tag. Defaults to true (show all tags).
+
+export function getShowOthersBadge(): boolean {
+    try { return getStore()?.showOthersBadge !== false; } catch { return true; }
+}
+
+export function setShowOthersBadge(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.showOthersBadge = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Version badge visibility --------------------------------------------------
 // When enabled, the overhead EBC badge shows the player's EBC version number.
 // Defaults to false (badge shows just "EBC").
