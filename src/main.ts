@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.7.9";
+const MOD_VERSION = "2.8.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.8.0",
+        changes: [
+            "UX: Phone/touch mode — automatically detected on coarse-pointer devices (phones, tablets). Enlarges all tap targets: tab buttons grow to 48px, quick-action buttons to 44px, header icons/inputs to 38px+, lang pills to 38px. Font sizes raised to 12–14px throughout. Suppresses iOS tap highlight flash. DEV → Drawer Prefs gains a 'Force touch mode' toggle for desktop preview.",
+        ],
+    },
     {
         version: "2.7.9",
         changes: [

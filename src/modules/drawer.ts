@@ -299,6 +299,34 @@ const TAB_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"
 
 const PANEL_OPACITY_KEY = "EBC_panelOpacity";
 
+// ── Touch / phone mode ─────────────────────────────────────────────────────
+// Auto-detected via pointer media query; can be forced on in the DEV tab for
+// desktop preview. When active, a data-touch attribute is placed on the panel
+// container and CSS !important overrides raise all tap target sizes.
+
+const TOUCH_MODE_FORCE_KEY = "EBC_forceTouchMode";
+
+function isTouchDevice(): boolean {
+    try { return window.matchMedia("(pointer: coarse)").matches; } catch { return false; }
+}
+
+function getForceTouchMode(): boolean {
+    try { return localStorage.getItem(TOUCH_MODE_FORCE_KEY) === "1"; } catch { return false; }
+}
+
+function setForceTouchMode(v: boolean): void {
+    try { localStorage.setItem(TOUCH_MODE_FORCE_KEY, v ? "1" : "0"); } catch { /* ignore */ }
+}
+
+function isTouchModeActive(): boolean {
+    return isTouchDevice() || getForceTouchMode();
+}
+
+function applyTouchMode(panelEl: HTMLElement): void {
+    if (isTouchModeActive()) panelEl.setAttribute("data-touch", "");
+    else panelEl.removeAttribute("data-touch");
+}
+
 function loadPanelOpacity(): number {
     try {
         const v = parseFloat(localStorage.getItem(PANEL_OPACITY_KEY) ?? "1");
@@ -2642,7 +2670,90 @@ const CSS = `
 .ebc-whisper-text { color: #d0a0b8; word-break: break-word; }
 .ebc-whisper-msg.out .ebc-whisper-text { color: #e8b0d0; }
 
+/* ── Touch / phone mode ─────────────────────────────────────────────────── */
+/* Applied when #emerybc-panel has [data-touch] — auto on coarse-pointer     */
+/* devices (phones/tablets), or force-enabled from the DEV → Drawer Prefs.  */
+/* All rules use !important so they beat the inline cssText on lang pills    */
+/* and other elements that set styles programmatically.                      */
+
+#emerybc-panel[data-touch] .ebc-tab-btn {
+    font-size: 13px !important;
+    padding: 14px 4px !important;
+    min-height: 48px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-icon-btn {
+    font-size: 13px !important;
+    padding: 9px 12px !important;
+    min-height: 38px !important;
+    min-width: 38px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-action-btn {
+    font-size: 12px !important;
+    padding: 10px 6px !important;
+    min-height: 44px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-quick-actions {
+    padding: 8px 9px !important;
+    gap: 7px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-outfit-del {
+    font-size: 15px !important;
+    padding: 9px 10px !important;
+    min-height: 38px !important;
+    min-width: 38px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-form-input {
+    font-size: 13px !important;
+    padding: 8px 10px !important;
+    min-height: 38px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-lang-pill {
+    font-size: 13px !important;
+    padding: 9px 16px !important;
+    min-height: 38px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-header {
+    padding: 9px 12px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-title {
+    font-size: 14px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-tabs {
+    gap: 0 !important;
+}
+
+#emerybc-panel[data-touch] .ebc-body {
+    padding: 10px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-section-label {
+    font-size: 12px !important;
+    padding: 6px 4px 8px !important;
+}
+
+#emerybc-panel[data-touch] .ebc-footer {
+    font-size: 12px !important;
+    padding: 8px 10px 7px !important;
+}
+
+/* Prevent tap highlight flash on iOS */
+#emerybc-panel[data-touch] button,
+#emerybc-panel[data-touch] input,
+#emerybc-panel[data-touch] select {
+    -webkit-tap-highlight-color: transparent;
+}
+
 `;
+
 
 // ── Generic confirm overlay ───────────────────────────────────────────────
 // Same style as the anti-restraint escape prompt. Used for any destructive
@@ -3123,6 +3234,8 @@ export class EBCDrawer {
         const slideContainer = document.createElement("div");
         slideContainer.id = "emerybc-panel";
         slideContainer.className = "ebc-closed";
+        // Touch / phone mode — enlarges all tap targets automatically on phones.
+        applyTouchMode(slideContainer);
 
         // Inner panel (visual content)
         const panel = document.createElement("div");
@@ -3368,6 +3481,7 @@ export class EBCDrawer {
         for (const code of LANG_CODES) {
             const pill = document.createElement("button");
             pill.dataset.lang = code;
+            pill.className = "ebc-lang-pill"; // enables touch-mode CSS targeting
             pill.textContent = LANG_NAMES[code];
             pill.addEventListener("click", () => {
                 setLanguage(code);
@@ -11344,6 +11458,48 @@ export class EBCDrawer {
 
         // ── Drawer Preferences ────────────────────────────────────────────────
         makeSection(t("dev.drawerPrefs"), "EBC_devAppearanceCollapsed", false, (cnt) => {
+
+            // ── Touch / phone mode toggle (dev preview) ───────────────────────
+            const touchRow = document.createElement("div");
+            touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+
+            const touchLbl = document.createElement("span");
+            touchLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+            touchLbl.textContent = "Phone / touch mode";
+
+            const touchAutoSpan = document.createElement("span");
+            touchAutoSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:" + (isTouchDevice() ? "#80c060" : "#6a4a5e") + ";flex-shrink:0;";
+            touchAutoSpan.textContent = isTouchDevice() ? "(auto: on)" : "(auto: off)";
+
+            const touchForceBtn = document.createElement("button");
+            const refreshTouchBtn = (): void => {
+                const forced = getForceTouchMode();
+                touchForceBtn.textContent = forced ? "Force ON" : "Force OFF";
+                touchForceBtn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:9px",
+                    "font-weight:bold",
+                    "padding:4px 10px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "border:1px solid " + (forced ? "#cf6f98" : "#3a1928"),
+                    "background:" + (forced ? "#4a1f30" : "#100508"),
+                    "color:" + (forced ? "#f7e6ee" : "#7a5070"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshTouchBtn();
+            touchForceBtn.addEventListener("click", () => {
+                setForceTouchMode(!getForceTouchMode());
+                refreshTouchBtn();
+                const panelEl = this.rootEl?.querySelector("#emerybc-panel") as HTMLElement | null;
+                if (panelEl) applyTouchMode(panelEl);
+            });
+            touchRow.appendChild(touchLbl);
+            touchRow.appendChild(touchAutoSpan);
+            touchRow.appendChild(touchForceBtn);
+            cnt.appendChild(touchRow);
 
             // ── Panel opacity slider ──────────────────────────────────────────
             const opacityRow = document.createElement("div");
