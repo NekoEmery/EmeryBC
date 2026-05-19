@@ -87,16 +87,47 @@ export function getExprGroupOptions(group: string): string[] {
 
 export function applyExprGroup(group: string, exprName: string | null): void {
     try {
+        // Prefer BC's official API — omit optional Timer/Color args entirely so BC
+        // uses its own defaults (no timer = keep expression; no colour override).
+        // Passing null for Timer can be treated as "0 ms" in some BC builds which
+        // would instantly clear the expression.
         const setExpr = (window as unknown as Record<string, unknown>).CharacterSetFacialExpression as
-            ((c: Character, g: string, e: string | null, i?: number | null, color?: string | null) => void) | undefined;
-        if (setExpr) {
-            setExpr(Player, group, exprName, null, null);
+            ((c: Character, g: string, e: string | null) => void) | undefined;
+        if (typeof setExpr === "function") {
+            setExpr(Player, group, exprName);
         } else {
-            const idx = Player.Appearance.findIndex((i: Item) => i.Asset.Group.Name === group);
-            if (idx !== -1) Player.Appearance.splice(idx, 1);
-            if (exprName) {
-                const asset = AssetGet(Player.AssetFamily, group, exprName);
-                if (asset) Player.Appearance.push({ Asset: asset, Color: "Default", Difficulty: 0 } as Item);
+            // Fallback: direct Appearance manipulation.
+            // Also try BC's InventoryWear / InventoryRemove if available.
+            const wear   = (window as unknown as Record<string, unknown>).InventoryWear   as Function | undefined;
+            const remove = (window as unknown as Record<string, unknown>).InventoryRemove as Function | undefined;
+            if (typeof wear === "function" && typeof remove === "function") {
+                if (exprName) {
+                    (wear as Function)(Player, exprName, group, "Default", 0);
+                    // Ensure Property.Expression is set (some BC builds leave it unset)
+                    const item = (Player.Appearance as Item[]).find(i => i.Asset.Group.Name === group);
+                    if (item) {
+                        if (!item.Property) (item as unknown as Record<string, unknown>).Property = {};
+                        (item.Property as Record<string, unknown>).Expression = exprName;
+                    }
+                } else {
+                    (remove as Function)(Player, group);
+                }
+            } else {
+                // Last-resort: splice + push the variant asset
+                const app = Player.Appearance as Item[];
+                const idx = app.findIndex(i => i.Asset.Group.Name === group);
+                if (idx !== -1) app.splice(idx, 1);
+                if (exprName) {
+                    const asset = AssetGet(Player.AssetFamily, group, exprName);
+                    if (asset) {
+                        app.push({
+                            Asset: asset,
+                            Color: "Default",
+                            Difficulty: 0,
+                            Property: { Expression: exprName },
+                        } as unknown as Item);
+                    }
+                }
             }
         }
         callBC(() => CharacterRefresh(Player, false));

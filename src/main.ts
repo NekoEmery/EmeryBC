@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.4.8";
+const MOD_VERSION = "2.4.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.4.9",
+        changes: [
+            "Fix: expression buttons (🎭 preset / 🎭 expr) now correctly apply. Root cause: CharacterSetFacialExpression was called with null for the optional Timer argument which some BC builds treat as '0 ms' and immediately clear the expression. Now called without optional args. Fallback path also fixed: tries InventoryWear first, then falls back to manual Appearance splice; both now correctly set Property.Expression so preset capture works.",
+            "Fix: sidebar 🎭 preset buttons now show a local notice if clicked with no preset configured, instead of silently doing nothing.",
+            "UX: FACE PRESETS section now starts expanded by default so the expression chips are immediately visible when you open the BUTTONS tab.",
+        ],
+    },
     {
         version: "2.4.8",
         changes: [

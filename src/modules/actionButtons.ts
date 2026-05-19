@@ -656,7 +656,11 @@ export function handleActionButtonClick(): boolean {
             my >= y         && my <= y + BTN_SIZE) {
             const btnStyle = btn.style ?? "action";
             if (btnStyle === "exprPreset") {
-                try { applyExprPresetWithRevert(btn.emote, btn.exprRevertMs ?? 0); } catch { /* ignore */ }
+                if (!btn.emote) {
+                    localNotice("Expression preset not configured — open BUTTONS tab to set it up.");
+                } else {
+                    try { applyExprPresetWithRevert(btn.emote, btn.exprRevertMs ?? 0); } catch { /* ignore */ }
+                }
                 return true;
             }
             if (btnStyle === "expression") {
@@ -666,6 +670,8 @@ export function handleActionButtonClick(): boolean {
                     const grp = btn.emote.slice(0, sep);
                     const expr = btn.emote.slice(sep + 1) || null;
                     try { applyExprGroup(grp, expr); } catch { /* ignore */ }
+                } else {
+                    localNotice("Expression not configured — open BUTTONS tab to set Group:Name.");
                 }
                 return true;
             }

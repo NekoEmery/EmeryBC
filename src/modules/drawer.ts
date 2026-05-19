@@ -13630,7 +13630,7 @@ export class EBCDrawer {
 
         // ── Face Presets collapsible (inside the active category) ─────────────
         {
-            let faceCollapsed = true;
+            let faceCollapsed = false; // open by default
             try { const v = localStorage.getItem("EBC_facePresetsCollapsed"); if (v !== null) faceCollapsed = v === "1"; } catch { /* ignore */ }
 
             const faceDivTop = document.createElement("div");
