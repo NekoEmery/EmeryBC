@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.7.7
+// @version      2.7.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12851,6 +12851,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     padding: 7px;
     scrollbar-width: thin;
     scrollbar-color: #cf6f98 #1a0814;
+    touch-action: pan-y; /* allow vertical touch scroll */
+    overscroll-behavior: contain;
 }
 
 /* Unified scrollbar theme for all EBC scrollable areas */
@@ -15357,6 +15359,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             document.body.appendChild(root);
             this.rootEl = root;
             this.panelEl = slideContainer;
+            // Stop BC's in-game touch handlers from eating our touch events.
+            // BC registers touchmove/touchstart at document level (non-passive) and calls
+            // preventDefault(), which kills native scroll inside HTML overlays.
+            // Stopping propagation here keeps those events inside the panel only.
+            const stopTouch = (e) => { e.stopPropagation(); };
+            slideContainer.addEventListener("touchstart", stopTouch, { passive: true });
+            slideContainer.addEventListener("touchmove", stopTouch, { passive: true });
+            slideContainer.addEventListener("touchend", stopTouch, { passive: true });
             // Header
             const header = document.createElement("div");
             header.className = "ebc-header";
@@ -29947,7 +29957,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.7.7";
+    const MOD_VERSION = "2.7.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29958,6 +29968,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.7.8",
+            changes: [
+                "Fix: touch scroll now works inside the panel while in-game. BC's in-game touch handlers were calling preventDefault() at the document level, killing native scroll in HTML overlays. Panel now stops touch event propagation before BC can intercept it, and the scrollable body has touch-action:pan-y + overscroll-behavior:contain.",
+            ],
+        },
         {
             version: "2.7.7",
             changes: ["UX: Added top padding to EBC tag toggles description text for more breathing room."],
