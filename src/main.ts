@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.17";
+const MOD_VERSION = "2.5.20";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,11 +37,17 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "2.5.20",
+        changes: [
+            "UX: EBC tag toggles redesigned — each is now a single self-labelled button ('👤 My tag: ON/OFF' and '👥 Others: ON/OFF') with a tooltip explaining what it controls. No more separate label+toggle pairs.",
+            "Removed: pin system (the 📌 tab pin icons and pinned widget panels) — removed as unnecessary.",
+        ],
+    },
+    {
         version: "2.5.19",
         changes: [
             "UX: EBC tag toggles ('My tag' / 'Others') moved to a permanent strip just below the safewords section — always visible on every tab, no need to go to DEV tab to find them.",
             "Fix: 'My EBC tag' toggle is now purely client-side (controls whether YOU see it above your own head). Broadcasting to others is always on regardless. Previously toggling it off also hid your tag from everyone else.",
-            "Feature: Pin system — each main tab (Outfits, Buttons, Anims, Notes, Dev) has a tiny 📌 icon. Pin a tab to see a compact widget for it above the main body, always accessible from any tab.",
         ],
     },
     {
