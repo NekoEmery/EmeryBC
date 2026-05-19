@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.8.3";
+const MOD_VERSION = "2.8.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,9 +37,9 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "2.8.3",
+        version: "2.8.4",
         changes: [
-            "Feature: Inbox tab — new 📬 INBOX tab collects all beep conversations in one place. Unread messages are highlighted at the top with a pink badge. Clicking a card opens the chat window. The EBC sidebar dot now jumps straight to Inbox when clicked. Tab button shows a live unread count.",
+            "Feature: Messages dropdown — collapsible 📬 Messages section at the top of the USERS tab. Unread conversations float to the top with a pink badge; read conversations listed below. Clicking a row opens the chat window. USERS tab button shows a live unread count. The EBC sidebar dot navigates to USERS on click.",
         ],
     },
     {
