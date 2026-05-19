@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.8
+// @version      2.5.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25699,6 +25699,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         Type: "Activity",
                         Target: EMERY_MEMBER,
                         Dictionary: [
+                            { ActivityName: "拉到身边" },
                             { Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" },
                             { SourceCharacter: Player.MemberNumber },
                             { TargetCharacter: EMERY_MEMBER },
@@ -29314,7 +29315,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.8";
+    const MOD_VERSION = "2.5.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29325,6 +29326,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.9",
+            changes: [
+                "Fix: ↗ Pull Dictionary now includes { ActivityName: '拉到身边' } as required by BC's message pipeline. BC populates metadata.ActivityName from this entry; echo-activity-ext's pullActivityInfo() returns undefined when it's absent, silently skipping the run() handler. This was the root cause of pull-to-side never working despite correct SourceCharacter/TargetCharacter entries.",
+            ],
+        },
         {
             version: "2.5.8",
             changes: [
