@@ -4021,7 +4021,7 @@ export class EBCDrawer {
 
         // Description line
         const ebcTagsDesc = document.createElement("div");
-        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;";
+        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
         ebcTagsDesc.textContent = "Controls whose EBC overhead tags you see. Only affects your own screen — others always see your tag regardless.";
         ebcTagsBody.appendChild(ebcTagsDesc);
 
