@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.4.7";
+const MOD_VERSION = "2.4.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.4.8",
+        changes: [
+            "FACE PRESETS section moved inside the active button category accordion — it now sits at the bottom of the category content alongside the button slots, export/import, etc. Everything expression-related is in one place inside the BUTTONS tab.",
+        ],
+    },
     {
         version: "2.4.7",
         changes: [

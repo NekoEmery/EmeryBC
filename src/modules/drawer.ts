@@ -13137,47 +13137,6 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // ── Face Presets collapsible ──────────────────────────────────────────
-        {
-            let faceCollapsed = true;
-            try { const v = localStorage.getItem("EBC_facePresetsCollapsed"); if (v !== null) faceCollapsed = v === "1"; } catch { /* ignore */ }
-
-            const faceHdr = document.createElement("div");
-            faceHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:4px 0 4px;margin-bottom:2px;";
-            const faceChev = document.createElement("span");
-            faceChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
-            const faceLbl = document.createElement("span");
-            faceLbl.className = "ebc-section-label";
-            faceLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
-            faceLbl.textContent = "FACE PRESETS";
-            const faceHint = document.createElement("span");
-            faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
-            faceHint.textContent = "build & save expression presets";
-            faceHdr.appendChild(faceChev);
-            faceHdr.appendChild(faceLbl);
-            faceHdr.appendChild(faceHint);
-            body.appendChild(faceHdr);
-
-            const faceBody = document.createElement("div");
-            const updateFaceChev = (): void => {
-                faceChev.textContent = faceCollapsed ? "▶" : "▼";
-                faceBody.style.display = faceCollapsed ? "none" : "";
-            };
-            updateFaceChev();
-            faceHdr.addEventListener("click", () => {
-                faceCollapsed = !faceCollapsed;
-                try { localStorage.setItem("EBC_facePresetsCollapsed", faceCollapsed ? "1" : "0"); } catch { /* ignore */ }
-                updateFaceChev();
-            });
-            this.renderExpressions(faceBody);
-            body.appendChild(faceBody);
-
-            const faceDivider = document.createElement("div");
-            faceDivider.className = "ebc-divider";
-            faceDivider.style.margin = "6px 0";
-            body.appendChild(faceDivider);
-        }
-
         // Working category state
         const cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
         let activeCatIdx = getActiveCategoryIndex();
@@ -13668,6 +13627,47 @@ export class EBCDrawer {
         const importPanel = document.createElement("div");
         importPanel.className = "ebc-import-panel";
         activeBodyEl.appendChild(importPanel);
+
+        // ── Face Presets collapsible (inside the active category) ─────────────
+        {
+            let faceCollapsed = true;
+            try { const v = localStorage.getItem("EBC_facePresetsCollapsed"); if (v !== null) faceCollapsed = v === "1"; } catch { /* ignore */ }
+
+            const faceDivTop = document.createElement("div");
+            faceDivTop.className = "ebc-divider";
+            faceDivTop.style.margin = "8px 0 4px";
+            activeBodyEl.appendChild(faceDivTop);
+
+            const faceHdr = document.createElement("div");
+            faceHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
+            const faceChev = document.createElement("span");
+            faceChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
+            const faceLbl = document.createElement("span");
+            faceLbl.className = "ebc-section-label";
+            faceLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
+            faceLbl.textContent = "FACE PRESETS";
+            const faceHint = document.createElement("span");
+            faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
+            faceHint.textContent = "build & save expression presets";
+            faceHdr.appendChild(faceChev);
+            faceHdr.appendChild(faceLbl);
+            faceHdr.appendChild(faceHint);
+            activeBodyEl.appendChild(faceHdr);
+
+            const faceBody = document.createElement("div");
+            const updateFaceChev = (): void => {
+                faceChev.textContent = faceCollapsed ? "▶" : "▼";
+                faceBody.style.display = faceCollapsed ? "none" : "";
+            };
+            updateFaceChev();
+            faceHdr.addEventListener("click", () => {
+                faceCollapsed = !faceCollapsed;
+                try { localStorage.setItem("EBC_facePresetsCollapsed", faceCollapsed ? "1" : "0"); } catch { /* ignore */ }
+                updateFaceChev();
+            });
+            this.renderExpressions(faceBody);
+            activeBodyEl.appendChild(faceBody);
+        }
 
         const importHint = document.createElement("div");
         importHint.className = "ebc-import-hint";
