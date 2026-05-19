@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.7.5
+// @version      2.7.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16142,12 +16142,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_e) { /* ignore */ }
             const ebcTagsStrip = document.createElement("div");
-            ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#0e0509;";
+            ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
             // Header row — clickable to collapse
             const ebcTagsHdr = document.createElement("div");
             ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;transition:background 0.1s;";
             ebcTagsHdr.title = "Click to show / hide";
-            ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#1a0810"; });
+            ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#251220"; });
             ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
             const ebcTagsHdrLeft = document.createElement("div");
             ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
@@ -16161,13 +16161,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
             // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
             const ebcTagsChev = document.createElement("span");
-            ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a6070;padding:1px 5px;border:1px solid #3a1828;border-radius:3px;background:#1a0810;";
+            ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#d090a8;padding:3px 10px;border:1px solid #7a3050;border-radius:4px;background:#2e1020;";
             ebcTagsHdr.appendChild(ebcTagsHdrLeft);
             ebcTagsHdr.appendChild(ebcTagsChev);
             ebcTagsStrip.appendChild(ebcTagsHdr);
             // Body
             const ebcTagsBody = document.createElement("div");
-            ebcTagsBody.style.cssText = "padding:0 10px 9px;";
+            ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
             // Description line
             const ebcTagsDesc = document.createElement("div");
             ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;";
@@ -29947,7 +29947,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.7.5";
+    const MOD_VERSION = "2.7.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29958,6 +29958,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.7.6",
+            changes: [
+                "UX: EBC Tag Toggles strip background changed from near-black to #1a0d16 to match the panel colour scheme; Show/Hide button made larger and brighter (bold, pink-toned, more padding).",
+            ],
+        },
         {
             version: "2.7.5",
             changes: [
