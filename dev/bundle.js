@@ -12216,8 +12216,9 @@
         "dev.facePresets": { en: "FACE PRESETS", de: "GESICHTS-PRESETS", zh: "面部预设", fr: "PRÉSETS DE VISAGE", es: "PRESETS DE CARA" },
         "dev.saveFace": { en: "💾 Save face", de: "💾 Gesicht speichern", zh: "💾 保存面部", fr: "💾 Sauvegarder le visage", es: "💾 Guardar cara" },
         "dev.clearExpressions": { en: "✕ Clear all expressions", de: "✕ Alle Ausdrücke löschen", zh: "✕ 清除所有表情", fr: "✕ Effacer toutes les expressions", es: "✕ Borrar todas las expresiones" },
-        "dev.whisperLog": { en: "Whisper Log", de: "Flüsterprotokoll", zh: "私语日志", fr: "Journal des chuchotements", es: "Registro de susurros" },
-        "dev.devLog": { en: "Dev Log", de: "Entwicklungsprotokoll", zh: "开发日志", fr: "Journal de développement", es: "Registro de desarrollo" },
+        "dev.whisperLog": { en: "Whisper Log", de: "Flüster-Log", zh: "私语日志", fr: "Journal des chuchotements", es: "Registro de susurros" },
+        "dev.devLog": { en: "Dev Log", de: "Entwickler-Log", zh: "开发日志", fr: "Journal de développement", es: "Registro de desarrollo" },
+        "dev.noWhispers": { en: "No whispers this session yet.", de: "Noch keine Flüster-Nachrichten in dieser Sitzung.", zh: "本次会话暂无私语。", fr: "Aucun chuchotement dans cette session.", es: "Sin susurros en esta sesión aún." },
         "dev.enableDevLogging": { en: "📟 Enable dev logging", de: "📟 Protokollierung aktivieren", zh: "📟 启用开发日志", fr: "📟 Activer la journalisation", es: "📟 Activar registro dev" },
         "dev.injectTestEntry": { en: "Inject test entry", de: "Testeintrag einfügen", zh: "注入测试条目", fr: "Injecter entrée test", es: "Inyectar entrada prueba" },
         "dev.clearLog": { en: "Clear", de: "Löschen", zh: "清除", fr: "Effacer", es: "Borrar" },
@@ -12233,6 +12234,18 @@
         // ─── CREDITS TAB ───────────────────────────────────────────────────────────
         "credits.specialThanks": { en: "Special Thanks", de: "Besonderer Dank", zh: "特别感谢", fr: "Remerciements spéciaux", es: "Agradecimientos especiales" },
         "credits.intro": { en: "People who made EBC possible.", de: "Menschen, die EBC möglich gemacht haben.", zh: "让 EBC 成为可能的人们。", fr: "Les personnes qui ont rendu EBC possible.", es: "Las personas que hicieron posible EBC." },
+        "credits.emery": { en: "Built this little thing out of love for the club. Still adding to it, still breaking it, still fixing it~", de: "Hat dieses kleine Ding aus Liebe zum Club gebaut. Fügt noch immer hinzu, bricht es, repariert es~", zh: "出于对俱乐部的热爱打造了这个小工具。还在添加功能，还在弄坏它，还在修复它~", fr: "A créé ce petit truc par amour pour le club. Ajoute encore, le casse encore, le répare encore~", es: "Construyó esta cosita por amor al club. Sigue añadiendo, sigue rompiéndola, sigue arreglándola~" },
+        "credits.sin": { en: "Creator of CRABS — the sliding panel design that inspired the whole look and feel of this drawer. Her open code became the foundation it was all built on, and she was genuinely kind and helpful when it mattered too. Open code, open heart.", de: "Schöpferin von CRABS — das Schiebefeld-Design, das das Aussehen dieser Schublade inspiriert hat. Ihr offener Code wurde das Fundament, auf dem alles aufgebaut wurde. Offener Code, offenes Herz.", zh: "CRABS 的创建者——滑动面板设计启发了这个抽屉的整体外观。她的开源代码成为整个项目的基础，在最关键时刻也真诚地给予帮助。开放代码，开放的心。", fr: "Créatrice de CRABS — le design du panneau coulissant qui a inspiré ce tiroir. Son code ouvert en est le fondement, et elle a été vraiment aimable quand ça comptait. Code ouvert, cœur ouvert.", es: "Creadora de CRABS — el diseño del panel deslizante que inspiró este cajón. Su código abierto es el cimiento de todo, y fue genuinamente amable cuando importaba. Código abierto, corazón abierto." },
+        "credits.lara": { en: "Keeping my bratty side in check, endless support and inspiration, and simply being the best friend anyone could ask for around here~", de: "Hält meine freche Seite in Schach, unendliche Unterstützung und Inspiration, und ist einfach die beste Freundin, die man sich hier wünschen könnte~", zh: "约束住我那淘气的一面，给予无尽的支持和灵感，是这里任何人都梦寐以求的最好朋友~", fr: "Garde mon côté espiègle en check, un soutien et une inspiration sans fin, et tout simplement la meilleure amie qu'on puisse espérer ici~", es: "Mantiene mi lado travieso a raya, apoyo e inspiración infinitos, y simplemente siendo la mejor amiga que alguien podría pedir por aquí~" },
+        "credits.lucy": { en: "Lost count of the hours a long time ago — what started as one very long late night turned into something much bigger, and she was there for all of it. Every idea, every problem, every version of this thing. She made it genuinely fun to build.", de: "Hat die Stunden längst verloren — was als eine lange späte Nacht begann, wurde zu etwas viel Größerem, und sie war bei allem dabei. Jede Idee, jedes Problem, jede Version. Sie hat es wirklich Spaß gemacht.", zh: "早就数不清有多少小时了——从一个漫长的深夜开始，演变成了更大的事情，而她一直在场。每一个想法，每一个问题，每一个版本。她让这一切变得真的很有趣。", fr: "A perdu le compte des heures — ce qui a commencé par une longue nuit est devenu bien plus grand, et elle était là pour tout. Chaque idée, chaque problème, chaque version. Elle a rendu ça vraiment fun.", es: "Perdió la cuenta de las horas hace mucho — lo que empezó como una noche larga se convirtió en algo mucho más grande, y estuvo en todo. Cada idea, cada problema, cada versión. Hizo que construirlo fuera genuinamente divertido." },
+        "credits.sybil": { en: "Brilliant ideas, patient testing, and a genuinely kind presence — Sybil has shaped this addon in more ways than one, and her beautiful contributions to the club make it a richer place for everyone. Big thanks~", de: "Brillante Ideen, geduldiges Testen und eine aufrichtig freundliche Präsenz — Sybil hat dieses Addon auf vielfache Weise geprägt, und ihre schönen Beiträge zum Club machen ihn für alle reicher. Großen Dank~", zh: "出色的想法、耐心的测试和真诚温暖的存在——Sybil 以多种方式塑造了这个插件，她对俱乐部的贡献让每个人的体验都更加丰富。非常感谢~", fr: "Des idées brillantes, des tests patients et une présence vraiment bienveillante — Sybil a façonné cet addon de bien des manières, et ses belles contributions au club en font un endroit plus riche. Grand merci~", es: "Ideas brillantes, pruebas pacientes y una presencia genuinamente amable — Sybil ha dado forma a este addon de muchas maneras, y sus contribuciones hacen el club más rico para todos. ¡Muchas gracias~" },
+        // ─── FOOTER ────────────────────────────────────────────────────────────────
+        "footer.uiInspired": { en: "EBC v{v} · UI inspired by CRABS by Sin", de: "EBC v{v} · UI inspiriert von CRABS von Sin", zh: "EBC v{v} · UI 灵感来自 Sin 的 CRABS", fr: "EBC v{v} · UI inspirée de CRABS par Sin", es: "EBC v{v} · UI inspirada en CRABS de Sin" },
+        "footer.onlineLabel": { en: "Online", de: "Online", zh: "在线", fr: "En ligne", es: "En línea" },
+        "footer.roomLabel": { en: "Room", de: "Raum", zh: "房间", fr: "Salle", es: "Sala" },
+        "footer.boundLabel": { en: "Bound", de: "Gefesselt", zh: "被束缚", fr: "Attaché", es: "Atado" },
+        // ─── MISC ───────────────────────────────────────────────────────────────────
+        "outfits.newTagName": { en: "New tag name", de: "Neuer Etikettenname", zh: "新标签名称", fr: "Nouveau nom de tag", es: "Nuevo nombre de etiqueta" },
         // ─── DOM TAB ───────────────────────────────────────────────────────────
         "dom.domSets": { en: "DOM Sets", de: "DOM-Sets", zh: "DOM 集合", fr: "Sets DOM", es: "Conjuntos DOM" },
         "dom.copyRestraints": { en: "Copy Restraints from Member", de: "Fesseln von Mitglied kopieren", zh: "从成员复制束缚", fr: "Copier les liens d'un membre", es: "Copiar ataduras de miembro" },
@@ -16071,7 +16084,7 @@
             const footer = document.createElement("div");
             footer.className = "ebc-footer";
             const footerVerEl = document.createElement("span");
-            footerVerEl.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
+            footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
             footerVerEl.style.cssText = "font-size:9px;color:#7a5a6a;";
             footer.appendChild(footerVerEl);
             const timerEl = document.createElement("div");
@@ -16747,11 +16760,11 @@
             const online = getOnlineTime();
             const room = getRoomTime();
             const bound = getRestraintTime();
-            let text = `🌐 Online: ${online}`;
+            let text = `🌐 ${t("footer.onlineLabel")}: ${online}`;
             if (room)
-                text += `  🕒 Room: ${room}`;
+                text += `  🕒 ${t("footer.roomLabel")}: ${room}`;
             if (bound)
-                text += `  ⛓ Bound: ${bound}`;
+                text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
             this.timerEl.textContent = text;
             try {
                 checkAndApplySchedules();
@@ -16970,7 +16983,7 @@
                 const newTagInp = Object.assign(document.createElement("input"), {
                     className: "ebc-form-input",
                     type: "text",
-                    placeholder: "New tag name",
+                    placeholder: t("outfits.newTagName"),
                     maxLength: 20,
                 });
                 newTagInp.style.flex = "1";
@@ -23207,7 +23220,7 @@
                 if (partners.length === 0) {
                     const empty = document.createElement("div");
                     empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:8px 4px;text-align:center;";
-                    empty.textContent = "No whispers this session yet.";
+                    empty.textContent = t("dev.noWhispers");
                     cnt.appendChild(empty);
                     return;
                 }
@@ -28485,35 +28498,35 @@
                     emoji: "🌺",
                     name: "Emery",
                     memberId: 130267,
-                    reason: "Built this little thing out of love for the club. Still adding to it, still breaking it, still fixing it~",
+                    reason: t("credits.emery"),
                     heart: "🎀",
                 },
                 {
                     emoji: "🎀",
                     name: "Sin",
                     memberId: 143776,
-                    reason: "Creator of CRABS — the sliding panel design that inspired the whole look and feel of this drawer. Her open code became the foundation it was all built on, and she was genuinely kind and helpful when it mattered too. Open code, open heart.",
+                    reason: t("credits.sin"),
                     heart: "💗",
                 },
                 {
                     emoji: "🌸",
                     name: "Lara",
                     memberId: 124264,
-                    reason: "Keeping my bratty side in check, endless support and inspiration, and simply being the best friend anyone could ask for around here~",
+                    reason: t("credits.lara"),
                     heart: "💖",
                 },
                 {
                     emoji: "🌙",
                     name: "Lucy",
                     memberId: 230466,
-                    reason: "Lost count of the hours a long time ago — what started as one very long late night turned into something much bigger, and she was there for all of it. Every idea, every problem, every version of this thing. She made it genuinely fun to build.",
+                    reason: t("credits.lucy"),
                     heart: "💜",
                 },
                 {
                     emoji: "✨",
                     name: "Sybil",
                     memberId: 80,
-                    reason: "Brilliant ideas, patient testing, and a genuinely kind presence — Sybil has shaped this addon in more ways than one, and her beautiful contributions to the club make it a richer place for everyone. Big thanks~",
+                    reason: t("credits.sybil"),
                     heart: "💛",
                 },
             ];
@@ -29857,7 +29870,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.15";
+    const MOD_VERSION = "2.5.16";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29868,6 +29881,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.16",
+            changes: [
+                "i18n: translate footer — 'UI inspired by CRABS by Sin' line and Online/Room/Bound timer labels.",
+                "i18n: translate 'New tag name' placeholder in outfit tag manager, 'No whispers this session yet.' in the Whisper Log, and all five credited people's bio descriptions in the Credits tab.",
+                "Fix: German 'Whisper Log' changed from 'Flüsterprotokoll' → 'Flüster-Log' and 'Dev Log' from 'Entwicklungsprotokoll' → 'Entwickler-Log' to match the '-Log' convention used by the other languages.",
+            ],
+        },
         {
             version: "2.5.15",
             changes: [
