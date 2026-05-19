@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.4.0
+// @version      2.4.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -65,6 +65,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         if (typeof nickFn === "function")
             return nickFn(Player);
         return Player.Nickname || Player.Name || "Player";
+    }
+    // ---------------------------------------------------------------------------
+    // Rate-limit helpers
+    // ---------------------------------------------------------------------------
+    // Debounced ServerPlayerExtensionSettingsSync("EmeryBC").
+    // Collapses rapid back-to-back saves (outfit flag toggles, settings changes,
+    // etc.) into a single server request fired 400 ms after the last call.
+    let _syncTimer = null;
+    function syncSettings() {
+        if (_syncTimer !== null)
+            clearTimeout(_syncTimer);
+        _syncTimer = setTimeout(() => {
+            _syncTimer = null;
+            try {
+                ServerPlayerExtensionSettingsSync("EmeryBC");
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 400);
+    }
+    // Debounced appearance broadcast — collapses rapid expression chip clicks into
+    // one ChatRoomCharacterUpdate + ServerPlayerAppearanceSync pair fired 300 ms
+    // after the last change. CharacterRefresh (local canvas refresh) still fires
+    // immediately; only the server round-trips are deferred.
+    let _appearTimer = null;
+    function syncAppearance() {
+        if (_appearTimer !== null)
+            clearTimeout(_appearTimer);
+        _appearTimer = setTimeout(() => {
+            _appearTimer = null;
+            try {
+                callBC(() => ChatRoomCharacterUpdate(Player));
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            try {
+                callBC(() => ServerPlayerAppearanceSync());
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }, 300);
     }
 
     const RESTRAINT_GROUPS = new Set([
@@ -144,7 +182,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setDefaultNickname(nick) {
         getAddon$1().defaultNickname = nick.trim();
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function getDefaultTitle() {
         const raw = getAddon$1().defaultTitle;
@@ -152,13 +190,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setDefaultTitle(title) {
         getAddon$1().defaultTitle = title;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function saveOutfits(list) {
         const sanitized = list.map(sanitizeOutfit);
         cachedOutfits = sanitized;
         getAddon$1().outfits = sanitized;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function sanitizeSerializable(value, seen = new WeakSet(), depth = 0) {
         if (value == null)
@@ -527,7 +565,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function saveOutfitTags(tags) {
         getAddon$1().outfitTags = tags;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function createOutfitTag(name, color) {
         const tag = { id: uid$7(), name: name.trim() || "Tag", color: color || "#cf6f98" };
@@ -666,7 +704,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function saveSchedules(schedules) {
         getAddon$1().outfitSchedules = schedules;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function addSchedule(outfitId, time) {
         const schedule = { id: uid$7(), outfitId, time, enabled: true };
@@ -723,7 +761,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const sanitized = list.map(sanitizeOutfit);
         cachedRestraints = sanitized;
         getAddon$1().restraints = sanitized;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function captureRestraints() {
         return Player.Appearance
@@ -911,7 +949,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setOutfitWhitelist(groups) {
         getAddon$1().outfitWhitelist = groups;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function addToOutfitWhitelist(group) {
         const list = getOutfitWhitelist();
@@ -1029,7 +1067,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function save(list) {
         getStore$9().palettes = list;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function uid$6() {
         return Math.random().toString(36).slice(2, 9);
@@ -1115,7 +1153,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // A flat list of user-saved hex colors for the direct picker workflow.
     function saveCustomColors(list) {
         getStore$9().customColors = list;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function getCustomColors() {
         const v = getStore$9().customColors;
@@ -1227,7 +1265,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function saveRestraintPresets(list) {
         getStore$9().restraintPresets = list;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function getRestraintPresets() {
         const v = getStore$9().restraintPresets;
@@ -1324,7 +1362,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function saveCombos(list) {
         getStore$8().poseCombos = list;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function getPoseCombos() { return load$1(); }
     function createCombo(name, poses, command = "", announceText = "", stepDelayMs = 420) {
@@ -1422,7 +1460,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.badgeEnabled = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1444,7 +1482,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.showVersionBadge = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1466,7 +1504,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.antiRestraint = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1489,7 +1527,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.antiRestraintWhitelist = groups;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1519,7 +1557,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.antiRestraintConfirm = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1541,7 +1579,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.suppressNativeBeep = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1564,7 +1602,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.updateNotify = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1585,7 +1623,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const s = getStore$7();
             if (s) {
                 s.afkEnabled = v;
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+                syncSettings();
             }
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -1606,7 +1644,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const s = getStore$7();
             if (s) {
                 s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n)));
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+                syncSettings();
             }
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -1626,7 +1664,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const s = getStore$7();
             if (s) {
                 s.afkMessage = msg.slice(0, 200).trim();
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+                syncSettings();
             }
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -1650,7 +1688,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.oocEnabled = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1671,7 +1709,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.roomHistoryEnabled = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1692,7 +1730,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.restraintLogEnabled = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1712,7 +1750,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.beepMuted = value;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1724,7 +1762,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return; // already queued
         peopleMetSyncTimer = setTimeout(() => {
             peopleMetSyncTimer = null;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }, 3000); // wait 3 s then send one sync for all changes
     }
     function getPeopleMet() {
@@ -1765,7 +1803,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.peopleMet = [];
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -1925,7 +1963,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function saveScenes(list) {
         getStore$6().scenes = list;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function getScenes() { return load(); }
     function createScene(name, steps, command = "") {
@@ -2149,10 +2187,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             savePending = true;
             window.setTimeout(() => {
                 savePending = false;
-                try {
-                    ServerPlayerExtensionSettingsSync("EmeryBC");
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
+                syncSettings();
             }, 3000); // debounce — sync to server 3 s after last change
         }
     }
@@ -2282,7 +2317,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 delete notes[key];
             }
             store.characterNotes = notes;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -2337,7 +2372,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function setActiveCategoryIndex(idx) {
         const store = getStore$4();
         store.activeCategoryIndex = idx;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function getActiveCategory() {
         var _a;
@@ -2354,13 +2389,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         cats[idx].buttons = buttons;
         cats[idx].slotCount = slotCount;
         store.buttonCategories = cats;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function saveCategories(categories, activeIndex) {
         const store = getStore$4();
         store.buttonCategories = categories;
         store.activeCategoryIndex = activeIndex;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     }
     function normalizeHex(value, fallback = "#c2185b") {
         const c = (value !== null && value !== void 0 ? value : "").trim();
@@ -10090,10 +10125,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return; // already queued
         syncTimer = setTimeout(() => {
             syncTimer = null;
-            try {
-                ServerPlayerExtensionSettingsSync("EmeryBC");
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
+            syncSettings();
         }, 2000);
     }
     // -- Name cache ----------------------------------------------------------------
@@ -10650,7 +10682,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             store.safeword = cfg;
             // Use callBC to handle async rejections — mod hooks on ServerPlayerExtensionSettingsSync
             // may return a rejecting Promise that a bare call would silently swallow.
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -10885,7 +10917,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function saveConfig(cfg) {
         try {
             getStore$1().domConfig = cfg;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -11771,8 +11803,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             callBC(() => CharacterRefresh(Player, false));
-            callBC(() => ChatRoomCharacterUpdate(Player));
-            callBC(() => ServerPlayerAppearanceSync());
+            syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -11793,7 +11824,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.expressionPresets = presets;
-            ServerPlayerExtensionSettingsSync("EmeryBC");
+            syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -15702,7 +15733,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (!Player.ExtensionSettings.EmeryBC)
                     Player.ExtensionSettings.EmeryBC = {};
                 Player.ExtensionSettings.EmeryBC.tabPos = pos !== null && pos !== void 0 ? pos : null;
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+                syncSettings();
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -15733,7 +15764,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (!Player.ExtensionSettings.EmeryBC)
                     Player.ExtensionSettings.EmeryBC = {};
                 Player.ExtensionSettings.EmeryBC.panelPos = pos !== null && pos !== void 0 ? pos : null;
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+                syncSettings();
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -22046,21 +22077,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     // No record — stamp now (this IS a friend if they appear in the list)
                                     fs[key] = Date.now();
                                     sinceTs = fs[key];
-                                    try {
-                                        const syncFn = window.ServerPlayerExtensionSettingsSync;
-                                        syncFn === null || syncFn === void 0 ? void 0 : syncFn("EmeryBC");
-                                    }
-                                    catch ( /* ignore */_b) { /* ignore */ }
+                                    syncSettings();
                                 }
                             }
                         }
-                        catch ( /* ignore */_c) { /* ignore */ }
+                        catch ( /* ignore */_b) { /* ignore */ }
                         // Fallback: try the module helper too
                         if (!sinceTs) {
                             try {
                                 sinceTs = getFriendSince(num);
                             }
-                            catch ( /* ignore */_d) { /* ignore */ }
+                            catch ( /* ignore */_c) { /* ignore */ }
                         }
                         const sinceEl = document.createElement("div");
                         if (sinceTs) {
@@ -22128,7 +22155,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 infoBox.appendChild(ownedByMeEl);
                             }
                         }
-                        catch ( /* ignore */_e) { /* ignore */ }
+                        catch ( /* ignore */_d) { /* ignore */ }
                         expand.appendChild(infoBox);
                         // Tags label
                         const tagsLbl = document.createElement("div");
@@ -24319,12 +24346,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (legacy.length > 0) {
                     delete store.customBarks;
                 }
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+                syncSettings();
                 return initial;
             };
             const saveBarks = (barks) => {
                 getPuppyStore().barks = barks;
-                callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+                syncSettings();
             };
             // Bark button
             const barkBtn = document.createElement("button");
@@ -25624,7 +25651,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     sendKittyCmd("emote", pick.text);
                                 }
                             }
-                        }));
+                        }, 1500));
                     }
                     emotesWrap.appendChild(row);
                     const hint = document.createElement("div");
@@ -25880,7 +25907,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                     sendRoomEmote(emoteText);
                                 }
                             }, 600);
-                        }, 700));
+                        }, 1500));
                     }
                     posesWrap.appendChild(row);
                     const hint = document.createElement("div");
@@ -26023,7 +26050,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 .filter(s => s.type === "restraint")
                                 .reduce((acc, s) => { var _a; return acc.concat((_a = s.items) !== null && _a !== void 0 ? _a : []); }, []);
                             sendKittyCmd("punish", JSON.stringify({ label: pun.label, mood, items, reaction: pun.reaction }));
-                        }));
+                        }, 2000));
                     }
                     punishWrap.appendChild(row);
                     const hint = document.createElement("div");
@@ -27110,7 +27137,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             presetRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;";
             for (const pct of [0, 25, 50, 75, 95, 100]) {
                 const color = pct === 0 ? "#4080c0" : pct < 75 ? "#c07090" : "#e050a0";
-                presetRow.appendChild(makePill(`${pct}%`, color, () => sendKittyCmd("arousal", String(pct))));
+                presetRow.appendChild(makePill(`${pct}%`, color, () => sendKittyCmd("arousal", String(pct)), 1000));
             }
             arousalWrap.appendChild(presetRow);
             const customRow = document.createElement("div");
@@ -28937,7 +28964,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.4.0";
+    const MOD_VERSION = "2.4.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28948,6 +28975,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.4.1",
+            changes: [
+                "Fix: debounced all ServerPlayerExtensionSettingsSync(\"EmeryBC\") calls across every EBC module (56 call-sites in 14 files). Rapid back-to-back changes (toggling multiple outfit flags, changing settings, saving presets) now coalesce into a single server request 400 ms after the last change instead of firing one per click — directly reduces the 429 Too Many Requests rate.",
+                "Fix: debounced the appearance broadcast (ChatRoomCharacterUpdate + ServerPlayerAppearanceSync) in the expression quickbar. Clicking multiple expression chips in quick succession now sends only one room-sync after the burst, not one per chip.",
+                "Kitty: added cooldowns to all action pill buttons — 1500 ms for emotes and poses, 2000 ms for punishments, 1000 ms for arousal presets. Prevents accidental double-fires and gives visual feedback that the click registered.",
+            ],
+        },
         {
             version: "2.4.0",
             changes: [
