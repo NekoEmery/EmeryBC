@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.4
+// @version      2.5.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2302,281 +2302,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
 
-    // Expression presets and sequences — live expression picker + animated sequences.
-    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
-    // Friendly labels shown in the picker row headers
-    const EXPR_GROUP_LABELS = {
-        Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
-        Eyes: "Eyes L", Eyes2: "Eyes R", Mouth: "Mouth", Tears: "Tears",
-    };
-    function uid$3() {
-        return Math.random().toString(36).slice(2, 9);
-    }
-    function getStore$4() {
-        try {
-            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
-                return null;
-            if (!Player.ExtensionSettings.EmeryBC)
-                Player.ExtensionSettings.EmeryBC = {};
-            return Player.ExtensionSettings.EmeryBC;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    // -- Expression option discovery -----------------------------------------------
-    // Query BC's runtime Asset array for all expression options in a group.
-    // Falls back to a hardcoded list if the global isn't available.
-    const EXPR_FALLBACK = {
-        Blush: ["1", "2", "3", "4", "5"],
-        Emoticon: [
-            "Afk", "Anger", "Auction", "BecomeLeader", "Bed", "BrokenHeart", "Cake",
-            "Captured", "CollaredPickup", "Confused", "Dead", "GagTalk", "Heart",
-            "HighHeel", "Juice", "LostLeader", "Love", "Maid", "Meditate", "Music",
-            "Obey", "Orgasm", "Pain", "Question", "Read", "Shy", "Skull", "Sleeping",
-            "Snow", "Star", "Study", "Whisper", "XP", "Yell",
-        ],
-        Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Soft"],
-        Eyes: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
-        Eyes2: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
-        Mouth: ["Angry", "HalfOpen", "Open", "Sad", "Smile"],
-        Tears: ["Crying", "HeavyCrying", "Tear1", "Tear2", "Tear3"],
-    };
-    function getExprGroupOptions(group) {
-        var _a, _b;
-        try {
-            const bcAsset = window.Asset;
-            if (Array.isArray(bcAsset)) {
-                const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
-                // Family lives on the Group in BC, not on the Asset itself.
-                // Accept any asset whose group name matches and whose group family
-                // is either the player's family or unset (shared assets).
-                const opts = bcAsset
-                    .filter(a => a.Group.Name === group &&
-                    (a.Group.Family === family || !a.Group.Family))
-                    .map(a => a.Name);
-                if (opts.length > 0)
-                    return opts;
-            }
-        }
-        catch ( /* fall through */_c) { /* fall through */ }
-        return (_b = EXPR_FALLBACK[group]) !== null && _b !== void 0 ? _b : [];
-    }
-    // -- Single-expression apply ---------------------------------------------------
-    // Uses CharacterSetFacialExpression (BC's proper API) if available,
-    // otherwise falls back to direct Appearance manipulation.
-    function applyExprGroup(group, exprName) {
-        try {
-            // Prefer BC's official API — omit optional Timer/Color args entirely so BC
-            // uses its own defaults (no timer = keep expression; no colour override).
-            // Passing null for Timer can be treated as "0 ms" in some BC builds which
-            // would instantly clear the expression.
-            const setExpr = window.CharacterSetFacialExpression;
-            if (typeof setExpr === "function") {
-                setExpr(Player, group, exprName);
-            }
-            else {
-                // Fallback: direct Appearance manipulation.
-                // Also try BC's InventoryWear / InventoryRemove if available.
-                const wear = window.InventoryWear;
-                const remove = window.InventoryRemove;
-                if (typeof wear === "function" && typeof remove === "function") {
-                    if (exprName) {
-                        wear(Player, exprName, group, "Default", 0);
-                        // Ensure Property.Expression is set (some BC builds leave it unset)
-                        const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
-                        if (item) {
-                            if (!item.Property)
-                                item.Property = {};
-                            item.Property.Expression = exprName;
-                        }
-                    }
-                    else {
-                        remove(Player, group);
-                    }
-                }
-                else {
-                    // Last-resort: splice + push the variant asset
-                    const app = Player.Appearance;
-                    const idx = app.findIndex(i => i.Asset.Group.Name === group);
-                    if (idx !== -1)
-                        app.splice(idx, 1);
-                    if (exprName) {
-                        const asset = AssetGet(Player.AssetFamily, group, exprName);
-                        if (asset) {
-                            app.push({
-                                Asset: asset,
-                                Color: "Default",
-                                Difficulty: 0,
-                                Property: { Expression: exprName },
-                            });
-                        }
-                    }
-                }
-            }
-            callBC(() => CharacterRefresh(Player, false));
-            syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
-    function getExpressionPresets() {
-        var _a;
-        try {
-            const list = (_a = getStore$4()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
-            return Array.isArray(list) ? list : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function saveExpressionPresets(presets) {
-        try {
-            const store = getStore$4();
-            if (!store)
-                return;
-            store.expressionPresets = presets;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function captureCurrentExpression(name) {
-        var _a;
-        const groups = {};
-        try {
-            for (const group of EXPR_GROUPS) {
-                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                if (item) {
-                    // BC stores the active expression variant in Asset.Name (always reliable).
-                    // Property.Expression mirrors it in most builds; use it as the primary source
-                    // and fall back to Asset.Name so capture works regardless of BC version.
-                    const propExpr = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Expression;
-                    const exprName = propExpr || item.Asset.Name || null;
-                    groups[group] = exprName
-                        ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
-                        : null;
-                }
-                else {
-                    groups[group] = null;
-                }
-            }
-        }
-        catch ( /* return whatever captured so far */_b) { /* return whatever captured so far */ }
-        return { id: uid$3(), name: name || "Preset", groups };
-    }
-    function applyExpressionPreset(preset) {
-        try {
-            for (const [group, entry] of Object.entries(preset.groups)) {
-                try {
-                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
-                }
-                catch ( /* skip group */_a) { /* skip group */ }
-            }
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
-    }
-    // -- Default expression preset -------------------------------------------------
-    // The preset the user reverts to after a timed expression or trigger fires.
-    // null = clear all groups back to neutral.
-    function getDefaultExprPresetId() {
-        var _a;
-        try {
-            const v = (_a = getStore$4()) === null || _a === void 0 ? void 0 : _a.defaultExprPresetId;
-            return typeof v === "string" && v ? v : null;
-        }
-        catch (_b) {
-            return null;
-        }
-    }
-    function setDefaultExprPresetId(id) {
-        try {
-            const store = getStore$4();
-            if (!store)
-                return;
-            if (id) {
-                store.defaultExprPresetId = id;
-            }
-            else {
-                delete store.defaultExprPresetId;
-            }
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function getExpressionTriggers() {
-        var _a;
-        try {
-            const v = (_a = getStore$4()) === null || _a === void 0 ? void 0 : _a.expressionTriggers;
-            return Array.isArray(v) ? v : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function saveExpressionTriggers(triggers) {
-        try {
-            const store = getStore$4();
-            if (!store)
-                return;
-            store.expressionTriggers = triggers;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Timed expression revert ---------------------------------------------------
-    let _revertTimer = null;
-    function cancelExpressionRevert() {
-        if (_revertTimer !== null) {
-            clearTimeout(_revertTimer);
-            _revertTimer = null;
-        }
-    }
-    /** Apply a preset, then after revertMs ms revert to the default preset
-     *  (or clear all groups if no default is set). revertMs = 0 means stay forever. */
-    function applyExprPresetWithRevert(presetId, revertMs) {
-        const preset = getExpressionPresets().find(p => p.id === presetId);
-        if (!preset)
-            return;
-        cancelExpressionRevert();
-        applyExpressionPreset(preset);
-        if (revertMs > 0) {
-            _revertTimer = setTimeout(() => {
-                _revertTimer = null;
-                const defaultId = getDefaultExprPresetId();
-                if (defaultId) {
-                    const defPreset = getExpressionPresets().find(p => p.id === defaultId);
-                    if (defPreset) {
-                        applyExpressionPreset(defPreset);
-                        return;
-                    }
-                }
-                // No default — clear all expression groups back to neutral
-                for (const g of EXPR_GROUPS) {
-                    try {
-                        applyExprGroup(g, null);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                }
-            }, revertMs);
-        }
-    }
-    // -- Trigger checker -----------------------------------------------------------
-    // Call once per outgoing chat message. First matching trigger fires.
-    function checkExpressionTriggers(message) {
-        const triggers = getExpressionTriggers();
-        if (!triggers.length)
-            return;
-        const lower = message.toLowerCase();
-        for (const trigger of triggers) {
-            if (!trigger.matchText || !trigger.presetId)
-                continue;
-            if (lower.includes(trigger.matchText.toLowerCase())) {
-                applyExprPresetWithRevert(trigger.presetId, trigger.durationMs);
-                break; // first match wins per message
-            }
-        }
-    }
-
     var _a, _b;
     const DEFAULT_BUTTONS = [
         { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
@@ -2590,14 +2315,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$3() {
+    function getStore$4() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     /** Returns all categories, migrating from old flat format if needed. */
     function getCategories() {
-        const store = getStore$3();
+        const store = getStore$4();
         // Migrate old flat actionButtons → first category "Default"
         if (!store.buttonCategories && store.actionButtons) {
             const migrated = [{
@@ -2612,12 +2337,32 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             delete store.actionSlotCount;
         }
         const cats = store.buttonCategories;
-        if (Array.isArray(cats) && cats.length > 0)
-            return cats;
+        if (Array.isArray(cats) && cats.length > 0) {
+            // Migrate buttons that still carry the removed "expression"/"exprPreset" styles.
+            // Convert them to plain "action" slots with empty emote so they're harmless and
+            // the user can reconfigure or delete them in the Buttons tab.
+            const catsList = cats;
+            let didMigrate = false;
+            for (const cat of catsList) {
+                for (const btn of cat.buttons) {
+                    const s = btn.style;
+                    if (s === "expression" || s === "exprPreset") {
+                        btn.style = "action";
+                        btn.emote = "";
+                        didMigrate = true;
+                    }
+                }
+            }
+            if (didMigrate) {
+                store.buttonCategories = catsList;
+                syncSettings();
+            }
+            return catsList;
+        }
         return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
     }
     function getActiveCategoryIndex() {
-        const store = getStore$3();
+        const store = getStore$4();
         const cats = getCategories();
         const idx = store.activeCategoryIndex;
         if (typeof idx === "number" && idx >= 0 && idx < cats.length)
@@ -2625,7 +2370,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return 0;
     }
     function setActiveCategoryIndex(idx) {
-        const store = getStore$3();
+        const store = getStore$4();
         store.activeCategoryIndex = idx;
         syncSettings();
     }
@@ -2638,7 +2383,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return getActiveCategory().buttons;
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$3();
+        const store = getStore$4();
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         cats[idx].buttons = buttons;
@@ -2647,7 +2392,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         syncSettings();
     }
     function saveCategories(categories, activeIndex) {
-        const store = getStore$3();
+        const store = getStore$4();
         store.buttonCategories = categories;
         store.activeCategoryIndex = activeIndex;
         syncSettings();
@@ -3117,7 +2862,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     function handleActionButtonClick() {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c;
         if (CurrentScreen !== "ChatRoom")
             return false;
         const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
@@ -3159,38 +2904,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const y = btnStartY + i * BTN_SIZE;
             if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
                 my >= y && my <= y + BTN_SIZE) {
-                const btnStyle = (_c = btn.style) !== null && _c !== void 0 ? _c : "action";
-                if (btnStyle === "exprPreset") {
-                    if (!btn.emote) {
-                        localNotice$1("Expression preset not configured — open BUTTONS tab to set it up.");
-                    }
-                    else {
-                        try {
-                            applyExprPresetWithRevert(btn.emote, (_d = btn.exprRevertMs) !== null && _d !== void 0 ? _d : 0);
-                        }
-                        catch ( /* ignore */_f) { /* ignore */ }
-                    }
-                    return true;
-                }
-                if (btnStyle === "expression") {
-                    // emote field encodes "Group:ExpressionName"
-                    const sep = btn.emote.indexOf(":");
-                    if (sep !== -1) {
-                        const grp = btn.emote.slice(0, sep);
-                        const expr = btn.emote.slice(sep + 1) || null;
-                        try {
-                            applyExprGroup(grp, expr);
-                        }
-                        catch ( /* ignore */_g) { /* ignore */ }
-                    }
-                    else {
-                        localNotice$1("Expression not configured — open BUTTONS tab to set Group:Name.");
-                    }
-                    return true;
-                }
                 const animOk = triggerLabelAnimation(btn.label);
                 if (animOk)
-                    sendAction(btn.emote, (_e = btn.style) !== null && _e !== void 0 ? _e : "action", btn.includeNameInAnnounce !== false);
+                    sendAction(btn.emote, (_c = btn.style) !== null && _c !== void 0 ? _c : "action", btn.includeNameInAnnounce !== false);
                 return true;
             }
         }
@@ -3365,7 +3081,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     let lastRecordedRoomName = null;
     // Member numbers already accounted for so we never double-count on each poll.
     let knownMemberNums = new Set();
-    function uid$2() { return Math.random().toString(36).slice(2, 9); }
+    function uid$3() { return Math.random().toString(36).slice(2, 9); }
     function loadHistory() {
         try {
             const raw = localStorage.getItem(LS_KEY$1);
@@ -3433,7 +3149,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
                 const space = typeof (data === null || data === void 0 ? void 0 : data.Space) === "string" ? data.Space : "";
                 currentVisit = {
-                    id: uid$2(), name, space,
+                    id: uid$3(), name, space,
                     enteredAt: Date.now(), leftAt: null,
                     members, joins: [],
                 };
@@ -3559,7 +3275,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         saveLog(log);
     }
     // ─────────────────────────────────────────────────────────────────────────────
-    function uid$1() { return Math.random().toString(36).slice(2, 9); }
+    function uid$2() { return Math.random().toString(36).slice(2, 9); }
     function loadLog() {
         try {
             const raw = localStorage.getItem(LS_KEY);
@@ -3635,7 +3351,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         continue;
                     const itemName = item.Asset.Description
                         || item.Asset.Name;
-                    const id = uid$1();
+                    const id = uid$2();
                     activeIds.set(group, id);
                     // Capture lock state at time of application
                     const prop = item.Property;
@@ -10398,7 +10114,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         msg = msg.replace(/[\uDB80-\uDBFF][\uDC00-\uDFFF][\s\S]*$/, "").trim();
         return msg;
     }
-    function getStore$2() {
+    function getStore$3() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
@@ -10414,11 +10130,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // -- Name cache ----------------------------------------------------------------
     function getCachedNames() {
-        const v = getStore$2().friendNames;
+        const v = getStore$3().friendNames;
         return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
     }
     function cacheName(memberNumber, name) {
-        const store = getStore$2();
+        const store = getStore$3();
         if (!store.friendNames || typeof store.friendNames !== "object")
             store.friendNames = {};
         store.friendNames[String(memberNumber)] = name;
@@ -10495,7 +10211,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const nowOffline = [...prevOnline].filter(num => !onlineSet.has(num));
         if (nowOffline.length > 0) {
             try {
-                const store = getStore$2();
+                const store = getStore$3();
                 const data = getLastSeenMap();
                 const now = Date.now();
                 for (const num of nowOffline)
@@ -10543,7 +10259,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const LAST_SEEN_CAP = 300;
     function getLastSeenMap() {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             // One-time migration from localStorage → ExtensionSettings
             if (!store.lastSeenMigrated) {
                 try {
@@ -10602,7 +10318,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // (e.g. on AccountQueryResult) so newly added friends are recorded promptly.
     function syncFriendsSince() {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
                 store.friendSince = {};
             }
@@ -10624,7 +10340,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function getFriendSince(memberNumber) {
         try {
-            const store = getStore$2();
+            const store = getStore$3();
             if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
                 store.friendSince = {};
             }
@@ -10666,14 +10382,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // -- Pinned friends ------------------------------------------------------------
     function getPinnedFriends() {
-        const v = getStore$2().pinnedFriends;
+        const v = getStore$3().pinnedFriends;
         return Array.isArray(v) ? v : [];
     }
     function isFriendPinned(memberNumber) {
         return getPinnedFriends().includes(memberNumber);
     }
     function togglePinFriend(memberNumber) {
-        const store = getStore$2();
+        const store = getStore$3();
         const list = getPinnedFriends();
         const idx = list.indexOf(memberNumber);
         if (idx >= 0)
@@ -10732,7 +10448,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return [];
     }
     function getFriendTagList(memberNumber) {
-        const store = getStore$2();
+        const store = getStore$3();
         const raw = store.friendTags;
         const userTags = (!raw || typeof raw !== "object" || Array.isArray(raw))
             ? []
@@ -10745,7 +10461,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function setFriendTagList(memberNumber, tagList) {
         // Strip any locked tags before saving — they must never enter storage
         const toSave = tagList.filter(t => !t.locked);
-        const store = getStore$2();
+        const store = getStore$3();
         if (!store.friendTags || typeof store.friendTags !== "object")
             store.friendTags = {};
         const tags = store.friendTags;
@@ -10758,11 +10474,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // -- Beep history --------------------------------------------------------------
     const MAX_ENTRIES$2 = 300;
     function getBeepHistory() {
-        const v = getStore$2().beepHistory;
+        const v = getStore$3().beepHistory;
         return Array.isArray(v) ? v : [];
     }
     function addBeepEntry(entry) {
-        const store = getStore$2();
+        const store = getStore$3();
         const history = getBeepHistory();
         history.push(entry);
         if (history.length > MAX_ENTRIES$2)
@@ -10922,7 +10638,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         redAnnounce: true,
         redLeave: true,
     };
-    function getStore$1() {
+    function getStore$2() {
         try {
             if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
                 return null;
@@ -10936,7 +10652,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function getSafewordConfig() {
         var _a;
-        const raw = (_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.safeword;
+        const raw = (_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.safeword;
         if (!raw || typeof raw !== "object" || Array.isArray(raw))
             return Object.assign({}, DEFAULTS);
         const r = raw;
@@ -10960,7 +10676,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setSafewordConfig(cfg) {
         try {
-            const store = getStore$1();
+            const store = getStore$2();
             if (!store)
                 return;
             store.safeword = cfg;
@@ -11179,15 +10895,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     ];
     const DEFAULT_ANNOUNCE = "snaps her fingers as {name} appears on {targets}~";
     // ── Internal ─────────────────────────────────────────────────────────────────
-    function uid() { return Math.random().toString(36).slice(2, 9); }
-    function getStore() {
+    function uid$1() { return Math.random().toString(36).slice(2, 9); }
+    function getStore$1() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function loadConfig() {
         try {
-            const v = getStore().domConfig;
+            const v = getStore$1().domConfig;
             if (v && Array.isArray(v.targets)) {
                 return {
                     targets: v.targets,
@@ -11200,7 +10916,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function saveConfig(cfg) {
         try {
-            getStore().domConfig = cfg;
+            getStore$1().domConfig = cfg;
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -11250,7 +10966,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function createDomSet(name, command, announceTemplate) {
         const cfg = loadConfig();
         const set = {
-            id: uid(),
+            id: uid$1(),
             name: name.trim() || "New Set",
             command: command.toLowerCase().trim().replace(/\s+/g, ""),
             announceTemplate: announceTemplate.trim() || DEFAULT_ANNOUNCE,
@@ -12005,6 +11721,243 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
         }
         catch ( /* ignore */_a) { /* ignore */ }
+    }
+
+    // Expression presets and sequences — live expression picker + animated sequences.
+    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
+    // Friendly labels shown in the picker row headers
+    const EXPR_GROUP_LABELS = {
+        Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
+        Eyes: "Eyes L", Eyes2: "Eyes R", Mouth: "Mouth", Tears: "Tears",
+    };
+    function uid() {
+        return Math.random().toString(36).slice(2, 9);
+    }
+    function getStore() {
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    // -- Single-expression apply ---------------------------------------------------
+    // Uses CharacterSetFacialExpression (BC's proper API) if available,
+    // otherwise falls back to direct Appearance manipulation.
+    function applyExprGroup(group, exprName) {
+        try {
+            // Prefer BC's official API — omit optional Timer/Color args entirely so BC
+            // uses its own defaults (no timer = keep expression; no colour override).
+            // Passing null for Timer can be treated as "0 ms" in some BC builds which
+            // would instantly clear the expression.
+            const setExpr = window.CharacterSetFacialExpression;
+            if (typeof setExpr === "function") {
+                setExpr(Player, group, exprName);
+            }
+            else {
+                // Fallback: direct Appearance manipulation.
+                // Also try BC's InventoryWear / InventoryRemove if available.
+                const wear = window.InventoryWear;
+                const remove = window.InventoryRemove;
+                if (typeof wear === "function" && typeof remove === "function") {
+                    if (exprName) {
+                        wear(Player, exprName, group, "Default", 0);
+                        // Ensure Property.Expression is set (some BC builds leave it unset)
+                        const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
+                        if (item) {
+                            if (!item.Property)
+                                item.Property = {};
+                            item.Property.Expression = exprName;
+                        }
+                    }
+                    else {
+                        remove(Player, group);
+                    }
+                }
+                else {
+                    // Last-resort: splice + push the variant asset
+                    const app = Player.Appearance;
+                    const idx = app.findIndex(i => i.Asset.Group.Name === group);
+                    if (idx !== -1)
+                        app.splice(idx, 1);
+                    if (exprName) {
+                        const asset = AssetGet(Player.AssetFamily, group, exprName);
+                        if (asset) {
+                            app.push({
+                                Asset: asset,
+                                Color: "Default",
+                                Difficulty: 0,
+                                Property: { Expression: exprName },
+                            });
+                        }
+                    }
+                }
+            }
+            callBC(() => CharacterRefresh(Player, false));
+            syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
+    function getExpressionPresets() {
+        var _a;
+        try {
+            const list = (_a = getStore()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function saveExpressionPresets(presets) {
+        try {
+            const store = getStore();
+            if (!store)
+                return;
+            store.expressionPresets = presets;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function captureCurrentExpression(name) {
+        var _a;
+        const groups = {};
+        try {
+            for (const group of EXPR_GROUPS) {
+                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
+                if (item) {
+                    // BC stores the active expression variant in Asset.Name (always reliable).
+                    // Property.Expression mirrors it in most builds; use it as the primary source
+                    // and fall back to Asset.Name so capture works regardless of BC version.
+                    const propExpr = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Expression;
+                    const exprName = propExpr || item.Asset.Name || null;
+                    groups[group] = exprName
+                        ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
+                        : null;
+                }
+                else {
+                    groups[group] = null;
+                }
+            }
+        }
+        catch ( /* return whatever captured so far */_b) { /* return whatever captured so far */ }
+        return { id: uid(), name: name || "Preset", groups };
+    }
+    function applyExpressionPreset(preset) {
+        try {
+            for (const [group, entry] of Object.entries(preset.groups)) {
+                try {
+                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
+                }
+                catch ( /* skip group */_a) { /* skip group */ }
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // -- Default expression preset -------------------------------------------------
+    // The preset the user reverts to after a timed expression or trigger fires.
+    // null = clear all groups back to neutral.
+    function getDefaultExprPresetId() {
+        var _a;
+        try {
+            const v = (_a = getStore()) === null || _a === void 0 ? void 0 : _a.defaultExprPresetId;
+            return typeof v === "string" && v ? v : null;
+        }
+        catch (_b) {
+            return null;
+        }
+    }
+    function setDefaultExprPresetId(id) {
+        try {
+            const store = getStore();
+            if (!store)
+                return;
+            if (id) {
+                store.defaultExprPresetId = id;
+            }
+            else {
+                delete store.defaultExprPresetId;
+            }
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getExpressionTriggers() {
+        var _a;
+        try {
+            const v = (_a = getStore()) === null || _a === void 0 ? void 0 : _a.expressionTriggers;
+            return Array.isArray(v) ? v : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function saveExpressionTriggers(triggers) {
+        try {
+            const store = getStore();
+            if (!store)
+                return;
+            store.expressionTriggers = triggers;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Timed expression revert ---------------------------------------------------
+    let _revertTimer = null;
+    function cancelExpressionRevert() {
+        if (_revertTimer !== null) {
+            clearTimeout(_revertTimer);
+            _revertTimer = null;
+        }
+    }
+    /** Apply a preset, then after revertMs ms revert to the default preset
+     *  (or clear all groups if no default is set). revertMs = 0 means stay forever. */
+    function applyExprPresetWithRevert(presetId, revertMs) {
+        const preset = getExpressionPresets().find(p => p.id === presetId);
+        if (!preset)
+            return;
+        cancelExpressionRevert();
+        applyExpressionPreset(preset);
+        if (revertMs > 0) {
+            _revertTimer = setTimeout(() => {
+                _revertTimer = null;
+                const defaultId = getDefaultExprPresetId();
+                if (defaultId) {
+                    const defPreset = getExpressionPresets().find(p => p.id === defaultId);
+                    if (defPreset) {
+                        applyExpressionPreset(defPreset);
+                        return;
+                    }
+                }
+                // No default — clear all expression groups back to neutral
+                for (const g of EXPR_GROUPS) {
+                    try {
+                        applyExprGroup(g, null);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }, revertMs);
+        }
+    }
+    // -- Trigger checker -----------------------------------------------------------
+    // Call once per outgoing chat message. First matching trigger fires.
+    function checkExpressionTriggers(message) {
+        const triggers = getExpressionTriggers();
+        if (!triggers.length)
+            return;
+        const lower = message.toLowerCase();
+        for (const trigger of triggers) {
+            if (!trigger.matchText || !trigger.presetId)
+                continue;
+            if (lower.includes(trigger.matchText.toLowerCase())) {
+                applyExprPresetWithRevert(trigger.presetId, trigger.durationMs);
+                break; // first match wins per message
+            }
+        }
     }
 
     // Session whisper log — in-memory only, clears on reload.
@@ -25016,7 +24969,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slotList.id = "ebc-slot-list";
             activeBodyEl.appendChild(slotList);
             const renderSlots = () => {
-                var _a, _b, _c;
+                var _a;
                 // Always ensure btns has a real object for every slot — prevents "undefined" crashes
                 while (btns.length < slotCount) {
                     btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
@@ -25132,108 +25085,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     botLine.className = "ebc-slot-bottom";
                     const currentStyle = (_a = btn.style) !== null && _a !== void 0 ? _a : "action";
                     const isSeq = currentStyle === "seq";
-                    const isExprPreset = currentStyle === "exprPreset";
-                    const isExpression = currentStyle === "expression";
-                    if (isExprPreset) {
-                        // exprPreset: face preset selector + how-long dropdown
-                        const presetSel = document.createElement("select");
-                        presetSel.className = "ebc-slot-emote";
-                        presetSel.style.cssText = "font-size:9px;cursor:pointer;flex:1;";
-                        const emptyOpt = document.createElement("option");
-                        emptyOpt.value = "";
-                        emptyOpt.textContent = "— pick face —";
-                        presetSel.appendChild(emptyOpt);
-                        for (const p of getExpressionPresets()) {
-                            const opt = document.createElement("option");
-                            opt.value = p.id;
-                            opt.textContent = p.name;
-                            opt.selected = p.id === btn.emote;
-                            presetSel.appendChild(opt);
-                        }
-                        presetSel.addEventListener("change", () => { btns[idx].emote = presetSel.value; });
-                        // How long to hold the expression before reverting
-                        const REVERT_OPTS = [
-                            ["♾ keep", 0],
-                            ["3 s", 3000],
-                            ["5 s", 5000],
-                            ["10 s", 10000],
-                            ["30 s", 30000],
-                            ["1 min", 60000],
-                        ];
-                        const revertSel = document.createElement("select");
-                        revertSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#9060c0;padding:1px 2px;cursor:pointer;flex-shrink:0;max-width:52px;";
-                        revertSel.title = "How long to hold this face (♾ = keep forever, never revert)";
-                        const curMs = (_b = btn.exprRevertMs) !== null && _b !== void 0 ? _b : 0;
-                        let revertMatched = false;
-                        for (const [label, ms] of REVERT_OPTS) {
-                            const o = document.createElement("option");
-                            o.value = String(ms);
-                            o.textContent = label;
-                            if (ms === curMs) {
-                                o.selected = true;
-                                revertMatched = true;
-                            }
-                            revertSel.appendChild(o);
-                        }
-                        if (!revertMatched && curMs > 0) {
-                            const o = document.createElement("option");
-                            o.value = String(curMs);
-                            o.textContent = `${Math.round(curMs / 1000)} s`;
-                            o.selected = true;
-                            revertSel.appendChild(o);
-                        }
-                        revertSel.addEventListener("change", () => { btns[idx].exprRevertMs = parseInt(revertSel.value) || 0; });
-                        botLine.appendChild(presetSel);
-                        botLine.appendChild(revertSel);
-                    }
-                    else if (isExpression) {
-                        // Single-expression: group dropdown + expression dropdown
-                        const sep = btn.emote.indexOf(":");
-                        const curGroup = sep !== -1 ? btn.emote.slice(0, sep) : EXPR_GROUPS[0];
-                        const curExpr = sep !== -1 ? btn.emote.slice(sep + 1) : "";
-                        const groupSel = document.createElement("select");
-                        groupSel.className = "ebc-slot-emote";
-                        groupSel.style.cssText = "font-size:9px;cursor:pointer;flex-shrink:0;max-width:54px;";
-                        groupSel.title = "Expression group";
-                        for (const g of EXPR_GROUPS) {
-                            const o = document.createElement("option");
-                            o.value = g;
-                            o.textContent = (_c = EXPR_GROUP_LABELS[g]) !== null && _c !== void 0 ? _c : g;
-                            o.selected = g === curGroup;
-                            groupSel.appendChild(o);
-                        }
-                        const exprSel = document.createElement("select");
-                        exprSel.className = "ebc-slot-emote";
-                        exprSel.style.cssText = "font-size:9px;cursor:pointer;flex:1;";
-                        exprSel.title = "Expression variant";
-                        const rebuildExprOpts = (group, current) => {
-                            while (exprSel.firstChild)
-                                exprSel.removeChild(exprSel.firstChild);
-                            const none = document.createElement("option");
-                            none.value = "";
-                            none.textContent = "— none —";
-                            none.selected = !current;
-                            exprSel.appendChild(none);
-                            for (const opt of getExprGroupOptions(group)) {
-                                const o = document.createElement("option");
-                                o.value = opt;
-                                o.textContent = opt;
-                                o.selected = opt === current;
-                                exprSel.appendChild(o);
-                            }
-                        };
-                        rebuildExprOpts(curGroup, curExpr);
-                        const syncExprEmote = () => {
-                            const g = groupSel.value;
-                            const e = exprSel.value;
-                            btns[idx].emote = e ? `${g}:${e}` : g;
-                        };
-                        groupSel.addEventListener("change", () => { rebuildExprOpts(groupSel.value, ""); syncExprEmote(); });
-                        exprSel.addEventListener("change", syncExprEmote);
-                        botLine.appendChild(groupSel);
-                        botLine.appendChild(exprSel);
-                    }
-                    else if (isSeq) {
+                    if (isSeq) {
                         // seq: badge only — step builder below handles all config
                         const seqBadge = document.createElement("span");
                         seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7ac8;padding:1px 4px;";
@@ -27828,42 +27680,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         setDefaultExprPresetId(isDefault ? null : preset.id);
                         this.rerender();
                     });
-                    // → Add to sidebar
-                    const sidebarBtn = document.createElement("button");
-                    sidebarBtn.style.cssText = BTN_BASE + "border:1px solid #3a2258;background:#200a2a;color:#9a6ac8;";
-                    sidebarBtn.textContent = "→";
-                    sidebarBtn.title = "Add as a sidebar button — keeps the face on forever by default (change in slot editor)";
-                    sidebarBtn.addEventListener("click", () => {
-                        const catIdx = getActiveCategoryIndex();
-                        const allCats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
-                        const cat = allCats[catIdx];
-                        if (!cat)
-                            return;
-                        const newBtn = {
-                            label: preset.name.slice(0, 5),
-                            emote: preset.id,
-                            color: "#7a44a0",
-                            enabled: true,
-                            style: "exprPreset",
-                            exprRevertMs: 0,
-                        };
-                        const emptyIdx = cat.buttons.findIndex(b => !b.enabled || !b.label);
-                        if (emptyIdx !== -1) {
-                            cat.buttons[emptyIdx] = newBtn;
-                        }
-                        else if (cat.buttons.length < ABSOLUTE_MAX) {
-                            cat.buttons.push(newBtn);
-                            cat.slotCount = Math.min(ABSOLUTE_MAX, cat.buttons.length);
-                        }
-                        else {
-                            sidebarBtn.textContent = "Full!";
-                            window.setTimeout(() => { sidebarBtn.textContent = "→"; }, 1200);
-                            return;
-                        }
-                        saveCategories([...allCats], catIdx);
-                        sidebarBtn.textContent = "✓";
-                        window.setTimeout(() => { sidebarBtn.textContent = "→"; }, 1200);
-                    });
                     // × Delete
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-outfit-del";
@@ -27879,7 +27695,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     pRow.appendChild(applyBtn);
                     pRow.appendChild(nameEl);
                     pRow.appendChild(defaultBtn);
-                    pRow.appendChild(sidebarBtn);
                     pRow.appendChild(delBtn);
                     presetList.appendChild(pRow);
                 }
@@ -29511,7 +29326,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.4";
+    const MOD_VERSION = "2.5.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29522,6 +29337,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.5",
+            changes: [
+                "Remove: Expression and Face-Preset button types removed from action buttons. Any saved buttons of those types are automatically migrated to plain action slots with empty emote text so they can be reconfigured or deleted.",
+            ],
+        },
         {
             version: "2.5.4",
             changes: [
