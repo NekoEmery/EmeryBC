@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.11";
+const MOD_VERSION = "2.5.12";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.12",
+        changes: [
+            "Fix: language switcher moved out of the cramped header buttons row into its own pill-button row between the tab bar and quick-actions bar — 🌐 + one pill per language, active one highlighted pink.",
+            "Fix: header drag handler now also guards against select/input/a elements (not just button) so interactive elements inside the header receive their clicks correctly.",
+        ],
+    },
     {
         version: "2.5.11",
         changes: [

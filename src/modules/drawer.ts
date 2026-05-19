@@ -3042,13 +3042,13 @@ export class EBCDrawer {
     private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
     // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
     private _langUnsubscribe: (() => void) | null = null;
+    private _langPillsRefresh: (() => void) | null = null;
     private _i18nRefs: {
         // header
         refreshBtn?: HTMLButtonElement;
         moveHandle?: HTMLSpanElement;
         resetLocBtn?: HTMLButtonElement;
         closeBtn?: HTMLButtonElement;
-        langSelect?: HTMLSelectElement;
         // tabs
         tabOutfits?: HTMLButtonElement;
         tabButtons?: HTMLButtonElement;
@@ -3180,47 +3180,19 @@ export class EBCDrawer {
         resetLocBtn.style.display = "none"; // hidden until panel is in free-float mode
         this.resetLocationBtn = resetLocBtn;
 
-        // Language switcher — compact select in header button area
-        const langSelect = document.createElement("select");
-        langSelect.title = t("header.language");
-        langSelect.style.cssText = [
-            "font-family:'Trebuchet MS',serif",
-            "font-size:9px",
-            "background:#1a0812",
-            "color:#b08898",
-            "border:1px solid #3a1928",
-            "border-radius:4px",
-            "padding:2px 3px",
-            "cursor:pointer",
-            "outline:none",
-            "flex-shrink:0",
-        ].join(";");
-        for (const code of LANG_CODES) {
-            const opt = document.createElement("option");
-            opt.value = code;
-            opt.textContent = LANG_NAMES[code];
-            if (code === getLanguage()) opt.selected = true;
-            langSelect.appendChild(opt);
-        }
-        langSelect.addEventListener("change", () => {
-            setLanguage(langSelect.value as import("./i18n").LangCode);
-        });
-
         const closeBtn = document.createElement("button");
         closeBtn.className = "ebc-icon-btn";
         closeBtn.title = t("header.close");
         closeBtn.textContent = "X";
 
-        // Store refs for later translation updates
+        // Store refs for later translation updates (langSelect ref stored after pill row is built below)
         this._i18nRefs.refreshBtn  = refreshBtn;
         this._i18nRefs.moveHandle  = moveHandle;
         this._i18nRefs.resetLocBtn = resetLocBtn;
         this._i18nRefs.closeBtn    = closeBtn;
-        this._i18nRefs.langSelect  = langSelect;
 
         headerBtns.appendChild(refreshBtn);
         headerBtns.appendChild(moveHandle);
-        headerBtns.appendChild(langSelect);
         headerBtns.appendChild(resetLocBtn);
         headerBtns.appendChild(closeBtn);
         header.appendChild(title);
@@ -3230,8 +3202,8 @@ export class EBCDrawer {
         // In anchored mode it drags to detach the panel; after 5px movement the panel
         // enters free-float mode and follows the cursor from that point.
         addPointerDown(header, (start, e) => {
-            // Don't interfere with button clicks inside the header
-            if ((e.target as HTMLElement).closest("button")) return;
+            // Don't interfere with button or interactive element clicks inside the header
+            if ((e.target as HTMLElement).closest("button, select, input, a")) return;
             e.preventDefault();
 
             const panelEl = slideContainer;
@@ -3352,6 +3324,51 @@ export class EBCDrawer {
         tabBar.appendChild(domTabBtn);
         tabBar.appendChild(puppyTabBtn);
         tabBar.appendChild(kittyTabBtn);
+
+        // ── Language picker row — sits between tab bar and quick-actions ─────
+        const langRow = document.createElement("div");
+        langRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:3px 6px 3px;border-bottom:1px solid #2a1020;background:rgba(15,6,12,0.4);flex-wrap:nowrap;";
+
+        const langIcon = document.createElement("span");
+        langIcon.textContent = "🌐";
+        langIcon.style.cssText = "font-size:10px;flex-shrink:0;opacity:0.7;";
+        langRow.appendChild(langIcon);
+
+        const langPills: HTMLButtonElement[] = [];
+        const refreshLangPills = (): void => {
+            const cur = getLanguage();
+            for (const pill of langPills) {
+                const active = pill.dataset.lang === cur;
+                pill.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:9px",
+                    "padding:2px 6px",
+                    "border-radius:10px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "transition:background 0.12s,color 0.12s,border-color 0.12s",
+                    active
+                        ? "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;"
+                        : "border:1px solid #2a1020;background:transparent;color:#7a5060;",
+                ].join(";");
+            }
+        };
+        for (const code of LANG_CODES) {
+            const pill = document.createElement("button");
+            pill.dataset.lang = code;
+            pill.textContent = LANG_NAMES[code];
+            pill.addEventListener("click", () => {
+                setLanguage(code);
+                refreshLangPills();
+            });
+            langPills.push(pill);
+            langRow.appendChild(pill);
+        }
+        refreshLangPills();
+        // Store the first pill as the ref anchor so updateStaticTranslations can call refreshLangPills
+        // We do this by adding a custom refresh to the _i18nRefs via a synthetic select-like object
+        // The simplest approach: expose refreshLangPills so updateStaticTranslations can call it
+        this._langPillsRefresh = refreshLangPills;
 
         // Quick actions bar (always visible below tabs)
         const quickActions = document.createElement("div");
@@ -3969,6 +3986,7 @@ export class EBCDrawer {
 
         panel.appendChild(header);
         panel.appendChild(tabBar);
+        panel.appendChild(langRow);
         panel.appendChild(quickActions);
         panel.appendChild(selfPickPanel);
         panel.appendChild(safewordRow);
@@ -4526,13 +4544,8 @@ export class EBCDrawer {
         if (r.moveHandle)  r.moveHandle.title = t("header.dragToMove");
         if (r.resetLocBtn) { r.resetLocBtn.title = t("header.resetPosTitle"); r.resetLocBtn.textContent = t("header.resetPos"); }
         if (r.closeBtn)    r.closeBtn.title = t("header.close");
-        if (r.langSelect)  r.langSelect.title = t("header.language");
-        // Sync the language select to the current language (in case programmatic change)
-        if (r.langSelect) {
-            for (const opt of Array.from(r.langSelect.options)) {
-                opt.selected = opt.value === getLanguage();
-            }
-        }
+        // Sync language pill active state
+        this._langPillsRefresh?.();
         // Tabs
         if (r.tabOutfits) r.tabOutfits.textContent = t("tabs.outfits");
         if (r.tabButtons) { r.tabButtons.textContent = t("tabs.buttons"); r.tabButtons.title = t("tabs.buttonsTitle"); }
