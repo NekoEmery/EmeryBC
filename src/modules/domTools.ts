@@ -1,9 +1,9 @@
-// Creator-only DOM tools — visible exclusively to member #130267.
+﻿// Creator-only DOM tools — visible exclusively to member #130267.
 // Supports multiple named restraint sets, each with its own items,
 // chat command, and announce text template.
 
 import { SerializedItem, RESTRAINT_GROUPS } from "./outfitManager";
-import { callBC, getDisplayName } from "./bcUtils";
+import { callBC, getDisplayName, syncSettings } from "./bcUtils";
 
 export const DOM_CREATOR_ID = 130267;
 
@@ -57,7 +57,7 @@ function loadConfig(): DomConfig {
 function saveConfig(cfg: DomConfig): void {
     try {
         getStore().domConfig = cfg;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     } catch { /* ignore */ }
 }
 

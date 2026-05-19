@@ -1,6 +1,6 @@
-// Private character notes — stored locally in Player.ExtensionSettings, never shared.
+﻿// Private character notes — stored locally in Player.ExtensionSettings, never shared.
 
-import { callBC } from "./bcUtils";
+import { callBC, syncSettings } from "./bcUtils";
 
 export interface CharacterNote {
     name:      string;  // last seen display name
@@ -39,7 +39,7 @@ export function saveNote(memberNumber: number, name: string, note: string): void
             delete notes[key];
         }
         store.characterNotes = notes;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -50,6 +50,6 @@ export function deleteNote(memberNumber: number): void {
         const notes = getNotes();
         delete notes[String(memberNumber)];
         store.characterNotes = notes;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }

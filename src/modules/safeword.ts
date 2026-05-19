@@ -1,4 +1,4 @@
-// Safeword system — two-word safety protocol.
+﻿// Safeword system — two-word safety protocol.
 // Yellow: releases binding restraints + starts grace period (no new restraints for N ms).
 // Red:    same as yellow + announces departure + leaves the room after 800 ms.
 //
@@ -6,7 +6,7 @@
 
 import { applyOutfit, getOutfits, RESTRAINT_GROUPS } from "./outfitManager";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { callBC } from "./bcUtils";
+import { callBC, syncSettings } from "./bcUtils";
 
 export interface SafewordConfig {
     enabled: boolean;
@@ -82,7 +82,7 @@ export function setSafewordConfig(cfg: SafewordConfig): void {
         store.safeword = cfg;
         // Use callBC to handle async rejections — mod hooks on ServerPlayerExtensionSettingsSync
         // may return a rejecting Promise that a bare call would silently swallow.
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 

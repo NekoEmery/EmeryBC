@@ -21,7 +21,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.4.0";
+const MOD_VERSION = "2.4.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -35,6 +35,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.4.1",
+        changes: [
+            "Fix: debounced all ServerPlayerExtensionSettingsSync(\"EmeryBC\") calls across every EBC module (56 call-sites in 14 files). Rapid back-to-back changes (toggling multiple outfit flags, changing settings, saving presets) now coalesce into a single server request 400 ms after the last change instead of firing one per click — directly reduces the 429 Too Many Requests rate.",
+            "Fix: debounced the appearance broadcast (ChatRoomCharacterUpdate + ServerPlayerAppearanceSync) in the expression quickbar. Clicking multiple expression chips in quick succession now sends only one room-sync after the burst, not one per chip.",
+            "Kitty: added cooldowns to all action pill buttons — 1500 ms for emotes and poses, 2000 ms for punishments, 1000 ms for arousal presets. Prevents accidental double-fires and gives visual feedback that the click registered.",
+        ],
+    },
     {
         version: "2.4.0",
         changes: [

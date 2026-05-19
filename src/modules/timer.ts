@@ -1,9 +1,10 @@
-// Room and restraint timer — tracks how long you have been in the current
+﻿// Room and restraint timer — tracks how long you have been in the current
 // room and how long active restraints have been present.
 // Per-item timestamps are persisted in ExtensionSettings so they survive
 // offline sessions and page reloads.
 
 import { RESTRAINT_GROUPS } from "./outfitManager";
+import { syncSettings } from "./bcUtils";
 
 // Collar/leash/neck items are tracked per-slot but do NOT count toward the
 // overall "Bound" timer — wearing a collar alone should not say you are bound.
@@ -41,7 +42,7 @@ function saveRestraintTimers(timers: Record<string, number>): void {
         savePending = true;
         window.setTimeout(() => {
             savePending = false;
-            try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+            syncSettings();
         }, 3000); // debounce — sync to server 3 s after last change
     }
 }

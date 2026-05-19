@@ -1,9 +1,9 @@
-// Scene sequencer — chain pose changes, item equips/unequips, emotes and
+﻿// Scene sequencer — chain pose changes, item equips/unequips, emotes and
 // waits into a named sequence that plays back step by step with per-step timing.
 
 import { applyPoses } from "./poses";
 import { snapshotPlayerRestraints } from "./antiRestraint";
-import { callBC, getDisplayName } from "./bcUtils";
+import { callBC, getDisplayName, syncSettings } from "./bcUtils";
 
 export type StepType = "pose" | "equip" | "equip-restraint" | "equip-clothes" | "unequip" | "emote" | "chat" | "wait";
 
@@ -41,7 +41,7 @@ function load(): Scene[] {
 
 function saveScenes(list: Scene[]): void {
     getStore().scenes = list;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function getScenes(): Scene[] { return load(); }

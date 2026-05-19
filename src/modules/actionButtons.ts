@@ -1,6 +1,6 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
-import { callBC } from "./bcUtils";
+import { callBC, syncSettings } from "./bcUtils";
 
 export type ActionStyle = "action" | "emote" | "seq";
 // "action" = (Name text)
@@ -76,7 +76,7 @@ export function getActiveCategoryIndex(): number {
 export function setActiveCategoryIndex(idx: number): void {
     const store = getStore();
     store.activeCategoryIndex = idx;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function getActiveCategory(): ButtonCategory {
@@ -102,14 +102,14 @@ export function saveButtons(buttons: ActionButton[], slotCount: number): void {
     cats[idx].buttons   = buttons;
     cats[idx].slotCount = slotCount;
     store.buttonCategories = cats;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function saveCategories(categories: ButtonCategory[], activeIndex: number): void {
     const store = getStore();
     store.buttonCategories    = categories;
     store.activeCategoryIndex = activeIndex;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function normalizeHex(value: string | undefined, fallback = "#c2185b"): string {

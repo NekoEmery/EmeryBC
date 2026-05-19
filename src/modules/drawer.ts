@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EmeryBC Drawer
  *
  * CRABS-inspired sliding panel aligned to the right edge of the chat log,
@@ -96,7 +96,7 @@ import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC } from "./bcUtils";
+import { callBC, syncSettings } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -4089,7 +4089,7 @@ export class EBCDrawer {
         try {
             if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
             (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).tabPos = pos ?? null;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         } catch { /* ignore */ }
     }
 
@@ -4118,7 +4118,7 @@ export class EBCDrawer {
         try {
             if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
             (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).panelPos = pos ?? null;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         } catch { /* ignore */ }
     }
 
@@ -10537,11 +10537,7 @@ export class EBCDrawer {
                                 // No record — stamp now (this IS a friend if they appear in the list)
                                 fs[key] = Date.now();
                                 sinceTs = fs[key];
-                                try {
-                                    const syncFn = (window as unknown as Record<string, unknown>).ServerPlayerExtensionSettingsSync as
-                                        ((k: string) => void) | undefined;
-                                    syncFn?.("EmeryBC");
-                                } catch { /* ignore */ }
+                                syncSettings();
                             }
                         }
                     } catch { /* ignore */ }
@@ -12742,12 +12738,12 @@ export class EBCDrawer {
             const initial = [...BUILTIN_BARKS, ...legacy];
             store.barks = initial;
             if (legacy.length > 0) { delete store.customBarks; }
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
             return initial;
         };
         const saveBarks = (barks: string[]): void => {
             getPuppyStore().barks = barks;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         };
 
         // Bark button
@@ -14126,7 +14122,7 @@ export class EBCDrawer {
                                 sendKittyCmd("emote", pick.text);
                             }
                         }
-                    }));
+                    }, 1500));
                 }
                 emotesWrap.appendChild(row);
                 const hint = document.createElement("div");
@@ -14355,7 +14351,7 @@ export class EBCDrawer {
                                 sendRoomEmote(emoteText);
                             }
                         }, 600);
-                    }, 700));
+                    }, 1500));
                 }
                 posesWrap.appendChild(row);
                 const hint = document.createElement("div");
@@ -14477,7 +14473,7 @@ export class EBCDrawer {
                             .filter(s => s.type === "restraint")
                             .reduce((acc: KittyItem[], s) => acc.concat(s.items ?? []), []);
                         sendKittyCmd("punish", JSON.stringify({ label: pun.label, mood, items, reaction: pun.reaction }));
-                    }));
+                    }, 2000));
                 }
                 punishWrap.appendChild(row);
                 const hint = document.createElement("div");
@@ -15122,7 +15118,7 @@ export class EBCDrawer {
         presetRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;";
         for (const pct of [0, 25, 50, 75, 95, 100]) {
             const color = pct === 0 ? "#4080c0" : pct < 75 ? "#c07090" : "#e050a0";
-            presetRow.appendChild(makePill(`${pct}%`, color, () => sendKittyCmd("arousal", String(pct))));
+            presetRow.appendChild(makePill(`${pct}%`, color, () => sendKittyCmd("arousal", String(pct)), 1000));
         }
         arousalWrap.appendChild(presetRow);
         const customRow = document.createElement("div");

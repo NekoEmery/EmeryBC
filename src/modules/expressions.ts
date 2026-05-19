@@ -1,6 +1,6 @@
 // Expression presets and sequences — live expression picker + animated sequences.
 
-import { callBC } from "./bcUtils";
+import { callBC, syncSettings, syncAppearance } from "./bcUtils";
 
 export const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"] as const;
 export type ExprGroup = typeof EXPR_GROUPS[number];
@@ -100,8 +100,7 @@ export function applyExprGroup(group: string, exprName: string | null): void {
             }
         }
         callBC(() => CharacterRefresh(Player, false));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
+        syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
     } catch { /* ignore */ }
 }
 
@@ -119,7 +118,7 @@ export function saveExpressionPresets(presets: ExpressionPreset[]): void {
         const store = getStore();
         if (!store) return;
         store.expressionPresets = presets;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -160,7 +159,7 @@ export function saveExpressionSequences(seqs: ExpressionSequence[]): void {
         const store = getStore();
         if (!store) return;
         store.expressionSequences = seqs;
-        ServerPlayerExtensionSettingsSync("EmeryBC");
+        syncSettings();
     } catch { /* ignore */ }
 }
 

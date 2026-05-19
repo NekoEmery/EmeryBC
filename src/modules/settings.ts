@@ -1,6 +1,6 @@
-// General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
+﻿// General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
 
-import { callBC } from "./bcUtils";
+import { callBC, syncSettings } from "./bcUtils";
 
 function getStore(): Record<string, unknown> | null {
     try {
@@ -30,7 +30,7 @@ export function setBadgeEnabled(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.badgeEnabled = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -47,7 +47,7 @@ export function setShowVersionBadge(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.showVersionBadge = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -64,7 +64,7 @@ export function setAntiRestraintEnabled(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.antiRestraint = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -84,7 +84,7 @@ export function setAntiRestraintWhitelist(groups: string[]): void {
         const store = getStore();
         if (!store) return;
         store.antiRestraintWhitelist = groups;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -110,7 +110,7 @@ export function setAntiRestraintConfirm(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.antiRestraintConfirm = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -127,7 +127,7 @@ export function setSuppressNativeBeep(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.suppressNativeBeep = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -145,7 +145,7 @@ export function setUpdateNotify(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.updateNotify = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -157,7 +157,7 @@ export function getAfkEnabled(): boolean {
     try { return getStore()?.afkEnabled === true; } catch { return false; }
 }
 export function setAfkEnabled(v: boolean): void {
-    try { const s = getStore(); if (s) { s.afkEnabled = v; callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC")); } } catch { /* ignore */ }
+    try { const s = getStore(); if (s) { s.afkEnabled = v; syncSettings(); } } catch { /* ignore */ }
 }
 
 // Threshold stored in SECONDS (key afkThresholdSec). Default 600 s = 10 min.
@@ -165,7 +165,7 @@ export function getAfkThreshold(): number {
     try { const v = getStore()?.afkThresholdSec; return typeof v === "number" && v >= 1 ? v : 300; } catch { return 300; }
 }
 export function setAfkThreshold(n: number): void {
-    try { const s = getStore(); if (s) { s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n))); callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC")); } } catch { /* ignore */ }
+    try { const s = getStore(); if (s) { s.afkThresholdSec = Math.max(1, Math.min(86400, Math.round(n))); syncSettings(); } } catch { /* ignore */ }
 }
 
 export function getAfkMessage(): string {
@@ -175,7 +175,7 @@ export function getAfkMessage(): string {
     } catch { return "I'm currently AFK — I'll reply when I'm back!"; }
 }
 export function setAfkMessage(msg: string): void {
-    try { const s = getStore(); if (s) { s.afkMessage = msg.slice(0, 200).trim(); callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC")); } } catch { /* ignore */ }
+    try { const s = getStore(); if (s) { s.afkMessage = msg.slice(0, 200).trim(); syncSettings(); } } catch { /* ignore */ }
 }
 
 // When enabled, EBC also whispers the AFK message to anyone who mentions the
@@ -184,7 +184,7 @@ export function getAfkMentionReply(): boolean {
     try { return getStore()?.afkMentionReply !== false; } catch { return true; }
 }
 export function setAfkMentionReply(v: boolean): void {
-    try { const s = getStore(); if (s) { s.afkMentionReply = v; callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC")); } } catch { /* ignore */ }
+    try { const s = getStore(); if (s) { s.afkMentionReply = v; syncSettings(); } } catch { /* ignore */ }
 }
 
 // -- OOC mode ------------------------------------------------------------------
@@ -201,7 +201,7 @@ export function setOocEnabled(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.oocEnabled = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -217,7 +217,7 @@ export function setRoomHistoryEnabled(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.roomHistoryEnabled = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -233,7 +233,7 @@ export function setRestraintLogEnabled(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.restraintLogEnabled = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -248,7 +248,7 @@ export function setBeepMuted(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.beepMuted = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -263,7 +263,7 @@ export function setActionButtonsVisible(value: boolean): void {
         const store = getStore();
         if (!store) return;
         store.actionButtonsVisible = value;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
 
@@ -285,7 +285,7 @@ function schedulePeopleMetSync(): void {
     if (peopleMetSyncTimer !== null) return; // already queued
     peopleMetSyncTimer = setTimeout(() => {
         peopleMetSyncTimer = null;
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     }, 3000); // wait 3 s then send one sync for all changes
 }
 
@@ -319,6 +319,6 @@ export function clearPeopleMet(): void {
         const store = getStore();
         if (!store) return;
         store.peopleMet = [];
-        callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+        syncSettings();
     } catch { /* ignore */ }
 }
