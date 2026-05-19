@@ -37,6 +37,12 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "2.5.18",
+        changes: [
+            "UX: Buttons tab sidebar toggle restyled — removed heavy bordered box; now renders as a slim inline row with a subtle separator line so the tab feels less cramped.",
+        ],
+    },
+    {
         version: "2.5.17",
         changes: [
             "Feature: 'Show quick-emote sidebar buttons' toggle restored to the top of the BUTTONS tab. Turning it OFF hides the canvas sidebar completely; turning it ON brings it back. Setting persists across sessions.",

@@ -13314,9 +13314,9 @@ export class EBCDrawer {
 
         // ── Sidebar visibility toggle ─────────────────────────────────────────
         const sidebarRow = document.createElement("div");
-        sidebarRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;margin-bottom:8px;border:1px solid #3a1928;border-radius:6px;background:rgba(20,8,16,0.55);";
+        sidebarRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 8px 6px;border-bottom:1px solid #2a1421;margin-bottom:6px;";
         const sidebarLbl = document.createElement("span");
-        sidebarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+        sidebarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;flex:1;user-select:none;";
         sidebarLbl.textContent = t("buttons.showSidebar");
         const sidebarToggle = document.createElement("button");
         const refreshSidebarToggle = (): void => {
@@ -13324,7 +13324,7 @@ export class EBCDrawer {
             sidebarToggle.textContent = on ? t("core.on") : t("core.off");
             sidebarToggle.style.cssText = [
                 "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                "padding:3px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                "padding:2px 9px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
                 "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
                 "background:" + (on ? "#6b3048" : "#1b0d17"),
                 "color:" + (on ? "#f7e6ee" : "#9a7080"),
