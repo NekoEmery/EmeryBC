@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.9
+// @version      2.5.10
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12002,6 +12002,334 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
 
+    // i18n.ts — Internationalisation for EmeryBC.
+    // Language preference is stored in localStorage (fast, device-local, no server sync needed).
+    const LANG_CODES = ["en", "de", "zh", "fr", "es"];
+    const LANG_NAMES = {
+        en: "English", de: "Deutsch", zh: "中文", fr: "Français", es: "Español",
+    };
+    const STORAGE_KEY = "EBC_lang";
+    // ---------------------------------------------------------------------------
+    // Translation table
+    // ---------------------------------------------------------------------------
+    const S = {
+        // ─── CORE ACTIONS ──────────────────────────────────────────────────────
+        "core.on": { en: "ON", de: "AN", zh: "开", fr: "OUI", es: "SÍ" },
+        "core.off": { en: "OFF", de: "AUS", zh: "关", fr: "NON", es: "NO" },
+        "core.save": { en: "✓ Save", de: "✓ Speichern", zh: "✓ 保存", fr: "✓ Sauvegarder", es: "✓ Guardar" },
+        "core.cancel": { en: "- Cancel", de: "- Abbrechen", zh: "- 取消", fr: "- Annuler", es: "- Cancelar" },
+        "core.delete": { en: "×", de: "×", zh: "×", fr: "×", es: "×" },
+        "core.edit": { en: "✎ Edit", de: "✎ Bearbeiten", zh: "✎ 编辑", fr: "✎ Modifier", es: "✎ Editar" },
+        "core.apply": { en: "Apply", de: "Anwenden", zh: "应用", fr: "Appliquer", es: "Aplicar" },
+        "core.create": { en: "✓ Create", de: "✓ Erstellen", zh: "✓ 创建", fr: "✓ Créer", es: "✓ Crear" },
+        "core.export": { en: "↑ Export", de: "↑ Exportieren", zh: "↑ 导出", fr: "↑ Exporter", es: "↑ Exportar" },
+        "core.import": { en: "↓ Import", de: "↓ Importieren", zh: "↓ 导入", fr: "↓ Importer", es: "↓ Importar" },
+        "core.confirm": { en: "✓ Confirm", de: "✓ Bestätigen", zh: "✓ 确认", fr: "✓ Confirmer", es: "✓ Confirmar" },
+        "core.yes": { en: "Yes", de: "Ja", zh: "是", fr: "Oui", es: "Sí" },
+        "core.no": { en: "No", de: "Nein", zh: "否", fr: "Non", es: "No" },
+        "core.done": { en: "✓ Done", de: "✓ Fertig", zh: "✓ 完成", fr: "✓ Terminé", es: "✓ Listo" },
+        "core.add": { en: "+ Add", de: "+ Hinzufügen", zh: "+ 添加", fr: "+ Ajouter", es: "+ Añadir" },
+        "core.clearAll": { en: "Clear All", de: "Alle löschen", zh: "全部清除", fr: "Tout effacer", es: "Borrar todo" },
+        "core.rename": { en: "Rename", de: "Umbenennen", zh: "重命名", fr: "Renommer", es: "Renombrar" },
+        "core.moveUp": { en: "▲", de: "▲", zh: "▲", fr: "▲", es: "▲" },
+        "core.moveDown": { en: "▼", de: "▼", zh: "▼", fr: "▼", es: "▼" },
+        "core.enable": { en: "Enable", de: "Aktivieren", zh: "启用", fr: "Activer", es: "Activar" },
+        "core.disable": { en: "Disable", de: "Deaktivieren", zh: "禁用", fr: "Désactiver", es: "Desactivar" },
+        "core.update": { en: "Update", de: "Aktualisieren", zh: "更新", fr: "Mettre à jour", es: "Actualizar" },
+        "core.close": { en: "Close", de: "Schließen", zh: "关闭", fr: "Fermer", es: "Cerrar" },
+        "core.refresh": { en: "Refresh", de: "Aktualisieren", zh: "刷新", fr: "Actualiser", es: "Actualizar" },
+        "core.copied": { en: "✔ Copied!", de: "✔ Kopiert!", zh: "✔ 已复制！", fr: "✔ Copié !", es: "✔ ¡Copiado!" },
+        "core.saved": { en: "✓ Saved", de: "✓ Gespeichert", zh: "✓ 已保存", fr: "✓ Sauvegardé", es: "✓ Guardado" },
+        "core.applied": { en: "✓ Applied!", de: "✓ Angewendet!", zh: "✓ 已应用！", fr: "✓ Appliqué !", es: "✓ ¡Aplicado!" },
+        "core.none": { en: "(none)", de: "(keine)", zh: "（无）", fr: "(aucun)", es: "(ninguno)" },
+        "core.wear": { en: "Wear", de: "Tragen", zh: "穿戴", fr: "Porter", es: "Usar" },
+        "core.moveUpTitle": { en: "Move up", de: "Nach oben", zh: "上移", fr: "Déplacer vers le haut", es: "Mover arriba" },
+        "core.moveDownTitle": { en: "Move down", de: "Nach unten", zh: "下移", fr: "Déplacer vers le bas", es: "Mover abajo" },
+        // ─── HEADER ────────────────────────────────────────────────────────────
+        "header.dragToMove": { en: "Drag to move", de: "Ziehen zum Verschieben", zh: "拖动以移动", fr: "Glisser pour déplacer", es: "Arrastrar para mover" },
+        "header.resetPos": { en: "⌖ Reset pos", de: "⌖ Pos. zurücksetzen", zh: "⌖ 重置位置", fr: "⌖ Réinitialiser pos", es: "⌖ Restablecer pos" },
+        "header.resetPosTitle": { en: "Reset drawer to default position (anchored to chat log)", de: "Fenster auf Standardposition zurücksetzen", zh: "将抽屉重置为默认位置（锚定至聊天框）", fr: "Réinitialiser à la position par défaut", es: "Restablecer posición predeterminada" },
+        "header.close": { en: "Close", de: "Schließen", zh: "关闭", fr: "Fermer", es: "Cerrar" },
+        "header.refresh": { en: "Refresh", de: "Aktualisieren", zh: "刷新", fr: "Actualiser", es: "Actualizar" },
+        "header.language": { en: "Language", de: "Sprache", zh: "语言", fr: "Langue", es: "Idioma" },
+        // ─── TABS ──────────────────────────────────────────────────────────────
+        "tabs.outfits": { en: "OUTFITS", de: "OUTFITS", zh: "服装", fr: "TENUES", es: "ATUENDOS" },
+        "tabs.buttons": { en: "BUTTONS", de: "TASTEN", zh: "按键", fr: "BOUTONS", es: "BOTONES" },
+        "tabs.anims": { en: "ANIMS", de: "ANIMS", zh: "动作", fr: "ANIMS", es: "ANIMS" },
+        "tabs.users": { en: "USERS", de: "NUTZER", zh: "用户", fr: "UTILISATEURS", es: "USUARIOS" },
+        "tabs.credits": { en: "CREDITS", de: "CREDITS", zh: "致谢", fr: "CRÉDITS", es: "CRÉDITOS" },
+        "tabs.dev": { en: "DEV", de: "DEV", zh: "开发", fr: "DEV", es: "DEV" },
+        "tabs.dom": { en: "DOM", de: "DOM", zh: "DOM", fr: "DOM", es: "DOM" },
+        "tabs.buttonsTitle": { en: "Action Buttons", de: "Aktions-Tasten", zh: "动作按键", fr: "Boutons d'action", es: "Botones de acción" },
+        "tabs.usersTitle": { en: "User Notes", de: "Benutzernotizen", zh: "用户笔记", fr: "Notes utilisateur", es: "Notas de usuario" },
+        "tabs.creditsTitle": { en: "Special Thanks", de: "Besonderer Dank", zh: "特别感谢", fr: "Remerciements", es: "Agradecimientos" },
+        "tabs.devTitle": { en: "Developer Tools", de: "Entwickler-Tools", zh: "开发工具", fr: "Outils développeur", es: "Herramientas dev" },
+        "tabs.domTitle": { en: "DOM Tools", de: "DOM-Tools", zh: "DOM 工具", fr: "Outils DOM", es: "Herramientas DOM" },
+        "tabs.puppy": { en: "Puppy", de: "Welpe", zh: "小狗", fr: "Chiot", es: "Cachorro" },
+        "tabs.kitty": { en: "Kitty", de: "Kätzchen", zh: "小猫", fr: "Chaton", es: "Gatita" },
+        // ─── QUICK ACTIONS ─────────────────────────────────────────────────────
+        "qa.releaseRestraints": { en: "Release Restraints", de: "Fesseln lösen", zh: "解除束缚", fr: "Libérer les liens", es: "Soltar ataduras" },
+        "qa.removeLocks": { en: "Remove Locks", de: "Schlösser entfernen", zh: "移除锁具", fr: "Retirer les serrures", es: "Quitar candados" },
+        "qa.releaseTitle": { en: "Remove all restraints (skips owner/lover/family locks)", de: "Alle Fesseln entfernen (überspringt Besitzer-/Partner-/Familienschlösser)", zh: "移除所有束缚（跳过主人/恋人/家人的锁）", fr: "Retirer tous les liens (ignore serrures propriétaire/amant/famille)", es: "Quitar todas las ataduras (omite candados de dueño/amante/familia)" },
+        "qa.removeLocksTitle": { en: "Remove all locks (skips owner/lover/family locks)", de: "Alle Schlösser entfernen (überspringt Besitzer-/Partner-/Familienschlösser)", zh: "移除所有锁具（跳过主人/恋人/家人的锁）", fr: "Retirer toutes les serrures (ignore serrures propriétaire/amant/famille)", es: "Quitar todos los candados (omite candados de dueño/amante/familia)" },
+        "qa.confirmBeforeEscaping": { en: "Confirm before escaping", de: "Vor dem Entkommen bestätigen", zh: "逃脱前确认", fr: "Confirmer avant de s'échapper", es: "Confirmar antes de escapar" },
+        "qa.pickRestraints": { en: "↓ Pick restraints to remove", de: "↓ Fesseln zum Entfernen wählen", zh: "↓ 选择要移除的束缚", fr: "↓ Choisir les liens à retirer", es: "↓ Elegir ataduras a quitar" },
+        "qa.pickTitle": { en: "Choose specific restraints to strip from yourself", de: "Bestimmte Fesseln zum Entfernen auswählen", zh: "选择要解除的特定束缚", fr: "Choisir des liens spécifiques à retirer", es: "Elegir ataduras específicas a quitar" },
+        "qa.restraintsHeader": { en: "RESTRAINTS", de: "FESSELN", zh: "束缚", fr: "LIENS", es: "ATADURAS" },
+        "qa.locksHeader": { en: "LOCKS", de: "SCHLÖSSER", zh: "锁具", fr: "SERRURES", es: "CANDADOS" },
+        "qa.nothingToRemove": { en: "Nothing to remove — no restraints or locks found.", de: "Nichts zu entfernen — keine Fesseln oder Schlösser gefunden.", zh: "无需移除——未找到束缚或锁具。", fr: "Rien à retirer — aucun lien ou serrure trouvé.", es: "Nada que quitar — no se encontraron ataduras ni candados." },
+        "qa.removeSelected": { en: "↑ Remove Selected", de: "↑ Ausgewählte entfernen", zh: "↑ 移除所选", fr: "↑ Retirer la sélection", es: "↑ Quitar seleccionados" },
+        "qa.unlockSelected": { en: "🔓 Unlock Selected", de: "🔓 Ausgewählte entsperren", zh: "🔓 解锁所选", fr: "🔓 Déverrouiller la sélection", es: "🔓 Desbloquear seleccionados" },
+        "qa.selectRestraintsFirst": { en: "Select restraints first.", de: "Zuerst Fesseln auswählen.", zh: "请先选择束缚。", fr: "Sélectionner des liens d'abord.", es: "Selecciona ataduras primero." },
+        "qa.selectLocksFirst": { en: "Select locks first.", de: "Zuerst Schlösser auswählen.", zh: "请先选择锁具。", fr: "Sélectionner des serrures d'abord.", es: "Selecciona candados primero." },
+        "qa.nothingRemoved": { en: "Nothing removed.", de: "Nichts entfernt.", zh: "未移除任何物品。", fr: "Rien retiré.", es: "Nada quitado." },
+        "qa.nothingUnlocked": { en: "Nothing unlocked.", de: "Nichts entsperrt.", zh: "未解锁任何物品。", fr: "Rien déverrouillé.", es: "Nada desbloqueado." },
+        "qa.removedN": { en: "✓ Removed {n} item(s).", de: "✓ {n} Element(e) entfernt.", zh: "✓ 已移除 {n} 件物品。", fr: "✓ {n} élément(s) retiré(s).", es: "✓ {n} elemento(s) quitado(s)." },
+        "qa.unlockedN": { en: "✓ Unlocked {n} item(s).", de: "✓ {n} Element(e) entsperrt.", zh: "✓ 已解锁 {n} 件物品。", fr: "✓ {n} élément(s) déverrouillé(s).", es: "✓ {n} elemento(s) desbloqueado(s)." },
+        // ─── SLOW LEAVE ────────────────────────────────────────────────────────
+        "sl.header": { en: "🚶 Slow Leave", de: "🚶 Langsam gehen", zh: "🚶 慢慢离开", fr: "🚶 Partir lentement", es: "🚶 Salida lenta" },
+        "sl.durationTitle": { en: "Slow leave duration", de: "Dauer des langsamen Gehens", zh: "慢离开持续时间", fr: "Durée de la sortie lente", es: "Duración de salida lenta" },
+        "sl.leave": { en: "🚶 Slow Leave", de: "🚶 Langsam gehen", zh: "🚶 慢慢离开", fr: "🚶 Partir lentement", es: "🚶 Salida lenta" },
+        "sl.leaveTitle": { en: "Wave goodbye and slowly head for the door", de: "Auf Wiedersehen winken und langsam zur Tür gehen", zh: "挥手告别，慢慢走向门口", fr: "Dire au revoir et se diriger lentement vers la porte", es: "Despedirse y caminar lentamente hacia la puerta" },
+        "sl.cancel": { en: "✕ Cancel Leave", de: "✕ Abbrechen", zh: "✕ 取消离开", fr: "✕ Annuler la sortie", es: "✕ Cancelar salida" },
+        "sl.seqHint": { en: "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}", de: "Sequenz für dieses Preset — bearbeiten zum Anpassen. Schritte durch | getrennt, Dauer @{DUR}", zh: "此预设的序列——编辑以自定义。步骤以 | 分隔，时长占位符 @{DUR}", fr: "Séquence pour ce preset — modifier pour personnaliser. Étapes séparées par |, durée @{DUR}", es: "Secuencia para este preset — editar para personalizar. Pasos con |, marcador @{DUR}" },
+        // ─── OUTFITS TAB ───────────────────────────────────────────────────────
+        "outfits.savedOutfits": { en: "Saved Outfits", de: "Gespeicherte Outfits", zh: "已保存的服装", fr: "Tenues sauvegardées", es: "Atuendos guardados" },
+        "outfits.outfitSchedule": { en: "OUTFIT SCHEDULE", de: "OUTFIT-ZEITPLAN", zh: "服装计划", fr: "PROGRAMME TENUES", es: "PROGRAMA DE ATUENDOS" },
+        "outfits.savedRestraints": { en: "Saved Restraints", de: "Gespeicherte Fesseln", zh: "已保存的束缚", fr: "Liens sauvegardés", es: "Ataduras guardadas" },
+        "outfits.filter": { en: "Filter outfits…", de: "Outfits filtern…", zh: "过滤服装…", fr: "Filtrer les tenues…", es: "Filtrar atuendos…" },
+        "outfits.noOutfits": { en: "No outfits saved yet.", de: "Noch keine Outfits gespeichert.", zh: "尚未保存任何服装。", fr: "Aucune tenue sauvegardée.", es: "No hay atuendos guardados." },
+        "outfits.noMatch": { en: "No outfits match your filter.", de: "Keine Outfits entsprechen dem Filter.", zh: "没有匹配的服装。", fr: "Aucune tenue ne correspond.", es: "No hay atuendos que coincidan." },
+        "outfits.useFormBelow": { en: "Use the form below to create one.", de: "Erstelle eines mit dem Formular unten.", zh: "使用下方表单创建一个。", fr: "Utiliser le formulaire ci-dessous pour en créer une.", es: "Usa el formulario de abajo para crear uno." },
+        "outfits.namePlaceholder": { en: "Outfit name (e.g. Rope Set)", de: "Outfit-Name (z. B. Seil-Set)", zh: "服装名称（如绳索套装）", fr: "Nom de la tenue (ex: Ensemble cordes)", es: "Nombre del atuendo (ej. Juego de cuerdas)" },
+        "outfits.cmdPlaceholder": { en: "Outfit command (e.g. /rope)", de: "Outfit-Befehl (z. B. /seil)", zh: "服装命令（如 /rope）", fr: "Commande tenue (ex: /cordes)", es: "Comando atuendo (ej. /cuerda)" },
+        "outfits.preserveBonds": { en: "Preserve bonds", de: "Fesseln beibehalten", zh: "保留束缚", fr: "Conserver les liens", es: "Mantener ataduras" },
+        "outfits.swapBonds": { en: "Swap bonds", de: "Fesseln tauschen", zh: "交换束缚", fr: "Échanger les liens", es: "Intercambiar ataduras" },
+        "outfits.keepClothes": { en: "Keep clothes", de: "Kleidung behalten", zh: "保留衣物", fr: "Garder les vêtements", es: "Mantener ropa" },
+        "outfits.swapClothes": { en: "Swap clothes", de: "Kleidung tauschen", zh: "交换衣物", fr: "Échanger les vêtements", es: "Intercambiar ropa" },
+        "outfits.newOutfit": { en: "+ New Outfit from Current Look", de: "+ Neues Outfit vom aktuellen Aussehen", zh: "+ 从当前外观创建新服装", fr: "+ Nouvelle tenue depuis la tenue actuelle", es: "+ Nuevo atuendo desde el aspecto actual" },
+        "outfits.saveNewOutfit": { en: "Save as New Outfit", de: "Als neues Outfit speichern", zh: "保存为新服装", fr: "Sauvegarder comme nouvelle tenue", es: "Guardar como nuevo atuendo" },
+        "outfits.importOutfit": { en: "↓ Import Outfit", de: "↓ Outfit importieren", zh: "↓ 导入服装", fr: "↓ Importer une tenue", es: "↓ Importar atuendo" },
+        "outfits.importPlaceholder": { en: "Paste BC outfit code…", de: "BC-Outfit-Code einfügen…", zh: "粘贴 BC 服装代码…", fr: "Coller le code de tenue BC…", es: "Pegar código de atuendo BC…" },
+        "outfits.importBCPlaceholder": { en: "Paste LZ/JSON BC code…", de: "LZ/JSON-BC-Code einfügen…", zh: "粘贴 LZ/JSON BC 代码…", fr: "Coller le code LZ/JSON BC…", es: "Pegar código LZ/JSON BC…" },
+        "outfits.importFromBCCode": { en: "↓ Import from BC Code", de: "↓ Aus BC-Code importieren", zh: "↓ 从 BC 代码导入", fr: "↓ Importer depuis le code BC", es: "↓ Importar desde código BC" },
+        "outfits.cancelImport": { en: "- Cancel Import", de: "- Import abbrechen", zh: "- 取消导入", fr: "- Annuler l'importation", es: "- Cancelar importación" },
+        "outfits.invalidFormat": { en: "Invalid format — check the pasted text.", de: "Ungültiges Format — überprüfe den eingefügten Text.", zh: "无效格式——请检查粘贴的文本。", fr: "Format invalide — vérifier le texte collé.", es: "Formato inválido — revisa el texto pegado." },
+        "outfits.keepBondsFlag": { en: "⛓ Keep bonds", de: "⛓ Fesseln beh.", zh: "⛓ 保留束缚", fr: "⛓ Garder liens", es: "⛓ Mantener ataduras" },
+        "outfits.swapBondsFlag": { en: "⛓ Swap bonds", de: "⛓ Fesseln tauschen", zh: "⛓ 交换束缚", fr: "⛓ Éch. liens", es: "⛓ Intercambiar ataduras" },
+        "outfits.keepClothesFlag": { en: "👗 Keep clothes", de: "👗 Kleidung beh.", zh: "👗 保留衣物", fr: "👗 Garder vêtements", es: "👗 Mantener ropa" },
+        "outfits.swapClothesFlag": { en: "👗 Swap clothes", de: "👗 Kleidung tauschen", zh: "👗 交换衣物", fr: "👗 Éch. vêtements", es: "👗 Intercambiar ropa" },
+        "outfits.saveChanges": { en: "✓ Save Changes", de: "✓ Änderungen speichern", zh: "✓ 保存更改", fr: "✓ Enregistrer les modifications", es: "✓ Guardar cambios" },
+        "outfits.deleteTitle": { en: "Delete this outfit", de: "Dieses Outfit löschen", zh: "删除此服装", fr: "Supprimer cette tenue", es: "Eliminar este atuendo" },
+        "outfits.updateTitle": { en: "Save current look to this outfit", de: "Aktuelles Aussehen in diesem Outfit speichern", zh: "将当前外观保存到此服装", fr: "Sauvegarder la tenue actuelle", es: "Guardar aspecto actual en este atuendo" },
+        "outfits.noOutfitsDropdown": { en: "No outfits", de: "Keine Outfits", zh: "没有服装", fr: "Aucune tenue", es: "Sin atuendos" },
+        "outfits.nameLabel": { en: "Name", de: "Name", zh: "名称", fr: "Nom", es: "Nombre" },
+        "outfits.commandLabel": { en: "Command", de: "Befehl", zh: "命令", fr: "Commande", es: "Comando" },
+        "outfits.announceLabel": { en: "Announce", de: "Ankündigung", zh: "公告", fr: "Annonce", es: "Anuncio" },
+        "outfits.announcePlaceholder": { en: "Room announce on wear (optional)", de: "Raum-Ankündigung beim Tragen (optional)", zh: "穿戴时的房间公告（可选）", fr: "Annonce salle au port (optionnel)", es: "Anuncio al ponerse (opcional)" },
+        "outfits.nicknamePlaceholder": { en: "Your usual nickname", de: "Dein üblicher Spitzname", zh: "你的常用昵称", fr: "Votre surnom habituel", es: "Tu apodo habitual" },
+        "outfits.noSchedules": { en: "No schedules set.", de: "Keine Zeitpläne festgelegt.", zh: "尚未设置计划。", fr: "Aucun programme défini.", es: "Sin programas configurados." },
+        "outfits.timePlaceholder": { en: "HH:MM", de: "HH:MM", zh: "时:分", fr: "HH:MM", es: "HH:MM" },
+        "outfits.timeTitle": { en: "24-hour time (e.g. 08:30, 14:00)", de: "24-Stunden-Zeit (z. B. 08:30, 14:00)", zh: "24小时制（如 08:30、14:00）", fr: "Heure sur 24h (ex: 08:30, 14:00)", es: "Hora en 24h (ej. 08:30, 14:00)" },
+        "outfits.removeSchedule": { en: "Remove schedule", de: "Zeitplan entfernen", zh: "移除计划", fr: "Retirer le programme", es: "Quitar programa" },
+        "outfits.addSchedule": { en: "+ Add Schedule", de: "+ Zeitplan hinzufügen", zh: "+ 添加计划", fr: "+ Ajouter un programme", es: "+ Añadir programa" },
+        // ─── RESTRAINTS ────────────────────────────────────────────────────────
+        "restraints.noRestraints": { en: "No restraint sets saved yet.", de: "Noch keine Fesseln-Sets gespeichert.", zh: "尚未保存任何束缚套装。", fr: "Aucun set de liens sauvegardé.", es: "No hay conjuntos de ataduras guardados." },
+        "restraints.newRestraint": { en: "+ New Restraint Set from Current", de: "+ Neues Fesseln-Set aus aktueller Situation", zh: "+ 从当前创建新束缚套装", fr: "+ Nouveau set de liens depuis l'actuel", es: "+ Nuevo conjunto desde el actual" },
+        "restraints.deleteTitle": { en: "Delete this restraint set", de: "Dieses Fesseln-Set löschen", zh: "删除此束缚套装", fr: "Supprimer ce set de liens", es: "Eliminar este conjunto" },
+        "restraints.updateTitle": { en: "Save current restraints to this set", de: "Aktuelle Fesseln in diesem Set speichern", zh: "将当前束缚保存到此套装", fr: "Sauvegarder les liens actuels dans ce set", es: "Guardar ataduras actuales en este conjunto" },
+        "restraints.filter": { en: "Filter restraints…", de: "Fesseln filtern…", zh: "过滤束缚…", fr: "Filtrer les liens…", es: "Filtrar ataduras…" },
+        "restraints.noMatch": { en: "No restraints match your filter.", de: "Keine Fesseln entsprechen dem Filter.", zh: "没有匹配的束缚。", fr: "Aucun lien ne correspond.", es: "No hay ataduras que coincidan." },
+        "restraints.importPlaceholder": { en: "Paste BC outfit code…", de: "BC-Outfit-Code einfügen…", zh: "粘贴 BC 服装代码…", fr: "Coller le code BC…", es: "Pegar código BC…" },
+        "restraints.nameLabel": { en: "Name", de: "Name", zh: "名称", fr: "Nom", es: "Nombre" },
+        "restraints.commandLabel": { en: "Command", de: "Befehl", zh: "命令", fr: "Commande", es: "Comando" },
+        "restraints.saveChanges": { en: "✓ Save Changes", de: "✓ Änderungen speichern", zh: "✓ 保存更改", fr: "✓ Enregistrer les modifications", es: "✓ Guardar cambios" },
+        // ─── BUTTONS TAB ───────────────────────────────────────────────────────
+        "buttons.colourPresets": { en: "COLOUR PRESETS", de: "FARBVORLAGEN", zh: "颜色预设", fr: "PRÉSETS DE COULEUR", es: "PRESETS DE COLOR" },
+        "buttons.emoteText": { en: "Emote text…", de: "Emote-Text…", zh: "表情文字…", fr: "Texte d'émote…", es: "Texto de emote…" },
+        "buttons.styleAction": { en: "Action !", de: "Aktion !", zh: "动作 !", fr: "Action !", es: "Acción !" },
+        "buttons.styleEmote": { en: "Emote *", de: "Emote *", zh: "表情 *", fr: "Émote *", es: "Emote *" },
+        "buttons.stylePose": { en: "Pose", de: "Pose", zh: "姿势", fr: "Pose", es: "Pose" },
+        "buttons.styleReset": { en: "Reset _", de: "Reset _", zh: "重置 _", fr: "Reset _", es: "Reset _" },
+        "buttons.styleLeave": { en: "Leave Room 🚪", de: "Raum verlassen 🚪", zh: "离开房间 🚪", fr: "Quitter la salle 🚪", es: "Salir de sala 🚪" },
+        "buttons.seqBadge": { en: "✨ sequence", de: "✨ Sequenz", zh: "✨ 序列", fr: "✨ séquence", es: "✨ secuencia" },
+        "buttons.addCategory": { en: "+ Add Category", de: "+ Kategorie hinzufügen", zh: "+ 添加分类", fr: "+ Ajouter une catégorie", es: "+ Añadir categoría" },
+        "buttons.importHint": { en: "Paste JSON or BC code…", de: "JSON oder BC-Code einfügen…", zh: "粘贴 JSON 或 BC 代码…", fr: "Coller JSON ou code BC…", es: "Pegar JSON o código BC…" },
+        "buttons.addSlot": { en: "+ Add", de: "+ Hinzufügen", zh: "+ 添加", fr: "+ Ajouter", es: "+ Añadir" },
+        "buttons.clearAll": { en: "Clear All", de: "Alle löschen", zh: "全部清除", fr: "Tout effacer", es: "Borrar todo" },
+        "buttons.noCategories": { en: "No categories yet.", de: "Noch keine Kategorien.", zh: "尚无分类。", fr: "Aucune catégorie.", es: "Sin categorías aún." },
+        "buttons.categoryName": { en: "Category name…", de: "Kategoriename…", zh: "分类名称…", fr: "Nom de catégorie…", es: "Nombre de categoría…" },
+        "buttons.renameCategory": { en: "Rename Category", de: "Kategorie umbenennen", zh: "重命名分类", fr: "Renommer la catégorie", es: "Renombrar categoría" },
+        "buttons.deleteCategory": { en: "Delete Category", de: "Kategorie löschen", zh: "删除分类", fr: "Supprimer la catégorie", es: "Eliminar categoría" },
+        // ─── ANIMS TAB ─────────────────────────────────────────────────────────
+        "anims.poseCombos": { en: "Pose Combos", de: "Pose-Kombinationen", zh: "姿势组合", fr: "Combos de poses", es: "Combos de poses" },
+        "anims.noCombos": { en: "No combos saved.", de: "Keine Kombos gespeichert.", zh: "尚未保存任何组合。", fr: "Aucun combo sauvegardé.", es: "No hay combos guardados." },
+        "anims.newCombo": { en: "+ New Pose Combo", de: "+ Neue Pose-Kombination", zh: "+ 新建姿势组合", fr: "+ Nouveau combo de poses", es: "+ Nuevo combo de poses" },
+        "anims.newPresetName": { en: "New preset name…", de: "Neuer Preset-Name…", zh: "新预设名称…", fr: "Nouveau nom de preset…", es: "Nuevo nombre de preset…" },
+        "anims.saveCombo": { en: "✓ Save Combo", de: "✓ Kombination speichern", zh: "✓ 保存组合", fr: "✓ Sauvegarder le combo", es: "✓ Guardar combo" },
+        "anims.delay": { en: "Delay (ms)", de: "Verzögerung (ms)", zh: "延迟（毫秒）", fr: "Délai (ms)", es: "Retardo (ms)" },
+        "anims.addStep": { en: "+ Add Step", de: "+ Schritt hinzufügen", zh: "+ 添加步骤", fr: "+ Ajouter une étape", es: "+ Añadir paso" },
+        // ─── USERS/NOTES TAB ───────────────────────────────────────────────────
+        "users.header": { en: "User Notes", de: "Benutzernotizen", zh: "用户笔记", fr: "Notes utilisateur", es: "Notas de usuario" },
+        "users.noteHint": { en: "Notes about this person...", de: "Notizen zu dieser Person...", zh: "关于此人的备注...", fr: "Notes sur cette personne...", es: "Notas sobre esta persona..." },
+        "users.savedAutomatically": { en: "Saved automatically", de: "Automatisch gespeichert", zh: "自动保存", fr: "Sauvegardé automatiquement", es: "Guardado automáticamente" },
+        "users.noOneInRoom": { en: "No people in the room yet.", de: "Noch niemand im Raum.", zh: "房间里还没有人。", fr: "Personne dans la salle.", es: "Nadie en la sala aún." },
+        "users.friendsSince": { en: "🤝 Friends since: {date}", de: "🤝 Freunde seit: {date}", zh: "🤝 好友自: {date}", fr: "🤝 Amis depuis : {date}", es: "🤝 Amigos desde: {date}" },
+        "users.friendsSinceUnknown": { en: "🤝 Friends since: Unknown", de: "🤝 Freunde seit: Unbekannt", zh: "🤝 好友自：未知", fr: "🤝 Amis depuis : inconnu", es: "🤝 Amigos desde: desconocido" },
+        "users.pinToTop": { en: "📌 Pin to top", de: "📌 Oben anheften", zh: "📌 置顶", fr: "📌 Épingler en haut", es: "📌 Fijar arriba" },
+        "users.unpin": { en: "📌 Unpin", de: "📌 Lösen", zh: "📌 取消置顶", fr: "📌 Désépingler", es: "📌 Desfijar" },
+        "users.newTagPlaceholder": { en: "new tag…", de: "neues Etikett…", zh: "新标签…", fr: "nouveau tag…", es: "nueva etiqueta…" },
+        "users.typeMessage": { en: "Type a message...", de: "Nachricht eingeben...", zh: "输入消息...", fr: "Tapez un message...", es: "Escribe un mensaje..." },
+        "users.reply": { en: "↩ reply", de: "↩ Antworten", zh: "↩ 回复", fr: "↩ répondre", es: "↩ responder" },
+        "users.noConversation": { en: "No conversation yet.", de: "Noch keine Unterhaltung.", zh: "还没有对话。", fr: "Aucune conversation.", es: "Sin conversación aún." },
+        // ─── DEV TAB ───────────────────────────────────────────────────────────
+        "dev.characterInspector": { en: "Character Inspector", de: "Charakter-Inspektor", zh: "角色检查器", fr: "Inspecteur de personnage", es: "Inspector de personaje" },
+        "dev.searchPlaceholder": { en: "Search name or #id…", de: "Name oder #ID suchen…", zh: "搜索名称或 #ID…", fr: "Chercher nom ou #id…", es: "Buscar nombre o #id…" },
+        "dev.activeRestraints": { en: "ACTIVE RESTRAINTS", de: "AKTIVE FESSELN", zh: "当前束缚", fr: "LIENS ACTIFS", es: "ATADURAS ACTIVAS" },
+        "dev.charNotFound": { en: "Character not found.", de: "Charakter nicht gefunden.", zh: "未找到角色。", fr: "Personnage introuvable.", es: "Personaje no encontrado." },
+        "dev.charNotInRoom": { en: "Character not found in room.", de: "Charakter nicht im Raum.", zh: "未在房间中找到角色。", fr: "Personnage non trouvé dans la salle.", es: "Personaje no encontrado en la sala." },
+        "dev.facePresets": { en: "FACE PRESETS", de: "GESICHTS-PRESETS", zh: "面部预设", fr: "PRÉSETS DE VISAGE", es: "PRESETS DE CARA" },
+        "dev.saveFace": { en: "💾 Save face", de: "💾 Gesicht speichern", zh: "💾 保存面部", fr: "💾 Sauvegarder le visage", es: "💾 Guardar cara" },
+        "dev.clearExpressions": { en: "✕ Clear all expressions", de: "✕ Alle Ausdrücke löschen", zh: "✕ 清除所有表情", fr: "✕ Effacer toutes les expressions", es: "✕ Borrar todas las expresiones" },
+        "dev.whisperLog": { en: "Whisper Log", de: "Flüsterprotokoll", zh: "私语日志", fr: "Journal des chuchotements", es: "Registro de susurros" },
+        "dev.devLog": { en: "Dev Log", de: "Entwicklungsprotokoll", zh: "开发日志", fr: "Journal de développement", es: "Registro de desarrollo" },
+        "dev.enableDevLogging": { en: "📟 Enable dev logging", de: "📟 Protokollierung aktivieren", zh: "📟 启用开发日志", fr: "📟 Activer la journalisation", es: "📟 Activar registro dev" },
+        "dev.injectTestEntry": { en: "Inject test entry", de: "Testeintrag einfügen", zh: "注入测试条目", fr: "Injecter entrée test", es: "Inyectar entrada prueba" },
+        "dev.clearLog": { en: "Clear", de: "Löschen", zh: "清除", fr: "Effacer", es: "Borrar" },
+        // ─── DOM TAB ───────────────────────────────────────────────────────────
+        "dom.domSets": { en: "DOM Sets", de: "DOM-Sets", zh: "DOM 集合", fr: "Sets DOM", es: "Conjuntos DOM" },
+        "dom.copyRestraints": { en: "Copy Restraints from Member", de: "Fesseln von Mitglied kopieren", zh: "从成员复制束缚", fr: "Copier les liens d'un membre", es: "Copiar ataduras de miembro" },
+        "dom.newSet": { en: "+ New Set", de: "+ Neues Set", zh: "+ 新建集合", fr: "+ Nouveau set", es: "+ Nuevo conjunto" },
+        "dom.rescue": { en: "Rescue", de: "Retten", zh: "救援", fr: "Sauver", es: "Rescatar" },
+        "dom.clearLocks": { en: "Clear locks", de: "Schlösser entfernen", zh: "清除锁具", fr: "Effacer les serrures", es: "Quitar candados" },
+        "dom.removeItems": { en: "Remove items", de: "Gegenstände entfernen", zh: "移除物品", fr: "Retirer les objets", es: "Quitar objetos" },
+        "dom.notInRoom": { en: "⚠ That person is no longer in the room.", de: "⚠ Diese Person ist nicht mehr im Raum.", zh: "⚠ 该人已不在房间中。", fr: "⚠ Cette personne n'est plus dans la salle.", es: "⚠ Esa persona ya no está en la sala." },
+        "dom.applySet": { en: "Apply", de: "Anwenden", zh: "应用", fr: "Appliquer", es: "Aplicar" },
+        // ─── KITTY TAB ─────────────────────────────────────────────────────────
+        "kitty.grabLeash": { en: "🔗 Grab Leash", de: "🔗 Leine ergreifen", zh: "🔗 抓住牵绳", fr: "🔗 Saisir la laisse", es: "🔗 Agarrar correa" },
+        "kitty.letGoLeash": { en: "🔗 Let Go of Leash", de: "🔗 Leine loslassen", zh: "🔗 放开牵绳", fr: "🔗 Lâcher la laisse", es: "🔗 Soltar correa" },
+        "kitty.holdLeashFirst": { en: "Hold leash first!", de: "Zuerst Leine ergreifen!", zh: "请先抓住牵绳！", fr: "Tenir la laisse d'abord !", es: "¡Agarra la correa primero!" },
+        "kitty.pull": { en: "↗ Pull", de: "↗ Ziehen", zh: "↗ 拉近", fr: "↗ Tirer", es: "↗ Tirar" },
+        "kitty.barkBtn": { en: "🐶 Bark!", de: "🐶 Bellen!", zh: "🐶 汪汪！", fr: "🐶 Aboyer !", es: "🐶 ¡Ladrar!" },
+        "kitty.boopAll": { en: "🐾 Boop all friends in room", de: "🐾 Alle Freunde im Raum tippen", zh: "🐾 戳戳房间里所有朋友", fr: "🐾 Taper tous les amis dans la salle", es: "🐾 Tocar a todos los amigos" },
+        "kitty.emotes": { en: "Emotes", de: "Emotes", zh: "表情动作", fr: "Émotes", es: "Emotes" },
+        "kitty.moods": { en: "Moods", de: "Stimmungen", zh: "心情", fr: "Humeurs", es: "Estados de ánimo" },
+        "kitty.restraintSets": { en: "Restraint Sets", de: "Fesseln-Sets", zh: "束缚套装", fr: "Sets de liens", es: "Conjuntos de ataduras" },
+        "kitty.poses": { en: "Poses", de: "Posen", zh: "姿势", fr: "Poses", es: "Poses" },
+        "kitty.punishments": { en: "Punishments", de: "Strafen", zh: "惩罚", fr: "Punitions", es: "Castigos" },
+        // ─── EXPRESSION PRESETS ────────────────────────────────────────────────
+        "expr.facePresets": { en: "FACE PRESETS", de: "GESICHTS-PRESETS", zh: "面部预设", fr: "PRÉSETS DE VISAGE", es: "PRESETS DE CARA" },
+        "expr.presetNamePlaceholder": { en: "Preset name…", de: "Preset-Name…", zh: "预设名称…", fr: "Nom du preset…", es: "Nombre del preset…" },
+        "expr.saveFace": { en: "💾 Save face", de: "💾 Gesicht speichern", zh: "💾 保存面部", fr: "💾 Sauvegarder le visage", es: "💾 Guardar cara" },
+        "expr.defaultPreset": { en: "Default (on revert):", de: "Standard (beim Zurücksetzen):", zh: "默认（还原时）：", fr: "Défaut (au retour) :", es: "Predeterminado (al revertir):" },
+        "expr.noDefault": { en: "— None —", de: "— Keines —", zh: "— 无 —", fr: "— Aucun —", es: "— Ninguno —" },
+        "expr.triggers": { en: "Expression Triggers", de: "Ausdrucks-Auslöser", zh: "表情触发器", fr: "Déclencheurs d'expression", es: "Disparadores de expresión" },
+        "expr.newTrigger": { en: "+ New Trigger", de: "+ Neuer Auslöser", zh: "+ 新建触发器", fr: "+ Nouveau déclencheur", es: "+ Nuevo disparador" },
+        "expr.sequences": { en: "Expression Sequences", de: "Ausdrucks-Sequenzen", zh: "表情序列", fr: "Séquences d'expressions", es: "Secuencias de expresiones" },
+        "expr.newSeq": { en: "+ New Sequence", de: "+ Neue Sequenz", zh: "+ 新建序列", fr: "+ Nouvelle séquence", es: "+ Nueva secuencia" },
+        "expr.play": { en: "▶ Play", de: "▶ Abspielen", zh: "▶ 播放", fr: "▶ Jouer", es: "▶ Reproducir" },
+        "expr.stopSeq": { en: "■ Stop", de: "■ Stopp", zh: "■ 停止", fr: "■ Arrêter", es: "■ Detener" },
+        // ─── SETTINGS ──────────────────────────────────────────────────────────
+        "settings.defaultNickname": { en: "Default Nickname", de: "Standard-Spitzname", zh: "默认昵称", fr: "Surnom par défaut", es: "Apodo predeterminado" },
+        "settings.defaultTitle": { en: "Default Title", de: "Standard-Titel", zh: "默认头衔", fr: "Titre par défaut", es: "Título predeterminado" },
+        "settings.noDefaultTitle": { en: "(No default title)", de: "(Kein Standard-Titel)", zh: "（无默认头衔）", fr: "(Pas de titre par défaut)", es: "(Sin título predeterminado)" },
+        "settings.noDefaultNickname": { en: "(No default nickname)", de: "(Kein Standard-Spitzname)", zh: "（无默认昵称）", fr: "(Pas de surnom par défaut)", es: "(Sin apodo predeterminado)" },
+        "settings.whitelistHint": { en: "Click an item to protect it", de: "Klicke auf ein Element zum Schützen", zh: "点击物品以保护它", fr: "Cliquer sur un objet pour le protéger", es: "Haz clic en un objeto para protegerlo" },
+        "settings.afkAutoReply": { en: "AFK Auto-Reply", de: "AFK-Autoantwort", zh: "AFK 自动回复", fr: "Réponse auto AFK", es: "Respuesta automática AFK" },
+        "settings.idleThreshold": { en: "Idle threshold", de: "Inaktivitätsschwelle", zh: "空闲阈值", fr: "Seuil d'inactivité", es: "Umbral de inactividad" },
+        "settings.autoReplyMsg": { en: "Auto-reply message", de: "Autoantwort-Nachricht", zh: "自动回复消息", fr: "Message de réponse auto", es: "Mensaje de respuesta auto" },
+        "settings.language": { en: "Language", de: "Sprache", zh: "语言", fr: "Langue", es: "Idioma" },
+        "settings.escapeWhitelist": { en: "Escape whitelist — items auto-escape will never remove", de: "Flucht-Whitelist — diese Elemente werden nie automatisch entfernt", zh: "逃脱白名单——自动逃脱永不移除的物品", fr: "Liste blanche — objets que l'auto-escape ne retirera jamais", es: "Lista blanca de escape — objetos que el auto-escape nunca quitará" },
+        // ─── PALETTES ──────────────────────────────────────────────────────────
+        "palettes.outfit": { en: "OUTFIT", de: "OUTFIT", zh: "服装", fr: "TENUE", es: "ATUENDO" },
+        "palettes.restraint": { en: "RESTRAINT", de: "FESSEL", zh: "束缚", fr: "LIEN", es: "ATADURA" },
+        "palettes.noOutfit": { en: "No outfit palettes saved", de: "Keine Outfit-Paletten gespeichert", zh: "未保存服装调色板", fr: "Aucune palette de tenue sauvegardée", es: "Sin paletas de atuendo guardadas" },
+        "palettes.noRestraint": { en: "No restraint palettes saved", de: "Keine Fesseln-Paletten gespeichert", zh: "未保存束缚调色板", fr: "Aucune palette de lien sauvegardée", es: "Sin paletas de atadura guardadas" },
+        "palettes.saveOutfit": { en: "Save Outfit", de: "Outfit speichern", zh: "保存服装", fr: "Sauvegarder la tenue", es: "Guardar atuendo" },
+        "palettes.saveRestraint": { en: "Save Restraint", de: "Fessel speichern", zh: "保存束缚", fr: "Sauvegarder le lien", es: "Guardar atadura" },
+        "palettes.paletteName": { en: "Palette name…", de: "Palettenname…", zh: "调色板名称…", fr: "Nom de la palette…", es: "Nombre de paleta…" },
+        // ─── SAFEWORD ──────────────────────────────────────────────────────────
+        "sw.graceActive": { en: "Grace active", de: "Schonfrist aktiv", zh: "宽限期已激活", fr: "Grâce active", es: "Gracia activa" },
+        "sw.graceRemaining": { en: "Grace: {time}", de: "Schonfrist: {time}", zh: "宽限期：{time}", fr: "Grâce : {time}", es: "Gracia: {time}" },
+        "sw.endGrace": { en: "End grace", de: "Schonfrist beenden", zh: "结束宽限期", fr: "Terminer la grâce", es: "Terminar la gracia" },
+        // ─── THEMES ────────────────────────────────────────────────────────────
+        "theme.drawerBg": { en: "Drawer BG", de: "Schublade HG", zh: "面板背景", fr: "BG panneau", es: "Fondo panel" },
+        "theme.cardBg": { en: "Card BG", de: "Karte HG", zh: "卡片背景", fr: "BG carte", es: "Fondo tarjeta" },
+        "theme.insetBg": { en: "Inset BG", de: "Eingebettetes HG", zh: "内嵌背景", fr: "BG incrusté", es: "Fondo interior" },
+        "theme.border": { en: "Border", de: "Rahmen", zh: "边框", fr: "Bordure", es: "Borde" },
+        "theme.accent": { en: "Accent", de: "Akzent", zh: "强调色", fr: "Accent", es: "Acento" },
+        "theme.gold": { en: "Gold", de: "Gold", zh: "金色", fr: "Or", es: "Dorado" },
+        "theme.text": { en: "Text", de: "Text", zh: "文字", fr: "Texte", es: "Texto" },
+        "theme.subtext": { en: "Subtext", de: "Untertext", zh: "副文字", fr: "Sous-texte", es: "Subtexto" },
+        "theme.dimText": { en: "Dim Text", de: "Gedimmter Text", zh: "暗文字", fr: "Texte atténué", es: "Texto atenuado" },
+    };
+    // ---------------------------------------------------------------------------
+    // Runtime state & storage
+    // ---------------------------------------------------------------------------
+    let _lang = "en";
+    const _listeners = [];
+    function loadLanguage() {
+        try {
+            const v = localStorage.getItem(STORAGE_KEY);
+            if (v && LANG_CODES.includes(v))
+                return v;
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return "en";
+    }
+    // Initialise on first import
+    _lang = loadLanguage();
+    // ---------------------------------------------------------------------------
+    // Public API
+    // ---------------------------------------------------------------------------
+    function getLanguage() {
+        return _lang;
+    }
+    function setLanguage(code) {
+        if (!LANG_CODES.includes(code))
+            return;
+        try {
+            localStorage.setItem(STORAGE_KEY, code);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        _lang = code;
+        for (const cb of _listeners) {
+            try {
+                cb();
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+    }
+    /** Register a callback to fire whenever the language changes.
+     *  Returns an unsubscribe function. */
+    function onLangChange(cb) {
+        _listeners.push(cb);
+        return () => {
+            const i = _listeners.indexOf(cb);
+            if (i !== -1)
+                _listeners.splice(i, 1);
+        };
+    }
+    /** Get a translated string for key, with optional {var} substitution.
+     *  Falls back to English, then the raw key if no translation exists. */
+    function t(key, vars) {
+        var _a, _b;
+        const row = S[key];
+        let str;
+        if (!row) {
+            str = key; // fallback: return the key itself
+        }
+        else {
+            str = (_b = (_a = row[_lang]) !== null && _a !== void 0 ? _a : row["en"]) !== null && _b !== void 0 ? _b : key;
+        }
+        if (vars) {
+            for (const [k, v] of Object.entries(vars)) {
+                str = str.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+            }
+        }
+        return str;
+    }
+
     /**
      * EmeryBC Drawer
      *
@@ -12036,7 +12364,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         cancelBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #3a1928;background:#190b13;color:#7a5a6a;";
         cancelBtn.addEventListener("click", () => overlay.remove());
         const confirmBtn = document.createElement("button");
-        confirmBtn.textContent = "Yes";
+        confirmBtn.textContent = t("core.yes");
         confirmBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
         confirmBtn.addEventListener("click", () => { overlay.remove(); onConfirm(); });
         btns.appendChild(cancelBtn);
@@ -14873,6 +15201,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.slDurSlider = null;
             this.slDurVal = null;
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
+            // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
+            this._langUnsubscribe = null;
+            this._i18nRefs = {};
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
@@ -14881,6 +15212,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (this.isOpen && this.currentTab === "dev") {
                     this.rerender();
                 }
+            });
+            // Re-translate static elements + re-render active tab when language changes
+            this._langUnsubscribe = onLangChange(() => {
+                this.updateStaticTranslations();
+                if (this.isOpen)
+                    this.rerender();
             });
             if (document.body) {
                 this.setup();
@@ -14949,25 +15286,58 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             headerBtns.className = "ebc-header-btns";
             const refreshBtn = document.createElement("button");
             refreshBtn.className = "ebc-icon-btn";
-            refreshBtn.title = "Refresh";
+            refreshBtn.title = t("header.refresh");
             refreshBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
             // Drag handle icon — same mousedown behaviour as the header title area.
             const moveHandle = document.createElement("span");
             moveHandle.className = "ebc-move-handle";
-            moveHandle.title = "Drag to move";
+            moveHandle.title = t("header.dragToMove");
             moveHandle.textContent = "⠿";
             const resetLocBtn = document.createElement("button");
             resetLocBtn.className = "ebc-reset-loc-btn";
-            resetLocBtn.title = "Reset drawer to default position (anchored to chat log)";
-            resetLocBtn.textContent = "⌖ Reset pos";
+            resetLocBtn.title = t("header.resetPosTitle");
+            resetLocBtn.textContent = t("header.resetPos");
             resetLocBtn.style.display = "none"; // hidden until panel is in free-float mode
             this.resetLocationBtn = resetLocBtn;
+            // Language switcher — compact select in header button area
+            const langSelect = document.createElement("select");
+            langSelect.title = t("header.language");
+            langSelect.style.cssText = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:9px",
+                "background:#1a0812",
+                "color:#b08898",
+                "border:1px solid #3a1928",
+                "border-radius:4px",
+                "padding:2px 3px",
+                "cursor:pointer",
+                "outline:none",
+                "flex-shrink:0",
+            ].join(";");
+            for (const code of LANG_CODES) {
+                const opt = document.createElement("option");
+                opt.value = code;
+                opt.textContent = LANG_NAMES[code];
+                if (code === getLanguage())
+                    opt.selected = true;
+                langSelect.appendChild(opt);
+            }
+            langSelect.addEventListener("change", () => {
+                setLanguage(langSelect.value);
+            });
             const closeBtn = document.createElement("button");
             closeBtn.className = "ebc-icon-btn";
-            closeBtn.title = "Close";
+            closeBtn.title = t("header.close");
             closeBtn.textContent = "X";
+            // Store refs for later translation updates
+            this._i18nRefs.refreshBtn = refreshBtn;
+            this._i18nRefs.moveHandle = moveHandle;
+            this._i18nRefs.resetLocBtn = resetLocBtn;
+            this._i18nRefs.closeBtn = closeBtn;
+            this._i18nRefs.langSelect = langSelect;
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
+            headerBtns.appendChild(langSelect);
             headerBtns.appendChild(resetLocBtn);
             headerBtns.appendChild(closeBtn);
             header.appendChild(title);
@@ -15019,51 +15389,62 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const outfitTabBtn = document.createElement("button");
             outfitTabBtn.className = "ebc-tab-btn ebc-tab-active";
             outfitTabBtn.id = "ebc-tab-outfits";
-            outfitTabBtn.textContent = "OUTFITS";
+            outfitTabBtn.textContent = t("tabs.outfits");
             const posesTabBtn = document.createElement("button");
             posesTabBtn.className = "ebc-tab-btn";
             posesTabBtn.id = "ebc-tab-poses";
-            posesTabBtn.textContent = "ANIMS";
+            posesTabBtn.textContent = t("tabs.anims");
             const btnsTabBtn = document.createElement("button");
             btnsTabBtn.className = "ebc-tab-btn";
             btnsTabBtn.id = "ebc-tab-buttons";
-            btnsTabBtn.textContent = "BUTTONS";
-            btnsTabBtn.title = "Action Buttons";
+            btnsTabBtn.textContent = t("tabs.buttons");
+            btnsTabBtn.title = t("tabs.buttonsTitle");
             const notesTabBtn = document.createElement("button");
             notesTabBtn.className = "ebc-tab-btn";
             notesTabBtn.id = "ebc-tab-notes";
-            notesTabBtn.textContent = "USERS";
+            notesTabBtn.textContent = t("tabs.users");
+            notesTabBtn.title = t("tabs.usersTitle");
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
             thanksTabBtn.id = "ebc-tab-thanks";
-            thanksTabBtn.textContent = "CREDITS";
-            thanksTabBtn.title = "Special Thanks";
+            thanksTabBtn.textContent = t("tabs.credits");
+            thanksTabBtn.title = t("tabs.creditsTitle");
             const devTabBtn2 = document.createElement("button");
             devTabBtn2.className = "ebc-tab-btn";
             devTabBtn2.id = "ebc-tab-dev";
-            devTabBtn2.textContent = "DEV";
-            devTabBtn2.title = "Developer Tools";
+            devTabBtn2.textContent = t("tabs.dev");
+            devTabBtn2.title = t("tabs.devTitle");
             // DOM tools tab — creator only, hidden until open() confirms the member number
             const domTabBtn = document.createElement("button");
             domTabBtn.className = "ebc-tab-btn";
             domTabBtn.id = "ebc-tab-dom";
-            domTabBtn.textContent = "DOM";
-            domTabBtn.title = "DOM Tools";
+            domTabBtn.textContent = t("tabs.dom");
+            domTabBtn.title = t("tabs.domTitle");
             domTabBtn.style.display = "none"; // revealed in open() for creator only
             // Puppy tab — Lucy only (member 230466)
             const puppyTabBtn = document.createElement("button");
             puppyTabBtn.className = "ebc-tab-btn";
             puppyTabBtn.id = "ebc-tab-puppy";
             puppyTabBtn.textContent = "🐾";
-            puppyTabBtn.title = "Puppy";
+            puppyTabBtn.title = t("tabs.puppy");
             puppyTabBtn.style.display = "none"; // revealed in open() for Lucy only
             // Kitty tab — Lucy only (member 230466)
             const kittyTabBtn = document.createElement("button");
             kittyTabBtn.className = "ebc-tab-btn";
             kittyTabBtn.id = "ebc-tab-kitty";
             kittyTabBtn.textContent = "🐱";
-            kittyTabBtn.title = "Kitty";
+            kittyTabBtn.title = t("tabs.kitty");
             kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
+            // Store tab refs for language updates
+            this._i18nRefs.tabOutfits = outfitTabBtn;
+            this._i18nRefs.tabButtons = btnsTabBtn;
+            this._i18nRefs.tabAnims = posesTabBtn;
+            this._i18nRefs.tabNotes = notesTabBtn;
+            this._i18nRefs.tabThanks = thanksTabBtn;
+            this._i18nRefs.tabDev = devTabBtn2;
+            this._i18nRefs.tabDom = domTabBtn;
+            this._i18nRefs.tabPuppy = puppyTabBtn;
+            this._i18nRefs.tabKitty = kittyTabBtn;
             tabBar.appendChild(outfitTabBtn);
             tabBar.appendChild(btnsTabBtn);
             tabBar.appendChild(posesTabBtn);
@@ -15082,12 +15463,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             qaRow1.style.cssText = "display:flex;gap:5px;";
             const releaseBtn = document.createElement("button");
             releaseBtn.className = "ebc-action-btn danger";
-            releaseBtn.title = "Remove all restraints (skips owner/lover/family locks)";
-            releaseBtn.textContent = "Release Restraints";
+            releaseBtn.title = t("qa.releaseTitle");
+            releaseBtn.textContent = t("qa.releaseRestraints");
             const unlockBtn = document.createElement("button");
             unlockBtn.className = "ebc-action-btn danger";
-            unlockBtn.title = "Remove all locks (skips owner/lover/family locks)";
-            unlockBtn.textContent = "Remove Locks";
+            unlockBtn.title = t("qa.removeLocksTitle");
+            unlockBtn.textContent = t("qa.removeLocks");
+            this._i18nRefs.releaseBtn = releaseBtn;
+            this._i18nRefs.unlockBtn = unlockBtn;
             qaRow1.appendChild(releaseBtn);
             qaRow1.appendChild(unlockBtn);
             quickActions.appendChild(qaRow1);
@@ -15096,11 +15479,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             qaConfirmRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:7px;";
             const qaConfirmLbl = document.createElement("span");
             qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;user-select:none;";
-            qaConfirmLbl.textContent = "Confirm before escaping";
+            qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
+            this._i18nRefs.qaConfirmLbl = qaConfirmLbl;
             const qaConfirmToggle = document.createElement("button");
+            this._i18nRefs.qaConfirmToggle = qaConfirmToggle;
             const refreshQaConfirm = () => {
                 const on = getAntiRestraintConfirm();
-                qaConfirmToggle.textContent = on ? "ON" : "OFF";
+                qaConfirmToggle.textContent = on ? t("core.on") : t("core.off");
                 qaConfirmToggle.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
                     "font-size:9px",
@@ -15127,8 +15512,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Row 2: self-picker toggle (full-width, subtle)
             const selfPickToggle = document.createElement("button");
             selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
-            selfPickToggle.textContent = "↓ Pick restraints to remove";
-            selfPickToggle.title = "Choose specific restraints to strip from yourself";
+            selfPickToggle.textContent = t("qa.pickRestraints");
+            selfPickToggle.title = t("qa.pickTitle");
+            this._i18nRefs.pickBtn = selfPickToggle;
             selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.color = "#cf6f98"; });
             selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none")
                 selfPickToggle.style.color = "#7a4a5e"; });
@@ -15143,7 +15529,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slCollapseHdr.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;cursor:pointer;padding:3px 0;user-select:none;";
             const slHdrLbl = document.createElement("span");
             slHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            slHdrLbl.textContent = "🚶 Slow Leave";
+            slHdrLbl.textContent = t("sl.header");
+            this._i18nRefs.slCollapseHdr = slCollapseHdr;
             const slHdrArrow = document.createElement("span");
             slHdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
             slHdrArrow.textContent = "▼";
@@ -15170,9 +15557,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Slow Leave action button
             const slowLeaveBtn = document.createElement("button");
             slowLeaveBtn.className = "ebc-action-btn";
-            slowLeaveBtn.textContent = "🚶 Slow Leave";
-            slowLeaveBtn.title = "Wave goodbye and slowly head for the door";
+            slowLeaveBtn.textContent = t("sl.leave");
+            slowLeaveBtn.title = t("sl.leaveTitle");
             slowLeaveBtn.style.cssText = "width:100%;";
+            this._i18nRefs.slLeaveBtn = slowLeaveBtn;
             slowLeaveBtn.addEventListener("click", () => {
                 var _a, _b;
                 if (isSeqRunning()) {
@@ -15184,11 +15572,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const pIdx = Math.min(livePresets.length - 1, Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10)));
                 const seq = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
                 setSeqDoneCallback(() => {
-                    slowLeaveBtn.textContent = "🚶 Slow Leave";
+                    slowLeaveBtn.textContent = t("sl.leave");
                     slowLeaveBtn.style.background = "";
                     slowLeaveBtn.style.color = "";
                 });
-                slowLeaveBtn.textContent = "✕ Cancel Leave";
+                slowLeaveBtn.textContent = t("sl.cancel");
                 slowLeaveBtn.style.background = "#4a1a2a";
                 slowLeaveBtn.style.color = "#ff8aaa";
                 runSequence(seq);
@@ -15289,7 +15677,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (restraints.length === 0 && locks.length === 0) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:2px;";
-                    hint.textContent = "Nothing to remove — no restraints or locks found.";
+                    hint.textContent = t("qa.nothingToRemove");
                     selfPickPanel.appendChild(hint);
                     selfPickPanel.appendChild(selfPickStatus);
                     return;
@@ -15327,40 +15715,40 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         selfPickPanel.appendChild(lbl);
                     }
                 };
-                makeSection("Restraints", restraints, "restraint");
-                makeSection("Locks", locks, "lock");
+                makeSection(t("qa.restraintsHeader"), restraints, "restraint");
+                makeSection(t("qa.locksHeader"), locks, "lock");
                 // Two action buttons
                 const btnRow = document.createElement("div");
                 btnRow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;";
                 const removeSelBtn = document.createElement("button");
                 removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
-                removeSelBtn.textContent = "↑ Remove Selected";
+                removeSelBtn.textContent = t("qa.removeSelected");
                 removeSelBtn.addEventListener("mouseenter", () => { removeSelBtn.style.background = "#5a1c30"; });
                 removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a1020"; });
                 removeSelBtn.addEventListener("click", () => {
                     const groups = [...selfSelected.entries()].filter(([, k]) => k === "restraint").map(([g]) => g);
                     if (groups.length === 0) {
-                        selfPickStatus.textContent = "Select restraints first.";
+                        selfPickStatus.textContent = t("qa.selectRestraintsFirst");
                         return;
                     }
                     const n = removePlayerSpecificItems(groups);
-                    selfPickStatus.textContent = n > 0 ? ("✓ Removed " + n + " item(s).") : "Nothing removed.";
+                    selfPickStatus.textContent = n > 0 ? t("qa.removedN", { n }) : t("qa.nothingRemoved");
                     rebuildSelfPicker();
                     window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
                 });
                 const unlockSelBtn = document.createElement("button");
                 unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
-                unlockSelBtn.textContent = "🔓 Unlock Selected";
+                unlockSelBtn.textContent = t("qa.unlockSelected");
                 unlockSelBtn.addEventListener("mouseenter", () => { unlockSelBtn.style.background = "#1a4a2a"; });
                 unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#0f2a1a"; });
                 unlockSelBtn.addEventListener("click", () => {
                     const groups = [...selfSelected.entries()].filter(([, k]) => k === "lock").map(([g]) => g);
                     if (groups.length === 0) {
-                        selfPickStatus.textContent = "Select locks first.";
+                        selfPickStatus.textContent = t("qa.selectLocksFirst");
                         return;
                     }
                     const n = unlockPlayerSpecificItems(groups);
-                    selfPickStatus.textContent = n > 0 ? ("✓ Unlocked " + n + " item(s).") : "Nothing unlocked.";
+                    selfPickStatus.textContent = n > 0 ? t("qa.unlockedN", { n }) : t("qa.nothingUnlocked");
                     rebuildSelfPicker();
                     window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
                 });
@@ -15427,7 +15815,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Grace active indicator (hidden unless grace is running)
             const swGraceTag = document.createElement("span");
             swGraceTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:3px;background:#3a0e1e;color:#cf6f98;border:1px solid #6b2040;flex-shrink:0;display:none;";
-            swGraceTag.textContent = "Grace active";
+            swGraceTag.textContent = t("sw.graceActive");
             const swEnableBtn = document.createElement("button");
             const refreshSwEnable = () => {
                 // Guard: Player.ExtensionSettings may not be ready on first paint
@@ -15436,7 +15824,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     on = getSafewordConfig().enabled;
                 }
                 catch ( /* default ON */_a) { /* default ON */ }
-                swEnableBtn.textContent = on ? "ON" : "OFF";
+                swEnableBtn.textContent = on ? t("core.on") : t("core.off");
                 swEnableBtn.style.fontFamily = "'Trebuchet MS',serif";
                 swEnableBtn.style.fontSize = "10px";
                 swEnableBtn.style.fontWeight = "bold";
@@ -15484,7 +15872,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ? "🛡 Grace active (indefinite)"
                         : `🛡 Grace active — ${Math.ceil(rem / 60000)} min remaining`;
                     const cancelBtn = document.createElement("button");
-                    cancelBtn.textContent = "End grace";
+                    cancelBtn.textContent = t("sw.endGrace");
                     cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
                     cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
                     graceRow.appendChild(graceLbl);
@@ -16217,6 +16605,87 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             else
                 doRender();
         }
+        /** Update every static element that was built once in setup() and never re-rendered. */
+        updateStaticTranslations() {
+            var _a;
+            const r = this._i18nRefs;
+            // Header
+            if (r.refreshBtn)
+                r.refreshBtn.title = t("header.refresh");
+            if (r.moveHandle)
+                r.moveHandle.title = t("header.dragToMove");
+            if (r.resetLocBtn) {
+                r.resetLocBtn.title = t("header.resetPosTitle");
+                r.resetLocBtn.textContent = t("header.resetPos");
+            }
+            if (r.closeBtn)
+                r.closeBtn.title = t("header.close");
+            if (r.langSelect)
+                r.langSelect.title = t("header.language");
+            // Sync the language select to the current language (in case programmatic change)
+            if (r.langSelect) {
+                for (const opt of Array.from(r.langSelect.options)) {
+                    opt.selected = opt.value === getLanguage();
+                }
+            }
+            // Tabs
+            if (r.tabOutfits)
+                r.tabOutfits.textContent = t("tabs.outfits");
+            if (r.tabButtons) {
+                r.tabButtons.textContent = t("tabs.buttons");
+                r.tabButtons.title = t("tabs.buttonsTitle");
+            }
+            if (r.tabAnims)
+                r.tabAnims.textContent = t("tabs.anims");
+            if (r.tabNotes) {
+                r.tabNotes.textContent = t("tabs.users");
+                r.tabNotes.title = t("tabs.usersTitle");
+            }
+            if (r.tabThanks) {
+                r.tabThanks.textContent = t("tabs.credits");
+                r.tabThanks.title = t("tabs.creditsTitle");
+            }
+            if (r.tabDev) {
+                r.tabDev.textContent = t("tabs.dev");
+                r.tabDev.title = t("tabs.devTitle");
+            }
+            if (r.tabDom) {
+                r.tabDom.textContent = t("tabs.dom");
+                r.tabDom.title = t("tabs.domTitle");
+            }
+            if (r.tabPuppy)
+                r.tabPuppy.title = t("tabs.puppy");
+            if (r.tabKitty)
+                r.tabKitty.title = t("tabs.kitty");
+            // Quick actions
+            if (r.releaseBtn) {
+                r.releaseBtn.textContent = t("qa.releaseRestraints");
+                r.releaseBtn.title = t("qa.releaseTitle");
+            }
+            if (r.unlockBtn) {
+                r.unlockBtn.textContent = t("qa.removeLocks");
+                r.unlockBtn.title = t("qa.removeLocksTitle");
+            }
+            if (r.qaConfirmLbl)
+                r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
+            if (r.qaConfirmToggle)
+                (_a = this.refreshConfirmToggle) === null || _a === void 0 ? void 0 : _a.call(this);
+            if (r.pickBtn) {
+                r.pickBtn.textContent = t("qa.pickRestraints");
+                r.pickBtn.title = t("qa.pickTitle");
+            }
+            // Slow leave header label (first child span)
+            if (r.slCollapseHdr) {
+                const lbl = r.slCollapseHdr.querySelector("span");
+                if (lbl)
+                    lbl.textContent = t("sl.header");
+            }
+            // Slow leave button (only if not currently running)
+            if (r.slLeaveBtn && !isSeqRunning()) {
+                r.slLeaveBtn.textContent = t("sl.leave");
+                r.slLeaveBtn.title = t("sl.leaveTitle");
+            }
+        }
         // -- Timer -----------------------------------------------------------------
         updateTimer() {
             if (!this.timerEl)
@@ -16287,7 +16756,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // "(No change)" — leave title untouched on outfit apply
             const noChangeOpt = document.createElement("option");
             noChangeOpt.value = "";
-            noChangeOpt.textContent = isDefault ? "(No default title)" : "(No change)";
+            noChangeOpt.textContent = isDefault ? t("settings.noDefaultTitle") : "(No change)";
             if (!currentValue)
                 noChangeOpt.selected = true;
             sel.appendChild(noChangeOpt);
@@ -16326,12 +16795,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             nickRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
             const nickLbl = document.createElement("span");
             nickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
-            nickLbl.textContent = "Default nickname";
+            nickLbl.textContent = t("settings.defaultNickname");
             const nickInp = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input",
                 type: "text",
                 value: getDefaultNickname(),
-                placeholder: "Your usual nickname",
+                placeholder: t("outfits.nicknamePlaceholder"),
                 maxLength: 40,
             });
             nickInp.style.flex = "1";
@@ -16352,7 +16821,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             defTitleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;";
             const defTitleLbl = document.createElement("span");
             defTitleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
-            defTitleLbl.textContent = "Default title";
+            defTitleLbl.textContent = t("settings.defaultTitle");
             const defTitleSel = this.makeTitleSelect(getDefaultTitle(), true);
             defTitleSel.style.flex = "1";
             defTitleSel.addEventListener("change", () => setDefaultTitle(defTitleSel.value));
@@ -16458,7 +16927,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newTagColor.title = "Pick color";
                 const addTagBtn = document.createElement("button");
                 addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
-                addTagBtn.textContent = "+ Add";
+                addTagBtn.textContent = t("core.add");
                 addTagBtn.addEventListener("mouseenter", () => { addTagBtn.style.background = "#2a0e1e"; });
                 addTagBtn.addEventListener("mouseleave", () => { addTagBtn.style.background = "transparent"; });
                 addTagBtn.addEventListener("click", () => {
@@ -16497,7 +16966,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const outfitLbl = document.createElement("div");
             outfitLbl.className = "ebc-section-label";
             outfitLbl.style.cssText = "cursor:pointer;user-select:none;";
-            outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
+            outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " " + t("outfits.savedOutfits");
             body.appendChild(outfitLbl);
             // ── Outfit search ─────────────────────────────────────────────────────
             const searchRow = document.createElement("div");
@@ -16505,7 +16974,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const searchInp = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input",
                 type: "text",
-                placeholder: "Filter outfits…",
+                placeholder: t("outfits.filter"),
             });
             searchInp.style.flex = "1";
             const clearSearchBtn = document.createElement("button");
@@ -16531,12 +17000,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 else {
                     const empty = document.createElement("div");
                     empty.className = "ebc-empty";
-                    empty.textContent = q ? "No outfits match your filter." : "No outfits saved yet.";
+                    empty.textContent = q ? t("outfits.noMatch") : t("outfits.noOutfits");
                     if (!q) {
                         const br = document.createElement("br");
                         const hint = document.createElement("span");
                         hint.style.color = "#4c2537";
-                        hint.textContent = "Use the form below to create one.";
+                        hint.textContent = t("outfits.useFormBelow");
                         empty.appendChild(br);
                         empty.appendChild(hint);
                     }
@@ -16558,7 +17027,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const toggleOutfitsCollapsed = () => {
                 outfitsCollapsed = !outfitsCollapsed;
                 outfitsBody.style.display = outfitsCollapsed ? "none" : "block";
-                outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
+                outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " " + t("outfits.savedOutfits");
                 try {
                     localStorage.setItem("EBC_outfitsCollapsed", outfitsCollapsed ? "1" : "0");
                 }
@@ -16587,7 +17056,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_a) { /* ignore */ }
             const updateLabel = () => {
-                lbl.textContent = (collapsed ? "▶" : "▼") + " OUTFIT SCHEDULE";
+                lbl.textContent = (collapsed ? "▶" : "▼") + " " + t("outfits.outfitSchedule");
             };
             const scheduleList = document.createElement("div");
             const renderScheduleList = () => {
@@ -16599,7 +17068,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const empty = document.createElement("div");
                     empty.className = "ebc-empty";
                     empty.style.padding = "4px 4px 8px";
-                    empty.textContent = "No schedules set.";
+                    empty.textContent = t("outfits.noSchedules");
                     scheduleList.appendChild(empty);
                 }
                 for (const sched of schedules) {
@@ -16609,7 +17078,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // Enabled toggle
                     const togBtn = document.createElement("button");
                     togBtn.className = "ebc-slot-toggle" + (sched.enabled ? " on" : "");
-                    togBtn.textContent = sched.enabled ? "ON" : "OFF";
+                    togBtn.textContent = sched.enabled ? t("core.on") : t("core.off");
                     togBtn.title = sched.enabled ? "Click to disable" : "Click to enable";
                     togBtn.addEventListener("click", () => {
                         toggleSchedule(sched.id);
@@ -16628,7 +17097,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-outfit-del";
                     delBtn.textContent = "×";
-                    delBtn.title = "Remove schedule";
+                    delBtn.title = t("outfits.removeSchedule");
                     delBtn.addEventListener("click", () => {
                         removeSchedule(sched.id);
                         renderScheduleList();
@@ -16650,7 +17119,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             outfitSelect.style.flex = "1";
             if (outfits.length === 0) {
                 const opt = document.createElement("option");
-                opt.textContent = "No outfits";
+                opt.textContent = t("outfits.noOutfitsDropdown");
                 opt.disabled = true;
                 outfitSelect.appendChild(opt);
             }
@@ -16664,7 +17133,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             const timeInput = Object.assign(document.createElement("input"), {
                 type: "text",
-                placeholder: "HH:MM",
+                placeholder: t("outfits.timePlaceholder"),
                 maxLength: 5,
                 title: "24-hour time (e.g. 08:30, 14:00)",
             });
@@ -16680,7 +17149,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
             const addBtn = document.createElement("button");
             addBtn.className = "ebc-wear-btn";
-            addBtn.textContent = "+ Add";
+            addBtn.textContent = t("core.add");
             addBtn.title = "Add schedule";
             addBtn.addEventListener("click", () => {
                 const raw = timeInput.value.trim();
@@ -16787,7 +17256,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* Player not ready */_a) { /* Player not ready */ }
             };
             const updateLabel = () => {
-                label.textContent = collapsed ? "▶ ACTIVE RESTRAINTS" : "▼ ACTIVE RESTRAINTS";
+                label.textContent = (collapsed ? "▶ " : "▼ ") + t("dev.activeRestraints");
             };
             label.addEventListener("click", () => {
                 collapsed = !collapsed;
@@ -17453,7 +17922,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const presetsLbl = document.createElement("div");
                 presetsLbl.className = "ebc-import-hint";
                 presetsLbl.style.cssText = "font-weight:600;margin-bottom:5px;";
-                presetsLbl.textContent = "COLOUR PRESETS";
+                presetsLbl.textContent = t("buttons.colourPresets");
                 container.appendChild(presetsLbl);
                 // Save-as-preset row: name + "from" dropdown + Save button
                 const savePresRow = document.createElement("div");
@@ -17504,7 +17973,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         saveRestraintPreset(name, getGroupColors(group));
                         savePresInp.value = "";
                         renderPresets();
-                        savePresBtn.textContent = "✓ Saved";
+                        savePresBtn.textContent = t("core.saved");
                         window.setTimeout(() => { savePresBtn.textContent = "+ Preset"; }, 1400);
                     });
                     savePresRow.appendChild(savePresBtn);
@@ -17557,7 +18026,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const applyBtn = document.createElement("button");
                         applyBtn.className = "ebc-wear-btn";
                         applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
-                        applyBtn.textContent = "Apply";
+                        applyBtn.textContent = t("core.apply");
                         applyBtn.addEventListener("click", () => {
                             const group = applyToSel.value;
                             if (!group) {
@@ -17568,7 +18037,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             applyColorsToGroup(group, preset.colors);
                             build(); // rebuild to refresh all zone previews
                             applyBtn.textContent = "✓";
-                            window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1400);
+                            window.setTimeout(() => { applyBtn.textContent = t("core.apply"); }, 1400);
                         });
                         let delPending = false;
                         const delBtn = document.createElement("button");
@@ -17634,8 +18103,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ni.addEventListener("change", () => renamePalette(p.id, ni.value));
                         const ab = document.createElement("button");
                         ab.className = "ebc-wear-btn";
-                        ab.textContent = "Apply";
-                        ab.addEventListener("click", () => { applyPalette(p.id); ab.textContent = "Done!"; window.setTimeout(() => { ab.textContent = "Apply"; }, 1200); });
+                        ab.textContent = t("core.apply");
+                        ab.addEventListener("click", () => { applyPalette(p.id); ab.textContent = t("core.done"); window.setTimeout(() => { ab.textContent = t("core.apply"); }, 1200); });
                         let dp = false, dt = null;
                         const db = document.createElement("button");
                         db.className = "ebc-outfit-del";
@@ -17679,7 +18148,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const oLbl = document.createElement("div");
                     oLbl.className = "ebc-import-hint";
                     oLbl.style.cssText = "font-weight:600;margin-bottom:3px;margin-top:2px;";
-                    oLbl.textContent = "OUTFIT";
+                    oLbl.textContent = t("palettes.outfit");
                     palContainer.appendChild(oLbl);
                     const ops = getPalettesByType("outfit");
                     for (const p of ops)
@@ -17688,10 +18157,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const n = document.createElement("div");
                         n.className = "ebc-empty";
                         n.style.padding = "2px 4px 4px";
-                        n.textContent = "No outfit palettes saved";
+                        n.textContent = t("palettes.noOutfit");
                         palContainer.appendChild(n);
                     }
-                    palContainer.appendChild(buildSRow("Palette name…", "Save Outfit", n => captureCurrentPalette(n || "Palette"), renderPal));
+                    palContainer.appendChild(buildSRow(t("palettes.paletteName"), t("palettes.saveOutfit"), n => captureCurrentPalette(n || "Palette"), renderPal));
                     const pd = document.createElement("div");
                     pd.className = "ebc-divider";
                     pd.style.margin = "8px 0 4px";
@@ -17708,10 +18177,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const n = document.createElement("div");
                         n.className = "ebc-empty";
                         n.style.padding = "2px 4px 4px";
-                        n.textContent = "No restraint palettes saved";
+                        n.textContent = t("palettes.noRestraint");
                         palContainer.appendChild(n);
                     }
-                    palContainer.appendChild(buildSRow("Restraint palette name…", "Save Restraints", n => captureRestraintPalette(n || "Restraint Palette"), renderPal));
+                    palContainer.appendChild(buildSRow(t("palettes.paletteName"), t("palettes.saveRestraint"), n => captureRestraintPalette(n || "Restraint Palette"), renderPal));
                 };
                 palToggle.addEventListener("click", () => {
                     palCollapsed = !palCollapsed;
@@ -17769,10 +18238,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             flagsRow.className = "ebc-outfit-flags";
             const preserveBtn = document.createElement("button");
             preserveBtn.className = "ebc-flag-chip" + (isPreserving ? " on" : "");
-            preserveBtn.textContent = isPreserving ? "⛓ Keep bonds" : "⛓ Swap bonds";
+            preserveBtn.textContent = isPreserving ? t("outfits.preserveBonds") : t("outfits.swapBonds");
             const preserveClothingBtn = document.createElement("button");
             preserveClothingBtn.className = "ebc-flag-chip" + (isPreservingClothing ? " on" : "");
-            preserveClothingBtn.textContent = isPreservingClothing ? "👗 Keep clothes" : "👗 Swap clothes";
+            preserveClothingBtn.textContent = isPreservingClothing ? t("outfits.keepClothes") : t("outfits.swapClothes");
             const nameInAnnounceBtn = document.createElement("button");
             nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
             nameInAnnounceBtn.textContent = isNameInAnnounce ? "👤 With name" : "👤 No name";
@@ -17805,11 +18274,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             info.appendChild(tagsRow);
             const updateBtn = document.createElement("button");
             updateBtn.className = "ebc-update-btn";
-            updateBtn.textContent = "Update";
+            updateBtn.textContent = t("core.update");
             updateBtn.title = "Save current appearance to this outfit";
             const wearBtn = document.createElement("button");
             wearBtn.className = "ebc-wear-btn";
-            wearBtn.textContent = "Wear";
+            wearBtn.textContent = t("core.wear");
             const diffBtn = document.createElement("button");
             diffBtn.className = "ebc-diff-btn";
             diffBtn.textContent = "~";
@@ -17822,7 +18291,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const delBtn = document.createElement("button");
             delBtn.className = "ebc-outfit-del";
             delBtn.textContent = "×";
-            delBtn.title = "Delete this outfit";
+            delBtn.title = t("outfits.deleteTitle");
             // Reorder column
             const outfitsList = getOutfits();
             const thisIdx = outfitsList.findIndex(x => x.id === o.id);
@@ -17830,14 +18299,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             reorderCol.className = "ebc-reorder-col";
             const upBtn = document.createElement("button");
             upBtn.className = "ebc-reorder-btn";
-            upBtn.textContent = "▲";
-            upBtn.title = "Move up";
+            upBtn.textContent = t("core.moveUp");
+            upBtn.title = t("core.moveUpTitle");
             upBtn.disabled = thisIdx <= 0;
             upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.rerender(); });
             const downBtn = document.createElement("button");
             downBtn.className = "ebc-reorder-btn";
-            downBtn.textContent = "▼";
-            downBtn.title = "Move down";
+            downBtn.textContent = t("core.moveDown");
+            downBtn.title = t("core.moveDownTitle");
             downBtn.disabled = thisIdx >= outfitsList.length - 1;
             downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.rerender(); });
             reorderCol.appendChild(upBtn);
@@ -17969,7 +18438,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             editPanel.appendChild(ePreserveClothingRow);
             const eSaveBtn = document.createElement("button");
             eSaveBtn.className = "ebc-create-btn";
-            eSaveBtn.textContent = "Save Changes";
+            eSaveBtn.textContent = t("outfits.saveChanges");
             editPanel.appendChild(eSaveBtn);
             // Export button inside edit panel (keeps the main row uncluttered)
             const eExportBtn = document.createElement("button");
@@ -17990,14 +18459,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             preserveBtn.addEventListener("click", () => {
                 const next = !preserveBtn.classList.contains("on");
                 preserveBtn.className = "ebc-flag-chip" + (next ? " on" : "");
-                preserveBtn.textContent = next ? "⛓ Keep bonds" : "⛓ Swap bonds";
+                preserveBtn.textContent = next ? t("outfits.preserveBonds") : t("outfits.swapBonds");
                 setOutfitPreserveRestraints(o.id, next);
                 ePreserveCheck.checked = next;
             });
             preserveClothingBtn.addEventListener("click", () => {
                 const next = !preserveClothingBtn.classList.contains("on");
                 preserveClothingBtn.className = "ebc-flag-chip" + (next ? " on" : "");
-                preserveClothingBtn.textContent = next ? "👗 Keep clothes" : "👗 Swap clothes";
+                preserveClothingBtn.textContent = next ? t("outfits.keepClothes") : t("outfits.swapClothes");
                 setOutfitPreserveClothing(o.id, next);
                 ePreserveClothingCheck.checked = next;
             });
@@ -18023,9 +18492,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         setAllDisabled(false);
                         return;
                     }
-                    updateBtn.textContent = "Saved!";
+                    updateBtn.textContent = t("core.saved");
                     window.setTimeout(() => {
-                        updateBtn.textContent = "Update";
+                        updateBtn.textContent = t("core.update");
                         setAllDisabled(false);
                     }, 1200);
                 });
@@ -18104,7 +18573,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         delPending = false;
                         delBtn.classList.remove("confirm");
                         delBtn.textContent = "×";
-                        delBtn.title = "Delete this outfit";
+                        delBtn.title = t("outfits.deleteTitle");
                     }, 2500);
                 }
                 else {
@@ -18122,7 +18591,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             target.appendChild(div);
             const newBtn = document.createElement("button");
             newBtn.className = "ebc-new-outfit-btn";
-            newBtn.textContent = "+ New Outfit from Current Look";
+            newBtn.textContent = t("outfits.newOutfit");
             target.appendChild(newBtn);
             const form = document.createElement("div");
             form.className = "ebc-new-form";
@@ -18150,8 +18619,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 className: "ebc-form-input", type: "text", placeholder: "Optional — blank = no change", maxLength: 40,
             });
             const newTitleSel = this.makeTitleSelect("");
-            form.appendChild(makeRow("Command", cmdInput));
-            form.appendChild(makeRow("Name", nameInput));
+            form.appendChild(makeRow(t("outfits.commandLabel"), cmdInput));
+            form.appendChild(makeRow(t("outfits.nameLabel"), nameInput));
             form.appendChild(makeRow("Announce", announceInput));
             form.appendChild(makeRow("Nickname", nicknameInput));
             form.appendChild(makeRow("Title", newTitleSel));
@@ -18178,12 +18647,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             form.appendChild(preserveRow);
             const createBtn = document.createElement("button");
             createBtn.className = "ebc-create-btn";
-            createBtn.textContent = "Save as New Outfit";
+            createBtn.textContent = t("outfits.saveNewOutfit");
             form.appendChild(createBtn);
             newBtn.addEventListener("click", () => {
                 const open = form.style.display !== "none";
                 form.style.display = open ? "none" : "flex";
-                newBtn.textContent = open ? "+ New Outfit from Current Look" : "- Cancel";
+                newBtn.textContent = open ? t("outfits.newOutfit") : t("core.cancel");
                 if (!open)
                     cmdInput.focus();
             });
@@ -18203,12 +18672,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     newTitleSel.value = "";
                     checkbox.checked = false;
                     form.style.display = "none";
-                    newBtn.textContent = "+ New Outfit from Current Look";
+                    newBtn.textContent = t("outfits.newOutfit");
                     this.rerender();
                 }
                 else {
                     createBtn.disabled = false;
-                    createBtn.textContent = "Save as New Outfit";
+                    createBtn.textContent = t("outfits.saveNewOutfit");
                 }
             });
             // -- Import outfit section --
@@ -18217,7 +18686,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             target.appendChild(impDiv);
             const impToggleBtn = document.createElement("button");
             impToggleBtn.className = "ebc-new-outfit-btn";
-            impToggleBtn.textContent = "↓ Import Outfit";
+            impToggleBtn.textContent = t("outfits.importOutfit");
             target.appendChild(impToggleBtn);
             const impPanel = document.createElement("div");
             impPanel.className = "ebc-import-panel";
@@ -18235,7 +18704,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const bcFields = document.createElement("div");
             bcFields.style.cssText = "display:none;flex-direction:column;gap:4px;margin-top:4px;";
             const bcNameInput = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", placeholder: "Outfit name (e.g. Rope Set)",
+                className: "ebc-form-input", type: "text", placeholder: t("outfits.namePlaceholder"),
             });
             const bcCmdInput = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input", type: "text", placeholder: "Command (e.g. ropeset)",
@@ -18296,7 +18765,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             impPanel.appendChild(impActionRow);
             const closeImpPanel = () => {
                 impPanel.classList.remove("open");
-                impToggleBtn.textContent = "↓ Import Outfit";
+                impToggleBtn.textContent = t("outfits.importOutfit");
                 impTextarea.value = "";
                 impError.textContent = "";
                 bcNameInput.value = "";
@@ -18308,7 +18777,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             impToggleBtn.addEventListener("click", () => {
                 const open = impPanel.classList.contains("open");
                 impPanel.classList.toggle("open", !open);
-                impToggleBtn.textContent = open ? "↓ Import Outfit" : "- Cancel Import";
+                impToggleBtn.textContent = open ? t("outfits.importOutfit") : t("outfits.cancelImport");
                 if (!open) {
                     impTextarea.value = "";
                     impError.textContent = "";
@@ -18347,14 +18816,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
             lbl.style.cssText = "cursor:pointer;user-select:none;";
-            lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
+            lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " " + t("outfits.savedRestraints");
             body.appendChild(lbl);
             const sectionBody = document.createElement("div");
             sectionBody.style.display = restraintsCollapsed ? "none" : "block";
             const toggleCollapsed = () => {
                 restraintsCollapsed = !restraintsCollapsed;
                 sectionBody.style.display = restraintsCollapsed ? "none" : "block";
-                lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
+                lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " " + t("outfits.savedRestraints");
                 try {
                     localStorage.setItem("EBC_restraintsCollapsed", restraintsCollapsed ? "1" : "0");
                 }
@@ -18373,11 +18842,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 else {
                     const empty = document.createElement("div");
                     empty.className = "ebc-empty";
-                    empty.textContent = "No restraint sets saved yet.";
+                    empty.textContent = t("restraints.noRestraints");
                     const br = document.createElement("br");
                     const hint = document.createElement("span");
                     hint.style.color = "#4c2537";
-                    hint.textContent = "Use the form below to create one.";
+                    hint.textContent = t("outfits.useFormBelow");
                     empty.appendChild(br);
                     empty.appendChild(hint);
                     sectionBody.appendChild(empty);
@@ -18442,7 +18911,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 impRPanel.appendChild(impRActionRow);
                 const closeImpRPanel = () => {
                     impRPanel.classList.remove("open");
-                    impRToggleBtn.textContent = "↓ Import Restraint Set";
+                    impRToggleBtn.textContent = t("outfits.importOutfit");
                     impRTextarea.value = "";
                     impRError.textContent = "";
                     impRNameInput.value = "";
@@ -18451,7 +18920,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 impRToggleBtn.addEventListener("click", () => {
                     const open = impRPanel.classList.contains("open");
                     impRPanel.classList.toggle("open", !open);
-                    impRToggleBtn.textContent = open ? "↓ Import Restraint Set" : "- Cancel Import";
+                    impRToggleBtn.textContent = open ? t("outfits.importOutfit") : t("outfits.cancelImport");
                     if (!open) {
                         impRTextarea.value = "";
                         impRError.textContent = "";
@@ -18476,7 +18945,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 sectionBody.appendChild(formDivider);
                 const newBtn = document.createElement("button");
                 newBtn.className = "ebc-new-outfit-btn";
-                newBtn.textContent = "+ New Restraint Set from Current";
+                newBtn.textContent = t("restraints.newRestraint");
                 sectionBody.appendChild(newBtn);
                 const form = document.createElement("div");
                 form.className = "ebc-new-form";
@@ -18513,7 +18982,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newBtn.addEventListener("click", () => {
                     const open = form.style.display !== "none";
                     form.style.display = open ? "none" : "flex";
-                    newBtn.textContent = open ? "+ New Restraint Set from Current" : "- Cancel";
+                    newBtn.textContent = open ? t("restraints.newRestraint") : t("core.cancel");
                     if (!open)
                         cmdInput.focus();
                 });
@@ -18527,7 +18996,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const result = createRestraintFromCurrent(cmdInput.value, nameInput.value, announceInput.value);
                     if (result) {
                         form.style.display = "none";
-                        newBtn.textContent = "+ New Restraint Set from Current";
+                        newBtn.textContent = t("restraints.newRestraint");
                         renderRestraintList();
                     }
                     else {
@@ -18545,7 +19014,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const cpLbl = document.createElement("div");
                 cpLbl.className = "ebc-section-label";
                 cpLbl.style.cssText += ";margin:0;flex:1;font-size:10px;";
-                cpLbl.textContent = "Colour Presets";
+                cpLbl.textContent = t("buttons.colourPresets");
                 const cpHintEl = document.createElement("span");
                 cpHintEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;flex-shrink:0;";
                 cpHintEl.textContent = "saved from restraint log";
@@ -18732,25 +19201,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             reorderCol.className = "ebc-reorder-col";
             const upBtn = document.createElement("button");
             upBtn.className = "ebc-reorder-btn";
-            upBtn.textContent = "▲";
-            upBtn.title = "Move up";
+            upBtn.textContent = t("core.moveUp");
+            upBtn.title = t("core.moveUpTitle");
             upBtn.disabled = thisIdx <= 0;
             upBtn.addEventListener("click", () => { moveRestraint(r.id, "up"); rerender(); });
             const downBtn = document.createElement("button");
             downBtn.className = "ebc-reorder-btn";
-            downBtn.textContent = "▼";
-            downBtn.title = "Move down";
+            downBtn.textContent = t("core.moveDown");
+            downBtn.title = t("core.moveDownTitle");
             downBtn.disabled = thisIdx >= restraintsList.length - 1;
             downBtn.addEventListener("click", () => { moveRestraint(r.id, "down"); rerender(); });
             reorderCol.appendChild(upBtn);
             reorderCol.appendChild(downBtn);
             const updateBtn = document.createElement("button");
             updateBtn.className = "ebc-update-btn";
-            updateBtn.textContent = "Update";
+            updateBtn.textContent = t("core.update");
             updateBtn.title = "Save current restraints to this set";
             const applyBtn = document.createElement("button");
             applyBtn.className = "ebc-wear-btn";
-            applyBtn.textContent = "Apply";
+            applyBtn.textContent = t("core.apply");
             const PENCIL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
             const editBtn = document.createElement("button");
             editBtn.className = "ebc-edit-btn";
@@ -18759,7 +19228,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const delBtn = document.createElement("button");
             delBtn.className = "ebc-outfit-del";
             delBtn.textContent = "×";
-            delBtn.title = "Delete this restraint set";
+            delBtn.title = t("restraints.deleteTitle");
             row.appendChild(reorderCol);
             row.appendChild(info);
             row.appendChild(editBtn);
@@ -18837,7 +19306,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             editPanel.appendChild(eTagsGrid);
             const eSaveBtn = document.createElement("button");
             eSaveBtn.className = "ebc-create-btn";
-            eSaveBtn.textContent = "Save Changes";
+            eSaveBtn.textContent = t("restraints.saveChanges");
             editPanel.appendChild(eSaveBtn);
             wrapper.appendChild(row);
             wrapper.appendChild(editPanel);
@@ -18864,9 +19333,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     setAllDisabled(false);
                     return;
                 }
-                updateBtn.textContent = "Saved!";
+                updateBtn.textContent = t("core.saved");
                 window.setTimeout(() => {
-                    updateBtn.textContent = "Update";
+                    updateBtn.textContent = t("core.update");
                     setAllDisabled(false);
                 }, 1200);
             });
@@ -18901,7 +19370,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         delPending = false;
                         delBtn.classList.remove("confirm");
                         delBtn.textContent = "×";
-                        delBtn.title = "Delete this restraint set";
+                        delBtn.title = t("restraints.deleteTitle");
                     }, 2500);
                 }
                 else {
@@ -19205,7 +19674,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 customInp.style.flex = "1";
                 const addCustomBtn = document.createElement("button");
                 addCustomBtn.className = "ebc-update-btn";
-                addCustomBtn.textContent = "+ Add";
+                addCustomBtn.textContent = t("core.add");
                 addCustomBtn.addEventListener("click", () => {
                     const val = customInp.value.trim();
                     if (val) {
@@ -19383,7 +19852,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const none = document.createElement("div");
                 none.className = "ebc-empty";
                 none.style.padding = "4px 0 6px";
-                none.textContent = "No combos yet — create one below.";
+                none.textContent = t("anims.noCombos");
                 combosCnt.appendChild(none);
             }
             for (const combo of combos) {
@@ -19410,7 +19879,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     return k;
                 });
-                posesEl.textContent = poseLabels.join(" → ") || "(none)";
+                posesEl.textContent = poseLabels.join(" → ") || t("core.none");
                 if (combo.command) {
                     const cmdBadge = document.createElement("span");
                     cmdBadge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
@@ -19491,7 +19960,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 topSaveBar.className = "ebc-editor-save-bar";
                 const topSaveBtn = document.createElement("button");
                 topSaveBtn.className = "ebc-update-btn";
-                topSaveBtn.textContent = "✓ Save Changes";
+                topSaveBtn.textContent = t("outfits.saveChanges");
                 topSaveBtn.style.cssText = "flex:1;font-size:11px;";
                 editor.appendChild(topSaveBar); // appended before we have getPoses/getDelay — wired below
                 // Ordered pose step editor
@@ -19540,7 +20009,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             combosCnt.appendChild(div2);
             const newComboToggle = document.createElement("button");
             newComboToggle.className = "ebc-new-outfit-btn";
-            newComboToggle.textContent = "+ New Pose Combo";
+            newComboToggle.textContent = t("anims.newCombo");
             combosCnt.appendChild(newComboToggle);
             const newComboForm = document.createElement("div");
             newComboForm.className = "ebc-new-form";
@@ -19563,7 +20032,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ncTopSaveBar.className = "ebc-editor-save-bar";
             const ncTopSaveBtn = document.createElement("button");
             ncTopSaveBtn.className = "ebc-update-btn";
-            ncTopSaveBtn.textContent = "✓ Save Combo";
+            ncTopSaveBtn.textContent = t("anims.saveCombo");
             ncTopSaveBtn.style.cssText = "flex:1;font-size:11px;";
             newComboForm.appendChild(ncTopSaveBar); // wired below after getters exist
             // Ordered pose step editor
@@ -19593,14 +20062,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ncSaveBar.style.marginTop = "2px";
             const ncSaveBtn = document.createElement("button");
             ncSaveBtn.className = "ebc-create-btn";
-            ncSaveBtn.textContent = "Save Combo";
+            ncSaveBtn.textContent = t("anims.saveCombo");
             ncSaveBtn.addEventListener("click", doSave);
             ncSaveBar.appendChild(ncSaveBtn);
             newComboForm.appendChild(ncSaveBar);
             newComboToggle.addEventListener("click", () => {
                 const open = newComboForm.style.display !== "none";
                 newComboForm.style.display = open ? "none" : "flex";
-                newComboToggle.textContent = open ? "+ New Pose Combo" : "- Cancel";
+                newComboToggle.textContent = open ? t("anims.newCombo") : t("core.cancel");
                 if (!open) {
                     ncNameInp.focus();
                     window.setTimeout(() => newComboToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
@@ -20286,7 +20755,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 const addBtn = document.createElement("button");
                 addBtn.className = "ebc-update-btn";
-                addBtn.textContent = "+ Add Step";
+                addBtn.textContent = t("anims.addStep");
                 addBtn.addEventListener("click", () => {
                     syncFromEntries();
                     const defDelays = {
@@ -20458,7 +20927,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 topSaveBar.className = "ebc-editor-save-bar";
                 const topSaveBtn = document.createElement("button");
                 topSaveBtn.className = "ebc-update-btn";
-                topSaveBtn.textContent = "✓ Save Changes";
+                topSaveBtn.textContent = t("outfits.saveChanges");
                 topSaveBtn.style.cssText = "flex:1;font-size:11px;";
                 topSaveBar.appendChild(topSaveBtn);
                 editor.appendChild(topSaveBar);
@@ -21025,7 +21494,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (!isSent) {
                         const replyBtn = document.createElement("button");
                         replyBtn.className = "ebc-beep-reply-btn";
-                        replyBtn.textContent = "↩ reply";
+                        replyBtn.textContent = t("users.reply");
                         replyBtn.addEventListener("click", () => setReply(msgBody.slice(0, 80)));
                         wrap.appendChild(replyBtn);
                     }
@@ -21057,7 +21526,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const input = document.createElement("input");
             input.className = "ebc-beep-win-input";
             input.type = "text";
-            input.placeholder = "Type a message...";
+            input.placeholder = t("users.typeMessage");
             input.maxLength = 300;
             const sendBtn = document.createElement("button");
             sendBtn.className = "ebc-beep-win-send";
@@ -21237,7 +21706,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const afkLbl = document.createElement("div");
             afkLbl.className = "ebc-section-label";
             afkLbl.style.margin = "0";
-            afkLbl.textContent = "AFK Auto-Reply";
+            afkLbl.textContent = t("settings.afkAutoReply");
             const afkChevron = document.createElement("span");
             afkChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
             afkHeader.appendChild(afkLbl);
@@ -21254,7 +21723,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const afkToggleBtn = document.createElement("button");
             const refreshAfkToggle = () => {
                 const on = getAfkEnabled();
-                afkToggleBtn.textContent = on ? "ON" : "OFF";
+                afkToggleBtn.textContent = on ? t("core.on") : t("core.off");
                 afkToggleBtn.style.cssText = [
                     "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
                     "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
@@ -21272,7 +21741,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Threshold — label row + h/m/s inputs on separate row
             const afkThreshLbl = document.createElement("div");
             afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;margin-bottom:4px;";
-            afkThreshLbl.textContent = "Idle threshold";
+            afkThreshLbl.textContent = t("settings.idleThreshold");
             const afkThreshRow = document.createElement("div");
             afkThreshRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:4px;";
             const inputCss = "width:42px;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 5px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;text-align:center;";
@@ -21378,7 +21847,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const userNotesLbl = document.createElement("div");
             userNotesLbl.className = "ebc-section-label";
             userNotesLbl.style.margin = "0";
-            userNotesLbl.textContent = "User Notes";
+            userNotesLbl.textContent = t("users.header");
             const userNotesChevron = document.createElement("span");
             userNotesChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
             userNotesChevron.textContent = userNotesCollapsed ? "▲" : "▼";
@@ -22174,10 +22643,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         if (sinceTs) {
                             const d = new Date(sinceTs);
                             const label = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-                            sinceEl.textContent = `🤝 Friends since: ${label}`;
+                            sinceEl.textContent = t("users.friendsSince", { date: label });
                         }
                         else {
-                            sinceEl.textContent = "🤝 Friends since: Unknown";
+                            sinceEl.textContent = t("users.friendsSinceUnknown");
                         }
                         infoBox.appendChild(sinceEl);
                         const lsTsFull = getLastSeen(num);
@@ -22303,12 +22772,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         newTagInputRef = newTagInput;
                         newTagInput.type = "text";
                         newTagInput.maxLength = 30;
-                        newTagInput.placeholder = "new tag…";
+                        newTagInput.placeholder = t("users.newTagPlaceholder");
                         newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
                         newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
                         newTagInput.addEventListener("blur", () => { newTagInput.style.borderColor = "#3a1928"; });
                         const addTagBtn = document.createElement("button");
-                        addTagBtn.textContent = "+ Add";
+                        addTagBtn.textContent = t("core.add");
                         addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
                         addRow.appendChild(newTagInput);
                         addRow.appendChild(addTagBtn);
@@ -22358,7 +22827,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const pinBtn = document.createElement("button");
                         const refreshPinBtn = () => {
                             const p = isFriendPinned(num);
-                            pinBtn.textContent = p ? "📌 Unpin" : "📌 Pin to top";
+                            pinBtn.textContent = p ? t("users.unpin") : t("users.pinToTop");
                             pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
                             row.classList.toggle("pinned", p);
                             pinDot.style.display = p ? "" : "none";
@@ -22376,7 +22845,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         noteWrap.style.cssText = "position:relative;";
                         const noteTA = document.createElement("textarea");
                         noteTA.className = "ebc-notes-textarea";
-                        noteTA.placeholder = "Notes about this person...";
+                        noteTA.placeholder = t("users.noteHint");
                         noteTA.rows = 3;
                         noteTA.style.cssText += "width:100%;box-sizing:border-box;resize:vertical;";
                         // Load current note value fresh each time the panel is opened
@@ -22391,7 +22860,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         refreshNoteTA();
                         const noteHint = document.createElement("div");
                         noteHint.className = "ebc-notes-save-hint";
-                        noteHint.textContent = "saves automatically";
+                        noteHint.textContent = t("users.savedAutomatically");
                         noteWrap.appendChild(noteTA);
                         noteWrap.appendChild(noteHint);
                         expand.appendChild(noteWrap);
@@ -22402,8 +22871,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             noteHint.textContent = "saving...";
                             noteSaveTimer = window.setTimeout(() => {
                                 saveNote(num, name, noteTA.value);
-                                noteHint.textContent = noteTA.value.trim() ? "saved" : "saves automatically";
-                                window.setTimeout(() => { noteHint.textContent = "saves automatically"; }, 1500);
+                                noteHint.textContent = noteTA.value.trim() ? t("core.saved") : t("users.savedAutomatically");
+                                window.setTimeout(() => { noteHint.textContent = t("users.savedAutomatically"); }, 1500);
                                 try {
                                     if (this.currentTab === "notes")
                                         this.rerender();
@@ -22554,12 +23023,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             editor.className = "ebc-notes-editor";
             const textarea = document.createElement("textarea");
             textarea.className = "ebc-notes-textarea";
-            textarea.placeholder = "Notes about this person...";
+            textarea.placeholder = t("users.noteHint");
             textarea.value = currentNote;
             textarea.rows = 3;
             const hint = document.createElement("div");
             hint.className = "ebc-notes-save-hint";
-            hint.textContent = "saves automatically";
+            hint.textContent = t("users.savedAutomatically");
             editor.appendChild(textarea);
             editor.appendChild(hint);
             container.appendChild(editor);
@@ -22599,7 +23068,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const badgeToggle2 = document.createElement("button");
             const updateBadgeToggle2 = () => {
                 const on = getBadgeEnabled();
-                badgeToggle2.textContent = on ? "ON" : "OFF";
+                badgeToggle2.textContent = on ? t("core.on") : t("core.off");
                 badgeToggle2.style.cssText = [
                     "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
                     "padding:5px 12px", "border-radius:4px", "cursor:pointer",
@@ -22659,7 +23128,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 body.appendChild(div);
             };
             // ── Whisper Log ───────────────────────────────────────────────────────
-            makeSection("WHISPER LOG", "EBC_devWhisperLogCollapsed", true, (cnt) => {
+            makeSection(t("dev.whisperLog"), "EBC_devWhisperLogCollapsed", true, (cnt) => {
                 var _a, _b, _c, _d, _e;
                 const partners = getWhisperPartners();
                 if (partners.length === 0) {
@@ -22675,7 +23144,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const whClearBtn = document.createElement("button");
                 whClearBtn.className = "ebc-outfit-del";
                 whClearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
-                whClearBtn.textContent = "Clear";
+                whClearBtn.textContent = t("dev.clearLog");
                 whClearBtn.title = "Clear whisper log";
                 whClearBtn.addEventListener("click", () => {
                     this.selectedWhisperPartner = null;
@@ -22823,15 +23292,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 cnt.appendChild(presetRow);
                 // ── Per-colour pickers ─────────────────────────────────────────────
                 const colorFields = [
-                    { key: "bg", label: "Drawer BG", hint: "Main panel background" },
-                    { key: "card", label: "Card BG", hint: "Section / card backgrounds" },
-                    { key: "cardMuted", label: "Inset BG", hint: "Text inputs, textareas, recessed surfaces" },
-                    { key: "border", label: "Border", hint: "All border lines" },
-                    { key: "accent", label: "Accent", hint: "Buttons, highlights, active states" },
-                    { key: "gold", label: "Gold", hint: "Gold highlights, notices & labels" },
-                    { key: "textBright", label: "Text", hint: "Primary readable text" },
-                    { key: "textSub", label: "Subtext", hint: "Secondary / label text" },
-                    { key: "textMuted", label: "Dim Text", hint: "Inactive, placeholder & muted text" },
+                    { key: "bg", label: t("theme.drawerBg"), hint: "Main panel background" },
+                    { key: "card", label: t("theme.cardBg"), hint: "Section / card backgrounds" },
+                    { key: "cardMuted", label: t("theme.insetBg"), hint: "Text inputs, textareas, recessed surfaces" },
+                    { key: "border", label: t("theme.border"), hint: "All border lines" },
+                    { key: "accent", label: t("theme.accent"), hint: "Buttons, highlights, active states" },
+                    { key: "gold", label: t("theme.gold"), hint: "Gold highlights, notices & labels" },
+                    { key: "textBright", label: t("theme.text"), hint: "Primary readable text" },
+                    { key: "textSub", label: t("theme.subtext"), hint: "Secondary / label text" },
+                    { key: "textMuted", label: t("theme.dimText"), hint: "Inactive, placeholder & muted text" },
                 ];
                 const subLbl = document.createElement("div");
                 subLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;";
@@ -22943,7 +23412,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 setHotkeyBtn.addEventListener("mouseleave", () => { if (!capturingHotkey)
                     setHotkeyBtn.style.background = "#3a1020"; });
                 const clearHotkeyBtn = document.createElement("button");
-                clearHotkeyBtn.textContent = "Clear";
+                clearHotkeyBtn.textContent = t("dev.clearLog");
                 clearHotkeyBtn.style.cssText = BTN + "border:1px solid #3a2530;background:transparent;color:#7a5a6a;";
                 clearHotkeyBtn.addEventListener("mouseenter", () => { clearHotkeyBtn.style.background = "rgba(122,90,106,0.15)"; });
                 clearHotkeyBtn.addEventListener("mouseleave", () => { clearHotkeyBtn.style.background = "transparent"; });
@@ -23068,7 +23537,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const verToggle = document.createElement("button");
                 const refreshVerToggle = () => {
                     const on = getShowVersionBadge();
-                    verToggle.textContent = on ? "ON" : "OFF";
+                    verToggle.textContent = on ? t("core.on") : t("core.off");
                     verToggle.style.cssText = [
                         "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
                         "padding:2px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
@@ -23086,7 +23555,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // Character Inspector
                 const charLbl = document.createElement("div");
                 charLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
-                charLbl.textContent = "Character Inspector";
+                charLbl.textContent = t("dev.characterInspector");
                 cnt.appendChild(charLbl);
                 const charHint = document.createElement("div");
                 charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
@@ -23131,7 +23600,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const num = parseInt(charSelect.value, 10);
                     const char = room.find(c => c.MemberNumber === num);
                     if (!char) {
-                        charDump.textContent = "Character not found in room.";
+                        charDump.textContent = t("dev.charNotInRoom");
                         charDump.style.display = "";
                         return;
                     }
@@ -23339,7 +23808,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
                         const char = room.find(c => c.MemberNumber === num);
                         if (!char) {
-                            statusEl.textContent = "Character not found in room.";
+                            statusEl.textContent = t("dev.charNotInRoom");
                             statusEl.style.color = "#ff6b6b";
                             return;
                         }
@@ -23454,7 +23923,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             let renderRoom = () => { };
             let renderRlog = () => { };
             let renderMsgLog = () => { };
-            makeSection("LOG", "EBC_devLogSectionCollapsed", true, (cnt) => {
+            makeSection(t("dev.devLog"), "EBC_devLogSectionCollapsed", true, (cnt) => {
                 // -- shared helpers --
                 const fmtDuration = (ms) => {
                     const s = Math.floor(ms / 1000);
@@ -23605,7 +24074,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // ── Rooms Visited ─────────────────────────────────────────────────
                 // Opt-in persistent history of past rooms.
                 const roomClearBtn = document.createElement("button");
-                roomClearBtn.textContent = "Clear";
+                roomClearBtn.textContent = t("dev.clearLog");
                 roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                 roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
                 roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
@@ -23619,7 +24088,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const rhToggleBtn = document.createElement("button");
                     const refreshRhToggle = () => {
                         const on = getRoomHistoryEnabled();
-                        rhToggleBtn.textContent = on ? "ON" : "OFF";
+                        rhToggleBtn.textContent = on ? t("core.on") : t("core.off");
                         rhToggleBtn.style.cssText = [
                             "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
                             "padding:2px 8px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
@@ -23744,7 +24213,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }, roomClearBtn);
                 // ── Restraint Log ─────────────────────────────────────────────────
                 const rlogClearBtn = document.createElement("button");
-                rlogClearBtn.textContent = "Clear";
+                rlogClearBtn.textContent = t("dev.clearLog");
                 rlogClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
                 rlogClearBtn.addEventListener("mouseenter", () => { rlogClearBtn.style.color = "#cf6f98"; rlogClearBtn.style.borderColor = "#cf6f98"; });
                 rlogClearBtn.addEventListener("mouseleave", () => { rlogClearBtn.style.color = "#7a5a6a"; rlogClearBtn.style.borderColor = "#3a1928"; });
@@ -23758,7 +24227,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const rlToggleBtn = document.createElement("button");
                     const refreshRlToggle = () => {
                         const on = getRestraintLogEnabled();
-                        rlToggleBtn.textContent = on ? "ON" : "OFF";
+                        rlToggleBtn.textContent = on ? t("core.on") : t("core.off");
                         rlToggleBtn.style.cssText = [
                             "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
                             "padding:2px 8px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
@@ -23915,7 +24384,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const msgClearBtn = document.createElement("button");
                     msgClearBtn.className = "ebc-icon-btn";
                     msgClearBtn.style.cssText = "font-size:11px;padding:5px 10px;";
-                    msgClearBtn.textContent = "Clear";
+                    msgClearBtn.textContent = t("dev.clearLog");
                     const logToggleWrap = document.createElement("label");
                     logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
                     const logToggleChk = document.createElement("input");
@@ -23942,7 +24411,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     logOffText.style.flex = "1";
                     logOffHint.appendChild(logOffText);
                     const enableBtn = document.createElement("button");
-                    enableBtn.textContent = "Enable";
+                    enableBtn.textContent = t("core.enable");
                     enableBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
                     enableBtn.addEventListener("mouseenter", () => { enableBtn.style.color = "#cf6f98"; enableBtn.style.borderColor = "#cf6f98"; });
                     enableBtn.addEventListener("mouseleave", () => { enableBtn.style.color = "#9a7080"; enableBtn.style.borderColor = "#4c2537"; });
@@ -24197,7 +24666,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         moneyInp.value = String((_b = Player.Money) !== null && _b !== void 0 ? _b : 0);
                         moneyInp.style.cssText = INP;
                         const addMoneyBtn = document.createElement("button");
-                        addMoneyBtn.textContent = "+ Add";
+                        addMoneyBtn.textContent = t("core.add");
                         addMoneyBtn.title = "Add this amount to current money";
                         addMoneyBtn.style.cssText = BTN;
                         const setMoneyBtn = document.createElement("button");
@@ -24334,10 +24803,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 countLbl.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex:1;`;
                 const searchInp = document.createElement("input");
                 searchInp.type = "text";
-                searchInp.placeholder = "Search name or #id…";
+                searchInp.placeholder = t("dev.searchPlaceholder");
                 searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
                 const clearBtn = document.createElement("button");
-                clearBtn.textContent = "Clear All";
+                clearBtn.textContent = t("core.clearAll");
                 clearBtn.style.cssText = `${PFONT}font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
                 clearBtn.addEventListener("mouseenter", () => { clearBtn.style.color = "#e05070"; clearBtn.style.borderColor = "#e05070"; });
                 clearBtn.addEventListener("mouseleave", () => { clearBtn.style.color = "#7a5a6a"; clearBtn.style.borderColor = "#4c2537"; });
@@ -24536,7 +25005,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "transition:background 0.14s,transform 0.08s",
                 "letter-spacing:0.08em",
             ].join(";");
-            barkBtn.textContent = "🐶 Bark!";
+            barkBtn.textContent = t("kitty.barkBtn");
             barkBtn.addEventListener("mouseenter", () => { barkBtn.style.background = "#5a30a0"; });
             barkBtn.addEventListener("mouseleave", () => { barkBtn.style.background = "#3a2060"; });
             barkBtn.addEventListener("mousedown", () => { barkBtn.style.transform = "scale(0.95)"; });
@@ -24552,7 +25021,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 barkBtn.textContent = "🐶 " + bark;
                 window.setTimeout(() => {
                     barkBtn.style.background = "#3a2060";
-                    barkBtn.textContent = "🐶 Bark!";
+                    barkBtn.textContent = t("kitty.barkBtn");
                 }, 700);
             });
             body.appendChild(barkBtn);
@@ -24657,7 +25126,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             addInp.className = "ebc-form-input";
             addInp.style.cssText = "flex:1;font-size:10px;";
             const addBtn = document.createElement("button");
-            addBtn.textContent = "+ Add";
+            addBtn.textContent = t("core.add");
             addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
             addBtn.addEventListener("mouseenter", () => { addBtn.style.background = "#5a30a0"; });
             addBtn.addEventListener("mouseleave", () => { addBtn.style.background = "#3a2060"; });
@@ -24727,11 +25196,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const typeSelect = document.createElement("select");
                     typeSelect.className = "ebc-seq-type-select";
                     [
-                        { value: "action", label: "Action !" },
-                        { value: "emote", label: "Emote *" },
-                        { value: "pose", label: "Pose" },
-                        { value: "reset", label: "Reset _" },
-                        { value: "leaveroom", label: "Leave Room 🚪" },
+                        { value: "action", label: t("buttons.styleAction") },
+                        { value: "emote", label: t("buttons.styleEmote") },
+                        { value: "pose", label: t("buttons.stylePose") },
+                        { value: "reset", label: t("buttons.styleReset") },
+                        { value: "leaveroom", label: t("buttons.styleLeave") },
                     ].forEach(opt => {
                         const o = document.createElement("option");
                         o.value = opt.value;
@@ -24957,7 +25426,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const addCatBtn = document.createElement("button");
             addCatBtn.className = "ebc-cat-pill";
             addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
-            addCatBtn.textContent = "+ Add Category";
+            addCatBtn.textContent = t("buttons.addCategory");
             addCatBtn.addEventListener("click", () => {
                 var _a;
                 const name = (_a = window.prompt("Category name (e.g. RP, Casual):")) !== null && _a !== void 0 ? _a : "";
@@ -24991,7 +25460,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     topLine.className = "ebc-slot-top";
                     const toggle = document.createElement("button");
                     toggle.className = "ebc-slot-toggle" + (btn.enabled ? " on" : "");
-                    toggle.textContent = btn.enabled ? "ON" : "OFF";
+                    toggle.textContent = btn.enabled ? t("core.on") : t("core.off");
                     toggle.title = btn.enabled ? "Click to disable" : "Click to enable";
                     const labelInp = document.createElement("input");
                     labelInp.className = "ebc-slot-label";
@@ -25047,7 +25516,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const doneBtn = document.createElement("button");
                         doneBtn.className = "ebc-wear-btn";
                         doneBtn.style.cssText = "width:100%;margin-top:6px;";
-                        doneBtn.textContent = "✓ Done";
+                        doneBtn.textContent = t("core.done");
                         doneBtn.addEventListener("click", closeSlotPicker);
                         popup.appendChild(pw);
                         popup.appendChild(doneBtn);
@@ -25072,13 +25541,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // ▲ / ▼ reorder buttons
                     const moveUpBtn = document.createElement("button");
                     moveUpBtn.className = "ebc-slot-move";
-                    moveUpBtn.textContent = "▲";
-                    moveUpBtn.title = "Move up";
+                    moveUpBtn.textContent = t("core.moveUp");
+                    moveUpBtn.title = t("core.moveUpTitle");
                     moveUpBtn.disabled = i === 0;
                     const moveDownBtn = document.createElement("button");
                     moveDownBtn.className = "ebc-slot-move";
-                    moveDownBtn.textContent = "▼";
-                    moveDownBtn.title = "Move down";
+                    moveDownBtn.textContent = t("core.moveDown");
+                    moveDownBtn.title = t("core.moveDownTitle");
                     moveDownBtn.disabled = i === slotCount - 1;
                     topLine.appendChild(toggle);
                     topLine.appendChild(labelInp);
@@ -25095,7 +25564,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         // seq: badge only — step builder below handles all config
                         const seqBadge = document.createElement("span");
                         seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7ac8;padding:1px 4px;";
-                        seqBadge.textContent = "✨ sequence";
+                        seqBadge.textContent = t("buttons.seqBadge");
                         botLine.appendChild(seqBadge);
                     }
                     else {
@@ -25164,7 +25633,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     toggle.addEventListener("click", () => {
                         btns[idx].enabled = !btns[idx].enabled;
                         toggle.className = "ebc-slot-toggle" + (btns[idx].enabled ? " on" : "");
-                        toggle.textContent = btns[idx].enabled ? "ON" : "OFF";
+                        toggle.textContent = btns[idx].enabled ? t("core.on") : t("core.off");
                     });
                     labelInp.addEventListener("input", () => {
                         btns[idx].label = labelInp.value.trim().slice(0, 6);
@@ -25233,11 +25702,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ioRow.style.marginTop = "3px";
             const exportBtn = document.createElement("button");
             exportBtn.className = "ebc-btn-footer-btn";
-            exportBtn.textContent = "↑ Export";
+            exportBtn.textContent = t("core.export");
             exportBtn.title = "Copy button config to clipboard to share with others";
             const importToggleBtn = document.createElement("button");
             importToggleBtn.className = "ebc-btn-footer-btn";
-            importToggleBtn.textContent = "↓ Import";
+            importToggleBtn.textContent = t("core.import");
             importToggleBtn.title = "Load a shared button config";
             ioRow.appendChild(exportBtn);
             ioRow.appendChild(importToggleBtn);
@@ -25266,7 +25735,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const faceLbl = document.createElement("span");
                 faceLbl.className = "ebc-section-label";
                 faceLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
-                faceLbl.textContent = "FACE PRESETS";
+                faceLbl.textContent = t("expr.facePresets");
                 const faceHint = document.createElement("span");
                 faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
                 faceHint.textContent = "build & save expression presets";
@@ -25297,7 +25766,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             importPanel.appendChild(importHint);
             const importTextarea = document.createElement("textarea");
             importTextarea.className = "ebc-notes-textarea";
-            importTextarea.placeholder = '{"ebc":1,"slotCount":3,"buttons":[...]}';
+            importTextarea.placeholder = t("buttons.importHint");
             importTextarea.rows = 3;
             importPanel.appendChild(importTextarea);
             const importError = document.createElement("div");
@@ -25409,8 +25878,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 };
                 if ((_a = navigator.clipboard) === null || _a === void 0 ? void 0 : _a.writeText) {
                     navigator.clipboard.writeText(payload).then(() => {
-                        exportBtn.textContent = "Copied!";
-                        window.setTimeout(() => { exportBtn.textContent = "↑ Export"; }, 1500);
+                        exportBtn.textContent = t("core.copied");
+                        window.setTimeout(() => { exportBtn.textContent = t("core.export"); }, 1500);
                     }).catch(showInPanel).catch(() => { });
                 }
                 else {
@@ -25477,7 +25946,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     window.setTimeout(() => { loadBtn.textContent = "Load"; }, 1200);
                 }
                 catch (err) {
-                    importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
+                    importError.textContent = err instanceof Error ? err.message : t("outfits.invalidFormat");
                 }
             });
             // -- Fun Actions --------------------------------------------------------
@@ -25490,7 +25959,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             boopBtn.className = "ebc-create-btn";
             boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
             boopBtn.title = "Send a unique boop message to every friend currently in the room";
-            boopBtn.textContent = "🐾 Boop all friends in room";
+            boopBtn.textContent = t("kitty.boopAll");
             boopBtn.addEventListener("click", () => {
                 const booped = this.boopFriendsInRoom();
                 if (booped === 0) {
@@ -25499,7 +25968,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 else {
                     boopBtn.textContent = `Booped ${booped}!`;
                 }
-                window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
+                window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
             });
             body.appendChild(boopBtn);
             // -- Useful Buttons ------------------------------------------------------
@@ -25624,7 +26093,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Sync button label/style to current leash state
             const refreshLeashBtn = () => {
                 const held = isLeashHeld();
-                leashBtn.textContent = held ? "🔗 Let Go of Leash" : "🔗 Grab Leash";
+                leashBtn.textContent = held ? t("kitty.letGoLeash") : t("kitty.grabLeash");
                 leashBtn.style.borderColor = held ? "#e07070aa" : "#8a5a7888";
                 leashBtn.style.color = held ? "#e0a090" : "#c090b0";
             };
@@ -25673,7 +26142,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // clients and runs the pair-and-follow handler when it sees this content.
             const pullBtn = document.createElement("button");
             pullBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 12px;border-radius:8px;cursor:pointer;border:2px solid #7a6a3888;background:rgba(60,50,30,0.35);color:#b0a070;flex-shrink:0;transition:background 0.12s,border-color 0.12s;";
-            pullBtn.textContent = "↗ Pull";
+            pullBtn.textContent = t("kitty.pull");
             pullBtn.title = "Pull Emery to your side (requires echo-activity-ext on both ends; leash must be held)";
             pullBtn.addEventListener("mouseenter", () => { pullBtn.style.background = "rgba(100,80,30,0.5)"; });
             pullBtn.addEventListener("mouseleave", () => { pullBtn.style.background = "rgba(60,50,30,0.35)"; });
@@ -25681,8 +26150,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
                     return;
                 if (!isLeashHeld()) {
-                    pullBtn.textContent = "Hold leash first!";
-                    window.setTimeout(() => { pullBtn.textContent = "↗ Pull"; }, 1500);
+                    pullBtn.textContent = t("kitty.holdLeashFirst");
+                    window.setTimeout(() => { pullBtn.textContent = t("kitty.pull"); }, 1500);
                     return;
                 }
                 const mood = getKittyMood();
@@ -25813,11 +26282,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     let editing = false;
                     const editBtn = document.createElement("button");
                     editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;flex-shrink:0;";
-                    editBtn.textContent = "✎ Edit";
+                    editBtn.textContent = t("core.edit");
                     editBtn.addEventListener("click", (e) => {
                         e.stopPropagation();
                         editing = !editing;
-                        editBtn.textContent = editing ? "✔ Done" : "✎ Edit";
+                        editBtn.textContent = editing ? t("core.done") : t("core.edit");
                         editBtn.style.color = editing ? "#cf6f98" : "#7a5a6a";
                         editBtn.style.borderColor = editing ? "#cf6f98" : "#4c2537";
                         onEditToggle(editing);
@@ -25967,11 +26436,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newLbl.placeholder = "Label";
                 newLbl.style.cssText = "width:90px;flex-shrink:0;" + INP;
                 const newText = document.createElement("input");
-                newText.placeholder = "Emote text…";
+                newText.placeholder = t("buttons.emoteText");
                 newText.style.cssText = "flex:1;min-width:0;" + INP;
                 const addBtnE = document.createElement("button");
                 addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-                addBtnE.textContent = "+ Add";
+                addBtnE.textContent = t("core.add");
                 addBtnE.addEventListener("click", () => {
                     if (!newLbl.value.trim())
                         return;
@@ -26078,7 +26547,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     newInp.placeholder = "New reaction text…";
                     newInp.style.cssText = "flex:1;min-width:0;" + INP;
                     const addBtn = document.createElement("button");
-                    addBtn.textContent = "+ Add";
+                    addBtn.textContent = t("core.add");
                     addBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid ${color}66;background:transparent;color:${color};flex-shrink:0;`;
                     addBtn.addEventListener("click", () => {
                         const text = newInp.value.trim();
@@ -26211,7 +26680,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newPose.style.cssText = "flex:1;min-width:0;" + INP;
                 const addBtnP = document.createElement("button");
                 addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-                addBtnP.textContent = "+ Add";
+                addBtnP.textContent = t("core.add");
                 addBtnP.addEventListener("click", () => {
                     if (!newLbl2.value.trim())
                         return;
@@ -26538,7 +27007,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 aiColInp.style.cssText = "flex:1;min-width:0;" + INP;
                                 const aiAddBtn = document.createElement("button");
                                 aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-                                aiAddBtn.textContent = "+ Add";
+                                aiAddBtn.textContent = t("core.add");
                                 aiAddBtn.addEventListener("click", () => {
                                     var _a;
                                     if (!aiSl.value || !aiItemSel.value)
@@ -26610,7 +27079,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 const codeRow = document.createElement("div");
                                 codeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
                                 const codeInp = document.createElement("input");
-                                codeInp.placeholder = "Paste LZ/JSON BC code…";
+                                codeInp.placeholder = t("outfits.importBCPlaceholder");
                                 codeInp.style.cssText = "flex:1;min-width:0;" + INP;
                                 const codeBtn = document.createElement("button");
                                 codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
@@ -26784,7 +27253,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 newPunLbl.style.cssText = "flex:1;min-width:0;" + INP;
                 const addBtnPun = document.createElement("button");
                 addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-                addBtnPun.textContent = "+ Add";
+                addBtnPun.textContent = t("core.add");
                 addBtnPun.addEventListener("click", () => {
                     if (!newPunLbl.value.trim())
                         return;
@@ -26813,7 +27282,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const createRow = document.createElement("div");
                 createRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
                 const newNameInp = document.createElement("input");
-                newNameInp.placeholder = "New preset name…";
+                newNameInp.placeholder = t("anims.newPresetName");
                 newNameInp.style.cssText = "flex:1;min-width:0;" + INP;
                 const createBtn = document.createElement("button");
                 createBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
@@ -27041,7 +27510,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     colInp2.title = "Colour (optional)";
                     const addItemBtn = document.createElement("button");
                     addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-                    addItemBtn.textContent = "+ Add";
+                    addItemBtn.textContent = t("core.add");
                     addItemBtn.addEventListener("click", () => {
                         if (!sl.value || !itemSel.value)
                             return;
@@ -27162,7 +27631,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             rpCBody.appendChild(crDiv);
             const crHdr = document.createElement("div");
             crHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;";
-            crHdr.textContent = "Copy Restraints from Member";
+            crHdr.textContent = t("dom.copyRestraints");
             rpCBody.appendChild(crHdr);
             const crHint = document.createElement("div");
             crHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;line-height:1.4;";
@@ -27265,7 +27734,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
                 const char = room.find(c => c.MemberNumber === num);
                 if (!char) {
-                    crStatus.textContent = "Character not found.";
+                    crStatus.textContent = t("dev.charNotFound");
                     return;
                 }
                 const items = char.Appearance.filter((i) => { var _a, _b; return ((_b = (_a = i.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) && RESTRAINT_GROUPS.has(i.Asset.Group.Name); });
@@ -27340,9 +27809,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 try {
                     navigator.clipboard.writeText(crTA.value).then(() => {
-                        crStatus.textContent = "✔ Copied!";
+                        crStatus.textContent = t("core.copied");
                         crStatus.style.color = "#79a885";
-                    }).catch(() => { crTA.select(); document.execCommand("copy"); crStatus.textContent = "✔ Copied!"; crStatus.style.color = "#79a885"; });
+                    }).catch(() => { crTA.select(); document.execCommand("copy"); crStatus.textContent = t("core.copied"); crStatus.style.color = "#79a885"; });
                 }
                 catch (_a) {
                     crTA.select();
@@ -27546,7 +28015,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const createRow = document.createElement("div");
                 createRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                 const newLblInp = document.createElement("input");
-                newLblInp.placeholder = "New preset name…";
+                newLblInp.placeholder = t("anims.newPresetName");
                 newLblInp.style.cssText = "flex:1;min-width:0;" + INP;
                 const createBtn = epMkBtn("+ Create");
                 createBtn.addEventListener("click", () => {
@@ -27717,13 +28186,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             // Save current face as preset — name on its own row, button below
             const captureInput = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", maxLength: 30, placeholder: "Name this preset…",
+                className: "ebc-form-input", type: "text", maxLength: 30, placeholder: t("expr.presetNamePlaceholder"),
             });
             captureInput.style.cssText = "width:100%;box-sizing:border-box;margin-bottom:4px;";
             const captureBtn = document.createElement("button");
             captureBtn.className = "ebc-create-btn";
             captureBtn.style.cssText = "width:100%;font-size:9px;padding:4px 8px;box-sizing:border-box;margin-bottom:8px;";
-            captureBtn.textContent = "💾 Save face";
+            captureBtn.textContent = t("expr.saveFace");
             captureBtn.addEventListener("click", () => {
                 const name = captureInput.value.trim() || "Preset";
                 saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
@@ -27736,7 +28205,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const clearBtn = document.createElement("button");
             clearBtn.className = "ebc-btn-footer-btn";
             clearBtn.style.cssText = "width:100%;margin-bottom:10px;font-size:9px;";
-            clearBtn.textContent = "✕ Clear all expressions";
+            clearBtn.textContent = t("dev.clearExpressions");
             clearBtn.addEventListener("click", () => {
                 for (const g of EXPR_GROUPS) {
                     try {
@@ -28039,7 +28508,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const antiToggle = document.createElement("button");
             const refreshAntiToggle = () => {
                 const on = getAntiRestraintEnabled();
-                antiToggle.textContent = on ? "ON" : "OFF";
+                antiToggle.textContent = on ? t("core.on") : t("core.off");
                 antiToggle.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
                     "font-size:10px",
@@ -28671,7 +29140,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (!id || rescueSelected.size === 0)
                     return;
                 const count = removeItemsFromMember(id, Array.from(rescueSelected));
-                rescueStatus.textContent = count > 0 ? `✓ Removed ${count} item(s).` : "Nothing removed.";
+                rescueStatus.textContent = count > 0 ? t("qa.removedN", { n: count }) : t("qa.nothingRemoved");
                 window.setTimeout(() => { rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
             });
             // Remove All
@@ -28686,7 +29155,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 rescueBtn.disabled = true;
                 const result = rescueRoomMember(id);
                 if (!result.found) {
-                    rescueStatus.textContent = "⚠ That person is no longer in the room.";
+                    rescueStatus.textContent = t("dom.notInRoom");
                 }
                 else if (result.locksCleared === 0 && result.restraintsRemoved === 0) {
                     rescueStatus.textContent = "Nothing to remove — they're already free.";
@@ -28861,10 +29330,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const setsLbl = document.createElement("div");
             setsLbl.className = "ebc-section-label";
             setsLbl.style.margin = "0";
-            setsLbl.textContent = "Restraint Sets";
+            setsLbl.textContent = t("kitty.restraintSets");
             const newSetBtn = document.createElement("button");
             newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
-            newSetBtn.textContent = "+ New Set";
+            newSetBtn.textContent = t("dom.newSet");
             newSetBtn.addEventListener("mouseenter", () => { newSetBtn.style.background = "#3a1828"; });
             newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
             setsHeader.appendChild(setsLbl);
@@ -29010,13 +29479,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // Import sub-panel
                     const importToggle = document.createElement("button");
                     importToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
-                    importToggle.textContent = "↓ Import from BC Code";
+                    importToggle.textContent = t("outfits.importFromBCCode");
                     editor.appendChild(importToggle);
                     const importPanel = document.createElement("div");
                     importPanel.style.cssText = "display:none;flex-direction:column;gap:5px;background:rgba(42,20,33,0.5);border:1px solid #3a1928;border-radius:6px;padding:7px;margin-bottom:5px;";
                     const importTA = document.createElement("textarea");
                     importTA.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 5px;resize:vertical;min-height:46px;outline:none;";
-                    importTA.placeholder = "Paste BC outfit code…";
+                    importTA.placeholder = t("outfits.importPlaceholder");
                     const importMsg = document.createElement("div");
                     importMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;min-height:14px;";
                     const checklistEl = document.createElement("div");
@@ -29315,7 +29784,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.9";
+    const MOD_VERSION = "2.5.10";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29326,6 +29795,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.10",
+            changes: [
+                "i18n: replace remaining hardcoded English strings in the drawer with t() calls — covers dev/whisper/message log section headers and clear buttons, QA/DOM rescue panel, settings labels (idle threshold, default nickname/title), users tab (pin, friends-since, reply, message placeholder), palettes section, colour presets label, anims addStep/newPresetName, + Add buttons throughout, and core.yes/core.enable in overlays.",
+            ],
+        },
         {
             version: "2.5.9",
             changes: [

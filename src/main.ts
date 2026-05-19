@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.9";
+const MOD_VERSION = "2.5.10";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.10",
+        changes: [
+            "i18n: replace remaining hardcoded English strings in the drawer with t() calls — covers dev/whisper/message log section headers and clear buttons, QA/DOM rescue panel, settings labels (idle threshold, default nickname/title), users tab (pin, friends-since, reply, message placeholder), palettes section, colour presets label, anims addStep/newPresetName, + Add buttons throughout, and core.yes/core.enable in overlays.",
+        ],
+    },
     {
         version: "2.5.9",
         changes: [

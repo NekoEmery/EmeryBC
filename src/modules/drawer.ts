@@ -147,6 +147,7 @@ import {
     clearWhisperLog, setWhisperUpdateCallback,
     type WhisperEntry,
 } from "./whisperLog";
+import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES } from "./i18n";
 
 // -- Shared UI helpers ---------------------------------------------------------
 
@@ -177,7 +178,7 @@ function showQuickConfirm(message: string, onConfirm: () => void): void {
     cancelBtn.addEventListener("click", () => overlay.remove());
 
     const confirmBtn = document.createElement("button");
-    confirmBtn.textContent = "Yes";
+    confirmBtn.textContent = t("core.yes");
     confirmBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
     confirmBtn.addEventListener("click", () => { overlay.remove(); onConfirm(); });
 
@@ -3039,6 +3040,34 @@ export class EBCDrawer {
     private slDurSlider: HTMLInputElement | null = null;
     private slDurVal: HTMLSpanElement | null = null;
     private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
+    // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
+    private _langUnsubscribe: (() => void) | null = null;
+    private _i18nRefs: {
+        // header
+        refreshBtn?: HTMLButtonElement;
+        moveHandle?: HTMLSpanElement;
+        resetLocBtn?: HTMLButtonElement;
+        closeBtn?: HTMLButtonElement;
+        langSelect?: HTMLSelectElement;
+        // tabs
+        tabOutfits?: HTMLButtonElement;
+        tabButtons?: HTMLButtonElement;
+        tabAnims?: HTMLButtonElement;
+        tabNotes?: HTMLButtonElement;
+        tabThanks?: HTMLButtonElement;
+        tabDev?: HTMLButtonElement;
+        tabDom?: HTMLButtonElement;
+        tabPuppy?: HTMLButtonElement;
+        tabKitty?: HTMLButtonElement;
+        // quick-actions static elements
+        releaseBtn?: HTMLButtonElement;
+        unlockBtn?: HTMLButtonElement;
+        qaConfirmLbl?: HTMLSpanElement;
+        qaConfirmToggle?: HTMLButtonElement;
+        pickBtn?: HTMLButtonElement;
+        slCollapseHdr?: HTMLElement;
+        slLeaveBtn?: HTMLButtonElement;
+    } = {};
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
@@ -3050,6 +3079,11 @@ export class EBCDrawer {
             if (this.isOpen && this.currentTab === "dev") {
                 this.rerender();
             }
+        });
+        // Re-translate static elements + re-render active tab when language changes
+        this._langUnsubscribe = onLangChange(() => {
+            this.updateStaticTranslations();
+            if (this.isOpen) this.rerender();
         });
         if (document.body) {
             this.setup();
@@ -3130,29 +3164,63 @@ export class EBCDrawer {
 
         const refreshBtn = document.createElement("button");
         refreshBtn.className = "ebc-icon-btn";
-        refreshBtn.title = "Refresh";
+        refreshBtn.title = t("header.refresh");
         refreshBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
 
         // Drag handle icon — same mousedown behaviour as the header title area.
         const moveHandle = document.createElement("span");
         moveHandle.className = "ebc-move-handle";
-        moveHandle.title = "Drag to move";
+        moveHandle.title = t("header.dragToMove");
         moveHandle.textContent = "⠿";
 
         const resetLocBtn = document.createElement("button");
         resetLocBtn.className = "ebc-reset-loc-btn";
-        resetLocBtn.title = "Reset drawer to default position (anchored to chat log)";
-        resetLocBtn.textContent = "⌖ Reset pos";
+        resetLocBtn.title = t("header.resetPosTitle");
+        resetLocBtn.textContent = t("header.resetPos");
         resetLocBtn.style.display = "none"; // hidden until panel is in free-float mode
         this.resetLocationBtn = resetLocBtn;
 
+        // Language switcher — compact select in header button area
+        const langSelect = document.createElement("select");
+        langSelect.title = t("header.language");
+        langSelect.style.cssText = [
+            "font-family:'Trebuchet MS',serif",
+            "font-size:9px",
+            "background:#1a0812",
+            "color:#b08898",
+            "border:1px solid #3a1928",
+            "border-radius:4px",
+            "padding:2px 3px",
+            "cursor:pointer",
+            "outline:none",
+            "flex-shrink:0",
+        ].join(";");
+        for (const code of LANG_CODES) {
+            const opt = document.createElement("option");
+            opt.value = code;
+            opt.textContent = LANG_NAMES[code];
+            if (code === getLanguage()) opt.selected = true;
+            langSelect.appendChild(opt);
+        }
+        langSelect.addEventListener("change", () => {
+            setLanguage(langSelect.value as import("./i18n").LangCode);
+        });
+
         const closeBtn = document.createElement("button");
         closeBtn.className = "ebc-icon-btn";
-        closeBtn.title = "Close";
+        closeBtn.title = t("header.close");
         closeBtn.textContent = "X";
+
+        // Store refs for later translation updates
+        this._i18nRefs.refreshBtn  = refreshBtn;
+        this._i18nRefs.moveHandle  = moveHandle;
+        this._i18nRefs.resetLocBtn = resetLocBtn;
+        this._i18nRefs.closeBtn    = closeBtn;
+        this._i18nRefs.langSelect  = langSelect;
 
         headerBtns.appendChild(refreshBtn);
         headerBtns.appendChild(moveHandle);
+        headerBtns.appendChild(langSelect);
         headerBtns.appendChild(resetLocBtn);
         headerBtns.appendChild(closeBtn);
         header.appendChild(title);
@@ -3209,42 +3277,43 @@ export class EBCDrawer {
         const outfitTabBtn = document.createElement("button");
         outfitTabBtn.className = "ebc-tab-btn ebc-tab-active";
         outfitTabBtn.id = "ebc-tab-outfits";
-        outfitTabBtn.textContent = "OUTFITS";
+        outfitTabBtn.textContent = t("tabs.outfits");
 
         const posesTabBtn = document.createElement("button");
         posesTabBtn.className = "ebc-tab-btn";
         posesTabBtn.id = "ebc-tab-poses";
-        posesTabBtn.textContent = "ANIMS";
+        posesTabBtn.textContent = t("tabs.anims");
 
         const btnsTabBtn = document.createElement("button");
         btnsTabBtn.className = "ebc-tab-btn";
         btnsTabBtn.id = "ebc-tab-buttons";
-        btnsTabBtn.textContent = "BUTTONS";
-        btnsTabBtn.title = "Action Buttons";
+        btnsTabBtn.textContent = t("tabs.buttons");
+        btnsTabBtn.title = t("tabs.buttonsTitle");
 
         const notesTabBtn = document.createElement("button");
         notesTabBtn.className = "ebc-tab-btn";
         notesTabBtn.id = "ebc-tab-notes";
-        notesTabBtn.textContent = "USERS";
+        notesTabBtn.textContent = t("tabs.users");
+        notesTabBtn.title = t("tabs.usersTitle");
 
         const thanksTabBtn = document.createElement("button");
         thanksTabBtn.className = "ebc-tab-btn";
         thanksTabBtn.id = "ebc-tab-thanks";
-        thanksTabBtn.textContent = "CREDITS";
-        thanksTabBtn.title = "Special Thanks";
+        thanksTabBtn.textContent = t("tabs.credits");
+        thanksTabBtn.title = t("tabs.creditsTitle");
 
         const devTabBtn2 = document.createElement("button");
         devTabBtn2.className = "ebc-tab-btn";
         devTabBtn2.id = "ebc-tab-dev";
-        devTabBtn2.textContent = "DEV";
-        devTabBtn2.title = "Developer Tools";
+        devTabBtn2.textContent = t("tabs.dev");
+        devTabBtn2.title = t("tabs.devTitle");
 
         // DOM tools tab — creator only, hidden until open() confirms the member number
         const domTabBtn = document.createElement("button");
         domTabBtn.className = "ebc-tab-btn";
         domTabBtn.id = "ebc-tab-dom";
-        domTabBtn.textContent = "DOM";
-        domTabBtn.title = "DOM Tools";
+        domTabBtn.textContent = t("tabs.dom");
+        domTabBtn.title = t("tabs.domTitle");
         domTabBtn.style.display = "none"; // revealed in open() for creator only
 
         // Puppy tab — Lucy only (member 230466)
@@ -3252,7 +3321,7 @@ export class EBCDrawer {
         puppyTabBtn.className = "ebc-tab-btn";
         puppyTabBtn.id = "ebc-tab-puppy";
         puppyTabBtn.textContent = "🐾";
-        puppyTabBtn.title = "Puppy";
+        puppyTabBtn.title = t("tabs.puppy");
         puppyTabBtn.style.display = "none"; // revealed in open() for Lucy only
 
         // Kitty tab — Lucy only (member 230466)
@@ -3260,8 +3329,19 @@ export class EBCDrawer {
         kittyTabBtn.className = "ebc-tab-btn";
         kittyTabBtn.id = "ebc-tab-kitty";
         kittyTabBtn.textContent = "🐱";
-        kittyTabBtn.title = "Kitty";
+        kittyTabBtn.title = t("tabs.kitty");
         kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
+
+        // Store tab refs for language updates
+        this._i18nRefs.tabOutfits = outfitTabBtn;
+        this._i18nRefs.tabButtons = btnsTabBtn;
+        this._i18nRefs.tabAnims   = posesTabBtn;
+        this._i18nRefs.tabNotes   = notesTabBtn;
+        this._i18nRefs.tabThanks  = thanksTabBtn;
+        this._i18nRefs.tabDev     = devTabBtn2;
+        this._i18nRefs.tabDom     = domTabBtn;
+        this._i18nRefs.tabPuppy   = puppyTabBtn;
+        this._i18nRefs.tabKitty   = kittyTabBtn;
 
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(btnsTabBtn);
@@ -3284,13 +3364,16 @@ export class EBCDrawer {
 
         const releaseBtn = document.createElement("button");
         releaseBtn.className = "ebc-action-btn danger";
-        releaseBtn.title = "Remove all restraints (skips owner/lover/family locks)";
-        releaseBtn.textContent = "Release Restraints";
+        releaseBtn.title = t("qa.releaseTitle");
+        releaseBtn.textContent = t("qa.releaseRestraints");
 
         const unlockBtn = document.createElement("button");
         unlockBtn.className = "ebc-action-btn danger";
-        unlockBtn.title = "Remove all locks (skips owner/lover/family locks)";
-        unlockBtn.textContent = "Remove Locks";
+        unlockBtn.title = t("qa.removeLocksTitle");
+        unlockBtn.textContent = t("qa.removeLocks");
+
+        this._i18nRefs.releaseBtn = releaseBtn;
+        this._i18nRefs.unlockBtn  = unlockBtn;
 
         qaRow1.appendChild(releaseBtn);
         qaRow1.appendChild(unlockBtn);
@@ -3302,12 +3385,14 @@ export class EBCDrawer {
 
         const qaConfirmLbl = document.createElement("span");
         qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;user-select:none;";
-        qaConfirmLbl.textContent = "Confirm before escaping";
+        qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
+        this._i18nRefs.qaConfirmLbl = qaConfirmLbl;
 
         const qaConfirmToggle = document.createElement("button");
+        this._i18nRefs.qaConfirmToggle = qaConfirmToggle;
         const refreshQaConfirm = (): void => {
             const on = getAntiRestraintConfirm();
-            qaConfirmToggle.textContent = on ? "ON" : "OFF";
+            qaConfirmToggle.textContent = on ? t("core.on") : t("core.off");
             qaConfirmToggle.style.cssText = [
                 "font-family:'Trebuchet MS',serif",
                 "font-size:9px",
@@ -3336,8 +3421,9 @@ export class EBCDrawer {
         // Row 2: self-picker toggle (full-width, subtle)
         const selfPickToggle = document.createElement("button");
         selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
-        selfPickToggle.textContent = "↓ Pick restraints to remove";
-        selfPickToggle.title = "Choose specific restraints to strip from yourself";
+        selfPickToggle.textContent = t("qa.pickRestraints");
+        selfPickToggle.title = t("qa.pickTitle");
+        this._i18nRefs.pickBtn = selfPickToggle;
         selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.color = "#cf6f98"; });
         selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.color = "#7a4a5e"; });
         quickActions.appendChild(selfPickToggle);
@@ -3353,7 +3439,8 @@ export class EBCDrawer {
         slCollapseHdr.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;cursor:pointer;padding:3px 0;user-select:none;";
         const slHdrLbl = document.createElement("span");
         slHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        slHdrLbl.textContent = "🚶 Slow Leave";
+        slHdrLbl.textContent = t("sl.header");
+        this._i18nRefs.slCollapseHdr = slCollapseHdr;
         const slHdrArrow = document.createElement("span");
         slHdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
         slHdrArrow.textContent = "▼";
@@ -3380,9 +3467,10 @@ export class EBCDrawer {
         // Slow Leave action button
         const slowLeaveBtn = document.createElement("button");
         slowLeaveBtn.className = "ebc-action-btn";
-        slowLeaveBtn.textContent = "🚶 Slow Leave";
-        slowLeaveBtn.title = "Wave goodbye and slowly head for the door";
+        slowLeaveBtn.textContent = t("sl.leave");
+        slowLeaveBtn.title = t("sl.leaveTitle");
         slowLeaveBtn.style.cssText = "width:100%;";
+        this._i18nRefs.slLeaveBtn = slowLeaveBtn;
         slowLeaveBtn.addEventListener("click", () => {
             if (isSeqRunning()) {
                 cancelSequence();
@@ -3393,11 +3481,11 @@ export class EBCDrawer {
             const pIdx  = Math.min(livePresets.length - 1, Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10)));
             const seq   = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
             setSeqDoneCallback(() => {
-                slowLeaveBtn.textContent = "🚶 Slow Leave";
+                slowLeaveBtn.textContent = t("sl.leave");
                 slowLeaveBtn.style.background = "";
                 slowLeaveBtn.style.color = "";
             });
-            slowLeaveBtn.textContent = "✕ Cancel Leave";
+            slowLeaveBtn.textContent = t("sl.cancel");
             slowLeaveBtn.style.background = "#4a1a2a";
             slowLeaveBtn.style.color = "#ff8aaa";
             runSequence(seq);
@@ -3489,7 +3577,7 @@ export class EBCDrawer {
             if (restraints.length === 0 && locks.length === 0) {
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:2px;";
-                hint.textContent = "Nothing to remove — no restraints or locks found.";
+                hint.textContent = t("qa.nothingToRemove");
                 selfPickPanel.appendChild(hint);
                 selfPickPanel.appendChild(selfPickStatus);
                 return;
@@ -3524,8 +3612,8 @@ export class EBCDrawer {
                 }
             };
 
-            makeSection("Restraints", restraints, "restraint");
-            makeSection("Locks", locks, "lock");
+            makeSection(t("qa.restraintsHeader"), restraints, "restraint");
+            makeSection(t("qa.locksHeader"), locks, "lock");
 
             // Two action buttons
             const btnRow = document.createElement("div");
@@ -3533,28 +3621,28 @@ export class EBCDrawer {
 
             const removeSelBtn = document.createElement("button");
             removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
-            removeSelBtn.textContent = "↑ Remove Selected";
+            removeSelBtn.textContent = t("qa.removeSelected");
             removeSelBtn.addEventListener("mouseenter", () => { removeSelBtn.style.background = "#5a1c30"; });
             removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a1020"; });
             removeSelBtn.addEventListener("click", () => {
                 const groups = [...selfSelected.entries()].filter(([, k]) => k === "restraint").map(([g]) => g);
-                if (groups.length === 0) { selfPickStatus.textContent = "Select restraints first."; return; }
+                if (groups.length === 0) { selfPickStatus.textContent = t("qa.selectRestraintsFirst"); return; }
                 const n = removePlayerSpecificItems(groups);
-                selfPickStatus.textContent = n > 0 ? ("✓ Removed " + n + " item(s).") : "Nothing removed.";
+                selfPickStatus.textContent = n > 0 ? t("qa.removedN", { n }) : t("qa.nothingRemoved");
                 rebuildSelfPicker();
                 window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
             });
 
             const unlockSelBtn = document.createElement("button");
             unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
-            unlockSelBtn.textContent = "🔓 Unlock Selected";
+            unlockSelBtn.textContent = t("qa.unlockSelected");
             unlockSelBtn.addEventListener("mouseenter", () => { unlockSelBtn.style.background = "#1a4a2a"; });
             unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#0f2a1a"; });
             unlockSelBtn.addEventListener("click", () => {
                 const groups = [...selfSelected.entries()].filter(([, k]) => k === "lock").map(([g]) => g);
-                if (groups.length === 0) { selfPickStatus.textContent = "Select locks first."; return; }
+                if (groups.length === 0) { selfPickStatus.textContent = t("qa.selectLocksFirst"); return; }
                 const n = unlockPlayerSpecificItems(groups);
-                selfPickStatus.textContent = n > 0 ? ("✓ Unlocked " + n + " item(s).") : "Nothing unlocked.";
+                selfPickStatus.textContent = n > 0 ? t("qa.unlockedN", { n }) : t("qa.nothingUnlocked");
                 rebuildSelfPicker();
                 window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
             });
@@ -3623,7 +3711,7 @@ export class EBCDrawer {
         // Grace active indicator (hidden unless grace is running)
         const swGraceTag = document.createElement("span");
         swGraceTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:3px;background:#3a0e1e;color:#cf6f98;border:1px solid #6b2040;flex-shrink:0;display:none;";
-        swGraceTag.textContent = "Grace active";
+        swGraceTag.textContent = t("sw.graceActive");
 
         const swEnableBtn = document.createElement("button");
         const refreshSwEnable = (): void => {
@@ -3631,7 +3719,7 @@ export class EBCDrawer {
             let on = true;
             try { on = getSafewordConfig().enabled; } catch { /* default ON */ }
 
-            swEnableBtn.textContent = on ? "ON" : "OFF";
+            swEnableBtn.textContent = on ? t("core.on") : t("core.off");
             swEnableBtn.style.fontFamily  = "'Trebuchet MS',serif";
             swEnableBtn.style.fontSize    = "10px";
             swEnableBtn.style.fontWeight  = "bold";
@@ -3684,7 +3772,7 @@ export class EBCDrawer {
                     ? "🛡 Grace active (indefinite)"
                     : `🛡 Grace active — ${Math.ceil((rem as number) / 60_000)} min remaining`;
                 const cancelBtn = document.createElement("button");
-                cancelBtn.textContent = "End grace";
+                cancelBtn.textContent = t("sw.endGrace");
                 cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
                 cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
                 graceRow.appendChild(graceLbl);
@@ -4430,6 +4518,49 @@ export class EBCDrawer {
         else doRender();
     }
 
+    /** Update every static element that was built once in setup() and never re-rendered. */
+    private updateStaticTranslations(): void {
+        const r = this._i18nRefs;
+        // Header
+        if (r.refreshBtn)  r.refreshBtn.title = t("header.refresh");
+        if (r.moveHandle)  r.moveHandle.title = t("header.dragToMove");
+        if (r.resetLocBtn) { r.resetLocBtn.title = t("header.resetPosTitle"); r.resetLocBtn.textContent = t("header.resetPos"); }
+        if (r.closeBtn)    r.closeBtn.title = t("header.close");
+        if (r.langSelect)  r.langSelect.title = t("header.language");
+        // Sync the language select to the current language (in case programmatic change)
+        if (r.langSelect) {
+            for (const opt of Array.from(r.langSelect.options)) {
+                opt.selected = opt.value === getLanguage();
+            }
+        }
+        // Tabs
+        if (r.tabOutfits) r.tabOutfits.textContent = t("tabs.outfits");
+        if (r.tabButtons) { r.tabButtons.textContent = t("tabs.buttons"); r.tabButtons.title = t("tabs.buttonsTitle"); }
+        if (r.tabAnims)   r.tabAnims.textContent = t("tabs.anims");
+        if (r.tabNotes)   { r.tabNotes.textContent = t("tabs.users"); r.tabNotes.title = t("tabs.usersTitle"); }
+        if (r.tabThanks)  { r.tabThanks.textContent = t("tabs.credits"); r.tabThanks.title = t("tabs.creditsTitle"); }
+        if (r.tabDev)     { r.tabDev.textContent = t("tabs.dev"); r.tabDev.title = t("tabs.devTitle"); }
+        if (r.tabDom)     { r.tabDom.textContent = t("tabs.dom"); r.tabDom.title = t("tabs.domTitle"); }
+        if (r.tabPuppy)   r.tabPuppy.title = t("tabs.puppy");
+        if (r.tabKitty)   r.tabKitty.title = t("tabs.kitty");
+        // Quick actions
+        if (r.releaseBtn) { r.releaseBtn.textContent = t("qa.releaseRestraints"); r.releaseBtn.title = t("qa.releaseTitle"); }
+        if (r.unlockBtn)  { r.unlockBtn.textContent = t("qa.removeLocks"); r.unlockBtn.title = t("qa.removeLocksTitle"); }
+        if (r.qaConfirmLbl) r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
+        if (r.qaConfirmToggle) this.refreshConfirmToggle?.();
+        if (r.pickBtn) { r.pickBtn.textContent = t("qa.pickRestraints"); r.pickBtn.title = t("qa.pickTitle"); }
+        // Slow leave header label (first child span)
+        if (r.slCollapseHdr) {
+            const lbl = r.slCollapseHdr.querySelector("span") as HTMLSpanElement | null;
+            if (lbl) lbl.textContent = t("sl.header");
+        }
+        // Slow leave button (only if not currently running)
+        if (r.slLeaveBtn && !isSeqRunning()) {
+            r.slLeaveBtn.textContent = t("sl.leave");
+            r.slLeaveBtn.title = t("sl.leaveTitle");
+        }
+    }
+
     // -- Timer -----------------------------------------------------------------
 
     private updateTimer(): void {
@@ -4500,7 +4631,7 @@ export class EBCDrawer {
         // "(No change)" — leave title untouched on outfit apply
         const noChangeOpt = document.createElement("option");
         noChangeOpt.value = "";
-        noChangeOpt.textContent = isDefault ? "(No default title)" : "(No change)";
+        noChangeOpt.textContent = isDefault ? t("settings.noDefaultTitle") : "(No change)";
         if (!currentValue) noChangeOpt.selected = true;
         sel.appendChild(noChangeOpt);
 
@@ -4540,13 +4671,13 @@ export class EBCDrawer {
 
         const nickLbl = document.createElement("span");
         nickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
-        nickLbl.textContent = "Default nickname";
+        nickLbl.textContent = t("settings.defaultNickname");
 
         const nickInp = Object.assign(document.createElement("input"), {
             className: "ebc-form-input",
             type: "text",
             value: getDefaultNickname(),
-            placeholder: "Your usual nickname",
+            placeholder: t("outfits.nicknamePlaceholder"),
             maxLength: 40,
         });
         nickInp.style.flex = "1";
@@ -4570,7 +4701,7 @@ export class EBCDrawer {
         defTitleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;";
         const defTitleLbl = document.createElement("span");
         defTitleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
-        defTitleLbl.textContent = "Default title";
+        defTitleLbl.textContent = t("settings.defaultTitle");
         const defTitleSel = this.makeTitleSelect(getDefaultTitle(), true);
         defTitleSel.style.flex = "1";
         defTitleSel.addEventListener("change", () => setDefaultTitle(defTitleSel.value));
@@ -4679,7 +4810,7 @@ export class EBCDrawer {
 
             const addTagBtn = document.createElement("button");
             addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
-            addTagBtn.textContent = "+ Add";
+            addTagBtn.textContent = t("core.add");
             addTagBtn.addEventListener("mouseenter", () => { addTagBtn.style.background = "#2a0e1e"; });
             addTagBtn.addEventListener("mouseleave", () => { addTagBtn.style.background = "transparent"; });
             addTagBtn.addEventListener("click", () => {
@@ -4716,7 +4847,7 @@ export class EBCDrawer {
         const outfitLbl = document.createElement("div");
         outfitLbl.className = "ebc-section-label";
         outfitLbl.style.cssText = "cursor:pointer;user-select:none;";
-        outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
+        outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " " + t("outfits.savedOutfits");
         body.appendChild(outfitLbl);
 
         // ── Outfit search ─────────────────────────────────────────────────────
@@ -4725,7 +4856,7 @@ export class EBCDrawer {
         const searchInp = Object.assign(document.createElement("input"), {
             className: "ebc-form-input",
             type: "text",
-            placeholder: "Filter outfits…",
+            placeholder: t("outfits.filter"),
         }) as HTMLInputElement;
         searchInp.style.flex = "1";
         const clearSearchBtn = document.createElement("button");
@@ -4750,12 +4881,12 @@ export class EBCDrawer {
             } else {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
-                empty.textContent = q ? "No outfits match your filter." : "No outfits saved yet.";
+                empty.textContent = q ? t("outfits.noMatch") : t("outfits.noOutfits");
                 if (!q) {
                     const br = document.createElement("br");
                     const hint = document.createElement("span");
                     hint.style.color = "#4c2537";
-                    hint.textContent = "Use the form below to create one.";
+                    hint.textContent = t("outfits.useFormBelow");
                     empty.appendChild(br); empty.appendChild(hint);
                 }
                 outfitsBody.appendChild(empty);
@@ -4777,7 +4908,7 @@ export class EBCDrawer {
         const toggleOutfitsCollapsed = (): void => {
             outfitsCollapsed = !outfitsCollapsed;
             outfitsBody.style.display = outfitsCollapsed ? "none" : "block";
-            outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
+            outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " " + t("outfits.savedOutfits");
             try { localStorage.setItem("EBC_outfitsCollapsed", outfitsCollapsed ? "1" : "0"); } catch { /* ignore */ }
         };
 
@@ -4810,7 +4941,7 @@ export class EBCDrawer {
         try { collapsed = localStorage.getItem("EBC_scheduleCollapsed") === "1"; } catch { /* ignore */ }
 
         const updateLabel = (): void => {
-            lbl.textContent = (collapsed ? "▶" : "▼") + " OUTFIT SCHEDULE";
+            lbl.textContent = (collapsed ? "▶" : "▼") + " " + t("outfits.outfitSchedule");
         };
 
         const scheduleList = document.createElement("div");
@@ -4824,7 +4955,7 @@ export class EBCDrawer {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
                 empty.style.padding = "4px 4px 8px";
-                empty.textContent = "No schedules set.";
+                empty.textContent = t("outfits.noSchedules");
                 scheduleList.appendChild(empty);
             }
 
@@ -4836,7 +4967,7 @@ export class EBCDrawer {
                 // Enabled toggle
                 const togBtn = document.createElement("button");
                 togBtn.className = "ebc-slot-toggle" + (sched.enabled ? " on" : "");
-                togBtn.textContent = sched.enabled ? "ON" : "OFF";
+                togBtn.textContent = sched.enabled ? t("core.on") : t("core.off");
                 togBtn.title = sched.enabled ? "Click to disable" : "Click to enable";
                 togBtn.addEventListener("click", () => {
                     toggleSchedule(sched.id);
@@ -4858,7 +4989,7 @@ export class EBCDrawer {
                 const delBtn = document.createElement("button");
                 delBtn.className = "ebc-outfit-del";
                 delBtn.textContent = "×";
-                delBtn.title = "Remove schedule";
+                delBtn.title = t("outfits.removeSchedule");
                 delBtn.addEventListener("click", () => {
                     removeSchedule(sched.id);
                     renderScheduleList();
@@ -4884,7 +5015,7 @@ export class EBCDrawer {
         outfitSelect.style.flex = "1";
         if (outfits.length === 0) {
             const opt = document.createElement("option");
-            opt.textContent = "No outfits";
+            opt.textContent = t("outfits.noOutfitsDropdown");
             opt.disabled = true;
             outfitSelect.appendChild(opt);
         } else {
@@ -4898,7 +5029,7 @@ export class EBCDrawer {
 
         const timeInput = Object.assign(document.createElement("input"), {
             type: "text",
-            placeholder: "HH:MM",
+            placeholder: t("outfits.timePlaceholder"),
             maxLength: 5,
             title: "24-hour time (e.g. 08:30, 14:00)",
         }) as HTMLInputElement;
@@ -4914,7 +5045,7 @@ export class EBCDrawer {
 
         const addBtn = document.createElement("button");
         addBtn.className = "ebc-wear-btn";
-        addBtn.textContent = "+ Add";
+        addBtn.textContent = t("core.add");
         addBtn.title = "Add schedule";
         addBtn.addEventListener("click", () => {
             const raw = timeInput.value.trim();
@@ -5031,7 +5162,7 @@ export class EBCDrawer {
         };
 
         const updateLabel = (): void => {
-            label.textContent = collapsed ? "▶ ACTIVE RESTRAINTS" : "▼ ACTIVE RESTRAINTS";
+            label.textContent = (collapsed ? "▶ " : "▼ ") + t("dev.activeRestraints");
         };
 
         label.addEventListener("click", () => {
@@ -5665,7 +5796,7 @@ export class EBCDrawer {
             const presetsLbl = document.createElement("div");
             presetsLbl.className = "ebc-import-hint";
             presetsLbl.style.cssText = "font-weight:600;margin-bottom:5px;";
-            presetsLbl.textContent = "COLOUR PRESETS";
+            presetsLbl.textContent = t("buttons.colourPresets");
             container.appendChild(presetsLbl);
 
             // Save-as-preset row: name + "from" dropdown + Save button
@@ -5710,7 +5841,7 @@ export class EBCDrawer {
                     saveRestraintPreset(name, getGroupColors(group));
                     savePresInp.value = "";
                     renderPresets();
-                    savePresBtn.textContent = "✓ Saved";
+                    savePresBtn.textContent = t("core.saved");
                     window.setTimeout(() => { savePresBtn.textContent = "+ Preset"; }, 1400);
                 });
                 savePresRow.appendChild(savePresBtn);
@@ -5765,7 +5896,7 @@ export class EBCDrawer {
                     const applyBtn = document.createElement("button");
                     applyBtn.className = "ebc-wear-btn";
                     applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
-                    applyBtn.textContent = "Apply";
+                    applyBtn.textContent = t("core.apply");
                     applyBtn.addEventListener("click", () => {
                         const group = applyToSel.value;
                         if (!group) { applyToSel.style.borderColor = "#cf6f98"; return; }
@@ -5773,7 +5904,7 @@ export class EBCDrawer {
                         applyColorsToGroup(group, preset.colors);
                         build(); // rebuild to refresh all zone previews
                         applyBtn.textContent = "✓";
-                        window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1400);
+                        window.setTimeout(() => { applyBtn.textContent = t("core.apply"); }, 1400);
                     });
 
                     let delPending = false;
@@ -5820,8 +5951,8 @@ export class EBCDrawer {
                     const ni = document.createElement("input");
                     ni.className = "ebc-palette-name"; ni.value = p.name; ni.maxLength = 30; ni.title = "Rename";
                     ni.addEventListener("change", () => renamePalette(p.id, ni.value));
-                    const ab = document.createElement("button"); ab.className = "ebc-wear-btn"; ab.textContent = "Apply";
-                    ab.addEventListener("click", () => { applyPalette(p.id); ab.textContent = "Done!"; window.setTimeout(() => { ab.textContent = "Apply"; }, 1200); });
+                    const ab = document.createElement("button"); ab.className = "ebc-wear-btn"; ab.textContent = t("core.apply");
+                    ab.addEventListener("click", () => { applyPalette(p.id); ab.textContent = t("core.done"); window.setTimeout(() => { ab.textContent = t("core.apply"); }, 1200); });
                     let dp = false, dt: ReturnType<typeof window.setTimeout> | null = null;
                     const db = document.createElement("button"); db.className = "ebc-outfit-del"; db.textContent = "×";
                     db.addEventListener("click", () => {
@@ -5839,18 +5970,18 @@ export class EBCDrawer {
                     w.appendChild(i); w.appendChild(b); return w;
                 };
 
-                const oLbl = document.createElement("div"); oLbl.className = "ebc-import-hint"; oLbl.style.cssText = "font-weight:600;margin-bottom:3px;margin-top:2px;"; oLbl.textContent = "OUTFIT"; palContainer.appendChild(oLbl);
+                const oLbl = document.createElement("div"); oLbl.className = "ebc-import-hint"; oLbl.style.cssText = "font-weight:600;margin-bottom:3px;margin-top:2px;"; oLbl.textContent = t("palettes.outfit"); palContainer.appendChild(oLbl);
                 const ops = getPalettesByType("outfit");
                 for (const p of ops) palContainer.appendChild(buildPRow(p, renderPal));
-                if (!ops.length) { const n = document.createElement("div"); n.className = "ebc-empty"; n.style.padding = "2px 4px 4px"; n.textContent = "No outfit palettes saved"; palContainer.appendChild(n); }
-                palContainer.appendChild(buildSRow("Palette name…", "Save Outfit", n => captureCurrentPalette(n || "Palette"), renderPal));
+                if (!ops.length) { const n = document.createElement("div"); n.className = "ebc-empty"; n.style.padding = "2px 4px 4px"; n.textContent = t("palettes.noOutfit"); palContainer.appendChild(n); }
+                palContainer.appendChild(buildSRow(t("palettes.paletteName"), t("palettes.saveOutfit"), n => captureCurrentPalette(n || "Palette"), renderPal));
 
                 const pd = document.createElement("div"); pd.className = "ebc-divider"; pd.style.margin = "8px 0 4px"; palContainer.appendChild(pd);
                 const rLbl = document.createElement("div"); rLbl.className = "ebc-import-hint"; rLbl.style.cssText = "font-weight:600;margin-bottom:3px;"; rLbl.textContent = "RESTRAINTS ⛓"; palContainer.appendChild(rLbl);
                 const rps = getPalettesByType("restraint");
                 for (const p of rps) palContainer.appendChild(buildPRow(p, renderPal));
-                if (!rps.length) { const n = document.createElement("div"); n.className = "ebc-empty"; n.style.padding = "2px 4px 4px"; n.textContent = "No restraint palettes saved"; palContainer.appendChild(n); }
-                palContainer.appendChild(buildSRow("Restraint palette name…", "Save Restraints", n => captureRestraintPalette(n || "Restraint Palette"), renderPal));
+                if (!rps.length) { const n = document.createElement("div"); n.className = "ebc-empty"; n.style.padding = "2px 4px 4px"; n.textContent = t("palettes.noRestraint"); palContainer.appendChild(n); }
+                palContainer.appendChild(buildSRow(t("palettes.paletteName"), t("palettes.saveRestraint"), n => captureRestraintPalette(n || "Restraint Palette"), renderPal));
             };
 
             palToggle.addEventListener("click", () => {
@@ -5911,11 +6042,11 @@ export class EBCDrawer {
 
         const preserveBtn = document.createElement("button");
         preserveBtn.className = "ebc-flag-chip" + (isPreserving ? " on" : "");
-        preserveBtn.textContent = isPreserving ? "⛓ Keep bonds" : "⛓ Swap bonds";
+        preserveBtn.textContent = isPreserving ? t("outfits.preserveBonds") : t("outfits.swapBonds");
 
         const preserveClothingBtn = document.createElement("button");
         preserveClothingBtn.className = "ebc-flag-chip" + (isPreservingClothing ? " on" : "");
-        preserveClothingBtn.textContent = isPreservingClothing ? "👗 Keep clothes" : "👗 Swap clothes";
+        preserveClothingBtn.textContent = isPreservingClothing ? t("outfits.keepClothes") : t("outfits.swapClothes");
 
         const nameInAnnounceBtn = document.createElement("button");
         nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
@@ -5950,12 +6081,12 @@ export class EBCDrawer {
 
         const updateBtn = document.createElement("button");
         updateBtn.className = "ebc-update-btn";
-        updateBtn.textContent = "Update";
+        updateBtn.textContent = t("core.update");
         updateBtn.title = "Save current appearance to this outfit";
 
         const wearBtn = document.createElement("button");
         wearBtn.className = "ebc-wear-btn";
-        wearBtn.textContent = "Wear";
+        wearBtn.textContent = t("core.wear");
 
         const diffBtn = document.createElement("button");
         diffBtn.className = "ebc-diff-btn";
@@ -5971,7 +6102,7 @@ export class EBCDrawer {
         const delBtn = document.createElement("button");
         delBtn.className = "ebc-outfit-del";
         delBtn.textContent = "×";
-        delBtn.title = "Delete this outfit";
+        delBtn.title = t("outfits.deleteTitle");
 
         // Reorder column
         const outfitsList = getOutfits();
@@ -5980,14 +6111,14 @@ export class EBCDrawer {
         reorderCol.className = "ebc-reorder-col";
         const upBtn = document.createElement("button");
         upBtn.className = "ebc-reorder-btn";
-        upBtn.textContent = "▲";
-        upBtn.title = "Move up";
+        upBtn.textContent = t("core.moveUp");
+        upBtn.title = t("core.moveUpTitle");
         upBtn.disabled = thisIdx <= 0;
         upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.rerender(); });
         const downBtn = document.createElement("button");
         downBtn.className = "ebc-reorder-btn";
-        downBtn.textContent = "▼";
-        downBtn.title = "Move down";
+        downBtn.textContent = t("core.moveDown");
+        downBtn.title = t("core.moveDownTitle");
         downBtn.disabled = thisIdx >= outfitsList.length - 1;
         downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.rerender(); });
         reorderCol.appendChild(upBtn);
@@ -6127,7 +6258,7 @@ export class EBCDrawer {
 
         const eSaveBtn = document.createElement("button");
         eSaveBtn.className = "ebc-create-btn";
-        eSaveBtn.textContent = "Save Changes";
+        eSaveBtn.textContent = t("outfits.saveChanges");
         editPanel.appendChild(eSaveBtn);
 
         // Export button inside edit panel (keeps the main row uncluttered)
@@ -6153,7 +6284,7 @@ export class EBCDrawer {
         preserveBtn.addEventListener("click", () => {
             const next = !preserveBtn.classList.contains("on");
             preserveBtn.className = "ebc-flag-chip" + (next ? " on" : "");
-            preserveBtn.textContent = next ? "⛓ Keep bonds" : "⛓ Swap bonds";
+            preserveBtn.textContent = next ? t("outfits.preserveBonds") : t("outfits.swapBonds");
             setOutfitPreserveRestraints(o.id, next);
             ePreserveCheck.checked = next;
         });
@@ -6161,7 +6292,7 @@ export class EBCDrawer {
         preserveClothingBtn.addEventListener("click", () => {
             const next = !preserveClothingBtn.classList.contains("on");
             preserveClothingBtn.className = "ebc-flag-chip" + (next ? " on" : "");
-            preserveClothingBtn.textContent = next ? "👗 Keep clothes" : "👗 Swap clothes";
+            preserveClothingBtn.textContent = next ? t("outfits.keepClothes") : t("outfits.swapClothes");
             setOutfitPreserveClothing(o.id, next);
             ePreserveClothingCheck.checked = next;
         });
@@ -6189,9 +6320,9 @@ export class EBCDrawer {
                     setAllDisabled(true);
                     const ok = saveCurrentAppearanceToOutfit(o.id);
                     if (!ok) { setAllDisabled(false); return; }
-                    updateBtn.textContent = "Saved!";
+                    updateBtn.textContent = t("core.saved");
                     window.setTimeout(() => {
-                        updateBtn.textContent = "Update";
+                        updateBtn.textContent = t("core.update");
                         setAllDisabled(false);
                     }, 1200);
                 }
@@ -6281,7 +6412,7 @@ export class EBCDrawer {
                     delPending = false;
                     delBtn.classList.remove("confirm");
                     delBtn.textContent = "×";
-                    delBtn.title = "Delete this outfit";
+                    delBtn.title = t("outfits.deleteTitle");
                 }, 2500);
             } else {
                 if (delTimer !== null) window.clearTimeout(delTimer);
@@ -6300,7 +6431,7 @@ export class EBCDrawer {
 
         const newBtn = document.createElement("button");
         newBtn.className = "ebc-new-outfit-btn";
-        newBtn.textContent = "+ New Outfit from Current Look";
+        newBtn.textContent = t("outfits.newOutfit");
         target.appendChild(newBtn);
 
         const form = document.createElement("div");
@@ -6332,8 +6463,8 @@ export class EBCDrawer {
         });
         const newTitleSel = this.makeTitleSelect("");
 
-        form.appendChild(makeRow("Command", cmdInput));
-        form.appendChild(makeRow("Name", nameInput));
+        form.appendChild(makeRow(t("outfits.commandLabel"), cmdInput));
+        form.appendChild(makeRow(t("outfits.nameLabel"), nameInput));
         form.appendChild(makeRow("Announce", announceInput));
         form.appendChild(makeRow("Nickname", nicknameInput));
         form.appendChild(makeRow("Title", newTitleSel));
@@ -6363,13 +6494,13 @@ export class EBCDrawer {
 
         const createBtn = document.createElement("button");
         createBtn.className = "ebc-create-btn";
-        createBtn.textContent = "Save as New Outfit";
+        createBtn.textContent = t("outfits.saveNewOutfit");
         form.appendChild(createBtn);
 
         newBtn.addEventListener("click", () => {
             const open = form.style.display !== "none";
             form.style.display = open ? "none" : "flex";
-            newBtn.textContent = open ? "+ New Outfit from Current Look" : "- Cancel";
+            newBtn.textContent = open ? t("outfits.newOutfit") : t("core.cancel");
             if (!open) cmdInput.focus();
         });
 
@@ -6394,11 +6525,11 @@ export class EBCDrawer {
                 newTitleSel.value = "";
                 checkbox.checked = false;
                 form.style.display = "none";
-                newBtn.textContent = "+ New Outfit from Current Look";
+                newBtn.textContent = t("outfits.newOutfit");
                 this.rerender();
             } else {
                 createBtn.disabled = false;
-                createBtn.textContent = "Save as New Outfit";
+                createBtn.textContent = t("outfits.saveNewOutfit");
             }
         });
 
@@ -6409,7 +6540,7 @@ export class EBCDrawer {
 
         const impToggleBtn = document.createElement("button");
         impToggleBtn.className = "ebc-new-outfit-btn";
-        impToggleBtn.textContent = "↓ Import Outfit";
+        impToggleBtn.textContent = t("outfits.importOutfit");
         target.appendChild(impToggleBtn);
 
         const impPanel = document.createElement("div");
@@ -6431,7 +6562,7 @@ export class EBCDrawer {
         const bcFields = document.createElement("div");
         bcFields.style.cssText = "display:none;flex-direction:column;gap:4px;margin-top:4px;";
         const bcNameInput = Object.assign(document.createElement("input"), {
-            className: "ebc-form-input", type: "text", placeholder: "Outfit name (e.g. Rope Set)",
+            className: "ebc-form-input", type: "text", placeholder: t("outfits.namePlaceholder"),
         });
         const bcCmdInput = Object.assign(document.createElement("input"), {
             className: "ebc-form-input", type: "text", placeholder: "Command (e.g. ropeset)",
@@ -6496,7 +6627,7 @@ export class EBCDrawer {
 
         const closeImpPanel = (): void => {
             impPanel.classList.remove("open");
-            impToggleBtn.textContent = "↓ Import Outfit";
+            impToggleBtn.textContent = t("outfits.importOutfit");
             impTextarea.value = ""; impError.textContent = "";
             bcNameInput.value = ""; bcCmdInput.value = "";
             bcModeSelect.value = "restraints";
@@ -6506,7 +6637,7 @@ export class EBCDrawer {
         impToggleBtn.addEventListener("click", () => {
             const open = impPanel.classList.contains("open");
             impPanel.classList.toggle("open", !open);
-            impToggleBtn.textContent = open ? "↓ Import Outfit" : "- Cancel Import";
+            impToggleBtn.textContent = open ? t("outfits.importOutfit") : t("outfits.cancelImport");
             if (!open) { impTextarea.value = ""; impError.textContent = ""; impTextarea.focus(); }
         });
 
@@ -6547,7 +6678,7 @@ export class EBCDrawer {
         const lbl = document.createElement("div");
         lbl.className = "ebc-section-label";
         lbl.style.cssText = "cursor:pointer;user-select:none;";
-        lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
+        lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " " + t("outfits.savedRestraints");
         body.appendChild(lbl);
 
         const sectionBody = document.createElement("div");
@@ -6556,7 +6687,7 @@ export class EBCDrawer {
         const toggleCollapsed = (): void => {
             restraintsCollapsed = !restraintsCollapsed;
             sectionBody.style.display = restraintsCollapsed ? "none" : "block";
-            lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
+            lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " " + t("outfits.savedRestraints");
             try { localStorage.setItem("EBC_restraintsCollapsed", restraintsCollapsed ? "1" : "0"); } catch { /* ignore */ }
         };
         lbl.addEventListener("click", toggleCollapsed);
@@ -6572,11 +6703,11 @@ export class EBCDrawer {
             } else {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
-                empty.textContent = "No restraint sets saved yet.";
+                empty.textContent = t("restraints.noRestraints");
                 const br = document.createElement("br");
                 const hint = document.createElement("span");
                 hint.style.color = "#4c2537";
-                hint.textContent = "Use the form below to create one.";
+                hint.textContent = t("outfits.useFormBelow");
                 empty.appendChild(br);
                 empty.appendChild(hint);
                 sectionBody.appendChild(empty);
@@ -6650,7 +6781,7 @@ export class EBCDrawer {
 
             const closeImpRPanel = (): void => {
                 impRPanel.classList.remove("open");
-                impRToggleBtn.textContent = "↓ Import Restraint Set";
+                impRToggleBtn.textContent = t("outfits.importOutfit");
                 impRTextarea.value = "";
                 impRError.textContent = "";
                 impRNameInput.value = "";
@@ -6660,7 +6791,7 @@ export class EBCDrawer {
             impRToggleBtn.addEventListener("click", () => {
                 const open = impRPanel.classList.contains("open");
                 impRPanel.classList.toggle("open", !open);
-                impRToggleBtn.textContent = open ? "↓ Import Restraint Set" : "- Cancel Import";
+                impRToggleBtn.textContent = open ? t("outfits.importOutfit") : t("outfits.cancelImport");
                 if (!open) { impRTextarea.value = ""; impRError.textContent = ""; impRTextarea.focus(); }
             });
 
@@ -6689,7 +6820,7 @@ export class EBCDrawer {
 
             const newBtn = document.createElement("button");
             newBtn.className = "ebc-new-outfit-btn";
-            newBtn.textContent = "+ New Restraint Set from Current";
+            newBtn.textContent = t("restraints.newRestraint");
             sectionBody.appendChild(newBtn);
 
             const form = document.createElement("div");
@@ -6733,7 +6864,7 @@ export class EBCDrawer {
             newBtn.addEventListener("click", () => {
                 const open = form.style.display !== "none";
                 form.style.display = open ? "none" : "flex";
-                newBtn.textContent = open ? "+ New Restraint Set from Current" : "- Cancel";
+                newBtn.textContent = open ? t("restraints.newRestraint") : t("core.cancel");
                 if (!open) cmdInput.focus();
             });
 
@@ -6750,7 +6881,7 @@ export class EBCDrawer {
                 );
                 if (result) {
                     form.style.display = "none";
-                    newBtn.textContent = "+ New Restraint Set from Current";
+                    newBtn.textContent = t("restraints.newRestraint");
                     renderRestraintList();
                 } else {
                     createBtn.disabled = false;
@@ -6769,7 +6900,7 @@ export class EBCDrawer {
             const cpLbl = document.createElement("div");
             cpLbl.className = "ebc-section-label";
             cpLbl.style.cssText += ";margin:0;flex:1;font-size:10px;";
-            cpLbl.textContent = "Colour Presets";
+            cpLbl.textContent = t("buttons.colourPresets");
             const cpHintEl = document.createElement("span");
             cpHintEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;flex-shrink:0;";
             cpHintEl.textContent = "saved from restraint log";
@@ -6975,14 +7106,14 @@ export class EBCDrawer {
         reorderCol.className = "ebc-reorder-col";
         const upBtn = document.createElement("button");
         upBtn.className = "ebc-reorder-btn";
-        upBtn.textContent = "▲";
-        upBtn.title = "Move up";
+        upBtn.textContent = t("core.moveUp");
+        upBtn.title = t("core.moveUpTitle");
         upBtn.disabled = thisIdx <= 0;
         upBtn.addEventListener("click", () => { moveRestraint(r.id, "up"); rerender(); });
         const downBtn = document.createElement("button");
         downBtn.className = "ebc-reorder-btn";
-        downBtn.textContent = "▼";
-        downBtn.title = "Move down";
+        downBtn.textContent = t("core.moveDown");
+        downBtn.title = t("core.moveDownTitle");
         downBtn.disabled = thisIdx >= restraintsList.length - 1;
         downBtn.addEventListener("click", () => { moveRestraint(r.id, "down"); rerender(); });
         reorderCol.appendChild(upBtn);
@@ -6990,12 +7121,12 @@ export class EBCDrawer {
 
         const updateBtn = document.createElement("button");
         updateBtn.className = "ebc-update-btn";
-        updateBtn.textContent = "Update";
+        updateBtn.textContent = t("core.update");
         updateBtn.title = "Save current restraints to this set";
 
         const applyBtn = document.createElement("button");
         applyBtn.className = "ebc-wear-btn";
-        applyBtn.textContent = "Apply";
+        applyBtn.textContent = t("core.apply");
 
         const PENCIL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
         const editBtn = document.createElement("button");
@@ -7006,7 +7137,7 @@ export class EBCDrawer {
         const delBtn = document.createElement("button");
         delBtn.className = "ebc-outfit-del";
         delBtn.textContent = "×";
-        delBtn.title = "Delete this restraint set";
+        delBtn.title = t("restraints.deleteTitle");
 
         row.appendChild(reorderCol);
         row.appendChild(info);
@@ -7089,7 +7220,7 @@ export class EBCDrawer {
 
         const eSaveBtn = document.createElement("button");
         eSaveBtn.className = "ebc-create-btn";
-        eSaveBtn.textContent = "Save Changes";
+        eSaveBtn.textContent = t("restraints.saveChanges");
         editPanel.appendChild(eSaveBtn);
 
         wrapper.appendChild(row);
@@ -7117,9 +7248,9 @@ export class EBCDrawer {
             setAllDisabled(true);
             const ok = saveCurrentAppearanceToRestraint(r.id);
             if (!ok) { setAllDisabled(false); return; }
-            updateBtn.textContent = "Saved!";
+            updateBtn.textContent = t("core.saved");
             window.setTimeout(() => {
-                updateBtn.textContent = "Update";
+                updateBtn.textContent = t("core.update");
                 setAllDisabled(false);
             }, 1200);
         });
@@ -7156,7 +7287,7 @@ export class EBCDrawer {
                     delPending = false;
                     delBtn.classList.remove("confirm");
                     delBtn.textContent = "×";
-                    delBtn.title = "Delete this restraint set";
+                    delBtn.title = t("restraints.deleteTitle");
                 }, 2500);
             } else {
                 if (delTimer !== null) window.clearTimeout(delTimer);
@@ -7467,7 +7598,7 @@ export class EBCDrawer {
             customInp.style.flex = "1";
             const addCustomBtn = document.createElement("button");
             addCustomBtn.className = "ebc-update-btn";
-            addCustomBtn.textContent = "+ Add";
+            addCustomBtn.textContent = t("core.add");
             addCustomBtn.addEventListener("click", () => {
                 const val = customInp.value.trim();
                 if (val) { poses.push(val); customInp.value = ""; renderList(); }
@@ -7659,7 +7790,7 @@ export class EBCDrawer {
             const none = document.createElement("div");
             none.className = "ebc-empty";
             none.style.padding = "4px 0 6px";
-            none.textContent = "No combos yet — create one below.";
+            none.textContent = t("anims.noCombos");
             combosCnt.appendChild(none);
         }
 
@@ -7689,7 +7820,7 @@ export class EBCDrawer {
                 }
                 return k;
             });
-            posesEl.textContent = poseLabels.join(" → ") || "(none)";
+            posesEl.textContent = poseLabels.join(" → ") || t("core.none");
             if (combo.command) {
                 const cmdBadge = document.createElement("span");
                 cmdBadge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
@@ -7772,7 +7903,7 @@ export class EBCDrawer {
             topSaveBar.className = "ebc-editor-save-bar";
             const topSaveBtn = document.createElement("button");
             topSaveBtn.className = "ebc-update-btn";
-            topSaveBtn.textContent = "✓ Save Changes";
+            topSaveBtn.textContent = t("outfits.saveChanges");
             topSaveBtn.style.cssText = "flex:1;font-size:11px;";
             editor.appendChild(topSaveBar); // appended before we have getPoses/getDelay — wired below
 
@@ -7832,7 +7963,7 @@ export class EBCDrawer {
 
         const newComboToggle = document.createElement("button");
         newComboToggle.className = "ebc-new-outfit-btn";
-        newComboToggle.textContent = "+ New Pose Combo";
+        newComboToggle.textContent = t("anims.newCombo");
         combosCnt.appendChild(newComboToggle);
 
         const newComboForm = document.createElement("div");
@@ -7858,7 +7989,7 @@ export class EBCDrawer {
         ncTopSaveBar.className = "ebc-editor-save-bar";
         const ncTopSaveBtn = document.createElement("button");
         ncTopSaveBtn.className = "ebc-update-btn";
-        ncTopSaveBtn.textContent = "✓ Save Combo";
+        ncTopSaveBtn.textContent = t("anims.saveCombo");
         ncTopSaveBtn.style.cssText = "flex:1;font-size:11px;";
         newComboForm.appendChild(ncTopSaveBar); // wired below after getters exist
 
@@ -7889,7 +8020,7 @@ export class EBCDrawer {
         ncSaveBar.style.marginTop = "2px";
         const ncSaveBtn = document.createElement("button");
         ncSaveBtn.className = "ebc-create-btn";
-        ncSaveBtn.textContent = "Save Combo";
+        ncSaveBtn.textContent = t("anims.saveCombo");
         ncSaveBtn.addEventListener("click", doSave);
         ncSaveBar.appendChild(ncSaveBtn);
         newComboForm.appendChild(ncSaveBar);
@@ -7897,7 +8028,7 @@ export class EBCDrawer {
         newComboToggle.addEventListener("click", () => {
             const open = newComboForm.style.display !== "none";
             newComboForm.style.display = open ? "none" : "flex";
-            newComboToggle.textContent = open ? "+ New Pose Combo" : "- Cancel";
+            newComboToggle.textContent = open ? t("anims.newCombo") : t("core.cancel");
             if (!open) {
                 (ncNameInp as HTMLInputElement).focus();
                 window.setTimeout(() => newComboToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
@@ -8647,7 +8778,7 @@ export class EBCDrawer {
 
             const addBtn = document.createElement("button");
             addBtn.className = "ebc-update-btn";
-            addBtn.textContent = "+ Add Step";
+            addBtn.textContent = t("anims.addStep");
             addBtn.addEventListener("click", () => {
                 syncFromEntries();
                 const defDelays: Record<StepType, number> = {
@@ -8826,7 +8957,7 @@ export class EBCDrawer {
             topSaveBar.className = "ebc-editor-save-bar";
             const topSaveBtn = document.createElement("button");
             topSaveBtn.className = "ebc-update-btn";
-            topSaveBtn.textContent = "✓ Save Changes";
+            topSaveBtn.textContent = t("outfits.saveChanges");
             topSaveBtn.style.cssText = "flex:1;font-size:11px;";
             topSaveBar.appendChild(topSaveBtn);
             editor.appendChild(topSaveBar);
@@ -9403,7 +9534,7 @@ export class EBCDrawer {
                 if (!isSent) {
                     const replyBtn = document.createElement("button");
                     replyBtn.className = "ebc-beep-reply-btn";
-                    replyBtn.textContent = "↩ reply";
+                    replyBtn.textContent = t("users.reply");
                     replyBtn.addEventListener("click", () => setReply(msgBody.slice(0, 80)));
                     wrap.appendChild(replyBtn);
                 }
@@ -9440,7 +9571,7 @@ export class EBCDrawer {
         const input = document.createElement("input");
         input.className = "ebc-beep-win-input";
         input.type = "text";
-        input.placeholder = "Type a message...";
+        input.placeholder = t("users.typeMessage");
         input.maxLength = 300;
 
         const sendBtn = document.createElement("button");
@@ -9627,7 +9758,7 @@ export class EBCDrawer {
         const afkLbl = document.createElement("div");
         afkLbl.className = "ebc-section-label";
         afkLbl.style.margin = "0";
-        afkLbl.textContent = "AFK Auto-Reply";
+        afkLbl.textContent = t("settings.afkAutoReply");
         const afkChevron = document.createElement("span");
         afkChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
         afkHeader.appendChild(afkLbl);
@@ -9646,7 +9777,7 @@ export class EBCDrawer {
         const afkToggleBtn = document.createElement("button");
         const refreshAfkToggle = (): void => {
             const on = getAfkEnabled();
-            afkToggleBtn.textContent = on ? "ON" : "OFF";
+            afkToggleBtn.textContent = on ? t("core.on") : t("core.off");
             afkToggleBtn.style.cssText = [
                 "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
                 "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
@@ -9665,7 +9796,7 @@ export class EBCDrawer {
         // Threshold — label row + h/m/s inputs on separate row
         const afkThreshLbl = document.createElement("div");
         afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;margin-bottom:4px;";
-        afkThreshLbl.textContent = "Idle threshold";
+        afkThreshLbl.textContent = t("settings.idleThreshold");
 
         const afkThreshRow = document.createElement("div");
         afkThreshRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:4px;";
@@ -9770,7 +9901,7 @@ export class EBCDrawer {
         const userNotesLbl = document.createElement("div");
         userNotesLbl.className = "ebc-section-label";
         userNotesLbl.style.margin = "0";
-        userNotesLbl.textContent = "User Notes";
+        userNotesLbl.textContent = t("users.header");
 
         const userNotesChevron = document.createElement("span");
         userNotesChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
@@ -10519,9 +10650,9 @@ export class EBCDrawer {
                     if (sinceTs) {
                         const d = new Date(sinceTs);
                         const label = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-                        sinceEl.textContent = `🤝 Friends since: ${label}`;
+                        sinceEl.textContent = t("users.friendsSince", { date: label });
                     } else {
-                        sinceEl.textContent = "🤝 Friends since: Unknown";
+                        sinceEl.textContent = t("users.friendsSinceUnknown");
                     }
                     infoBox.appendChild(sinceEl);
 
@@ -10651,13 +10782,13 @@ export class EBCDrawer {
                     newTagInputRef = newTagInput;
                     newTagInput.type = "text";
                     newTagInput.maxLength = 30;
-                    newTagInput.placeholder = "new tag…";
+                    newTagInput.placeholder = t("users.newTagPlaceholder");
                     newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
                     newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
                     newTagInput.addEventListener("blur",  () => { newTagInput.style.borderColor = "#3a1928"; });
 
                     const addTagBtn = document.createElement("button");
-                    addTagBtn.textContent = "+ Add";
+                    addTagBtn.textContent = t("core.add");
                     addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
 
                     addRow.appendChild(newTagInput);
@@ -10704,7 +10835,7 @@ export class EBCDrawer {
                     const pinBtn = document.createElement("button");
                     const refreshPinBtn = (): void => {
                         const p = isFriendPinned(num);
-                        pinBtn.textContent = p ? "📌 Unpin" : "📌 Pin to top";
+                        pinBtn.textContent = p ? t("users.unpin") : t("users.pinToTop");
                         pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
                         row.classList.toggle("pinned", p);
                         pinDot.style.display = p ? "" : "none";
@@ -10725,7 +10856,7 @@ export class EBCDrawer {
 
                     const noteTA = document.createElement("textarea");
                     noteTA.className = "ebc-notes-textarea";
-                    noteTA.placeholder = "Notes about this person...";
+                    noteTA.placeholder = t("users.noteHint");
                     noteTA.rows = 3;
                     noteTA.style.cssText += "width:100%;box-sizing:border-box;resize:vertical;";
                     // Load current note value fresh each time the panel is opened
@@ -10737,7 +10868,7 @@ export class EBCDrawer {
 
                     const noteHint = document.createElement("div");
                     noteHint.className = "ebc-notes-save-hint";
-                    noteHint.textContent = "saves automatically";
+                    noteHint.textContent = t("users.savedAutomatically");
 
                     noteWrap.appendChild(noteTA);
                     noteWrap.appendChild(noteHint);
@@ -10749,8 +10880,8 @@ export class EBCDrawer {
                         noteHint.textContent = "saving...";
                         noteSaveTimer = window.setTimeout(() => {
                             saveNote(num, name, noteTA.value);
-                            noteHint.textContent = noteTA.value.trim() ? "saved" : "saves automatically";
-                            window.setTimeout(() => { noteHint.textContent = "saves automatically"; }, 1500);
+                            noteHint.textContent = noteTA.value.trim() ? t("core.saved") : t("users.savedAutomatically");
+                            window.setTimeout(() => { noteHint.textContent = t("users.savedAutomatically"); }, 1500);
                             try { if (this.currentTab === "notes") this.rerender(); } catch { /* ignore */ }
                         }, 800);
                     });
@@ -10896,13 +11027,13 @@ export class EBCDrawer {
 
         const textarea = document.createElement("textarea");
         textarea.className = "ebc-notes-textarea";
-        textarea.placeholder = "Notes about this person...";
+        textarea.placeholder = t("users.noteHint");
         textarea.value = currentNote;
         textarea.rows = 3;
 
         const hint = document.createElement("div");
         hint.className = "ebc-notes-save-hint";
-        hint.textContent = "saves automatically";
+        hint.textContent = t("users.savedAutomatically");
 
         editor.appendChild(textarea);
         editor.appendChild(hint);
@@ -10944,7 +11075,7 @@ export class EBCDrawer {
         const badgeToggle2 = document.createElement("button");
         const updateBadgeToggle2 = (): void => {
             const on = getBadgeEnabled();
-            badgeToggle2.textContent = on ? "ON" : "OFF";
+            badgeToggle2.textContent = on ? t("core.on") : t("core.off");
             badgeToggle2.style.cssText = [
                 "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
                 "padding:5px 12px", "border-radius:4px", "cursor:pointer",
@@ -11000,7 +11131,7 @@ export class EBCDrawer {
         };
 
         // ── Whisper Log ───────────────────────────────────────────────────────
-        makeSection("WHISPER LOG", "EBC_devWhisperLogCollapsed", true, (cnt) => {
+        makeSection(t("dev.whisperLog"), "EBC_devWhisperLogCollapsed", true, (cnt) => {
             const partners = getWhisperPartners();
             if (partners.length === 0) {
                 const empty = document.createElement("div");
@@ -11016,7 +11147,7 @@ export class EBCDrawer {
             const whClearBtn = document.createElement("button");
             whClearBtn.className = "ebc-outfit-del";
             whClearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
-            whClearBtn.textContent = "Clear";
+            whClearBtn.textContent = t("dev.clearLog");
             whClearBtn.title = "Clear whisper log";
             whClearBtn.addEventListener("click", () => {
                 this.selectedWhisperPartner = null;
@@ -11173,15 +11304,15 @@ export class EBCDrawer {
 
             // ── Per-colour pickers ─────────────────────────────────────────────
             const colorFields: Array<{ key: keyof CoreColors; label: string; hint: string }> = [
-                { key: "bg",         label: "Drawer BG",  hint: "Main panel background" },
-                { key: "card",       label: "Card BG",    hint: "Section / card backgrounds" },
-                { key: "cardMuted",  label: "Inset BG",   hint: "Text inputs, textareas, recessed surfaces" },
-                { key: "border",     label: "Border",     hint: "All border lines" },
-                { key: "accent",     label: "Accent",     hint: "Buttons, highlights, active states" },
-                { key: "gold",       label: "Gold",       hint: "Gold highlights, notices & labels" },
-                { key: "textBright", label: "Text",       hint: "Primary readable text" },
-                { key: "textSub",    label: "Subtext",    hint: "Secondary / label text" },
-                { key: "textMuted",  label: "Dim Text",   hint: "Inactive, placeholder & muted text" },
+                { key: "bg",         label: t("theme.drawerBg"),  hint: "Main panel background" },
+                { key: "card",       label: t("theme.cardBg"),    hint: "Section / card backgrounds" },
+                { key: "cardMuted",  label: t("theme.insetBg"),   hint: "Text inputs, textareas, recessed surfaces" },
+                { key: "border",     label: t("theme.border"),    hint: "All border lines" },
+                { key: "accent",     label: t("theme.accent"),    hint: "Buttons, highlights, active states" },
+                { key: "gold",       label: t("theme.gold"),      hint: "Gold highlights, notices & labels" },
+                { key: "textBright", label: t("theme.text"),      hint: "Primary readable text" },
+                { key: "textSub",    label: t("theme.subtext"),   hint: "Secondary / label text" },
+                { key: "textMuted",  label: t("theme.dimText"),   hint: "Inactive, placeholder & muted text" },
             ];
 
             const subLbl = document.createElement("div");
@@ -11305,7 +11436,7 @@ export class EBCDrawer {
             setHotkeyBtn.addEventListener("mouseleave", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#3a1020"; });
 
             const clearHotkeyBtn = document.createElement("button");
-            clearHotkeyBtn.textContent = "Clear";
+            clearHotkeyBtn.textContent = t("dev.clearLog");
             clearHotkeyBtn.style.cssText = BTN + "border:1px solid #3a2530;background:transparent;color:#7a5a6a;";
             clearHotkeyBtn.addEventListener("mouseenter", () => { clearHotkeyBtn.style.background = "rgba(122,90,106,0.15)"; });
             clearHotkeyBtn.addEventListener("mouseleave", () => { clearHotkeyBtn.style.background = "transparent"; });
@@ -11425,7 +11556,7 @@ export class EBCDrawer {
             const verToggle = document.createElement("button");
             const refreshVerToggle = (): void => {
                 const on = getShowVersionBadge();
-                verToggle.textContent = on ? "ON" : "OFF";
+                verToggle.textContent = on ? t("core.on") : t("core.off");
                 verToggle.style.cssText = [
                     "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
                     "padding:2px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
@@ -11443,7 +11574,7 @@ export class EBCDrawer {
             // Character Inspector
             const charLbl = document.createElement("div");
             charLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
-            charLbl.textContent = "Character Inspector";
+            charLbl.textContent = t("dev.characterInspector");
             cnt.appendChild(charLbl);
             const charHint = document.createElement("div");
             charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
@@ -11483,7 +11614,7 @@ export class EBCDrawer {
                 const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
                 const num = parseInt(charSelect.value, 10);
                 const char = room.find(c => c.MemberNumber === num);
-                if (!char) { charDump.textContent = "Character not found in room."; charDump.style.display = ""; return; }
+                if (!char) { charDump.textContent = t("dev.charNotInRoom"); charDump.style.display = ""; return; }
                 try {
                     const snapshot = {
                         Name: char.Name,
@@ -11690,7 +11821,7 @@ export class EBCDrawer {
                 if (isNaN(num)) { statusEl.textContent = "No member selected."; return; }
                 const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
                 const char = room.find(c => c.MemberNumber === num);
-                if (!char) { statusEl.textContent = "Character not found in room."; statusEl.style.color = "#ff6b6b"; return; }
+                if (!char) { statusEl.textContent = t("dev.charNotInRoom"); statusEl.style.color = "#ff6b6b"; return; }
 
                 const items = char.Appearance.filter((i: Item) => i.Asset?.Group?.Name && RESTRAINT_GROUPS.has(i.Asset.Group.Name));
                 if (items.length === 0) {
@@ -11796,7 +11927,7 @@ export class EBCDrawer {
         let renderRlog:   () => void = () => { /* populated below */ };
         let renderMsgLog: () => void = () => { /* populated below */ };
 
-        makeSection("LOG", "EBC_devLogSectionCollapsed", true, (cnt) => {
+        makeSection(t("dev.devLog"), "EBC_devLogSectionCollapsed", true, (cnt) => {
             // -- shared helpers --
             const fmtDuration = (ms: number): string => {
                 const s = Math.floor(ms / 1000);
@@ -11925,7 +12056,7 @@ export class EBCDrawer {
             // ── Rooms Visited ─────────────────────────────────────────────────
             // Opt-in persistent history of past rooms.
             const roomClearBtn = document.createElement("button");
-            roomClearBtn.textContent = "Clear";
+            roomClearBtn.textContent = t("dev.clearLog");
             roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
             roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
             roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
@@ -11940,7 +12071,7 @@ export class EBCDrawer {
                 const rhToggleBtn = document.createElement("button");
                 const refreshRhToggle = (): void => {
                     const on = getRoomHistoryEnabled();
-                    rhToggleBtn.textContent = on ? "ON" : "OFF";
+                    rhToggleBtn.textContent = on ? t("core.on") : t("core.off");
                     rhToggleBtn.style.cssText = [
                         "font-family:'Trebuchet MS',serif","font-size:9px","font-weight:bold",
                         "padding:2px 8px","border-radius:4px","cursor:pointer","flex-shrink:0",
@@ -12046,7 +12177,7 @@ export class EBCDrawer {
 
             // ── Restraint Log ─────────────────────────────────────────────────
             const rlogClearBtn = document.createElement("button");
-            rlogClearBtn.textContent = "Clear";
+            rlogClearBtn.textContent = t("dev.clearLog");
             rlogClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
             rlogClearBtn.addEventListener("mouseenter", () => { rlogClearBtn.style.color = "#cf6f98"; rlogClearBtn.style.borderColor = "#cf6f98"; });
             rlogClearBtn.addEventListener("mouseleave", () => { rlogClearBtn.style.color = "#7a5a6a"; rlogClearBtn.style.borderColor = "#3a1928"; });
@@ -12061,7 +12192,7 @@ export class EBCDrawer {
                 const rlToggleBtn = document.createElement("button");
                 const refreshRlToggle = (): void => {
                     const on = getRestraintLogEnabled();
-                    rlToggleBtn.textContent = on ? "ON" : "OFF";
+                    rlToggleBtn.textContent = on ? t("core.on") : t("core.off");
                     rlToggleBtn.style.cssText = [
                         "font-family:'Trebuchet MS',serif","font-size:9px","font-weight:bold",
                         "padding:2px 8px","border-radius:4px","cursor:pointer","flex-shrink:0",
@@ -12216,7 +12347,7 @@ export class EBCDrawer {
                 const msgClearBtn = document.createElement("button");
                 msgClearBtn.className = "ebc-icon-btn";
                 msgClearBtn.style.cssText = "font-size:11px;padding:5px 10px;";
-                msgClearBtn.textContent = "Clear";
+                msgClearBtn.textContent = t("dev.clearLog");
                 const logToggleWrap = document.createElement("label");
                 logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
                 const logToggleChk = document.createElement("input");
@@ -12238,7 +12369,7 @@ export class EBCDrawer {
                 const logOffText = document.createElement("span"); logOffText.textContent = "Logging is off."; logOffText.style.flex = "1";
                 logOffHint.appendChild(logOffText);
                 const enableBtn = document.createElement("button");
-                enableBtn.textContent = "Enable";
+                enableBtn.textContent = t("core.enable");
                 enableBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
                 enableBtn.addEventListener("mouseenter", () => { enableBtn.style.color = "#cf6f98"; enableBtn.style.borderColor = "#cf6f98"; });
                 enableBtn.addEventListener("mouseleave", () => { enableBtn.style.color = "#9a7080"; enableBtn.style.borderColor = "#4c2537"; });
@@ -12499,7 +12630,7 @@ export class EBCDrawer {
                     moneyInp.value = String((Player as unknown as Record<string, unknown>).Money ?? 0);
                     moneyInp.style.cssText = INP;
                     const addMoneyBtn = document.createElement("button");
-                    addMoneyBtn.textContent = "+ Add";
+                    addMoneyBtn.textContent = t("core.add");
                     addMoneyBtn.title = "Add this amount to current money";
                     addMoneyBtn.style.cssText = BTN;
                     const setMoneyBtn = document.createElement("button");
@@ -12628,11 +12759,11 @@ export class EBCDrawer {
 
             const searchInp = document.createElement("input");
             searchInp.type = "text";
-            searchInp.placeholder = "Search name or #id…";
+            searchInp.placeholder = t("dev.searchPlaceholder");
             searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
 
             const clearBtn = document.createElement("button");
-            clearBtn.textContent = "Clear All";
+            clearBtn.textContent = t("core.clearAll");
             clearBtn.style.cssText = `${PFONT}font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
             clearBtn.addEventListener("mouseenter", () => { clearBtn.style.color = "#e05070"; clearBtn.style.borderColor = "#e05070"; });
             clearBtn.addEventListener("mouseleave", () => { clearBtn.style.color = "#7a5a6a"; clearBtn.style.borderColor = "#4c2537"; });
@@ -12823,7 +12954,7 @@ export class EBCDrawer {
             "transition:background 0.14s,transform 0.08s",
             "letter-spacing:0.08em",
         ].join(";");
-        barkBtn.textContent = "🐶 Bark!";
+        barkBtn.textContent = t("kitty.barkBtn");
         barkBtn.addEventListener("mouseenter", () => { barkBtn.style.background = "#5a30a0"; });
         barkBtn.addEventListener("mouseleave", () => { barkBtn.style.background = "#3a2060"; });
         barkBtn.addEventListener("mousedown", () => { barkBtn.style.transform = "scale(0.95)"; });
@@ -12836,7 +12967,7 @@ export class EBCDrawer {
             barkBtn.textContent = "🐶 " + bark;
             window.setTimeout(() => {
                 barkBtn.style.background = "#3a2060";
-                barkBtn.textContent = "🐶 Bark!";
+                barkBtn.textContent = t("kitty.barkBtn");
             }, 700);
         });
         body.appendChild(barkBtn);
@@ -12946,7 +13077,7 @@ export class EBCDrawer {
         addInp.className = "ebc-form-input";
         addInp.style.cssText = "flex:1;font-size:10px;";
         const addBtn = document.createElement("button");
-        addBtn.textContent = "+ Add";
+        addBtn.textContent = t("core.add");
         addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
         addBtn.addEventListener("mouseenter", () => { addBtn.style.background = "#5a30a0"; });
         addBtn.addEventListener("mouseleave", () => { addBtn.style.background = "#3a2060"; });
@@ -13015,11 +13146,11 @@ export class EBCDrawer {
                 const typeSelect = document.createElement("select");
                 typeSelect.className = "ebc-seq-type-select";
                 [
-                    { value: "action",    label: "Action !"     },
-                    { value: "emote",     label: "Emote *"      },
-                    { value: "pose",      label: "Pose"         },
-                    { value: "reset",     label: "Reset _"      },
-                    { value: "leaveroom", label: "Leave Room 🚪" },
+                    { value: "action",    label: t("buttons.styleAction")  },
+                    { value: "emote",     label: t("buttons.styleEmote")   },
+                    { value: "pose",      label: t("buttons.stylePose")    },
+                    { value: "reset",     label: t("buttons.styleReset")   },
+                    { value: "leaveroom", label: t("buttons.styleLeave")   },
                 ].forEach(opt => {
                     const o = document.createElement("option");
                     o.value = opt.value; o.textContent = opt.label;
@@ -13262,7 +13393,7 @@ export class EBCDrawer {
         const addCatBtn = document.createElement("button");
         addCatBtn.className = "ebc-cat-pill";
         addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
-        addCatBtn.textContent = "+ Add Category";
+        addCatBtn.textContent = t("buttons.addCategory");
         addCatBtn.addEventListener("click", () => {
             const name = window.prompt("Category name (e.g. RP, Casual):") ?? "";
             if (!name.trim()) return;
@@ -13298,7 +13429,7 @@ export class EBCDrawer {
 
                 const toggle = document.createElement("button");
                 toggle.className = "ebc-slot-toggle" + (btn.enabled ? " on" : "");
-                toggle.textContent = btn.enabled ? "ON" : "OFF";
+                toggle.textContent = btn.enabled ? t("core.on") : t("core.off");
                 toggle.title = btn.enabled ? "Click to disable" : "Click to enable";
 
                 const labelInp = document.createElement("input");
@@ -13353,7 +13484,7 @@ export class EBCDrawer {
                     const doneBtn = document.createElement("button");
                     doneBtn.className = "ebc-wear-btn";
                     doneBtn.style.cssText = "width:100%;margin-top:6px;";
-                    doneBtn.textContent = "✓ Done";
+                    doneBtn.textContent = t("core.done");
                     doneBtn.addEventListener("click", closeSlotPicker);
                     popup.appendChild(pw);
                     popup.appendChild(doneBtn);
@@ -13380,14 +13511,14 @@ export class EBCDrawer {
                 // ▲ / ▼ reorder buttons
                 const moveUpBtn = document.createElement("button");
                 moveUpBtn.className = "ebc-slot-move";
-                moveUpBtn.textContent = "▲";
-                moveUpBtn.title = "Move up";
+                moveUpBtn.textContent = t("core.moveUp");
+                moveUpBtn.title = t("core.moveUpTitle");
                 moveUpBtn.disabled = i === 0;
 
                 const moveDownBtn = document.createElement("button");
                 moveDownBtn.className = "ebc-slot-move";
-                moveDownBtn.textContent = "▼";
-                moveDownBtn.title = "Move down";
+                moveDownBtn.textContent = t("core.moveDown");
+                moveDownBtn.title = t("core.moveDownTitle");
                 moveDownBtn.disabled = i === slotCount - 1;
 
                 topLine.appendChild(toggle);
@@ -13408,7 +13539,7 @@ export class EBCDrawer {
                     // seq: badge only — step builder below handles all config
                     const seqBadge = document.createElement("span");
                     seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7ac8;padding:1px 4px;";
-                    seqBadge.textContent = "✨ sequence";
+                    seqBadge.textContent = t("buttons.seqBadge");
                     botLine.appendChild(seqBadge);
                 } else {
                     // action / emote — restore classic () / ** toggle button
@@ -13482,7 +13613,7 @@ export class EBCDrawer {
                 toggle.addEventListener("click", () => {
                     btns[idx].enabled = !btns[idx].enabled;
                     toggle.className = "ebc-slot-toggle" + (btns[idx].enabled ? " on" : "");
-                    toggle.textContent = btns[idx].enabled ? "ON" : "OFF";
+                    toggle.textContent = btns[idx].enabled ? t("core.on") : t("core.off");
                 });
 
                 labelInp.addEventListener("input", () => {
@@ -13558,12 +13689,12 @@ export class EBCDrawer {
 
         const exportBtn = document.createElement("button");
         exportBtn.className = "ebc-btn-footer-btn";
-        exportBtn.textContent = "↑ Export";
+        exportBtn.textContent = t("core.export");
         exportBtn.title = "Copy button config to clipboard to share with others";
 
         const importToggleBtn = document.createElement("button");
         importToggleBtn.className = "ebc-btn-footer-btn";
-        importToggleBtn.textContent = "↓ Import";
+        importToggleBtn.textContent = t("core.import");
         importToggleBtn.title = "Load a shared button config";
 
         ioRow.appendChild(exportBtn);
@@ -13592,7 +13723,7 @@ export class EBCDrawer {
             const faceLbl = document.createElement("span");
             faceLbl.className = "ebc-section-label";
             faceLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
-            faceLbl.textContent = "FACE PRESETS";
+            faceLbl.textContent = t("expr.facePresets");
             const faceHint = document.createElement("span");
             faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
             faceHint.textContent = "build & save expression presets";
@@ -13623,7 +13754,7 @@ export class EBCDrawer {
 
         const importTextarea = document.createElement("textarea");
         importTextarea.className = "ebc-notes-textarea";
-        importTextarea.placeholder = '{"ebc":1,"slotCount":3,"buttons":[...]}';
+        importTextarea.placeholder = t("buttons.importHint");
         importTextarea.rows = 3;
         importPanel.appendChild(importTextarea);
 
@@ -13735,8 +13866,8 @@ export class EBCDrawer {
 
             if (navigator.clipboard?.writeText) {
                 navigator.clipboard.writeText(payload).then(() => {
-                    exportBtn.textContent = "Copied!";
-                    window.setTimeout(() => { exportBtn.textContent = "↑ Export"; }, 1500);
+                    exportBtn.textContent = t("core.copied");
+                    window.setTimeout(() => { exportBtn.textContent = t("core.export"); }, 1500);
                 }).catch(showInPanel).catch(() => { /* ignore */ });
             } else {
                 showInPanel();
@@ -13805,7 +13936,7 @@ export class EBCDrawer {
                 loadBtn.textContent = "Loaded!";
                 window.setTimeout(() => { loadBtn.textContent = "Load"; }, 1200);
             } catch (err) {
-                importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
+                importError.textContent = err instanceof Error ? err.message : t("outfits.invalidFormat");
             }
         });
 
@@ -13820,7 +13951,7 @@ export class EBCDrawer {
         boopBtn.className = "ebc-create-btn";
         boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
         boopBtn.title = "Send a unique boop message to every friend currently in the room";
-        boopBtn.textContent = "🐾 Boop all friends in room";
+        boopBtn.textContent = t("kitty.boopAll");
         boopBtn.addEventListener("click", () => {
             const booped = this.boopFriendsInRoom();
             if (booped === 0) {
@@ -13828,7 +13959,7 @@ export class EBCDrawer {
             } else {
                 boopBtn.textContent = `Booped ${booped}!`;
             }
-            window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
+            window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
         });
         body.appendChild(boopBtn);
 
@@ -13962,7 +14093,7 @@ export class EBCDrawer {
         // Sync button label/style to current leash state
         const refreshLeashBtn = (): void => {
             const held = isLeashHeld();
-            leashBtn.textContent = held ? "🔗 Let Go of Leash" : "🔗 Grab Leash";
+            leashBtn.textContent = held ? t("kitty.letGoLeash") : t("kitty.grabLeash");
             leashBtn.style.borderColor = held ? "#e07070aa" : "#8a5a7888";
             leashBtn.style.color       = held ? "#e0a090"   : "#c090b0";
         };
@@ -14009,15 +14140,15 @@ export class EBCDrawer {
         // clients and runs the pair-and-follow handler when it sees this content.
         const pullBtn = document.createElement("button");
         pullBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 12px;border-radius:8px;cursor:pointer;border:2px solid #7a6a3888;background:rgba(60,50,30,0.35);color:#b0a070;flex-shrink:0;transition:background 0.12s,border-color 0.12s;";
-        pullBtn.textContent = "↗ Pull";
+        pullBtn.textContent = t("kitty.pull");
         pullBtn.title = "Pull Emery to your side (requires echo-activity-ext on both ends; leash must be held)";
         pullBtn.addEventListener("mouseenter", () => { pullBtn.style.background = "rgba(100,80,30,0.5)"; });
         pullBtn.addEventListener("mouseleave", () => { pullBtn.style.background = "rgba(60,50,30,0.35)"; });
         pullBtn.addEventListener("click", () => {
             if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
             if (!isLeashHeld()) {
-                pullBtn.textContent = "Hold leash first!";
-                window.setTimeout(() => { pullBtn.textContent = "↗ Pull"; }, 1500);
+                pullBtn.textContent = t("kitty.holdLeashFirst");
+                window.setTimeout(() => { pullBtn.textContent = t("kitty.pull"); }, 1500);
                 return;
             }
             const mood = getKittyMood();
@@ -14061,11 +14192,11 @@ export class EBCDrawer {
             let editing = false;
             const editBtn = document.createElement("button");
             editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
-            editBtn.textContent = "✎ Edit";
+            editBtn.textContent = t("core.edit");
             if (onEditToggle) {
                 editBtn.addEventListener("click", () => {
                     editing = !editing;
-                    editBtn.textContent = editing ? "✔ Done" : "✎ Edit";
+                    editBtn.textContent = editing ? t("core.done") : t("core.edit");
                     editBtn.style.color = editing ? "#cf6f98" : "#7a5a6a";
                     editBtn.style.borderColor = editing ? "#cf6f98" : "#4c2537";
                     onEditToggle(editing);
@@ -14075,7 +14206,7 @@ export class EBCDrawer {
             if (onAdd) {
                 const addBtn = document.createElement("button");
                 addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
-                addBtn.textContent = "+ Add";
+                addBtn.textContent = t("core.add");
                 addBtn.addEventListener("mouseenter", () => { addBtn.style.color = "#cf6f98"; addBtn.style.borderColor = "#cf6f98"; });
                 addBtn.addEventListener("mouseleave", () => { addBtn.style.color = "#7a5a6a"; addBtn.style.borderColor = "#4c2537"; });
                 addBtn.addEventListener("click", onAdd);
@@ -14175,11 +14306,11 @@ export class EBCDrawer {
                 let editing = false;
                 const editBtn = document.createElement("button");
                 editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;flex-shrink:0;";
-                editBtn.textContent = "✎ Edit";
+                editBtn.textContent = t("core.edit");
                 editBtn.addEventListener("click", (e) => {
                     e.stopPropagation();
                     editing = !editing;
-                    editBtn.textContent = editing ? "✔ Done" : "✎ Edit";
+                    editBtn.textContent = editing ? t("core.done") : t("core.edit");
                     editBtn.style.color = editing ? "#cf6f98" : "#7a5a6a";
                     editBtn.style.borderColor = editing ? "#cf6f98" : "#4c2537";
                     onEditToggle(editing);
@@ -14298,8 +14429,8 @@ export class EBCDrawer {
 
             const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
             const newLbl = document.createElement("input"); newLbl.placeholder = "Label"; newLbl.style.cssText = "width:90px;flex-shrink:0;" + INP;
-            const newText = document.createElement("input"); newText.placeholder = "Emote text…"; newText.style.cssText = "flex:1;min-width:0;" + INP;
-            const addBtnE = document.createElement("button"); addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnE.textContent = "+ Add";
+            const newText = document.createElement("input"); newText.placeholder = t("buttons.emoteText"); newText.style.cssText = "flex:1;min-width:0;" + INP;
+            const addBtnE = document.createElement("button"); addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnE.textContent = t("core.add");
             addBtnE.addEventListener("click", () => {
                 if (!newLbl.value.trim()) return;
                 const updated = getKittyEmotes();
@@ -14408,7 +14539,7 @@ export class EBCDrawer {
                 newInp.placeholder = "New reaction text…";
                 newInp.style.cssText = "flex:1;min-width:0;" + INP;
                 const addBtn = document.createElement("button");
-                addBtn.textContent = "+ Add";
+                addBtn.textContent = t("core.add");
                 addBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid ${color}66;background:transparent;color:${color};flex-shrink:0;`;
                 addBtn.addEventListener("click", () => {
                     const text = newInp.value.trim();
@@ -14525,7 +14656,7 @@ export class EBCDrawer {
             const newPose = document.createElement("input"); newPose.placeholder = "BC pose (empty = neutral)"; newPose.style.cssText = "flex:1;min-width:0;" + INP;
             const addBtnP = document.createElement("button");
             addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-            addBtnP.textContent = "+ Add";
+            addBtnP.textContent = t("core.add");
             addBtnP.addEventListener("click", () => {
                 if (!newLbl2.value.trim()) return;
                 const updated = getKittyPoses();
@@ -14718,7 +14849,7 @@ export class EBCDrawer {
 
                             const aiColRow2 = document.createElement("div"); aiColRow2.style.cssText = "display:flex;align-items:center;gap:3px;";
                             const aiColInp = document.createElement("input"); aiColInp.placeholder = "Default or #rrggbb"; aiColInp.style.cssText = "flex:1;min-width:0;" + INP;
-                            const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = "+ Add";
+                            const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = t("core.add");
                             aiAddBtn.addEventListener("click", () => {
                                 if (!aiSl.value || !aiItemSel.value) return;
                                 const newItem: KittyItem = { Name: aiItemSel.value, Group: aiSl.value, Color: strToColor(aiColInp.value || "Default") };
@@ -14749,7 +14880,7 @@ export class EBCDrawer {
 
                             // Import from pasted BC outfit code
                             const codeRow = document.createElement("div"); codeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
-                            const codeInp = document.createElement("input"); codeInp.placeholder = "Paste LZ/JSON BC code…"; codeInp.style.cssText = "flex:1;min-width:0;" + INP;
+                            const codeInp = document.createElement("input"); codeInp.placeholder = t("outfits.importBCPlaceholder"); codeInp.style.cssText = "flex:1;min-width:0;" + INP;
                             const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
                             codeBtn.addEventListener("click", () => {
                                 const code = codeInp.value.trim(); if (!code) return;
@@ -14832,7 +14963,7 @@ export class EBCDrawer {
             // Add new action
             const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
             const newPunLbl = document.createElement("input"); newPunLbl.placeholder = "New action name"; newPunLbl.style.cssText = "flex:1;min-width:0;" + INP;
-            const addBtnPun = document.createElement("button"); addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnPun.textContent = "+ Add";
+            const addBtnPun = document.createElement("button"); addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnPun.textContent = t("core.add");
             addBtnPun.addEventListener("click", () => {
                 if (!newPunLbl.value.trim()) return;
                 const updated = getKittyPunishments();
@@ -14861,7 +14992,7 @@ export class EBCDrawer {
             const createRow = document.createElement("div");
             createRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
             const newNameInp = document.createElement("input");
-            newNameInp.placeholder = "New preset name…";
+            newNameInp.placeholder = t("anims.newPresetName");
             newNameInp.style.cssText = "flex:1;min-width:0;" + INP;
             const createBtn = document.createElement("button");
             createBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
@@ -14999,7 +15130,7 @@ export class EBCDrawer {
                     else { const ph = document.createElement("option"); ph.value = ""; ph.textContent = "— item —"; ph.disabled = true; ph.selected = true; itemSel.appendChild(ph); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; itemSel.appendChild(o); } }
                 });
                 const colInp2 = document.createElement("input"); colInp2.placeholder = "#rrggbb"; colInp2.style.cssText = "width:64px;flex-shrink:0;" + INP; colInp2.title = "Colour (optional)";
-                const addItemBtn = document.createElement("button"); addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addItemBtn.textContent = "+ Add";
+                const addItemBtn = document.createElement("button"); addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addItemBtn.textContent = t("core.add");
                 addItemBtn.addEventListener("click", () => {
                     if (!sl.value || !itemSel.value) return;
                     const newItem: KittyItem = { Name: itemSel.value, Group: sl.value, Color: strToColor(colInp2.value || "Default") };
@@ -15081,7 +15212,7 @@ export class EBCDrawer {
         const crDiv = divider(); rpCBody.appendChild(crDiv);
         const crHdr = document.createElement("div");
         crHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;";
-        crHdr.textContent = "Copy Restraints from Member";
+        crHdr.textContent = t("dom.copyRestraints");
         rpCBody.appendChild(crHdr);
 
         const crHint = document.createElement("div");
@@ -15168,7 +15299,7 @@ export class EBCDrawer {
             if (isNaN(num)) { crStatus.textContent = "No member selected."; return; }
             const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
             const char = room.find(c => c.MemberNumber === num);
-            if (!char) { crStatus.textContent = "Character not found."; return; }
+            if (!char) { crStatus.textContent = t("dev.charNotFound"); return; }
             const items = char.Appearance.filter((i: Item) => i.Asset?.Group?.Name && RESTRAINT_GROUPS.has(i.Asset.Group.Name));
             if (items.length === 0) { crClear(); crStatus.textContent = "No restraints on this character."; return; }
             crClear();
@@ -15211,8 +15342,8 @@ export class EBCDrawer {
             if (!crTA.value) { crStatus.textContent = "Generate code first."; return; }
             try {
                 navigator.clipboard.writeText(crTA.value).then(() => {
-                    crStatus.textContent = "✔ Copied!"; crStatus.style.color = "#79a885";
-                }).catch(() => { crTA.select(); document.execCommand("copy"); crStatus.textContent = "✔ Copied!"; crStatus.style.color = "#79a885"; });
+                    crStatus.textContent = t("core.copied"); crStatus.style.color = "#79a885";
+                }).catch(() => { crTA.select(); document.execCommand("copy"); crStatus.textContent = t("core.copied"); crStatus.style.color = "#79a885"; });
             } catch { crTA.select(); document.execCommand("copy"); }
         });
 
@@ -15386,7 +15517,7 @@ export class EBCDrawer {
 
             // Create new preset
             const createRow = document.createElement("div"); createRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-            const newLblInp = document.createElement("input"); newLblInp.placeholder = "New preset name…"; newLblInp.style.cssText = "flex:1;min-width:0;" + INP;
+            const newLblInp = document.createElement("input"); newLblInp.placeholder = t("anims.newPresetName"); newLblInp.style.cssText = "flex:1;min-width:0;" + INP;
             const createBtn = epMkBtn("+ Create");
             createBtn.addEventListener("click", () => {
                 const name = newLblInp.value.trim(); if (!name) return;
@@ -15544,13 +15675,13 @@ export class EBCDrawer {
 
         // Save current face as preset — name on its own row, button below
         const captureInput = Object.assign(document.createElement("input"), {
-            className: "ebc-form-input", type: "text", maxLength: 30, placeholder: "Name this preset…",
+            className: "ebc-form-input", type: "text", maxLength: 30, placeholder: t("expr.presetNamePlaceholder"),
         }) as HTMLInputElement;
         captureInput.style.cssText = "width:100%;box-sizing:border-box;margin-bottom:4px;";
         const captureBtn = document.createElement("button");
         captureBtn.className = "ebc-create-btn";
         captureBtn.style.cssText = "width:100%;font-size:9px;padding:4px 8px;box-sizing:border-box;margin-bottom:8px;";
-        captureBtn.textContent = "💾 Save face";
+        captureBtn.textContent = t("expr.saveFace");
         captureBtn.addEventListener("click", () => {
             const name = captureInput.value.trim() || "Preset";
             saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
@@ -15564,7 +15695,7 @@ export class EBCDrawer {
         const clearBtn = document.createElement("button");
         clearBtn.className = "ebc-btn-footer-btn";
         clearBtn.style.cssText = "width:100%;margin-bottom:10px;font-size:9px;";
-        clearBtn.textContent = "✕ Clear all expressions";
+        clearBtn.textContent = t("dev.clearExpressions");
         clearBtn.addEventListener("click", () => {
             for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } }
             this.rerender(150);
@@ -15874,7 +16005,7 @@ export class EBCDrawer {
         const antiToggle = document.createElement("button");
         const refreshAntiToggle = (): void => {
             const on = getAntiRestraintEnabled();
-            antiToggle.textContent = on ? "ON" : "OFF";
+            antiToggle.textContent = on ? t("core.on") : t("core.off");
             antiToggle.style.cssText = [
                 "font-family:'Trebuchet MS',serif",
                 "font-size:10px",
@@ -16501,7 +16632,7 @@ export class EBCDrawer {
             const id = parseInt(rescueSel.value, 10);
             if (!id || rescueSelected.size === 0) return;
             const count = removeItemsFromMember(id, Array.from(rescueSelected));
-            rescueStatus.textContent = count > 0 ? `✓ Removed ${count} item(s).` : "Nothing removed.";
+            rescueStatus.textContent = count > 0 ? t("qa.removedN", { n: count }) : t("qa.nothingRemoved");
             window.setTimeout(() => { rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
         });
 
@@ -16514,7 +16645,7 @@ export class EBCDrawer {
             rescueBtn.disabled = true;
             const result = rescueRoomMember(id);
             if (!result.found) {
-                rescueStatus.textContent = "⚠ That person is no longer in the room.";
+                rescueStatus.textContent = t("dom.notInRoom");
             } else if (result.locksCleared === 0 && result.restraintsRemoved === 0) {
                 rescueStatus.textContent = "Nothing to remove — they're already free.";
             } else {
@@ -16700,10 +16831,10 @@ export class EBCDrawer {
         const setsLbl = document.createElement("div");
         setsLbl.className = "ebc-section-label";
         setsLbl.style.margin = "0";
-        setsLbl.textContent = "Restraint Sets";
+        setsLbl.textContent = t("kitty.restraintSets");
         const newSetBtn = document.createElement("button");
         newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
-        newSetBtn.textContent = "+ New Set";
+        newSetBtn.textContent = t("dom.newSet");
         newSetBtn.addEventListener("mouseenter", () => { newSetBtn.style.background = "#3a1828"; });
         newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
         setsHeader.appendChild(setsLbl);
@@ -16859,7 +16990,7 @@ export class EBCDrawer {
                 // Import sub-panel
                 const importToggle = document.createElement("button");
                 importToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
-                importToggle.textContent = "↓ Import from BC Code";
+                importToggle.textContent = t("outfits.importFromBCCode");
                 editor.appendChild(importToggle);
 
                 const importPanel = document.createElement("div");
@@ -16867,7 +16998,7 @@ export class EBCDrawer {
 
                 const importTA = document.createElement("textarea");
                 importTA.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 5px;resize:vertical;min-height:46px;outline:none;";
-                importTA.placeholder = "Paste BC outfit code…";
+                importTA.placeholder = t("outfits.importPlaceholder");
 
                 const importMsg = document.createElement("div");
                 importMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;min-height:14px;";
