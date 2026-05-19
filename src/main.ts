@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.8";
+const MOD_VERSION = "2.5.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.9",
+        changes: [
+            "Fix: ↗ Pull Dictionary now includes { ActivityName: '拉到身边' } as required by BC's message pipeline. BC populates metadata.ActivityName from this entry; echo-activity-ext's pullActivityInfo() returns undefined when it's absent, silently skipping the run() handler. This was the root cause of pull-to-side never working despite correct SourceCharacter/TargetCharacter entries.",
+        ],
+    },
     {
         version: "2.5.8",
         changes: [

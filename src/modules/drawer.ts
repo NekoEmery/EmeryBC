@@ -14034,6 +14034,7 @@ export class EBCDrawer {
                     Type: "Activity",
                     Target: EMERY_MEMBER,
                     Dictionary: [
+                        { ActivityName: "拉到身边" },
                         { Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" },
                         { SourceCharacter: Player.MemberNumber },
                         { TargetCharacter: EMERY_MEMBER },
