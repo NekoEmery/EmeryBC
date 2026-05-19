@@ -14828,6 +14828,10 @@
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
             this.crabsPoller = null;
+            // Kitty page: whether Lucy is currently holding Emery's leash.
+            // ChatRoomLeashList is only updated on the TARGET's client, so we maintain
+            // our own authoritative copy here; it survives panel re-renders.
+            this._leashHeld = false;
             this.timerEl = null;
             this.timerPoller = null;
             // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
@@ -25596,12 +25600,10 @@
             leashRow.style.cssText = "display:flex;gap:6px;margin-bottom:8px;";
             const leashBtn = document.createElement("button");
             leashBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 0;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;";
-            // Helper: check whether Lucy is currently holding Emery's leash
-            const isLeashHeld = () => {
-                const w = window;
-                const leashList = w.ChatRoomLeashList;
-                return leashList ? leashList.includes(EMERY_MEMBER) : false;
-            };
+            // Helper: check whether Lucy is currently holding Emery's leash.
+            // ChatRoomLeashList is only reliable on the TARGET's client, not here,
+            // so we use our own class-level flag as the primary source of truth.
+            const isLeashHeld = () => this._leashHeld;
             // Sync button label/style to current leash state
             const refreshLeashBtn = () => {
                 const held = isLeashHeld();
@@ -25621,8 +25623,6 @@
                     return;
                 const mood = getKittyMood();
                 const held = isLeashHeld();
-                const w = window;
-                const leashList = w.ChatRoomLeashList;
                 if (held) {
                     // Release leash
                     sendRoomEmote(mood === "rough"
@@ -25630,13 +25630,9 @@
                         : "gently releases Emery's leash, carefully loosening her collar back to its comfortable fit~");
                     try {
                         ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
-                        if (leashList) {
-                            const idx = leashList.indexOf(EMERY_MEMBER);
-                            if (idx >= 0)
-                                leashList.splice(idx, 1);
-                        }
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
+                    this._leashHeld = false;
                     // Loosen neck — Caress to signal collar relief; LSCG_ReleaseNeck clears any choke pairing
                     runKittyActivity("ItemNeck", "Caress");
                     runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
@@ -25648,10 +25644,9 @@
                         : "reaches out and gently takes hold of Emery's leash~");
                     try {
                         ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
-                        if (leashList && !leashList.includes(EMERY_MEMBER))
-                            leashList.push(EMERY_MEMBER);
                     }
                     catch ( /* ignore */_b) { /* ignore */ }
+                    this._leashHeld = true;
                 }
                 refreshLeashBtn();
             });
@@ -25666,7 +25661,6 @@
             pullBtn.addEventListener("mouseenter", () => { pullBtn.style.background = "rgba(100,80,30,0.5)"; });
             pullBtn.addEventListener("mouseleave", () => { pullBtn.style.background = "rgba(60,50,30,0.35)"; });
             pullBtn.addEventListener("click", () => {
-                var _a, _b;
                 if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
                     return;
                 if (!isLeashHeld()) {
@@ -25680,26 +25674,21 @@
                     : "gives a gentle tug on Emery's leash, coaxing her softly to her side~");
                 try {
                     // echo-activity-ext's run() handler reads SourceCharacter and TargetCharacter
-                    // from the Dictionary (as plain MemberNumber integers) to decide which side
-                    // of the pair logic runs on each client.  Without these entries both
-                    // TargetCharacter === player.MemberNumber checks fail and the handler exits
-                    // silently, which is why Emery didn't move despite the message being sent.
-                    const w = window;
-                    const room = w.ChatRoomCharacter;
-                    const emeryChar = room === null || room === void 0 ? void 0 : room.find((c) => c.MemberNumber === EMERY_MEMBER);
-                    const emeryName = (_a = emeryChar === null || emeryChar === void 0 ? void 0 : emeryChar.Name) !== null && _a !== void 0 ? _a : "Emery";
+                    // as DIRECT object properties in the Dictionary (not Tag-based entries).
+                    // BC's type guards use IsSourceCharacterDictionaryEntry / IsTargetCharacterDictionaryEntry
+                    // which check for "SourceCharacter" in entry (direct property), not entry.Tag.
                     ServerSend("ChatRoomChat", {
                         Content: "拉到身边",
                         Type: "Activity",
                         Target: EMERY_MEMBER,
                         Dictionary: [
                             { Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" },
-                            { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber, Text: (_b = Player.Name) !== null && _b !== void 0 ? _b : "" },
-                            { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER, Text: emeryName },
+                            { SourceCharacter: Player.MemberNumber },
+                            { TargetCharacter: EMERY_MEMBER },
                         ],
                     });
                 }
-                catch ( /* ignore */_c) { /* ignore */ }
+                catch ( /* ignore */_a) { /* ignore */ }
             });
             leashRow.appendChild(pullBtn);
             body.appendChild(leashRow);
@@ -29308,7 +29297,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.7";
+    const MOD_VERSION = "2.5.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29319,6 +29308,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.8",
+            changes: [
+                "Fix: leash hold/release button now tracks state in a class-level flag instead of ChatRoomLeashList, which is only updated on the target's client (Emery's) — not Lucy's. Button label and pull-button guard now stay in sync correctly.",
+                "Fix: ↗ Pull Dictionary entries corrected from Tag-based { Tag: 'SourceCharacter', MemberNumber: N } to direct-property { SourceCharacter: N } — BC's type guards check for the property directly, so the Tag format was silently ignored by echo-activity-ext's activity manager.",
+            ],
+        },
         {
             version: "2.5.7",
             changes: [
