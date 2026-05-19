@@ -27,3 +27,33 @@ export function getDisplayName(): string {
     if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
     return (Player as unknown as Record<string, unknown>).Nickname as string || Player.Name || "Player";
 }
+
+// ---------------------------------------------------------------------------
+// Rate-limit helpers
+// ---------------------------------------------------------------------------
+
+// Debounced ServerPlayerExtensionSettingsSync("EmeryBC").
+// Collapses rapid back-to-back saves (outfit flag toggles, settings changes,
+// etc.) into a single server request fired 400 ms after the last call.
+let _syncTimer: ReturnType<typeof setTimeout> | null = null;
+export function syncSettings(): void {
+    if (_syncTimer !== null) clearTimeout(_syncTimer);
+    _syncTimer = setTimeout(() => {
+        _syncTimer = null;
+        try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+    }, 400);
+}
+
+// Debounced appearance broadcast — collapses rapid expression chip clicks into
+// one ChatRoomCharacterUpdate + ServerPlayerAppearanceSync pair fired 300 ms
+// after the last change. CharacterRefresh (local canvas refresh) still fires
+// immediately; only the server round-trips are deferred.
+let _appearTimer: ReturnType<typeof setTimeout> | null = null;
+export function syncAppearance(): void {
+    if (_appearTimer !== null) clearTimeout(_appearTimer);
+    _appearTimer = setTimeout(() => {
+        _appearTimer = null;
+        try { callBC(() => ChatRoomCharacterUpdate(Player)); } catch { /* ignore */ }
+        try { callBC(() => ServerPlayerAppearanceSync()); } catch { /* ignore */ }
+    }, 300);
+}

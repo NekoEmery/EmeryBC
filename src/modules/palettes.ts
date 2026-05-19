@@ -1,7 +1,7 @@
-// Color palette manager — capture the full color map of your current
+﻿// Color palette manager — capture the full color map of your current
 // appearance as a named palette and re-apply it later (or to a different outfit).
 
-import { callBC } from "./bcUtils";
+import { callBC, syncSettings } from "./bcUtils";
 
 export type PaletteType = "outfit" | "restraint";
 
@@ -27,7 +27,7 @@ function load(): ColorPalette[] {
 
 function save(list: ColorPalette[]): void {
     getStore().palettes = list;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 function uid(): string {
@@ -120,7 +120,7 @@ export function renamePalette(id: string, name: string): void {
 
 function saveCustomColors(list: string[]): void {
     getStore().customColors = list;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function getCustomColors(): string[] {
@@ -230,7 +230,7 @@ export interface RestraintColorPreset {
 
 function saveRestraintPresets(list: RestraintColorPreset[]): void {
     getStore().restraintPresets = list;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function getRestraintPresets(): RestraintColorPreset[] {

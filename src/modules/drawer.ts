@@ -1,4 +1,4 @@
-/**
+﻿/**
  * EmeryBC Drawer
  *
  * CRABS-inspired sliding panel aligned to the right edge of the chat log,
@@ -88,14 +88,14 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowVersionBadge, setShowVersionBadge, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
 import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC } from "./bcUtils";
+import { callBC, syncSettings } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -133,6 +133,21 @@ import {
     type KittyPunishment, type KittyMood, type KittyExpressionPreset,
     type KittyReactionEntry,
 } from "./kitty";
+import {
+    EXPR_GROUPS, EXPR_GROUP_LABELS,
+    applyExprGroup,
+    getExpressionPresets, saveExpressionPresets,
+    captureCurrentExpression, applyExpressionPreset,
+    getDefaultExprPresetId, setDefaultExprPresetId,
+    getExpressionTriggers, saveExpressionTriggers,
+    type ExpressionPreset, type ExpressionTrigger,
+} from "./expressions";
+import {
+    getWhisperLog, getWhisperConversation, getWhisperPartners,
+    clearWhisperLog, setWhisperUpdateCallback,
+    type WhisperEntry,
+} from "./whisperLog";
+import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES } from "./i18n";
 
 // -- Shared UI helpers ---------------------------------------------------------
 
@@ -163,7 +178,7 @@ function showQuickConfirm(message: string, onConfirm: () => void): void {
     cancelBtn.addEventListener("click", () => overlay.remove());
 
     const confirmBtn = document.createElement("button");
-    confirmBtn.textContent = "Yes";
+    confirmBtn.textContent = t("core.yes");
     confirmBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px;border-radius:5px;cursor:pointer;border:1px solid #cf6f98;background:#3a1020;color:#cf6f98;";
     confirmBtn.addEventListener("click", () => { overlay.remove(); onConfirm(); });
 
@@ -432,7 +447,7 @@ const CSS = `
     position: absolute;
     right: 44px;   /* leave the 44px tab strip uncovered — tab is to our right */
     top: 0;
-    width: 360px;
+    width: 390px;
     height: 100%;  /* full chat log height — no vertical conflict with tab */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
@@ -491,9 +506,12 @@ const CSS = `
     letter-spacing: 0.07em;
     white-space: nowrap;
     flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.ebc-header-btns { display: flex; gap: 4px; align-items: center; }
+.ebc-header-btns { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
 
 .ebc-icon-btn {
     background: transparent;
@@ -2519,6 +2537,109 @@ const CSS = `
 }
 .ebc-seq-add-btn:hover { background: #1b0d17; color: #cf6f98; border-style: solid; }
 
+/* -- Expression tab -- */
+.ebc-expr-group-hdr {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    color: #9a7080;
+    margin: 10px 0 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.ebc-expr-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 2px;
+}
+.ebc-expr-chip {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    padding: 3px 7px;
+    border-radius: 4px;
+    border: 1px solid #3a1928;
+    background: #1b0d17;
+    color: #8a6070;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+}
+.ebc-expr-chip:hover { background: #2a1421; color: #cf6f98; border-color: #6a3a50; }
+.ebc-expr-chip.active { background: #3a1428; color: #e890b8; border-color: #9a4a68; font-weight: bold; }
+.ebc-expr-preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 6px;
+}
+.ebc-expr-preset-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.ebc-expr-preset-chip {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 4px 9px;
+    border-radius: 5px;
+    border: 1px solid #5a2840;
+    background: #2a1421;
+    color: #cf6f98;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+.ebc-expr-preset-chip:hover { background: #3a1e30; border-color: #9a4a68; }
+
+/* -- Whisper log tab -- */
+.ebc-whisper-partner-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 9px;
+    border-radius: 6px;
+    border: 1px solid #3a1928;
+    background: #1b0d17;
+    color: #b09098;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: background 0.12s, border-color 0.12s;
+    text-align: left;
+}
+.ebc-whisper-partner-btn:hover { background: #2a1421; border-color: #5a2840; color: #cf6f98; }
+.ebc-whisper-partner-btn.active { background: #2a1421; border-color: #7a3858; color: #e890b8; }
+.ebc-whisper-msg {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 8px;
+    border-radius: 5px;
+    margin-bottom: 3px;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    line-height: 1.4;
+}
+.ebc-whisper-msg.out {
+    background: #2a1830;
+    border-left: 2px solid #9a4a78;
+    align-items: flex-end;
+}
+.ebc-whisper-msg.in {
+    background: #1f1020;
+    border-left: 2px solid #4a2060;
+    align-items: flex-start;
+}
+.ebc-whisper-meta {
+    font-size: 8px;
+    color: #6a4a5e;
+    margin-bottom: 2px;
+}
+.ebc-whisper-text { color: #d0a0b8; word-break: break-word; }
+.ebc-whisper-msg.out .ebc-whisper-text { color: #e8b0d0; }
+
 `;
 
 // ── Generic confirm overlay ───────────────────────────────────────────────
@@ -2894,6 +3015,10 @@ export class EBCDrawer {
     private lastRect = { top: -1, width: -1, height: -1, right: -1 };
     private lastCrabsBottom = -1;
     private crabsPoller: ReturnType<typeof window.setInterval> | null = null;
+    // Kitty page: whether Lucy is currently holding Emery's leash.
+    // ChatRoomLeashList is only updated on the TARGET's client, so we maintain
+    // our own authoritative copy here; it survives panel re-renders.
+    private _leashHeld = false;
     private timerEl: HTMLElement | null = null;
     private timerPoller: ReturnType<typeof window.setInterval> | null = null;
     // User-dragged tab position (fixed screen coords {x,y}). null = follow CRABS.
@@ -2917,12 +3042,52 @@ export class EBCDrawer {
     private slPresetDropdown: HTMLSelectElement | null = null;
     private slDurSlider: HTMLInputElement | null = null;
     private slDurVal: HTMLSpanElement | null = null;
+    private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
+    // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
+    private _langUnsubscribe: (() => void) | null = null;
+    private _langPillsRefresh: (() => void) | null = null;
+    private _i18nRefs: {
+        // header
+        refreshBtn?: HTMLButtonElement;
+        moveHandle?: HTMLSpanElement;
+        resetLocBtn?: HTMLButtonElement;
+        closeBtn?: HTMLButtonElement;
+        // tabs
+        tabOutfits?: HTMLButtonElement;
+        tabButtons?: HTMLButtonElement;
+        tabAnims?: HTMLButtonElement;
+        tabNotes?: HTMLButtonElement;
+        tabThanks?: HTMLButtonElement;
+        tabDev?: HTMLButtonElement;
+        tabDom?: HTMLButtonElement;
+        tabPuppy?: HTMLButtonElement;
+        tabKitty?: HTMLButtonElement;
+        // quick-actions static elements
+        releaseBtn?: HTMLButtonElement;
+        unlockBtn?: HTMLButtonElement;
+        qaConfirmLbl?: HTMLSpanElement;
+        qaConfirmToggle?: HTMLButtonElement;
+        pickBtn?: HTMLButtonElement;
+        slCollapseHdr?: HTMLElement;
+        slLeaveBtn?: HTMLButtonElement;
+    } = {};
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
         this.version = version;
         this.isDev   = isDev;
         registerOpenBeepCallback((n) => this.openBeepWindow(n));
+        // Live-update the DEV tab whisper log section when new messages arrive
+        setWhisperUpdateCallback(() => {
+            if (this.isOpen && this.currentTab === "dev") {
+                this.rerender();
+            }
+        });
+        // Re-translate static elements + re-render active tab when language changes
+        this._langUnsubscribe = onLangChange(() => {
+            this.updateStaticTranslations();
+            if (this.isOpen) this.rerender();
+        });
         if (document.body) {
             this.setup();
         } else {
@@ -3002,26 +3167,32 @@ export class EBCDrawer {
 
         const refreshBtn = document.createElement("button");
         refreshBtn.className = "ebc-icon-btn";
-        refreshBtn.title = "Refresh";
+        refreshBtn.title = t("header.refresh");
         refreshBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
 
         // Drag handle icon — same mousedown behaviour as the header title area.
         const moveHandle = document.createElement("span");
         moveHandle.className = "ebc-move-handle";
-        moveHandle.title = "Drag to move";
+        moveHandle.title = t("header.dragToMove");
         moveHandle.textContent = "⠿";
 
         const resetLocBtn = document.createElement("button");
         resetLocBtn.className = "ebc-reset-loc-btn";
-        resetLocBtn.title = "Reset drawer to default position (anchored to chat log)";
-        resetLocBtn.textContent = "⌖ Reset pos";
+        resetLocBtn.title = t("header.resetPosTitle");
+        resetLocBtn.textContent = t("header.resetPos");
         resetLocBtn.style.display = "none"; // hidden until panel is in free-float mode
         this.resetLocationBtn = resetLocBtn;
 
         const closeBtn = document.createElement("button");
         closeBtn.className = "ebc-icon-btn";
-        closeBtn.title = "Close";
+        closeBtn.title = t("header.close");
         closeBtn.textContent = "X";
+
+        // Store refs for later translation updates (langSelect ref stored after pill row is built below)
+        this._i18nRefs.refreshBtn  = refreshBtn;
+        this._i18nRefs.moveHandle  = moveHandle;
+        this._i18nRefs.resetLocBtn = resetLocBtn;
+        this._i18nRefs.closeBtn    = closeBtn;
 
         headerBtns.appendChild(refreshBtn);
         headerBtns.appendChild(moveHandle);
@@ -3034,8 +3205,8 @@ export class EBCDrawer {
         // In anchored mode it drags to detach the panel; after 5px movement the panel
         // enters free-float mode and follows the cursor from that point.
         addPointerDown(header, (start, e) => {
-            // Don't interfere with button clicks inside the header
-            if ((e.target as HTMLElement).closest("button")) return;
+            // Don't interfere with button or interactive element clicks inside the header
+            if ((e.target as HTMLElement).closest("button, select, input, a")) return;
             e.preventDefault();
 
             const panelEl = slideContainer;
@@ -3059,8 +3230,11 @@ export class EBCDrawer {
                             this.enterFreeMode({ x: startPanelX, y: startPanelY });
                         }
                     }
-                    const newX = Math.max(0, Math.min(window.innerWidth  - 50, startPanelX + dx));
-                    const newY = Math.max(0, Math.min(window.innerHeight - 50, startPanelY + dy));
+                    // Keep panel fully inside viewport — right/bottom edge must stay visible
+                    const pW = panelEl.offsetWidth  || 360;
+                    const pH = panelEl.offsetHeight || 200;
+                    const newX = Math.max(0, Math.min(window.innerWidth  - pW, startPanelX + dx));
+                    const newY = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), startPanelY + dy));
                     panelEl.style.left = `${newX}px`;
                     panelEl.style.top  = `${newY}px`;
                 },
@@ -3081,42 +3255,43 @@ export class EBCDrawer {
         const outfitTabBtn = document.createElement("button");
         outfitTabBtn.className = "ebc-tab-btn ebc-tab-active";
         outfitTabBtn.id = "ebc-tab-outfits";
-        outfitTabBtn.textContent = "OUTFITS";
+        outfitTabBtn.textContent = t("tabs.outfits");
 
         const posesTabBtn = document.createElement("button");
         posesTabBtn.className = "ebc-tab-btn";
         posesTabBtn.id = "ebc-tab-poses";
-        posesTabBtn.textContent = "ANIMS";
+        posesTabBtn.textContent = t("tabs.anims");
 
         const btnsTabBtn = document.createElement("button");
         btnsTabBtn.className = "ebc-tab-btn";
         btnsTabBtn.id = "ebc-tab-buttons";
-        btnsTabBtn.textContent = "BUTTONS";
-        btnsTabBtn.title = "Action Buttons";
+        btnsTabBtn.textContent = t("tabs.buttons");
+        btnsTabBtn.title = t("tabs.buttonsTitle");
 
         const notesTabBtn = document.createElement("button");
         notesTabBtn.className = "ebc-tab-btn";
         notesTabBtn.id = "ebc-tab-notes";
-        notesTabBtn.textContent = "USERS";
+        notesTabBtn.textContent = t("tabs.users");
+        notesTabBtn.title = t("tabs.usersTitle");
 
         const thanksTabBtn = document.createElement("button");
         thanksTabBtn.className = "ebc-tab-btn";
         thanksTabBtn.id = "ebc-tab-thanks";
-        thanksTabBtn.textContent = "CREDITS";
-        thanksTabBtn.title = "Special Thanks";
+        thanksTabBtn.textContent = t("tabs.credits");
+        thanksTabBtn.title = t("tabs.creditsTitle");
 
         const devTabBtn2 = document.createElement("button");
         devTabBtn2.className = "ebc-tab-btn";
         devTabBtn2.id = "ebc-tab-dev";
-        devTabBtn2.textContent = "DEV";
-        devTabBtn2.title = "Developer Tools";
+        devTabBtn2.textContent = t("tabs.dev");
+        devTabBtn2.title = t("tabs.devTitle");
 
         // DOM tools tab — creator only, hidden until open() confirms the member number
         const domTabBtn = document.createElement("button");
         domTabBtn.className = "ebc-tab-btn";
         domTabBtn.id = "ebc-tab-dom";
-        domTabBtn.textContent = "DOM";
-        domTabBtn.title = "DOM Tools";
+        domTabBtn.textContent = t("tabs.dom");
+        domTabBtn.title = t("tabs.domTitle");
         domTabBtn.style.display = "none"; // revealed in open() for creator only
 
         // Puppy tab — Lucy only (member 230466)
@@ -3124,7 +3299,7 @@ export class EBCDrawer {
         puppyTabBtn.className = "ebc-tab-btn";
         puppyTabBtn.id = "ebc-tab-puppy";
         puppyTabBtn.textContent = "🐾";
-        puppyTabBtn.title = "Puppy";
+        puppyTabBtn.title = t("tabs.puppy");
         puppyTabBtn.style.display = "none"; // revealed in open() for Lucy only
 
         // Kitty tab — Lucy only (member 230466)
@@ -3132,8 +3307,19 @@ export class EBCDrawer {
         kittyTabBtn.className = "ebc-tab-btn";
         kittyTabBtn.id = "ebc-tab-kitty";
         kittyTabBtn.textContent = "🐱";
-        kittyTabBtn.title = "Kitty";
+        kittyTabBtn.title = t("tabs.kitty");
         kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
+
+        // Store tab refs for language updates
+        this._i18nRefs.tabOutfits = outfitTabBtn;
+        this._i18nRefs.tabButtons = btnsTabBtn;
+        this._i18nRefs.tabAnims   = posesTabBtn;
+        this._i18nRefs.tabNotes   = notesTabBtn;
+        this._i18nRefs.tabThanks  = thanksTabBtn;
+        this._i18nRefs.tabDev     = devTabBtn2;
+        this._i18nRefs.tabDom     = domTabBtn;
+        this._i18nRefs.tabPuppy   = puppyTabBtn;
+        this._i18nRefs.tabKitty   = kittyTabBtn;
 
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(btnsTabBtn);
@@ -3144,6 +3330,43 @@ export class EBCDrawer {
         tabBar.appendChild(domTabBtn);
         tabBar.appendChild(puppyTabBtn);
         tabBar.appendChild(kittyTabBtn);
+
+        // ── Language picker row — sits between tab bar and quick-actions ─────
+        const langRow = document.createElement("div");
+        langRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border-bottom:1px solid #2a1020;background:rgba(15,6,12,0.4);flex-wrap:wrap;";
+
+        const langPills: HTMLButtonElement[] = [];
+        const refreshLangPills = (): void => {
+            const cur = getLanguage();
+            for (const pill of langPills) {
+                const active = pill.dataset.lang === cur;
+                pill.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:11px",
+                    "padding:4px 10px",
+                    "border-radius:12px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "transition:background 0.12s,color 0.12s,border-color 0.12s",
+                    active
+                        ? "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;font-weight:bold;"
+                        : "border:1px solid #3a1928;background:transparent;color:#8a5070;",
+                ].join(";");
+            }
+        };
+        for (const code of LANG_CODES) {
+            const pill = document.createElement("button");
+            pill.dataset.lang = code;
+            pill.textContent = LANG_NAMES[code];
+            pill.addEventListener("click", () => {
+                setLanguage(code);
+                refreshLangPills();
+            });
+            langPills.push(pill);
+            langRow.appendChild(pill);
+        }
+        refreshLangPills();
+        this._langPillsRefresh = refreshLangPills;
 
         // Quick actions bar (always visible below tabs)
         const quickActions = document.createElement("div");
@@ -3156,13 +3379,16 @@ export class EBCDrawer {
 
         const releaseBtn = document.createElement("button");
         releaseBtn.className = "ebc-action-btn danger";
-        releaseBtn.title = "Remove all restraints (skips owner/lover/family locks)";
-        releaseBtn.textContent = "Release Restraints";
+        releaseBtn.title = t("qa.releaseTitle");
+        releaseBtn.textContent = t("qa.releaseRestraints");
 
         const unlockBtn = document.createElement("button");
         unlockBtn.className = "ebc-action-btn danger";
-        unlockBtn.title = "Remove all locks (skips owner/lover/family locks)";
-        unlockBtn.textContent = "Remove Locks";
+        unlockBtn.title = t("qa.removeLocksTitle");
+        unlockBtn.textContent = t("qa.removeLocks");
+
+        this._i18nRefs.releaseBtn = releaseBtn;
+        this._i18nRefs.unlockBtn  = unlockBtn;
 
         qaRow1.appendChild(releaseBtn);
         qaRow1.appendChild(unlockBtn);
@@ -3174,12 +3400,14 @@ export class EBCDrawer {
 
         const qaConfirmLbl = document.createElement("span");
         qaConfirmLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;user-select:none;";
-        qaConfirmLbl.textContent = "Confirm before escaping";
+        qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
+        this._i18nRefs.qaConfirmLbl = qaConfirmLbl;
 
         const qaConfirmToggle = document.createElement("button");
+        this._i18nRefs.qaConfirmToggle = qaConfirmToggle;
         const refreshQaConfirm = (): void => {
             const on = getAntiRestraintConfirm();
-            qaConfirmToggle.textContent = on ? "ON" : "OFF";
+            qaConfirmToggle.textContent = on ? t("core.on") : t("core.off");
             qaConfirmToggle.style.cssText = [
                 "font-family:'Trebuchet MS',serif",
                 "font-size:9px",
@@ -3208,8 +3436,9 @@ export class EBCDrawer {
         // Row 2: self-picker toggle (full-width, subtle)
         const selfPickToggle = document.createElement("button");
         selfPickToggle.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 6px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a4a5e;cursor:pointer;transition:background 0.14s,color 0.12s;text-align:left;";
-        selfPickToggle.textContent = "↓ Pick restraints to remove";
-        selfPickToggle.title = "Choose specific restraints to strip from yourself";
+        selfPickToggle.textContent = t("qa.pickRestraints");
+        selfPickToggle.title = t("qa.pickTitle");
+        this._i18nRefs.pickBtn = selfPickToggle;
         selfPickToggle.addEventListener("mouseenter", () => { selfPickToggle.style.color = "#cf6f98"; });
         selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.color = "#7a4a5e"; });
         quickActions.appendChild(selfPickToggle);
@@ -3225,7 +3454,8 @@ export class EBCDrawer {
         slCollapseHdr.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;cursor:pointer;padding:3px 0;user-select:none;";
         const slHdrLbl = document.createElement("span");
         slHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        slHdrLbl.textContent = "🚶 Slow Leave";
+        slHdrLbl.textContent = t("sl.header");
+        this._i18nRefs.slCollapseHdr = slCollapseHdr;
         const slHdrArrow = document.createElement("span");
         slHdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
         slHdrArrow.textContent = "▼";
@@ -3252,9 +3482,10 @@ export class EBCDrawer {
         // Slow Leave action button
         const slowLeaveBtn = document.createElement("button");
         slowLeaveBtn.className = "ebc-action-btn";
-        slowLeaveBtn.textContent = "🚶 Slow Leave";
-        slowLeaveBtn.title = "Wave goodbye and slowly head for the door";
+        slowLeaveBtn.textContent = t("sl.leave");
+        slowLeaveBtn.title = t("sl.leaveTitle");
         slowLeaveBtn.style.cssText = "width:100%;";
+        this._i18nRefs.slLeaveBtn = slowLeaveBtn;
         slowLeaveBtn.addEventListener("click", () => {
             if (isSeqRunning()) {
                 cancelSequence();
@@ -3265,11 +3496,11 @@ export class EBCDrawer {
             const pIdx  = Math.min(livePresets.length - 1, Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10)));
             const seq   = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
             setSeqDoneCallback(() => {
-                slowLeaveBtn.textContent = "🚶 Slow Leave";
+                slowLeaveBtn.textContent = t("sl.leave");
                 slowLeaveBtn.style.background = "";
                 slowLeaveBtn.style.color = "";
             });
-            slowLeaveBtn.textContent = "✕ Cancel Leave";
+            slowLeaveBtn.textContent = t("sl.cancel");
             slowLeaveBtn.style.background = "#4a1a2a";
             slowLeaveBtn.style.color = "#ff8aaa";
             runSequence(seq);
@@ -3304,7 +3535,7 @@ export class EBCDrawer {
         slSeqArea.rows = 3;
         slSeqArea.spellcheck = false;
         slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
-        slSeqArea.title = "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}";
+        slSeqArea.title = t("sl.seqHint");
         const slSeqInitPresets = getSlowLeavePresets();
         const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
         slSeqArea.value = slSeqInitPresets[slSeqInitIdx]?.seq ?? "";
@@ -3361,7 +3592,7 @@ export class EBCDrawer {
             if (restraints.length === 0 && locks.length === 0) {
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:2px;";
-                hint.textContent = "Nothing to remove — no restraints or locks found.";
+                hint.textContent = t("qa.nothingToRemove");
                 selfPickPanel.appendChild(hint);
                 selfPickPanel.appendChild(selfPickStatus);
                 return;
@@ -3396,8 +3627,8 @@ export class EBCDrawer {
                 }
             };
 
-            makeSection("Restraints", restraints, "restraint");
-            makeSection("Locks", locks, "lock");
+            makeSection(t("qa.restraintsHeader"), restraints, "restraint");
+            makeSection(t("qa.locksHeader"), locks, "lock");
 
             // Two action buttons
             const btnRow = document.createElement("div");
@@ -3405,28 +3636,28 @@ export class EBCDrawer {
 
             const removeSelBtn = document.createElement("button");
             removeSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
-            removeSelBtn.textContent = "↑ Remove Selected";
+            removeSelBtn.textContent = t("qa.removeSelected");
             removeSelBtn.addEventListener("mouseenter", () => { removeSelBtn.style.background = "#5a1c30"; });
             removeSelBtn.addEventListener("mouseleave", () => { removeSelBtn.style.background = "#3a1020"; });
             removeSelBtn.addEventListener("click", () => {
                 const groups = [...selfSelected.entries()].filter(([, k]) => k === "restraint").map(([g]) => g);
-                if (groups.length === 0) { selfPickStatus.textContent = "Select restraints first."; return; }
+                if (groups.length === 0) { selfPickStatus.textContent = t("qa.selectRestraintsFirst"); return; }
                 const n = removePlayerSpecificItems(groups);
-                selfPickStatus.textContent = n > 0 ? ("✓ Removed " + n + " item(s).") : "Nothing removed.";
+                selfPickStatus.textContent = n > 0 ? t("qa.removedN", { n }) : t("qa.nothingRemoved");
                 rebuildSelfPicker();
                 window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
             });
 
             const unlockSelBtn = document.createElement("button");
             unlockSelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 3px;border-radius:5px;border:1px solid #3a6a50;background:#0f2a1a;color:#79a885;cursor:pointer;transition:background 0.14s;";
-            unlockSelBtn.textContent = "🔓 Unlock Selected";
+            unlockSelBtn.textContent = t("qa.unlockSelected");
             unlockSelBtn.addEventListener("mouseenter", () => { unlockSelBtn.style.background = "#1a4a2a"; });
             unlockSelBtn.addEventListener("mouseleave", () => { unlockSelBtn.style.background = "#0f2a1a"; });
             unlockSelBtn.addEventListener("click", () => {
                 const groups = [...selfSelected.entries()].filter(([, k]) => k === "lock").map(([g]) => g);
-                if (groups.length === 0) { selfPickStatus.textContent = "Select locks first."; return; }
+                if (groups.length === 0) { selfPickStatus.textContent = t("qa.selectLocksFirst"); return; }
                 const n = unlockPlayerSpecificItems(groups);
-                selfPickStatus.textContent = n > 0 ? ("✓ Unlocked " + n + " item(s).") : "Nothing unlocked.";
+                selfPickStatus.textContent = n > 0 ? t("qa.unlockedN", { n }) : t("qa.nothingUnlocked");
                 rebuildSelfPicker();
                 window.setTimeout(() => { selfPickStatus.textContent = ""; }, 3000);
             });
@@ -3495,7 +3726,7 @@ export class EBCDrawer {
         // Grace active indicator (hidden unless grace is running)
         const swGraceTag = document.createElement("span");
         swGraceTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:3px;background:#3a0e1e;color:#cf6f98;border:1px solid #6b2040;flex-shrink:0;display:none;";
-        swGraceTag.textContent = "Grace active";
+        swGraceTag.textContent = t("sw.graceActive");
 
         const swEnableBtn = document.createElement("button");
         const refreshSwEnable = (): void => {
@@ -3503,7 +3734,7 @@ export class EBCDrawer {
             let on = true;
             try { on = getSafewordConfig().enabled; } catch { /* default ON */ }
 
-            swEnableBtn.textContent = on ? "ON" : "OFF";
+            swEnableBtn.textContent = on ? t("core.on") : t("core.off");
             swEnableBtn.style.fontFamily  = "'Trebuchet MS',serif";
             swEnableBtn.style.fontSize    = "10px";
             swEnableBtn.style.fontWeight  = "bold";
@@ -3556,7 +3787,7 @@ export class EBCDrawer {
                     ? "🛡 Grace active (indefinite)"
                     : `🛡 Grace active — ${Math.ceil((rem as number) / 60_000)} min remaining`;
                 const cancelBtn = document.createElement("button");
-                cancelBtn.textContent = "End grace";
+                cancelBtn.textContent = t("sw.endGrace");
                 cancelBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #6b2040;background:#3a1020;color:#cf6f98;cursor:pointer;flex-shrink:0;";
                 cancelBtn.addEventListener("click", () => { endGrace(); swGraceTag.style.display = "none"; buildSwInner(); });
                 graceRow.appendChild(graceLbl);
@@ -3742,7 +3973,7 @@ export class EBCDrawer {
         footer.className = "ebc-footer";
 
         const footerVerEl = document.createElement("span");
-        footerVerEl.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
+        footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
         footerVerEl.style.cssText = "font-size:9px;color:#7a5a6a;";
         footer.appendChild(footerVerEl);
 
@@ -3751,11 +3982,131 @@ export class EBCDrawer {
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
 
+        // ── EBC Tags strip — collapsible, always below safewords ─────────────
+        let ebcTagsCollapsed = false;
+        try { const v = localStorage.getItem("EBC_tagsCollapsed"); if (v !== null) ebcTagsCollapsed = v === "1"; } catch { /* ignore */ }
+
+        const ebcTagsStrip = document.createElement("div");
+        ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
+
+        // Header row — clickable to collapse
+        const ebcTagsHdr = document.createElement("div");
+        ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;transition:background 0.1s;";
+        ebcTagsHdr.title = "Click to show / hide";
+        ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#251220"; });
+        ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
+
+        const ebcTagsHdrLeft = document.createElement("div");
+        ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
+        const ebcTagsHdrIcon = document.createElement("span");
+        ebcTagsHdrIcon.textContent = "🏷";
+        ebcTagsHdrIcon.style.fontSize = "10px";
+        const ebcTagsHdrLabel = document.createElement("span");
+        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
+        ebcTagsHdrLabel.textContent = "EBC Tag Toggles";
+        ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
+        ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
+
+        // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
+        const ebcTagsChev = document.createElement("span");
+        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#d090a8;padding:3px 10px;border:1px solid #7a3050;border-radius:4px;background:#2e1020;";
+
+        ebcTagsHdr.appendChild(ebcTagsHdrLeft);
+        ebcTagsHdr.appendChild(ebcTagsChev);
+        ebcTagsStrip.appendChild(ebcTagsHdr);
+
+        // Body
+        const ebcTagsBody = document.createElement("div");
+        ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
+
+        // Description line
+        const ebcTagsDesc = document.createElement("div");
+        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
+        ebcTagsDesc.textContent = "Controls whose EBC overhead tags you see. Only affects your own screen — others always see your tag regardless.";
+        ebcTagsBody.appendChild(ebcTagsDesc);
+
+        // Card row
+        const ebcTagsCardRow = document.createElement("div");
+        ebcTagsCardRow.style.cssText = "display:flex;gap:7px;";
+
+        const makeTagCard = (
+            icon: string,
+            label: string,
+            sublabel: string,
+            getVal: () => boolean,
+            setVal: (v: boolean) => void,
+        ): void => {
+            const card = document.createElement("div");
+            card.title = sublabel;
+
+            const cardTop = document.createElement("div");
+            cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
+            const cardIcon = document.createElement("span");
+            cardIcon.style.fontSize = "12px";
+            cardIcon.textContent = icon;
+            const cardLabel = document.createElement("span");
+            cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;";
+            cardLabel.textContent = label;
+            cardTop.appendChild(cardIcon);
+            cardTop.appendChild(cardLabel);
+
+            const cardSub = document.createElement("div");
+            cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.4;margin-bottom:6px;";
+            cardSub.textContent = sublabel;
+
+            const cardStatus = document.createElement("div");
+            cardStatus.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:10px;";
+
+            const cardDot = document.createElement("span");
+            cardDot.style.cssText = "width:5px;height:5px;border-radius:50%;display:inline-block;flex-shrink:0;";
+
+            cardStatus.appendChild(cardDot);
+            const cardStatusText = document.createElement("span");
+            cardStatus.appendChild(cardStatusText);
+
+            card.appendChild(cardTop);
+            card.appendChild(cardSub);
+            card.appendChild(cardStatus);
+
+            const refresh = (): void => {
+                const on = getVal();
+                card.style.cssText = `flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;border:1px solid ${on ? "#8a3458" : "#321220"};background:${on ? "#2e1020" : "#150a10"};`;
+                cardLabel.style.color = on ? "#f0c0d8" : "#7a4a60";
+                cardSub.style.color = on ? "#b08898" : "#6a4050";
+                cardDot.style.background = on ? "#d06090" : "#4a2038";
+                cardStatus.style.background = on ? "#3d1228" : "#1e0c16";
+                cardStatus.style.color = on ? "#f0a0c8" : "#6a4050";
+                cardStatusText.textContent = on ? "ON" : "OFF";
+            };
+            refresh();
+            card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
+            ebcTagsCardRow.appendChild(card);
+        };
+
+        makeTagCard("👤", "My Tag", "Your own EBC tag above your head (your screen only)", getBadgeEnabled, setBadgeEnabled);
+        makeTagCard("👥", "Others", "EBC tags above other players' heads", getShowOthersBadge, setShowOthersBadge);
+
+        ebcTagsBody.appendChild(ebcTagsCardRow);
+        ebcTagsStrip.appendChild(ebcTagsBody);
+
+        const updateEbcTagsCollapse = (): void => {
+            ebcTagsChev.textContent = ebcTagsCollapsed ? "Show ▶" : "Hide ▼";
+            ebcTagsBody.style.display = ebcTagsCollapsed ? "none" : "";
+        };
+        updateEbcTagsCollapse();
+        ebcTagsHdr.addEventListener("click", () => {
+            ebcTagsCollapsed = !ebcTagsCollapsed;
+            try { localStorage.setItem("EBC_tagsCollapsed", ebcTagsCollapsed ? "1" : "0"); } catch { /* ignore */ }
+            updateEbcTagsCollapse();
+        });
+
         panel.appendChild(header);
         panel.appendChild(tabBar);
+        panel.appendChild(langRow);
         panel.appendChild(quickActions);
         panel.appendChild(selfPickPanel);
         panel.appendChild(safewordRow);
+        panel.appendChild(ebcTagsStrip);
         panel.appendChild(body);
         panel.appendChild(footer);
         // (slideContainer/root/body already anchored early in setup — see above)
@@ -3950,7 +4301,7 @@ export class EBCDrawer {
         try {
             if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
             (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).tabPos = pos ?? null;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         } catch { /* ignore */ }
     }
 
@@ -3979,7 +4330,7 @@ export class EBCDrawer {
         try {
             if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
             (Player.ExtensionSettings.EmeryBC as Record<string, unknown>).panelPos = pos ?? null;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         } catch { /* ignore */ }
     }
 
@@ -3987,7 +4338,15 @@ export class EBCDrawer {
         try {
             const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined;
             const v = store?.panelPos as { x?: unknown; y?: unknown } | null | undefined;
-            if (v && typeof v.x === "number" && typeof v.y === "number") return { x: v.x, y: v.y };
+            if (v && typeof v.x === "number" && typeof v.y === "number") {
+                // Clamp to current viewport so a position saved on a wider/taller screen
+                // doesn't put the panel off-screen on the next load.
+                const pW = this.panelEl?.offsetWidth  || 360;
+                const pH = this.panelEl?.offsetHeight || 200;
+                const x = Math.max(0, Math.min(window.innerWidth  - pW, v.x));
+                const y = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), v.y));
+                return { x, y };
+            }
             return null;
         } catch { return null; }
     }
@@ -4235,7 +4594,7 @@ export class EBCDrawer {
             ["ebc-tab-outfits", "outfits"],
             ["ebc-tab-poses",   "anims"],
             ["ebc-tab-buttons", "buttons"],
-            ["ebc-tab-notes",   "notes"],
+            ["ebc-tab-notes",    "notes"],
             ["ebc-tab-thanks",  "thanks"],
             ["ebc-tab-dev",     "dev"],
             ["ebc-tab-dom",     "dom"],
@@ -4302,6 +4661,44 @@ export class EBCDrawer {
         else doRender();
     }
 
+    /** Update every static element that was built once in setup() and never re-rendered. */
+    private updateStaticTranslations(): void {
+        const r = this._i18nRefs;
+        // Header
+        if (r.refreshBtn)  r.refreshBtn.title = t("header.refresh");
+        if (r.moveHandle)  r.moveHandle.title = t("header.dragToMove");
+        if (r.resetLocBtn) { r.resetLocBtn.title = t("header.resetPosTitle"); r.resetLocBtn.textContent = t("header.resetPos"); }
+        if (r.closeBtn)    r.closeBtn.title = t("header.close");
+        // Sync language pill active state
+        this._langPillsRefresh?.();
+        // Tabs
+        if (r.tabOutfits) r.tabOutfits.textContent = t("tabs.outfits");
+        if (r.tabButtons) { r.tabButtons.textContent = t("tabs.buttons"); r.tabButtons.title = t("tabs.buttonsTitle"); }
+        if (r.tabAnims)   r.tabAnims.textContent = t("tabs.anims");
+        if (r.tabNotes)   { r.tabNotes.textContent = t("tabs.users"); r.tabNotes.title = t("tabs.usersTitle"); }
+        if (r.tabThanks)  { r.tabThanks.textContent = t("tabs.credits"); r.tabThanks.title = t("tabs.creditsTitle"); }
+        if (r.tabDev)     { r.tabDev.textContent = t("tabs.dev"); r.tabDev.title = t("tabs.devTitle"); }
+        if (r.tabDom)     { r.tabDom.textContent = t("tabs.dom"); r.tabDom.title = t("tabs.domTitle"); }
+        if (r.tabPuppy)   r.tabPuppy.title = t("tabs.puppy");
+        if (r.tabKitty)   r.tabKitty.title = t("tabs.kitty");
+        // Quick actions
+        if (r.releaseBtn) { r.releaseBtn.textContent = t("qa.releaseRestraints"); r.releaseBtn.title = t("qa.releaseTitle"); }
+        if (r.unlockBtn)  { r.unlockBtn.textContent = t("qa.removeLocks"); r.unlockBtn.title = t("qa.removeLocksTitle"); }
+        if (r.qaConfirmLbl) r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
+        if (r.qaConfirmToggle) this.refreshConfirmToggle?.();
+        if (r.pickBtn) { r.pickBtn.textContent = t("qa.pickRestraints"); r.pickBtn.title = t("qa.pickTitle"); }
+        // Slow leave header label (first child span)
+        if (r.slCollapseHdr) {
+            const lbl = r.slCollapseHdr.querySelector("span") as HTMLSpanElement | null;
+            if (lbl) lbl.textContent = t("sl.header");
+        }
+        // Slow leave button (only if not currently running)
+        if (r.slLeaveBtn && !isSeqRunning()) {
+            r.slLeaveBtn.textContent = t("sl.leave");
+            r.slLeaveBtn.title = t("sl.leaveTitle");
+        }
+    }
+
     // -- Timer -----------------------------------------------------------------
 
     private updateTimer(): void {
@@ -4309,9 +4706,9 @@ export class EBCDrawer {
         const online = getOnlineTime();
         const room   = getRoomTime();
         const bound  = getRestraintTime();
-        let text = `🌐 Online: ${online}`;
-        if (room)  text += `  🕒 Room: ${room}`;
-        if (bound) text += `  ⛓ Bound: ${bound}`;
+        let text = `🌐 ${t("footer.onlineLabel")}: ${online}`;
+        if (room)  text += `  🕒 ${t("footer.roomLabel")}: ${room}`;
+        if (bound) text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
         this.timerEl.textContent = text;
         try { checkAndApplySchedules(); } catch { /* ignore */ }
     }
@@ -4372,7 +4769,7 @@ export class EBCDrawer {
         // "(No change)" — leave title untouched on outfit apply
         const noChangeOpt = document.createElement("option");
         noChangeOpt.value = "";
-        noChangeOpt.textContent = isDefault ? "(No default title)" : "(No change)";
+        noChangeOpt.textContent = isDefault ? t("settings.noDefaultTitle") : "(No change)";
         if (!currentValue) noChangeOpt.selected = true;
         sel.appendChild(noChangeOpt);
 
@@ -4412,13 +4809,13 @@ export class EBCDrawer {
 
         const nickLbl = document.createElement("span");
         nickLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
-        nickLbl.textContent = "Default nickname";
+        nickLbl.textContent = t("settings.defaultNickname");
 
         const nickInp = Object.assign(document.createElement("input"), {
             className: "ebc-form-input",
             type: "text",
             value: getDefaultNickname(),
-            placeholder: "Your usual nickname",
+            placeholder: t("outfits.nicknamePlaceholder"),
             maxLength: 40,
         });
         nickInp.style.flex = "1";
@@ -4442,7 +4839,7 @@ export class EBCDrawer {
         defTitleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px;";
         const defTitleLbl = document.createElement("span");
         defTitleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5060;flex-shrink:0;";
-        defTitleLbl.textContent = "Default title";
+        defTitleLbl.textContent = t("settings.defaultTitle");
         const defTitleSel = this.makeTitleSelect(getDefaultTitle(), true);
         defTitleSel.style.flex = "1";
         defTitleSel.addEventListener("change", () => setDefaultTitle(defTitleSel.value));
@@ -4463,7 +4860,7 @@ export class EBCDrawer {
         const tagToggleBtn = document.createElement("button");
         tagToggleBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #3a1928;border-radius:5px;color:#7a5060;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-bottom:3px;text-align:left;padding-left:8px;";
         const allTagsNow = getOutfitTags();
-        tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` Tags (${allTagsNow.length} saved)`;
+        tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` ${t("outfits.tagsN", { n: allTagsNow.length })}`;
 
         const tagMgmtBody = document.createElement("div");
         tagMgmtBody.style.display = tagMgmtOpen ? "block" : "none";
@@ -4538,7 +4935,7 @@ export class EBCDrawer {
             const newTagInp = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input",
                 type: "text",
-                placeholder: "New tag name",
+                placeholder: t("outfits.newTagName"),
                 maxLength: 20,
             });
             newTagInp.style.flex = "1";
@@ -4551,7 +4948,7 @@ export class EBCDrawer {
 
             const addTagBtn = document.createElement("button");
             addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:4px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;transition:background 0.1s;";
-            addTagBtn.textContent = "+ Add";
+            addTagBtn.textContent = t("core.add");
             addTagBtn.addEventListener("mouseenter", () => { addTagBtn.style.background = "#2a0e1e"; });
             addTagBtn.addEventListener("mouseleave", () => { addTagBtn.style.background = "transparent"; });
             addTagBtn.addEventListener("click", () => {
@@ -4588,7 +4985,7 @@ export class EBCDrawer {
         const outfitLbl = document.createElement("div");
         outfitLbl.className = "ebc-section-label";
         outfitLbl.style.cssText = "cursor:pointer;user-select:none;";
-        outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
+        outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " " + t("outfits.savedOutfits");
         body.appendChild(outfitLbl);
 
         // ── Outfit search ─────────────────────────────────────────────────────
@@ -4597,7 +4994,7 @@ export class EBCDrawer {
         const searchInp = Object.assign(document.createElement("input"), {
             className: "ebc-form-input",
             type: "text",
-            placeholder: "Filter outfits…",
+            placeholder: t("outfits.filter"),
         }) as HTMLInputElement;
         searchInp.style.flex = "1";
         const clearSearchBtn = document.createElement("button");
@@ -4622,12 +5019,12 @@ export class EBCDrawer {
             } else {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
-                empty.textContent = q ? "No outfits match your filter." : "No outfits saved yet.";
+                empty.textContent = q ? t("outfits.noMatch") : t("outfits.noOutfits");
                 if (!q) {
                     const br = document.createElement("br");
                     const hint = document.createElement("span");
                     hint.style.color = "#4c2537";
-                    hint.textContent = "Use the form below to create one.";
+                    hint.textContent = t("outfits.useFormBelow");
                     empty.appendChild(br); empty.appendChild(hint);
                 }
                 outfitsBody.appendChild(empty);
@@ -4649,7 +5046,7 @@ export class EBCDrawer {
         const toggleOutfitsCollapsed = (): void => {
             outfitsCollapsed = !outfitsCollapsed;
             outfitsBody.style.display = outfitsCollapsed ? "none" : "block";
-            outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " Saved Outfits";
+            outfitLbl.textContent = (outfitsCollapsed ? "▶" : "▼") + " " + t("outfits.savedOutfits");
             try { localStorage.setItem("EBC_outfitsCollapsed", outfitsCollapsed ? "1" : "0"); } catch { /* ignore */ }
         };
 
@@ -4682,7 +5079,7 @@ export class EBCDrawer {
         try { collapsed = localStorage.getItem("EBC_scheduleCollapsed") === "1"; } catch { /* ignore */ }
 
         const updateLabel = (): void => {
-            lbl.textContent = (collapsed ? "▶" : "▼") + " OUTFIT SCHEDULE";
+            lbl.textContent = (collapsed ? "▶" : "▼") + " " + t("outfits.outfitSchedule");
         };
 
         const scheduleList = document.createElement("div");
@@ -4696,7 +5093,7 @@ export class EBCDrawer {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
                 empty.style.padding = "4px 4px 8px";
-                empty.textContent = "No schedules set.";
+                empty.textContent = t("outfits.noSchedules");
                 scheduleList.appendChild(empty);
             }
 
@@ -4708,7 +5105,7 @@ export class EBCDrawer {
                 // Enabled toggle
                 const togBtn = document.createElement("button");
                 togBtn.className = "ebc-slot-toggle" + (sched.enabled ? " on" : "");
-                togBtn.textContent = sched.enabled ? "ON" : "OFF";
+                togBtn.textContent = sched.enabled ? t("core.on") : t("core.off");
                 togBtn.title = sched.enabled ? "Click to disable" : "Click to enable";
                 togBtn.addEventListener("click", () => {
                     toggleSchedule(sched.id);
@@ -4730,7 +5127,7 @@ export class EBCDrawer {
                 const delBtn = document.createElement("button");
                 delBtn.className = "ebc-outfit-del";
                 delBtn.textContent = "×";
-                delBtn.title = "Remove schedule";
+                delBtn.title = t("outfits.removeSchedule");
                 delBtn.addEventListener("click", () => {
                     removeSchedule(sched.id);
                     renderScheduleList();
@@ -4756,7 +5153,7 @@ export class EBCDrawer {
         outfitSelect.style.flex = "1";
         if (outfits.length === 0) {
             const opt = document.createElement("option");
-            opt.textContent = "No outfits";
+            opt.textContent = t("outfits.noOutfitsDropdown");
             opt.disabled = true;
             outfitSelect.appendChild(opt);
         } else {
@@ -4770,9 +5167,9 @@ export class EBCDrawer {
 
         const timeInput = Object.assign(document.createElement("input"), {
             type: "text",
-            placeholder: "HH:MM",
+            placeholder: t("outfits.timePlaceholder"),
             maxLength: 5,
-            title: "24-hour time (e.g. 08:30, 14:00)",
+            title: t("outfits.timeTitle"),
         }) as HTMLInputElement;
         timeInput.className = "ebc-form-input";
         timeInput.style.width = "72px";
@@ -4786,7 +5183,7 @@ export class EBCDrawer {
 
         const addBtn = document.createElement("button");
         addBtn.className = "ebc-wear-btn";
-        addBtn.textContent = "+ Add";
+        addBtn.textContent = t("core.add");
         addBtn.title = "Add schedule";
         addBtn.addEventListener("click", () => {
             const raw = timeInput.value.trim();
@@ -4903,7 +5300,7 @@ export class EBCDrawer {
         };
 
         const updateLabel = (): void => {
-            label.textContent = collapsed ? "▶ ACTIVE RESTRAINTS" : "▼ ACTIVE RESTRAINTS";
+            label.textContent = (collapsed ? "▶ " : "▼ ") + t("dev.activeRestraints");
         };
 
         label.addEventListener("click", () => {
@@ -5098,7 +5495,7 @@ export class EBCDrawer {
 
         const updateHdr = (): void => {
             const n = getOutfitWhitelist().length;
-            hdr.textContent = (open ? "▼" : "▶") + ` PROTECTED ITEMS${n ? ` (${n})` : ""}`;
+            hdr.textContent = (open ? "▼" : "▶") + ` ${t("outfits.protectedItems")}${n ? ` (${n})` : ""}`;
         };
         updateHdr();
 
@@ -5346,7 +5743,7 @@ export class EBCDrawer {
                 if (!saved.length) {
                     const hint = document.createElement("span");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
-                    hint.textContent = "No saved colours yet — use + Save above";
+                    hint.textContent = t("outfits.noSavedColours");
                     swatchesWrap.appendChild(hint);
                     return;
                 }
@@ -5537,7 +5934,7 @@ export class EBCDrawer {
             const presetsLbl = document.createElement("div");
             presetsLbl.className = "ebc-import-hint";
             presetsLbl.style.cssText = "font-weight:600;margin-bottom:5px;";
-            presetsLbl.textContent = "COLOUR PRESETS";
+            presetsLbl.textContent = t("buttons.colourPresets");
             container.appendChild(presetsLbl);
 
             // Save-as-preset row: name + "from" dropdown + Save button
@@ -5582,7 +5979,7 @@ export class EBCDrawer {
                     saveRestraintPreset(name, getGroupColors(group));
                     savePresInp.value = "";
                     renderPresets();
-                    savePresBtn.textContent = "✓ Saved";
+                    savePresBtn.textContent = t("core.saved");
                     window.setTimeout(() => { savePresBtn.textContent = "+ Preset"; }, 1400);
                 });
                 savePresRow.appendChild(savePresBtn);
@@ -5637,7 +6034,7 @@ export class EBCDrawer {
                     const applyBtn = document.createElement("button");
                     applyBtn.className = "ebc-wear-btn";
                     applyBtn.style.cssText += "padding:1px 6px;font-size:9px;flex-shrink:0;";
-                    applyBtn.textContent = "Apply";
+                    applyBtn.textContent = t("core.apply");
                     applyBtn.addEventListener("click", () => {
                         const group = applyToSel.value;
                         if (!group) { applyToSel.style.borderColor = "#cf6f98"; return; }
@@ -5645,7 +6042,7 @@ export class EBCDrawer {
                         applyColorsToGroup(group, preset.colors);
                         build(); // rebuild to refresh all zone previews
                         applyBtn.textContent = "✓";
-                        window.setTimeout(() => { applyBtn.textContent = "Apply"; }, 1400);
+                        window.setTimeout(() => { applyBtn.textContent = t("core.apply"); }, 1400);
                     });
 
                     let delPending = false;
@@ -5692,8 +6089,8 @@ export class EBCDrawer {
                     const ni = document.createElement("input");
                     ni.className = "ebc-palette-name"; ni.value = p.name; ni.maxLength = 30; ni.title = "Rename";
                     ni.addEventListener("change", () => renamePalette(p.id, ni.value));
-                    const ab = document.createElement("button"); ab.className = "ebc-wear-btn"; ab.textContent = "Apply";
-                    ab.addEventListener("click", () => { applyPalette(p.id); ab.textContent = "Done!"; window.setTimeout(() => { ab.textContent = "Apply"; }, 1200); });
+                    const ab = document.createElement("button"); ab.className = "ebc-wear-btn"; ab.textContent = t("core.apply");
+                    ab.addEventListener("click", () => { applyPalette(p.id); ab.textContent = t("core.done"); window.setTimeout(() => { ab.textContent = t("core.apply"); }, 1200); });
                     let dp = false, dt: ReturnType<typeof window.setTimeout> | null = null;
                     const db = document.createElement("button"); db.className = "ebc-outfit-del"; db.textContent = "×";
                     db.addEventListener("click", () => {
@@ -5711,18 +6108,18 @@ export class EBCDrawer {
                     w.appendChild(i); w.appendChild(b); return w;
                 };
 
-                const oLbl = document.createElement("div"); oLbl.className = "ebc-import-hint"; oLbl.style.cssText = "font-weight:600;margin-bottom:3px;margin-top:2px;"; oLbl.textContent = "OUTFIT"; palContainer.appendChild(oLbl);
+                const oLbl = document.createElement("div"); oLbl.className = "ebc-import-hint"; oLbl.style.cssText = "font-weight:600;margin-bottom:3px;margin-top:2px;"; oLbl.textContent = t("palettes.outfit"); palContainer.appendChild(oLbl);
                 const ops = getPalettesByType("outfit");
                 for (const p of ops) palContainer.appendChild(buildPRow(p, renderPal));
-                if (!ops.length) { const n = document.createElement("div"); n.className = "ebc-empty"; n.style.padding = "2px 4px 4px"; n.textContent = "No outfit palettes saved"; palContainer.appendChild(n); }
-                palContainer.appendChild(buildSRow("Palette name…", "Save Outfit", n => captureCurrentPalette(n || "Palette"), renderPal));
+                if (!ops.length) { const n = document.createElement("div"); n.className = "ebc-empty"; n.style.padding = "2px 4px 4px"; n.textContent = t("palettes.noOutfit"); palContainer.appendChild(n); }
+                palContainer.appendChild(buildSRow(t("palettes.paletteName"), t("palettes.saveOutfit"), n => captureCurrentPalette(n || "Palette"), renderPal));
 
                 const pd = document.createElement("div"); pd.className = "ebc-divider"; pd.style.margin = "8px 0 4px"; palContainer.appendChild(pd);
                 const rLbl = document.createElement("div"); rLbl.className = "ebc-import-hint"; rLbl.style.cssText = "font-weight:600;margin-bottom:3px;"; rLbl.textContent = "RESTRAINTS ⛓"; palContainer.appendChild(rLbl);
                 const rps = getPalettesByType("restraint");
                 for (const p of rps) palContainer.appendChild(buildPRow(p, renderPal));
-                if (!rps.length) { const n = document.createElement("div"); n.className = "ebc-empty"; n.style.padding = "2px 4px 4px"; n.textContent = "No restraint palettes saved"; palContainer.appendChild(n); }
-                palContainer.appendChild(buildSRow("Restraint palette name…", "Save Restraints", n => captureRestraintPalette(n || "Restraint Palette"), renderPal));
+                if (!rps.length) { const n = document.createElement("div"); n.className = "ebc-empty"; n.style.padding = "2px 4px 4px"; n.textContent = t("palettes.noRestraint"); palContainer.appendChild(n); }
+                palContainer.appendChild(buildSRow(t("palettes.paletteName"), t("palettes.saveRestraint"), n => captureRestraintPalette(n || "Restraint Palette"), renderPal));
             };
 
             palToggle.addEventListener("click", () => {
@@ -5738,7 +6135,7 @@ export class EBCDrawer {
 
         const updateLabel = (): void => {
             const cc = getCustomColors().length;
-            label.textContent = (collapsed ? "▶" : "▼") + ` COLOURS${cc > 0 ? ` (${cc} saved)` : ""}`;
+            label.textContent = (collapsed ? "▶" : "▼") + ` ${cc > 0 ? t("outfits.coloursN", { n: cc }) : t("outfits.colours")}`;
         };
 
         label.addEventListener("click", () => {
@@ -5783,11 +6180,11 @@ export class EBCDrawer {
 
         const preserveBtn = document.createElement("button");
         preserveBtn.className = "ebc-flag-chip" + (isPreserving ? " on" : "");
-        preserveBtn.textContent = isPreserving ? "⛓ Keep bonds" : "⛓ Swap bonds";
+        preserveBtn.textContent = isPreserving ? t("outfits.preserveBonds") : t("outfits.swapBonds");
 
         const preserveClothingBtn = document.createElement("button");
         preserveClothingBtn.className = "ebc-flag-chip" + (isPreservingClothing ? " on" : "");
-        preserveClothingBtn.textContent = isPreservingClothing ? "👗 Keep clothes" : "👗 Swap clothes";
+        preserveClothingBtn.textContent = isPreservingClothing ? t("outfits.keepClothes") : t("outfits.swapClothes");
 
         const nameInAnnounceBtn = document.createElement("button");
         nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
@@ -5822,12 +6219,12 @@ export class EBCDrawer {
 
         const updateBtn = document.createElement("button");
         updateBtn.className = "ebc-update-btn";
-        updateBtn.textContent = "Update";
+        updateBtn.textContent = t("core.update");
         updateBtn.title = "Save current appearance to this outfit";
 
         const wearBtn = document.createElement("button");
         wearBtn.className = "ebc-wear-btn";
-        wearBtn.textContent = "Wear";
+        wearBtn.textContent = t("core.wear");
 
         const diffBtn = document.createElement("button");
         diffBtn.className = "ebc-diff-btn";
@@ -5843,7 +6240,7 @@ export class EBCDrawer {
         const delBtn = document.createElement("button");
         delBtn.className = "ebc-outfit-del";
         delBtn.textContent = "×";
-        delBtn.title = "Delete this outfit";
+        delBtn.title = t("outfits.deleteTitle");
 
         // Reorder column
         const outfitsList = getOutfits();
@@ -5852,14 +6249,14 @@ export class EBCDrawer {
         reorderCol.className = "ebc-reorder-col";
         const upBtn = document.createElement("button");
         upBtn.className = "ebc-reorder-btn";
-        upBtn.textContent = "▲";
-        upBtn.title = "Move up";
+        upBtn.textContent = t("core.moveUp");
+        upBtn.title = t("core.moveUpTitle");
         upBtn.disabled = thisIdx <= 0;
         upBtn.addEventListener("click", () => { moveOutfit(o.id, "up"); this.rerender(); });
         const downBtn = document.createElement("button");
         downBtn.className = "ebc-reorder-btn";
-        downBtn.textContent = "▼";
-        downBtn.title = "Move down";
+        downBtn.textContent = t("core.moveDown");
+        downBtn.title = t("core.moveDownTitle");
         downBtn.disabled = thisIdx >= outfitsList.length - 1;
         downBtn.addEventListener("click", () => { moveOutfit(o.id, "down"); this.rerender(); });
         reorderCol.appendChild(upBtn);
@@ -5999,7 +6396,7 @@ export class EBCDrawer {
 
         const eSaveBtn = document.createElement("button");
         eSaveBtn.className = "ebc-create-btn";
-        eSaveBtn.textContent = "Save Changes";
+        eSaveBtn.textContent = t("outfits.saveChanges");
         editPanel.appendChild(eSaveBtn);
 
         // Export button inside edit panel (keeps the main row uncluttered)
@@ -6025,7 +6422,7 @@ export class EBCDrawer {
         preserveBtn.addEventListener("click", () => {
             const next = !preserveBtn.classList.contains("on");
             preserveBtn.className = "ebc-flag-chip" + (next ? " on" : "");
-            preserveBtn.textContent = next ? "⛓ Keep bonds" : "⛓ Swap bonds";
+            preserveBtn.textContent = next ? t("outfits.preserveBonds") : t("outfits.swapBonds");
             setOutfitPreserveRestraints(o.id, next);
             ePreserveCheck.checked = next;
         });
@@ -6033,7 +6430,7 @@ export class EBCDrawer {
         preserveClothingBtn.addEventListener("click", () => {
             const next = !preserveClothingBtn.classList.contains("on");
             preserveClothingBtn.className = "ebc-flag-chip" + (next ? " on" : "");
-            preserveClothingBtn.textContent = next ? "👗 Keep clothes" : "👗 Swap clothes";
+            preserveClothingBtn.textContent = next ? t("outfits.keepClothes") : t("outfits.swapClothes");
             setOutfitPreserveClothing(o.id, next);
             ePreserveClothingCheck.checked = next;
         });
@@ -6061,9 +6458,9 @@ export class EBCDrawer {
                     setAllDisabled(true);
                     const ok = saveCurrentAppearanceToOutfit(o.id);
                     if (!ok) { setAllDisabled(false); return; }
-                    updateBtn.textContent = "Saved!";
+                    updateBtn.textContent = t("core.saved");
                     window.setTimeout(() => {
-                        updateBtn.textContent = "Update";
+                        updateBtn.textContent = t("core.update");
                         setAllDisabled(false);
                     }, 1200);
                 }
@@ -6153,7 +6550,7 @@ export class EBCDrawer {
                     delPending = false;
                     delBtn.classList.remove("confirm");
                     delBtn.textContent = "×";
-                    delBtn.title = "Delete this outfit";
+                    delBtn.title = t("outfits.deleteTitle");
                 }, 2500);
             } else {
                 if (delTimer !== null) window.clearTimeout(delTimer);
@@ -6172,7 +6569,7 @@ export class EBCDrawer {
 
         const newBtn = document.createElement("button");
         newBtn.className = "ebc-new-outfit-btn";
-        newBtn.textContent = "+ New Outfit from Current Look";
+        newBtn.textContent = t("outfits.newOutfit");
         target.appendChild(newBtn);
 
         const form = document.createElement("div");
@@ -6204,8 +6601,8 @@ export class EBCDrawer {
         });
         const newTitleSel = this.makeTitleSelect("");
 
-        form.appendChild(makeRow("Command", cmdInput));
-        form.appendChild(makeRow("Name", nameInput));
+        form.appendChild(makeRow(t("outfits.commandLabel"), cmdInput));
+        form.appendChild(makeRow(t("outfits.nameLabel"), nameInput));
         form.appendChild(makeRow("Announce", announceInput));
         form.appendChild(makeRow("Nickname", nicknameInput));
         form.appendChild(makeRow("Title", newTitleSel));
@@ -6235,13 +6632,13 @@ export class EBCDrawer {
 
         const createBtn = document.createElement("button");
         createBtn.className = "ebc-create-btn";
-        createBtn.textContent = "Save as New Outfit";
+        createBtn.textContent = t("outfits.saveNewOutfit");
         form.appendChild(createBtn);
 
         newBtn.addEventListener("click", () => {
             const open = form.style.display !== "none";
             form.style.display = open ? "none" : "flex";
-            newBtn.textContent = open ? "+ New Outfit from Current Look" : "- Cancel";
+            newBtn.textContent = open ? t("outfits.newOutfit") : t("core.cancel");
             if (!open) cmdInput.focus();
         });
 
@@ -6266,11 +6663,11 @@ export class EBCDrawer {
                 newTitleSel.value = "";
                 checkbox.checked = false;
                 form.style.display = "none";
-                newBtn.textContent = "+ New Outfit from Current Look";
+                newBtn.textContent = t("outfits.newOutfit");
                 this.rerender();
             } else {
                 createBtn.disabled = false;
-                createBtn.textContent = "Save as New Outfit";
+                createBtn.textContent = t("outfits.saveNewOutfit");
             }
         });
 
@@ -6281,7 +6678,7 @@ export class EBCDrawer {
 
         const impToggleBtn = document.createElement("button");
         impToggleBtn.className = "ebc-new-outfit-btn";
-        impToggleBtn.textContent = "↓ Import Outfit";
+        impToggleBtn.textContent = t("outfits.importOutfit");
         target.appendChild(impToggleBtn);
 
         const impPanel = document.createElement("div");
@@ -6303,10 +6700,10 @@ export class EBCDrawer {
         const bcFields = document.createElement("div");
         bcFields.style.cssText = "display:none;flex-direction:column;gap:4px;margin-top:4px;";
         const bcNameInput = Object.assign(document.createElement("input"), {
-            className: "ebc-form-input", type: "text", placeholder: "Outfit name (e.g. Rope Set)",
+            className: "ebc-form-input", type: "text", placeholder: t("outfits.namePlaceholder"),
         });
         const bcCmdInput = Object.assign(document.createElement("input"), {
-            className: "ebc-form-input", type: "text", placeholder: "Command (e.g. ropeset)",
+            className: "ebc-form-input", type: "text", placeholder: t("outfits.cmdPlaceholder"),
             maxLength: 20,
         });
         const mkRow = (label: string, el: HTMLElement): HTMLElement => {
@@ -6368,7 +6765,7 @@ export class EBCDrawer {
 
         const closeImpPanel = (): void => {
             impPanel.classList.remove("open");
-            impToggleBtn.textContent = "↓ Import Outfit";
+            impToggleBtn.textContent = t("outfits.importOutfit");
             impTextarea.value = ""; impError.textContent = "";
             bcNameInput.value = ""; bcCmdInput.value = "";
             bcModeSelect.value = "restraints";
@@ -6378,7 +6775,7 @@ export class EBCDrawer {
         impToggleBtn.addEventListener("click", () => {
             const open = impPanel.classList.contains("open");
             impPanel.classList.toggle("open", !open);
-            impToggleBtn.textContent = open ? "↓ Import Outfit" : "- Cancel Import";
+            impToggleBtn.textContent = open ? t("outfits.importOutfit") : t("outfits.cancelImport");
             if (!open) { impTextarea.value = ""; impError.textContent = ""; impTextarea.focus(); }
         });
 
@@ -6419,7 +6816,7 @@ export class EBCDrawer {
         const lbl = document.createElement("div");
         lbl.className = "ebc-section-label";
         lbl.style.cssText = "cursor:pointer;user-select:none;";
-        lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
+        lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " " + t("outfits.savedRestraints");
         body.appendChild(lbl);
 
         const sectionBody = document.createElement("div");
@@ -6428,7 +6825,7 @@ export class EBCDrawer {
         const toggleCollapsed = (): void => {
             restraintsCollapsed = !restraintsCollapsed;
             sectionBody.style.display = restraintsCollapsed ? "none" : "block";
-            lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " Saved Restraints";
+            lbl.textContent = (restraintsCollapsed ? "▶" : "▼") + " " + t("outfits.savedRestraints");
             try { localStorage.setItem("EBC_restraintsCollapsed", restraintsCollapsed ? "1" : "0"); } catch { /* ignore */ }
         };
         lbl.addEventListener("click", toggleCollapsed);
@@ -6444,11 +6841,11 @@ export class EBCDrawer {
             } else {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
-                empty.textContent = "No restraint sets saved yet.";
+                empty.textContent = t("restraints.noRestraints");
                 const br = document.createElement("br");
                 const hint = document.createElement("span");
                 hint.style.color = "#4c2537";
-                hint.textContent = "Use the form below to create one.";
+                hint.textContent = t("outfits.useFormBelow");
                 empty.appendChild(br);
                 empty.appendChild(hint);
                 sectionBody.appendChild(empty);
@@ -6485,7 +6882,7 @@ export class EBCDrawer {
                 className: "ebc-form-input", type: "text", placeholder: "Restraint set name (e.g. Hogtied)",
             });
             const impRCmdInput = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", placeholder: "Command (e.g. hogtied)",
+                className: "ebc-form-input", type: "text", placeholder: t("outfits.cmdPlaceholder"),
                 maxLength: 20,
             });
             const mkImpRRow = (label: string, el: HTMLElement): HTMLElement => {
@@ -6522,7 +6919,7 @@ export class EBCDrawer {
 
             const closeImpRPanel = (): void => {
                 impRPanel.classList.remove("open");
-                impRToggleBtn.textContent = "↓ Import Restraint Set";
+                impRToggleBtn.textContent = t("outfits.importOutfit");
                 impRTextarea.value = "";
                 impRError.textContent = "";
                 impRNameInput.value = "";
@@ -6532,7 +6929,7 @@ export class EBCDrawer {
             impRToggleBtn.addEventListener("click", () => {
                 const open = impRPanel.classList.contains("open");
                 impRPanel.classList.toggle("open", !open);
-                impRToggleBtn.textContent = open ? "↓ Import Restraint Set" : "- Cancel Import";
+                impRToggleBtn.textContent = open ? t("outfits.importOutfit") : t("outfits.cancelImport");
                 if (!open) { impRTextarea.value = ""; impRError.textContent = ""; impRTextarea.focus(); }
             });
 
@@ -6561,7 +6958,7 @@ export class EBCDrawer {
 
             const newBtn = document.createElement("button");
             newBtn.className = "ebc-new-outfit-btn";
-            newBtn.textContent = "+ New Restraint Set from Current";
+            newBtn.textContent = t("restraints.newRestraint");
             sectionBody.appendChild(newBtn);
 
             const form = document.createElement("div");
@@ -6605,7 +7002,7 @@ export class EBCDrawer {
             newBtn.addEventListener("click", () => {
                 const open = form.style.display !== "none";
                 form.style.display = open ? "none" : "flex";
-                newBtn.textContent = open ? "+ New Restraint Set from Current" : "- Cancel";
+                newBtn.textContent = open ? t("restraints.newRestraint") : t("core.cancel");
                 if (!open) cmdInput.focus();
             });
 
@@ -6622,7 +7019,7 @@ export class EBCDrawer {
                 );
                 if (result) {
                     form.style.display = "none";
-                    newBtn.textContent = "+ New Restraint Set from Current";
+                    newBtn.textContent = t("restraints.newRestraint");
                     renderRestraintList();
                 } else {
                     createBtn.disabled = false;
@@ -6641,7 +7038,7 @@ export class EBCDrawer {
             const cpLbl = document.createElement("div");
             cpLbl.className = "ebc-section-label";
             cpLbl.style.cssText += ";margin:0;flex:1;font-size:10px;";
-            cpLbl.textContent = "Colour Presets";
+            cpLbl.textContent = t("buttons.colourPresets");
             const cpHintEl = document.createElement("span");
             cpHintEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#4c2537;flex-shrink:0;";
             cpHintEl.textContent = "saved from restraint log";
@@ -6847,14 +7244,14 @@ export class EBCDrawer {
         reorderCol.className = "ebc-reorder-col";
         const upBtn = document.createElement("button");
         upBtn.className = "ebc-reorder-btn";
-        upBtn.textContent = "▲";
-        upBtn.title = "Move up";
+        upBtn.textContent = t("core.moveUp");
+        upBtn.title = t("core.moveUpTitle");
         upBtn.disabled = thisIdx <= 0;
         upBtn.addEventListener("click", () => { moveRestraint(r.id, "up"); rerender(); });
         const downBtn = document.createElement("button");
         downBtn.className = "ebc-reorder-btn";
-        downBtn.textContent = "▼";
-        downBtn.title = "Move down";
+        downBtn.textContent = t("core.moveDown");
+        downBtn.title = t("core.moveDownTitle");
         downBtn.disabled = thisIdx >= restraintsList.length - 1;
         downBtn.addEventListener("click", () => { moveRestraint(r.id, "down"); rerender(); });
         reorderCol.appendChild(upBtn);
@@ -6862,12 +7259,12 @@ export class EBCDrawer {
 
         const updateBtn = document.createElement("button");
         updateBtn.className = "ebc-update-btn";
-        updateBtn.textContent = "Update";
+        updateBtn.textContent = t("core.update");
         updateBtn.title = "Save current restraints to this set";
 
         const applyBtn = document.createElement("button");
         applyBtn.className = "ebc-wear-btn";
-        applyBtn.textContent = "Apply";
+        applyBtn.textContent = t("core.apply");
 
         const PENCIL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
         const editBtn = document.createElement("button");
@@ -6878,7 +7275,7 @@ export class EBCDrawer {
         const delBtn = document.createElement("button");
         delBtn.className = "ebc-outfit-del";
         delBtn.textContent = "×";
-        delBtn.title = "Delete this restraint set";
+        delBtn.title = t("restraints.deleteTitle");
 
         row.appendChild(reorderCol);
         row.appendChild(info);
@@ -6961,7 +7358,7 @@ export class EBCDrawer {
 
         const eSaveBtn = document.createElement("button");
         eSaveBtn.className = "ebc-create-btn";
-        eSaveBtn.textContent = "Save Changes";
+        eSaveBtn.textContent = t("restraints.saveChanges");
         editPanel.appendChild(eSaveBtn);
 
         wrapper.appendChild(row);
@@ -6989,9 +7386,9 @@ export class EBCDrawer {
             setAllDisabled(true);
             const ok = saveCurrentAppearanceToRestraint(r.id);
             if (!ok) { setAllDisabled(false); return; }
-            updateBtn.textContent = "Saved!";
+            updateBtn.textContent = t("core.saved");
             window.setTimeout(() => {
-                updateBtn.textContent = "Update";
+                updateBtn.textContent = t("core.update");
                 setAllDisabled(false);
             }, 1200);
         });
@@ -7028,7 +7425,7 @@ export class EBCDrawer {
                     delPending = false;
                     delBtn.classList.remove("confirm");
                     delBtn.textContent = "×";
-                    delBtn.title = "Delete this restraint set";
+                    delBtn.title = t("restraints.deleteTitle");
                 }, 2500);
             } else {
                 if (delTimer !== null) window.clearTimeout(delTimer);
@@ -7339,7 +7736,7 @@ export class EBCDrawer {
             customInp.style.flex = "1";
             const addCustomBtn = document.createElement("button");
             addCustomBtn.className = "ebc-update-btn";
-            addCustomBtn.textContent = "+ Add";
+            addCustomBtn.textContent = t("core.add");
             addCustomBtn.addEventListener("click", () => {
                 const val = customInp.value.trim();
                 if (val) { poses.push(val); customInp.value = ""; renderList(); }
@@ -7466,7 +7863,7 @@ export class EBCDrawer {
         const hint = document.createElement("div");
         hint.className = "ebc-import-hint";
         hint.style.marginBottom = "6px";
-        hint.textContent = "Pick one Body pose and one Arm pose — they stack!";
+        hint.textContent = t("anims.poseHint");
         body.appendChild(hint);
 
         // ── Preset grids ──────────────────────────────────────────────────────
@@ -7496,11 +7893,9 @@ export class EBCDrawer {
                     : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                 btn.addEventListener("click", () => {
                     if (preset.key === "" && group.group === "Arms") {
-                        // "Relaxed" — clear arm poses but keep body poses
-                        const bodyPoses = currentPoses.filter(p =>
-                            KNOWN_POSES.find(g => g.group === "Body")?.poses.some(x => x.key === p),
-                        );
-                        applyPoses(bodyPoses);
+                        // "Relaxed" — clear all arm poses, keep everything else
+                        const nonArmPoses = currentPoses.filter(p => !armKeys.includes(p));
+                        applyPoses(nonArmPoses);
                     } else if (preset.key === "") {
                         // "Stand" clears everything
                         applyPoses([]);
@@ -7524,14 +7919,14 @@ export class EBCDrawer {
         }
 
         // ── Saved Combos (collapsible) ────────────────────────────────────────
-        const combosCnt = makeCollapse("SAVED COMBOS", "EBC_combosCollapsed", false);
+        const combosCnt = makeCollapse(t("anims.poseCombos"), "EBC_combosCollapsed", false);
 
         const combos = getPoseCombos();
         if (combos.length === 0) {
             const none = document.createElement("div");
             none.className = "ebc-empty";
             none.style.padding = "4px 0 6px";
-            none.textContent = "No combos yet — create one below.";
+            none.textContent = t("anims.noCombos");
             combosCnt.appendChild(none);
         }
 
@@ -7561,7 +7956,7 @@ export class EBCDrawer {
                 }
                 return k;
             });
-            posesEl.textContent = poseLabels.join(" → ") || "(none)";
+            posesEl.textContent = poseLabels.join(" → ") || t("core.none");
             if (combo.command) {
                 const cmdBadge = document.createElement("span");
                 cmdBadge.style.cssText = "margin-left:4px;color:#cf6f98;font-size:10px;";
@@ -7644,7 +8039,7 @@ export class EBCDrawer {
             topSaveBar.className = "ebc-editor-save-bar";
             const topSaveBtn = document.createElement("button");
             topSaveBtn.className = "ebc-update-btn";
-            topSaveBtn.textContent = "✓ Save Changes";
+            topSaveBtn.textContent = t("outfits.saveChanges");
             topSaveBtn.style.cssText = "flex:1;font-size:11px;";
             editor.appendChild(topSaveBar); // appended before we have getPoses/getDelay — wired below
 
@@ -7675,7 +8070,7 @@ export class EBCDrawer {
             saveBar.style.marginTop = "2px";
             const savComboBtn = document.createElement("button");
             savComboBtn.className = "ebc-create-btn";
-            savComboBtn.textContent = "Save Changes";
+            savComboBtn.textContent = t("outfits.saveChanges");
             savComboBtn.addEventListener("click", () => {
                 updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
                 this.rerender();
@@ -7704,7 +8099,7 @@ export class EBCDrawer {
 
         const newComboToggle = document.createElement("button");
         newComboToggle.className = "ebc-new-outfit-btn";
-        newComboToggle.textContent = "+ New Pose Combo";
+        newComboToggle.textContent = t("anims.newCombo");
         combosCnt.appendChild(newComboToggle);
 
         const newComboForm = document.createElement("div");
@@ -7730,7 +8125,7 @@ export class EBCDrawer {
         ncTopSaveBar.className = "ebc-editor-save-bar";
         const ncTopSaveBtn = document.createElement("button");
         ncTopSaveBtn.className = "ebc-update-btn";
-        ncTopSaveBtn.textContent = "✓ Save Combo";
+        ncTopSaveBtn.textContent = t("anims.saveCombo");
         ncTopSaveBtn.style.cssText = "flex:1;font-size:11px;";
         newComboForm.appendChild(ncTopSaveBar); // wired below after getters exist
 
@@ -7761,7 +8156,7 @@ export class EBCDrawer {
         ncSaveBar.style.marginTop = "2px";
         const ncSaveBtn = document.createElement("button");
         ncSaveBtn.className = "ebc-create-btn";
-        ncSaveBtn.textContent = "Save Combo";
+        ncSaveBtn.textContent = t("anims.saveCombo");
         ncSaveBtn.addEventListener("click", doSave);
         ncSaveBar.appendChild(ncSaveBtn);
         newComboForm.appendChild(ncSaveBar);
@@ -7769,7 +8164,7 @@ export class EBCDrawer {
         newComboToggle.addEventListener("click", () => {
             const open = newComboForm.style.display !== "none";
             newComboForm.style.display = open ? "none" : "flex";
-            newComboToggle.textContent = open ? "+ New Pose Combo" : "- Cancel";
+            newComboToggle.textContent = open ? t("anims.newCombo") : t("core.cancel");
             if (!open) {
                 (ncNameInp as HTMLInputElement).focus();
                 window.setTimeout(() => newComboToggle.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
@@ -7777,7 +8172,7 @@ export class EBCDrawer {
         });
 
         // ── SCENES (collapsible) ─────────────────────────────────────────────
-        const scenesCnt = makeCollapse("SCENES", "EBC_scenesCollapsed", false);
+        const scenesCnt = makeCollapse(t("anims.scenes"), "EBC_scenesCollapsed", false);
         this.renderScenes(scenesCnt);
     }
 
@@ -8519,7 +8914,7 @@ export class EBCDrawer {
 
             const addBtn = document.createElement("button");
             addBtn.className = "ebc-update-btn";
-            addBtn.textContent = "+ Add Step";
+            addBtn.textContent = t("anims.addStep");
             addBtn.addEventListener("click", () => {
                 syncFromEntries();
                 const defDelays: Record<StepType, number> = {
@@ -8543,7 +8938,7 @@ export class EBCDrawer {
         const scenesHint = document.createElement("div");
         scenesHint.className = "ebc-import-hint";
         scenesHint.style.marginBottom = "6px";
-        scenesHint.textContent = "Chain poses, item changes, emotes and pauses into a timed sequence.";
+        scenesHint.textContent = t("anims.scenesHint");
         body.appendChild(scenesHint);
 
         const scenes = getScenes();
@@ -8698,7 +9093,7 @@ export class EBCDrawer {
             topSaveBar.className = "ebc-editor-save-bar";
             const topSaveBtn = document.createElement("button");
             topSaveBtn.className = "ebc-update-btn";
-            topSaveBtn.textContent = "✓ Save Changes";
+            topSaveBtn.textContent = t("outfits.saveChanges");
             topSaveBtn.style.cssText = "flex:1;font-size:11px;";
             topSaveBar.appendChild(topSaveBtn);
             editor.appendChild(topSaveBar);
@@ -8720,7 +9115,7 @@ export class EBCDrawer {
             botSaveBar.style.marginTop = "2px";
             const botSaveBtn = document.createElement("button");
             botSaveBtn.className = "ebc-create-btn";
-            botSaveBtn.textContent = "Save Changes";
+            botSaveBtn.textContent = t("outfits.saveChanges");
             botSaveBtn.addEventListener("click", () => {
                 updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
                 this.rerender();
@@ -9275,7 +9670,7 @@ export class EBCDrawer {
                 if (!isSent) {
                     const replyBtn = document.createElement("button");
                     replyBtn.className = "ebc-beep-reply-btn";
-                    replyBtn.textContent = "↩ reply";
+                    replyBtn.textContent = t("users.reply");
                     replyBtn.addEventListener("click", () => setReply(msgBody.slice(0, 80)));
                     wrap.appendChild(replyBtn);
                 }
@@ -9312,7 +9707,7 @@ export class EBCDrawer {
         const input = document.createElement("input");
         input.className = "ebc-beep-win-input";
         input.type = "text";
-        input.placeholder = "Type a message...";
+        input.placeholder = t("users.typeMessage");
         input.maxLength = 300;
 
         const sendBtn = document.createElement("button");
@@ -9499,7 +9894,7 @@ export class EBCDrawer {
         const afkLbl = document.createElement("div");
         afkLbl.className = "ebc-section-label";
         afkLbl.style.margin = "0";
-        afkLbl.textContent = "AFK Auto-Reply";
+        afkLbl.textContent = t("settings.afkAutoReply");
         const afkChevron = document.createElement("span");
         afkChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
         afkHeader.appendChild(afkLbl);
@@ -9514,11 +9909,11 @@ export class EBCDrawer {
         afkToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;";
         const afkToggleLbl = document.createElement("span");
         afkToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        afkToggleLbl.textContent = "Auto-reply when AFK";
+        afkToggleLbl.textContent = t("users.autoReplyWhenAfk");
         const afkToggleBtn = document.createElement("button");
         const refreshAfkToggle = (): void => {
             const on = getAfkEnabled();
-            afkToggleBtn.textContent = on ? "ON" : "OFF";
+            afkToggleBtn.textContent = on ? t("core.on") : t("core.off");
             afkToggleBtn.style.cssText = [
                 "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
                 "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
@@ -9537,7 +9932,7 @@ export class EBCDrawer {
         // Threshold — label row + h/m/s inputs on separate row
         const afkThreshLbl = document.createElement("div");
         afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;margin-bottom:4px;";
-        afkThreshLbl.textContent = "Idle threshold";
+        afkThreshLbl.textContent = t("settings.idleThreshold");
 
         const afkThreshRow = document.createElement("div");
         afkThreshRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:4px;";
@@ -9642,7 +10037,7 @@ export class EBCDrawer {
         const userNotesLbl = document.createElement("div");
         userNotesLbl.className = "ebc-section-label";
         userNotesLbl.style.margin = "0";
-        userNotesLbl.textContent = "User Notes";
+        userNotesLbl.textContent = t("users.header");
 
         const userNotesChevron = document.createElement("span");
         userNotesChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
@@ -9924,7 +10319,7 @@ export class EBCDrawer {
                     arrow.textContent = col ? "▶" : "▼";
                     const lbl = document.createElement("span");
                     lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
-                    lbl.textContent = `People in Room`;
+                    lbl.textContent = t("users.peopleInRoom");
                     const cnt = document.createElement("span");
                     cnt.style.cssText = [
                         "font-family:'Trebuchet MS',serif",
@@ -9976,7 +10371,7 @@ export class EBCDrawer {
             lblF.className = "ebc-section-label";
             lblF.style.cssText = "display:flex;align-items:center;gap:6px;";
             const lblFText = document.createElement("span");
-            lblFText.textContent = "Friends";
+            lblFText.textContent = t("users.friends");
             const lblFCount = document.createElement("span");
             lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;flex:1;";
             lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
@@ -10380,11 +10775,7 @@ export class EBCDrawer {
                                 // No record — stamp now (this IS a friend if they appear in the list)
                                 fs[key] = Date.now();
                                 sinceTs = fs[key];
-                                try {
-                                    const syncFn = (window as unknown as Record<string, unknown>).ServerPlayerExtensionSettingsSync as
-                                        ((k: string) => void) | undefined;
-                                    syncFn?.("EmeryBC");
-                                } catch { /* ignore */ }
+                                syncSettings();
                             }
                         }
                     } catch { /* ignore */ }
@@ -10395,9 +10786,9 @@ export class EBCDrawer {
                     if (sinceTs) {
                         const d = new Date(sinceTs);
                         const label = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-                        sinceEl.textContent = `🤝 Friends since: ${label}`;
+                        sinceEl.textContent = t("users.friendsSince", { date: label });
                     } else {
-                        sinceEl.textContent = "🤝 Friends since: Unknown";
+                        sinceEl.textContent = t("users.friendsSinceUnknown");
                     }
                     infoBox.appendChild(sinceEl);
 
@@ -10527,13 +10918,13 @@ export class EBCDrawer {
                     newTagInputRef = newTagInput;
                     newTagInput.type = "text";
                     newTagInput.maxLength = 30;
-                    newTagInput.placeholder = "new tag…";
+                    newTagInput.placeholder = t("users.newTagPlaceholder");
                     newTagInput.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;background:#130810;color:#e8b4c8;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;outline:none;min-width:0;";
                     newTagInput.addEventListener("focus", () => { newTagInput.style.borderColor = "#cf6f98"; });
                     newTagInput.addEventListener("blur",  () => { newTagInput.style.borderColor = "#3a1928"; });
 
                     const addTagBtn = document.createElement("button");
-                    addTagBtn.textContent = "+ Add";
+                    addTagBtn.textContent = t("core.add");
                     addTagBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;flex-shrink:0;";
 
                     addRow.appendChild(newTagInput);
@@ -10580,7 +10971,7 @@ export class EBCDrawer {
                     const pinBtn = document.createElement("button");
                     const refreshPinBtn = (): void => {
                         const p = isFriendPinned(num);
-                        pinBtn.textContent = p ? "📌 Unpin" : "📌 Pin to top";
+                        pinBtn.textContent = p ? t("users.unpin") : t("users.pinToTop");
                         pinBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${p ? "#cf6f98" : "#3a1928"};background:${p ? "#3a1028" : "transparent"};color:${p ? "#cf6f98" : "#7a5a6a"};`;
                         row.classList.toggle("pinned", p);
                         pinDot.style.display = p ? "" : "none";
@@ -10601,7 +10992,7 @@ export class EBCDrawer {
 
                     const noteTA = document.createElement("textarea");
                     noteTA.className = "ebc-notes-textarea";
-                    noteTA.placeholder = "Notes about this person...";
+                    noteTA.placeholder = t("users.noteHint");
                     noteTA.rows = 3;
                     noteTA.style.cssText += "width:100%;box-sizing:border-box;resize:vertical;";
                     // Load current note value fresh each time the panel is opened
@@ -10613,7 +11004,7 @@ export class EBCDrawer {
 
                     const noteHint = document.createElement("div");
                     noteHint.className = "ebc-notes-save-hint";
-                    noteHint.textContent = "saves automatically";
+                    noteHint.textContent = t("users.savedAutomatically");
 
                     noteWrap.appendChild(noteTA);
                     noteWrap.appendChild(noteHint);
@@ -10625,8 +11016,8 @@ export class EBCDrawer {
                         noteHint.textContent = "saving...";
                         noteSaveTimer = window.setTimeout(() => {
                             saveNote(num, name, noteTA.value);
-                            noteHint.textContent = noteTA.value.trim() ? "saved" : "saves automatically";
-                            window.setTimeout(() => { noteHint.textContent = "saves automatically"; }, 1500);
+                            noteHint.textContent = noteTA.value.trim() ? t("core.saved") : t("users.savedAutomatically");
+                            window.setTimeout(() => { noteHint.textContent = t("users.savedAutomatically"); }, 1500);
                             try { if (this.currentTab === "notes") this.rerender(); } catch { /* ignore */ }
                         }, 800);
                     });
@@ -10772,13 +11163,13 @@ export class EBCDrawer {
 
         const textarea = document.createElement("textarea");
         textarea.className = "ebc-notes-textarea";
-        textarea.placeholder = "Notes about this person...";
+        textarea.placeholder = t("users.noteHint");
         textarea.value = currentNote;
         textarea.rows = 3;
 
         const hint = document.createElement("div");
         hint.className = "ebc-notes-save-hint";
-        hint.textContent = "saves automatically";
+        hint.textContent = t("users.savedAutomatically");
 
         editor.appendChild(textarea);
         editor.appendChild(hint);
@@ -10811,31 +11202,8 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // ── Show EBC tags toggle ──────────────────────────────────────────────
-        const badgeToggleRow = document.createElement("div");
-        badgeToggleRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:6px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-        const badgeLbl2 = document.createElement("span");
-        badgeLbl2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-        badgeLbl2.textContent = "Show EBC tags above players";
-        const badgeToggle2 = document.createElement("button");
-        const updateBadgeToggle2 = (): void => {
-            const on = getBadgeEnabled();
-            badgeToggle2.textContent = on ? "ON" : "OFF";
-            badgeToggle2.style.cssText = [
-                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                "padding:5px 12px", "border-radius:4px", "cursor:pointer",
-                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                "background:" + (on ? "#6b3048" : "#1b0d17"),
-                "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                "transition:background 0.14s,color 0.14s,border-color 0.14s",
-            ].join(";");
-            badgeToggle2.title = on ? "EBC tags visible — click to hide" : "EBC tags hidden — click to show";
-        };
-        try { updateBadgeToggle2(); } catch { /* ignore */ }
-        badgeToggle2.addEventListener("click", () => { setBadgeEnabled(!getBadgeEnabled()); updateBadgeToggle2(); });
-        badgeToggleRow.appendChild(badgeLbl2);
-        badgeToggleRow.appendChild(badgeToggle2);
-        body.appendChild(badgeToggleRow);
+        // EBC Tags toggles moved to the permanent strip below safewords (always visible).
+        // No longer shown in DEV tab.
 
         // Helper: collapsible section wrapper
         const makeSection = (
@@ -10875,8 +11243,96 @@ export class EBCDrawer {
             body.appendChild(div);
         };
 
+        // ── Whisper Log ───────────────────────────────────────────────────────
+        makeSection(t("dev.whisperLog"), "EBC_devWhisperLogCollapsed", true, (cnt) => {
+            const partners = getWhisperPartners();
+            if (partners.length === 0) {
+                const empty = document.createElement("div");
+                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:8px 4px;text-align:center;";
+                empty.textContent = t("dev.noWhispers");
+                cnt.appendChild(empty);
+                return;
+            }
+
+            // Clear button row
+            const whClearRow = document.createElement("div");
+            whClearRow.style.cssText = "display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;";
+            const whClearBtn = document.createElement("button");
+            whClearBtn.className = "ebc-outfit-del";
+            whClearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
+            whClearBtn.textContent = t("dev.clearLog");
+            whClearBtn.title = "Clear whisper log";
+            whClearBtn.addEventListener("click", () => {
+                this.selectedWhisperPartner = null;
+                clearWhisperLog();
+                this.rerender();
+            });
+            whClearRow.appendChild(whClearBtn);
+            cnt.appendChild(whClearRow);
+
+            // Fall back if selected partner is gone
+            if (this.selectedWhisperPartner !== null && !partners.includes(this.selectedWhisperPartner)) {
+                this.selectedWhisperPartner = partners[0];
+            }
+            const activePartner = this.selectedWhisperPartner ?? partners[0];
+
+            // Partner selector
+            const partnerList = document.createElement("div");
+            partnerList.style.cssText = "display:flex;flex-direction:column;gap:2px;margin-bottom:8px;";
+            for (const num of partners) {
+                const conv = getWhisperConversation(num);
+                const lastName = conv[conv.length - 1]?.partnerName ?? `#${num}`;
+                const btn = document.createElement("button");
+                btn.className = "ebc-whisper-partner-btn" + (num === activePartner ? " active" : "");
+                const nameSpan = document.createElement("span");
+                nameSpan.textContent = lastName;
+                const countSpan = document.createElement("span");
+                countSpan.style.cssText = "font-size:8px;color:#7a5070;flex-shrink:0;";
+                countSpan.textContent = `${conv.length} msg${conv.length !== 1 ? "s" : ""}`;
+                btn.appendChild(nameSpan);
+                btn.appendChild(countSpan);
+                btn.addEventListener("click", () => { this.selectedWhisperPartner = num; this.rerender(); });
+                partnerList.appendChild(btn);
+            }
+            cnt.appendChild(partnerList);
+
+            // Conversation view
+            const activeName = getWhisperConversation(activePartner)[0]?.partnerName ?? `#${activePartner}`;
+            const convLbl = document.createElement("div");
+            convLbl.className = "ebc-section-label";
+            convLbl.textContent = `With ${activeName}`;
+            cnt.appendChild(convLbl);
+
+            const myName = (() => {
+                try {
+                    const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
+                    if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
+                } catch { /* ignore */ }
+                return (Player as unknown as Record<string, unknown>)?.Nickname as string | undefined
+                    ?? Player?.Name ?? "You";
+            })();
+
+            for (const entry of getWhisperConversation(activePartner)) {
+                const row = document.createElement("div");
+                row.className = "ebc-whisper-msg " + entry.direction;
+                const meta = document.createElement("div");
+                meta.className = "ebc-whisper-meta";
+                const time = new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                meta.textContent = entry.direction === "out"
+                    ? `${myName} → ${entry.partnerName}  ${time}`
+                    : `${entry.partnerName} → ${myName}  ${time}`;
+                const text = document.createElement("div");
+                text.className = "ebc-whisper-text";
+                text.textContent = entry.message;
+                row.appendChild(meta);
+                row.appendChild(text);
+                cnt.appendChild(row);
+            }
+            window.setTimeout(() => { cnt.scrollTop = cnt.scrollHeight; }, 0);
+        });
+
         // ── Drawer Preferences ────────────────────────────────────────────────
-        makeSection("DRAWER PREFERENCES", "EBC_devAppearanceCollapsed", false, (cnt) => {
+        makeSection(t("dev.drawerPrefs"), "EBC_devAppearanceCollapsed", false, (cnt) => {
 
             // ── Panel opacity slider ──────────────────────────────────────────
             const opacityRow = document.createElement("div");
@@ -10961,15 +11417,15 @@ export class EBCDrawer {
 
             // ── Per-colour pickers ─────────────────────────────────────────────
             const colorFields: Array<{ key: keyof CoreColors; label: string; hint: string }> = [
-                { key: "bg",         label: "Drawer BG",  hint: "Main panel background" },
-                { key: "card",       label: "Card BG",    hint: "Section / card backgrounds" },
-                { key: "cardMuted",  label: "Inset BG",   hint: "Text inputs, textareas, recessed surfaces" },
-                { key: "border",     label: "Border",     hint: "All border lines" },
-                { key: "accent",     label: "Accent",     hint: "Buttons, highlights, active states" },
-                { key: "gold",       label: "Gold",       hint: "Gold highlights, notices & labels" },
-                { key: "textBright", label: "Text",       hint: "Primary readable text" },
-                { key: "textSub",    label: "Subtext",    hint: "Secondary / label text" },
-                { key: "textMuted",  label: "Dim Text",   hint: "Inactive, placeholder & muted text" },
+                { key: "bg",         label: t("theme.drawerBg"),  hint: "Main panel background" },
+                { key: "card",       label: t("theme.cardBg"),    hint: "Section / card backgrounds" },
+                { key: "cardMuted",  label: t("theme.insetBg"),   hint: "Text inputs, textareas, recessed surfaces" },
+                { key: "border",     label: t("theme.border"),    hint: "All border lines" },
+                { key: "accent",     label: t("theme.accent"),    hint: "Buttons, highlights, active states" },
+                { key: "gold",       label: t("theme.gold"),      hint: "Gold highlights, notices & labels" },
+                { key: "textBright", label: t("theme.text"),      hint: "Primary readable text" },
+                { key: "textSub",    label: t("theme.subtext"),   hint: "Secondary / label text" },
+                { key: "textMuted",  label: t("theme.dimText"),   hint: "Inactive, placeholder & muted text" },
             ];
 
             const subLbl = document.createElement("div");
@@ -11093,7 +11549,7 @@ export class EBCDrawer {
             setHotkeyBtn.addEventListener("mouseleave", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#3a1020"; });
 
             const clearHotkeyBtn = document.createElement("button");
-            clearHotkeyBtn.textContent = "Clear";
+            clearHotkeyBtn.textContent = t("dev.clearLog");
             clearHotkeyBtn.style.cssText = BTN + "border:1px solid #3a2530;background:transparent;color:#7a5a6a;";
             clearHotkeyBtn.addEventListener("mouseenter", () => { clearHotkeyBtn.style.background = "rgba(122,90,106,0.15)"; });
             clearHotkeyBtn.addEventListener("mouseleave", () => { clearHotkeyBtn.style.background = "transparent"; });
@@ -11136,7 +11592,7 @@ export class EBCDrawer {
         });
 
         // ── EBC Users In This Room ─────────────────────────────────────────────
-        makeSection("EBC USERS IN THIS ROOM", "EBC_devEbcUsersCollapsed", true, (cnt) => {
+        makeSection(t("dev.ebcUsersInRoom"), "EBC_devEbcUsersCollapsed", true, (cnt) => {
             const presListEl = document.createElement("div");
             cnt.appendChild(presListEl);
 
@@ -11197,7 +11653,7 @@ export class EBCDrawer {
         });
 
         // ── Developer Tools ────────────────────────────────────────────────────
-        makeSection("DEVELOPER TOOLS", "EBC_devToolsCollapsed", true, (cnt) => {
+        makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
             // Version badge toggle
             const verRow = document.createElement("div");
             verRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
@@ -11213,7 +11669,7 @@ export class EBCDrawer {
             const verToggle = document.createElement("button");
             const refreshVerToggle = (): void => {
                 const on = getShowVersionBadge();
-                verToggle.textContent = on ? "ON" : "OFF";
+                verToggle.textContent = on ? t("core.on") : t("core.off");
                 verToggle.style.cssText = [
                     "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
                     "padding:2px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
@@ -11231,7 +11687,7 @@ export class EBCDrawer {
             // Character Inspector
             const charLbl = document.createElement("div");
             charLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
-            charLbl.textContent = "Character Inspector";
+            charLbl.textContent = t("dev.characterInspector");
             cnt.appendChild(charLbl);
             const charHint = document.createElement("div");
             charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
@@ -11271,7 +11727,7 @@ export class EBCDrawer {
                 const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
                 const num = parseInt(charSelect.value, 10);
                 const char = room.find(c => c.MemberNumber === num);
-                if (!char) { charDump.textContent = "Character not found in room."; charDump.style.display = ""; return; }
+                if (!char) { charDump.textContent = t("dev.charNotInRoom"); charDump.style.display = ""; return; }
                 try {
                     const snapshot = {
                         Name: char.Name,
@@ -11348,7 +11804,7 @@ export class EBCDrawer {
 
         // ── Copy Restraints from Room Member (credited members only) ─────────
         if (Player.MemberNumber && VIP_MEMBERS[Player.MemberNumber]) {
-        makeSection("COPY RESTRAINTS FROM MEMBER", "EBC_devCopyRestrCollapsed", true, (cnt) => {
+        makeSection(t("dev.copyRestraintsFromMember"), "EBC_devCopyRestrCollapsed", true, (cnt) => {
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:6px;line-height:1.5;";
             hint.textContent = "Export a room member's restraints as a BC outfit code. Choose which items to include, then import via BC's wardrobe.";
@@ -11478,7 +11934,7 @@ export class EBCDrawer {
                 if (isNaN(num)) { statusEl.textContent = "No member selected."; return; }
                 const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
                 const char = room.find(c => c.MemberNumber === num);
-                if (!char) { statusEl.textContent = "Character not found in room."; statusEl.style.color = "#ff6b6b"; return; }
+                if (!char) { statusEl.textContent = t("dev.charNotInRoom"); statusEl.style.color = "#ff6b6b"; return; }
 
                 const items = char.Appearance.filter((i: Item) => i.Asset?.Group?.Name && RESTRAINT_GROUPS.has(i.Asset.Group.Name));
                 if (items.length === 0) {
@@ -11584,7 +12040,7 @@ export class EBCDrawer {
         let renderRlog:   () => void = () => { /* populated below */ };
         let renderMsgLog: () => void = () => { /* populated below */ };
 
-        makeSection("LOG", "EBC_devLogSectionCollapsed", true, (cnt) => {
+        makeSection(t("dev.devLog"), "EBC_devLogSectionCollapsed", true, (cnt) => {
             // -- shared helpers --
             const fmtDuration = (ms: number): string => {
                 const s = Math.floor(ms / 1000);
@@ -11713,7 +12169,7 @@ export class EBCDrawer {
             // ── Rooms Visited ─────────────────────────────────────────────────
             // Opt-in persistent history of past rooms.
             const roomClearBtn = document.createElement("button");
-            roomClearBtn.textContent = "Clear";
+            roomClearBtn.textContent = t("dev.clearLog");
             roomClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
             roomClearBtn.addEventListener("mouseenter", () => { roomClearBtn.style.color = "#cf6f98"; roomClearBtn.style.borderColor = "#cf6f98"; });
             roomClearBtn.addEventListener("mouseleave", () => { roomClearBtn.style.color = "#7a5a6a"; roomClearBtn.style.borderColor = "#3a1928"; });
@@ -11728,7 +12184,7 @@ export class EBCDrawer {
                 const rhToggleBtn = document.createElement("button");
                 const refreshRhToggle = (): void => {
                     const on = getRoomHistoryEnabled();
-                    rhToggleBtn.textContent = on ? "ON" : "OFF";
+                    rhToggleBtn.textContent = on ? t("core.on") : t("core.off");
                     rhToggleBtn.style.cssText = [
                         "font-family:'Trebuchet MS',serif","font-size:9px","font-weight:bold",
                         "padding:2px 8px","border-radius:4px","cursor:pointer","flex-shrink:0",
@@ -11834,7 +12290,7 @@ export class EBCDrawer {
 
             // ── Restraint Log ─────────────────────────────────────────────────
             const rlogClearBtn = document.createElement("button");
-            rlogClearBtn.textContent = "Clear";
+            rlogClearBtn.textContent = t("dev.clearLog");
             rlogClearBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 10px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;";
             rlogClearBtn.addEventListener("mouseenter", () => { rlogClearBtn.style.color = "#cf6f98"; rlogClearBtn.style.borderColor = "#cf6f98"; });
             rlogClearBtn.addEventListener("mouseleave", () => { rlogClearBtn.style.color = "#7a5a6a"; rlogClearBtn.style.borderColor = "#3a1928"; });
@@ -11849,7 +12305,7 @@ export class EBCDrawer {
                 const rlToggleBtn = document.createElement("button");
                 const refreshRlToggle = (): void => {
                     const on = getRestraintLogEnabled();
-                    rlToggleBtn.textContent = on ? "ON" : "OFF";
+                    rlToggleBtn.textContent = on ? t("core.on") : t("core.off");
                     rlToggleBtn.style.cssText = [
                         "font-family:'Trebuchet MS',serif","font-size:9px","font-weight:bold",
                         "padding:2px 8px","border-radius:4px","cursor:pointer","flex-shrink:0",
@@ -12004,7 +12460,7 @@ export class EBCDrawer {
                 const msgClearBtn = document.createElement("button");
                 msgClearBtn.className = "ebc-icon-btn";
                 msgClearBtn.style.cssText = "font-size:11px;padding:5px 10px;";
-                msgClearBtn.textContent = "Clear";
+                msgClearBtn.textContent = t("dev.clearLog");
                 const logToggleWrap = document.createElement("label");
                 logToggleWrap.style.cssText = "display:flex;align-items:center;gap:4px;font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;cursor:pointer;margin-left:auto;user-select:none;";
                 const logToggleChk = document.createElement("input");
@@ -12026,7 +12482,7 @@ export class EBCDrawer {
                 const logOffText = document.createElement("span"); logOffText.textContent = "Logging is off."; logOffText.style.flex = "1";
                 logOffHint.appendChild(logOffText);
                 const enableBtn = document.createElement("button");
-                enableBtn.textContent = "Enable";
+                enableBtn.textContent = t("core.enable");
                 enableBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 8px;border-radius:4px;border:1px solid #4c2537;background:transparent;color:#9a7080;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
                 enableBtn.addEventListener("mouseenter", () => { enableBtn.style.color = "#cf6f98"; enableBtn.style.borderColor = "#cf6f98"; });
                 enableBtn.addEventListener("mouseleave", () => { enableBtn.style.color = "#9a7080"; enableBtn.style.borderColor = "#4c2537"; });
@@ -12103,7 +12559,7 @@ export class EBCDrawer {
         // ── Stat Editor (credited members only) ───────────────────────────────
         const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
         if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
-            makeSection("Stat Editor", "EBC_statEditorCollapsed", true, (cnt) => {
+            makeSection(t("dev.statEditor"), "EBC_statEditorCollapsed", true, (cnt) => {
                 const FONT = "font-family:'Trebuchet MS',serif;";
 
                 // Helper: sub-label
@@ -12287,7 +12743,7 @@ export class EBCDrawer {
                     moneyInp.value = String((Player as unknown as Record<string, unknown>).Money ?? 0);
                     moneyInp.style.cssText = INP;
                     const addMoneyBtn = document.createElement("button");
-                    addMoneyBtn.textContent = "+ Add";
+                    addMoneyBtn.textContent = t("core.add");
                     addMoneyBtn.title = "Add this amount to current money";
                     addMoneyBtn.style.cssText = BTN;
                     const setMoneyBtn = document.createElement("button");
@@ -12404,7 +12860,7 @@ export class EBCDrawer {
         }
 
         // ── People Met ────────────────────────────────────────────────────────
-        makeSection("PEOPLE MET", "EBC_peoplemetCollapsed", true, (cnt) => {
+        makeSection(t("dev.peopleMet"), "EBC_peoplemetCollapsed", true, (cnt) => {
             const PFONT = "font-family:'Trebuchet MS',serif;";
 
             // Controls row: count + search + clear
@@ -12416,11 +12872,11 @@ export class EBCDrawer {
 
             const searchInp = document.createElement("input");
             searchInp.type = "text";
-            searchInp.placeholder = "Search name or #id…";
+            searchInp.placeholder = t("dev.searchPlaceholder");
             searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
 
             const clearBtn = document.createElement("button");
-            clearBtn.textContent = "Clear All";
+            clearBtn.textContent = t("core.clearAll");
             clearBtn.style.cssText = `${PFONT}font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
             clearBtn.addEventListener("mouseenter", () => { clearBtn.style.color = "#e05070"; clearBtn.style.borderColor = "#e05070"; });
             clearBtn.addEventListener("mouseleave", () => { clearBtn.style.color = "#7a5a6a"; clearBtn.style.borderColor = "#4c2537"; });
@@ -12585,12 +13041,12 @@ export class EBCDrawer {
             const initial = [...BUILTIN_BARKS, ...legacy];
             store.barks = initial;
             if (legacy.length > 0) { delete store.customBarks; }
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
             return initial;
         };
         const saveBarks = (barks: string[]): void => {
             getPuppyStore().barks = barks;
-            callBC(() => ServerPlayerExtensionSettingsSync("EmeryBC"));
+            syncSettings();
         };
 
         // Bark button
@@ -12611,7 +13067,7 @@ export class EBCDrawer {
             "transition:background 0.14s,transform 0.08s",
             "letter-spacing:0.08em",
         ].join(";");
-        barkBtn.textContent = "🐶 Bark!";
+        barkBtn.textContent = t("kitty.barkBtn");
         barkBtn.addEventListener("mouseenter", () => { barkBtn.style.background = "#5a30a0"; });
         barkBtn.addEventListener("mouseleave", () => { barkBtn.style.background = "#3a2060"; });
         barkBtn.addEventListener("mousedown", () => { barkBtn.style.transform = "scale(0.95)"; });
@@ -12624,7 +13080,7 @@ export class EBCDrawer {
             barkBtn.textContent = "🐶 " + bark;
             window.setTimeout(() => {
                 barkBtn.style.background = "#3a2060";
-                barkBtn.textContent = "🐶 Bark!";
+                barkBtn.textContent = t("kitty.barkBtn");
             }, 700);
         });
         body.appendChild(barkBtn);
@@ -12734,7 +13190,7 @@ export class EBCDrawer {
         addInp.className = "ebc-form-input";
         addInp.style.cssText = "flex:1;font-size:10px;";
         const addBtn = document.createElement("button");
-        addBtn.textContent = "+ Add";
+        addBtn.textContent = t("core.add");
         addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #9b7de0;background:#3a2060;color:#d8c8ff;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
         addBtn.addEventListener("mouseenter", () => { addBtn.style.background = "#5a30a0"; });
         addBtn.addEventListener("mouseleave", () => { addBtn.style.background = "#3a2060"; });
@@ -12803,11 +13259,11 @@ export class EBCDrawer {
                 const typeSelect = document.createElement("select");
                 typeSelect.className = "ebc-seq-type-select";
                 [
-                    { value: "action",    label: "Action !"     },
-                    { value: "emote",     label: "Emote *"      },
-                    { value: "pose",      label: "Pose"         },
-                    { value: "reset",     label: "Reset _"      },
-                    { value: "leaveroom", label: "Leave Room 🚪" },
+                    { value: "action",    label: t("buttons.styleAction")  },
+                    { value: "emote",     label: t("buttons.styleEmote")   },
+                    { value: "pose",      label: t("buttons.stylePose")    },
+                    { value: "reset",     label: t("buttons.styleReset")   },
+                    { value: "leaveroom", label: t("buttons.styleLeave")   },
                 ].forEach(opt => {
                     const o = document.createElement("option");
                     o.value = opt.value; o.textContent = opt.label;
@@ -12927,6 +13383,31 @@ export class EBCDrawer {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
+
+        // ── Sidebar visibility toggle ─────────────────────────────────────────
+        const sidebarRow = document.createElement("div");
+        sidebarRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 8px 6px;border-bottom:1px solid #2a1421;margin-bottom:6px;";
+        const sidebarLbl = document.createElement("span");
+        sidebarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;flex:1;user-select:none;";
+        sidebarLbl.textContent = t("buttons.showSidebar");
+        const sidebarToggle = document.createElement("button");
+        const refreshSidebarToggle = (): void => {
+            const on = getActionButtonsVisible();
+            sidebarToggle.textContent = on ? t("core.on") : t("core.off");
+            sidebarToggle.style.cssText = [
+                "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                "padding:2px 9px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                "background:" + (on ? "#6b3048" : "#1b0d17"),
+                "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                "transition:background 0.14s,color 0.14s,border-color 0.14s",
+            ].join(";");
+        };
+        refreshSidebarToggle();
+        sidebarToggle.addEventListener("click", () => { setActionButtonsVisible(!getActionButtonsVisible()); refreshSidebarToggle(); });
+        sidebarRow.appendChild(sidebarLbl);
+        sidebarRow.appendChild(sidebarToggle);
+        body.appendChild(sidebarRow);
 
         // Working category state
         const cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
@@ -13050,7 +13531,7 @@ export class EBCDrawer {
         const addCatBtn = document.createElement("button");
         addCatBtn.className = "ebc-cat-pill";
         addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
-        addCatBtn.textContent = "+ Add Category";
+        addCatBtn.textContent = t("buttons.addCategory");
         addCatBtn.addEventListener("click", () => {
             const name = window.prompt("Category name (e.g. RP, Casual):") ?? "";
             if (!name.trim()) return;
@@ -13086,7 +13567,7 @@ export class EBCDrawer {
 
                 const toggle = document.createElement("button");
                 toggle.className = "ebc-slot-toggle" + (btn.enabled ? " on" : "");
-                toggle.textContent = btn.enabled ? "ON" : "OFF";
+                toggle.textContent = btn.enabled ? t("core.on") : t("core.off");
                 toggle.title = btn.enabled ? "Click to disable" : "Click to enable";
 
                 const labelInp = document.createElement("input");
@@ -13141,7 +13622,7 @@ export class EBCDrawer {
                     const doneBtn = document.createElement("button");
                     doneBtn.className = "ebc-wear-btn";
                     doneBtn.style.cssText = "width:100%;margin-top:6px;";
-                    doneBtn.textContent = "✓ Done";
+                    doneBtn.textContent = t("core.done");
                     doneBtn.addEventListener("click", closeSlotPicker);
                     popup.appendChild(pw);
                     popup.appendChild(doneBtn);
@@ -13168,14 +13649,14 @@ export class EBCDrawer {
                 // ▲ / ▼ reorder buttons
                 const moveUpBtn = document.createElement("button");
                 moveUpBtn.className = "ebc-slot-move";
-                moveUpBtn.textContent = "▲";
-                moveUpBtn.title = "Move up";
+                moveUpBtn.textContent = t("core.moveUp");
+                moveUpBtn.title = t("core.moveUpTitle");
                 moveUpBtn.disabled = i === 0;
 
                 const moveDownBtn = document.createElement("button");
                 moveDownBtn.className = "ebc-slot-move";
-                moveDownBtn.textContent = "▼";
-                moveDownBtn.title = "Move down";
+                moveDownBtn.textContent = t("core.moveDown");
+                moveDownBtn.title = t("core.moveDownTitle");
                 moveDownBtn.disabled = i === slotCount - 1;
 
                 topLine.appendChild(toggle);
@@ -13185,54 +13666,60 @@ export class EBCDrawer {
                 topLine.appendChild(moveDownBtn);
                 topLine.appendChild(delBtn);
 
-                // Bottom line: style toggle (hidden for seq) | emote/seq input
+                // Bottom line: style selector | content (varies by style)
                 const botLine = document.createElement("div");
                 botLine.className = "ebc-slot-bottom";
 
                 const currentStyle: ActionStyle = (btn.style as ActionStyle) ?? "action";
                 const isSeq = currentStyle === "seq";
 
-                const styleBtn = document.createElement("button");
-                styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
-                styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
-                styleBtn.title = currentStyle === "emote"
-                    ? "Style: * emote * — click to switch"
-                    : "Style: ( action ) — click to switch";
-                // Seq buttons don't show the style toggle — animation is internal
-                styleBtn.style.display = isSeq ? "none" : "";
+                if (isSeq) {
+                    // seq: badge only — step builder below handles all config
+                    const seqBadge = document.createElement("span");
+                    seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7ac8;padding:1px 4px;";
+                    seqBadge.textContent = t("buttons.seqBadge");
+                    botLine.appendChild(seqBadge);
+                } else {
+                    // action / emote — restore classic () / ** toggle button
+                    const styleBtn = document.createElement("button");
+                    styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
+                    styleBtn.textContent = currentStyle === "emote" ? "**" : "()";
+                    styleBtn.title = currentStyle === "emote"
+                        ? "Emote (* Name text *) — click to switch to action"
+                        : "Action (( Name text )) — click to switch to emote";
+                    styleBtn.addEventListener("click", () => {
+                        btns[idx].style = (btns[idx].style === "emote" ? "action" : "emote") as ActionStyle;
+                        renderSlots();
+                    });
 
-                // For seq buttons, show a small non-interactive badge instead
-                const seqBadge = document.createElement("span");
-                seqBadge.className = "ebc-slot-seq-badge";
-                seqBadge.textContent = "✨";
-                seqBadge.title = "Animation button — edit the sequence below";
-                seqBadge.style.display = isSeq ? "inline" : "none";
+                    const emoteInp = document.createElement("input");
+                    emoteInp.className = "ebc-slot-emote";
+                    emoteInp.type = "text"; emoteInp.maxLength = 240;
+                    emoteInp.placeholder = "e.g. nods.";
+                    emoteInp.value = btn.emote;
+                    emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
+                    emoteInp.addEventListener("input", () => { btns[idx].emote = emoteInp.value; });
 
-                const emoteInp = document.createElement("input");
-                emoteInp.className = "ebc-slot-emote";
-                emoteInp.type = "text";
-                emoteInp.maxLength = 240;
-                emoteInp.placeholder = "e.g. nods.";
-                emoteInp.value = btn.emote;
-                emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                emoteInp.style.display = isSeq ? "none" : "";
+                    const nameIncluded = btn.includeNameInAnnounce !== false;
+                    const nameChip = document.createElement("button");
+                    nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
+                    nameChip.textContent = nameIncluded ? "name" : "anon";
+                    nameChip.title = nameIncluded
+                        ? "Your name is included — click to send anonymously"
+                        : "Sending without name — click to include name";
+                    nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
+                    nameChip.style.display = currentStyle === "action" ? "" : "none";
+                    nameChip.addEventListener("click", () => {
+                        const next = btns[idx].includeNameInAnnounce === false;
+                        btns[idx].includeNameInAnnounce = next;
+                        nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
+                        nameChip.textContent = next ? "name" : "anon";
+                    });
 
-                // Name-in-announce chip — only meaningful for ( ) action style
-                const nameIncluded = btn.includeNameInAnnounce !== false;
-                const nameChip = document.createElement("button");
-                nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
-                nameChip.textContent = nameIncluded ? "name" : "anon";
-                nameChip.title = nameIncluded
-                    ? "Your name is included — click to send anonymously"
-                    : "Sending without name — click to include name";
-                nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
-                // only show for action style (emote always has name; seq not applicable)
-                nameChip.style.display = (currentStyle === "action") ? "" : "none";
-
-                botLine.appendChild(styleBtn);
-                botLine.appendChild(seqBadge);
-                botLine.appendChild(nameChip);
-                botLine.appendChild(emoteInp);
+                    botLine.appendChild(styleBtn);
+                    botLine.appendChild(nameChip);
+                    botLine.appendChild(emoteInp);
+                }
 
                 row.appendChild(topLine);
                 row.appendChild(botLine);
@@ -13264,7 +13751,7 @@ export class EBCDrawer {
                 toggle.addEventListener("click", () => {
                     btns[idx].enabled = !btns[idx].enabled;
                     toggle.className = "ebc-slot-toggle" + (btns[idx].enabled ? " on" : "");
-                    toggle.textContent = btns[idx].enabled ? "ON" : "OFF";
+                    toggle.textContent = btns[idx].enabled ? t("core.on") : t("core.off");
                 });
 
                 labelInp.addEventListener("input", () => {
@@ -13281,37 +13768,6 @@ export class EBCDrawer {
                     } else {
                         colorInp.style.color = "#cf3060";
                     }
-                });
-
-                emoteInp.addEventListener("input", () => {
-                    btns[idx].emote = emoteInp.value;
-                });
-
-                nameChip.addEventListener("click", () => {
-                    const next = btns[idx].includeNameInAnnounce === false; // toggle
-                    btns[idx].includeNameInAnnounce = next;
-                    nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
-                    nameChip.textContent = next ? "name" : "anon";
-                    nameChip.title = next
-                        ? "Your name is included — click to send anonymously"
-                        : "Sending without name — click to include name";
-                });
-
-                styleBtn.addEventListener("click", () => {
-                    const cur: ActionStyle = btns[idx].style ?? "action";
-                    if (cur === "seq") return; // seq buttons don't cycle through styles
-                    const next: "action" | "emote" = cur === "action" ? "emote" : "action";
-                    btns[idx].style = next;
-                    styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
-                    styleBtn.textContent = next === "emote" ? "* *" : "( )";
-                    styleBtn.title = next === "emote"
-                        ? "Style: * emote * — click to switch"
-                        : "Style: ( action ) — click to switch";
-                    emoteInp.title = next === "emote"
-                        ? "Text sent as * Name text *"
-                        : "Text sent as ( Name text )";
-                    // name chip only applies to action style
-                    nameChip.style.display = next === "action" ? "" : "none";
                 });
 
                 let slotDelPending = false;
@@ -13371,12 +13827,12 @@ export class EBCDrawer {
 
         const exportBtn = document.createElement("button");
         exportBtn.className = "ebc-btn-footer-btn";
-        exportBtn.textContent = "↑ Export";
+        exportBtn.textContent = t("core.export");
         exportBtn.title = "Copy button config to clipboard to share with others";
 
         const importToggleBtn = document.createElement("button");
         importToggleBtn.className = "ebc-btn-footer-btn";
-        importToggleBtn.textContent = "↓ Import";
+        importToggleBtn.textContent = t("core.import");
         importToggleBtn.title = "Load a shared button config";
 
         ioRow.appendChild(exportBtn);
@@ -13395,7 +13851,7 @@ export class EBCDrawer {
 
         const importTextarea = document.createElement("textarea");
         importTextarea.className = "ebc-notes-textarea";
-        importTextarea.placeholder = '{"ebc":1,"slotCount":3,"buttons":[...]}';
+        importTextarea.placeholder = t("buttons.importHint");
         importTextarea.rows = 3;
         importPanel.appendChild(importTextarea);
 
@@ -13507,8 +13963,8 @@ export class EBCDrawer {
 
             if (navigator.clipboard?.writeText) {
                 navigator.clipboard.writeText(payload).then(() => {
-                    exportBtn.textContent = "Copied!";
-                    window.setTimeout(() => { exportBtn.textContent = "↑ Export"; }, 1500);
+                    exportBtn.textContent = t("core.copied");
+                    window.setTimeout(() => { exportBtn.textContent = t("core.export"); }, 1500);
                 }).catch(showInPanel).catch(() => { /* ignore */ });
             } else {
                 showInPanel();
@@ -13577,7 +14033,7 @@ export class EBCDrawer {
                 loadBtn.textContent = "Loaded!";
                 window.setTimeout(() => { loadBtn.textContent = "Load"; }, 1200);
             } catch (err) {
-                importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
+                importError.textContent = err instanceof Error ? err.message : t("outfits.invalidFormat");
             }
         });
 
@@ -13585,22 +14041,22 @@ export class EBCDrawer {
         const funLbl = document.createElement("div");
         funLbl.className = "ebc-section-label";
         funLbl.style.marginTop = "10px";
-        funLbl.textContent = "Fun Actions";
+        funLbl.textContent = t("buttons.funActions");
         body.appendChild(funLbl);
 
         const boopBtn = document.createElement("button");
         boopBtn.className = "ebc-create-btn";
         boopBtn.style.cssText = "margin:4px 0 0; width:100%;";
         boopBtn.title = "Send a unique boop message to every friend currently in the room";
-        boopBtn.textContent = "🐾 Boop all friends in room";
+        boopBtn.textContent = t("kitty.boopAll");
         boopBtn.addEventListener("click", () => {
             const booped = this.boopFriendsInRoom();
             if (booped === 0) {
-                boopBtn.textContent = "No friends here~";
+                boopBtn.textContent = t("buttons.noFriendsHere");
             } else {
-                boopBtn.textContent = `Booped ${booped}!`;
+                boopBtn.textContent = t("buttons.boopedN", { n: booped });
             }
-            window.setTimeout(() => { boopBtn.textContent = "🐾 Boop all friends in room"; }, 2000);
+            window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
         });
         body.appendChild(boopBtn);
 
@@ -13608,7 +14064,7 @@ export class EBCDrawer {
         const usefulLbl = document.createElement("div");
         usefulLbl.className = "ebc-section-label";
         usefulLbl.style.marginTop = "10px";
-        usefulLbl.textContent = "Useful Buttons";
+        usefulLbl.textContent = t("buttons.usefulButtons");
         body.appendChild(usefulLbl);
 
         const oocBtn = document.createElement("button");
@@ -13616,7 +14072,7 @@ export class EBCDrawer {
         oocBtn.style.cssText = "margin:4px 0 0; width:100%;";
         const refreshOoc = (): void => {
             const on = getOocEnabled();
-            oocBtn.textContent = on ? "( OOC Mode: ON  —  click to turn off" : "( OOC Mode: OFF  —  click to turn on";
+            oocBtn.textContent = on ? t("buttons.oocModeOn") : t("buttons.oocModeOff");
             oocBtn.style.opacity = on ? "1" : "0.6";
         };
         refreshOoc();
@@ -13626,23 +14082,23 @@ export class EBCDrawer {
         const copyMemberBtn = document.createElement("button");
         copyMemberBtn.className = "ebc-create-btn";
         copyMemberBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        copyMemberBtn.textContent = "Copy My Member Number";
+        copyMemberBtn.textContent = t("buttons.copyMemberNumber");
         copyMemberBtn.addEventListener("click", () => {
             try {
                 navigator.clipboard.writeText(String(Player.MemberNumber));
-                copyMemberBtn.textContent = "Copied!";
+                copyMemberBtn.textContent = t("core.copied");
             } catch {
                 copyMemberBtn.textContent = `#${Player.MemberNumber}`;
             }
-            window.setTimeout(() => { copyMemberBtn.textContent = "Copy My Member Number"; }, 2000);
+            window.setTimeout(() => { copyMemberBtn.textContent = t("buttons.copyMemberNumber"); }, 2000);
         });
         body.appendChild(copyMemberBtn);
 
         const clearPoseBtn = document.createElement("button");
         clearPoseBtn.className = "ebc-create-btn";
         clearPoseBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        clearPoseBtn.textContent = "Reset to Default Pose";
-        clearPoseBtn.title = "Clears all active poses back to standing";
+        clearPoseBtn.textContent = t("buttons.resetDefaultPose");
+        clearPoseBtn.title = t("buttons.resetDefaultPoseTitle");
         clearPoseBtn.addEventListener("click", () => {
             try {
                 (Player as unknown as Record<string, unknown>).ActivePose = [];
@@ -13726,17 +14182,15 @@ export class EBCDrawer {
         const leashBtn = document.createElement("button");
         leashBtn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 0;border-radius:8px;cursor:pointer;border:2px solid #8a5a7888;background:rgba(80,40,60,0.35);color:#c090b0;transition:background 0.12s,border-color 0.12s;";
 
-        // Helper: check whether Lucy is currently holding Emery's leash
-        const isLeashHeld = (): boolean => {
-            const w = window as unknown as Record<string, unknown>;
-            const leashList = w.ChatRoomLeashList as number[] | undefined;
-            return leashList ? leashList.includes(EMERY_MEMBER) : false;
-        };
+        // Helper: check whether Lucy is currently holding Emery's leash.
+        // ChatRoomLeashList is only reliable on the TARGET's client, not here,
+        // so we use our own class-level flag as the primary source of truth.
+        const isLeashHeld = (): boolean => this._leashHeld;
 
         // Sync button label/style to current leash state
         const refreshLeashBtn = (): void => {
             const held = isLeashHeld();
-            leashBtn.textContent = held ? "🔗 Let Go of Leash" : "🔗 Grab Leash";
+            leashBtn.textContent = held ? t("kitty.letGoLeash") : t("kitty.grabLeash");
             leashBtn.style.borderColor = held ? "#e07070aa" : "#8a5a7888";
             leashBtn.style.color       = held ? "#e0a090"   : "#c090b0";
         };
@@ -13752,8 +14206,6 @@ export class EBCDrawer {
             if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
             const mood = getKittyMood();
             const held = isLeashHeld();
-            const w = window as unknown as Record<string, unknown>;
-            const leashList = w.ChatRoomLeashList as number[] | undefined;
             if (held) {
                 // Release leash
                 sendRoomEmote(mood === "rough"
@@ -13761,11 +14213,8 @@ export class EBCDrawer {
                     : "gently releases Emery's leash, carefully loosening her collar back to its comfortable fit~");
                 try {
                     ServerSend("ChatRoomChat", { Content: "StopHoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
-                    if (leashList) {
-                        const idx = leashList.indexOf(EMERY_MEMBER);
-                        if (idx >= 0) leashList.splice(idx, 1);
-                    }
                 } catch { /* ignore */ }
+                this._leashHeld = false;
                 // Loosen neck — Caress to signal collar relief; LSCG_ReleaseNeck clears any choke pairing
                 runKittyActivity("ItemNeck", "Caress");
                 runKittyActivity("ItemNeck", "LSCG_ReleaseNeck");
@@ -13776,12 +14225,53 @@ export class EBCDrawer {
                     : "reaches out and gently takes hold of Emery's leash~");
                 try {
                     ServerSend("ChatRoomChat", { Content: "HoldLeash", Type: "Hidden", Target: EMERY_MEMBER });
-                    if (leashList && !leashList.includes(EMERY_MEMBER)) leashList.push(EMERY_MEMBER);
                 } catch { /* ignore */ }
+                this._leashHeld = true;
             }
             refreshLeashBtn();
         });
         leashRow.appendChild(leashBtn);
+
+        // Pull Leash — triggers echo-activity-ext's "拉到身边" (Pull to One's Side) activity.
+        // Sends a standard BC Activity message; echo-activity-ext hooks ChatRoomMessage on both
+        // clients and runs the pair-and-follow handler when it sees this content.
+        const pullBtn = document.createElement("button");
+        pullBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 12px;border-radius:8px;cursor:pointer;border:2px solid #7a6a3888;background:rgba(60,50,30,0.35);color:#b0a070;flex-shrink:0;transition:background 0.12s,border-color 0.12s;";
+        pullBtn.textContent = t("kitty.pull");
+        pullBtn.title = "Pull Emery to your side (requires echo-activity-ext on both ends; leash must be held)";
+        pullBtn.addEventListener("mouseenter", () => { pullBtn.style.background = "rgba(100,80,30,0.5)"; });
+        pullBtn.addEventListener("mouseleave", () => { pullBtn.style.background = "rgba(60,50,30,0.35)"; });
+        pullBtn.addEventListener("click", () => {
+            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+            if (!isLeashHeld()) {
+                pullBtn.textContent = t("kitty.holdLeashFirst");
+                window.setTimeout(() => { pullBtn.textContent = t("kitty.pull"); }, 1500);
+                return;
+            }
+            const mood = getKittyMood();
+            sendRoomEmote(mood === "rough"
+                ? "gives Emery's leash a firm yank, pulling her sharply to her side~"
+                : "gives a gentle tug on Emery's leash, coaxing her softly to her side~");
+            try {
+                // echo-activity-ext's run() handler reads SourceCharacter and TargetCharacter
+                // as DIRECT object properties in the Dictionary (not Tag-based entries).
+                // BC's type guards use IsSourceCharacterDictionaryEntry / IsTargetCharacterDictionaryEntry
+                // which check for "SourceCharacter" in entry (direct property), not entry.Tag.
+                ServerSend("ChatRoomChat", {
+                    Content: "拉到身边",
+                    Type: "Activity",
+                    Target: EMERY_MEMBER,
+                    Dictionary: [
+                        { ActivityName: "拉到身边" },
+                        { Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" },
+                        { SourceCharacter: Player.MemberNumber },
+                        { TargetCharacter: EMERY_MEMBER },
+                    ],
+                });
+            } catch { /* ignore */ }
+        });
+        leashRow.appendChild(pullBtn);
+
         body.appendChild(leashRow);
 
         // Helper: styled section header with optional edit toggle
@@ -13799,11 +14289,11 @@ export class EBCDrawer {
             let editing = false;
             const editBtn = document.createElement("button");
             editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
-            editBtn.textContent = "✎ Edit";
+            editBtn.textContent = t("core.edit");
             if (onEditToggle) {
                 editBtn.addEventListener("click", () => {
                     editing = !editing;
-                    editBtn.textContent = editing ? "✔ Done" : "✎ Edit";
+                    editBtn.textContent = editing ? t("core.done") : t("core.edit");
                     editBtn.style.color = editing ? "#cf6f98" : "#7a5a6a";
                     editBtn.style.borderColor = editing ? "#cf6f98" : "#4c2537";
                     onEditToggle(editing);
@@ -13813,13 +14303,13 @@ export class EBCDrawer {
             if (onAdd) {
                 const addBtn = document.createElement("button");
                 addBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;transition:all 0.12s;";
-                addBtn.textContent = "+ Add";
+                addBtn.textContent = t("core.add");
                 addBtn.addEventListener("mouseenter", () => { addBtn.style.color = "#cf6f98"; addBtn.style.borderColor = "#cf6f98"; });
                 addBtn.addEventListener("mouseleave", () => { addBtn.style.color = "#7a5a6a"; addBtn.style.borderColor = "#4c2537"; });
                 addBtn.addEventListener("click", onAdd);
                 el.appendChild(addBtn);
             }
-            return { el, setEditing: (v) => { editing = v; editBtn.textContent = v ? "✔ Done" : "✎ Edit"; editBtn.style.color = v ? "#cf6f98" : "#7a5a6a"; editBtn.style.borderColor = v ? "#cf6f98" : "#4c2537"; } };
+            return { el, setEditing: (v) => { editing = v; editBtn.textContent = v ? "✔ Done" : t("core.edit"); editBtn.style.color = v ? "#cf6f98" : "#7a5a6a"; editBtn.style.borderColor = v ? "#cf6f98" : "#4c2537"; } };
         };
 
         // Helper: pill-style action button (big, easy to tap).
@@ -13913,11 +14403,11 @@ export class EBCDrawer {
                 let editing = false;
                 const editBtn = document.createElement("button");
                 editBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:transparent;color:#7a5a6a;flex-shrink:0;";
-                editBtn.textContent = "✎ Edit";
+                editBtn.textContent = t("core.edit");
                 editBtn.addEventListener("click", (e) => {
                     e.stopPropagation();
                     editing = !editing;
-                    editBtn.textContent = editing ? "✔ Done" : "✎ Edit";
+                    editBtn.textContent = editing ? t("core.done") : t("core.edit");
                     editBtn.style.color = editing ? "#cf6f98" : "#7a5a6a";
                     editBtn.style.borderColor = editing ? "#cf6f98" : "#4c2537";
                     onEditToggle(editing);
@@ -13969,7 +14459,7 @@ export class EBCDrawer {
                                 sendKittyCmd("emote", pick.text);
                             }
                         }
-                    }));
+                    }, 1500));
                 }
                 emotesWrap.appendChild(row);
                 const hint = document.createElement("div");
@@ -14036,8 +14526,8 @@ export class EBCDrawer {
 
             const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
             const newLbl = document.createElement("input"); newLbl.placeholder = "Label"; newLbl.style.cssText = "width:90px;flex-shrink:0;" + INP;
-            const newText = document.createElement("input"); newText.placeholder = "Emote text…"; newText.style.cssText = "flex:1;min-width:0;" + INP;
-            const addBtnE = document.createElement("button"); addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnE.textContent = "+ Add";
+            const newText = document.createElement("input"); newText.placeholder = t("buttons.emoteText"); newText.style.cssText = "flex:1;min-width:0;" + INP;
+            const addBtnE = document.createElement("button"); addBtnE.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnE.textContent = t("core.add");
             addBtnE.addEventListener("click", () => {
                 if (!newLbl.value.trim()) return;
                 const updated = getKittyEmotes();
@@ -14146,7 +14636,7 @@ export class EBCDrawer {
                 newInp.placeholder = "New reaction text…";
                 newInp.style.cssText = "flex:1;min-width:0;" + INP;
                 const addBtn = document.createElement("button");
-                addBtn.textContent = "+ Add";
+                addBtn.textContent = t("core.add");
                 addBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid ${color}66;background:transparent;color:${color};flex-shrink:0;`;
                 addBtn.addEventListener("click", () => {
                     const text = newInp.value.trim();
@@ -14198,7 +14688,7 @@ export class EBCDrawer {
                                 sendRoomEmote(emoteText);
                             }
                         }, 600);
-                    }, 700));
+                    }, 1500));
                 }
                 posesWrap.appendChild(row);
                 const hint = document.createElement("div");
@@ -14263,7 +14753,7 @@ export class EBCDrawer {
             const newPose = document.createElement("input"); newPose.placeholder = "BC pose (empty = neutral)"; newPose.style.cssText = "flex:1;min-width:0;" + INP;
             const addBtnP = document.createElement("button");
             addBtnP.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
-            addBtnP.textContent = "+ Add";
+            addBtnP.textContent = t("core.add");
             addBtnP.addEventListener("click", () => {
                 if (!newLbl2.value.trim()) return;
                 const updated = getKittyPoses();
@@ -14320,7 +14810,7 @@ export class EBCDrawer {
                             .filter(s => s.type === "restraint")
                             .reduce((acc: KittyItem[], s) => acc.concat(s.items ?? []), []);
                         sendKittyCmd("punish", JSON.stringify({ label: pun.label, mood, items, reaction: pun.reaction }));
-                    }));
+                    }, 2000));
                 }
                 punishWrap.appendChild(row);
                 const hint = document.createElement("div");
@@ -14456,7 +14946,7 @@ export class EBCDrawer {
 
                             const aiColRow2 = document.createElement("div"); aiColRow2.style.cssText = "display:flex;align-items:center;gap:3px;";
                             const aiColInp = document.createElement("input"); aiColInp.placeholder = "Default or #rrggbb"; aiColInp.style.cssText = "flex:1;min-width:0;" + INP;
-                            const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = "+ Add";
+                            const aiAddBtn = document.createElement("button"); aiAddBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; aiAddBtn.textContent = t("core.add");
                             aiAddBtn.addEventListener("click", () => {
                                 if (!aiSl.value || !aiItemSel.value) return;
                                 const newItem: KittyItem = { Name: aiItemSel.value, Group: aiSl.value, Color: strToColor(aiColInp.value || "Default") };
@@ -14487,7 +14977,7 @@ export class EBCDrawer {
 
                             // Import from pasted BC outfit code
                             const codeRow = document.createElement("div"); codeRow.style.cssText = "display:flex;align-items:center;gap:3px;margin-top:2px;";
-                            const codeInp = document.createElement("input"); codeInp.placeholder = "Paste LZ/JSON BC code…"; codeInp.style.cssText = "flex:1;min-width:0;" + INP;
+                            const codeInp = document.createElement("input"); codeInp.placeholder = t("outfits.importBCPlaceholder"); codeInp.style.cssText = "flex:1;min-width:0;" + INP;
                             const codeBtn = document.createElement("button"); codeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; codeBtn.textContent = "Import";
                             codeBtn.addEventListener("click", () => {
                                 const code = codeInp.value.trim(); if (!code) return;
@@ -14570,7 +15060,7 @@ export class EBCDrawer {
             // Add new action
             const addRow = document.createElement("div"); addRow.style.cssText = "display:flex;align-items:center;gap:4px;";
             const newPunLbl = document.createElement("input"); newPunLbl.placeholder = "New action name"; newPunLbl.style.cssText = "flex:1;min-width:0;" + INP;
-            const addBtnPun = document.createElement("button"); addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnPun.textContent = "+ Add";
+            const addBtnPun = document.createElement("button"); addBtnPun.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 6px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addBtnPun.textContent = t("core.add");
             addBtnPun.addEventListener("click", () => {
                 if (!newPunLbl.value.trim()) return;
                 const updated = getKittyPunishments();
@@ -14599,7 +15089,7 @@ export class EBCDrawer {
             const createRow = document.createElement("div");
             createRow.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:6px;";
             const newNameInp = document.createElement("input");
-            newNameInp.placeholder = "New preset name…";
+            newNameInp.placeholder = t("anims.newPresetName");
             newNameInp.style.cssText = "flex:1;min-width:0;" + INP;
             const createBtn = document.createElement("button");
             createBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;";
@@ -14737,7 +15227,7 @@ export class EBCDrawer {
                     else { const ph = document.createElement("option"); ph.value = ""; ph.textContent = "— item —"; ph.disabled = true; ph.selected = true; itemSel.appendChild(ph); for (const n of names) { const o = document.createElement("option"); o.value = n; o.textContent = n; itemSel.appendChild(o); } }
                 });
                 const colInp2 = document.createElement("input"); colInp2.placeholder = "#rrggbb"; colInp2.style.cssText = "width:64px;flex-shrink:0;" + INP; colInp2.title = "Colour (optional)";
-                const addItemBtn = document.createElement("button"); addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addItemBtn.textContent = "+ Add";
+                const addItemBtn = document.createElement("button"); addItemBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:3px;cursor:pointer;border:1px solid #4c2537;background:#2a1421;color:#cf6f98;flex-shrink:0;"; addItemBtn.textContent = t("core.add");
                 addItemBtn.addEventListener("click", () => {
                     if (!sl.value || !itemSel.value) return;
                     const newItem: KittyItem = { Name: itemSel.value, Group: sl.value, Color: strToColor(colInp2.value || "Default") };
@@ -14819,7 +15309,7 @@ export class EBCDrawer {
         const crDiv = divider(); rpCBody.appendChild(crDiv);
         const crHdr = document.createElement("div");
         crHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#967281;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;";
-        crHdr.textContent = "Copy Restraints from Member";
+        crHdr.textContent = t("dom.copyRestraints");
         rpCBody.appendChild(crHdr);
 
         const crHint = document.createElement("div");
@@ -14906,7 +15396,7 @@ export class EBCDrawer {
             if (isNaN(num)) { crStatus.textContent = "No member selected."; return; }
             const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
             const char = room.find(c => c.MemberNumber === num);
-            if (!char) { crStatus.textContent = "Character not found."; return; }
+            if (!char) { crStatus.textContent = t("dev.charNotFound"); return; }
             const items = char.Appearance.filter((i: Item) => i.Asset?.Group?.Name && RESTRAINT_GROUPS.has(i.Asset.Group.Name));
             if (items.length === 0) { crClear(); crStatus.textContent = "No restraints on this character."; return; }
             crClear();
@@ -14949,8 +15439,8 @@ export class EBCDrawer {
             if (!crTA.value) { crStatus.textContent = "Generate code first."; return; }
             try {
                 navigator.clipboard.writeText(crTA.value).then(() => {
-                    crStatus.textContent = "✔ Copied!"; crStatus.style.color = "#79a885";
-                }).catch(() => { crTA.select(); document.execCommand("copy"); crStatus.textContent = "✔ Copied!"; crStatus.style.color = "#79a885"; });
+                    crStatus.textContent = t("core.copied"); crStatus.style.color = "#79a885";
+                }).catch(() => { crTA.select(); document.execCommand("copy"); crStatus.textContent = t("core.copied"); crStatus.style.color = "#79a885"; });
             } catch { crTA.select(); document.execCommand("copy"); }
         });
 
@@ -14965,7 +15455,7 @@ export class EBCDrawer {
         presetRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px;";
         for (const pct of [0, 25, 50, 75, 95, 100]) {
             const color = pct === 0 ? "#4080c0" : pct < 75 ? "#c07090" : "#e050a0";
-            presetRow.appendChild(makePill(`${pct}%`, color, () => sendKittyCmd("arousal", String(pct))));
+            presetRow.appendChild(makePill(`${pct}%`, color, () => sendKittyCmd("arousal", String(pct)), 1000));
         }
         arousalWrap.appendChild(presetRow);
         const customRow = document.createElement("div");
@@ -15124,7 +15614,7 @@ export class EBCDrawer {
 
             // Create new preset
             const createRow = document.createElement("div"); createRow.style.cssText = "display:flex;align-items:center;gap:4px;";
-            const newLblInp = document.createElement("input"); newLblInp.placeholder = "New preset name…"; newLblInp.style.cssText = "flex:1;min-width:0;" + INP;
+            const newLblInp = document.createElement("input"); newLblInp.placeholder = t("anims.newPresetName"); newLblInp.style.cssText = "flex:1;min-width:0;" + INP;
             const createBtn = epMkBtn("+ Create");
             createBtn.addEventListener("click", () => {
                 const name = newLblInp.value.trim(); if (!name) return;
@@ -15145,6 +15635,340 @@ export class EBCDrawer {
         body.appendChild(exprWrap2);
     }
 
+    private renderExpressions(container?: HTMLElement): void {
+        const body = container ?? (this.rootEl?.querySelector("#ebc-body") as HTMLElement | null);
+        if (!body) return;
+        if (!container) { while (body.firstChild) body.removeChild(body.firstChild); }
+
+        const F = "font-family:'Trebuchet MS',serif;font-size:";
+        const BTN_BASE = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;`;
+
+        // ── Presets section ───────────────────────────────────────────────────
+        const presetsLbl = document.createElement("div");
+        presetsLbl.className = "ebc-section-label";
+        presetsLbl.textContent = "Presets";
+        body.appendChild(presetsLbl);
+
+        const defaultId = getDefaultExprPresetId();
+        const presets = getExpressionPresets();
+
+        if (presets.length === 0) {
+            const hint = document.createElement("div");
+            hint.style.cssText = `${F}9px;color:#6a4a5e;margin-bottom:6px;`;
+            hint.textContent = "No presets yet — save your current face below.";
+            body.appendChild(hint);
+        } else {
+            // Quick-apply dropdown
+            const quickRow = document.createElement("div");
+            quickRow.style.cssText = "display:flex;gap:5px;margin-bottom:6px;align-items:center;";
+            const quickSel = document.createElement("select");
+            quickSel.className = "ebc-form-input";
+            quickSel.style.cssText += "flex:1;min-width:0;font-size:9px;";
+            const qPh = document.createElement("option");
+            qPh.value = ""; qPh.textContent = "— pick face to apply —"; qPh.disabled = true; qPh.selected = true;
+            quickSel.appendChild(qPh);
+            for (const p of presets) {
+                const o = document.createElement("option"); o.value = p.id; o.textContent = p.name;
+                quickSel.appendChild(o);
+            }
+            const quickApplyBtn = document.createElement("button");
+            quickApplyBtn.className = "ebc-create-btn";
+            quickApplyBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:3px 8px;";
+            quickApplyBtn.textContent = "✓ Apply";
+            quickApplyBtn.addEventListener("click", () => {
+                const p = presets.find(pr => pr.id === quickSel.value);
+                if (p) { applyExpressionPreset(p); this.rerender(150); }
+            });
+            quickRow.appendChild(quickSel);
+            quickRow.appendChild(quickApplyBtn);
+            body.appendChild(quickRow);
+
+            const presetList = document.createElement("div");
+            presetList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;";
+
+            for (const preset of presets) {
+                const pRow = document.createElement("div");
+                pRow.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(30,10,25,0.6);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;";
+
+                // ✓ Apply
+                const applyBtn = document.createElement("button");
+                applyBtn.style.cssText = BTN_BASE + "border:1px solid #5a2840;background:#3a1020;color:#cf6f98;";
+                applyBtn.textContent = "✓";
+                applyBtn.title = "Apply this preset";
+                applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
+
+                // Name — editable inline; click to rename
+                const nameEl = document.createElement("input");
+                nameEl.type = "text";
+                nameEl.value = preset.name;
+                nameEl.maxLength = 30;
+                nameEl.title = "Click to rename";
+                nameEl.style.cssText = `${F}10px;flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:#e8d0d8;padding:1px 4px;outline:none;font-family:'Trebuchet MS',serif;`;
+                nameEl.addEventListener("focus", () => { nameEl.style.borderColor = "#5a3a6e"; });
+                nameEl.addEventListener("blur", () => {
+                    nameEl.style.borderColor = "transparent";
+                    const trimmed = nameEl.value.trim();
+                    if (!trimmed) { nameEl.value = preset.name; return; }
+                    const all = getExpressionPresets();
+                    const pi = all.findIndex(p => p.id === preset.id);
+                    if (pi !== -1 && trimmed !== all[pi].name) { all[pi] = { ...all[pi], name: trimmed }; saveExpressionPresets(all); }
+                });
+
+                // ★ Default
+                const isDefault = preset.id === defaultId;
+                const defaultBtn = document.createElement("button");
+                defaultBtn.style.cssText = `${F}12px;background:none;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;color:${isDefault ? "#f0c040" : "#4a3040"};`;
+                defaultBtn.textContent = "★";
+                defaultBtn.title = isDefault
+                    ? "This is your default face — click to unset"
+                    : "Set as default face (reverts here after timed expressions)";
+                defaultBtn.addEventListener("click", () => {
+                    setDefaultExprPresetId(isDefault ? null : preset.id);
+                    this.rerender();
+                });
+
+                // × Delete
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-outfit-del";
+                delBtn.textContent = "×";
+                delBtn.title = "Delete preset";
+                delBtn.addEventListener("click", () => {
+                    // Remove preset; if it was the default, clear the default too
+                    if (preset.id === getDefaultExprPresetId()) setDefaultExprPresetId(null);
+                    saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
+                    this.rerender();
+                });
+
+                pRow.appendChild(applyBtn);
+                pRow.appendChild(nameEl);
+                pRow.appendChild(defaultBtn);
+                pRow.appendChild(delBtn);
+                presetList.appendChild(pRow);
+            }
+            body.appendChild(presetList);
+        }
+
+        // ── Live face preview: shows what expressions are currently active ──
+        {
+            const activeParts: string[] = [];
+            for (const g of EXPR_GROUPS) {
+                try {
+                    const it = (Player.Appearance as Item[]).find((i: Item) => i.Asset.Group.Name === g);
+                    if (it) {
+                        const pExpr = (it.Property as Record<string, unknown> | undefined)?.Expression as string | undefined;
+                        const n = pExpr || it.Asset.Name;
+                        if (n) activeParts.push(`${EXPR_GROUP_LABELS[g] ?? g}: ${n}`);
+                    }
+                } catch { /* skip group */ }
+            }
+            const facePreview = document.createElement("div");
+            facePreview.style.cssText = `${F}8px;color:#7a5080;margin-bottom:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`;
+            facePreview.title = activeParts.length ? activeParts.join(", ") : "No expressions set";
+            facePreview.textContent = activeParts.length
+                ? `Now: ${activeParts.join(" · ")}`
+                : "Now: (no expressions set)";
+            body.appendChild(facePreview);
+        }
+
+        // Save current face as preset — name on its own row, button below
+        const captureInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", maxLength: 30, placeholder: t("expr.presetNamePlaceholder"),
+        }) as HTMLInputElement;
+        captureInput.style.cssText = "width:100%;box-sizing:border-box;margin-bottom:4px;";
+        const captureBtn = document.createElement("button");
+        captureBtn.className = "ebc-create-btn";
+        captureBtn.style.cssText = "width:100%;font-size:9px;padding:4px 8px;box-sizing:border-box;margin-bottom:8px;";
+        captureBtn.textContent = t("expr.saveFace");
+        captureBtn.addEventListener("click", () => {
+            const name = captureInput.value.trim() || "Preset";
+            saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
+            captureInput.value = "";
+            this.rerender();
+        });
+        body.appendChild(captureInput);
+        body.appendChild(captureBtn);
+
+        // Clear all button
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "ebc-btn-footer-btn";
+        clearBtn.style.cssText = "width:100%;margin-bottom:10px;font-size:9px;";
+        clearBtn.textContent = t("dev.clearExpressions");
+        clearBtn.addEventListener("click", () => {
+            for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } }
+            this.rerender(150);
+        });
+        body.appendChild(clearBtn);
+
+        // ── Triggers section ──────────────────────────────────────────────────
+        // Collapsible. Fires a preset when outgoing chat contains a match string.
+        {
+            const divEl = document.createElement("div");
+            divEl.className = "ebc-divider";
+            divEl.style.margin = "10px 0 6px";
+            body.appendChild(divEl);
+
+            let trigCollapsed = true;
+            try { const v = localStorage.getItem("EBC_exprTriggersCollapsed"); if (v !== null) trigCollapsed = v === "1"; } catch { /* ignore */ }
+
+            const trigHdr = document.createElement("div");
+            trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
+            const trigChev = document.createElement("span");
+            trigChev.style.cssText = `${F}10px;color:#9a6ac8;min-width:10px;`;
+            const trigLbl = document.createElement("span");
+            trigLbl.className = "ebc-section-label";
+            trigLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;";
+            trigLbl.textContent = "TRIGGERS";
+            const trigHint = document.createElement("span");
+            trigHint.style.cssText = `${F}8px;color:#5a3a6e;margin-left:4px;`;
+            trigHint.textContent = "apply preset when you send a message";
+            trigHdr.appendChild(trigChev);
+            trigHdr.appendChild(trigLbl);
+            trigHdr.appendChild(trigHint);
+            body.appendChild(trigHdr);
+
+            const trigBody = document.createElement("div");
+            const updateTrigChev = (): void => {
+                trigChev.textContent = trigCollapsed ? "▶" : "▼";
+                trigBody.style.display = trigCollapsed ? "none" : "";
+            };
+            updateTrigChev();
+            trigHdr.addEventListener("click", () => {
+                trigCollapsed = !trigCollapsed;
+                try { localStorage.setItem("EBC_exprTriggersCollapsed", trigCollapsed ? "1" : "0"); } catch { /* ignore */ }
+                updateTrigChev();
+            });
+            body.appendChild(trigBody);
+
+            // Render trigger list
+            const renderTrigList = (): void => {
+                while (trigBody.firstChild) trigBody.removeChild(trigBody.firstChild);
+
+                const triggers = getExpressionTriggers();
+                const allPresets = getExpressionPresets();
+
+                if (triggers.length === 0) {
+                    const emptyNote = document.createElement("div");
+                    emptyNote.style.cssText = `${F}9px;color:#5a3a5a;padding:4px 0;`;
+                    emptyNote.textContent = "No triggers yet.";
+                    trigBody.appendChild(emptyNote);
+                } else {
+                    const trigList = document.createElement("div");
+                    trigList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:8px;";
+                    for (const trig of triggers) {
+                        const presetName = allPresets.find(p => p.id === trig.presetId)?.name ?? "?";
+                        const durStr = trig.durationMs > 0 ? `${Math.round(trig.durationMs / 1000)} s` : "∞";
+
+                        const tRow = document.createElement("div");
+                        tRow.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(28,10,35,0.6);border:1px solid #2a1440;border-radius:5px;padding:3px 7px;";
+
+                        const tInfo = document.createElement("span");
+                        tInfo.style.cssText = `${F}9px;color:#c0a0d8;flex:1;min-width:0;`;
+                        tInfo.innerHTML = "";
+                        const namePart = document.createElement("b");
+                        namePart.style.color = "#d0b0e8";
+                        namePart.textContent = trig.name || "Trigger";
+                        const restPart = document.createTextNode(`: when msg contains "${trig.matchText}" → ${presetName} (${durStr})`);
+                        tInfo.appendChild(namePart);
+                        tInfo.appendChild(restPart);
+
+                        const tDel = document.createElement("button");
+                        tDel.className = "ebc-outfit-del";
+                        tDel.textContent = "×";
+                        tDel.title = "Delete trigger";
+                        tDel.addEventListener("click", () => {
+                            saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
+                            renderTrigList();
+                        });
+
+                        tRow.appendChild(tInfo);
+                        tRow.appendChild(tDel);
+                        trigList.appendChild(tRow);
+                    }
+                    trigBody.appendChild(trigList);
+                }
+
+                // Add trigger form
+                const formLbl = document.createElement("div");
+                formLbl.style.cssText = `${F}9px;color:#7a5a9e;font-weight:bold;margin-bottom:4px;`;
+                formLbl.textContent = "New trigger";
+                trigBody.appendChild(formLbl);
+
+                const INP_CSS = `${F}9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;`;
+
+                // Row 1: name + match text
+                const formRow1 = document.createElement("div");
+                formRow1.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
+                const nameInp = document.createElement("input");
+                nameInp.className = "ebc-form-input";
+                nameInp.style.cssText = INP_CSS + "width:70px;flex-shrink:0;";
+                nameInp.type = "text"; nameInp.maxLength = 20; nameInp.placeholder = "Label…";
+                const matchInp = document.createElement("input");
+                matchInp.className = "ebc-form-input";
+                matchInp.style.cssText = INP_CSS + "flex:1;min-width:0;";
+                matchInp.type = "text"; matchInp.maxLength = 60; matchInp.placeholder = "match text (e.g. whimpers)";
+                formRow1.appendChild(nameInp);
+                formRow1.appendChild(matchInp);
+                trigBody.appendChild(formRow1);
+
+                // Row 2: preset picker + duration
+                const formRow2 = document.createElement("div");
+                formRow2.style.cssText = "display:flex;gap:4px;margin-bottom:6px;align-items:center;";
+                const presetSel = document.createElement("select");
+                presetSel.style.cssText = INP_CSS + "flex:1;min-width:0;";
+                const emptyOpt = document.createElement("option");
+                emptyOpt.value = ""; emptyOpt.textContent = "— pick preset —";
+                presetSel.appendChild(emptyOpt);
+                for (const p of getExpressionPresets()) {
+                    const opt = document.createElement("option");
+                    opt.value = p.id; opt.textContent = p.name;
+                    presetSel.appendChild(opt);
+                }
+                const TRIG_DUR_OPTS: [string, number][] = [
+                    ["♾ keep", 0], ["3 s", 3000], ["5 s", 5000],
+                    ["10 s", 10000], ["30 s", 30000], ["1 min", 60000],
+                ];
+                const durSel = document.createElement("select");
+                durSel.style.cssText = INP_CSS + "flex-shrink:0;max-width:60px;cursor:pointer;";
+                durSel.title = "How long to hold this face before reverting (♾ = keep forever)";
+                for (const [label, ms] of TRIG_DUR_OPTS) {
+                    const o = document.createElement("option");
+                    o.value = String(ms); o.textContent = label;
+                    if (ms === 5000) o.selected = true;
+                    durSel.appendChild(o);
+                }
+                formRow2.appendChild(presetSel);
+                formRow2.appendChild(durSel);
+                trigBody.appendChild(formRow2);
+
+                const addTrigBtn = document.createElement("button");
+                addTrigBtn.className = "ebc-create-btn";
+                addTrigBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:9px;";
+                addTrigBtn.textContent = "+ Add Trigger";
+                addTrigBtn.addEventListener("click", () => {
+                    const match = matchInp.value.trim();
+                    const presetId = presetSel.value;
+                    if (!match || !presetId) {
+                        addTrigBtn.textContent = "Fill in match text and preset!";
+                        window.setTimeout(() => { addTrigBtn.textContent = "+ Add Trigger"; }, 1500);
+                        return;
+                    }
+                    const newTrig: ExpressionTrigger = {
+                        id: Math.random().toString(36).slice(2, 9),
+                        name: nameInp.value.trim() || match.slice(0, 15),
+                        matchText: match,
+                        presetId,
+                        durationMs: parseInt(durSel.value) || 0,
+                    };
+                    saveExpressionTriggers([...getExpressionTriggers(), newTrig]);
+                    renderTrigList();
+                });
+                trigBody.appendChild(addTrigBtn);
+            };
+
+            renderTrigList();
+        }
+    }
+
     private renderThanks(): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         if (!body) return;
@@ -15152,12 +15976,12 @@ export class EBCDrawer {
 
         const credLbl = document.createElement("div");
         credLbl.className = "ebc-section-label";
-        credLbl.textContent = "Special Thanks";
+        credLbl.textContent = t("credits.specialThanks");
         body.appendChild(credLbl);
 
         const intro = document.createElement("div");
         intro.className = "ebc-thanks-intro";
-        intro.textContent = "People who made EBC possible. ";
+        intro.textContent = t("credits.intro") + " ";
         const introSub = document.createElement("span");
         introSub.style.cssText = "font-size:9px;color:#6a4a5e;font-family:'Trebuchet MS',serif;";
         introSub.textContent = "EmeryBC";
@@ -15169,35 +15993,35 @@ export class EBCDrawer {
                 emoji: "🌺",
                 name: "Emery",
                 memberId: 130267,
-                reason: "Built this little thing out of love for the club. Still adding to it, still breaking it, still fixing it~",
+                reason: t("credits.emery"),
                 heart: "🎀",
             },
             {
                 emoji: "🎀",
                 name: "Sin",
                 memberId: 143776,
-                reason: "Creator of CRABS — the sliding panel design that inspired the whole look and feel of this drawer. Her open code became the foundation it was all built on, and she was genuinely kind and helpful when it mattered too. Open code, open heart.",
+                reason: t("credits.sin"),
                 heart: "💗",
             },
             {
                 emoji: "🌸",
                 name: "Lara",
                 memberId: 124264,
-                reason: "Keeping my bratty side in check, endless support and inspiration, and simply being the best friend anyone could ask for around here~",
+                reason: t("credits.lara"),
                 heart: "💖",
             },
             {
                 emoji: "🌙",
                 name: "Lucy",
                 memberId: 230466,
-                reason: "Lost count of the hours a long time ago — what started as one very long late night turned into something much bigger, and she was there for all of it. Every idea, every problem, every version of this thing. She made it genuinely fun to build.",
+                reason: t("credits.lucy"),
                 heart: "💜",
             },
             {
                 emoji: "✨",
                 name: "Sybil",
                 memberId: 80,
-                reason: "Brilliant ideas, patient testing, and a genuinely kind presence — Sybil has shaped this addon in more ways than one, and her beautiful contributions to the club make it a richer place for everyone. Big thanks~",
+                reason: t("credits.sybil"),
                 heart: "💛",
             },
         ];
@@ -15278,7 +16102,7 @@ export class EBCDrawer {
         const antiToggle = document.createElement("button");
         const refreshAntiToggle = (): void => {
             const on = getAntiRestraintEnabled();
-            antiToggle.textContent = on ? "ON" : "OFF";
+            antiToggle.textContent = on ? t("core.on") : t("core.off");
             antiToggle.style.cssText = [
                 "font-family:'Trebuchet MS',serif",
                 "font-size:10px",
@@ -15905,7 +16729,7 @@ export class EBCDrawer {
             const id = parseInt(rescueSel.value, 10);
             if (!id || rescueSelected.size === 0) return;
             const count = removeItemsFromMember(id, Array.from(rescueSelected));
-            rescueStatus.textContent = count > 0 ? `✓ Removed ${count} item(s).` : "Nothing removed.";
+            rescueStatus.textContent = count > 0 ? t("qa.removedN", { n: count }) : t("qa.nothingRemoved");
             window.setTimeout(() => { rescueStatus.textContent = ""; rebuildRescueItems(); }, 3000);
         });
 
@@ -15918,7 +16742,7 @@ export class EBCDrawer {
             rescueBtn.disabled = true;
             const result = rescueRoomMember(id);
             if (!result.found) {
-                rescueStatus.textContent = "⚠ That person is no longer in the room.";
+                rescueStatus.textContent = t("dom.notInRoom");
             } else if (result.locksCleared === 0 && result.restraintsRemoved === 0) {
                 rescueStatus.textContent = "Nothing to remove — they're already free.";
             } else {
@@ -16104,10 +16928,10 @@ export class EBCDrawer {
         const setsLbl = document.createElement("div");
         setsLbl.className = "ebc-section-label";
         setsLbl.style.margin = "0";
-        setsLbl.textContent = "Restraint Sets";
+        setsLbl.textContent = t("kitty.restraintSets");
         const newSetBtn = document.createElement("button");
         newSetBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;cursor:pointer;transition:background 0.14s;";
-        newSetBtn.textContent = "+ New Set";
+        newSetBtn.textContent = t("dom.newSet");
         newSetBtn.addEventListener("mouseenter", () => { newSetBtn.style.background = "#3a1828"; });
         newSetBtn.addEventListener("mouseleave", () => { newSetBtn.style.background = "#2a1421"; });
         setsHeader.appendChild(setsLbl);
@@ -16263,7 +17087,7 @@ export class EBCDrawer {
                 // Import sub-panel
                 const importToggle = document.createElement("button");
                 importToggle.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 0;transition:background 0.14s,color 0.12s;margin-bottom:4px;";
-                importToggle.textContent = "↓ Import from BC Code";
+                importToggle.textContent = t("outfits.importFromBCCode");
                 editor.appendChild(importToggle);
 
                 const importPanel = document.createElement("div");
@@ -16271,7 +17095,7 @@ export class EBCDrawer {
 
                 const importTA = document.createElement("textarea");
                 importTA.style.cssText = "width:100%;box-sizing:border-box;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 5px;resize:vertical;min-height:46px;outline:none;";
-                importTA.placeholder = "Paste BC outfit code…";
+                importTA.placeholder = t("outfits.importPlaceholder");
 
                 const importMsg = document.createElement("div");
                 importMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;min-height:14px;";

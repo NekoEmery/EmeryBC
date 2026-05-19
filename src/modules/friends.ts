@@ -3,6 +3,7 @@
 // so it's available across devices on next login.
 
 import { db } from "./db";
+import { syncSettings } from "./bcUtils";
 
 /**
  * Some BC mods (WCE, FBC, etc.) append metadata to beep messages in two forms:
@@ -49,7 +50,7 @@ function sync(): void {
     if (syncTimer !== null) return; // already queued
     syncTimer = setTimeout(() => {
         syncTimer = null;
-        try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+        syncSettings();
     }, 2000);
 }
 

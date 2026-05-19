@@ -1,6 +1,6 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
-import { callBC } from "./bcUtils";
+import { callBC, syncSettings } from "./bcUtils";
 
 export type ActionStyle = "action" | "emote" | "seq";
 // "action" = (Name text)
@@ -9,7 +9,7 @@ export type ActionStyle = "action" | "emote" | "seq";
 
 export interface ActionButton {
     label:   string;
-    emote:   string;   // for "seq" style: pipe-separated sequence steps
+    emote:   string;   // for "seq": pipe-separated steps; for "action"/"emote": the chat text
     color:   string;
     enabled: boolean;
     style:   ActionStyle;
@@ -61,7 +61,27 @@ export function getCategories(): ButtonCategory[] {
         delete store.actionSlotCount;
     }
     const cats = store.buttonCategories;
-    if (Array.isArray(cats) && cats.length > 0) return cats as ButtonCategory[];
+    if (Array.isArray(cats) && cats.length > 0) {
+        // Migrate buttons that still carry the removed "expression"/"exprPreset" styles.
+        // Convert them to plain "action" slots with empty emote so they're harmless and
+        // the user can reconfigure or delete them in the Buttons tab.
+        const catsList = cats as ButtonCategory[];
+        let didMigrate = false;
+        for (const cat of catsList) {
+            for (const btn of cat.buttons as ActionButton[]) {
+                const s = btn.style as string;
+                if (s === "expression" || s === "exprPreset") {
+                    btn.style   = "action";
+                    btn.emote   = "";
+                    btn.label   = "";
+                    btn.enabled = false;
+                    didMigrate = true;
+                }
+            }
+        }
+        if (didMigrate) { store.buttonCategories = catsList; syncSettings(); }
+        return catsList;
+    }
     return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
 }
 
@@ -76,7 +96,7 @@ export function getActiveCategoryIndex(): number {
 export function setActiveCategoryIndex(idx: number): void {
     const store = getStore();
     store.activeCategoryIndex = idx;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function getActiveCategory(): ButtonCategory {
@@ -102,14 +122,14 @@ export function saveButtons(buttons: ActionButton[], slotCount: number): void {
     cats[idx].buttons   = buttons;
     cats[idx].slotCount = slotCount;
     store.buttonCategories = cats;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function saveCategories(categories: ButtonCategory[], activeIndex: number): void {
     const store = getStore();
     store.buttonCategories    = categories;
     store.activeCategoryIndex = activeIndex;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function normalizeHex(value: string | undefined, fallback = "#c2185b"): string {

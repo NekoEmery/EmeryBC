@@ -1,5 +1,5 @@
 ﻿import { UI } from "./ui";
-import { getDisplayName } from "./bcUtils";
+import { getDisplayName, syncSettings } from "./bcUtils";
 
 export interface SerializedItem {
     Group: string;
@@ -105,7 +105,7 @@ export function getDefaultNickname(): string {
 
 export function setDefaultNickname(nick: string): void {
     getAddon().defaultNickname = nick.trim();
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function getDefaultTitle(): string {
@@ -115,14 +115,14 @@ export function getDefaultTitle(): string {
 
 export function setDefaultTitle(title: string): void {
     getAddon().defaultTitle = title;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 function saveOutfits(list: ConfiguredOutfit[]): void {
     const sanitized = list.map(sanitizeOutfit);
     cachedOutfits = sanitized;
     getAddon().outfits = sanitized;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 function sanitizeSerializable(value: unknown, seen = new WeakSet<object>(), depth = 0): unknown {
@@ -484,6 +484,7 @@ export function setOutfitNameInAnnounce(id: string, value: boolean): void {
     }
 }
 
+
 export function getOutfitTags(): OutfitTag[] {
     const raw = getAddon().outfitTags;
     return Array.isArray(raw) ? (raw as OutfitTag[]) : [];
@@ -491,7 +492,7 @@ export function getOutfitTags(): OutfitTag[] {
 
 function saveOutfitTags(tags: OutfitTag[]): void {
     getAddon().outfitTags = tags;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function createOutfitTag(name: string, color: string): OutfitTag {
@@ -666,7 +667,7 @@ export function getSchedules(): OutfitSchedule[] {
 
 function saveSchedules(schedules: OutfitSchedule[]): void {
     getAddon().outfitSchedules = schedules;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function addSchedule(outfitId: string, time: string): OutfitSchedule {
@@ -734,7 +735,7 @@ function saveRestraints(list: ConfiguredOutfit[]): void {
     const sanitized = list.map(sanitizeOutfit);
     cachedRestraints = sanitized;
     getAddon().restraints = sanitized;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 function captureRestraints(): SerializedItem[] {
@@ -932,7 +933,7 @@ export function getOutfitWhitelist(): string[] {
 
 export function setOutfitWhitelist(groups: string[]): void {
     getAddon().outfitWhitelist = groups;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function addToOutfitWhitelist(group: string): void {

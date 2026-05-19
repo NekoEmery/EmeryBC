@@ -1,11 +1,12 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
+import { addWhisperEntry } from "./modules/whisperLog";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -16,12 +17,13 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC } from "./modules/bcUtils";
+import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.3.7";
-const IS_DEV_BUILD = false; // true on dev branch, false on master
+const MOD_VERSION = "2.7.7";
+const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
 
@@ -34,6 +36,272 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.7.7",
+        changes: ["UX: Added top padding to EBC tag toggles description text for more breathing room."],
+    },
+    {
+        version: "2.7.6",
+        changes: [
+            "UX: EBC Tag Toggles strip background changed from near-black to #1a0d16 to match the panel colour scheme; Show/Hide button made larger and brighter (bold, pink-toned, more padding).",
+        ],
+    },
+    {
+        version: "2.7.5",
+        changes: [
+            "UX: EBC Tag Toggles strip — improved readability: description and card sub-text colours brightened significantly; collapse hint changed to explicit 'Hide ▼' / 'Show ▶' pill so it's obvious the header is clickable; header gains a subtle hover tint.",
+        ],
+    },
+    {
+        version: "2.7.4",
+        changes: [
+            "UX: EBC Tag Toggles strip redesigned as card-style toggles — each toggle is now a card showing icon, label, sub-description, and a coloured ON/OFF pill. Added a description line explaining the toggles only affect your own screen.",
+        ],
+    },
+    {
+        version: "2.5.23",
+        changes: [
+            "Removed: Face Presets section from the Buttons tab — will be reworked and re-added later.",
+        ],
+    },
+    {
+        version: "2.5.22",
+        changes: [
+            "UX: EBC Tag Toggles strip redesigned — now has a collapsible header ('EBC Tag Toggles' with ▼/▶ chevron), buttons are centered and larger (font 11px, more padding), collapses state saved to localStorage. Open by default.",
+        ],
+    },
+    {
+        version: "2.5.21",
+        changes: [
+            "UX: Face Presets moved out of the active button category body and into its own standalone accordion section in the Buttons tab — sits below '+ Add Category' with purple-toned styling to distinguish it from user categories.",
+            "Fix: Relaxed arm pose button now correctly clears all arm poses regardless of body pose state. Previously it only kept poses explicitly listed in the Body group, which could leave stale arm poses in some edge cases.",
+        ],
+    },
+    {
+        version: "2.5.20",
+        changes: [
+            "UX: EBC tag toggles redesigned — each is now a single self-labelled button ('👤 My tag: ON/OFF' and '👥 Others: ON/OFF') with a tooltip explaining what it controls. No more separate label+toggle pairs.",
+            "Removed: pin system (the 📌 tab pin icons and pinned widget panels) — removed as unnecessary.",
+        ],
+    },
+    {
+        version: "2.5.19",
+        changes: [
+            "UX: EBC tag toggles ('My tag' / 'Others') moved to a permanent strip just below the safewords section — always visible on every tab, no need to go to DEV tab to find them.",
+            "Fix: 'My EBC tag' toggle is now purely client-side (controls whether YOU see it above your own head). Broadcasting to others is always on regardless. Previously toggling it off also hid your tag from everyone else.",
+        ],
+    },
+    {
+        version: "2.5.19",
+        changes: [
+            "UX: Buttons tab sidebar toggle restyled — removed heavy bordered box; now renders as a slim inline row with a subtle separator line so the tab feels less cramped.",
+        ],
+    },
+    {
+        version: "2.5.17",
+        changes: [
+            "Feature: 'Show quick-emote sidebar buttons' toggle restored to the top of the BUTTONS tab. Turning it OFF hides the canvas sidebar completely; turning it ON brings it back. Setting persists across sessions.",
+        ],
+    },
+    {
+        version: "2.5.16",
+        changes: [
+            "i18n: translate footer — 'UI inspired by CRABS by Sin' line and Online/Room/Bound timer labels.",
+            "i18n: translate 'New tag name' placeholder in outfit tag manager, 'No whispers this session yet.' in the Whisper Log, and all five credited people's bio descriptions in the Credits tab.",
+            "Fix: German 'Whisper Log' changed from 'Flüsterprotokoll' → 'Flüster-Log' and 'Dev Log' from 'Entwicklungsprotokoll' → 'Entwickler-Log' to match the '-Log' convention used by the other languages.",
+        ],
+    },
+    {
+        version: "2.5.15",
+        changes: [
+            "i18n: translate remaining hardcoded strings — Credits tab (Special Thanks header, intro text); DEV tab section headers (DRAWER PREFERENCES, EBC USERS IN THIS ROOM, DEVELOPER TOOLS, COPY RESTRAINTS FROM MEMBER, STAT EDITOR, PEOPLE MET).",
+            "Feature: EBC tag toggle split into two independent controls — 'My EBC tag (visible to others)' controls whether your presence is broadcast; 'Others' EBC tags (on your screen)' controls whether others' tags are rendered on your client. Previously one toggle controlled both.",
+            "UX: EBC Tags panel given its own named section header (🏷 EBC TAGS) so it's easy to find at the top of the DEV tab.",
+        ],
+    },
+    {
+        version: "2.5.14",
+        changes: [
+            "i18n: translate remaining hardcoded strings — Buttons tab (Fun Actions, Useful Buttons, OOC Mode on/off, Copy My Member Number, Reset to Default Pose, boop feedback); Anims tab (pose hint, SCENES header, scenes hint); Outfits tab (PROTECTED ITEMS, COLOURS (n saved), Tags (n saved), no saved colours hint).",
+            "UX: language pill row is now centered with larger pills (11px font, more padding) and uses flex-wrap so all five fit even at narrow widths. Globe icon removed for cleaner look.",
+            "UX: panel width widened from 360px to 390px so the header buttons (refresh / drag / reset pos / close) never overflow.",
+        ],
+    },
+    {
+        version: "2.5.13",
+        changes: [
+            "Fix: panel header no longer overflows its container — .ebc-title gets min-width:0/overflow:hidden/text-overflow:ellipsis; .ebc-header-btns gets flex-shrink:0 so the close button can't be pushed off-screen.",
+            "Fix: free-float drag bounds now use panelEl.offsetWidth/offsetHeight instead of a hardcoded 50px margin, so the panel's right/bottom edge stays fully inside the viewport.",
+            "Fix: saved panel position is now clamped to the current viewport on restore, so a position saved on a larger screen doesn't put the panel off-screen on a smaller one.",
+        ],
+    },
+    {
+        version: "2.5.12",
+        changes: [
+            "Fix: language switcher moved out of the cramped header buttons row into its own pill-button row between the tab bar and quick-actions bar — 🌐 + one pill per language, active one highlighted pink.",
+            "Fix: header drag handler now also guards against select/input/a elements (not just button) so interactive elements inside the header receive their clicks correctly.",
+        ],
+    },
+    {
+        version: "2.5.11",
+        changes: [
+            "i18n (continued): wire remaining static strings — 'People in Room', 'Friends', 'Auto-reply when AFK' labels; slow-leave sequence hint tooltip; pose combos section header; scene/combo save-changes buttons; outfit/restraint command placeholders; add new users.peopleInRoom / users.friends / users.autoReplyWhenAfk keys to translation table.",
+        ],
+    },
+    {
+        version: "2.5.10",
+        changes: [
+            "i18n: replace remaining hardcoded English strings in the drawer with t() calls — covers dev/whisper/message log section headers and clear buttons, QA/DOM rescue panel, settings labels (idle threshold, default nickname/title), users tab (pin, friends-since, reply, message placeholder), palettes section, colour presets label, anims addStep/newPresetName, + Add buttons throughout, and core.yes/core.enable in overlays.",
+        ],
+    },
+    {
+        version: "2.5.9",
+        changes: [
+            "Fix: ↗ Pull Dictionary now includes { ActivityName: '拉到身边' } as required by BC's message pipeline. BC populates metadata.ActivityName from this entry; echo-activity-ext's pullActivityInfo() returns undefined when it's absent, silently skipping the run() handler. This was the root cause of pull-to-side never working despite correct SourceCharacter/TargetCharacter entries.",
+        ],
+    },
+    {
+        version: "2.5.8",
+        changes: [
+            "Fix: leash hold/release button now tracks state in a class-level flag instead of ChatRoomLeashList, which is only updated on the target's client (Emery's) — not Lucy's. Button label and pull-button guard now stay in sync correctly.",
+            "Fix: ↗ Pull Dictionary entries corrected from Tag-based { Tag: 'SourceCharacter', MemberNumber: N } to direct-property { SourceCharacter: N } — BC's type guards check for the property directly, so the Tag format was silently ignored by echo-activity-ext's activity manager.",
+        ],
+    },
+    {
+        version: "2.5.7",
+        changes: [
+            "UX: Face Presets name input and Save face button are now stacked (name field full-width above, button below) instead of side-by-side.",
+        ],
+    },
+    {
+        version: "2.5.6",
+        changes: [
+            "Fix: expression/exprPreset migration now also clears the label and disables the slot so migrated buttons (e.g. 'eep') no longer appear in the sidebar.",
+        ],
+    },
+    {
+        version: "2.5.5",
+        changes: [
+            "Remove: Expression and Face-Preset button types removed from action buttons. Any saved buttons of those types are automatically migrated to plain action slots with empty emote text so they can be reconfigured or deleted.",
+        ],
+    },
+    {
+        version: "2.5.4",
+        changes: [
+            "Fix: ↗ Pull button now correctly provides SourceCharacter and TargetCharacter Dictionary entries so echo-activity-ext's run() handler can identify both sides of the pull. Previously the Dictionary only contained FocusAssetGroup, causing both MemberNumber checks to fail silently — Emery received the Activity message but didn't move.",
+        ],
+    },
+    {
+        version: "2.5.3",
+        changes: [
+            "Kitty: ↗ Pull button added to the leash row. Sends echo-activity-ext's '拉到身边' (Pull to One's Side) Activity message — if both clients have echo-activity-ext installed it pairs Emery to Lucy's side and establishes the follow relationship. Requires the leash to be held first; shows a tooltip if not.",
+        ],
+    },
+    {
+        version: "2.5.2",
+        changes: [
+            "Remove: per-group expression chip rows (Blush/Emoticon/Eyebrows/etc.) are gone from FACE PRESETS — just save with BC's emote menu.",
+            "Add: quick-apply dropdown in FACE PRESETS (pick a face from the list and hit ✓ Apply) replaces having to scroll to each row.",
+            "Revert: button slot style selector restored to the classic () / ** toggle button for action/emote buttons. Seq buttons show a ✨ sequence badge. Expression preset and single-expr buttons still show their relevant dropdowns.",
+        ],
+    },
+    {
+        version: "2.5.1",
+        changes: [
+            "UX: Expression slot editor reworked. 🎭 expr buttons now show two dropdowns (group picker + expression variant picker) instead of a raw 'Group:ExprName' text field. 🎭 preset buttons now show a ♾ keep / 3s / 5s / 10s / 30s / 1min dropdown instead of a bare number input.",
+            "UX: New face preset buttons added via → now default to ♾ keep (no auto-revert) instead of 5 s.",
+            "UX: Preset names in the FACE PRESETS list are now inline-editable — click the name to rename without having to delete and recreate.",
+            "UX: Trigger form duration replaced with same ♾ / time dropdown for consistency.",
+        ],
+    },
+    {
+        version: "2.5.0",
+        changes: [
+            "Fix: 'Save face' now reliably captures the face you built in BC. Previously, captureCurrentExpression relied solely on Property.Expression which BC doesn't always set — it now uses Asset.Name as a fallback so whatever expressions BC shows on your character are correctly saved.",
+            "UX: FACE PRESETS save row now shows a live 'Now: …' preview of all currently active expressions so you can confirm the face before clicking 💾 Save face.",
+        ],
+    },
+    {
+        version: "2.4.9",
+        changes: [
+            "Fix: expression buttons (🎭 preset / 🎭 expr) now correctly apply. Root cause: CharacterSetFacialExpression was called with null for the optional Timer argument which some BC builds treat as '0 ms' and immediately clear the expression. Now called without optional args. Fallback path also fixed: tries InventoryWear first, then falls back to manual Appearance splice; both now correctly set Property.Expression so preset capture works.",
+            "Fix: sidebar 🎭 preset buttons now show a local notice if clicked with no preset configured, instead of silently doing nothing.",
+            "UX: FACE PRESETS section now starts expanded by default so the expression chips are immediately visible when you open the BUTTONS tab.",
+        ],
+    },
+    {
+        version: "2.4.8",
+        changes: [
+            "FACE PRESETS section moved inside the active button category accordion — it now sits at the bottom of the category content alongside the button slots, export/import, etc. Everything expression-related is in one place inside the BUTTONS tab.",
+        ],
+    },
+    {
+        version: "2.4.7",
+        changes: [
+            "Remove: the separate FACE tab is gone. Expression presets now live in a collapsible 'FACE PRESETS' section at the top of the BUTTONS tab — click the expression chips to compose a face, name it, hit Save face, then set any button slot's style dropdown to 🎭 preset and pick it.",
+        ],
+    },
+    {
+        version: "2.4.6",
+        changes: [
+            "Remove: the standalone EXPRESSIONS collapsible section in the BUTTONS tab is gone. Use the style dropdown on any existing slot instead — pick '🎭 preset' or '🎭 expr' directly on NOD, SHAKE, or any other button.",
+        ],
+    },
+    {
+        version: "2.4.5",
+        changes: [
+            "BUTTONS tab: each slot now has a compact style dropdown replacing the old ( )/( * ) toggle. Options are ( ) action, * * emote, 🎭 preset (full-face expression preset), 🎭 expr (single expression group), ✨ seq. You can now set any existing button — including NOD, SHAKE, etc. — to apply an expression or full-face preset directly from the slot editor.",
+        ],
+    },
+    {
+        version: "2.4.4",
+        changes: [
+            "Fix: the EXPRESSIONS collapsible section in the BUTTONS tab now shows all currently-added expression and preset buttons at the top with a × remove button on each. Click × to clear the slot and free it up — the add-chips below still work as before.",
+        ],
+    },
+    {
+        version: "2.4.3",
+        changes: [
+            "Expression presets: default face — mark one preset with ★ to designate it as your default face. Timed expressions and triggers revert to it automatically.",
+            "Expression presets → sidebar buttons: each preset in the FACE tab has a → button that pins it as a full-face quick-key in the active sidebar category. The slot editor in the BUTTONS tab shows a preset picker and a 'revert after N seconds' field for these buttons. Default revert is 5 s.",
+            "Expression triggers: new collapsible TRIGGERS section at the bottom of the FACE tab. Define a match text (e.g. 'whimpers') and a preset — whenever you send a chat message containing that text (case-insensitive), the preset is applied and reverts to your default face after the set duration. First matching trigger per message fires.",
+        ],
+    },
+    {
+        version: "2.4.2",
+        changes: [
+            "Remove: login outfit feature removed. The '👢 Login outfit' toggle chip and automatic startup outfit application have been removed. Use /outfit commands directly if you want a specific outfit on load.",
+            "Fix: facial expressions now correctly detect the active expression. BC stores expression variants in item.Property.Expression, not item.Asset.Name — the FACE tab chips now highlight the right active option, and preset capture now saves the correct expression names instead of the group base asset name.",
+            "Whisper log moved to DEV tab: the standalone 💬 tab is gone. Whisper history is now a collapsible 'WHISPER LOG' section inside the DEV tab — same partner-list + conversation view, just tucked away.",
+            "Expressions in BUTTONS tab: the BUTTONS tab now has a collapsible 'EXPRESSIONS' section at the bottom. Click any expression chip to instantly add it as an 'expression' style sidebar button in the active category. Expression buttons apply the facial expression directly — no chat message sent. Label and colour are fully editable after adding.",
+        ],
+    },
+    {
+        version: "2.4.1",
+        changes: [
+            "Fix: debounced all ServerPlayerExtensionSettingsSync(\"EmeryBC\") calls across every EBC module (56 call-sites in 14 files). Rapid back-to-back changes (toggling multiple outfit flags, changing settings, saving presets) now coalesce into a single server request 400 ms after the last change instead of firing one per click — directly reduces the 429 Too Many Requests rate.",
+            "Fix: debounced the appearance broadcast (ChatRoomCharacterUpdate + ServerPlayerAppearanceSync) in the expression quickbar. Clicking multiple expression chips in quick succession now sends only one room-sync after the burst, not one per chip.",
+            "Kitty: added cooldowns to all action pill buttons — 1500 ms for emotes and poses, 2000 ms for punishments, 1000 ms for arousal presets. Prevents accidental double-fires and gives visual feedback that the click registered.",
+        ],
+    },
+    {
+        version: "2.4.0",
+        changes: [
+            "Whisper log: new 💬 tab in the drawer captures all room whispers for the current session. Incoming and outgoing whispers are stored separately per conversation partner. Click a partner to view your chat history with them. Messages are colour-coded by direction. Log clears on page reload (session-only). 'Clear' button wipes the log manually.",
+        ],
+    },
+    {
+        version: "2.3.9",
+        changes: [
+            "Expression quickbar: new FACE tab in the drawer. Shows clickable chips for every BC facial expression grouped by category (Blush, Emoticon, Eyebrows, Eyes L, Eyes R, Mouth, Tears). The active expression per group is highlighted — click it again to clear. Save the current full face as a named preset and re-apply it with one click. 'Clear all expressions' button resets every group at once.",
+        ],
+    },
+    {
+        version: "2.3.8",
+        changes: [
+            "Login outfit: any outfit can now be marked as the login outfit via the '👢 Login outfit' toggle chip in the outfit list. When the addon loads, that outfit is automatically applied after a short delay so BC's appearance system is fully ready. Only one outfit can be the login outfit at a time — toggling a new one automatically clears the previous selection.",
+        ],
+    },
     {
         version: "2.3.7",
         changes: [
@@ -3500,17 +3768,9 @@ const PRESENCE_SYNC_COOLDOWN_MS = 6_000; // 6 s between sends
 function syncPresenceMarker(): void {
     const shared = (Player.OnlineSharedSettings ??= {});
 
-    // If badge is disabled, clear our presence so other EBC users don't render
-    // a tag above our head. Send an AccountUpdate if we had presence before.
-    if (!getBadgeEnabled()) {
-        if (shared[MOD_NAME] !== undefined) {
-            delete (shared as Record<string, unknown>)[MOD_NAME];
-            if (CurrentScreen === "ChatRoom") {
-                ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
-            }
-        }
-        return;
-    }
+    // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
+    // broadcasting. Your EBC presence is always sent so others always see
+    // your tag. The toggle only controls whether YOU see it above your own head.
 
     const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC", ...(IS_DEV_BUILD ? { isDev: true } : {}) };
 
@@ -3545,8 +3805,6 @@ function hasEmeryBC(character: Character | null | undefined): boolean {
 
 function drawPresenceMarker(args: unknown[]): void {
     if (CurrentScreen !== "ChatRoom") return;
-    // Local display toggle — if off, skip drawing badges on everyone (client-side only)
-    if (!getBadgeEnabled()) return;
 
     const character = args[0] as Character | undefined;
     const left = typeof args[1] === "number" ? args[1] : null;
@@ -3554,6 +3812,10 @@ function drawPresenceMarker(args: unknown[]): void {
     const zoom = typeof args[3] === "number" ? args[3] : 1;
     if (!character || left == null || top == null) return;
     const isSelf = character.MemberNumber === Player.MemberNumber;
+
+    // Separate display toggles: own badge vs others' badges (both client-side only)
+    if (isSelf && !getBadgeEnabled()) return;
+    if (!isSelf && !getShowOthersBadge()) return;
     if (!isSelf && !hasEmeryBC(character)) return;
 
     const presence = getSharedPresence(character);
@@ -3628,7 +3890,7 @@ function init(): void {
     // so this is a no-op outside the chat room.
     tryHookFunction(modAPI, "DrawProcess", 3, (args, next) => {
         const result = next(args);
-        try { drawActionButtons(); } catch { /* ignore */ }
+        try { if (getActionButtonsVisible()) drawActionButtons(); } catch { /* ignore */ }
         return result;
     });
 
@@ -3707,6 +3969,19 @@ function init(): void {
             const [data] = args as [Record<string, unknown>];
             logMessage(data);
 
+            // Capture incoming room whispers
+            if (data.Type === "Whisper") {
+                const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+                const content = typeof data.Content === "string" ? data.Content : "";
+                if (senderNum && content) {
+                    const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                        Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
+                    const senderChar = chars?.find(c => c.MemberNumber === senderNum);
+                    const senderName = senderChar?.Nickname?.trim() || senderChar?.Name || `#${senderNum}`;
+                    addWhisperEntry({ ts: Date.now(), direction: "in", partnerNum: senderNum, partnerName: senderName, message: content });
+                }
+            }
+
             if (data.Type !== "Action") return result;
             const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;
             if (!dict) return result;
@@ -3730,6 +4005,24 @@ function init(): void {
                 // Also stash the name for the restraint log — it flushes any
                 // pending additions that are waiting on the applier name.
                 try { setPendingLogApplier(getLastRestrainerName() ?? `#${sourceNum}`, sourceNum); } catch { /* ignore */ }
+            }
+        } catch { /* ignore */ }
+        return result;
+    });
+
+    // Capture outgoing room whispers.
+    // ChatRoomSendWhisper(targetNumber, msg) is the BC function called exclusively for
+    // outgoing whispers — hooking it gives us the target and message cleanly.
+    tryHookFunction(modAPI, "ChatRoomSendWhisper", 3, (args, next) => {
+        const result = next(args);
+        try {
+            const [targetNum, msg] = args as [number, string];
+            if (typeof targetNum === "number" && targetNum > 0 && typeof msg === "string" && msg.trim()) {
+                const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                    Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
+                const targetChar = chars?.find(c => c.MemberNumber === targetNum);
+                const targetName = targetChar?.Nickname?.trim() || targetChar?.Name || `#${targetNum}`;
+                addWhisperEntry({ ts: Date.now(), direction: "out", partnerNum: targetNum, partnerName: targetName, message: msg.trim() });
             }
         } catch { /* ignore */ }
         return result;
@@ -4071,6 +4364,9 @@ function init(): void {
                 if (input) input.value = "";
                 return;
             }
+            // Expression triggers — check outgoing message against saved triggers.
+            // Uses `raw` (pre-OOC-prefix) so the match text is never mangled.
+            try { if (raw.trim()) checkExpressionTriggers(raw); } catch { /* ignore */ }
             // OOC mode: prepend "(" to normal messages.
             // Skip commands (/), emotes (*), and already-OOC messages (().
             if (input && getOocEnabled()) {

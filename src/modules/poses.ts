@@ -1,8 +1,8 @@
-// BC pose application and user-configurable pose combos.
+﻿// BC pose application and user-configurable pose combos.
 // Poses require matching equipped items to visually render — BC handles
 // validation server-side and silently ignores inapplicable poses.
 
-import { callBC, getDisplayName } from "./bcUtils";
+import { callBC, getDisplayName, syncSettings } from "./bcUtils";
 
 export interface PoseCombo {
     id: string;
@@ -82,7 +82,7 @@ function load(): PoseCombo[] {
 
 function saveCombos(list: PoseCombo[]): void {
     getStore().poseCombos = list;
-    ServerPlayerExtensionSettingsSync("EmeryBC");
+    syncSettings();
 }
 
 export function getPoseCombos(): PoseCombo[] { return load(); }
