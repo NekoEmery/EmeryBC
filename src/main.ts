@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.7";
+const MOD_VERSION = "2.5.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.8",
+        changes: [
+            "Fix: leash hold/release button now tracks state in a class-level flag instead of ChatRoomLeashList, which is only updated on the target's client (Emery's) — not Lucy's. Button label and pull-button guard now stay in sync correctly.",
+            "Fix: ↗ Pull Dictionary entries corrected from Tag-based { Tag: 'SourceCharacter', MemberNumber: N } to direct-property { SourceCharacter: N } — BC's type guards check for the property directly, so the Tag format was silently ignored by echo-activity-ext's activity manager.",
+        ],
+    },
     {
         version: "2.5.7",
         changes: [
