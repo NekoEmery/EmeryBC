@@ -7828,11 +7828,9 @@ export class EBCDrawer {
                     : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                 btn.addEventListener("click", () => {
                     if (preset.key === "" && group.group === "Arms") {
-                        // "Relaxed" — clear arm poses but keep body poses
-                        const bodyPoses = currentPoses.filter(p =>
-                            KNOWN_POSES.find(g => g.group === "Body")?.poses.some(x => x.key === p),
-                        );
-                        applyPoses(bodyPoses);
+                        // "Relaxed" — clear all arm poses, keep everything else
+                        const nonArmPoses = currentPoses.filter(p => !armKeys.includes(p));
+                        applyPoses(nonArmPoses);
                     } else if (preset.key === "") {
                         // "Stand" clears everything
                         applyPoses([]);
@@ -13480,6 +13478,53 @@ export class EBCDrawer {
         addCatRow.appendChild(addCatBtn);
         body.appendChild(addCatRow);
 
+        // ── Face Presets — standalone section ────────────────────────────────────
+        {
+            let faceCollapsed = false;
+            try { const v = localStorage.getItem("EBC_facePresetsCollapsed"); if (v !== null) faceCollapsed = v === "1"; } catch { /* ignore */ }
+
+            const faceSection = document.createElement("div");
+            faceSection.style.cssText = "border:1px solid #3d1f5c;border-radius:6px;margin-bottom:8px;overflow:hidden;";
+
+            const faceHdr = document.createElement("div");
+            faceHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:5px 8px;background:#1a0d2e;";
+            faceHdr.title = "Build & save expression presets";
+
+            const faceChev = document.createElement("span");
+            faceChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
+            const faceLbl = document.createElement("span");
+            faceLbl.className = "ebc-section-label";
+            faceLbl.style.cssText = "margin:0;font-size:9px;color:#c49ae8;letter-spacing:0.06em;flex:1;";
+            faceLbl.textContent = t("expr.facePresets");
+            const faceHint = document.createElement("span");
+            faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#6a4a8e;";
+            faceHint.textContent = "expression presets";
+
+            faceHdr.appendChild(faceChev);
+            faceHdr.appendChild(faceLbl);
+            faceHdr.appendChild(faceHint);
+
+            const faceBody = document.createElement("div");
+            faceBody.style.cssText = "padding:6px;background:#100820;";
+
+            const updateFaceChev = (): void => {
+                faceChev.textContent = faceCollapsed ? "▶" : "▼";
+                faceBody.style.display = faceCollapsed ? "none" : "";
+            };
+            updateFaceChev();
+
+            faceHdr.addEventListener("click", () => {
+                faceCollapsed = !faceCollapsed;
+                try { localStorage.setItem("EBC_facePresetsCollapsed", faceCollapsed ? "1" : "0"); } catch { /* ignore */ }
+                updateFaceChev();
+            });
+
+            this.renderExpressions(faceBody);
+            faceSection.appendChild(faceHdr);
+            faceSection.appendChild(faceBody);
+            body.appendChild(faceSection);
+        }
+
         // ── Slot list + render fn — appended into the active category body ─────
         const slotList = document.createElement("div");
         slotList.id = "ebc-slot-list";
@@ -13780,47 +13825,6 @@ export class EBCDrawer {
         const importPanel = document.createElement("div");
         importPanel.className = "ebc-import-panel";
         activeBodyEl.appendChild(importPanel);
-
-        // ── Face Presets collapsible (inside the active category) ─────────────
-        {
-            let faceCollapsed = false; // open by default
-            try { const v = localStorage.getItem("EBC_facePresetsCollapsed"); if (v !== null) faceCollapsed = v === "1"; } catch { /* ignore */ }
-
-            const faceDivTop = document.createElement("div");
-            faceDivTop.className = "ebc-divider";
-            faceDivTop.style.margin = "8px 0 4px";
-            activeBodyEl.appendChild(faceDivTop);
-
-            const faceHdr = document.createElement("div");
-            faceHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
-            const faceChev = document.createElement("span");
-            faceChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
-            const faceLbl = document.createElement("span");
-            faceLbl.className = "ebc-section-label";
-            faceLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
-            faceLbl.textContent = t("expr.facePresets");
-            const faceHint = document.createElement("span");
-            faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
-            faceHint.textContent = "build & save expression presets";
-            faceHdr.appendChild(faceChev);
-            faceHdr.appendChild(faceLbl);
-            faceHdr.appendChild(faceHint);
-            activeBodyEl.appendChild(faceHdr);
-
-            const faceBody = document.createElement("div");
-            const updateFaceChev = (): void => {
-                faceChev.textContent = faceCollapsed ? "▶" : "▼";
-                faceBody.style.display = faceCollapsed ? "none" : "";
-            };
-            updateFaceChev();
-            faceHdr.addEventListener("click", () => {
-                faceCollapsed = !faceCollapsed;
-                try { localStorage.setItem("EBC_facePresetsCollapsed", faceCollapsed ? "1" : "0"); } catch { /* ignore */ }
-                updateFaceChev();
-            });
-            this.renderExpressions(faceBody);
-            activeBodyEl.appendChild(faceBody);
-        }
 
         const importHint = document.createElement("div");
         importHint.className = "ebc-import-hint";

@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.20";
+const MOD_VERSION = "2.5.21";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.21",
+        changes: [
+            "UX: Face Presets moved out of the active button category body and into its own standalone accordion section in the Buttons tab — sits below '+ Add Category' with purple-toned styling to distinguish it from user categories.",
+            "Fix: Relaxed arm pose button now correctly clears all arm poses regardless of body pose state. Previously it only kept poses explicitly listed in the Body group, which could leave stale arm poses in some edge cases.",
+        ],
+    },
     {
         version: "2.5.20",
         changes: [
