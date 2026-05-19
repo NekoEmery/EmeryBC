@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.12
+// @version      2.5.13
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12692,9 +12692,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     letter-spacing: 0.07em;
     white-space: nowrap;
     flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.ebc-header-btns { display: flex; gap: 4px; align-items: center; }
+.ebc-header-btns { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
 
 .ebc-icon-btn {
     background: transparent;
@@ -15346,8 +15349,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             this.enterFreeMode({ x: startPanelX, y: startPanelY });
                         }
                     }
-                    const newX = Math.max(0, Math.min(window.innerWidth - 50, startPanelX + dx));
-                    const newY = Math.max(0, Math.min(window.innerHeight - 50, startPanelY + dy));
+                    // Keep panel fully inside viewport — right/bottom edge must stay visible
+                    const pW = panelEl.offsetWidth || 360;
+                    const pH = panelEl.offsetHeight || 200;
+                    const newX = Math.max(0, Math.min(window.innerWidth - pW, startPanelX + dx));
+                    const newY = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), startPanelY + dy));
                     panelEl.style.left = `${newX}px`;
                     panelEl.style.top = `${newY}px`;
                 }, () => {
@@ -16275,14 +16281,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
         }
         loadPanelPosition() {
+            var _a, _b;
             try {
                 const store = Player.ExtensionSettings.EmeryBC;
                 const v = store === null || store === void 0 ? void 0 : store.panelPos;
-                if (v && typeof v.x === "number" && typeof v.y === "number")
-                    return { x: v.x, y: v.y };
+                if (v && typeof v.x === "number" && typeof v.y === "number") {
+                    // Clamp to current viewport so a position saved on a wider/taller screen
+                    // doesn't put the panel off-screen on the next load.
+                    const pW = ((_a = this.panelEl) === null || _a === void 0 ? void 0 : _a.offsetWidth) || 360;
+                    const pH = ((_b = this.panelEl) === null || _b === void 0 ? void 0 : _b.offsetHeight) || 200;
+                    const x = Math.max(0, Math.min(window.innerWidth - pW, v.x));
+                    const y = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), v.y));
+                    return { x, y };
+                }
                 return null;
             }
-            catch (_a) {
+            catch (_c) {
                 return null;
             }
         }
@@ -29797,7 +29811,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.12";
+    const MOD_VERSION = "2.5.13";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29808,6 +29822,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.13",
+            changes: [
+                "Fix: panel header no longer overflows its container — .ebc-title gets min-width:0/overflow:hidden/text-overflow:ellipsis; .ebc-header-btns gets flex-shrink:0 so the close button can't be pushed off-screen.",
+                "Fix: free-float drag bounds now use panelEl.offsetWidth/offsetHeight instead of a hardcoded 50px margin, so the panel's right/bottom edge stays fully inside the viewport.",
+                "Fix: saved panel position is now clamped to the current viewport on restore, so a position saved on a larger screen doesn't put the panel off-screen on a smaller one.",
+            ],
+        },
         {
             version: "2.5.12",
             changes: [
