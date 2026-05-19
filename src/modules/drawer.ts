@@ -15537,17 +15537,39 @@ export class EBCDrawer {
             body.appendChild(presetList);
         }
 
+        // ── Live face preview: shows what expressions are currently active ──
+        {
+            const activeParts: string[] = [];
+            for (const g of EXPR_GROUPS) {
+                try {
+                    const it = (Player.Appearance as Item[]).find((i: Item) => i.Asset.Group.Name === g);
+                    if (it) {
+                        const pExpr = (it.Property as Record<string, unknown> | undefined)?.Expression as string | undefined;
+                        const n = pExpr || it.Asset.Name;
+                        if (n) activeParts.push(`${EXPR_GROUP_LABELS[g] ?? g}: ${n}`);
+                    }
+                } catch { /* skip group */ }
+            }
+            const facePreview = document.createElement("div");
+            facePreview.style.cssText = `${F}8px;color:#7a5080;margin-bottom:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`;
+            facePreview.title = activeParts.length ? activeParts.join(", ") : "No expressions set";
+            facePreview.textContent = activeParts.length
+                ? `Now: ${activeParts.join(" · ")}`
+                : "Now: (no expressions set)";
+            body.appendChild(facePreview);
+        }
+
         // Save current face as preset
         const captureRow = document.createElement("div");
         captureRow.style.cssText = "display:flex;gap:5px;margin-bottom:8px;align-items:center;";
         const captureInput = Object.assign(document.createElement("input"), {
-            className: "ebc-form-input", type: "text", maxLength: 30, placeholder: "Preset name…",
+            className: "ebc-form-input", type: "text", maxLength: 30, placeholder: "Name this preset…",
         }) as HTMLInputElement;
         captureInput.style.flex = "1";
         const captureBtn = document.createElement("button");
         captureBtn.className = "ebc-create-btn";
         captureBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:4px 8px;";
-        captureBtn.textContent = "Save face";
+        captureBtn.textContent = "💾 Save face";
         captureBtn.addEventListener("click", () => {
             const name = captureInput.value.trim() || "Preset";
             saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);

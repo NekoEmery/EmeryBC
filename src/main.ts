@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.4.9";
+const MOD_VERSION = "2.5.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.0",
+        changes: [
+            "Fix: 'Save face' now reliably captures the face you built in BC. Previously, captureCurrentExpression relied solely on Property.Expression which BC doesn't always set — it now uses Asset.Name as a fallback so whatever expressions BC shows on your character are correctly saved.",
+            "UX: FACE PRESETS save row now shows a live 'Now: …' preview of all currently active expressions so you can confirm the face before clicking 💾 Save face.",
+        ],
+    },
     {
         version: "2.4.9",
         changes: [

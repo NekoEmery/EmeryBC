@@ -159,9 +159,11 @@ export function captureCurrentExpression(name: string): ExpressionPreset {
         for (const group of EXPR_GROUPS) {
             const item = Player.Appearance.find((i: Item) => i.Asset.Group.Name === group);
             if (item) {
-                // BC stores the expression variant name in Property.Expression, not Asset.Name.
-                // Asset.Name is the base group asset name (always the group name itself).
-                const exprName = (item.Property as Record<string, unknown> | undefined)?.Expression as string | null | undefined;
+                // BC stores the active expression variant in Asset.Name (always reliable).
+                // Property.Expression mirrors it in most builds; use it as the primary source
+                // and fall back to Asset.Name so capture works regardless of BC version.
+                const propExpr = (item.Property as Record<string, unknown> | undefined)?.Expression as string | null | undefined;
+                const exprName = propExpr || item.Asset.Name || null;
                 groups[group] = exprName
                     ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
                     : null;
