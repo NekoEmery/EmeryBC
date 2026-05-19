@@ -25537,6 +25537,60 @@
                     catch ( /* ignore */_a) { /* ignore */ }
                     updateExprChev();
                 });
+                // ── Currently-added expression/preset buttons ──────────────────
+                {
+                    const _catIdx = getActiveCategoryIndex();
+                    const _allCats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
+                    const _cat = _allCats[_catIdx];
+                    const addedBtns = _cat
+                        ? _cat.buttons.map((b, i) => ({ b, i })).filter(({ b }) => (b.style === "expression" || b.style === "exprPreset") && b.enabled && b.label)
+                        : [];
+                    if (addedBtns.length > 0) {
+                        const addedLbl = document.createElement("div");
+                        addedLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a9e;margin-bottom:3px;letter-spacing:0.05em;";
+                        addedLbl.textContent = "ADDED BUTTONS";
+                        exprBody.appendChild(addedLbl);
+                        for (const { b, i } of addedBtns) {
+                            const row = document.createElement("div");
+                            row.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:2px;";
+                            const lbl = document.createElement("span");
+                            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c090e0;background:#2a1a3a;border:1px solid #5a3a7e;border-radius:3px;padding:1px 4px;min-width:28px;text-align:center;";
+                            lbl.textContent = b.label;
+                            const info = document.createElement("span");
+                            info.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a9e;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                            if (b.style === "exprPreset") {
+                                const preset = getExpressionPresets().find(p => p.id === b.emote);
+                                info.textContent = `preset: ${preset ? preset.name : b.emote}`;
+                            }
+                            else {
+                                info.textContent = b.emote; // "Group:ExprName"
+                            }
+                            const removeBtn = document.createElement("button");
+                            removeBtn.className = "ebc-delete-btn";
+                            removeBtn.style.cssText = "padding:0 5px;font-size:11px;line-height:16px;";
+                            removeBtn.textContent = "×";
+                            removeBtn.title = "Remove this expression button";
+                            removeBtn.addEventListener("click", () => {
+                                const ci = getActiveCategoryIndex();
+                                const ac = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(bb => (Object.assign({}, bb))) })));
+                                const cat = ac[ci];
+                                if (!cat || !cat.buttons[i])
+                                    return;
+                                cat.buttons[i] = { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" };
+                                saveCategories([...ac], ci);
+                                this.renderButtons();
+                            });
+                            row.appendChild(lbl);
+                            row.appendChild(info);
+                            row.appendChild(removeBtn);
+                            exprBody.appendChild(row);
+                        }
+                        const addedSep = document.createElement("div");
+                        addedSep.className = "ebc-divider";
+                        addedSep.style.margin = "5px 0";
+                        exprBody.appendChild(addedSep);
+                    }
+                }
                 for (const group of EXPR_GROUPS) {
                     const ghdr = document.createElement("div");
                     ghdr.className = "ebc-expr-group-hdr";
@@ -29386,7 +29440,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.4.3";
+    const MOD_VERSION = "2.4.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29397,6 +29451,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.4.4",
+            changes: [
+                "Fix: the EXPRESSIONS collapsible section in the BUTTONS tab now shows all currently-added expression and preset buttons at the top with a × remove button on each. Click × to clear the slot and free it up — the add-chips below still work as before.",
+            ],
+        },
         {
             version: "2.4.3",
             changes: [
