@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.2
+// @version      2.5.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25819,6 +25819,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 refreshLeashBtn();
             });
             leashRow.appendChild(leashBtn);
+            // Pull Leash — triggers echo-activity-ext's "拉到身边" (Pull to One's Side) activity.
+            // Sends a standard BC Activity message; echo-activity-ext hooks ChatRoomMessage on both
+            // clients and runs the pair-and-follow handler when it sees this content.
+            const pullBtn = document.createElement("button");
+            pullBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 12px;border-radius:8px;cursor:pointer;border:2px solid #7a6a3888;background:rgba(60,50,30,0.35);color:#b0a070;flex-shrink:0;transition:background 0.12s,border-color 0.12s;";
+            pullBtn.textContent = "↗ Pull";
+            pullBtn.title = "Pull Emery to your side (requires echo-activity-ext on both ends; leash must be held)";
+            pullBtn.addEventListener("mouseenter", () => { pullBtn.style.background = "rgba(100,80,30,0.5)"; });
+            pullBtn.addEventListener("mouseleave", () => { pullBtn.style.background = "rgba(60,50,30,0.35)"; });
+            pullBtn.addEventListener("click", () => {
+                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                    return;
+                if (!isLeashHeld()) {
+                    pullBtn.textContent = "Hold leash first!";
+                    window.setTimeout(() => { pullBtn.textContent = "↗ Pull"; }, 1500);
+                    return;
+                }
+                const mood = getKittyMood();
+                sendRoomEmote(mood === "rough"
+                    ? "gives Emery's leash a firm yank, pulling her sharply to her side~"
+                    : "gives a gentle tug on Emery's leash, coaxing her softly to her side~");
+                try {
+                    ServerSend("ChatRoomChat", {
+                        Content: "拉到身边",
+                        Type: "Activity",
+                        Target: EMERY_MEMBER,
+                        Dictionary: [{ Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" }],
+                    });
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            leashRow.appendChild(pullBtn);
             body.appendChild(leashRow);
             // Helper: pill-style action button (big, easy to tap).
             // cooldownMs: if > 0, button is briefly disabled after click to prevent
@@ -29465,7 +29497,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.2";
+    const MOD_VERSION = "2.5.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29476,6 +29508,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.3",
+            changes: [
+                "Kitty: ↗ Pull button added to the leash row. Sends echo-activity-ext's '拉到身边' (Pull to One's Side) Activity message — if both clients have echo-activity-ext installed it pairs Emery to Lucy's side and establishes the follow relationship. Requires the leash to be held first; shows a tooltip if not.",
+            ],
+        },
         {
             version: "2.5.2",
             changes: [
