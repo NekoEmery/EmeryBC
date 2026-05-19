@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.16
+// @version      2.5.17
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1752,6 +1752,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!store)
                 return;
             store.beepMuted = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Action buttons sidebar visibility ----------------------------------------
+    function getActionButtonsVisible() {
+        var _a;
+        try {
+            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.actionButtonsVisible) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setActionButtonsVisible(value) {
+        try {
+            const store = getStore$7();
+            if (!store)
+                return;
+            store.actionButtonsVisible = value;
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -12188,6 +12208,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "buttons.categoryName": { en: "Category name…", de: "Kategoriename…", zh: "分类名称…", fr: "Nom de catégorie…", es: "Nombre de categoría…" },
         "buttons.renameCategory": { en: "Rename Category", de: "Kategorie umbenennen", zh: "重命名分类", fr: "Renommer la catégorie", es: "Renombrar categoría" },
         "buttons.deleteCategory": { en: "Delete Category", de: "Kategorie löschen", zh: "删除分类", fr: "Supprimer la catégorie", es: "Eliminar categoría" },
+        "buttons.showSidebar": { en: "Show quick-emote sidebar buttons", de: "Schnell-Emote-Seitenleiste anzeigen", zh: "显示快速表情侧边栏按钮", fr: "Afficher les boutons d'émote rapide", es: "Mostrar botones de emote rápido" },
         "buttons.funActions": { en: "FUN ACTIONS", de: "SPASS-AKTIONEN", zh: "趣味动作", fr: "ACTIONS AMUSANTES", es: "ACCIONES DIVERTIDAS" },
         "buttons.usefulButtons": { en: "USEFUL BUTTONS", de: "NÜTZLICHE TASTEN", zh: "实用按键", fr: "BOUTONS UTILES", es: "BOTONES ÚTILES" },
         "buttons.oocModeOn": { en: "( OOC Mode: ON — click to turn off", de: "( OOC-Modus: AN — zum Deaktivieren klicken", zh: "（OOC 模式：开 — 点击关闭）", fr: "( Mode OOC : ACTIVÉ — cliquer pour désactiver", es: "( Modo OOC: ACTIVADO — clic para desactivar" },
@@ -25415,6 +25436,30 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Sidebar visibility toggle ─────────────────────────────────────────
+            const sidebarRow = document.createElement("div");
+            sidebarRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;margin-bottom:8px;border:1px solid #3a1928;border-radius:6px;background:rgba(20,8,16,0.55);";
+            const sidebarLbl = document.createElement("span");
+            sidebarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
+            sidebarLbl.textContent = t("buttons.showSidebar");
+            const sidebarToggle = document.createElement("button");
+            const refreshSidebarToggle = () => {
+                const on = getActionButtonsVisible();
+                sidebarToggle.textContent = on ? t("core.on") : t("core.off");
+                sidebarToggle.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
+                    "padding:3px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#6b3048" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshSidebarToggle();
+            sidebarToggle.addEventListener("click", () => { setActionButtonsVisible(!getActionButtonsVisible()); refreshSidebarToggle(); });
+            sidebarRow.appendChild(sidebarLbl);
+            sidebarRow.appendChild(sidebarToggle);
+            body.appendChild(sidebarRow);
             // Working category state
             const cats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
             let activeCatIdx = getActiveCategoryIndex();
@@ -29887,7 +29932,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.16";
+    const MOD_VERSION = "2.5.17";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29898,6 +29943,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.17",
+            changes: [
+                "Feature: 'Show quick-emote sidebar buttons' toggle restored to the top of the BUTTONS tab. Turning it OFF hides the canvas sidebar completely; turning it ON brings it back. Setting persists across sessions.",
+            ],
+        },
         {
             version: "2.5.16",
             changes: [
@@ -33670,7 +33721,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         tryHookFunction(modAPI, "DrawProcess", 3, (args, next) => {
             const result = next(args);
             try {
-                drawActionButtons();
+                if (getActionButtonsVisible())
+                    drawActionButtons();
             }
             catch ( /* ignore */_a) { /* ignore */ }
             return result;
