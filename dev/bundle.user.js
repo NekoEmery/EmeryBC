@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.3
+// @version      2.5.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25829,6 +25829,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             pullBtn.addEventListener("mouseenter", () => { pullBtn.style.background = "rgba(100,80,30,0.5)"; });
             pullBtn.addEventListener("mouseleave", () => { pullBtn.style.background = "rgba(60,50,30,0.35)"; });
             pullBtn.addEventListener("click", () => {
+                var _a, _b;
                 if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
                     return;
                 if (!isLeashHeld()) {
@@ -25841,14 +25842,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     ? "gives Emery's leash a firm yank, pulling her sharply to her side~"
                     : "gives a gentle tug on Emery's leash, coaxing her softly to her side~");
                 try {
+                    // echo-activity-ext's run() handler reads SourceCharacter and TargetCharacter
+                    // from the Dictionary (as plain MemberNumber integers) to decide which side
+                    // of the pair logic runs on each client.  Without these entries both
+                    // TargetCharacter === player.MemberNumber checks fail and the handler exits
+                    // silently, which is why Emery didn't move despite the message being sent.
+                    const w = window;
+                    const room = w.ChatRoomCharacter;
+                    const emeryChar = room === null || room === void 0 ? void 0 : room.find((c) => c.MemberNumber === EMERY_MEMBER);
+                    const emeryName = (_a = emeryChar === null || emeryChar === void 0 ? void 0 : emeryChar.Name) !== null && _a !== void 0 ? _a : "Emery";
                     ServerSend("ChatRoomChat", {
                         Content: "拉到身边",
                         Type: "Activity",
                         Target: EMERY_MEMBER,
-                        Dictionary: [{ Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" }],
+                        Dictionary: [
+                            { Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" },
+                            { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber, Text: (_b = Player.Name) !== null && _b !== void 0 ? _b : "" },
+                            { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER, Text: emeryName },
+                        ],
                     });
                 }
-                catch ( /* ignore */_a) { /* ignore */ }
+                catch ( /* ignore */_c) { /* ignore */ }
             });
             leashRow.appendChild(pullBtn);
             body.appendChild(leashRow);
@@ -29497,7 +29511,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.3";
+    const MOD_VERSION = "2.5.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29508,6 +29522,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.4",
+            changes: [
+                "Fix: ↗ Pull button now correctly provides SourceCharacter and TargetCharacter Dictionary entries so echo-activity-ext's run() handler can identify both sides of the pull. Previously the Dictionary only contained FocusAssetGroup, causing both MemberNumber checks to fail silently — Emery received the Activity message but didn't move.",
+            ],
+        },
         {
             version: "2.5.3",
             changes: [
