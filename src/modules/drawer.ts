@@ -3982,17 +3982,40 @@ export class EBCDrawer {
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
 
-        // ── EBC Tags strip — always visible just below safewords ─────────────
+        // ── EBC Tags strip — collapsible, always below safewords ─────────────
+        let ebcTagsCollapsed = false;
+        try { const v = localStorage.getItem("EBC_tagsCollapsed"); if (v !== null) ebcTagsCollapsed = v === "1"; } catch { /* ignore */ }
+
         const ebcTagsStrip = document.createElement("div");
-        ebcTagsStrip.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 8px;border-bottom:1px solid #2a1421;flex-shrink:0;background:rgba(10,4,8,0.5);";
+        ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;";
 
-        const ebcTagsIcon = document.createElement("span");
-        ebcTagsIcon.textContent = "🏷";
-        ebcTagsIcon.style.cssText = "font-size:10px;flex-shrink:0;margin-right:1px;";
-        ebcTagsStrip.appendChild(ebcTagsIcon);
+        // Header row — clickable to collapse
+        const ebcTagsHdr = document.createElement("div");
+        ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:4px 10px;cursor:pointer;user-select:none;background:rgba(14,5,10,0.7);";
+        ebcTagsHdr.title = "Toggle EBC overhead name-tag visibility";
 
-        // Two combined label+state toggle buttons — each button text shows both
-        // what it controls and its current state so there's no ambiguity.
+        const ebcTagsHdrLeft = document.createElement("div");
+        ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
+        const ebcTagsHdrIcon = document.createElement("span");
+        ebcTagsHdrIcon.textContent = "🏷";
+        ebcTagsHdrIcon.style.cssText = "font-size:11px;";
+        const ebcTagsHdrLabel = document.createElement("span");
+        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.08em;color:#c47a9a;text-transform:uppercase;";
+        ebcTagsHdrLabel.textContent = "EBC Tag Toggles";
+        ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
+        ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
+
+        const ebcTagsChev = document.createElement("span");
+        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a4a6a;";
+
+        ebcTagsHdr.appendChild(ebcTagsHdrLeft);
+        ebcTagsHdr.appendChild(ebcTagsChev);
+        ebcTagsStrip.appendChild(ebcTagsHdr);
+
+        // Body — two buttons centered
+        const ebcTagsBody = document.createElement("div");
+        ebcTagsBody.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;padding:7px 10px 8px;background:rgba(10,3,7,0.6);";
+
         const makeTagToggleBtn = (
             getVal: () => boolean,
             setVal: (v: boolean) => void,
@@ -4006,8 +4029,8 @@ export class EBCDrawer {
                 const on = getVal();
                 btn.textContent = on ? labelOn : labelOff;
                 btn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
-                    "padding:2px 9px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                    "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
+                    "padding:5px 16px", "border-radius:5px", "cursor:pointer", "flex-shrink:0",
                     "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
                     "background:" + (on ? "#4a1f30" : "#1b0d17"),
                     "color:" + (on ? "#f7e6ee" : "#7a5070"),
@@ -4016,24 +4039,32 @@ export class EBCDrawer {
             };
             refreshBtn();
             btn.addEventListener("click", () => { setVal(!getVal()); refreshBtn(); });
-            ebcTagsStrip.appendChild(btn);
+            ebcTagsBody.appendChild(btn);
         };
-
-        const ebcTagsSep = document.createElement("span");
-        ebcTagsSep.textContent = "·";
-        ebcTagsSep.style.cssText = "color:#3a1928;font-size:9px;flex-shrink:0;";
 
         makeTagToggleBtn(
             getBadgeEnabled, setBadgeEnabled,
             "👤 My tag: ON", "👤 My tag: OFF",
             "Show your own EBC badge above your head (on your screen only)",
         );
-        ebcTagsStrip.appendChild(ebcTagsSep);
         makeTagToggleBtn(
             getShowOthersBadge, setShowOthersBadge,
             "👥 Others: ON", "👥 Others: OFF",
             "Show EBC badges above other players' heads",
         );
+
+        ebcTagsStrip.appendChild(ebcTagsBody);
+
+        const updateEbcTagsCollapse = (): void => {
+            ebcTagsChev.textContent = ebcTagsCollapsed ? "▶" : "▼";
+            ebcTagsBody.style.display = ebcTagsCollapsed ? "none" : "";
+        };
+        updateEbcTagsCollapse();
+        ebcTagsHdr.addEventListener("click", () => {
+            ebcTagsCollapsed = !ebcTagsCollapsed;
+            try { localStorage.setItem("EBC_tagsCollapsed", ebcTagsCollapsed ? "1" : "0"); } catch { /* ignore */ }
+            updateEbcTagsCollapse();
+        });
 
         panel.appendChild(header);
         panel.appendChild(tabBar);
