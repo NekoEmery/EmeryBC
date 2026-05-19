@@ -12863,6 +12863,22 @@
 .ebc-tab-btn:hover { color: #b07888; }
 .ebc-tab-btn.ebc-tab-active { color: #cf6f98; border-bottom-color: #cf6f98; }
 
+/* -- Language row -- */
+.ebc-lang-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 5px;
+    padding: 5px 8px;
+    border-bottom: 1px solid #2a1020;
+    background: rgba(15, 6, 12, 0.4);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    touch-action: pan-x;
+}
+.ebc-lang-row::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
 /* -- Body -- */
 .ebc-body {
     flex: 1;
@@ -15640,7 +15656,7 @@
             tabBar.appendChild(kittyTabBtn);
             // ── Language picker row — sits between tab bar and quick-actions ─────
             const langRow = document.createElement("div");
-            langRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border-bottom:1px solid #2a1020;background:rgba(15,6,12,0.4);flex-wrap:wrap;";
+            langRow.className = "ebc-lang-row";
             const langPills = [];
             const refreshLangPills = () => {
                 const cur = getLanguage();
@@ -30101,7 +30117,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.8.0";
+    const MOD_VERSION = "2.8.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30112,6 +30128,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.8.1",
+            changes: [
+                "Fix: Language buttons now stay on a single line (no-wrap, hidden horizontal scroll) instead of wrapping to a second row.",
+            ],
+        },
         {
             version: "2.8.0",
             changes: [
