@@ -64,6 +64,8 @@ const S: Record<string, T> = {
     "tabs.outfits":      { en: "OUTFITS",     de: "OUTFITS",          zh: "服装",        fr: "TENUES",           es: "ATUENDOS",     ru: "НАРЯДЫ"       },
     "tabs.buttons":      { en: "BUTTONS",     de: "TASTEN",           zh: "按键",        fr: "BOUTONS",          es: "BOTONES",      ru: "КНОПКИ"       },
     "tabs.anims":        { en: "ANIMS",       de: "ANIMS",            zh: "动作",        fr: "ANIMS",            es: "ANIMS",        ru: "АНИМАЦИИ"     },
+    "tabs.inbox":        { en: "INBOX",       de: "INBOX",            zh: "收件箱",      fr: "INBOX",            es: "INBOX",        ru: "ВХОДЯЩИЕ"     },
+    "tabs.inboxTitle":   { en: "Unread messages & recent conversations", de: "Ungelesene Nachrichten & letzte Gespräche", zh: "未读消息和最近对话", fr: "Messages non lus & conversations récentes", es: "Mensajes no leídos y conversaciones recientes", ru: "Непрочитанные сообщения и недавние беседы" },
     "tabs.users":        { en: "USERS",       de: "NUTZER",           zh: "用户",        fr: "UTILISATEURS",     es: "USUARIOS",     ru: "ПОЛЬЗОВАТЕЛИ" },
     "tabs.credits":      { en: "CREDITS",     de: "CREDITS",          zh: "致谢",        fr: "CRÉDITS",          es: "CRÉDITOS",     ru: "АВТОРЫ"       },
     "tabs.dev":          { en: "DEV",         de: "DEV",              zh: "开发",        fr: "DEV",              es: "DEV",          ru: "DEV"          },

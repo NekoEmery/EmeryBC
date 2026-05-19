@@ -92,7 +92,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings } from "./bcUtils";
@@ -2313,6 +2313,32 @@ const CSS = `
 }
 .ebc-beep-win-unread-dot.visible { display: block; }
 
+/* -- Inbox tab cards -------------------------------------------------------- */
+.ebc-inbox-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 7px;
+    border: 1px solid #2a1421;
+    background: #120810;
+    margin-bottom: 5px;
+    transition: background 0.12s, border-color 0.12s;
+    cursor: pointer;
+}
+.ebc-inbox-card:hover {
+    background: #1e0e18;
+    border-color: #4c2537;
+}
+.ebc-inbox-card.unread {
+    border-color: #4c2537;
+    background: #1c0c16;
+}
+.ebc-inbox-card.unread:hover {
+    background: #2a1020;
+    border-color: #cf6f98;
+}
+
 .ebc-beep-reply-bar {
     display: flex;
     align-items: center;
@@ -2911,10 +2937,10 @@ function setMenuHotkey(key: string): void { try { if (key) localStorage.setItem(
 // ── Drawer appearance / layout helpers ───────────────────────────────────
 const EBC_COLORS_KEY = "EBC_colors";
 const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
-const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "thanks", "dev"] as const;
+const EBC_USER_TABS      = ["outfits", "buttons", "anims", "inbox", "notes", "thanks", "dev"] as const;
 const EBC_TAB_LABELS: Record<string, string> = {
     outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
-    notes: "USERS", thanks: "CREDITS", dev: "DEV",
+    inbox: "INBOX", notes: "USERS", thanks: "CREDITS", dev: "DEV",
 };
 
 // The 9 user-facing colour slots. All derived colours are computed from these.
@@ -3092,7 +3118,7 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
+type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty" | "inbox";
 
 const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
 
@@ -3185,6 +3211,7 @@ export class EBCDrawer {
         tabOutfits?: HTMLButtonElement;
         tabButtons?: HTMLButtonElement;
         tabAnims?: HTMLButtonElement;
+        tabInbox?: HTMLButtonElement;
         tabNotes?: HTMLButtonElement;
         tabThanks?: HTMLButtonElement;
         tabDev?: HTMLButtonElement;
@@ -3408,6 +3435,20 @@ export class EBCDrawer {
         btnsTabBtn.textContent = t("tabs.buttons");
         btnsTabBtn.title = t("tabs.buttonsTitle");
 
+        const inboxTabBtn = document.createElement("button");
+        inboxTabBtn.className = "ebc-tab-btn";
+        inboxTabBtn.id = "ebc-tab-inbox";
+        inboxTabBtn.title = t("tabs.inboxTitle");
+        inboxTabBtn.style.position = "relative";
+        // Inner layout: text + live unread badge
+        const inboxTabLabel = document.createElement("span");
+        inboxTabLabel.textContent = t("tabs.inbox");
+        inboxTabBtn.appendChild(inboxTabLabel);
+        const inboxTabBadge = document.createElement("span");
+        inboxTabBadge.id = "ebc-inbox-tab-badge";
+        inboxTabBadge.style.cssText = "display:none;position:absolute;top:3px;right:3px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:8px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
+        inboxTabBtn.appendChild(inboxTabBadge);
+
         const notesTabBtn = document.createElement("button");
         notesTabBtn.className = "ebc-tab-btn";
         notesTabBtn.id = "ebc-tab-notes";
@@ -3454,6 +3495,7 @@ export class EBCDrawer {
         this._i18nRefs.tabOutfits = outfitTabBtn;
         this._i18nRefs.tabButtons = btnsTabBtn;
         this._i18nRefs.tabAnims   = posesTabBtn;
+        this._i18nRefs.tabInbox   = inboxTabBtn;
         this._i18nRefs.tabNotes   = notesTabBtn;
         this._i18nRefs.tabThanks  = thanksTabBtn;
         this._i18nRefs.tabDev     = devTabBtn2;
@@ -3464,6 +3506,7 @@ export class EBCDrawer {
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(btnsTabBtn);
         tabBar.appendChild(posesTabBtn);
+        tabBar.appendChild(inboxTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(thanksTabBtn);
         tabBar.appendChild(devTabBtn2);
@@ -4463,6 +4506,7 @@ export class EBCDrawer {
 
         outfitTabBtn.addEventListener("click",   () => this.switchTab("outfits"));
         posesTabBtn.addEventListener("click",    () => this.switchTab("anims"));
+        inboxTabBtn.addEventListener("click",    () => this.switchTab("inbox"));
         notesTabBtn.addEventListener("click",    () => this.switchTab("notes"));
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
         devTabBtn2.addEventListener("click",     () => this.switchTab("dev"));
@@ -4869,6 +4913,7 @@ export class EBCDrawer {
             ["ebc-tab-outfits", "outfits"],
             ["ebc-tab-poses",   "anims"],
             ["ebc-tab-buttons", "buttons"],
+            ["ebc-tab-inbox",   "inbox"],
             ["ebc-tab-notes",    "notes"],
             ["ebc-tab-thanks",  "thanks"],
             ["ebc-tab-dev",     "dev"],
@@ -4887,6 +4932,7 @@ export class EBCDrawer {
         if      (this.currentTab === "outfits")  this.renderOutfits();
         else if (this.currentTab === "anims")    this.renderPoses();
         else if (this.currentTab === "buttons")  this.renderButtons();
+        else if (this.currentTab === "inbox")    this.renderInbox();
         else if (this.currentTab === "notes")    this.renderNotes();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
@@ -4950,6 +4996,12 @@ export class EBCDrawer {
         if (r.tabOutfits) r.tabOutfits.textContent = t("tabs.outfits");
         if (r.tabButtons) { r.tabButtons.textContent = t("tabs.buttons"); r.tabButtons.title = t("tabs.buttonsTitle"); }
         if (r.tabAnims)   r.tabAnims.textContent = t("tabs.anims");
+        if (r.tabInbox) {
+            // Inbox tab has a label span + badge span — update label span only
+            const lbl = r.tabInbox.querySelector("span:first-child");
+            if (lbl) lbl.textContent = t("tabs.inbox");
+            r.tabInbox.title = t("tabs.inboxTitle");
+        }
         if (r.tabNotes)   { r.tabNotes.textContent = t("tabs.users"); r.tabNotes.title = t("tabs.usersTitle"); }
         if (r.tabThanks)  { r.tabThanks.textContent = t("tabs.credits"); r.tabThanks.title = t("tabs.creditsTitle"); }
         if (r.tabDev)     { r.tabDev.textContent = t("tabs.dev"); r.tabDev.title = t("tabs.devTitle"); }
@@ -9572,25 +9624,38 @@ export class EBCDrawer {
     // -- Beep window -----------------------------------------------------------
 
     private refreshTabDot(): void {
+        // Outer EBC tab button dot (on the BC UI sidebar)
         const tab = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
-        if (!tab) return;
-        const hasUnread = this.beepUnread.size > 0;
-        let dot = tab.querySelector<HTMLElement>("#ebc-tab-unread-dot");
-        if (hasUnread && !dot) {
-            dot = document.createElement("div");
-            dot.id = "ebc-tab-unread-dot";
-            dot.title = "Click to dismiss";
-            dot.style.cursor = "pointer";
-            dot.addEventListener("click", (e) => {
-                e.stopPropagation();
-                this.beepUnread.clear();
-                this.refreshTabDot();
-                try { this.refreshFriendList(); } catch { /* ignore */ }
-            });
-            tab.style.position = "relative";
-            tab.appendChild(dot);
-        } else if (!hasUnread && dot) {
-            dot.remove();
+        if (tab) {
+            const hasUnread = this.beepUnread.size > 0;
+            let dot = tab.querySelector<HTMLElement>("#ebc-tab-unread-dot");
+            if (hasUnread && !dot) {
+                dot = document.createElement("div");
+                dot.id = "ebc-tab-unread-dot";
+                dot.title = "Click to dismiss";
+                dot.style.cursor = "pointer";
+                dot.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    // Open the panel and jump straight to inbox
+                    if (!this.isOpen) this.open();
+                    this.switchTab("inbox");
+                });
+                tab.style.position = "relative";
+                tab.appendChild(dot);
+            } else if (!hasUnread && dot) {
+                dot.remove();
+            }
+        }
+        // Inbox tab button badge (inside the panel tab bar)
+        const inboxBadge = this.rootEl?.querySelector<HTMLElement>("#ebc-inbox-tab-badge");
+        if (inboxBadge) {
+            const total = [...this.beepUnread.values()].reduce((s, n) => s + n, 0);
+            if (total > 0) {
+                inboxBadge.textContent = total > 99 ? "99+" : String(total);
+                inboxBadge.style.display = "block";
+            } else {
+                inboxBadge.style.display = "none";
+            }
         }
     }
 
@@ -10064,6 +10129,193 @@ export class EBCDrawer {
         refresh?.();
     }
 
+    // -- Inbox tab -------------------------------------------------------------
+
+    private renderInbox(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        const self = Player.MemberNumber ?? 0;
+
+        // Build a deduplicated list of recent conversation partners from beep history,
+        // most recent message first, with their last message and timestamp.
+        interface ConvSummary {
+            num: number;
+            name: string;
+            lastMsg: string;
+            lastTs: number;
+            unread: number;
+        }
+        const history = getBeepHistory();
+        const seenNums = new Set<number>();
+        const convs: ConvSummary[] = [];
+        for (let i = history.length - 1; i >= 0; i--) {
+            const e = history[i];
+            const partner = e.from === self ? e.to : e.from;
+            if (!partner || partner === self) continue;
+            if (seenNums.has(partner)) continue;
+            seenNums.add(partner);
+            convs.push({
+                num:     partner,
+                name:    resolveName(partner),
+                lastMsg: stripBeepMetadata(e.message),
+                lastTs:  e.ts,
+                unread:  this.beepUnread.get(partner) ?? 0,
+            });
+            if (convs.length >= 60) break;
+        }
+        // Sort: unread first, then by timestamp
+        convs.sort((a, b) => {
+            if (a.unread > 0 && b.unread === 0) return -1;
+            if (a.unread === 0 && b.unread > 0) return  1;
+            return b.lastTs - a.lastTs;
+        });
+
+        const totalUnread = [...this.beepUnread.values()].reduce((s, n) => s + n, 0);
+        const unreadSenders = convs.filter(c => c.unread > 0);
+
+        // ── Header row ──────────────────────────────────────────────────────
+        const headerRow = document.createElement("div");
+        headerRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:6px;";
+
+        const headerLbl = document.createElement("div");
+        headerLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;letter-spacing:0.08em;";
+        headerLbl.textContent = totalUnread > 0
+            ? `📬 INBOX  ·  ${totalUnread} unread`
+            : "📬 INBOX";
+        headerRow.appendChild(headerLbl);
+
+        if (totalUnread > 0) {
+            const markAllBtn = document.createElement("button");
+            markAllBtn.textContent = "✓ Mark all read";
+            markAllBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;transition:color 0.12s,border-color 0.12s;flex-shrink:0;";
+            markAllBtn.addEventListener("mouseenter", () => { markAllBtn.style.color = "#cf6f98"; markAllBtn.style.borderColor = "#cf6f98"; });
+            markAllBtn.addEventListener("mouseleave", () => { markAllBtn.style.color = "#7a5a6a"; markAllBtn.style.borderColor = "#3a1928"; });
+            markAllBtn.addEventListener("click", () => {
+                this.beepUnread.clear();
+                this.refreshTabDot();
+                this.rerender();
+            });
+            headerRow.appendChild(markAllBtn);
+        }
+        body.appendChild(headerRow);
+
+        // ── Empty state ─────────────────────────────────────────────────────
+        if (convs.length === 0) {
+            const empty = document.createElement("div");
+            empty.style.cssText = "text-align:center;color:#5a3040;font-size:11px;padding:40px 0 20px;font-family:'Trebuchet MS',serif;";
+            empty.innerHTML = "📭<br><span style='display:block;margin-top:6px;'>No beep conversations yet.</span><span style='display:block;margin-top:4px;font-size:10px;color:#3a2030;'>Beep someone from the USERS tab!</span>";
+            body.appendChild(empty);
+            return;
+        }
+
+        // ── Unread section ──────────────────────────────────────────────────
+        if (unreadSenders.length > 0) {
+            const unreadHdr = document.createElement("div");
+            unreadHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#8a5070;letter-spacing:0.1em;margin:0 0 5px;padding-left:2px;text-transform:uppercase;";
+            unreadHdr.textContent = "Unread";
+            body.appendChild(unreadHdr);
+            for (const conv of unreadSenders) {
+                body.appendChild(this.buildInboxCard(conv.num, conv.name, conv.lastMsg, conv.lastTs, conv.unread));
+            }
+            // Divider before recent section
+            if (convs.some(c => c.unread === 0)) {
+                const div = document.createElement("div");
+                div.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
+                body.appendChild(div);
+            }
+        }
+
+        // ── All conversations ────────────────────────────────────────────────
+        const readConvs = convs.filter(c => c.unread === 0);
+        if (readConvs.length > 0) {
+            if (unreadSenders.length > 0) {
+                const recentHdr = document.createElement("div");
+                recentHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#8a5070;letter-spacing:0.1em;margin:0 0 5px;padding-left:2px;text-transform:uppercase;";
+                recentHdr.textContent = "Recent";
+                body.appendChild(recentHdr);
+            }
+            for (const conv of readConvs) {
+                body.appendChild(this.buildInboxCard(conv.num, conv.name, conv.lastMsg, conv.lastTs, 0));
+            }
+        }
+    }
+
+    private buildInboxCard(num: number, name: string, lastMsg: string, lastTs: number, unread: number): HTMLElement {
+        const card = document.createElement("div");
+        card.className = "ebc-inbox-card" + (unread > 0 ? " unread" : "");
+
+        // ── Left: avatar dot + name + preview ───────────────────────────────
+        const left = document.createElement("div");
+        left.style.cssText = "flex:1;min-width:0;";
+
+        const nameLine = document.createElement("div");
+        nameLine.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:2px;";
+
+        const dot = document.createElement("div");
+        dot.style.cssText = `width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${unread > 0 ? "#cf6f98" : "#3a2030"};`;
+        nameLine.appendChild(dot);
+
+        const nameEl = document.createElement("span");
+        nameEl.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:${unread > 0 ? "#f0d0e0" : "#b08090"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;`;
+        nameEl.textContent = `${name} #${num}`;
+        nameLine.appendChild(nameEl);
+
+        if (unread > 0) {
+            const badge = document.createElement("span");
+            badge.textContent = unread > 99 ? "99+" : String(unread);
+            badge.style.cssText = "background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-weight:bold;padding:1px 5px;flex-shrink:0;line-height:14px;";
+            nameLine.appendChild(badge);
+        }
+        left.appendChild(nameLine);
+
+        const preview = document.createElement("div");
+        const previewText = lastMsg.replace(/^> .+\n/, "").slice(0, 90);
+        preview.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;color:${unread > 0 ? "#d0a0b8" : "#6a4050"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:12px;`;
+        preview.textContent = previewText || "…";
+        left.appendChild(preview);
+
+        card.appendChild(left);
+
+        // ── Right: time + open button ────────────────────────────────────────
+        const right = document.createElement("div");
+        right.style.cssText = "display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;";
+
+        const timeEl = document.createElement("span");
+        timeEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3040;";
+        timeEl.textContent = formatLastSeen(lastTs);
+        right.appendChild(timeEl);
+
+        const openBtn = document.createElement("button");
+        openBtn.textContent = "Open";
+        openBtn.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:3px 8px;border-radius:4px;cursor:pointer;transition:background 0.12s,border-color 0.12s;border:1px solid ${unread > 0 ? "#cf6f98" : "#3a1928"};background:${unread > 0 ? "#3a1020" : "transparent"};color:${unread > 0 ? "#cf6f98" : "#7a5a6a"};`;
+        openBtn.addEventListener("mouseenter", () => { openBtn.style.background = "#3a1020"; openBtn.style.borderColor = "#cf6f98"; openBtn.style.color = "#cf6f98"; });
+        openBtn.addEventListener("mouseleave", () => { openBtn.style.background = unread > 0 ? "#3a1020" : "transparent"; openBtn.style.borderColor = unread > 0 ? "#cf6f98" : "#3a1928"; openBtn.style.color = unread > 0 ? "#cf6f98" : "#7a5a6a"; });
+        openBtn.addEventListener("click", () => {
+            this.openBeepWindow(num);
+            // Clear unread for this sender and re-render
+            this.beepUnread.delete(num);
+            this.refreshTabDot();
+            this.rerender();
+        });
+        right.appendChild(openBtn);
+
+        card.appendChild(right);
+
+        // Clicking the card itself also opens the chat
+        card.style.cursor = "pointer";
+        card.addEventListener("click", (e) => {
+            if ((e.target as HTMLElement).closest("button")) return;
+            this.openBeepWindow(num);
+            this.beepUnread.delete(num);
+            this.refreshTabDot();
+            this.rerender();
+        });
+
+        return card;
+    }
+
     public updateAllBeepWindowStatuses(): void {
         for (const { el } of this.beepWins.values()) {
             const fn = (el as unknown as Record<string, unknown>)._updateStatus as (() => void) | undefined;
@@ -10088,7 +10340,7 @@ export class EBCDrawer {
             // No window open at all
             this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
             this.refreshTabDot();
-            if (this.currentTab === "notes") {
+            if (this.currentTab === "notes" || this.currentTab === "inbox") {
                 try { this.rerender(); } catch { /* ignore */ }
             }
         }
