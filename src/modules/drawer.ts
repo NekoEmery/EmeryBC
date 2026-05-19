@@ -3991,8 +3991,10 @@ export class EBCDrawer {
 
         // Header row — clickable to collapse
         const ebcTagsHdr = document.createElement("div");
-        ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;";
-        ebcTagsHdr.title = "Collapse / expand EBC tag toggles";
+        ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;transition:background 0.1s;";
+        ebcTagsHdr.title = "Click to show / hide";
+        ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#1a0810"; });
+        ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
 
         const ebcTagsHdrLeft = document.createElement("div");
         ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
@@ -4000,13 +4002,14 @@ export class EBCDrawer {
         ebcTagsHdrIcon.textContent = "🏷";
         ebcTagsHdrIcon.style.fontSize = "10px";
         const ebcTagsHdrLabel = document.createElement("span");
-        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#b06888;";
+        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
         ebcTagsHdrLabel.textContent = "EBC Tag Toggles";
         ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
         ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
 
+        // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
         const ebcTagsChev = document.createElement("span");
-        ebcTagsChev.style.cssText = "font-size:8px;color:#5a3048;";
+        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a6070;padding:1px 5px;border:1px solid #3a1828;border-radius:3px;background:#1a0810;";
 
         ebcTagsHdr.appendChild(ebcTagsHdrLeft);
         ebcTagsHdr.appendChild(ebcTagsChev);
@@ -4018,7 +4021,7 @@ export class EBCDrawer {
 
         // Description line
         const ebcTagsDesc = document.createElement("div");
-        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a50;line-height:1.4;margin-bottom:7px;";
+        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;";
         ebcTagsDesc.textContent = "Controls whose EBC overhead tags you see. Only affects your own screen — others always see your tag regardless.";
         ebcTagsBody.appendChild(ebcTagsDesc);
 
@@ -4034,11 +4037,10 @@ export class EBCDrawer {
             setVal: (v: boolean) => void,
         ): void => {
             const card = document.createElement("div");
-            card.style.cssText = "flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;";
             card.title = sublabel;
 
             const cardTop = document.createElement("div");
-            cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+            cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
             const cardIcon = document.createElement("span");
             cardIcon.style.fontSize = "12px";
             cardIcon.textContent = icon;
@@ -4049,7 +4051,7 @@ export class EBCDrawer {
             cardTop.appendChild(cardLabel);
 
             const cardSub = document.createElement("div");
-            cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.35;margin-bottom:6px;";
+            cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.4;margin-bottom:6px;";
             cardSub.textContent = sublabel;
 
             const cardStatus = document.createElement("div");
@@ -4068,12 +4070,12 @@ export class EBCDrawer {
 
             const refresh = (): void => {
                 const on = getVal();
-                card.style.cssText = `flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;border:1px solid ${on ? "#7a2e4a" : "#2e1020"};background:${on ? "#2a0f1e" : "#130810"};`;
-                cardLabel.style.color = on ? "#e8b4cc" : "#6a3a54";
-                cardSub.style.color = on ? "#7a4a62" : "#3a1a2a";
+                card.style.cssText = `flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;border:1px solid ${on ? "#8a3458" : "#321220"};background:${on ? "#2e1020" : "#150a10"};`;
+                cardLabel.style.color = on ? "#f0c0d8" : "#7a4a60";
+                cardSub.style.color = on ? "#b08898" : "#6a4050";
                 cardDot.style.background = on ? "#d06090" : "#4a2038";
-                cardStatus.style.background = on ? "#3d1228" : "#1a0812";
-                cardStatus.style.color = on ? "#e090b8" : "#5a3050";
+                cardStatus.style.background = on ? "#3d1228" : "#1e0c16";
+                cardStatus.style.color = on ? "#f0a0c8" : "#6a4050";
                 cardStatusText.textContent = on ? "ON" : "OFF";
             };
             refresh();
@@ -4088,7 +4090,7 @@ export class EBCDrawer {
         ebcTagsStrip.appendChild(ebcTagsBody);
 
         const updateEbcTagsCollapse = (): void => {
-            ebcTagsChev.textContent = ebcTagsCollapsed ? "▶" : "▼";
+            ebcTagsChev.textContent = ebcTagsCollapsed ? "Show ▶" : "Hide ▼";
             ebcTagsBody.style.display = ebcTagsCollapsed ? "none" : "";
         };
         updateEbcTagsCollapse();

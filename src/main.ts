@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.7.4";
+const MOD_VERSION = "2.7.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.7.5",
+        changes: [
+            "UX: EBC Tag Toggles strip — improved readability: description and card sub-text colours brightened significantly; collapse hint changed to explicit 'Hide ▼' / 'Show ▶' pill so it's obvious the header is clickable; header gains a subtle hover tint.",
+        ],
+    },
     {
         version: "2.7.4",
         changes: [
