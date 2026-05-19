@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4228,6 +4228,140 @@ export class EBCDrawer {
         makeTagCard("👥", "Others", "EBC tags above other players' heads", getShowOthersBadge, setShowOthersBadge);
 
         ebcTagsBody.appendChild(ebcTagsCardRow);
+
+        // ── Badge Appearance ─────────────────────────────────────────────────
+        const badgeDivider = document.createElement("div");
+        badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
+        ebcTagsBody.appendChild(badgeDivider);
+
+        const badgeAppLbl = document.createElement("div");
+        badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.08em;color:#9a6878;margin-bottom:6px;";
+        badgeAppLbl.textContent = "BADGE APPEARANCE";
+        ebcTagsBody.appendChild(badgeAppLbl);
+
+        // ── Style picker: Text | Cat ─────────────────────────────────────────
+        const styleRow = document.createElement("div");
+        styleRow.style.cssText = "display:flex;gap:5px;margin-bottom:7px;";
+
+        const makeStyleBtn = (styleName: BadgeStyle, icon: string, labelText: string): HTMLButtonElement => {
+            const btn = document.createElement("button");
+            btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+            const refresh = (): void => {
+                const active = getBadgeStyle() === styleName;
+                btn.style.background    = active ? "#2e1020" : "#150a10";
+                btn.style.border        = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                btn.style.color         = active ? "#f0c0d8" : "#7a4a60";
+                btn.textContent         = `${icon} ${labelText}`;
+            };
+            refresh();
+            btn.addEventListener("click", () => {
+                setBadgeStyle(styleName);
+                styleBtns.forEach(([, r]) => r());
+            });
+            return btn;
+        };
+
+        const styleBtns: [HTMLButtonElement, () => void][] = [];
+        const textBtn = makeStyleBtn("text", "🏷", "Text");
+        const catBtn  = makeStyleBtn("cat",  "🐱", "Cat");
+        const refreshTextBtn = (): void => {
+            const active = getBadgeStyle() === "text";
+            textBtn.style.background = active ? "#2e1020" : "#150a10";
+            textBtn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
+            textBtn.style.color      = active ? "#f0c0d8" : "#7a4a60";
+        };
+        const refreshCatBtn = (): void => {
+            const active = getBadgeStyle() === "cat";
+            catBtn.style.background = active ? "#2e1020" : "#150a10";
+            catBtn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
+            catBtn.style.color      = active ? "#f0c0d8" : "#7a4a60";
+        };
+        styleBtns.push([textBtn, refreshTextBtn], [catBtn, refreshCatBtn]);
+        textBtn.addEventListener("click", () => { setBadgeStyle("text"); refreshTextBtn(); refreshCatBtn(); });
+        catBtn.addEventListener("click",  () => { setBadgeStyle("cat");  refreshTextBtn(); refreshCatBtn(); });
+        refreshTextBtn(); refreshCatBtn();
+        styleRow.appendChild(textBtn);
+        styleRow.appendChild(catBtn);
+        ebcTagsBody.appendChild(styleRow);
+
+        // ── Scale slider ─────────────────────────────────────────────────────
+        const scaleRow = document.createElement("div");
+        scaleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+
+        const scaleLbl = document.createElement("span");
+        scaleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
+        scaleLbl.textContent = "Scale";
+
+        const scaleSlider = document.createElement("input");
+        scaleSlider.type  = "range";
+        scaleSlider.min   = "0.3";
+        scaleSlider.max   = "3";
+        scaleSlider.step  = "0.05";
+        scaleSlider.value = String(getBadgeScale());
+        scaleSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+        scaleSlider.title = "Badge size multiplier (1 = default)";
+
+        const scaleVal = document.createElement("span");
+        scaleVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+        scaleVal.textContent = getBadgeScale().toFixed(2) + "×";
+
+        scaleSlider.addEventListener("input", () => {
+            const v = parseFloat(scaleSlider.value);
+            setBadgeScale(v);
+            scaleVal.textContent = v.toFixed(2) + "×";
+        });
+
+        scaleRow.appendChild(scaleLbl);
+        scaleRow.appendChild(scaleSlider);
+        scaleRow.appendChild(scaleVal);
+        ebcTagsBody.appendChild(scaleRow);
+
+        // ── Position drag row ─────────────────────────────────────────────────
+        const posRow = document.createElement("div");
+        posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+
+        const posHint = document.createElement("span");
+        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex:1;line-height:1.35;";
+        posHint.textContent = "Drag badge on your character to reposition for everyone";
+
+        const dragBtn = document.createElement("button");
+        const refreshDragBtn = (): void => {
+            const on = getBadgeDragMode();
+            dragBtn.textContent = on ? "✓ Done" : "📍 Position";
+            dragBtn.style.cssText = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:9px",
+                "font-weight:bold",
+                "padding:4px 8px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "flex-shrink:0",
+                "transition:background 0.12s,border-color 0.12s,color 0.12s",
+                `border:1px solid ${on ? "#cf6f98" : "#4c2537"}`,
+                `background:${on ? "#4a1f30" : "#1b0d17"}`,
+                `color:${on ? "#f7e6ee" : "#c08890"}`,
+            ].join(";");
+        };
+        refreshDragBtn();
+        dragBtn.addEventListener("click", () => {
+            setBadgeDragMode(!getBadgeDragMode());
+            refreshDragBtn();
+        });
+
+        const resetPosBtn = document.createElement("button");
+        resetPosBtn.textContent = "⟳";
+        resetPosBtn.title = "Reset badge position to default";
+        resetPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;transition:background 0.12s,color 0.12s;";
+        resetPosBtn.addEventListener("click", () => {
+            resetBadgePosition();
+            setBadgeOffsetX(getBadgeOffsetX()); // trigger sync
+        });
+
+        posRow.appendChild(posHint);
+        posRow.appendChild(dragBtn);
+        posRow.appendChild(resetPosBtn);
+        ebcTagsBody.appendChild(posRow);
+
         ebcTagsStrip.appendChild(ebcTagsBody);
 
         const updateEbcTagsCollapse = (): void => {
