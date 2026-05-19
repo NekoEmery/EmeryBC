@@ -27708,16 +27708,14 @@
                     : "Now: (no expressions set)";
                 body.appendChild(facePreview);
             }
-            // Save current face as preset
-            const captureRow = document.createElement("div");
-            captureRow.style.cssText = "display:flex;gap:5px;margin-bottom:8px;align-items:center;";
+            // Save current face as preset — name on its own row, button below
             const captureInput = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input", type: "text", maxLength: 30, placeholder: "Name this preset…",
             });
-            captureInput.style.flex = "1";
+            captureInput.style.cssText = "width:100%;box-sizing:border-box;margin-bottom:4px;";
             const captureBtn = document.createElement("button");
             captureBtn.className = "ebc-create-btn";
-            captureBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:4px 8px;";
+            captureBtn.style.cssText = "width:100%;font-size:9px;padding:4px 8px;box-sizing:border-box;margin-bottom:8px;";
             captureBtn.textContent = "💾 Save face";
             captureBtn.addEventListener("click", () => {
                 const name = captureInput.value.trim() || "Preset";
@@ -27725,9 +27723,8 @@
                 captureInput.value = "";
                 this.rerender();
             });
-            captureRow.appendChild(captureInput);
-            captureRow.appendChild(captureBtn);
-            body.appendChild(captureRow);
+            body.appendChild(captureInput);
+            body.appendChild(captureBtn);
             // Clear all button
             const clearBtn = document.createElement("button");
             clearBtn.className = "ebc-btn-footer-btn";
@@ -29311,7 +29308,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.6";
+    const MOD_VERSION = "2.5.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29322,6 +29319,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.7",
+            changes: [
+                "UX: Face Presets name input and Save face button are now stacked (name field full-width above, button below) instead of side-by-side.",
+            ],
+        },
         {
             version: "2.5.6",
             changes: [
