@@ -3987,13 +3987,13 @@ export class EBCDrawer {
         try { const v = localStorage.getItem("EBC_tagsCollapsed"); if (v !== null) ebcTagsCollapsed = v === "1"; } catch { /* ignore */ }
 
         const ebcTagsStrip = document.createElement("div");
-        ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#0e0509;";
+        ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
 
         // Header row — clickable to collapse
         const ebcTagsHdr = document.createElement("div");
         ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;transition:background 0.1s;";
         ebcTagsHdr.title = "Click to show / hide";
-        ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#1a0810"; });
+        ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#251220"; });
         ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
 
         const ebcTagsHdrLeft = document.createElement("div");
@@ -4009,7 +4009,7 @@ export class EBCDrawer {
 
         // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
         const ebcTagsChev = document.createElement("span");
-        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a6070;padding:1px 5px;border:1px solid #3a1828;border-radius:3px;background:#1a0810;";
+        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#d090a8;padding:3px 10px;border:1px solid #7a3050;border-radius:4px;background:#2e1020;";
 
         ebcTagsHdr.appendChild(ebcTagsHdrLeft);
         ebcTagsHdr.appendChild(ebcTagsChev);
@@ -4017,7 +4017,7 @@ export class EBCDrawer {
 
         // Body
         const ebcTagsBody = document.createElement("div");
-        ebcTagsBody.style.cssText = "padding:0 10px 9px;";
+        ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
 
         // Description line
         const ebcTagsDesc = document.createElement("div");
