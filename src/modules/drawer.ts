@@ -15549,16 +15549,14 @@ export class EBCDrawer {
             body.appendChild(facePreview);
         }
 
-        // Save current face as preset
-        const captureRow = document.createElement("div");
-        captureRow.style.cssText = "display:flex;gap:5px;margin-bottom:8px;align-items:center;";
+        // Save current face as preset — name on its own row, button below
         const captureInput = Object.assign(document.createElement("input"), {
             className: "ebc-form-input", type: "text", maxLength: 30, placeholder: "Name this preset…",
         }) as HTMLInputElement;
-        captureInput.style.flex = "1";
+        captureInput.style.cssText = "width:100%;box-sizing:border-box;margin-bottom:4px;";
         const captureBtn = document.createElement("button");
         captureBtn.className = "ebc-create-btn";
-        captureBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:4px 8px;";
+        captureBtn.style.cssText = "width:100%;font-size:9px;padding:4px 8px;box-sizing:border-box;margin-bottom:8px;";
         captureBtn.textContent = "💾 Save face";
         captureBtn.addEventListener("click", () => {
             const name = captureInput.value.trim() || "Preset";
@@ -15566,9 +15564,8 @@ export class EBCDrawer {
             captureInput.value = "";
             this.rerender();
         });
-        captureRow.appendChild(captureInput);
-        captureRow.appendChild(captureBtn);
-        body.appendChild(captureRow);
+        body.appendChild(captureInput);
+        body.appendChild(captureBtn);
 
         // Clear all button
         const clearBtn = document.createElement("button");
