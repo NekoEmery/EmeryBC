@@ -15010,11 +15010,6 @@
             btnsTabBtn.id = "ebc-tab-buttons";
             btnsTabBtn.textContent = "BUTTONS";
             btnsTabBtn.title = "Action Buttons";
-            const exprTabBtn = document.createElement("button");
-            exprTabBtn.className = "ebc-tab-btn";
-            exprTabBtn.id = "ebc-tab-expr";
-            exprTabBtn.textContent = "FACE";
-            exprTabBtn.title = "Expression Quickbar";
             const notesTabBtn = document.createElement("button");
             notesTabBtn.className = "ebc-tab-btn";
             notesTabBtn.id = "ebc-tab-notes";
@@ -15053,7 +15048,6 @@
             tabBar.appendChild(outfitTabBtn);
             tabBar.appendChild(btnsTabBtn);
             tabBar.appendChild(posesTabBtn);
-            tabBar.appendChild(exprTabBtn);
             tabBar.appendChild(notesTabBtn);
             tabBar.appendChild(thanksTabBtn);
             tabBar.appendChild(devTabBtn2);
@@ -15711,7 +15705,6 @@
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
             btnsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
-            exprTabBtn.addEventListener("click", () => this.switchTab("expr"));
             domTabBtn.addEventListener("click", () => this.switchTab("dom"));
             puppyTabBtn.addEventListener("click", () => this.switchTab("puppy"));
             kittyTabBtn.addEventListener("click", () => this.switchTab("kitty"));
@@ -16124,7 +16117,6 @@
                 ["ebc-tab-outfits", "outfits"],
                 ["ebc-tab-poses", "anims"],
                 ["ebc-tab-buttons", "buttons"],
-                ["ebc-tab-expr", "expr"],
                 ["ebc-tab-notes", "notes"],
                 ["ebc-tab-thanks", "thanks"],
                 ["ebc-tab-dev", "dev"],
@@ -16145,8 +16137,6 @@
                 this.renderPoses();
             else if (this.currentTab === "buttons")
                 this.renderButtons();
-            else if (this.currentTab === "expr")
-                this.renderExpressions();
             else if (this.currentTab === "notes")
                 this.renderNotes();
             else if (this.currentTab === "thanks")
@@ -24834,6 +24824,51 @@
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Face Presets collapsible ──────────────────────────────────────────
+            {
+                let faceCollapsed = true;
+                try {
+                    const v = localStorage.getItem("EBC_facePresetsCollapsed");
+                    if (v !== null)
+                        faceCollapsed = v === "1";
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+                const faceHdr = document.createElement("div");
+                faceHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:4px 0 4px;margin-bottom:2px;";
+                const faceChev = document.createElement("span");
+                faceChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
+                const faceLbl = document.createElement("span");
+                faceLbl.className = "ebc-section-label";
+                faceLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
+                faceLbl.textContent = "FACE PRESETS";
+                const faceHint = document.createElement("span");
+                faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
+                faceHint.textContent = "build & save expression presets";
+                faceHdr.appendChild(faceChev);
+                faceHdr.appendChild(faceLbl);
+                faceHdr.appendChild(faceHint);
+                body.appendChild(faceHdr);
+                const faceBody = document.createElement("div");
+                const updateFaceChev = () => {
+                    faceChev.textContent = faceCollapsed ? "▶" : "▼";
+                    faceBody.style.display = faceCollapsed ? "none" : "";
+                };
+                updateFaceChev();
+                faceHdr.addEventListener("click", () => {
+                    faceCollapsed = !faceCollapsed;
+                    try {
+                        localStorage.setItem("EBC_facePresetsCollapsed", faceCollapsed ? "1" : "0");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    updateFaceChev();
+                });
+                this.renderExpressions(faceBody);
+                body.appendChild(faceBody);
+                const faceDivider = document.createElement("div");
+                faceDivider.className = "ebc-divider";
+                faceDivider.style.margin = "6px 0";
+                body.appendChild(faceDivider);
+            }
             // Working category state
             const cats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
             let activeCatIdx = getActiveCategoryIndex();
@@ -27544,13 +27579,15 @@
             exprCBody.appendChild(exprHint);
             body.appendChild(exprWrap2);
         }
-        renderExpressions() {
+        renderExpressions(container) {
             var _a, _b, _c, _d;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
+            const body = container !== null && container !== void 0 ? container : (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
-            while (body.firstChild)
-                body.removeChild(body.firstChild);
+            if (!container) {
+                while (body.firstChild)
+                    body.removeChild(body.firstChild);
+            }
             const F = "font-family:'Trebuchet MS',serif;font-size:";
             const BTN_BASE = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;`;
             // ── Presets section ───────────────────────────────────────────────────
@@ -29278,7 +29315,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.4.6";
+    const MOD_VERSION = "2.4.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29289,6 +29326,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.4.7",
+            changes: [
+                "Remove: the separate FACE tab is gone. Expression presets now live in a collapsible 'FACE PRESETS' section at the top of the BUTTONS tab — click the expression chips to compose a face, name it, hit Save face, then set any button slot's style dropdown to 🎭 preset and pick it.",
+            ],
+        },
         {
             version: "2.4.6",
             changes: [
