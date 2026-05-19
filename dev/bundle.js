@@ -2350,18 +2350,51 @@
     // otherwise falls back to direct Appearance manipulation.
     function applyExprGroup(group, exprName) {
         try {
+            // Prefer BC's official API — omit optional Timer/Color args entirely so BC
+            // uses its own defaults (no timer = keep expression; no colour override).
+            // Passing null for Timer can be treated as "0 ms" in some BC builds which
+            // would instantly clear the expression.
             const setExpr = window.CharacterSetFacialExpression;
-            if (setExpr) {
-                setExpr(Player, group, exprName, null, null);
+            if (typeof setExpr === "function") {
+                setExpr(Player, group, exprName);
             }
             else {
-                const idx = Player.Appearance.findIndex((i) => i.Asset.Group.Name === group);
-                if (idx !== -1)
-                    Player.Appearance.splice(idx, 1);
-                if (exprName) {
-                    const asset = AssetGet(Player.AssetFamily, group, exprName);
-                    if (asset)
-                        Player.Appearance.push({ Asset: asset, Color: "Default", Difficulty: 0 });
+                // Fallback: direct Appearance manipulation.
+                // Also try BC's InventoryWear / InventoryRemove if available.
+                const wear = window.InventoryWear;
+                const remove = window.InventoryRemove;
+                if (typeof wear === "function" && typeof remove === "function") {
+                    if (exprName) {
+                        wear(Player, exprName, group, "Default", 0);
+                        // Ensure Property.Expression is set (some BC builds leave it unset)
+                        const item = Player.Appearance.find(i => i.Asset.Group.Name === group);
+                        if (item) {
+                            if (!item.Property)
+                                item.Property = {};
+                            item.Property.Expression = exprName;
+                        }
+                    }
+                    else {
+                        remove(Player, group);
+                    }
+                }
+                else {
+                    // Last-resort: splice + push the variant asset
+                    const app = Player.Appearance;
+                    const idx = app.findIndex(i => i.Asset.Group.Name === group);
+                    if (idx !== -1)
+                        app.splice(idx, 1);
+                    if (exprName) {
+                        const asset = AssetGet(Player.AssetFamily, group, exprName);
+                        if (asset) {
+                            app.push({
+                                Asset: asset,
+                                Color: "Default",
+                                Difficulty: 0,
+                                Property: { Expression: exprName },
+                            });
+                        }
+                    }
                 }
             }
             callBC(() => CharacterRefresh(Player, false));
@@ -3109,10 +3142,15 @@
                 my >= y && my <= y + BTN_SIZE) {
                 const btnStyle = (_c = btn.style) !== null && _c !== void 0 ? _c : "action";
                 if (btnStyle === "exprPreset") {
-                    try {
-                        applyExprPresetWithRevert(btn.emote, (_d = btn.exprRevertMs) !== null && _d !== void 0 ? _d : 0);
+                    if (!btn.emote) {
+                        localNotice$1("Expression preset not configured — open BUTTONS tab to set it up.");
                     }
-                    catch ( /* ignore */_f) { /* ignore */ }
+                    else {
+                        try {
+                            applyExprPresetWithRevert(btn.emote, (_d = btn.exprRevertMs) !== null && _d !== void 0 ? _d : 0);
+                        }
+                        catch ( /* ignore */_f) { /* ignore */ }
+                    }
                     return true;
                 }
                 if (btnStyle === "expression") {
@@ -3125,6 +3163,9 @@
                             applyExprGroup(grp, expr);
                         }
                         catch ( /* ignore */_g) { /* ignore */ }
+                    }
+                    else {
+                        localNotice$1("Expression not configured — open BUTTONS tab to set Group:Name.");
                     }
                     return true;
                 }
@@ -25289,7 +25330,7 @@
             activeBodyEl.appendChild(importPanel);
             // ── Face Presets collapsible (inside the active category) ─────────────
             {
-                let faceCollapsed = true;
+                let faceCollapsed = false; // open by default
                 try {
                     const v = localStorage.getItem("EBC_facePresetsCollapsed");
                     if (v !== null)
@@ -29315,7 +29356,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.4.8";
+    const MOD_VERSION = "2.4.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29326,6 +29367,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.4.9",
+            changes: [
+                "Fix: expression buttons (🎭 preset / 🎭 expr) now correctly apply. Root cause: CharacterSetFacialExpression was called with null for the optional Timer argument which some BC builds treat as '0 ms' and immediately clear the expression. Now called without optional args. Fallback path also fixed: tries InventoryWear first, then falls back to manual Appearance splice; both now correctly set Property.Expression so preset capture works.",
+                "Fix: sidebar 🎭 preset buttons now show a local notice if clicked with no preset configured, instead of silently doing nothing.",
+                "UX: FACE PRESETS section now starts expanded by default so the expression chips are immediately visible when you open the BUTTONS tab.",
+            ],
+        },
         {
             version: "2.4.8",
             changes: [
