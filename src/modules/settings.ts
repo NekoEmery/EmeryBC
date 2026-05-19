@@ -339,3 +339,64 @@ export function clearPeopleMet(): void {
         syncSettings();
     } catch { /* ignore */ }
 }
+
+// -- Badge style ---------------------------------------------------------------
+// "text": the classic EBC rectangle badge
+// "cat":  a cat-face emoji drawn directly on the canvas at the badge position
+
+export type BadgeStyle = "text" | "cat";
+
+export function getBadgeStyle(): BadgeStyle {
+    try { return getStore()?.badgeStyle === "cat" ? "cat" : "text"; } catch { return "text"; }
+}
+export function setBadgeStyle(v: BadgeStyle): void {
+    try { const s = getStore(); if (s) { s.badgeStyle = v; syncSettings(); } } catch { /* ignore */ }
+}
+
+// -- Badge scale ---------------------------------------------------------------
+// Multiplier applied on top of the room zoom. 1.0 = default size.
+// Range: 0.3 – 4.0
+
+export function getBadgeScale(): number {
+    try {
+        const v = getStore()?.badgeScale;
+        return typeof v === "number" && v >= 0.3 && v <= 4 ? v : 1.0;
+    } catch { return 1.0; }
+}
+export function setBadgeScale(v: number): void {
+    try { const s = getStore(); if (s) { s.badgeScale = Math.max(0.3, Math.min(4, v)); syncSettings(); } } catch { /* ignore */ }
+}
+
+// -- Badge position offset (character-relative) --------------------------------
+// Stored as offsets from the character's draw origin (left, top), in
+// character-local canvas pixels — multiplied by zoom when drawing.
+// X=250 = horizontal centre of the 500 px character slot.
+// Y=72  = just below the WCE name line.
+
+export function getBadgeOffsetX(): number {
+    try { const v = getStore()?.badgeOffsetX; return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250; } catch { return 250; }
+}
+export function setBadgeOffsetX(v: number): void {
+    try { const s = getStore(); if (s) { s.badgeOffsetX = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+}
+
+export function getBadgeOffsetY(): number {
+    try { const v = getStore()?.badgeOffsetY; return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 72; } catch { return 72; }
+}
+export function setBadgeOffsetY(v: number): void {
+    try { const s = getStore(); if (s) { s.badgeOffsetY = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+}
+
+export function resetBadgePosition(): void {
+    setBadgeOffsetX(250);
+    setBadgeOffsetY(72);
+}
+
+// -- Badge drag mode (in-memory only, never persisted) -------------------------
+// When true: a dashed ring appears on your own badge in the chatroom canvas,
+// and canvas mouse/touch events allow click-dragging the badge to reposition.
+// Automatically cleared when the drag completes or the user leaves a room.
+
+let _badgeDragMode = false;
+export function getBadgeDragMode(): boolean { return _badgeDragMode; }
+export function setBadgeDragMode(v: boolean): void { _badgeDragMode = v; }

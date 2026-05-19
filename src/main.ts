@@ -6,7 +6,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getBadgeScale, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.8.1";
+const MOD_VERSION = "2.8.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.8.2",
+        changes: [
+            "Feature: Custom EBC badge — toggle between classic text tag and cat-face emoji. Scale the badge with a slider (0.3×–3×). Drag to reposition the badge anywhere on your character; the same offset is applied consistently to every player's badge.",
+        ],
+    },
     {
         version: "2.8.1",
         changes: [
@@ -3827,48 +3833,184 @@ function hasEmeryBC(character: Character | null | undefined): boolean {
     return !!getSharedPresence(character);
 }
 
+// Tracks the player character's last-drawn canvas position so the drag
+// listener can convert mouse coordinates into character-relative offsets.
+let _playerCharLeft = 0;
+let _playerCharTop  = 0;
+let _playerCharZoom = 1;
+let _isDraggingBadge = false;
+
+/** Returns the BC main canvas element, checking both the window global and DOM. */
+function getBCCanvas(): HTMLCanvasElement | null {
+    try {
+        const wc = (window as unknown as Record<string, unknown>).MainCanvas;
+        if (wc instanceof HTMLCanvasElement) return wc;
+        return document.getElementById("MainCanvas") as HTMLCanvasElement | null;
+    } catch { return null; }
+}
+
+/** Convert a screen-space mouse/touch event position to BC canvas coordinates. */
+function toCanvasPos(canvas: HTMLCanvasElement, clientX: number, clientY: number): { x: number; y: number } {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (clientX - rect.left) * (canvas.width  / rect.width),
+        y: (clientY - rect.top)  * (canvas.height / rect.height),
+    };
+}
+
+/**
+ * Attach mouse + touch listeners to the BC canvas so the user can click-drag
+ * the EBC badge to a new position when drag mode is active.
+ * Called once during mod init; safe to call if the canvas isn't ready yet
+ * (it retries via setTimeout).
+ */
+function initBadgeDragListeners(): void {
+    const canvas = getBCCanvas();
+    if (!canvas) { window.setTimeout(initBadgeDragListeners, 1000); return; }
+
+    const HIT = 35; // px radius around badge centre that counts as a "hit"
+
+    const onDown = (clientX: number, clientY: number, consume: () => void): void => {
+        if (!getBadgeDragMode()) return;
+        const pos = toCanvasPos(canvas, clientX, clientY);
+        const bx  = _playerCharLeft + getBadgeOffsetX() * _playerCharZoom;
+        const by  = _playerCharTop  + getBadgeOffsetY() * _playerCharZoom;
+        if (Math.abs(pos.x - bx) < HIT && Math.abs(pos.y - by) < HIT) {
+            _isDraggingBadge = true;
+            consume();
+        }
+    };
+
+    const onMove = (clientX: number, clientY: number, consume: () => void): void => {
+        if (!_isDraggingBadge) return;
+        const pos = toCanvasPos(canvas, clientX, clientY);
+        if (_playerCharZoom > 0) {
+            setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+            setBadgeOffsetY((pos.y - _playerCharTop)  / _playerCharZoom);
+        }
+        consume();
+    };
+
+    const onUp = (): void => {
+        if (_isDraggingBadge) {
+            _isDraggingBadge = false;
+            setBadgeDragMode(false); // auto-exit drag mode on release
+        }
+    };
+
+    // Mouse
+    canvas.addEventListener("mousedown",  (e) => onDown(e.clientX, e.clientY, () => { e.stopPropagation(); e.preventDefault(); }));
+    canvas.addEventListener("mousemove",  (e) => onMove(e.clientX, e.clientY, () => { e.stopPropagation(); }));
+    canvas.addEventListener("mouseup",    ()  => onUp());
+
+    // Touch (for phone users)
+    canvas.addEventListener("touchstart", (e) => {
+        const t = e.touches[0]; if (!t) return;
+        onDown(t.clientX, t.clientY, () => { e.stopPropagation(); e.preventDefault(); });
+    }, { passive: false });
+    canvas.addEventListener("touchmove",  (e) => {
+        const t = e.touches[0]; if (!t) return;
+        onMove(t.clientX, t.clientY, () => { e.stopPropagation(); e.preventDefault(); });
+    }, { passive: false });
+    canvas.addEventListener("touchend",   ()  => onUp());
+}
+
 function drawPresenceMarker(args: unknown[]): void {
     if (CurrentScreen !== "ChatRoom") return;
 
     const character = args[0] as Character | undefined;
     const left = typeof args[1] === "number" ? args[1] : null;
-    const top = typeof args[2] === "number" ? args[2] : null;
+    const top  = typeof args[2] === "number" ? args[2] : null;
     const zoom = typeof args[3] === "number" ? args[3] : 1;
     if (!character || left == null || top == null) return;
+
     const isSelf = character.MemberNumber === Player.MemberNumber;
 
-    // Separate display toggles: own badge vs others' badges (both client-side only)
+    // Track player draw position every frame — used by the drag listener.
+    if (isSelf) {
+        _playerCharLeft = left;
+        _playerCharTop  = top;
+        _playerCharZoom = zoom;
+    }
+
+    // Visibility toggles
     if (isSelf && !getBadgeEnabled()) return;
     if (!isSelf && !getShowOthersBadge()) return;
     if (!isSelf && !hasEmeryBC(character)) return;
 
-    const presence = getSharedPresence(character);
-    const showVer  = getShowVersionBadge();
-    // For self, always use the live MOD_VERSION — cached presence may be stale.
-    const verStr   = isSelf ? MOD_VERSION : (presence?.version ?? "?");
-    const isDevUser = isSelf ? IS_DEV_BUILD : (presence?.isDev === true);
-    const label = isDevUser
+    // Skip map / bird's-eye view
+    if (zoom < 0.3) return;
+
+    const presence   = getSharedPresence(character);
+    const showVer    = getShowVersionBadge();
+    const verStr     = isSelf ? MOD_VERSION : (presence?.version ?? "?");
+    const isDevUser  = isSelf ? IS_DEV_BUILD : (presence?.isDev === true);
+    const label      = isDevUser
         ? (showVer ? "dev | v" + verStr : "dev | EBC")
         : (showVer ? "v" + verStr : "EBC");
 
-    // Hide in map/bird's-eye view (very low zoom). Crowded rooms reduce zoom too
-    // but stay well above 0.3, so only skip true map-view zoom.
-    if (zoom < 0.3) return;
+    // User-configured position offset + scale
+    const offsetX   = getBadgeOffsetX();   // default 250 (char horiz centre)
+    const offsetY   = getBadgeOffsetY();   // default 72  (below WCE name)
+    const userScale = getBadgeScale();     // default 1.0
+    const badgeStyle = getBadgeStyle();    // "text" | "cat"
 
-    const isDevLabel = isDevUser;
-    const width  = isDevLabel
-        ? (showVer ? Math.max(70, 78 * zoom) : Math.max(52, 58 * zoom))
-        : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
-    const height = Math.max(12, 14 * zoom);
+    const x = left + offsetX * zoom;
+    const y = top  + offsetY * zoom;
 
-    const x = left + 250 * zoom;  // horizontal center of the 500px character canvas slot
-    const y = top + 72 * zoom;   // below WCE name + version line
-    const badgeLeft = x - width / 2;
-    const badgeTop = y - height / 2;
+    if (badgeStyle === "cat") {
+        // ── Cat-face emoji badge ──────────────────────────────────────────────
+        const canvas = getBCCanvas();
+        const ctx = canvas?.getContext("2d");
+        if (ctx) {
+            const fontSize = Math.max(12, Math.round(22 * zoom * userScale));
+            ctx.save();
+            ctx.font = `${fontSize}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
+            ctx.textAlign    = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("🐱", x, y);
+            ctx.restore();
+        }
+    } else {
+        // ── Text badge (original style) ───────────────────────────────────────
+        const baseW = isDevUser
+            ? (showVer ? 78 : 58)
+            : (showVer ? 50 : 34);
+        const baseH = 14;
+        const width  = Math.max(baseW * 0.6, baseW * zoom * userScale);
+        const height = Math.max(baseH * 0.6, baseH * zoom * userScale);
 
-    DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
-    DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
-    DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
+        const badgeLeft = x - width  / 2;
+        const badgeTop  = y - height / 2;
+
+        DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
+        DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
+        DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
+    }
+
+    // ── Drag-mode handle (own character only) ─────────────────────────────────
+    if (isSelf && getBadgeDragMode()) {
+        const canvas = getBCCanvas();
+        const ctx = canvas?.getContext("2d");
+        if (ctx) {
+            const r = Math.max(16, 22 * zoom * userScale);
+            ctx.save();
+            ctx.strokeStyle = "rgba(207,111,152,0.9)";
+            ctx.lineWidth   = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // Small "move" label above ring
+            ctx.fillStyle    = "rgba(207,111,152,0.9)";
+            ctx.font         = `bold ${Math.max(9, Math.round(11 * zoom))}px "Trebuchet MS",serif`;
+            ctx.textAlign    = "center";
+            ctx.textBaseline = "bottom";
+            ctx.fillText("drag", x, y - r - 2);
+            ctx.restore();
+        }
+    }
 }
 
 function showRoomLoadNotice(): void {
@@ -3925,6 +4067,9 @@ function init(): void {
 
     // Attach hold-to-drag for the grip handle (mousedown/touchstart on canvas)
     try { initDragListener(); } catch { /* ignore */ }
+
+    // Canvas listeners for badge repositioning drag mode
+    try { initBadgeDragListeners(); } catch { /* ignore */ }
 
     // DOM drawer - outfit switcher panel beside the chat log
     let drawer: EBCDrawer | null = null;
@@ -4149,6 +4294,7 @@ function init(): void {
         const result = next(args);
         try { timerOnRoomLeave(); } catch { /* ignore */ }
         try { onRoomLeave();     } catch { /* ignore */ }
+        try { setBadgeDragMode(false); _isDraggingBadge = false; } catch { /* ignore */ }
         return result;
     });
 
