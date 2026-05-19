@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.10
+// @version      2.5.11
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12170,6 +12170,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "anims.delay": { en: "Delay (ms)", de: "Verzögerung (ms)", zh: "延迟（毫秒）", fr: "Délai (ms)", es: "Retardo (ms)" },
         "anims.addStep": { en: "+ Add Step", de: "+ Schritt hinzufügen", zh: "+ 添加步骤", fr: "+ Ajouter une étape", es: "+ Añadir paso" },
         // ─── USERS/NOTES TAB ───────────────────────────────────────────────────
+        "users.peopleInRoom": { en: "People in Room", de: "Personen im Raum", zh: "房间中的人", fr: "Personnes dans la salle", es: "Personas en la sala" },
+        "users.friends": { en: "Friends", de: "Freunde", zh: "好友", fr: "Amis", es: "Amigos" },
+        "users.autoReplyWhenAfk": { en: "Auto-reply when AFK", de: "Auto-Antwort wenn AFK", zh: "AFK 时自动回复", fr: "Réponse auto quand AFK", es: "Respuesta auto cuando AFK" },
         "users.header": { en: "User Notes", de: "Benutzernotizen", zh: "用户笔记", fr: "Notes utilisateur", es: "Notas de usuario" },
         "users.noteHint": { en: "Notes about this person...", de: "Notizen zu dieser Person...", zh: "关于此人的备注...", fr: "Notes sur cette personne...", es: "Notas sobre esta persona..." },
         "users.savedAutomatically": { en: "Saved automatically", de: "Automatisch gespeichert", zh: "自动保存", fr: "Sauvegardé automatiquement", es: "Guardado automáticamente" },
@@ -15618,7 +15621,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slSeqArea.rows = 3;
             slSeqArea.spellcheck = false;
             slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
-            slSeqArea.title = "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}";
+            slSeqArea.title = t("sl.seqHint");
             const slSeqInitPresets = getSlowLeavePresets();
             const slSeqInitIdx = parseInt((_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0", 10);
             slSeqArea.value = (_c = (_b = slSeqInitPresets[slSeqInitIdx]) === null || _b === void 0 ? void 0 : _b.seq) !== null && _c !== void 0 ? _c : "";
@@ -17135,7 +17138,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 type: "text",
                 placeholder: t("outfits.timePlaceholder"),
                 maxLength: 5,
-                title: "24-hour time (e.g. 08:30, 14:00)",
+                title: t("outfits.timeTitle"),
             });
             timeInput.className = "ebc-form-input";
             timeInput.style.width = "72px";
@@ -18707,7 +18710,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 className: "ebc-form-input", type: "text", placeholder: t("outfits.namePlaceholder"),
             });
             const bcCmdInput = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", placeholder: "Command (e.g. ropeset)",
+                className: "ebc-form-input", type: "text", placeholder: t("outfits.cmdPlaceholder"),
                 maxLength: 20,
             });
             const mkRow = (label, el) => {
@@ -18877,7 +18880,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     className: "ebc-form-input", type: "text", placeholder: "Restraint set name (e.g. Hogtied)",
                 });
                 const impRCmdInput = Object.assign(document.createElement("input"), {
-                    className: "ebc-form-input", type: "text", placeholder: "Command (e.g. hogtied)",
+                    className: "ebc-form-input", type: "text", placeholder: t("outfits.cmdPlaceholder"),
                     maxLength: 20,
                 });
                 const mkImpRRow = (label, el) => {
@@ -19846,7 +19849,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             // ── Saved Combos (collapsible) ────────────────────────────────────────
-            const combosCnt = makeCollapse("SAVED COMBOS", "EBC_combosCollapsed", false);
+            const combosCnt = makeCollapse(t("anims.poseCombos"), "EBC_combosCollapsed", false);
             const combos = getPoseCombos();
             if (combos.length === 0) {
                 const none = document.createElement("div");
@@ -19983,7 +19986,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 saveBar.style.marginTop = "2px";
                 const savComboBtn = document.createElement("button");
                 savComboBtn.className = "ebc-create-btn";
-                savComboBtn.textContent = "Save Changes";
+                savComboBtn.textContent = t("outfits.saveChanges");
                 savComboBtn.addEventListener("click", () => {
                     updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
                     this.rerender();
@@ -20945,7 +20948,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 botSaveBar.style.marginTop = "2px";
                 const botSaveBtn = document.createElement("button");
                 botSaveBtn.className = "ebc-create-btn";
-                botSaveBtn.textContent = "Save Changes";
+                botSaveBtn.textContent = t("outfits.saveChanges");
                 botSaveBtn.addEventListener("click", () => {
                     updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
                     this.rerender();
@@ -21719,7 +21722,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             afkToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;";
             const afkToggleLbl = document.createElement("span");
             afkToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            afkToggleLbl.textContent = "Auto-reply when AFK";
+            afkToggleLbl.textContent = t("users.autoReplyWhenAfk");
             const afkToggleBtn = document.createElement("button");
             const refreshAfkToggle = () => {
                 const on = getAfkEnabled();
@@ -22135,7 +22138,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         arrow.textContent = col ? "▶" : "▼";
                         const lbl = document.createElement("span");
                         lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
-                        lbl.textContent = `People in Room`;
+                        lbl.textContent = t("users.peopleInRoom");
                         const cnt = document.createElement("span");
                         cnt.style.cssText = [
                             "font-family:'Trebuchet MS',serif",
@@ -22189,7 +22192,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lblF.className = "ebc-section-label";
                 lblF.style.cssText = "display:flex;align-items:center;gap:6px;";
                 const lblFText = document.createElement("span");
-                lblFText.textContent = "Friends";
+                lblFText.textContent = t("users.friends");
                 const lblFCount = document.createElement("span");
                 lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;flex:1;";
                 lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
@@ -29784,7 +29787,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.10";
+    const MOD_VERSION = "2.5.11";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29795,6 +29798,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.11",
+            changes: [
+                "i18n (continued): wire remaining static strings — 'People in Room', 'Friends', 'Auto-reply when AFK' labels; slow-leave sequence hint tooltip; pose combos section header; scene/combo save-changes buttons; outfit/restraint command placeholders; add new users.peopleInRoom / users.friends / users.autoReplyWhenAfk keys to translation table.",
+            ],
+        },
         {
             version: "2.5.10",
             changes: [
