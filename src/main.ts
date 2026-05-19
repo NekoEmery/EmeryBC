@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.4.4";
+const MOD_VERSION = "2.4.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.4.5",
+        changes: [
+            "BUTTONS tab: each slot now has a compact style dropdown replacing the old ( )/( * ) toggle. Options are ( ) action, * * emote, 🎭 preset (full-face expression preset), 🎭 expr (single expression group), ✨ seq. You can now set any existing button — including NOD, SHAKE, etc. — to apply an expression or full-face preset directly from the slot editor.",
+        ],
+    },
     {
         version: "2.4.4",
         changes: [

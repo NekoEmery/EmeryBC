@@ -13404,7 +13404,7 @@ export class EBCDrawer {
                 topLine.appendChild(moveDownBtn);
                 topLine.appendChild(delBtn);
 
-                // Bottom line: style toggle | emote input  (varies by style)
+                // Bottom line: style selector | content (varies by style)
                 const botLine = document.createElement("div");
                 botLine.className = "ebc-slot-bottom";
 
@@ -13413,13 +13413,30 @@ export class EBCDrawer {
                 const isExprPreset = currentStyle === "exprPreset";
                 const isExpression = currentStyle === "expression";
 
-                if (isExprPreset) {
-                    // exprPreset: preset selector + revert duration
-                    const exprBadge = document.createElement("span");
-                    exprBadge.className = "ebc-slot-seq-badge";
-                    exprBadge.textContent = "🎭";
-                    exprBadge.title = "Expression preset button";
+                // Universal style selector — always shown, lets user switch between all styles
+                const styleSel = document.createElement("select");
+                styleSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#b080d0;padding:1px 2px;cursor:pointer;flex-shrink:0;max-width:64px;";
+                styleSel.title = "Button style";
+                for (const [val, lbl] of [
+                    ["action",    "( ) action"  ],
+                    ["emote",     "* * emote"   ],
+                    ["exprPreset","🎭 preset"   ],
+                    ["expression","🎭 expr"     ],
+                    ["seq",       "✨ seq"       ],
+                ] as [ActionStyle, string][]) {
+                    const o = document.createElement("option");
+                    o.value = val; o.textContent = lbl; o.selected = val === currentStyle;
+                    styleSel.appendChild(o);
+                }
+                styleSel.addEventListener("change", () => {
+                    btns[i].style = styleSel.value as ActionStyle;
+                    if (styleSel.value !== "exprPreset") delete btns[i].exprRevertMs;
+                    renderSlots();
+                });
+                botLine.appendChild(styleSel);
 
+                if (isExprPreset) {
+                    // exprPreset: preset selector + optional revert duration
                     const presetSel = document.createElement("select");
                     presetSel.className = "ebc-slot-emote";
                     presetSel.style.cssText = "font-size:9px;cursor:pointer;";
@@ -13451,18 +13468,12 @@ export class EBCDrawer {
                     revertSfx.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a8a;flex-shrink:0;";
                     revertSfx.textContent = "s";
 
-                    botLine.appendChild(exprBadge);
                     botLine.appendChild(presetSel);
                     botLine.appendChild(revertLbl);
                     botLine.appendChild(revertInp);
                     botLine.appendChild(revertSfx);
                 } else if (isExpression) {
-                    // Single-expression: badge + editable "Group:Name" field
-                    const exprBadge = document.createElement("span");
-                    exprBadge.className = "ebc-slot-seq-badge";
-                    exprBadge.textContent = "🎭";
-                    exprBadge.title = "Single expression button (Group:ExprName)";
-
+                    // Single-expression: editable "Group:Name" field
                     const emoteInp = document.createElement("input");
                     emoteInp.className = "ebc-slot-emote";
                     emoteInp.type = "text"; emoteInp.maxLength = 60;
@@ -13471,24 +13482,9 @@ export class EBCDrawer {
                     emoteInp.title = "Group:ExpressionName — e.g. Eyes:Shy";
                     emoteInp.addEventListener("input", () => { btns[idx].emote = emoteInp.value; });
 
-                    botLine.appendChild(exprBadge);
                     botLine.appendChild(emoteInp);
                 } else {
-                    // action / emote / seq — original layout
-                    const styleBtn = document.createElement("button");
-                    styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
-                    styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
-                    styleBtn.title = currentStyle === "emote"
-                        ? "Style: * emote * — click to switch"
-                        : "Style: ( action ) — click to switch";
-                    styleBtn.style.display = isSeq ? "none" : "";
-
-                    const seqBadge = document.createElement("span");
-                    seqBadge.className = "ebc-slot-seq-badge";
-                    seqBadge.textContent = "✨";
-                    seqBadge.title = "Animation button — edit the sequence below";
-                    seqBadge.style.display = isSeq ? "inline" : "none";
-
+                    // action / emote / seq — text emote input + optional name chip
                     const emoteInp = document.createElement("input");
                     emoteInp.className = "ebc-slot-emote";
                     emoteInp.type = "text"; emoteInp.maxLength = 240;
@@ -13514,20 +13510,7 @@ export class EBCDrawer {
                         nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
                         nameChip.textContent = next ? "name" : "anon";
                     });
-                    styleBtn.addEventListener("click", () => {
-                        const cur: ActionStyle = btns[idx].style ?? "action";
-                        if (cur === "seq") return;
-                        const next: "action" | "emote" = cur === "action" ? "emote" : "action";
-                        btns[idx].style = next;
-                        styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
-                        styleBtn.textContent = next === "emote" ? "* *" : "( )";
-                        styleBtn.title = next === "emote" ? "Style: * emote * — click to switch" : "Style: ( action ) — click to switch";
-                        emoteInp.title = next === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                        nameChip.style.display = next === "action" ? "" : "none";
-                    });
 
-                    botLine.appendChild(styleBtn);
-                    botLine.appendChild(seqBadge);
                     botLine.appendChild(nameChip);
                     botLine.appendChild(emoteInp);
                 }
