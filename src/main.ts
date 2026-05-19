@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.0";
+const MOD_VERSION = "2.5.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.1",
+        changes: [
+            "UX: Expression slot editor reworked. 🎭 expr buttons now show two dropdowns (group picker + expression variant picker) instead of a raw 'Group:ExprName' text field. 🎭 preset buttons now show a ♾ keep / 3s / 5s / 10s / 30s / 1min dropdown instead of a bare number input.",
+            "UX: New face preset buttons added via → now default to ♾ keep (no auto-revert) instead of 5 s.",
+            "UX: Preset names in the FACE PRESETS list are now inline-editable — click the name to rename without having to delete and recreate.",
+            "UX: Trigger form duration replaced with same ♾ / time dropdown for consistency.",
+        ],
+    },
     {
         version: "2.5.0",
         changes: [

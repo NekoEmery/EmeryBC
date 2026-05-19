@@ -13426,12 +13426,12 @@ export class EBCDrawer {
                 botLine.appendChild(styleSel);
 
                 if (isExprPreset) {
-                    // exprPreset: preset selector + optional revert duration
+                    // exprPreset: face preset selector + how-long dropdown
                     const presetSel = document.createElement("select");
                     presetSel.className = "ebc-slot-emote";
-                    presetSel.style.cssText = "font-size:9px;cursor:pointer;";
+                    presetSel.style.cssText = "font-size:9px;cursor:pointer;flex:1;";
                     const emptyOpt = document.createElement("option");
-                    emptyOpt.value = ""; emptyOpt.textContent = "— pick preset —";
+                    emptyOpt.value = ""; emptyOpt.textContent = "— pick face —";
                     presetSel.appendChild(emptyOpt);
                     for (const p of getExpressionPresets()) {
                         const opt = document.createElement("option");
@@ -13441,38 +13441,78 @@ export class EBCDrawer {
                     }
                     presetSel.addEventListener("change", () => { btns[idx].emote = presetSel.value; });
 
-                    const revertLbl = document.createElement("span");
-                    revertLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a8a;flex-shrink:0;white-space:nowrap;";
-                    revertLbl.textContent = "revert";
-
-                    const revertInp = document.createElement("input");
-                    revertInp.type = "number"; revertInp.min = "0"; revertInp.max = "3600"; revertInp.step = "1";
-                    revertInp.value = String(Math.round((btn.exprRevertMs ?? 0) / 1000));
-                    revertInp.style.cssText = "width:38px;font-size:9px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;text-align:right;flex-shrink:0;";
-                    revertInp.title = "Revert to default face after this many seconds (0 = keep forever)";
-                    revertInp.addEventListener("input", () => {
-                        btns[idx].exprRevertMs = Math.max(0, parseInt(revertInp.value) || 0) * 1000;
-                    });
-
-                    const revertSfx = document.createElement("span");
-                    revertSfx.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a8a;flex-shrink:0;";
-                    revertSfx.textContent = "s";
+                    // How long to hold the expression before reverting
+                    const REVERT_OPTS: [string, number][] = [
+                        ["♾ keep", 0],
+                        ["3 s",    3000],
+                        ["5 s",    5000],
+                        ["10 s",  10000],
+                        ["30 s",  30000],
+                        ["1 min", 60000],
+                    ];
+                    const revertSel = document.createElement("select");
+                    revertSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#9060c0;padding:1px 2px;cursor:pointer;flex-shrink:0;max-width:52px;";
+                    revertSel.title = "How long to hold this face (♾ = keep forever, never revert)";
+                    const curMs = btn.exprRevertMs ?? 0;
+                    let revertMatched = false;
+                    for (const [label, ms] of REVERT_OPTS) {
+                        const o = document.createElement("option");
+                        o.value = String(ms); o.textContent = label;
+                        if (ms === curMs) { o.selected = true; revertMatched = true; }
+                        revertSel.appendChild(o);
+                    }
+                    if (!revertMatched && curMs > 0) {
+                        const o = document.createElement("option");
+                        o.value = String(curMs); o.textContent = `${Math.round(curMs / 1000)} s`;
+                        o.selected = true; revertSel.appendChild(o);
+                    }
+                    revertSel.addEventListener("change", () => { btns[idx].exprRevertMs = parseInt(revertSel.value) || 0; });
 
                     botLine.appendChild(presetSel);
-                    botLine.appendChild(revertLbl);
-                    botLine.appendChild(revertInp);
-                    botLine.appendChild(revertSfx);
+                    botLine.appendChild(revertSel);
                 } else if (isExpression) {
-                    // Single-expression: editable "Group:Name" field
-                    const emoteInp = document.createElement("input");
-                    emoteInp.className = "ebc-slot-emote";
-                    emoteInp.type = "text"; emoteInp.maxLength = 60;
-                    emoteInp.placeholder = "Group:ExprName";
-                    emoteInp.value = btn.emote;
-                    emoteInp.title = "Group:ExpressionName — e.g. Eyes:Shy";
-                    emoteInp.addEventListener("input", () => { btns[idx].emote = emoteInp.value; });
+                    // Single-expression: group dropdown + expression dropdown
+                    const sep = btn.emote.indexOf(":");
+                    const curGroup = sep !== -1 ? btn.emote.slice(0, sep) : (EXPR_GROUPS[0] as string);
+                    const curExpr  = sep !== -1 ? btn.emote.slice(sep + 1) : "";
 
-                    botLine.appendChild(emoteInp);
+                    const groupSel = document.createElement("select");
+                    groupSel.className = "ebc-slot-emote";
+                    groupSel.style.cssText = "font-size:9px;cursor:pointer;flex-shrink:0;max-width:54px;";
+                    groupSel.title = "Expression group";
+                    for (const g of EXPR_GROUPS) {
+                        const o = document.createElement("option");
+                        o.value = g; o.textContent = EXPR_GROUP_LABELS[g] ?? g; o.selected = g === curGroup;
+                        groupSel.appendChild(o);
+                    }
+
+                    const exprSel = document.createElement("select");
+                    exprSel.className = "ebc-slot-emote";
+                    exprSel.style.cssText = "font-size:9px;cursor:pointer;flex:1;";
+                    exprSel.title = "Expression variant";
+
+                    const rebuildExprOpts = (group: string, current: string): void => {
+                        while (exprSel.firstChild) exprSel.removeChild(exprSel.firstChild);
+                        const none = document.createElement("option");
+                        none.value = ""; none.textContent = "— none —"; none.selected = !current;
+                        exprSel.appendChild(none);
+                        for (const opt of getExprGroupOptions(group)) {
+                            const o = document.createElement("option");
+                            o.value = opt; o.textContent = opt; o.selected = opt === current;
+                            exprSel.appendChild(o);
+                        }
+                    };
+                    rebuildExprOpts(curGroup, curExpr);
+
+                    const syncExprEmote = (): void => {
+                        const g = groupSel.value; const e = exprSel.value;
+                        btns[idx].emote = e ? `${g}:${e}` : g;
+                    };
+                    groupSel.addEventListener("change", () => { rebuildExprOpts(groupSel.value, ""); syncExprEmote(); });
+                    exprSel.addEventListener("change", syncExprEmote);
+
+                    botLine.appendChild(groupSel);
+                    botLine.appendChild(exprSel);
                 } else {
                     // action / emote / seq — text emote input + optional name chip
                     const emoteInp = document.createElement("input");
@@ -15463,10 +15503,22 @@ export class EBCDrawer {
                 applyBtn.title = "Apply this preset";
                 applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
 
-                // Name
-                const nameEl = document.createElement("span");
-                nameEl.style.cssText = `${F}10px;color:#e8d0d8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
-                nameEl.textContent = preset.name;
+                // Name — editable inline; click to rename
+                const nameEl = document.createElement("input");
+                nameEl.type = "text";
+                nameEl.value = preset.name;
+                nameEl.maxLength = 30;
+                nameEl.title = "Click to rename";
+                nameEl.style.cssText = `${F}10px;flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:#e8d0d8;padding:1px 4px;outline:none;font-family:'Trebuchet MS',serif;`;
+                nameEl.addEventListener("focus", () => { nameEl.style.borderColor = "#5a3a6e"; });
+                nameEl.addEventListener("blur", () => {
+                    nameEl.style.borderColor = "transparent";
+                    const trimmed = nameEl.value.trim();
+                    if (!trimmed) { nameEl.value = preset.name; return; }
+                    const all = getExpressionPresets();
+                    const pi = all.findIndex(p => p.id === preset.id);
+                    if (pi !== -1 && trimmed !== all[pi].name) { all[pi] = { ...all[pi], name: trimmed }; saveExpressionPresets(all); }
+                });
 
                 // ★ Default
                 const isDefault = preset.id === defaultId;
@@ -15485,7 +15537,7 @@ export class EBCDrawer {
                 const sidebarBtn = document.createElement("button");
                 sidebarBtn.style.cssText = BTN_BASE + "border:1px solid #3a2258;background:#200a2a;color:#9a6ac8;";
                 sidebarBtn.textContent = "→";
-                sidebarBtn.title = "Add as sidebar quick-key button (5 s revert default)";
+                sidebarBtn.title = "Add as a sidebar button — keeps the face on forever by default (change in slot editor)";
                 sidebarBtn.addEventListener("click", () => {
                     const catIdx  = getActiveCategoryIndex();
                     const allCats = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
@@ -15497,7 +15549,7 @@ export class EBCDrawer {
                         color: "#7a44a0",
                         enabled: true,
                         style: "exprPreset",
-                        exprRevertMs: 5000,
+                        exprRevertMs: 0,
                     };
                     const emptyIdx = cat.buttons.findIndex(b => !b.enabled || !b.label);
                     if (emptyIdx !== -1) {
@@ -15743,16 +15795,21 @@ export class EBCDrawer {
                     opt.value = p.id; opt.textContent = p.name;
                     presetSel.appendChild(opt);
                 }
-                const durInp = document.createElement("input");
-                durInp.style.cssText = INP_CSS + "width:38px;text-align:right;flex-shrink:0;";
-                durInp.type = "number"; durInp.min = "0"; durInp.max = "3600"; durInp.step = "1";
-                durInp.value = "5"; durInp.title = "Revert after this many seconds (0 = permanent)";
-                const durSfx = document.createElement("span");
-                durSfx.style.cssText = `${F}9px;color:#7a5a8a;flex-shrink:0;`;
-                durSfx.textContent = "s";
+                const TRIG_DUR_OPTS: [string, number][] = [
+                    ["♾ keep", 0], ["3 s", 3000], ["5 s", 5000],
+                    ["10 s", 10000], ["30 s", 30000], ["1 min", 60000],
+                ];
+                const durSel = document.createElement("select");
+                durSel.style.cssText = INP_CSS + "flex-shrink:0;max-width:60px;cursor:pointer;";
+                durSel.title = "How long to hold this face before reverting (♾ = keep forever)";
+                for (const [label, ms] of TRIG_DUR_OPTS) {
+                    const o = document.createElement("option");
+                    o.value = String(ms); o.textContent = label;
+                    if (ms === 5000) o.selected = true;
+                    durSel.appendChild(o);
+                }
                 formRow2.appendChild(presetSel);
-                formRow2.appendChild(durInp);
-                formRow2.appendChild(durSfx);
+                formRow2.appendChild(durSel);
                 trigBody.appendChild(formRow2);
 
                 const addTrigBtn = document.createElement("button");
@@ -15772,7 +15829,7 @@ export class EBCDrawer {
                         name: nameInp.value.trim() || match.slice(0, 15),
                         matchText: match,
                         presetId,
-                        durationMs: Math.max(0, parseInt(durInp.value) || 0) * 1000,
+                        durationMs: parseInt(durSel.value) || 0,
                     };
                     saveExpressionTriggers([...getExpressionTriggers(), newTrig]);
                     renderTrigList();
