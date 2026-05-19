@@ -25597,52 +25597,6 @@
             });
             addCatRow.appendChild(addCatBtn);
             body.appendChild(addCatRow);
-            // ── Face Presets — standalone section ────────────────────────────────────
-            {
-                let faceCollapsed = false;
-                try {
-                    const v = localStorage.getItem("EBC_facePresetsCollapsed");
-                    if (v !== null)
-                        faceCollapsed = v === "1";
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
-                const faceSection = document.createElement("div");
-                faceSection.style.cssText = "border:1px solid #3d1f5c;border-radius:6px;margin-bottom:8px;overflow:hidden;";
-                const faceHdr = document.createElement("div");
-                faceHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:5px 8px;background:#1a0d2e;";
-                faceHdr.title = "Build & save expression presets";
-                const faceChev = document.createElement("span");
-                faceChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
-                const faceLbl = document.createElement("span");
-                faceLbl.className = "ebc-section-label";
-                faceLbl.style.cssText = "margin:0;font-size:9px;color:#c49ae8;letter-spacing:0.06em;flex:1;";
-                faceLbl.textContent = t("expr.facePresets");
-                const faceHint = document.createElement("span");
-                faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#6a4a8e;";
-                faceHint.textContent = "expression presets";
-                faceHdr.appendChild(faceChev);
-                faceHdr.appendChild(faceLbl);
-                faceHdr.appendChild(faceHint);
-                const faceBody = document.createElement("div");
-                faceBody.style.cssText = "padding:6px;background:#100820;";
-                const updateFaceChev = () => {
-                    faceChev.textContent = faceCollapsed ? "▶" : "▼";
-                    faceBody.style.display = faceCollapsed ? "none" : "";
-                };
-                updateFaceChev();
-                faceHdr.addEventListener("click", () => {
-                    faceCollapsed = !faceCollapsed;
-                    try {
-                        localStorage.setItem("EBC_facePresetsCollapsed", faceCollapsed ? "1" : "0");
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    updateFaceChev();
-                });
-                this.renderExpressions(faceBody);
-                faceSection.appendChild(faceHdr);
-                faceSection.appendChild(faceBody);
-                body.appendChild(faceSection);
-            }
             // ── Slot list + render fn — appended into the active category body ─────
             const slotList = document.createElement("div");
             slotList.id = "ebc-slot-list";
@@ -29943,7 +29897,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.22";
+    const MOD_VERSION = "2.5.23";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29954,6 +29908,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.23",
+            changes: [
+                "Removed: Face Presets section from the Buttons tab — will be reworked and re-added later.",
+            ],
+        },
         {
             version: "2.5.22",
             changes: [
