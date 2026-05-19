@@ -597,6 +597,22 @@ const CSS = `
 .ebc-tab-btn:hover { color: #b07888; }
 .ebc-tab-btn.ebc-tab-active { color: #cf6f98; border-bottom-color: #cf6f98; }
 
+/* -- Language row -- */
+.ebc-lang-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 5px;
+    padding: 5px 8px;
+    border-bottom: 1px solid #2a1020;
+    background: rgba(15, 6, 12, 0.4);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    touch-action: pan-x;
+}
+.ebc-lang-row::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
 /* -- Body -- */
 .ebc-body {
     flex: 1;
@@ -3457,7 +3473,7 @@ export class EBCDrawer {
 
         // ── Language picker row — sits between tab bar and quick-actions ─────
         const langRow = document.createElement("div");
-        langRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border-bottom:1px solid #2a1020;background:rgba(15,6,12,0.4);flex-wrap:wrap;";
+        langRow.className = "ebc-lang-row";
 
         const langPills: HTMLButtonElement[] = [];
         const refreshLangPills = (): void => {
