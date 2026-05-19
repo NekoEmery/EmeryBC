@@ -14097,6 +14097,38 @@ export class EBCDrawer {
             refreshLeashBtn();
         });
         leashRow.appendChild(leashBtn);
+
+        // Pull Leash — triggers echo-activity-ext's "拉到身边" (Pull to One's Side) activity.
+        // Sends a standard BC Activity message; echo-activity-ext hooks ChatRoomMessage on both
+        // clients and runs the pair-and-follow handler when it sees this content.
+        const pullBtn = document.createElement("button");
+        pullBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 12px;border-radius:8px;cursor:pointer;border:2px solid #7a6a3888;background:rgba(60,50,30,0.35);color:#b0a070;flex-shrink:0;transition:background 0.12s,border-color 0.12s;";
+        pullBtn.textContent = "↗ Pull";
+        pullBtn.title = "Pull Emery to your side (requires echo-activity-ext on both ends; leash must be held)";
+        pullBtn.addEventListener("mouseenter", () => { pullBtn.style.background = "rgba(100,80,30,0.5)"; });
+        pullBtn.addEventListener("mouseleave", () => { pullBtn.style.background = "rgba(60,50,30,0.35)"; });
+        pullBtn.addEventListener("click", () => {
+            if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom") return;
+            if (!isLeashHeld()) {
+                pullBtn.textContent = "Hold leash first!";
+                window.setTimeout(() => { pullBtn.textContent = "↗ Pull"; }, 1500);
+                return;
+            }
+            const mood = getKittyMood();
+            sendRoomEmote(mood === "rough"
+                ? "gives Emery's leash a firm yank, pulling her sharply to her side~"
+                : "gives a gentle tug on Emery's leash, coaxing her softly to her side~");
+            try {
+                ServerSend("ChatRoomChat", {
+                    Content: "拉到身边",
+                    Type: "Activity",
+                    Target: EMERY_MEMBER,
+                    Dictionary: [{ Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" }],
+                });
+            } catch { /* ignore */ }
+        });
+        leashRow.appendChild(pullBtn);
+
         body.appendChild(leashRow);
 
         // Helper: styled section header with optional edit toggle
