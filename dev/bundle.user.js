@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.8.4
+// @version      2.8.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -30589,7 +30589,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.8.4";
+    const MOD_VERSION = "2.8.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30600,6 +30600,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.8.5",
+            changes: [
+                "Fix: EBC badge no longer appears on players who used EBC in a past session but are not running it now. Presence broadcasts now include a timestamp; presences without a timestamp (old EBC versions) or older than 8 hours are rejected as stale server data. Presence ts is also refreshed whenever a new member joins the room, keeping it current for long sessions.",
+            ],
+        },
         {
             version: "2.8.4",
             changes: [
@@ -34322,19 +34328,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Then every hour
         window.setInterval(() => { checkForUpdateFromGitHub().catch(() => { }); }, 3600000);
     }
+    // Maximum age (seconds) we trust a presence that arrived via ChatRoomSync.
+    // Presences older than this are treated as stale server-side data left over
+    // from a previous EBC session.  Active EBC users refresh their ts on every
+    // room join and whenever a new member enters, so 8 hours is very generous.
+    const PRESENCE_MAX_AGE_S = 8 * 3600; // 8 hours
     function getSharedPresence(character) {
         var _a;
         if (!character)
             return null;
         // OnlineSharedSettings are broadcast to all room members via ChatRoomSync
-        // and CharacterUpdate — this is the only live/authoritative path.
+        // and CharacterRefresh — this is the only live/authoritative path.
         // Do NOT fall back to ExtensionSettings: that data persists indefinitely and
         // would make the badge keep appearing for users who have since disabled EBC.
         const shared = (_a = character.OnlineSharedSettings) === null || _a === void 0 ? void 0 : _a[MOD_NAME];
         if (shared && typeof shared === "object") {
             const presence = shared.presence;
-            if ((presence === null || presence === void 0 ? void 0 : presence.marker) === "EBC")
+            if ((presence === null || presence === void 0 ? void 0 : presence.marker) === "EBC") {
+                // Require a fresh timestamp.  Presences from old EBC versions (pre-2.8.5)
+                // have no ts field and are rejected — they are indistinguishable from
+                // stale data left on the BC server from a long-ago session.
+                if (typeof presence.ts !== "number")
+                    return null;
+                const ageSeconds = Date.now() / 1000 - presence.ts;
+                if (ageSeconds > PRESENCE_MAX_AGE_S)
+                    return null; // stale — not running EBC
                 return presence;
+            }
         }
         return null;
     }
@@ -34363,7 +34383,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
         // broadcasting. Your EBC presence is always sent so others always see
         // your tag. The toggle only controls whether YOU see it above your own head.
-        const presence = Object.assign({ version: MOD_VERSION, marker: "EBC" }, ({ isDev: true } ));
+        const presence = Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
@@ -34857,6 +34877,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             catch ( /* ignore */_b) { /* ignore */ }
+            // Refresh our own presence ts so the new joiner sees a fresh timestamp.
+            // This keeps the ts current for long-running sessions where ChatRoomSync
+            // (which also calls syncPresenceMarker) was fired hours ago.
+            try {
+                syncPresenceMarker();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             return next(args);
         });
         // Anti-restraint + grace period: detect new restraints on the player after any refresh
