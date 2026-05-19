@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.4.6";
+const MOD_VERSION = "2.4.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.4.7",
+        changes: [
+            "Remove: the separate FACE tab is gone. Expression presets now live in a collapsible 'FACE PRESETS' section at the top of the BUTTONS tab — click the expression chips to compose a face, name it, hit Save face, then set any button slot's style dropdown to 🎭 preset and pick it.",
+        ],
+    },
     {
         version: "2.4.6",
         changes: [

@@ -2960,7 +2960,7 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "anims" | "buttons" | "expr" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
+type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
 
 const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
 
@@ -3219,12 +3219,6 @@ export class EBCDrawer {
         btnsTabBtn.textContent = "BUTTONS";
         btnsTabBtn.title = "Action Buttons";
 
-        const exprTabBtn = document.createElement("button");
-        exprTabBtn.className = "ebc-tab-btn";
-        exprTabBtn.id = "ebc-tab-expr";
-        exprTabBtn.textContent = "FACE";
-        exprTabBtn.title = "Expression Quickbar";
-
         const notesTabBtn = document.createElement("button");
         notesTabBtn.className = "ebc-tab-btn";
         notesTabBtn.id = "ebc-tab-notes";
@@ -3269,7 +3263,6 @@ export class EBCDrawer {
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(btnsTabBtn);
         tabBar.appendChild(posesTabBtn);
-        tabBar.appendChild(exprTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(thanksTabBtn);
         tabBar.appendChild(devTabBtn2);
@@ -3973,7 +3966,6 @@ export class EBCDrawer {
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
         devTabBtn2.addEventListener("click",     () => this.switchTab("dev"));
         btnsTabBtn.addEventListener("click",      () => this.switchTab("buttons"));
-        exprTabBtn.addEventListener("click",     () => this.switchTab("expr"));
         domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
         puppyTabBtn.addEventListener("click",    () => this.switchTab("puppy"));
         kittyTabBtn.addEventListener("click",    () => this.switchTab("kitty"));
@@ -4368,7 +4360,6 @@ export class EBCDrawer {
             ["ebc-tab-outfits", "outfits"],
             ["ebc-tab-poses",   "anims"],
             ["ebc-tab-buttons", "buttons"],
-            ["ebc-tab-expr",     "expr"],
             ["ebc-tab-notes",    "notes"],
             ["ebc-tab-thanks",  "thanks"],
             ["ebc-tab-dev",     "dev"],
@@ -4387,7 +4378,6 @@ export class EBCDrawer {
         if      (this.currentTab === "outfits")  this.renderOutfits();
         else if (this.currentTab === "anims")    this.renderPoses();
         else if (this.currentTab === "buttons")  this.renderButtons();
-        else if (this.currentTab === "expr")     this.renderExpressions();
         else if (this.currentTab === "notes")    this.renderNotes();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
@@ -13147,6 +13137,47 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        // ── Face Presets collapsible ──────────────────────────────────────────
+        {
+            let faceCollapsed = true;
+            try { const v = localStorage.getItem("EBC_facePresetsCollapsed"); if (v !== null) faceCollapsed = v === "1"; } catch { /* ignore */ }
+
+            const faceHdr = document.createElement("div");
+            faceHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:4px 0 4px;margin-bottom:2px;";
+            const faceChev = document.createElement("span");
+            faceChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
+            const faceLbl = document.createElement("span");
+            faceLbl.className = "ebc-section-label";
+            faceLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
+            faceLbl.textContent = "FACE PRESETS";
+            const faceHint = document.createElement("span");
+            faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
+            faceHint.textContent = "build & save expression presets";
+            faceHdr.appendChild(faceChev);
+            faceHdr.appendChild(faceLbl);
+            faceHdr.appendChild(faceHint);
+            body.appendChild(faceHdr);
+
+            const faceBody = document.createElement("div");
+            const updateFaceChev = (): void => {
+                faceChev.textContent = faceCollapsed ? "▶" : "▼";
+                faceBody.style.display = faceCollapsed ? "none" : "";
+            };
+            updateFaceChev();
+            faceHdr.addEventListener("click", () => {
+                faceCollapsed = !faceCollapsed;
+                try { localStorage.setItem("EBC_facePresetsCollapsed", faceCollapsed ? "1" : "0"); } catch { /* ignore */ }
+                updateFaceChev();
+            });
+            this.renderExpressions(faceBody);
+            body.appendChild(faceBody);
+
+            const faceDivider = document.createElement("div");
+            faceDivider.className = "ebc-divider";
+            faceDivider.style.margin = "6px 0";
+            body.appendChild(faceDivider);
+        }
+
         // Working category state
         const cats: ButtonCategory[] = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
         let activeCatIdx = getActiveCategoryIndex();
@@ -15395,10 +15426,10 @@ export class EBCDrawer {
         body.appendChild(exprWrap2);
     }
 
-    private renderExpressions(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+    private renderExpressions(container?: HTMLElement): void {
+        const body = container ?? (this.rootEl?.querySelector("#ebc-body") as HTMLElement | null);
         if (!body) return;
-        while (body.firstChild) body.removeChild(body.firstChild);
+        if (!container) { while (body.firstChild) body.removeChild(body.firstChild); }
 
         const F = "font-family:'Trebuchet MS',serif;font-size:";
         const BTN_BASE = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;`;
