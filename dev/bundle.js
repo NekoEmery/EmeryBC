@@ -2430,9 +2430,11 @@
             for (const group of EXPR_GROUPS) {
                 const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
                 if (item) {
-                    // BC stores the expression variant name in Property.Expression, not Asset.Name.
-                    // Asset.Name is the base group asset name (always the group name itself).
-                    const exprName = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Expression;
+                    // BC stores the active expression variant in Asset.Name (always reliable).
+                    // Property.Expression mirrors it in most builds; use it as the primary source
+                    // and fall back to Asset.Name so capture works regardless of BC version.
+                    const propExpr = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Expression;
+                    const exprName = propExpr || item.Asset.Name || null;
                     groups[group] = exprName
                         ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
                         : null;
@@ -27621,7 +27623,7 @@
             body.appendChild(exprWrap2);
         }
         renderExpressions(container) {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e, _f;
             const body = container !== null && container !== void 0 ? container : (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -27729,17 +27731,40 @@
                 }
                 body.appendChild(presetList);
             }
+            // ── Live face preview: shows what expressions are currently active ──
+            {
+                const activeParts = [];
+                for (const g of EXPR_GROUPS) {
+                    try {
+                        const it = Player.Appearance.find((i) => i.Asset.Group.Name === g);
+                        if (it) {
+                            const pExpr = (_b = it.Property) === null || _b === void 0 ? void 0 : _b.Expression;
+                            const n = pExpr || it.Asset.Name;
+                            if (n)
+                                activeParts.push(`${(_c = EXPR_GROUP_LABELS[g]) !== null && _c !== void 0 ? _c : g}: ${n}`);
+                        }
+                    }
+                    catch ( /* skip group */_g) { /* skip group */ }
+                }
+                const facePreview = document.createElement("div");
+                facePreview.style.cssText = `${F}8px;color:#7a5080;margin-bottom:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`;
+                facePreview.title = activeParts.length ? activeParts.join(", ") : "No expressions set";
+                facePreview.textContent = activeParts.length
+                    ? `Now: ${activeParts.join(" · ")}`
+                    : "Now: (no expressions set)";
+                body.appendChild(facePreview);
+            }
             // Save current face as preset
             const captureRow = document.createElement("div");
             captureRow.style.cssText = "display:flex;gap:5px;margin-bottom:8px;align-items:center;";
             const captureInput = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", maxLength: 30, placeholder: "Preset name…",
+                className: "ebc-form-input", type: "text", maxLength: 30, placeholder: "Name this preset…",
             });
             captureInput.style.flex = "1";
             const captureBtn = document.createElement("button");
             captureBtn.className = "ebc-create-btn";
             captureBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:4px 8px;";
-            captureBtn.textContent = "Save face";
+            captureBtn.textContent = "💾 Save face";
             captureBtn.addEventListener("click", () => {
                 const name = captureInput.value.trim() || "Preset";
                 saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
@@ -27768,10 +27793,10 @@
             for (const group of EXPR_GROUPS) {
                 const hdr = document.createElement("div");
                 hdr.className = "ebc-expr-group-hdr";
-                hdr.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
+                hdr.textContent = (_d = EXPR_GROUP_LABELS[group]) !== null && _d !== void 0 ? _d : group;
                 body.appendChild(hdr);
                 const currentItem = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                const currentName = (_d = (_c = currentItem === null || currentItem === void 0 ? void 0 : currentItem.Property) === null || _c === void 0 ? void 0 : _c.Expression) !== null && _d !== void 0 ? _d : null;
+                const currentName = (_f = (_e = currentItem === null || currentItem === void 0 ? void 0 : currentItem.Property) === null || _e === void 0 ? void 0 : _e.Expression) !== null && _f !== void 0 ? _f : null;
                 const chips = document.createElement("div");
                 chips.className = "ebc-expr-chips";
                 for (const opt of getExprGroupOptions(group)) {
@@ -27804,7 +27829,7 @@
                     if (v !== null)
                         trigCollapsed = v === "1";
                 }
-                catch ( /* ignore */_e) { /* ignore */ }
+                catch ( /* ignore */_h) { /* ignore */ }
                 const trigHdr = document.createElement("div");
                 trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
                 const trigChev = document.createElement("span");
@@ -29356,7 +29381,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.4.9";
+    const MOD_VERSION = "2.5.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29367,6 +29392,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.0",
+            changes: [
+                "Fix: 'Save face' now reliably captures the face you built in BC. Previously, captureCurrentExpression relied solely on Property.Expression which BC doesn't always set — it now uses Asset.Name as a fallback so whatever expressions BC shows on your character are correctly saved.",
+                "UX: FACE PRESETS save row now shows a live 'Now: …' preview of all currently active expressions so you can confirm the face before clicking 💾 Save face.",
+            ],
+        },
         {
             version: "2.4.9",
             changes: [
