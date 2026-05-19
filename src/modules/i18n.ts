@@ -179,6 +179,7 @@ const S: Record<string, T> = {
     "buttons.categoryName":      { en: "Category name…",              de: "Kategoriename…",                zh: "分类名称…",         fr: "Nom de catégorie…",             es: "Nombre de categoría…"         },
     "buttons.renameCategory":    { en: "Rename Category",             de: "Kategorie umbenennen",          zh: "重命名分类",        fr: "Renommer la catégorie",         es: "Renombrar categoría"          },
     "buttons.deleteCategory":    { en: "Delete Category",             de: "Kategorie löschen",             zh: "删除分类",          fr: "Supprimer la catégorie",        es: "Eliminar categoría"           },
+    "buttons.showSidebar":       { en: "Show quick-emote sidebar buttons", de: "Schnell-Emote-Seitenleiste anzeigen", zh: "显示快速表情侧边栏按钮", fr: "Afficher les boutons d'émote rapide", es: "Mostrar botones de emote rápido" },
     "buttons.funActions":        { en: "FUN ACTIONS",                 de: "SPASS-AKTIONEN",                zh: "趣味动作",          fr: "ACTIONS AMUSANTES",             es: "ACCIONES DIVERTIDAS"          },
     "buttons.usefulButtons":     { en: "USEFUL BUTTONS",              de: "NÜTZLICHE TASTEN",              zh: "实用按键",          fr: "BOUTONS UTILES",                es: "BOTONES ÚTILES"               },
     "buttons.oocModeOn":         { en: "( OOC Mode: ON — click to turn off",   de: "( OOC-Modus: AN — zum Deaktivieren klicken",  zh: "（OOC 模式：开 — 点击关闭）", fr: "( Mode OOC : ACTIVÉ — cliquer pour désactiver",  es: "( Modo OOC: ACTIVADO — clic para desactivar"  },
