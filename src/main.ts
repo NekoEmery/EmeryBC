@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.13";
+const MOD_VERSION = "2.5.14";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.14",
+        changes: [
+            "i18n: translate remaining hardcoded strings — Buttons tab (Fun Actions, Useful Buttons, OOC Mode on/off, Copy My Member Number, Reset to Default Pose, boop feedback); Anims tab (pose hint, SCENES header, scenes hint); Outfits tab (PROTECTED ITEMS, COLOURS (n saved), Tags (n saved), no saved colours hint).",
+            "UX: language pill row is now centered with larger pills (11px font, more padding) and uses flex-wrap so all five fit even at narrow widths. Globe icon removed for cleaner look.",
+            "UX: panel width widened from 360px to 390px so the header buttons (refresh / drag / reset pos / close) never overflow.",
+        ],
+    },
     {
         version: "2.5.13",
         changes: [

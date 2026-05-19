@@ -447,7 +447,7 @@ const CSS = `
     position: absolute;
     right: 44px;   /* leave the 44px tab strip uncovered — tab is to our right */
     top: 0;
-    width: 360px;
+    width: 390px;
     height: 100%;  /* full chat log height — no vertical conflict with tab */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
@@ -3333,12 +3333,7 @@ export class EBCDrawer {
 
         // ── Language picker row — sits between tab bar and quick-actions ─────
         const langRow = document.createElement("div");
-        langRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:3px 6px 3px;border-bottom:1px solid #2a1020;background:rgba(15,6,12,0.4);flex-wrap:nowrap;";
-
-        const langIcon = document.createElement("span");
-        langIcon.textContent = "🌐";
-        langIcon.style.cssText = "font-size:10px;flex-shrink:0;opacity:0.7;";
-        langRow.appendChild(langIcon);
+        langRow.style.cssText = "display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border-bottom:1px solid #2a1020;background:rgba(15,6,12,0.4);flex-wrap:wrap;";
 
         const langPills: HTMLButtonElement[] = [];
         const refreshLangPills = (): void => {
@@ -3347,15 +3342,15 @@ export class EBCDrawer {
                 const active = pill.dataset.lang === cur;
                 pill.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
-                    "font-size:9px",
-                    "padding:2px 6px",
-                    "border-radius:10px",
+                    "font-size:11px",
+                    "padding:4px 10px",
+                    "border-radius:12px",
                     "cursor:pointer",
                     "flex-shrink:0",
                     "transition:background 0.12s,color 0.12s,border-color 0.12s",
                     active
-                        ? "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;"
-                        : "border:1px solid #2a1020;background:transparent;color:#7a5060;",
+                        ? "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;font-weight:bold;"
+                        : "border:1px solid #3a1928;background:transparent;color:#8a5070;",
                 ].join(";");
             }
         };
@@ -3371,9 +3366,6 @@ export class EBCDrawer {
             langRow.appendChild(pill);
         }
         refreshLangPills();
-        // Store the first pill as the ref anchor so updateStaticTranslations can call refreshLangPills
-        // We do this by adding a custom refresh to the _i18nRefs via a synthetic select-like object
-        // The simplest approach: expose refreshLangPills so updateStaticTranslations can call it
         this._langPillsRefresh = refreshLangPills;
 
         // Quick actions bar (always visible below tabs)
@@ -4749,7 +4741,7 @@ export class EBCDrawer {
         const tagToggleBtn = document.createElement("button");
         tagToggleBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #3a1928;border-radius:5px;color:#7a5060;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-bottom:3px;text-align:left;padding-left:8px;";
         const allTagsNow = getOutfitTags();
-        tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` Tags (${allTagsNow.length} saved)`;
+        tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` ${t("outfits.tagsN", { n: allTagsNow.length })}`;
 
         const tagMgmtBody = document.createElement("div");
         tagMgmtBody.style.display = tagMgmtOpen ? "block" : "none";
@@ -5384,7 +5376,7 @@ export class EBCDrawer {
 
         const updateHdr = (): void => {
             const n = getOutfitWhitelist().length;
-            hdr.textContent = (open ? "▼" : "▶") + ` PROTECTED ITEMS${n ? ` (${n})` : ""}`;
+            hdr.textContent = (open ? "▼" : "▶") + ` ${t("outfits.protectedItems")}${n ? ` (${n})` : ""}`;
         };
         updateHdr();
 
@@ -5632,7 +5624,7 @@ export class EBCDrawer {
                 if (!saved.length) {
                     const hint = document.createElement("span");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;";
-                    hint.textContent = "No saved colours yet — use + Save above";
+                    hint.textContent = t("outfits.noSavedColours");
                     swatchesWrap.appendChild(hint);
                     return;
                 }
@@ -6024,7 +6016,7 @@ export class EBCDrawer {
 
         const updateLabel = (): void => {
             const cc = getCustomColors().length;
-            label.textContent = (collapsed ? "▶" : "▼") + ` COLOURS${cc > 0 ? ` (${cc} saved)` : ""}`;
+            label.textContent = (collapsed ? "▶" : "▼") + ` ${cc > 0 ? t("outfits.coloursN", { n: cc }) : t("outfits.colours")}`;
         };
 
         label.addEventListener("click", () => {
@@ -7752,7 +7744,7 @@ export class EBCDrawer {
         const hint = document.createElement("div");
         hint.className = "ebc-import-hint";
         hint.style.marginBottom = "6px";
-        hint.textContent = "Pick one Body pose and one Arm pose — they stack!";
+        hint.textContent = t("anims.poseHint");
         body.appendChild(hint);
 
         // ── Preset grids ──────────────────────────────────────────────────────
@@ -8063,7 +8055,7 @@ export class EBCDrawer {
         });
 
         // ── SCENES (collapsible) ─────────────────────────────────────────────
-        const scenesCnt = makeCollapse("SCENES", "EBC_scenesCollapsed", false);
+        const scenesCnt = makeCollapse(t("anims.scenes"), "EBC_scenesCollapsed", false);
         this.renderScenes(scenesCnt);
     }
 
@@ -8829,7 +8821,7 @@ export class EBCDrawer {
         const scenesHint = document.createElement("div");
         scenesHint.className = "ebc-import-hint";
         scenesHint.style.marginBottom = "6px";
-        scenesHint.textContent = "Chain poses, item changes, emotes and pauses into a timed sequence.";
+        scenesHint.textContent = t("anims.scenesHint");
         body.appendChild(scenesHint);
 
         const scenes = getScenes();
@@ -13971,7 +13963,7 @@ export class EBCDrawer {
         const funLbl = document.createElement("div");
         funLbl.className = "ebc-section-label";
         funLbl.style.marginTop = "10px";
-        funLbl.textContent = "Fun Actions";
+        funLbl.textContent = t("buttons.funActions");
         body.appendChild(funLbl);
 
         const boopBtn = document.createElement("button");
@@ -13982,9 +13974,9 @@ export class EBCDrawer {
         boopBtn.addEventListener("click", () => {
             const booped = this.boopFriendsInRoom();
             if (booped === 0) {
-                boopBtn.textContent = "No friends here~";
+                boopBtn.textContent = t("buttons.noFriendsHere");
             } else {
-                boopBtn.textContent = `Booped ${booped}!`;
+                boopBtn.textContent = t("buttons.boopedN", { n: booped });
             }
             window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
         });
@@ -13994,7 +13986,7 @@ export class EBCDrawer {
         const usefulLbl = document.createElement("div");
         usefulLbl.className = "ebc-section-label";
         usefulLbl.style.marginTop = "10px";
-        usefulLbl.textContent = "Useful Buttons";
+        usefulLbl.textContent = t("buttons.usefulButtons");
         body.appendChild(usefulLbl);
 
         const oocBtn = document.createElement("button");
@@ -14002,7 +13994,7 @@ export class EBCDrawer {
         oocBtn.style.cssText = "margin:4px 0 0; width:100%;";
         const refreshOoc = (): void => {
             const on = getOocEnabled();
-            oocBtn.textContent = on ? "( OOC Mode: ON  —  click to turn off" : "( OOC Mode: OFF  —  click to turn on";
+            oocBtn.textContent = on ? t("buttons.oocModeOn") : t("buttons.oocModeOff");
             oocBtn.style.opacity = on ? "1" : "0.6";
         };
         refreshOoc();
@@ -14012,23 +14004,23 @@ export class EBCDrawer {
         const copyMemberBtn = document.createElement("button");
         copyMemberBtn.className = "ebc-create-btn";
         copyMemberBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        copyMemberBtn.textContent = "Copy My Member Number";
+        copyMemberBtn.textContent = t("buttons.copyMemberNumber");
         copyMemberBtn.addEventListener("click", () => {
             try {
                 navigator.clipboard.writeText(String(Player.MemberNumber));
-                copyMemberBtn.textContent = "Copied!";
+                copyMemberBtn.textContent = t("core.copied");
             } catch {
                 copyMemberBtn.textContent = `#${Player.MemberNumber}`;
             }
-            window.setTimeout(() => { copyMemberBtn.textContent = "Copy My Member Number"; }, 2000);
+            window.setTimeout(() => { copyMemberBtn.textContent = t("buttons.copyMemberNumber"); }, 2000);
         });
         body.appendChild(copyMemberBtn);
 
         const clearPoseBtn = document.createElement("button");
         clearPoseBtn.className = "ebc-create-btn";
         clearPoseBtn.style.cssText = "margin:4px 0 0; width:100%;";
-        clearPoseBtn.textContent = "Reset to Default Pose";
-        clearPoseBtn.title = "Clears all active poses back to standing";
+        clearPoseBtn.textContent = t("buttons.resetDefaultPose");
+        clearPoseBtn.title = t("buttons.resetDefaultPoseTitle");
         clearPoseBtn.addEventListener("click", () => {
             try {
                 (Player as unknown as Record<string, unknown>).ActivePose = [];

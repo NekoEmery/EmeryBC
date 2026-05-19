@@ -144,6 +144,11 @@ const S: Record<string, T> = {
     "outfits.timeTitle":         { en: "24-hour time (e.g. 08:30, 14:00)", de: "24-Stunden-Zeit (z. B. 08:30, 14:00)", zh: "24小时制（如 08:30、14:00）", fr: "Heure sur 24h (ex: 08:30, 14:00)", es: "Hora en 24h (ej. 08:30, 14:00)" },
     "outfits.removeSchedule":    { en: "Remove schedule",             de: "Zeitplan entfernen",            zh: "移除计划",          fr: "Retirer le programme",          es: "Quitar programa"              },
     "outfits.addSchedule":       { en: "+ Add Schedule",              de: "+ Zeitplan hinzufügen",         zh: "+ 添加计划",        fr: "+ Ajouter un programme",        es: "+ Añadir programa"            },
+    "outfits.protectedItems":    { en: "PROTECTED ITEMS",             de: "GESCHÜTZTE GEGENSTÄNDE",        zh: "受保护的物品",      fr: "OBJETS PROTÉGÉS",               es: "OBJETOS PROTEGIDOS"           },
+    "outfits.coloursN":          { en: "COLOURS ({n} saved)",         de: "FARBEN ({n} gespeichert)",      zh: "颜色（已保存 {n}）", fr: "COULEURS ({n} sauveg.)",        es: "COLORES ({n} guardados)"      },
+    "outfits.colours":           { en: "COLOURS",                     de: "FARBEN",                        zh: "颜色",              fr: "COULEURS",                      es: "COLORES"                      },
+    "outfits.tagsN":             { en: "Tags ({n} saved)",            de: "Etiketten ({n} gespeichert)",   zh: "标签（已保存 {n}）", fr: "Tags ({n} sauveg.)",            es: "Etiquetas ({n} guardadas)"    },
+    "outfits.noSavedColours":    { en: "No saved colours yet — use + Save above", de: "Noch keine Farben gespeichert — oben + Speichern verwenden", zh: "尚未保存颜色——请使用上方的 + 保存", fr: "Aucune couleur sauvegardée — utiliser + Sauvegarder ci-dessus", es: "Sin colores guardados — usa + Guardar arriba" },
 
     // ─── RESTRAINTS ────────────────────────────────────────────────────────
     "restraints.noRestraints":   { en: "No restraint sets saved yet.", de: "Noch keine Fesseln-Sets gespeichert.", zh: "尚未保存任何束缚套装。", fr: "Aucun set de liens sauvegardé.", es: "No hay conjuntos de ataduras guardados." },
@@ -174,6 +179,15 @@ const S: Record<string, T> = {
     "buttons.categoryName":      { en: "Category name…",              de: "Kategoriename…",                zh: "分类名称…",         fr: "Nom de catégorie…",             es: "Nombre de categoría…"         },
     "buttons.renameCategory":    { en: "Rename Category",             de: "Kategorie umbenennen",          zh: "重命名分类",        fr: "Renommer la catégorie",         es: "Renombrar categoría"          },
     "buttons.deleteCategory":    { en: "Delete Category",             de: "Kategorie löschen",             zh: "删除分类",          fr: "Supprimer la catégorie",        es: "Eliminar categoría"           },
+    "buttons.funActions":        { en: "FUN ACTIONS",                 de: "SPASS-AKTIONEN",                zh: "趣味动作",          fr: "ACTIONS AMUSANTES",             es: "ACCIONES DIVERTIDAS"          },
+    "buttons.usefulButtons":     { en: "USEFUL BUTTONS",              de: "NÜTZLICHE TASTEN",              zh: "实用按键",          fr: "BOUTONS UTILES",                es: "BOTONES ÚTILES"               },
+    "buttons.oocModeOn":         { en: "( OOC Mode: ON — click to turn off",   de: "( OOC-Modus: AN — zum Deaktivieren klicken",  zh: "（OOC 模式：开 — 点击关闭）", fr: "( Mode OOC : ACTIVÉ — cliquer pour désactiver",  es: "( Modo OOC: ACTIVADO — clic para desactivar"  },
+    "buttons.oocModeOff":        { en: "( OOC Mode: OFF — click to turn on",   de: "( OOC-Modus: AUS — zum Aktivieren klicken",   zh: "（OOC 模式：关 — 点击开启）", fr: "( Mode OOC : DÉSACTIVÉ — cliquer pour activer", es: "( Modo OOC: DESACTIVADO — clic para activar"  },
+    "buttons.copyMemberNumber":  { en: "Copy My Member Number",       de: "Mitgliedsnummer kopieren",      zh: "复制我的成员编号",  fr: "Copier mon numéro membre",      es: "Copiar mi número de miembro"  },
+    "buttons.resetDefaultPose":  { en: "Reset to Default Pose",       de: "Auf Standardpose zurücksetzen", zh: "重置为默认姿势",    fr: "Réinitialiser la pose",         es: "Restablecer pose predeterminada" },
+    "buttons.resetDefaultPoseTitle": { en: "Clears all active poses back to standing", de: "Alle aktiven Posen auf Stehen zurücksetzen", zh: "清除所有活动姿势，恢复站立", fr: "Efface toutes les poses actives (retour debout)", es: "Borra todas las poses activas (vuelve de pie)" },
+    "buttons.noFriendsHere":     { en: "No friends here~",            de: "Keine Freunde hier~",           zh: "房间里没有朋友~",   fr: "Aucun ami ici~",                es: "No hay amigos aquí~"          },
+    "buttons.boopedN":           { en: "Booped {n}!",                 de: "{n} gestupst!",                 zh: "戳了 {n} 个！",     fr: "Touché {n} !",                  es: "¡Tocado a {n}!"               },
 
     // ─── ANIMS TAB ─────────────────────────────────────────────────────────
     "anims.poseCombos":    { en: "Pose Combos",        de: "Pose-Kombinationen",      zh: "姿势组合",          fr: "Combos de poses",           es: "Combos de poses"          },
@@ -183,6 +197,9 @@ const S: Record<string, T> = {
     "anims.saveCombo":     { en: "✓ Save Combo",       de: "✓ Kombination speichern", zh: "✓ 保存组合",        fr: "✓ Sauvegarder le combo",    es: "✓ Guardar combo"          },
     "anims.delay":         { en: "Delay (ms)",         de: "Verzögerung (ms)",        zh: "延迟（毫秒）",      fr: "Délai (ms)",                es: "Retardo (ms)"             },
     "anims.addStep":       { en: "+ Add Step",         de: "+ Schritt hinzufügen",    zh: "+ 添加步骤",        fr: "+ Ajouter une étape",       es: "+ Añadir paso"            },
+    "anims.poseHint":      { en: "Pick one Body pose and one Arm pose — they stack!", de: "Eine Körperpose und eine Armpose wählen — sie stapeln sich!", zh: "选择一个身体姿势和一个手臂姿势——可叠加！", fr: "Choisir une pose de corps et une de bras — elles se combinent !", es: "Elige una pose de cuerpo y una de brazos — ¡se combinan!" },
+    "anims.scenes":        { en: "SCENES",             de: "SZENEN",                  zh: "场景",              fr: "SCÈNES",                    es: "ESCENAS"                  },
+    "anims.scenesHint":    { en: "Chain poses, item changes, emotes and pauses into a timed sequence.", de: "Posen, Kleidungsänderungen, Emotes und Pausen zu einer zeitgesteuerten Sequenz verbinden.", zh: "将姿势、物品更换、表情和暂停串成一个定时序列。", fr: "Enchaîner poses, changements d'objet, émotes et pauses en une séquence minutée.", es: "Encadena poses, cambios de objeto, emotes y pausas en una secuencia cronometrada." },
 
     // ─── USERS/NOTES TAB ───────────────────────────────────────────────────
     "users.peopleInRoom":      { en: "People in Room",         de: "Personen im Raum",         zh: "房间中的人",        fr: "Personnes dans la salle",    es: "Personas en la sala"       },
