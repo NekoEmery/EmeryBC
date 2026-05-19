@@ -185,6 +185,9 @@ const S: Record<string, T> = {
     "anims.addStep":       { en: "+ Add Step",         de: "+ Schritt hinzufügen",    zh: "+ 添加步骤",        fr: "+ Ajouter une étape",       es: "+ Añadir paso"            },
 
     // ─── USERS/NOTES TAB ───────────────────────────────────────────────────
+    "users.peopleInRoom":      { en: "People in Room",         de: "Personen im Raum",         zh: "房间中的人",        fr: "Personnes dans la salle",    es: "Personas en la sala"       },
+    "users.friends":           { en: "Friends",                de: "Freunde",                  zh: "好友",              fr: "Amis",                       es: "Amigos"                    },
+    "users.autoReplyWhenAfk":  { en: "Auto-reply when AFK",   de: "Auto-Antwort wenn AFK",    zh: "AFK 时自动回复",    fr: "Réponse auto quand AFK",     es: "Respuesta auto cuando AFK" },
     "users.header":            { en: "User Notes",             de: "Benutzernotizen",          zh: "用户笔记",          fr: "Notes utilisateur",          es: "Notas de usuario"          },
     "users.noteHint":          { en: "Notes about this person...", de: "Notizen zu dieser Person...", zh: "关于此人的备注...", fr: "Notes sur cette personne...", es: "Notas sobre esta persona..." },
     "users.savedAutomatically":{ en: "Saved automatically",    de: "Automatisch gespeichert",  zh: "自动保存",          fr: "Sauvegardé automatiquement", es: "Guardado automáticamente"  },

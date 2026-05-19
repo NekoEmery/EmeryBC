@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.10";
+const MOD_VERSION = "2.5.11";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.11",
+        changes: [
+            "i18n (continued): wire remaining static strings — 'People in Room', 'Friends', 'Auto-reply when AFK' labels; slow-leave sequence hint tooltip; pose combos section header; scene/combo save-changes buttons; outfit/restraint command placeholders; add new users.peopleInRoom / users.friends / users.autoReplyWhenAfk keys to translation table.",
+        ],
+    },
     {
         version: "2.5.10",
         changes: [

@@ -3520,7 +3520,7 @@ export class EBCDrawer {
         slSeqArea.rows = 3;
         slSeqArea.spellcheck = false;
         slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
-        slSeqArea.title = "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}";
+        slSeqArea.title = t("sl.seqHint");
         const slSeqInitPresets = getSlowLeavePresets();
         const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
         slSeqArea.value = slSeqInitPresets[slSeqInitIdx]?.seq ?? "";
@@ -5031,7 +5031,7 @@ export class EBCDrawer {
             type: "text",
             placeholder: t("outfits.timePlaceholder"),
             maxLength: 5,
-            title: "24-hour time (e.g. 08:30, 14:00)",
+            title: t("outfits.timeTitle"),
         }) as HTMLInputElement;
         timeInput.className = "ebc-form-input";
         timeInput.style.width = "72px";
@@ -6565,7 +6565,7 @@ export class EBCDrawer {
             className: "ebc-form-input", type: "text", placeholder: t("outfits.namePlaceholder"),
         });
         const bcCmdInput = Object.assign(document.createElement("input"), {
-            className: "ebc-form-input", type: "text", placeholder: "Command (e.g. ropeset)",
+            className: "ebc-form-input", type: "text", placeholder: t("outfits.cmdPlaceholder"),
             maxLength: 20,
         });
         const mkRow = (label: string, el: HTMLElement): HTMLElement => {
@@ -6744,7 +6744,7 @@ export class EBCDrawer {
                 className: "ebc-form-input", type: "text", placeholder: "Restraint set name (e.g. Hogtied)",
             });
             const impRCmdInput = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", placeholder: "Command (e.g. hogtied)",
+                className: "ebc-form-input", type: "text", placeholder: t("outfits.cmdPlaceholder"),
                 maxLength: 20,
             });
             const mkImpRRow = (label: string, el: HTMLElement): HTMLElement => {
@@ -7783,7 +7783,7 @@ export class EBCDrawer {
         }
 
         // ── Saved Combos (collapsible) ────────────────────────────────────────
-        const combosCnt = makeCollapse("SAVED COMBOS", "EBC_combosCollapsed", false);
+        const combosCnt = makeCollapse(t("anims.poseCombos"), "EBC_combosCollapsed", false);
 
         const combos = getPoseCombos();
         if (combos.length === 0) {
@@ -7934,7 +7934,7 @@ export class EBCDrawer {
             saveBar.style.marginTop = "2px";
             const savComboBtn = document.createElement("button");
             savComboBtn.className = "ebc-create-btn";
-            savComboBtn.textContent = "Save Changes";
+            savComboBtn.textContent = t("outfits.saveChanges");
             savComboBtn.addEventListener("click", () => {
                 updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
                 this.rerender();
@@ -8979,7 +8979,7 @@ export class EBCDrawer {
             botSaveBar.style.marginTop = "2px";
             const botSaveBtn = document.createElement("button");
             botSaveBtn.className = "ebc-create-btn";
-            botSaveBtn.textContent = "Save Changes";
+            botSaveBtn.textContent = t("outfits.saveChanges");
             botSaveBtn.addEventListener("click", () => {
                 updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
                 this.rerender();
@@ -9773,7 +9773,7 @@ export class EBCDrawer {
         afkToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;";
         const afkToggleLbl = document.createElement("span");
         afkToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        afkToggleLbl.textContent = "Auto-reply when AFK";
+        afkToggleLbl.textContent = t("users.autoReplyWhenAfk");
         const afkToggleBtn = document.createElement("button");
         const refreshAfkToggle = (): void => {
             const on = getAfkEnabled();
@@ -10183,7 +10183,7 @@ export class EBCDrawer {
                     arrow.textContent = col ? "▶" : "▼";
                     const lbl = document.createElement("span");
                     lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
-                    lbl.textContent = `People in Room`;
+                    lbl.textContent = t("users.peopleInRoom");
                     const cnt = document.createElement("span");
                     cnt.style.cssText = [
                         "font-family:'Trebuchet MS',serif",
@@ -10235,7 +10235,7 @@ export class EBCDrawer {
             lblF.className = "ebc-section-label";
             lblF.style.cssText = "display:flex;align-items:center;gap:6px;";
             const lblFText = document.createElement("span");
-            lblFText.textContent = "Friends";
+            lblFText.textContent = t("users.friends");
             const lblFCount = document.createElement("span");
             lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;flex:1;";
             lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
@@ -14212,7 +14212,7 @@ export class EBCDrawer {
                 addBtn.addEventListener("click", onAdd);
                 el.appendChild(addBtn);
             }
-            return { el, setEditing: (v) => { editing = v; editBtn.textContent = v ? "✔ Done" : "✎ Edit"; editBtn.style.color = v ? "#cf6f98" : "#7a5a6a"; editBtn.style.borderColor = v ? "#cf6f98" : "#4c2537"; } };
+            return { el, setEditing: (v) => { editing = v; editBtn.textContent = v ? "✔ Done" : t("core.edit"); editBtn.style.color = v ? "#cf6f98" : "#7a5a6a"; editBtn.style.borderColor = v ? "#cf6f98" : "#4c2537"; } };
         };
 
         // Helper: pill-style action button (big, easy to tap).
