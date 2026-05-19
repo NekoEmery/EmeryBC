@@ -53,6 +53,7 @@ import {
     addToOutfitWhitelist,
     removeFromOutfitWhitelist,
     setOutfitNameInAnnounce,
+    setOutfitWearAtLogin,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
 import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
@@ -133,6 +134,18 @@ import {
     type KittyPunishment, type KittyMood, type KittyExpressionPreset,
     type KittyReactionEntry,
 } from "./kitty";
+import {
+    EXPR_GROUPS, EXPR_GROUP_LABELS,
+    getExprGroupOptions, applyExprGroup,
+    getExpressionPresets, saveExpressionPresets,
+    captureCurrentExpression, applyExpressionPreset,
+    type ExpressionPreset,
+} from "./expressions";
+import {
+    getWhisperLog, getWhisperConversation, getWhisperPartners,
+    clearWhisperLog, setWhisperUpdateCallback,
+    type WhisperEntry,
+} from "./whisperLog";
 
 // -- Shared UI helpers ---------------------------------------------------------
 
@@ -2519,6 +2532,109 @@ const CSS = `
 }
 .ebc-seq-add-btn:hover { background: #1b0d17; color: #cf6f98; border-style: solid; }
 
+/* -- Expression tab -- */
+.ebc-expr-group-hdr {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    color: #9a7080;
+    margin: 10px 0 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.ebc-expr-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 2px;
+}
+.ebc-expr-chip {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    padding: 3px 7px;
+    border-radius: 4px;
+    border: 1px solid #3a1928;
+    background: #1b0d17;
+    color: #8a6070;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    white-space: nowrap;
+}
+.ebc-expr-chip:hover { background: #2a1421; color: #cf6f98; border-color: #6a3a50; }
+.ebc-expr-chip.active { background: #3a1428; color: #e890b8; border-color: #9a4a68; font-weight: bold; }
+.ebc-expr-preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 6px;
+}
+.ebc-expr-preset-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.ebc-expr-preset-chip {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 4px 9px;
+    border-radius: 5px;
+    border: 1px solid #5a2840;
+    background: #2a1421;
+    color: #cf6f98;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+.ebc-expr-preset-chip:hover { background: #3a1e30; border-color: #9a4a68; }
+
+/* -- Whisper log tab -- */
+.ebc-whisper-partner-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 9px;
+    border-radius: 6px;
+    border: 1px solid #3a1928;
+    background: #1b0d17;
+    color: #b09098;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: background 0.12s, border-color 0.12s;
+    text-align: left;
+}
+.ebc-whisper-partner-btn:hover { background: #2a1421; border-color: #5a2840; color: #cf6f98; }
+.ebc-whisper-partner-btn.active { background: #2a1421; border-color: #7a3858; color: #e890b8; }
+.ebc-whisper-msg {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 8px;
+    border-radius: 5px;
+    margin-bottom: 3px;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    line-height: 1.4;
+}
+.ebc-whisper-msg.out {
+    background: #2a1830;
+    border-left: 2px solid #9a4a78;
+    align-items: flex-end;
+}
+.ebc-whisper-msg.in {
+    background: #1f1020;
+    border-left: 2px solid #4a2060;
+    align-items: flex-start;
+}
+.ebc-whisper-meta {
+    font-size: 8px;
+    color: #6a4a5e;
+    margin-bottom: 2px;
+}
+.ebc-whisper-text { color: #d0a0b8; word-break: break-word; }
+.ebc-whisper-msg.out .ebc-whisper-text { color: #e8b0d0; }
+
 `;
 
 // ── Generic confirm overlay ───────────────────────────────────────────────
@@ -2842,7 +2958,7 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
+type DrawerTab = "outfits" | "anims" | "buttons" | "expr" | "whispers" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
 
 const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
 
@@ -2917,12 +3033,19 @@ export class EBCDrawer {
     private slPresetDropdown: HTMLSelectElement | null = null;
     private slDurSlider: HTMLInputElement | null = null;
     private slDurVal: HTMLSpanElement | null = null;
+    private selectedWhisperPartner: number | null = null;
 
     constructor(version = "", isDev = false) {
         EBCDrawer._instance = this;
         this.version = version;
         this.isDev   = isDev;
         registerOpenBeepCallback((n) => this.openBeepWindow(n));
+        // Live-update the whisper tab when new messages arrive
+        setWhisperUpdateCallback(() => {
+            if (this.isOpen && this.currentTab === "whispers") {
+                this.rerender();
+            }
+        });
         if (document.body) {
             this.setup();
         } else {
@@ -3094,6 +3217,18 @@ export class EBCDrawer {
         btnsTabBtn.textContent = "BUTTONS";
         btnsTabBtn.title = "Action Buttons";
 
+        const exprTabBtn = document.createElement("button");
+        exprTabBtn.className = "ebc-tab-btn";
+        exprTabBtn.id = "ebc-tab-expr";
+        exprTabBtn.textContent = "FACE";
+        exprTabBtn.title = "Expression Quickbar";
+
+        const whispersTabBtn = document.createElement("button");
+        whispersTabBtn.className = "ebc-tab-btn";
+        whispersTabBtn.id = "ebc-tab-whispers";
+        whispersTabBtn.textContent = "💬";
+        whispersTabBtn.title = "Whisper Log";
+
         const notesTabBtn = document.createElement("button");
         notesTabBtn.className = "ebc-tab-btn";
         notesTabBtn.id = "ebc-tab-notes";
@@ -3138,6 +3273,8 @@ export class EBCDrawer {
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(btnsTabBtn);
         tabBar.appendChild(posesTabBtn);
+        tabBar.appendChild(exprTabBtn);
+        tabBar.appendChild(whispersTabBtn);
         tabBar.appendChild(notesTabBtn);
         tabBar.appendChild(thanksTabBtn);
         tabBar.appendChild(devTabBtn2);
@@ -3841,6 +3978,8 @@ export class EBCDrawer {
         thanksTabBtn.addEventListener("click",   () => this.switchTab("thanks"));
         devTabBtn2.addEventListener("click",     () => this.switchTab("dev"));
         btnsTabBtn.addEventListener("click",      () => this.switchTab("buttons"));
+        exprTabBtn.addEventListener("click",     () => this.switchTab("expr"));
+        whispersTabBtn.addEventListener("click", () => this.switchTab("whispers"));
         domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
         puppyTabBtn.addEventListener("click",    () => this.switchTab("puppy"));
         kittyTabBtn.addEventListener("click",    () => this.switchTab("kitty"));
@@ -4235,7 +4374,9 @@ export class EBCDrawer {
             ["ebc-tab-outfits", "outfits"],
             ["ebc-tab-poses",   "anims"],
             ["ebc-tab-buttons", "buttons"],
-            ["ebc-tab-notes",   "notes"],
+            ["ebc-tab-expr",     "expr"],
+            ["ebc-tab-whispers", "whispers"],
+            ["ebc-tab-notes",    "notes"],
             ["ebc-tab-thanks",  "thanks"],
             ["ebc-tab-dev",     "dev"],
             ["ebc-tab-dom",     "dom"],
@@ -4253,6 +4394,8 @@ export class EBCDrawer {
         if      (this.currentTab === "outfits")  this.renderOutfits();
         else if (this.currentTab === "anims")    this.renderPoses();
         else if (this.currentTab === "buttons")  this.renderButtons();
+        else if (this.currentTab === "expr")     this.renderExpressions();
+        else if (this.currentTab === "whispers") this.renderWhisperLog();
         else if (this.currentTab === "notes")    this.renderNotes();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
@@ -5776,6 +5919,7 @@ export class EBCDrawer {
         const isPreserving = o.preserveRestraints !== false;
         const isPreservingClothing = !!o.preserveClothing;
         const isNameInAnnounce = o.nameInAnnounce !== false;
+        const isWearAtLogin = !!o.wearAtLogin;
 
         // Labeled toggle chips — live inside the info column so they're readable without hover
         const flagsRow = document.createElement("div");
@@ -5793,9 +5937,15 @@ export class EBCDrawer {
         nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
         nameInAnnounceBtn.textContent = isNameInAnnounce ? "👤 With name" : "👤 No name";
 
+        const wearAtLoginBtn = document.createElement("button");
+        wearAtLoginBtn.className = "ebc-flag-chip" + (isWearAtLogin ? " on" : "");
+        wearAtLoginBtn.textContent = isWearAtLogin ? "👢 Login outfit" : "👢 Not login";
+        wearAtLoginBtn.title = "Automatically wear this outfit when the addon loads";
+
         flagsRow.appendChild(preserveBtn);
         flagsRow.appendChild(preserveClothingBtn);
         flagsRow.appendChild(nameInAnnounceBtn);
+        flagsRow.appendChild(wearAtLoginBtn);
 
         info.appendChild(nameEl);
         info.appendChild(cmdEl);
@@ -6043,6 +6193,13 @@ export class EBCDrawer {
             nameInAnnounceBtn.className = "ebc-flag-chip" + (next ? " on" : "");
             nameInAnnounceBtn.textContent = next ? "👤 With name" : "👤 No name";
             setOutfitNameInAnnounce(o.id, next);
+        });
+
+        wearAtLoginBtn.addEventListener("click", () => {
+            const next = !wearAtLoginBtn.classList.contains("on");
+            setOutfitWearAtLogin(o.id, next);
+            // Re-render the whole list so any previously-active login chip gets cleared
+            this.rerender();
         });
 
         wearBtn.addEventListener("click", () => {
@@ -15143,6 +15300,234 @@ export class EBCDrawer {
         exprCBody.appendChild(exprWrap);
         exprCBody.appendChild(exprHint);
         body.appendChild(exprWrap2);
+    }
+
+    private renderWhisperLog(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        const partners = getWhisperPartners();
+
+        if (partners.length === 0) {
+            const empty = document.createElement("div");
+            empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:12px 4px;text-align:center;";
+            empty.textContent = "No whispers this session yet.";
+            body.appendChild(empty);
+            return;
+        }
+
+        // Header row: partner list + clear button
+        const headerRow = document.createElement("div");
+        headerRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
+        const headerLbl = document.createElement("div");
+        headerLbl.className = "ebc-section-label";
+        headerLbl.style.margin = "0";
+        headerLbl.textContent = "Whispers";
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "ebc-outfit-del";
+        clearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
+        clearBtn.textContent = "Clear";
+        clearBtn.title = "Clear whisper log";
+        clearBtn.addEventListener("click", () => {
+            this.selectedWhisperPartner = null;
+            clearWhisperLog();
+            this.rerender();
+        });
+        headerRow.appendChild(headerLbl);
+        headerRow.appendChild(clearBtn);
+        body.appendChild(headerRow);
+
+        // If selected partner has left, fall back to first partner
+        if (this.selectedWhisperPartner !== null && !partners.includes(this.selectedWhisperPartner)) {
+            this.selectedWhisperPartner = partners[0];
+        }
+        const activePartner = this.selectedWhisperPartner ?? partners[0];
+
+        // Partner selector tabs
+        const partnerList = document.createElement("div");
+        partnerList.style.cssText = "display:flex;flex-direction:column;gap:2px;margin-bottom:8px;";
+        for (const num of partners) {
+            const log = getWhisperConversation(num);
+            const lastEntry = log[log.length - 1];
+            const name = lastEntry?.partnerName ?? `#${num}`;
+            const unread = log.filter(e => e.direction === "in").length;
+
+            const btn = document.createElement("button");
+            btn.className = "ebc-whisper-partner-btn" + (num === activePartner ? " active" : "");
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = name;
+            const countSpan = document.createElement("span");
+            countSpan.style.cssText = "font-size:8px;color:#7a5070;flex-shrink:0;";
+            countSpan.textContent = `${log.length} msg${log.length !== 1 ? "s" : ""}`;
+            btn.appendChild(nameSpan);
+            btn.appendChild(countSpan);
+            btn.addEventListener("click", () => {
+                this.selectedWhisperPartner = num;
+                this.rerender();
+            });
+            partnerList.appendChild(btn);
+        }
+        body.appendChild(partnerList);
+
+        // Conversation display
+        const convLbl = document.createElement("div");
+        convLbl.className = "ebc-section-label";
+        const activeName = getWhisperConversation(activePartner)[0]?.partnerName ?? `#${activePartner}`;
+        convLbl.textContent = `With ${activeName}`;
+        body.appendChild(convLbl);
+
+        const convEntries = getWhisperConversation(activePartner);
+        if (convEntries.length === 0) {
+            const empty = document.createElement("div");
+            empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4e;padding:6px 4px;";
+            empty.textContent = "No messages yet.";
+            body.appendChild(empty);
+            return;
+        }
+
+        const myName = (() => {
+            try {
+                const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
+                if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
+            } catch { /* ignore */ }
+            return (Player as unknown as Record<string, unknown>)?.Nickname as string | undefined
+                ?? Player?.Name ?? "You";
+        })();
+
+        for (const entry of convEntries) {
+            const row = document.createElement("div");
+            row.className = "ebc-whisper-msg " + entry.direction;
+
+            const meta = document.createElement("div");
+            meta.className = "ebc-whisper-meta";
+            const time = new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            meta.textContent = entry.direction === "out"
+                ? `${myName} → ${entry.partnerName}  ${time}`
+                : `${entry.partnerName} → ${myName}  ${time}`;
+
+            const text = document.createElement("div");
+            text.className = "ebc-whisper-text";
+            text.textContent = entry.message;
+
+            row.appendChild(meta);
+            row.appendChild(text);
+            body.appendChild(row);
+        }
+
+        // Scroll to bottom after render
+        window.setTimeout(() => { body.scrollTop = body.scrollHeight; }, 0);
+    }
+
+    private renderExpressions(): void {
+        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        // ── Presets section ────────────────────────────────────────────────────
+        const presetsLbl = document.createElement("div");
+        presetsLbl.className = "ebc-section-label";
+        presetsLbl.textContent = "Presets";
+        body.appendChild(presetsLbl);
+
+        const presets = getExpressionPresets();
+        if (presets.length === 0) {
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4a5e;margin-bottom:6px;";
+            hint.textContent = "No presets yet — save your current face using the button below.";
+            body.appendChild(hint);
+        } else {
+            const presetRow = document.createElement("div");
+            presetRow.className = "ebc-expr-preset-row";
+            for (const preset of presets) {
+                const item = document.createElement("div");
+                item.className = "ebc-expr-preset-item";
+                const applyBtn = document.createElement("button");
+                applyBtn.className = "ebc-expr-preset-chip";
+                applyBtn.textContent = preset.name;
+                applyBtn.addEventListener("click", () => {
+                    applyExpressionPreset(preset);
+                    this.rerender(150);
+                });
+                const delBtn = document.createElement("button");
+                delBtn.className = "ebc-outfit-del";
+                delBtn.textContent = "×";
+                delBtn.title = "Delete preset";
+                delBtn.addEventListener("click", () => {
+                    saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
+                    this.rerender();
+                });
+                item.appendChild(applyBtn);
+                item.appendChild(delBtn);
+                presetRow.appendChild(item);
+            }
+            body.appendChild(presetRow);
+        }
+
+        // Save current face as preset
+        const captureRow = document.createElement("div");
+        captureRow.style.cssText = "display:flex;gap:5px;margin-bottom:10px;align-items:center;";
+        const captureInput = Object.assign(document.createElement("input"), {
+            className: "ebc-form-input", type: "text", maxLength: 30,
+            placeholder: "Preset name…",
+        }) as HTMLInputElement;
+        captureInput.style.flex = "1";
+        const captureBtn = document.createElement("button");
+        captureBtn.className = "ebc-create-btn";
+        captureBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:4px 8px;";
+        captureBtn.textContent = "Save face";
+        captureBtn.addEventListener("click", () => {
+            const name = captureInput.value.trim() || "Preset";
+            const preset = captureCurrentExpression(name);
+            saveExpressionPresets([...getExpressionPresets(), preset]);
+            captureInput.value = "";
+            this.rerender();
+        });
+        captureRow.appendChild(captureInput);
+        captureRow.appendChild(captureBtn);
+        body.appendChild(captureRow);
+
+        // Clear all button
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "ebc-btn-footer-btn";
+        clearBtn.style.cssText = "width:100%;margin-bottom:10px;font-size:9px;";
+        clearBtn.textContent = "✕ Clear all expressions";
+        clearBtn.addEventListener("click", () => {
+            for (const g of EXPR_GROUPS) {
+                try { applyExprGroup(g, null); } catch { /* skip */ }
+            }
+            this.rerender(150);
+        });
+        body.appendChild(clearBtn);
+
+        // ── Per-group expression pickers ──────────────────────────────────────
+        for (const group of EXPR_GROUPS) {
+            const hdr = document.createElement("div");
+            hdr.className = "ebc-expr-group-hdr";
+            hdr.textContent = EXPR_GROUP_LABELS[group] ?? group;
+            body.appendChild(hdr);
+
+            const currentItem = (Player.Appearance as Item[]).find((i: Item) => i.Asset.Group.Name === group);
+            const currentName = currentItem?.Asset?.Name ?? null;
+
+            const chips = document.createElement("div");
+            chips.className = "ebc-expr-chips";
+
+            const options = getExprGroupOptions(group);
+            for (const opt of options) {
+                const chip = document.createElement("button");
+                chip.className = "ebc-expr-chip" + (opt === currentName ? " active" : "");
+                chip.textContent = opt;
+                chip.title = opt;
+                chip.addEventListener("click", () => {
+                    const toggle = chip.classList.contains("active") ? null : opt;
+                    try { applyExprGroup(group, toggle); } catch { /* ignore */ }
+                    this.rerender(150);
+                });
+                chips.appendChild(chip);
+            }
+            body.appendChild(chips);
+        }
     }
 
     private renderThanks(): void {

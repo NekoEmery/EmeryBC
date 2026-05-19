@@ -1,6 +1,7 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
-import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
+import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS, getLoginOutfit } from "./modules/outfitManager";
+import { addWhisperEntry } from "./modules/whisperLog";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
@@ -20,7 +21,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.3.7";
+const MOD_VERSION = "2.4.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -34,6 +35,24 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.4.0",
+        changes: [
+            "Whisper log: new 💬 tab in the drawer captures all room whispers for the current session. Incoming and outgoing whispers are stored separately per conversation partner. Click a partner to view your chat history with them. Messages are colour-coded by direction. Log clears on page reload (session-only). 'Clear' button wipes the log manually.",
+        ],
+    },
+    {
+        version: "2.3.9",
+        changes: [
+            "Expression quickbar: new FACE tab in the drawer. Shows clickable chips for every BC facial expression grouped by category (Blush, Emoticon, Eyebrows, Eyes L, Eyes R, Mouth, Tears). The active expression per group is highlighted — click it again to clear. Save the current full face as a named preset and re-apply it with one click. 'Clear all expressions' button resets every group at once.",
+        ],
+    },
+    {
+        version: "2.3.8",
+        changes: [
+            "Login outfit: any outfit can now be marked as the login outfit via the '👢 Login outfit' toggle chip in the outfit list. When the addon loads, that outfit is automatically applied after a short delay so BC's appearance system is fully ready. Only one outfit can be the login outfit at a time — toggling a new one automatically clears the previous selection.",
+        ],
+    },
     {
         version: "2.3.7",
         changes: [
@@ -3650,6 +3669,13 @@ function init(): void {
         // Bootstrap room history in case the addon loaded while already in a room
         // (ChatRoomSync won't fire again so we seed the current visit manually).
         window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); } catch { /* ignore */ } }, 600);
+        // Apply login outfit — wait a bit for BC appearance to fully load before applying.
+        window.setTimeout(() => {
+            try {
+                const loginOutfit = getLoginOutfit();
+                if (loginOutfit) handleOutfitCommand("/" + loginOutfit.command);
+            } catch { /* ignore */ }
+        }, 1500);
         // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
         migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => {});
     } catch (err) {
@@ -3707,6 +3733,19 @@ function init(): void {
             const [data] = args as [Record<string, unknown>];
             logMessage(data);
 
+            // Capture incoming room whispers
+            if (data.Type === "Whisper") {
+                const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
+                const content = typeof data.Content === "string" ? data.Content : "";
+                if (senderNum && content) {
+                    const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                        Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
+                    const senderChar = chars?.find(c => c.MemberNumber === senderNum);
+                    const senderName = senderChar?.Nickname?.trim() || senderChar?.Name || `#${senderNum}`;
+                    addWhisperEntry({ ts: Date.now(), direction: "in", partnerNum: senderNum, partnerName: senderName, message: content });
+                }
+            }
+
             if (data.Type !== "Action") return result;
             const dict = data.Dictionary as Array<Record<string, unknown>> | undefined;
             if (!dict) return result;
@@ -3730,6 +3769,24 @@ function init(): void {
                 // Also stash the name for the restraint log — it flushes any
                 // pending additions that are waiting on the applier name.
                 try { setPendingLogApplier(getLastRestrainerName() ?? `#${sourceNum}`, sourceNum); } catch { /* ignore */ }
+            }
+        } catch { /* ignore */ }
+        return result;
+    });
+
+    // Capture outgoing room whispers.
+    // ChatRoomSendWhisper(targetNumber, msg) is the BC function called exclusively for
+    // outgoing whispers — hooking it gives us the target and message cleanly.
+    tryHookFunction(modAPI, "ChatRoomSendWhisper", 3, (args, next) => {
+        const result = next(args);
+        try {
+            const [targetNum, msg] = args as [number, string];
+            if (typeof targetNum === "number" && targetNum > 0 && typeof msg === "string" && msg.trim()) {
+                const chars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                    Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> | undefined;
+                const targetChar = chars?.find(c => c.MemberNumber === targetNum);
+                const targetName = targetChar?.Nickname?.trim() || targetChar?.Name || `#${targetNum}`;
+                addWhisperEntry({ ts: Date.now(), direction: "out", partnerNum: targetNum, partnerName: targetName, message: msg.trim() });
             }
         } catch { /* ignore */ }
         return result;
