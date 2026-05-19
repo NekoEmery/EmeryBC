@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.5
+// @version      2.5.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2349,6 +2349,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (s === "expression" || s === "exprPreset") {
                         btn.style = "action";
                         btn.emote = "";
+                        btn.label = "";
+                        btn.enabled = false;
                         didMigrate = true;
                     }
                 }
@@ -29326,7 +29328,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.5";
+    const MOD_VERSION = "2.5.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29337,6 +29339,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.6",
+            changes: [
+                "Fix: expression/exprPreset migration now also clears the label and disables the slot so migrated buttons (e.g. 'eep') no longer appear in the sidebar.",
+            ],
+        },
         {
             version: "2.5.5",
             changes: [
