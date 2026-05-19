@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.8.1
+// @version      2.8.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1829,6 +1829,104 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    function getBadgeStyle() {
+        var _a;
+        try {
+            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeStyle) === "cat" ? "cat" : "text";
+        }
+        catch (_b) {
+            return "text";
+        }
+    }
+    function setBadgeStyle(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.badgeStyle = v;
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Badge scale ---------------------------------------------------------------
+    // Multiplier applied on top of the room zoom. 1.0 = default size.
+    // Range: 0.3 – 4.0
+    function getBadgeScale() {
+        var _a;
+        try {
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeScale;
+            return typeof v === "number" && v >= 0.3 && v <= 4 ? v : 1.0;
+        }
+        catch (_b) {
+            return 1.0;
+        }
+    }
+    function setBadgeScale(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.badgeScale = Math.max(0.3, Math.min(4, v));
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Badge position offset (character-relative) --------------------------------
+    // Stored as offsets from the character's draw origin (left, top), in
+    // character-local canvas pixels — multiplied by zoom when drawing.
+    // X=250 = horizontal centre of the 500 px character slot.
+    // Y=72  = just below the WCE name line.
+    function getBadgeOffsetX() {
+        var _a;
+        try {
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeOffsetX;
+            return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250;
+        }
+        catch (_b) {
+            return 250;
+        }
+    }
+    function setBadgeOffsetX(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.badgeOffsetX = Math.round(v);
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getBadgeOffsetY() {
+        var _a;
+        try {
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeOffsetY;
+            return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 72;
+        }
+        catch (_b) {
+            return 72;
+        }
+    }
+    function setBadgeOffsetY(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.badgeOffsetY = Math.round(v);
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function resetBadgePosition() {
+        setBadgeOffsetX(250);
+        setBadgeOffsetY(72);
+    }
+    // -- Badge drag mode (in-memory only, never persisted) -------------------------
+    // When true: a dashed ring appears on your own badge in the chatroom canvas,
+    // and canvas mouse/touch events allow click-dragging the badge to reposition.
+    // Automatically cleared when the drag completes or the user leaves a room.
+    let _badgeDragMode = false;
+    function getBadgeDragMode() { return _badgeDragMode; }
+    function setBadgeDragMode(v) { _badgeDragMode = v; }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
     // another character is immediately removed and a glare emote is sent.
@@ -16366,6 +16464,124 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             makeTagCard("👤", "My Tag", "Your own EBC tag above your head (your screen only)", getBadgeEnabled, setBadgeEnabled);
             makeTagCard("👥", "Others", "EBC tags above other players' heads", getShowOthersBadge, setShowOthersBadge);
             ebcTagsBody.appendChild(ebcTagsCardRow);
+            // ── Badge Appearance ─────────────────────────────────────────────────
+            const badgeDivider = document.createElement("div");
+            badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
+            ebcTagsBody.appendChild(badgeDivider);
+            const badgeAppLbl = document.createElement("div");
+            badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.08em;color:#9a6878;margin-bottom:6px;";
+            badgeAppLbl.textContent = "BADGE APPEARANCE";
+            ebcTagsBody.appendChild(badgeAppLbl);
+            // ── Style picker: Text | Cat ─────────────────────────────────────────
+            const styleRow = document.createElement("div");
+            styleRow.style.cssText = "display:flex;gap:5px;margin-bottom:7px;";
+            const makeStyleBtn = (styleName, icon, labelText) => {
+                const btn = document.createElement("button");
+                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                const refresh = () => {
+                    const active = getBadgeStyle() === styleName;
+                    btn.style.background = active ? "#2e1020" : "#150a10";
+                    btn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                    btn.style.color = active ? "#f0c0d8" : "#7a4a60";
+                    btn.textContent = `${icon} ${labelText}`;
+                };
+                refresh();
+                btn.addEventListener("click", () => {
+                    setBadgeStyle(styleName);
+                    styleBtns.forEach(([, r]) => r());
+                });
+                return btn;
+            };
+            const styleBtns = [];
+            const textBtn = makeStyleBtn("text", "🏷", "Text");
+            const catBtn = makeStyleBtn("cat", "🐱", "Cat");
+            const refreshTextBtn = () => {
+                const active = getBadgeStyle() === "text";
+                textBtn.style.background = active ? "#2e1020" : "#150a10";
+                textBtn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                textBtn.style.color = active ? "#f0c0d8" : "#7a4a60";
+            };
+            const refreshCatBtn = () => {
+                const active = getBadgeStyle() === "cat";
+                catBtn.style.background = active ? "#2e1020" : "#150a10";
+                catBtn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                catBtn.style.color = active ? "#f0c0d8" : "#7a4a60";
+            };
+            styleBtns.push([textBtn, refreshTextBtn], [catBtn, refreshCatBtn]);
+            textBtn.addEventListener("click", () => { setBadgeStyle("text"); refreshTextBtn(); refreshCatBtn(); });
+            catBtn.addEventListener("click", () => { setBadgeStyle("cat"); refreshTextBtn(); refreshCatBtn(); });
+            refreshTextBtn();
+            refreshCatBtn();
+            styleRow.appendChild(textBtn);
+            styleRow.appendChild(catBtn);
+            ebcTagsBody.appendChild(styleRow);
+            // ── Scale slider ─────────────────────────────────────────────────────
+            const scaleRow = document.createElement("div");
+            scaleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+            const scaleLbl = document.createElement("span");
+            scaleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
+            scaleLbl.textContent = "Scale";
+            const scaleSlider = document.createElement("input");
+            scaleSlider.type = "range";
+            scaleSlider.min = "0.3";
+            scaleSlider.max = "3";
+            scaleSlider.step = "0.05";
+            scaleSlider.value = String(getBadgeScale());
+            scaleSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            scaleSlider.title = "Badge size multiplier (1 = default)";
+            const scaleVal = document.createElement("span");
+            scaleVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+            scaleVal.textContent = getBadgeScale().toFixed(2) + "×";
+            scaleSlider.addEventListener("input", () => {
+                const v = parseFloat(scaleSlider.value);
+                setBadgeScale(v);
+                scaleVal.textContent = v.toFixed(2) + "×";
+            });
+            scaleRow.appendChild(scaleLbl);
+            scaleRow.appendChild(scaleSlider);
+            scaleRow.appendChild(scaleVal);
+            ebcTagsBody.appendChild(scaleRow);
+            // ── Position drag row ─────────────────────────────────────────────────
+            const posRow = document.createElement("div");
+            posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+            const posHint = document.createElement("span");
+            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex:1;line-height:1.35;";
+            posHint.textContent = "Drag badge on your character to reposition for everyone";
+            const dragBtn = document.createElement("button");
+            const refreshDragBtn = () => {
+                const on = getBadgeDragMode();
+                dragBtn.textContent = on ? "✓ Done" : "📍 Position";
+                dragBtn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif",
+                    "font-size:9px",
+                    "font-weight:bold",
+                    "padding:4px 8px",
+                    "border-radius:4px",
+                    "cursor:pointer",
+                    "flex-shrink:0",
+                    "transition:background 0.12s,border-color 0.12s,color 0.12s",
+                    `border:1px solid ${on ? "#cf6f98" : "#4c2537"}`,
+                    `background:${on ? "#4a1f30" : "#1b0d17"}`,
+                    `color:${on ? "#f7e6ee" : "#c08890"}`,
+                ].join(";");
+            };
+            refreshDragBtn();
+            dragBtn.addEventListener("click", () => {
+                setBadgeDragMode(!getBadgeDragMode());
+                refreshDragBtn();
+            });
+            const resetPosBtn = document.createElement("button");
+            resetPosBtn.textContent = "⟳";
+            resetPosBtn.title = "Reset badge position to default";
+            resetPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;transition:background 0.12s,color 0.12s;";
+            resetPosBtn.addEventListener("click", () => {
+                resetBadgePosition();
+                setBadgeOffsetX(getBadgeOffsetX()); // trigger sync
+            });
+            posRow.appendChild(posHint);
+            posRow.appendChild(dragBtn);
+            posRow.appendChild(resetPosBtn);
+            ebcTagsBody.appendChild(posRow);
             ebcTagsStrip.appendChild(ebcTagsBody);
             const updateEbcTagsCollapse = () => {
                 ebcTagsChev.textContent = ebcTagsCollapsed ? "Show ▶" : "Hide ▼";
@@ -30134,7 +30350,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.8.1";
+    const MOD_VERSION = "2.8.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30145,6 +30361,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.8.2",
+            changes: [
+                "Feature: Custom EBC badge — toggle between classic text tag and cat-face emoji. Scale the badge with a slider (0.3×–3×). Drag to reposition the badge anywhere on your character; the same offset is applied consistently to every player's badge.",
+            ],
+        },
         {
             version: "2.8.1",
             changes: [
@@ -33924,6 +34146,91 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function hasEmeryBC(character) {
         return !!getSharedPresence(character);
     }
+    // Tracks the player character's last-drawn canvas position so the drag
+    // listener can convert mouse coordinates into character-relative offsets.
+    let _playerCharLeft = 0;
+    let _playerCharTop = 0;
+    let _playerCharZoom = 1;
+    let _isDraggingBadge = false;
+    /** Returns the BC main canvas element, checking both the window global and DOM. */
+    function getBCCanvas() {
+        try {
+            const wc = window.MainCanvas;
+            if (wc instanceof HTMLCanvasElement)
+                return wc;
+            return document.getElementById("MainCanvas");
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    /** Convert a screen-space mouse/touch event position to BC canvas coordinates. */
+    function toCanvasPos(canvas, clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (clientX - rect.left) * (canvas.width / rect.width),
+            y: (clientY - rect.top) * (canvas.height / rect.height),
+        };
+    }
+    /**
+     * Attach mouse + touch listeners to the BC canvas so the user can click-drag
+     * the EBC badge to a new position when drag mode is active.
+     * Called once during mod init; safe to call if the canvas isn't ready yet
+     * (it retries via setTimeout).
+     */
+    function initBadgeDragListeners() {
+        const canvas = getBCCanvas();
+        if (!canvas) {
+            window.setTimeout(initBadgeDragListeners, 1000);
+            return;
+        }
+        const HIT = 35; // px radius around badge centre that counts as a "hit"
+        const onDown = (clientX, clientY, consume) => {
+            if (!getBadgeDragMode())
+                return;
+            const pos = toCanvasPos(canvas, clientX, clientY);
+            const bx = _playerCharLeft + getBadgeOffsetX() * _playerCharZoom;
+            const by = _playerCharTop + getBadgeOffsetY() * _playerCharZoom;
+            if (Math.abs(pos.x - bx) < HIT && Math.abs(pos.y - by) < HIT) {
+                _isDraggingBadge = true;
+                consume();
+            }
+        };
+        const onMove = (clientX, clientY, consume) => {
+            if (!_isDraggingBadge)
+                return;
+            const pos = toCanvasPos(canvas, clientX, clientY);
+            if (_playerCharZoom > 0) {
+                setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                setBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+            }
+            consume();
+        };
+        const onUp = () => {
+            if (_isDraggingBadge) {
+                _isDraggingBadge = false;
+                setBadgeDragMode(false); // auto-exit drag mode on release
+            }
+        };
+        // Mouse
+        canvas.addEventListener("mousedown", (e) => onDown(e.clientX, e.clientY, () => { e.stopPropagation(); e.preventDefault(); }));
+        canvas.addEventListener("mousemove", (e) => onMove(e.clientX, e.clientY, () => { e.stopPropagation(); }));
+        canvas.addEventListener("mouseup", () => onUp());
+        // Touch (for phone users)
+        canvas.addEventListener("touchstart", (e) => {
+            const t = e.touches[0];
+            if (!t)
+                return;
+            onDown(t.clientX, t.clientY, () => { e.stopPropagation(); e.preventDefault(); });
+        }, { passive: false });
+        canvas.addEventListener("touchmove", (e) => {
+            const t = e.touches[0];
+            if (!t)
+                return;
+            onMove(t.clientX, t.clientY, () => { e.stopPropagation(); e.preventDefault(); });
+        }, { passive: false });
+        canvas.addEventListener("touchend", () => onUp());
+    }
     function drawPresenceMarker(args) {
         var _a;
         if (CurrentScreen !== "ChatRoom")
@@ -33935,37 +34242,87 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         if (!character || left == null || top == null)
             return;
         const isSelf = character.MemberNumber === Player.MemberNumber;
-        // Separate display toggles: own badge vs others' badges (both client-side only)
+        // Track player draw position every frame — used by the drag listener.
+        if (isSelf) {
+            _playerCharLeft = left;
+            _playerCharTop = top;
+            _playerCharZoom = zoom;
+        }
+        // Visibility toggles
         if (isSelf && !getBadgeEnabled())
             return;
         if (!isSelf && !getShowOthersBadge())
             return;
         if (!isSelf && !hasEmeryBC(character))
             return;
+        // Skip map / bird's-eye view
+        if (zoom < 0.3)
+            return;
         const presence = getSharedPresence(character);
         const showVer = getShowVersionBadge();
-        // For self, always use the live MOD_VERSION — cached presence may be stale.
         const verStr = isSelf ? MOD_VERSION : ((_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : "?");
         const isDevUser = isSelf ? IS_DEV_BUILD : ((presence === null || presence === void 0 ? void 0 : presence.isDev) === true);
         const label = isDevUser
             ? (showVer ? "dev | v" + verStr : "dev | EBC")
             : (showVer ? "v" + verStr : "EBC");
-        // Hide in map/bird's-eye view (very low zoom). Crowded rooms reduce zoom too
-        // but stay well above 0.3, so only skip true map-view zoom.
-        if (zoom < 0.3)
-            return;
-        const isDevLabel = isDevUser;
-        const width = isDevLabel
-            ? (showVer ? Math.max(70, 78 * zoom) : Math.max(52, 58 * zoom))
-            : (showVer ? Math.max(44, 50 * zoom) : Math.max(30, 34 * zoom));
-        const height = Math.max(12, 14 * zoom);
-        const x = left + 250 * zoom; // horizontal center of the 500px character canvas slot
-        const y = top + 72 * zoom; // below WCE name + version line
-        const badgeLeft = x - width / 2;
-        const badgeTop = y - height / 2;
-        DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
-        DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
-        DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
+        // User-configured position offset + scale
+        const offsetX = getBadgeOffsetX(); // default 250 (char horiz centre)
+        const offsetY = getBadgeOffsetY(); // default 72  (below WCE name)
+        const userScale = getBadgeScale(); // default 1.0
+        const badgeStyle = getBadgeStyle(); // "text" | "cat"
+        const x = left + offsetX * zoom;
+        const y = top + offsetY * zoom;
+        if (badgeStyle === "cat") {
+            // ── Cat-face emoji badge ──────────────────────────────────────────────
+            const canvas = getBCCanvas();
+            const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
+            if (ctx) {
+                const fontSize = Math.max(12, Math.round(22 * zoom * userScale));
+                ctx.save();
+                ctx.font = `${fontSize}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("🐱", x, y);
+                ctx.restore();
+            }
+        }
+        else {
+            // ── Text badge (original style) ───────────────────────────────────────
+            const baseW = isDevUser
+                ? (showVer ? 78 : 58)
+                : (showVer ? 50 : 34);
+            const baseH = 14;
+            const width = Math.max(baseW * 0.6, baseW * zoom * userScale);
+            const height = Math.max(baseH * 0.6, baseH * zoom * userScale);
+            const badgeLeft = x - width / 2;
+            const badgeTop = y - height / 2;
+            DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
+            DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
+            DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
+        }
+        // ── Drag-mode handle (own character only) ─────────────────────────────────
+        if (isSelf && getBadgeDragMode()) {
+            const canvas = getBCCanvas();
+            const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
+            if (ctx) {
+                const r = Math.max(16, 22 * zoom * userScale);
+                ctx.save();
+                ctx.strokeStyle = "rgba(207,111,152,0.9)";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 4]);
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                // Small "move" label above ring
+                ctx.fillStyle = "rgba(207,111,152,0.9)";
+                ctx.font = `bold ${Math.max(9, Math.round(11 * zoom))}px "Trebuchet MS",serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+                ctx.fillText("drag", x, y - r - 2);
+                ctx.restore();
+            }
+        }
     }
     function showRoomLoadNotice() {
         if (noticeShown)
@@ -34019,6 +34376,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             initDragListener();
         }
         catch ( /* ignore */_b) { /* ignore */ }
+        // Canvas listeners for badge repositioning drag mode
+        try {
+            initBadgeDragListeners();
+        }
+        catch ( /* ignore */_c) { /* ignore */ }
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
@@ -34310,6 +34672,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 onRoomLeave();
             }
             catch ( /* ignore */_b) { /* ignore */ }
+            try {
+                setBadgeDragMode(false);
+                _isDraggingBadge = false;
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
             return result;
         });
         // Track member joins for room history.
@@ -34495,7 +34862,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_d) { /* ignore */ }
             });
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
         // ── Emote shortcut (*text → Type:Emote "*Name text*") ────────────────────
         // Typing *text (or * text) in the chat box sends a BC Emote message so it
         // renders as *Name text* in chat without going through gag processing.
@@ -34611,7 +34978,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         try {
             syncPresenceMarker();
         }
-        catch (_d) {
+        catch (_e) {
             // Ignore early sync failures.
         }
         startUpdateChecker();
