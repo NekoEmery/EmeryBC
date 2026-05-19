@@ -12153,6 +12153,9 @@
         "anims.delay": { en: "Delay (ms)", de: "Verzögerung (ms)", zh: "延迟（毫秒）", fr: "Délai (ms)", es: "Retardo (ms)" },
         "anims.addStep": { en: "+ Add Step", de: "+ Schritt hinzufügen", zh: "+ 添加步骤", fr: "+ Ajouter une étape", es: "+ Añadir paso" },
         // ─── USERS/NOTES TAB ───────────────────────────────────────────────────
+        "users.peopleInRoom": { en: "People in Room", de: "Personen im Raum", zh: "房间中的人", fr: "Personnes dans la salle", es: "Personas en la sala" },
+        "users.friends": { en: "Friends", de: "Freunde", zh: "好友", fr: "Amis", es: "Amigos" },
+        "users.autoReplyWhenAfk": { en: "Auto-reply when AFK", de: "Auto-Antwort wenn AFK", zh: "AFK 时自动回复", fr: "Réponse auto quand AFK", es: "Respuesta auto cuando AFK" },
         "users.header": { en: "User Notes", de: "Benutzernotizen", zh: "用户笔记", fr: "Notes utilisateur", es: "Notas de usuario" },
         "users.noteHint": { en: "Notes about this person...", de: "Notizen zu dieser Person...", zh: "关于此人的备注...", fr: "Notes sur cette personne...", es: "Notas sobre esta persona..." },
         "users.savedAutomatically": { en: "Saved automatically", de: "Automatisch gespeichert", zh: "自动保存", fr: "Sauvegardé automatiquement", es: "Guardado automáticamente" },
@@ -12672,9 +12675,12 @@
     letter-spacing: 0.07em;
     white-space: nowrap;
     flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.ebc-header-btns { display: flex; gap: 4px; align-items: center; }
+.ebc-header-btns { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
 
 .ebc-icon-btn {
     background: transparent;
@@ -15186,6 +15192,7 @@
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
             // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
             this._langUnsubscribe = null;
+            this._langPillsRefresh = null;
             this._i18nRefs = {};
             EBCDrawer._instance = this;
             this.version = version;
@@ -15282,45 +15289,17 @@
             resetLocBtn.textContent = t("header.resetPos");
             resetLocBtn.style.display = "none"; // hidden until panel is in free-float mode
             this.resetLocationBtn = resetLocBtn;
-            // Language switcher — compact select in header button area
-            const langSelect = document.createElement("select");
-            langSelect.title = t("header.language");
-            langSelect.style.cssText = [
-                "font-family:'Trebuchet MS',serif",
-                "font-size:9px",
-                "background:#1a0812",
-                "color:#b08898",
-                "border:1px solid #3a1928",
-                "border-radius:4px",
-                "padding:2px 3px",
-                "cursor:pointer",
-                "outline:none",
-                "flex-shrink:0",
-            ].join(";");
-            for (const code of LANG_CODES) {
-                const opt = document.createElement("option");
-                opt.value = code;
-                opt.textContent = LANG_NAMES[code];
-                if (code === getLanguage())
-                    opt.selected = true;
-                langSelect.appendChild(opt);
-            }
-            langSelect.addEventListener("change", () => {
-                setLanguage(langSelect.value);
-            });
             const closeBtn = document.createElement("button");
             closeBtn.className = "ebc-icon-btn";
             closeBtn.title = t("header.close");
             closeBtn.textContent = "X";
-            // Store refs for later translation updates
+            // Store refs for later translation updates (langSelect ref stored after pill row is built below)
             this._i18nRefs.refreshBtn = refreshBtn;
             this._i18nRefs.moveHandle = moveHandle;
             this._i18nRefs.resetLocBtn = resetLocBtn;
             this._i18nRefs.closeBtn = closeBtn;
-            this._i18nRefs.langSelect = langSelect;
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
-            headerBtns.appendChild(langSelect);
             headerBtns.appendChild(resetLocBtn);
             headerBtns.appendChild(closeBtn);
             header.appendChild(title);
@@ -15329,8 +15308,8 @@
             // In anchored mode it drags to detach the panel; after 5px movement the panel
             // enters free-float mode and follows the cursor from that point.
             addPointerDown(header, (start, e) => {
-                // Don't interfere with button clicks inside the header
-                if (e.target.closest("button"))
+                // Don't interfere with button or interactive element clicks inside the header
+                if (e.target.closest("button, select, input, a"))
                     return;
                 e.preventDefault();
                 const panelEl = slideContainer;
@@ -15353,8 +15332,11 @@
                             this.enterFreeMode({ x: startPanelX, y: startPanelY });
                         }
                     }
-                    const newX = Math.max(0, Math.min(window.innerWidth - 50, startPanelX + dx));
-                    const newY = Math.max(0, Math.min(window.innerHeight - 50, startPanelY + dy));
+                    // Keep panel fully inside viewport — right/bottom edge must stay visible
+                    const pW = panelEl.offsetWidth || 360;
+                    const pH = panelEl.offsetHeight || 200;
+                    const newX = Math.max(0, Math.min(window.innerWidth - pW, startPanelX + dx));
+                    const newY = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), startPanelY + dy));
                     panelEl.style.left = `${newX}px`;
                     panelEl.style.top = `${newY}px`;
                 }, () => {
@@ -15437,6 +15419,48 @@
             tabBar.appendChild(domTabBtn);
             tabBar.appendChild(puppyTabBtn);
             tabBar.appendChild(kittyTabBtn);
+            // ── Language picker row — sits between tab bar and quick-actions ─────
+            const langRow = document.createElement("div");
+            langRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:3px 6px 3px;border-bottom:1px solid #2a1020;background:rgba(15,6,12,0.4);flex-wrap:nowrap;";
+            const langIcon = document.createElement("span");
+            langIcon.textContent = "🌐";
+            langIcon.style.cssText = "font-size:10px;flex-shrink:0;opacity:0.7;";
+            langRow.appendChild(langIcon);
+            const langPills = [];
+            const refreshLangPills = () => {
+                const cur = getLanguage();
+                for (const pill of langPills) {
+                    const active = pill.dataset.lang === cur;
+                    pill.style.cssText = [
+                        "font-family:'Trebuchet MS',serif",
+                        "font-size:9px",
+                        "padding:2px 6px",
+                        "border-radius:10px",
+                        "cursor:pointer",
+                        "flex-shrink:0",
+                        "transition:background 0.12s,color 0.12s,border-color 0.12s",
+                        active
+                            ? "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;"
+                            : "border:1px solid #2a1020;background:transparent;color:#7a5060;",
+                    ].join(";");
+                }
+            };
+            for (const code of LANG_CODES) {
+                const pill = document.createElement("button");
+                pill.dataset.lang = code;
+                pill.textContent = LANG_NAMES[code];
+                pill.addEventListener("click", () => {
+                    setLanguage(code);
+                    refreshLangPills();
+                });
+                langPills.push(pill);
+                langRow.appendChild(pill);
+            }
+            refreshLangPills();
+            // Store the first pill as the ref anchor so updateStaticTranslations can call refreshLangPills
+            // We do this by adding a custom refresh to the _i18nRefs via a synthetic select-like object
+            // The simplest approach: expose refreshLangPills so updateStaticTranslations can call it
+            this._langPillsRefresh = refreshLangPills;
             // Quick actions bar (always visible below tabs)
             const quickActions = document.createElement("div");
             quickActions.className = "ebc-quick-actions";
@@ -15601,7 +15625,7 @@
             slSeqArea.rows = 3;
             slSeqArea.spellcheck = false;
             slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
-            slSeqArea.title = "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}";
+            slSeqArea.title = t("sl.seqHint");
             const slSeqInitPresets = getSlowLeavePresets();
             const slSeqInitIdx = parseInt((_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0", 10);
             slSeqArea.value = (_c = (_b = slSeqInitPresets[slSeqInitIdx]) === null || _b === void 0 ? void 0 : _b.seq) !== null && _c !== void 0 ? _c : "";
@@ -16012,6 +16036,7 @@
             this.timerEl = timerEl;
             panel.appendChild(header);
             panel.appendChild(tabBar);
+            panel.appendChild(langRow);
             panel.appendChild(quickActions);
             panel.appendChild(selfPickPanel);
             panel.appendChild(safewordRow);
@@ -16239,14 +16264,22 @@
             catch ( /* ignore */_a) { /* ignore */ }
         }
         loadPanelPosition() {
+            var _a, _b;
             try {
                 const store = Player.ExtensionSettings.EmeryBC;
                 const v = store === null || store === void 0 ? void 0 : store.panelPos;
-                if (v && typeof v.x === "number" && typeof v.y === "number")
-                    return { x: v.x, y: v.y };
+                if (v && typeof v.x === "number" && typeof v.y === "number") {
+                    // Clamp to current viewport so a position saved on a wider/taller screen
+                    // doesn't put the panel off-screen on the next load.
+                    const pW = ((_a = this.panelEl) === null || _a === void 0 ? void 0 : _a.offsetWidth) || 360;
+                    const pH = ((_b = this.panelEl) === null || _b === void 0 ? void 0 : _b.offsetHeight) || 200;
+                    const x = Math.max(0, Math.min(window.innerWidth - pW, v.x));
+                    const y = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), v.y));
+                    return { x, y };
+                }
                 return null;
             }
-            catch (_a) {
+            catch (_c) {
                 return null;
             }
         }
@@ -16590,7 +16623,7 @@
         }
         /** Update every static element that was built once in setup() and never re-rendered. */
         updateStaticTranslations() {
-            var _a;
+            var _a, _b;
             const r = this._i18nRefs;
             // Header
             if (r.refreshBtn)
@@ -16603,14 +16636,8 @@
             }
             if (r.closeBtn)
                 r.closeBtn.title = t("header.close");
-            if (r.langSelect)
-                r.langSelect.title = t("header.language");
-            // Sync the language select to the current language (in case programmatic change)
-            if (r.langSelect) {
-                for (const opt of Array.from(r.langSelect.options)) {
-                    opt.selected = opt.value === getLanguage();
-                }
-            }
+            // Sync language pill active state
+            (_a = this._langPillsRefresh) === null || _a === void 0 ? void 0 : _a.call(this);
             // Tabs
             if (r.tabOutfits)
                 r.tabOutfits.textContent = t("tabs.outfits");
@@ -16652,7 +16679,7 @@
             if (r.qaConfirmLbl)
                 r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
             if (r.qaConfirmToggle)
-                (_a = this.refreshConfirmToggle) === null || _a === void 0 ? void 0 : _a.call(this);
+                (_b = this.refreshConfirmToggle) === null || _b === void 0 ? void 0 : _b.call(this);
             if (r.pickBtn) {
                 r.pickBtn.textContent = t("qa.pickRestraints");
                 r.pickBtn.title = t("qa.pickTitle");
@@ -17118,7 +17145,7 @@
                 type: "text",
                 placeholder: t("outfits.timePlaceholder"),
                 maxLength: 5,
-                title: "24-hour time (e.g. 08:30, 14:00)",
+                title: t("outfits.timeTitle"),
             });
             timeInput.className = "ebc-form-input";
             timeInput.style.width = "72px";
@@ -18690,7 +18717,7 @@
                 className: "ebc-form-input", type: "text", placeholder: t("outfits.namePlaceholder"),
             });
             const bcCmdInput = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", placeholder: "Command (e.g. ropeset)",
+                className: "ebc-form-input", type: "text", placeholder: t("outfits.cmdPlaceholder"),
                 maxLength: 20,
             });
             const mkRow = (label, el) => {
@@ -18860,7 +18887,7 @@
                     className: "ebc-form-input", type: "text", placeholder: "Restraint set name (e.g. Hogtied)",
                 });
                 const impRCmdInput = Object.assign(document.createElement("input"), {
-                    className: "ebc-form-input", type: "text", placeholder: "Command (e.g. hogtied)",
+                    className: "ebc-form-input", type: "text", placeholder: t("outfits.cmdPlaceholder"),
                     maxLength: 20,
                 });
                 const mkImpRRow = (label, el) => {
@@ -19829,7 +19856,7 @@
                 }
             }
             // ── Saved Combos (collapsible) ────────────────────────────────────────
-            const combosCnt = makeCollapse("SAVED COMBOS", "EBC_combosCollapsed", false);
+            const combosCnt = makeCollapse(t("anims.poseCombos"), "EBC_combosCollapsed", false);
             const combos = getPoseCombos();
             if (combos.length === 0) {
                 const none = document.createElement("div");
@@ -19966,7 +19993,7 @@
                 saveBar.style.marginTop = "2px";
                 const savComboBtn = document.createElement("button");
                 savComboBtn.className = "ebc-create-btn";
-                savComboBtn.textContent = "Save Changes";
+                savComboBtn.textContent = t("outfits.saveChanges");
                 savComboBtn.addEventListener("click", () => {
                     updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
                     this.rerender();
@@ -20928,7 +20955,7 @@
                 botSaveBar.style.marginTop = "2px";
                 const botSaveBtn = document.createElement("button");
                 botSaveBtn.className = "ebc-create-btn";
-                botSaveBtn.textContent = "Save Changes";
+                botSaveBtn.textContent = t("outfits.saveChanges");
                 botSaveBtn.addEventListener("click", () => {
                     updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
                     this.rerender();
@@ -21702,7 +21729,7 @@
             afkToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;";
             const afkToggleLbl = document.createElement("span");
             afkToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            afkToggleLbl.textContent = "Auto-reply when AFK";
+            afkToggleLbl.textContent = t("users.autoReplyWhenAfk");
             const afkToggleBtn = document.createElement("button");
             const refreshAfkToggle = () => {
                 const on = getAfkEnabled();
@@ -22118,7 +22145,7 @@
                         arrow.textContent = col ? "▶" : "▼";
                         const lbl = document.createElement("span");
                         lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
-                        lbl.textContent = `People in Room`;
+                        lbl.textContent = t("users.peopleInRoom");
                         const cnt = document.createElement("span");
                         cnt.style.cssText = [
                             "font-family:'Trebuchet MS',serif",
@@ -22172,7 +22199,7 @@
                 lblF.className = "ebc-section-label";
                 lblF.style.cssText = "display:flex;align-items:center;gap:6px;";
                 const lblFText = document.createElement("span");
-                lblFText.textContent = "Friends";
+                lblFText.textContent = t("users.friends");
                 const lblFCount = document.createElement("span");
                 lblFCount.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:normal;flex:1;";
                 lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
@@ -29767,7 +29794,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.10";
+    const MOD_VERSION = "2.5.13";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29778,6 +29805,27 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.13",
+            changes: [
+                "Fix: panel header no longer overflows its container — .ebc-title gets min-width:0/overflow:hidden/text-overflow:ellipsis; .ebc-header-btns gets flex-shrink:0 so the close button can't be pushed off-screen.",
+                "Fix: free-float drag bounds now use panelEl.offsetWidth/offsetHeight instead of a hardcoded 50px margin, so the panel's right/bottom edge stays fully inside the viewport.",
+                "Fix: saved panel position is now clamped to the current viewport on restore, so a position saved on a larger screen doesn't put the panel off-screen on a smaller one.",
+            ],
+        },
+        {
+            version: "2.5.12",
+            changes: [
+                "Fix: language switcher moved out of the cramped header buttons row into its own pill-button row between the tab bar and quick-actions bar — 🌐 + one pill per language, active one highlighted pink.",
+                "Fix: header drag handler now also guards against select/input/a elements (not just button) so interactive elements inside the header receive their clicks correctly.",
+            ],
+        },
+        {
+            version: "2.5.11",
+            changes: [
+                "i18n (continued): wire remaining static strings — 'People in Room', 'Friends', 'Auto-reply when AFK' labels; slow-leave sequence hint tooltip; pose combos section header; scene/combo save-changes buttons; outfit/restraint command placeholders; add new users.peopleInRoom / users.friends / users.autoReplyWhenAfk keys to translation table.",
+            ],
+        },
         {
             version: "2.5.10",
             changes: [

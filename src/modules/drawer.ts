@@ -506,9 +506,12 @@ const CSS = `
     letter-spacing: 0.07em;
     white-space: nowrap;
     flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.ebc-header-btns { display: flex; gap: 4px; align-items: center; }
+.ebc-header-btns { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
 
 .ebc-icon-btn {
     background: transparent;
@@ -3227,8 +3230,11 @@ export class EBCDrawer {
                             this.enterFreeMode({ x: startPanelX, y: startPanelY });
                         }
                     }
-                    const newX = Math.max(0, Math.min(window.innerWidth  - 50, startPanelX + dx));
-                    const newY = Math.max(0, Math.min(window.innerHeight - 50, startPanelY + dy));
+                    // Keep panel fully inside viewport — right/bottom edge must stay visible
+                    const pW = panelEl.offsetWidth  || 360;
+                    const pH = panelEl.offsetHeight || 200;
+                    const newX = Math.max(0, Math.min(window.innerWidth  - pW, startPanelX + dx));
+                    const newY = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), startPanelY + dy));
                     panelEl.style.left = `${newX}px`;
                     panelEl.style.top  = `${newY}px`;
                 },
@@ -4221,7 +4227,15 @@ export class EBCDrawer {
         try {
             const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined;
             const v = store?.panelPos as { x?: unknown; y?: unknown } | null | undefined;
-            if (v && typeof v.x === "number" && typeof v.y === "number") return { x: v.x, y: v.y };
+            if (v && typeof v.x === "number" && typeof v.y === "number") {
+                // Clamp to current viewport so a position saved on a wider/taller screen
+                // doesn't put the panel off-screen on the next load.
+                const pW = this.panelEl?.offsetWidth  || 360;
+                const pH = this.panelEl?.offsetHeight || 200;
+                const x = Math.max(0, Math.min(window.innerWidth  - pW, v.x));
+                const y = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), v.y));
+                return { x, y };
+            }
             return null;
         } catch { return null; }
     }
