@@ -3973,7 +3973,7 @@ export class EBCDrawer {
         footer.className = "ebc-footer";
 
         const footerVerEl = document.createElement("span");
-        footerVerEl.textContent = `EBC v${this.version} · UI inspired by CRABS by Sin`;
+        footerVerEl.textContent = t("footer.uiInspired", { v: this.version });
         footerVerEl.style.cssText = "font-size:9px;color:#7a5a6a;";
         footer.appendChild(footerVerEl);
 
@@ -4587,9 +4587,9 @@ export class EBCDrawer {
         const online = getOnlineTime();
         const room   = getRoomTime();
         const bound  = getRestraintTime();
-        let text = `🌐 Online: ${online}`;
-        if (room)  text += `  🕒 Room: ${room}`;
-        if (bound) text += `  ⛓ Bound: ${bound}`;
+        let text = `🌐 ${t("footer.onlineLabel")}: ${online}`;
+        if (room)  text += `  🕒 ${t("footer.roomLabel")}: ${room}`;
+        if (bound) text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
         this.timerEl.textContent = text;
         try { checkAndApplySchedules(); } catch { /* ignore */ }
     }
@@ -4816,7 +4816,7 @@ export class EBCDrawer {
             const newTagInp = Object.assign(document.createElement("input"), {
                 className: "ebc-form-input",
                 type: "text",
-                placeholder: "New tag name",
+                placeholder: t("outfits.newTagName"),
                 maxLength: 20,
             });
             newTagInp.style.flex = "1";
@@ -11177,7 +11177,7 @@ export class EBCDrawer {
             if (partners.length === 0) {
                 const empty = document.createElement("div");
                 empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:8px 4px;text-align:center;";
-                empty.textContent = "No whispers this session yet.";
+                empty.textContent = t("dev.noWhispers");
                 cnt.appendChild(empty);
                 return;
             }
@@ -15937,35 +15937,35 @@ export class EBCDrawer {
                 emoji: "🌺",
                 name: "Emery",
                 memberId: 130267,
-                reason: "Built this little thing out of love for the club. Still adding to it, still breaking it, still fixing it~",
+                reason: t("credits.emery"),
                 heart: "🎀",
             },
             {
                 emoji: "🎀",
                 name: "Sin",
                 memberId: 143776,
-                reason: "Creator of CRABS — the sliding panel design that inspired the whole look and feel of this drawer. Her open code became the foundation it was all built on, and she was genuinely kind and helpful when it mattered too. Open code, open heart.",
+                reason: t("credits.sin"),
                 heart: "💗",
             },
             {
                 emoji: "🌸",
                 name: "Lara",
                 memberId: 124264,
-                reason: "Keeping my bratty side in check, endless support and inspiration, and simply being the best friend anyone could ask for around here~",
+                reason: t("credits.lara"),
                 heart: "💖",
             },
             {
                 emoji: "🌙",
                 name: "Lucy",
                 memberId: 230466,
-                reason: "Lost count of the hours a long time ago — what started as one very long late night turned into something much bigger, and she was there for all of it. Every idea, every problem, every version of this thing. She made it genuinely fun to build.",
+                reason: t("credits.lucy"),
                 heart: "💜",
             },
             {
                 emoji: "✨",
                 name: "Sybil",
                 memberId: 80,
-                reason: "Brilliant ideas, patient testing, and a genuinely kind presence — Sybil has shaped this addon in more ways than one, and her beautiful contributions to the club make it a richer place for everyone. Big thanks~",
+                reason: t("credits.sybil"),
                 heart: "💛",
             },
         ];

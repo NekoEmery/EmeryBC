@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.15";
+const MOD_VERSION = "2.5.16";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.16",
+        changes: [
+            "i18n: translate footer — 'UI inspired by CRABS by Sin' line and Online/Room/Bound timer labels.",
+            "i18n: translate 'New tag name' placeholder in outfit tag manager, 'No whispers this session yet.' in the Whisper Log, and all five credited people's bio descriptions in the Credits tab.",
+            "Fix: German 'Whisper Log' changed from 'Flüsterprotokoll' → 'Flüster-Log' and 'Dev Log' from 'Entwicklungsprotokoll' → 'Entwickler-Log' to match the '-Log' convention used by the other languages.",
+        ],
+    },
     {
         version: "2.5.15",
         changes: [
