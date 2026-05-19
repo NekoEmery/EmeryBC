@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.4.3";
+const MOD_VERSION = "2.4.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.4.4",
+        changes: [
+            "Fix: the EXPRESSIONS collapsible section in the BUTTONS tab now shows all currently-added expression and preset buttons at the top with a × remove button on each. Click × to clear the slot and free it up — the add-chips below still work as before.",
+        ],
+    },
     {
         version: "2.4.3",
         changes: [
