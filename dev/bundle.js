@@ -29928,7 +29928,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.24";
+    const MOD_VERSION = "2.7.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29940,7 +29940,7 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "2.5.24",
+            version: "2.7.4",
             changes: [
                 "UX: EBC Tag Toggles strip redesigned as card-style toggles — each toggle is now a card showing icon, label, sub-description, and a coloured ON/OFF pill. Added a description line explaining the toggles only affect your own screen.",
             ],
