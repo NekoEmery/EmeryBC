@@ -19949,9 +19949,9 @@
                         : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
                     btn.addEventListener("click", () => {
                         if (preset.key === "" && group.group === "Arms") {
-                            // "Relaxed" — clear arm poses but keep body poses
-                            const bodyPoses = currentPoses.filter(p => { var _a; return (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses.some(x => x.key === p); });
-                            applyPoses(bodyPoses);
+                            // "Relaxed" — clear all arm poses, keep everything else
+                            const nonArmPoses = currentPoses.filter(p => !armKeys.includes(p));
+                            applyPoses(nonArmPoses);
                         }
                         else if (preset.key === "") {
                             // "Stand" clears everything
@@ -25564,6 +25564,52 @@
             });
             addCatRow.appendChild(addCatBtn);
             body.appendChild(addCatRow);
+            // ── Face Presets — standalone section ────────────────────────────────────
+            {
+                let faceCollapsed = false;
+                try {
+                    const v = localStorage.getItem("EBC_facePresetsCollapsed");
+                    if (v !== null)
+                        faceCollapsed = v === "1";
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+                const faceSection = document.createElement("div");
+                faceSection.style.cssText = "border:1px solid #3d1f5c;border-radius:6px;margin-bottom:8px;overflow:hidden;";
+                const faceHdr = document.createElement("div");
+                faceHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:5px 8px;background:#1a0d2e;";
+                faceHdr.title = "Build & save expression presets";
+                const faceChev = document.createElement("span");
+                faceChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
+                const faceLbl = document.createElement("span");
+                faceLbl.className = "ebc-section-label";
+                faceLbl.style.cssText = "margin:0;font-size:9px;color:#c49ae8;letter-spacing:0.06em;flex:1;";
+                faceLbl.textContent = t("expr.facePresets");
+                const faceHint = document.createElement("span");
+                faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#6a4a8e;";
+                faceHint.textContent = "expression presets";
+                faceHdr.appendChild(faceChev);
+                faceHdr.appendChild(faceLbl);
+                faceHdr.appendChild(faceHint);
+                const faceBody = document.createElement("div");
+                faceBody.style.cssText = "padding:6px;background:#100820;";
+                const updateFaceChev = () => {
+                    faceChev.textContent = faceCollapsed ? "▶" : "▼";
+                    faceBody.style.display = faceCollapsed ? "none" : "";
+                };
+                updateFaceChev();
+                faceHdr.addEventListener("click", () => {
+                    faceCollapsed = !faceCollapsed;
+                    try {
+                        localStorage.setItem("EBC_facePresetsCollapsed", faceCollapsed ? "1" : "0");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    updateFaceChev();
+                });
+                this.renderExpressions(faceBody);
+                faceSection.appendChild(faceHdr);
+                faceSection.appendChild(faceBody);
+                body.appendChild(faceSection);
+            }
             // ── Slot list + render fn — appended into the active category body ─────
             const slotList = document.createElement("div");
             slotList.id = "ebc-slot-list";
@@ -25840,51 +25886,6 @@
             const importPanel = document.createElement("div");
             importPanel.className = "ebc-import-panel";
             activeBodyEl.appendChild(importPanel);
-            // ── Face Presets collapsible (inside the active category) ─────────────
-            {
-                let faceCollapsed = false; // open by default
-                try {
-                    const v = localStorage.getItem("EBC_facePresetsCollapsed");
-                    if (v !== null)
-                        faceCollapsed = v === "1";
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
-                const faceDivTop = document.createElement("div");
-                faceDivTop.className = "ebc-divider";
-                faceDivTop.style.margin = "8px 0 4px";
-                activeBodyEl.appendChild(faceDivTop);
-                const faceHdr = document.createElement("div");
-                faceHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
-                const faceChev = document.createElement("span");
-                faceChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
-                const faceLbl = document.createElement("span");
-                faceLbl.className = "ebc-section-label";
-                faceLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
-                faceLbl.textContent = t("expr.facePresets");
-                const faceHint = document.createElement("span");
-                faceHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
-                faceHint.textContent = "build & save expression presets";
-                faceHdr.appendChild(faceChev);
-                faceHdr.appendChild(faceLbl);
-                faceHdr.appendChild(faceHint);
-                activeBodyEl.appendChild(faceHdr);
-                const faceBody = document.createElement("div");
-                const updateFaceChev = () => {
-                    faceChev.textContent = faceCollapsed ? "▶" : "▼";
-                    faceBody.style.display = faceCollapsed ? "none" : "";
-                };
-                updateFaceChev();
-                faceHdr.addEventListener("click", () => {
-                    faceCollapsed = !faceCollapsed;
-                    try {
-                        localStorage.setItem("EBC_facePresetsCollapsed", faceCollapsed ? "1" : "0");
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    updateFaceChev();
-                });
-                this.renderExpressions(faceBody);
-                activeBodyEl.appendChild(faceBody);
-            }
             const importHint = document.createElement("div");
             importHint.className = "ebc-import-hint";
             importHint.textContent = "Paste exported config here:";
@@ -29909,7 +29910,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.20";
+    const MOD_VERSION = "2.5.21";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29920,6 +29921,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.21",
+            changes: [
+                "UX: Face Presets moved out of the active button category body and into its own standalone accordion section in the Buttons tab — sits below '+ Add Category' with purple-toned styling to distinguish it from user categories.",
+                "Fix: Relaxed arm pose button now correctly clears all arm poses regardless of body pose state. Previously it only kept poses explicitly listed in the Body group, which could leave stale arm poses in some edge cases.",
+            ],
+        },
         {
             version: "2.5.20",
             changes: [
