@@ -12,10 +12,10 @@ function getStore(): Record<string, unknown> | null {
     }
 }
 
-// -- Badge visibility ----------------------------------------------------------
-// Controls whether the EBC overhead badge is broadcast to other users.
-// Defaults to true (badge shown). Setting to false clears presence from
-// OnlineSharedSettings so no one else renders the tag above your head.
+// -- Badge visibility (local/client-side only) --------------------------------
+// Controls whether YOUR OWN EBC tag is drawn above your head on YOUR screen.
+// Purely a local display toggle — does NOT affect broadcasting. Others always
+// see your EBC tag regardless of this setting. Defaults to true (tag shown).
 
 export function getBadgeEnabled(): boolean {
     try {

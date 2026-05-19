@@ -37,7 +37,15 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "2.5.18",
+        version: "2.5.19",
+        changes: [
+            "UX: EBC tag toggles ('My tag' / 'Others') moved to a permanent strip just below the safewords section — always visible on every tab, no need to go to DEV tab to find them.",
+            "Fix: 'My EBC tag' toggle is now purely client-side (controls whether YOU see it above your own head). Broadcasting to others is always on regardless. Previously toggling it off also hid your tag from everyone else.",
+            "Feature: Pin system — each main tab (Outfits, Buttons, Anims, Notes, Dev) has a tiny 📌 icon. Pin a tab to see a compact widget for it above the main body, always accessible from any tab.",
+        ],
+    },
+    {
+        version: "2.5.19",
         changes: [
             "UX: Buttons tab sidebar toggle restyled — removed heavy bordered box; now renders as a slim inline row with a subtle separator line so the tab feels less cramped.",
         ],
@@ -3713,17 +3721,9 @@ const PRESENCE_SYNC_COOLDOWN_MS = 6_000; // 6 s between sends
 function syncPresenceMarker(): void {
     const shared = (Player.OnlineSharedSettings ??= {});
 
-    // If badge is disabled, clear our presence so other EBC users don't render
-    // a tag above our head. Send an AccountUpdate if we had presence before.
-    if (!getBadgeEnabled()) {
-        if (shared[MOD_NAME] !== undefined) {
-            delete (shared as Record<string, unknown>)[MOD_NAME];
-            if (CurrentScreen === "ChatRoom") {
-                ServerSend("AccountUpdate", { OnlineSharedSettings: shared });
-            }
-        }
-        return;
-    }
+    // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
+    // broadcasting. Your EBC presence is always sent so others always see
+    // your tag. The toggle only controls whether YOU see it above your own head.
 
     const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC", ...(IS_DEV_BUILD ? { isDev: true } : {}) };
 

@@ -79,6 +79,7 @@ import {
     cancelSequence,
     isSeqRunning,
     setSeqDoneCallback,
+    sendAction,
 } from "./actionButtons";
 import {
     releaseRestraints,
@@ -3043,6 +3044,8 @@ export class EBCDrawer {
     private slDurSlider: HTMLInputElement | null = null;
     private slDurVal: HTMLSpanElement | null = null;
     private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
+    private pinnedAreaEl: HTMLElement | null = null;      // container for pinned tab widgets
+    private _refreshPinnedArea: (() => void) | null = null;
     // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
     private _langUnsubscribe: (() => void) | null = null;
     private _langPillsRefresh: (() => void) | null = null;
@@ -3320,6 +3323,51 @@ export class EBCDrawer {
         this._i18nRefs.tabDom     = domTabBtn;
         this._i18nRefs.tabPuppy   = puppyTabBtn;
         this._i18nRefs.tabKitty   = kittyTabBtn;
+
+        // ── Pin icons — tiny 📌 span inside each pinnable tab button ─────────
+        const PINNABLE_TABS: DrawerTab[] = ["outfits", "buttons", "anims", "notes", "dev"];
+
+        const getPinnedTabs = (): DrawerTab[] => {
+            try { return JSON.parse(localStorage.getItem("EBC_pinned_tabs") ?? "[]") as DrawerTab[]; } catch { return []; }
+        };
+        const savePinnedTabsFn = (tabs: DrawerTab[]): void => {
+            try { localStorage.setItem("EBC_pinned_tabs", JSON.stringify(tabs)); } catch { /* ignore */ }
+        };
+
+        const TAB_BTN_MAP: Partial<Record<DrawerTab, HTMLButtonElement>> = {
+            outfits: outfitTabBtn, buttons: btnsTabBtn, anims: posesTabBtn,
+            notes: notesTabBtn, dev: devTabBtn2,
+        };
+
+        const pinIconEls: Partial<Record<DrawerTab, HTMLSpanElement>> = {};
+
+        for (const tab of PINNABLE_TABS) {
+            const btn = TAB_BTN_MAP[tab];
+            if (!btn) continue;
+            const pin = document.createElement("span");
+            pin.title = t("strip.pinTab");
+            pin.style.cssText = "font-size:7px;margin-left:2px;opacity:0.5;cursor:pointer;vertical-align:middle;line-height:1;display:inline-block;transition:opacity 0.12s;";
+            pin.textContent = "📌";
+            const updatePinIcon = (): void => {
+                const pinned = getPinnedTabs().includes(tab);
+                pin.style.opacity = pinned ? "1" : "0.35";
+                pin.style.filter = pinned ? "none" : "grayscale(0.6)";
+                pin.title = pinned ? t("strip.pinTab") : t("strip.pinTab");
+            };
+            updatePinIcon();
+            pin.addEventListener("mouseenter", () => { pin.style.opacity = "0.9"; });
+            pin.addEventListener("mouseleave", () => { updatePinIcon(); });
+            pin.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const cur = getPinnedTabs();
+                const next = cur.includes(tab) ? cur.filter(t2 => t2 !== tab) : [...cur, tab];
+                savePinnedTabsFn(next);
+                updatePinIcon();
+                this._refreshPinnedArea?.();
+            });
+            pinIconEls[tab] = pin;
+            btn.appendChild(pin);
+        }
 
         tabBar.appendChild(outfitTabBtn);
         tabBar.appendChild(btnsTabBtn);
@@ -3982,12 +4030,144 @@ export class EBCDrawer {
         footer.appendChild(timerEl);
         this.timerEl = timerEl;
 
+        // ── EBC Tags strip — always visible just below safewords ─────────────
+        const ebcTagsStrip = document.createElement("div");
+        ebcTagsStrip.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 8px;border-bottom:1px solid #2a1421;flex-shrink:0;background:rgba(10,4,8,0.5);";
+
+        const ebcTagsIcon = document.createElement("span");
+        ebcTagsIcon.textContent = "🏷";
+        ebcTagsIcon.style.cssText = "font-size:10px;flex-shrink:0;margin-right:1px;";
+        ebcTagsStrip.appendChild(ebcTagsIcon);
+
+        const makeTagChip = (getVal: () => boolean, setVal: (v: boolean) => void, label: string): void => {
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;user-select:none;flex-shrink:0;";
+            lbl.textContent = label + ":";
+            const btn = document.createElement("button");
+            const refreshChip = (): void => {
+                const on = getVal();
+                btn.textContent = on ? t("core.on") : t("core.off");
+                btn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                    "padding:2px 8px", "border-radius:3px", "cursor:pointer", "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#4a1f30" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                ].join(";");
+            };
+            refreshChip();
+            btn.addEventListener("click", () => { setVal(!getVal()); refreshChip(); });
+            ebcTagsStrip.appendChild(lbl);
+            ebcTagsStrip.appendChild(btn);
+        };
+
+        const ebcTagsSep = document.createElement("span");
+        ebcTagsSep.textContent = "·";
+        ebcTagsSep.style.cssText = "color:#3a1928;font-size:9px;flex-shrink:0;";
+
+        makeTagChip(getBadgeEnabled, setBadgeEnabled, t("strip.myTag"));
+        ebcTagsStrip.appendChild(ebcTagsSep);
+        makeTagChip(getShowOthersBadge, setShowOthersBadge, t("strip.others"));
+
+        // ── Pinned panels area — collapsible widgets for pinned tabs ──────────
+        const pinnedArea = document.createElement("div");
+        pinnedArea.id = "ebc-pinned-area";
+        pinnedArea.style.cssText = "flex-shrink:0;display:none;border-bottom:1px solid #2a1421;";
+        this.pinnedAreaEl = pinnedArea;
+
+        // Build pinned widget for one tab
+        const buildPinnedPanel = (tab: DrawerTab): HTMLElement => {
+            const panel2 = document.createElement("div");
+            panel2.style.cssText = "border-bottom:1px solid #1e0a14;";
+
+            const tabLabels: Partial<Record<DrawerTab, string>> = {
+                outfits: t("tabs.outfits"), buttons: t("tabs.buttons"),
+                anims: t("tabs.anims"),     notes: t("tabs.users"),
+                dev: t("tabs.dev"),
+            };
+
+            // Header
+            const hdr = document.createElement("div");
+            hdr.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 8px;cursor:pointer;user-select:none;background:rgba(20,8,16,0.5);";
+
+            const hdrLbl = document.createElement("span");
+            hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#c09098;flex:1;";
+            hdrLbl.textContent = (tabLabels[tab] ?? tab).toUpperCase();
+
+            const goBtn = document.createElement("button");
+            goBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:none;border:none;color:#7a5070;cursor:pointer;padding:1px 4px;flex-shrink:0;";
+            goBtn.title = "Switch to this tab";
+            goBtn.textContent = "→";
+            goBtn.addEventListener("click", (e2) => {
+                e2.stopPropagation();
+                this.currentTab = tab;
+                this.rootEl?.querySelectorAll(".ebc-tab-btn").forEach(b => b.classList.remove("ebc-tab-active"));
+                const tabBtnId: Partial<Record<DrawerTab, string>> = {
+                    outfits: "ebc-tab-outfits", buttons: "ebc-tab-buttons",
+                    anims: "ebc-tab-poses",     notes: "ebc-tab-notes",
+                    dev: "ebc-tab-dev",
+                };
+                if (tabBtnId[tab]) this.rootEl?.querySelector(`#${tabBtnId[tab]}`)?.classList.add("ebc-tab-active");
+                this.renderCurrentTab();
+            });
+
+            const unpinBtn = document.createElement("button");
+            unpinBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:none;border:none;color:#6a3848;cursor:pointer;padding:1px 4px;flex-shrink:0;";
+            unpinBtn.title = "Unpin";
+            unpinBtn.textContent = "✕";
+            unpinBtn.addEventListener("click", (e2) => {
+                e2.stopPropagation();
+                try { savePinnedTabsFn(getPinnedTabs().filter(t2 => t2 !== tab)); } catch { /* ignore */ }
+                if (pinIconEls[tab]) { try { (pinIconEls[tab] as HTMLSpanElement).style.opacity = "0.35"; (pinIconEls[tab] as HTMLSpanElement).style.filter = "grayscale(0.6)"; } catch { /* ignore */ } }
+                this._refreshPinnedArea?.();
+            });
+
+            const collapseArrow = document.createElement("span");
+            collapseArrow.style.cssText = "font-size:8px;color:#7a5060;flex-shrink:0;";
+            collapseArrow.textContent = "▶"; // starts collapsed
+
+            hdr.appendChild(hdrLbl);
+            hdr.appendChild(goBtn);
+            hdr.appendChild(unpinBtn);
+            hdr.appendChild(collapseArrow);
+
+            // Content area (collapsed by default)
+            const content = document.createElement("div");
+            content.style.cssText = "display:none;padding:4px 6px;max-height:140px;overflow-y:auto;background:rgba(12,4,10,0.45);";
+
+            // Toggle collapse on header click
+            hdr.addEventListener("click", () => {
+                const open = content.style.display === "none";
+                content.style.display = open ? "block" : "none";
+                collapseArrow.textContent = open ? "▼" : "▶";
+                if (open) { try { this.renderPinnedWidget(tab, content); } catch { /* ignore */ } }
+            });
+
+            panel2.appendChild(hdr);
+            panel2.appendChild(content);
+            return panel2;
+        };
+
+        // Refresh all pinned panels
+        const doRefreshPinnedArea = (): void => {
+            while (pinnedArea.firstChild) pinnedArea.removeChild(pinnedArea.firstChild);
+            const pins = getPinnedTabs().filter(t2 => PINNABLE_TABS.includes(t2));
+            pinnedArea.style.display = pins.length > 0 ? "block" : "none";
+            for (const tab of pins) {
+                pinnedArea.appendChild(buildPinnedPanel(tab));
+            }
+        };
+        this._refreshPinnedArea = doRefreshPinnedArea;
+        doRefreshPinnedArea(); // initial render
+
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(langRow);
         panel.appendChild(quickActions);
         panel.appendChild(selfPickPanel);
         panel.appendChild(safewordRow);
+        panel.appendChild(ebcTagsStrip);
+        panel.appendChild(pinnedArea);
         panel.appendChild(body);
         panel.appendChild(footer);
         // (slideContainer/root/body already anchored early in setup — see above)
@@ -11085,53 +11265,8 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
-        // ── EBC Tags panel — two separate toggles ──────────────────────────────
-        const tagPanel = document.createElement("div");
-        tagPanel.style.cssText = "border:1px solid #3a1928;border-radius:6px;background:rgba(20,8,16,0.55);margin-bottom:8px;overflow:hidden;";
-
-        const tagHeader = document.createElement("div");
-        tagHeader.style.cssText = "display:flex;align-items:center;gap:5px;padding:5px 8px;background:rgba(42,10,22,0.5);border-bottom:1px solid #2a1020;";
-        const tagHeaderIcon = document.createElement("span");
-        tagHeaderIcon.textContent = "🏷";
-        tagHeaderIcon.style.cssText = "font-size:11px;";
-        const tagHeaderLbl = document.createElement("span");
-        tagHeaderLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;letter-spacing:0.06em;";
-        tagHeaderLbl.textContent = t("dev.ebcTags");
-        tagHeader.appendChild(tagHeaderIcon);
-        tagHeader.appendChild(tagHeaderLbl);
-        tagPanel.appendChild(tagHeader);
-
-        const makeTagToggle = (getVal: () => boolean, setVal: (v: boolean) => void, label: string): void => {
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 9px;border-bottom:1px solid #1e0a14;";
-            const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-            lbl.textContent = label;
-            const btn = document.createElement("button");
-            const refresh = (): void => {
-                const on = getVal();
-                btn.textContent = on ? t("core.on") : t("core.off");
-                btn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                    "padding:3px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                    "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-            };
-            try { refresh(); } catch { /* ignore */ }
-            btn.addEventListener("click", () => { setVal(!getVal()); refresh(); });
-            row.appendChild(lbl);
-            row.appendChild(btn);
-            tagPanel.appendChild(row);
-        };
-        makeTagToggle(getBadgeEnabled,    setBadgeEnabled,    t("dev.showMyTag"));
-        makeTagToggle(getShowOthersBadge, setShowOthersBadge, t("dev.showOthersTags"));
-
-        // Remove the bottom border from the last row
-        (tagPanel.lastElementChild as HTMLElement | null)?.style.setProperty("border-bottom", "none");
-        body.appendChild(tagPanel);
+        // EBC Tags toggles moved to the permanent strip below safewords (always visible).
+        // No longer shown in DEV tab.
 
         // Helper: collapsible section wrapper
         const makeSection = (
@@ -13303,6 +13438,144 @@ export class EBCDrawer {
         wrapper.appendChild(seqBtnRow);
 
         return wrapper;
+    }
+
+    // -- Pinned widget renderers -----------------------------------------------
+
+    private renderPinnedWidget(tab: DrawerTab, into: HTMLElement): void {
+        while (into.firstChild) into.removeChild(into.firstChild);
+        try {
+            if      (tab === "outfits") this.renderPinnedOutfitsWidget(into);
+            else if (tab === "buttons") this.renderPinnedButtonsWidget(into);
+            else if (tab === "anims")   this.renderPinnedAnimsWidget(into);
+            else if (tab === "notes")   this.renderPinnedDevSettingsWidget(into);
+            else if (tab === "dev")     this.renderPinnedDevSettingsWidget(into);
+        } catch { /* ignore render errors */ }
+    }
+
+    private renderPinnedOutfitsWidget(into: HTMLElement): void {
+        const outfits = getOutfits();
+        if (!outfits.length) {
+            const empty = document.createElement("div");
+            empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5070;padding:4px;";
+            empty.textContent = t("outfits.empty");
+            into.appendChild(empty);
+            return;
+        }
+        const grid = document.createElement("div");
+        grid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding:2px 0;";
+        for (const o of outfits.slice(0, 12)) {
+            const chip = document.createElement("button");
+            chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid #5a2840;background:#2a0e1e;color:#f0d0e0;transition:background 0.12s;";
+            chip.textContent = o.displayName;
+            chip.addEventListener("mouseenter", () => { chip.style.background = "#4a1f30"; });
+            chip.addEventListener("mouseleave", () => { chip.style.background = "#2a0e1e"; });
+            chip.addEventListener("click", () => {
+                try { applyOutfit(o); } catch { /* ignore */ }
+            });
+            grid.appendChild(chip);
+        }
+        into.appendChild(grid);
+    }
+
+    private renderPinnedButtonsWidget(into: HTMLElement): void {
+        const cats = getCategories();
+        const idx = getActiveCategoryIndex();
+        const cat = cats[idx];
+        if (!cat) {
+            const empty = document.createElement("div");
+            empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5070;padding:4px;";
+            empty.textContent = "No buttons configured.";
+            into.appendChild(empty);
+            return;
+        }
+        // Category label
+        const catLbl = document.createElement("div");
+        catLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;margin-bottom:4px;";
+        catLbl.textContent = cat.name;
+        into.appendChild(catLbl);
+        // Buttons as chips
+        const grid = document.createElement("div");
+        grid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
+        for (const btn of cat.buttons) {
+            if (!btn.enabled || !btn.label) continue;
+            const chip = document.createElement("button");
+            const bg = btn.color || "#c2185b";
+            chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid ${bg};background:${bg}22;color:#f0d0e0;transition:background 0.12s;`;
+            chip.textContent = btn.label;
+            chip.title = btn.emote;
+            chip.addEventListener("mouseenter", () => { chip.style.background = bg + "55"; });
+            chip.addEventListener("mouseleave", () => { chip.style.background = bg + "22"; });
+            chip.addEventListener("click", () => {
+                try { sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false); } catch { /* ignore */ }
+            });
+            grid.appendChild(chip);
+        }
+        if (!grid.childElementCount) {
+            const empty = document.createElement("div");
+            empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5070;padding:2px 0;";
+            empty.textContent = "No enabled buttons in this category.";
+            grid.appendChild(empty);
+        }
+        into.appendChild(grid);
+    }
+
+    private renderPinnedAnimsWidget(into: HTMLElement): void {
+        const QUICK_POSES = [
+            { label: "Default",  poses: []           },
+            { label: "Kneel",    poses: ["Kneel"]    },
+            { label: "Prone",    poses: ["Prone"]    },
+            { label: "Hogtied",  poses: ["Hogtied"]  },
+            { label: "AllFours", poses: ["AllFours"] },
+            { label: "Spread",   poses: ["Spread"]   },
+        ];
+        const grid = document.createElement("div");
+        grid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;padding:2px 0;";
+        for (const p of QUICK_POSES) {
+            const chip = document.createElement("button");
+            chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid #5a2840;background:#1e0d16;color:#c09098;transition:background 0.12s;";
+            chip.textContent = p.label;
+            chip.addEventListener("mouseenter", () => { chip.style.background = "#3a1928"; });
+            chip.addEventListener("mouseleave", () => { chip.style.background = "#1e0d16"; });
+            chip.addEventListener("click", () => {
+                try { applyPoses(p.poses); } catch { /* ignore */ }
+            });
+            grid.appendChild(chip);
+        }
+        into.appendChild(grid);
+    }
+
+    private renderPinnedDevSettingsWidget(into: HTMLElement): void {
+        const rows: Array<{ label: string; get: () => boolean; set: (v: boolean) => void }> = [
+            { label: "AFK Auto-reply", get: getAfkEnabled, set: setAfkEnabled },
+            { label: "OOC Mode",       get: getOocEnabled,  set: setOocEnabled },
+            { label: "Beep Muted",     get: getBeepMuted,   set: setBeepMuted },
+            { label: "Sidebar Buttons",get: getActionButtonsVisible, set: setActionButtonsVisible },
+        ];
+        for (const row of rows) {
+            const rowEl = document.createElement("div");
+            rowEl.style.cssText = "display:flex;align-items:center;gap:5px;padding:2px 0;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex:1;user-select:none;";
+            lbl.textContent = row.label;
+            const btn = document.createElement("button");
+            const refresh = (): void => {
+                const on = row.get();
+                btn.textContent = on ? t("core.on") : t("core.off");
+                btn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif","font-size:9px","font-weight:bold",
+                    "padding:2px 8px","border-radius:3px","cursor:pointer","flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
+                    "background:" + (on ? "#4a1f30" : "#1b0d17"),
+                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
+                ].join(";");
+            };
+            refresh();
+            btn.addEventListener("click", () => { row.set(!row.get()); refresh(); });
+            rowEl.appendChild(lbl);
+            rowEl.appendChild(btn);
+            into.appendChild(rowEl);
+        }
     }
 
     // -- Buttons tab -----------------------------------------------------------

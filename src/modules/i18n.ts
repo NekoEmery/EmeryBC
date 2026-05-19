@@ -259,6 +259,11 @@ const S: Record<string, T> = {
     "footer.roomLabel":   { en: "Room",    de: "Raum",    zh: "房间",   fr: "Salle",    es: "Sala"     },
     "footer.boundLabel":  { en: "Bound",   de: "Gefesselt", zh: "被束缚", fr: "Attaché",  es: "Atado"    },
 
+    // ─── EBC TAGS STRIP ────────────────────────────────────────────────────────
+    "strip.myTag":  { en: "My tag",  de: "Mein Tag",  zh: "我的标签", fr: "Mon tag",  es: "Mi tag"  },
+    "strip.others": { en: "Others",  de: "Andere",    zh: "他人标签", fr: "Autres",   es: "Otros"   },
+    "strip.pinTab": { en: "Pin tab", de: "Tab anheften", zh: "固定标签", fr: "Épingler", es: "Fijar"  },
+
     // ─── MISC ───────────────────────────────────────────────────────────────────
     "outfits.newTagName": { en: "New tag name", de: "Neuer Etikettenname", zh: "新标签名称", fr: "Nouveau nom de tag", es: "Nuevo nombre de etiqueta" },
 
