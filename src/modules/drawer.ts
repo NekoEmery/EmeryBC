@@ -3987,72 +3987,104 @@ export class EBCDrawer {
         try { const v = localStorage.getItem("EBC_tagsCollapsed"); if (v !== null) ebcTagsCollapsed = v === "1"; } catch { /* ignore */ }
 
         const ebcTagsStrip = document.createElement("div");
-        ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;";
+        ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#0e0509;";
 
         // Header row — clickable to collapse
         const ebcTagsHdr = document.createElement("div");
-        ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:4px 10px;cursor:pointer;user-select:none;background:rgba(14,5,10,0.7);";
-        ebcTagsHdr.title = "Toggle EBC overhead name-tag visibility";
+        ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;";
+        ebcTagsHdr.title = "Collapse / expand EBC tag toggles";
 
         const ebcTagsHdrLeft = document.createElement("div");
         ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
         const ebcTagsHdrIcon = document.createElement("span");
         ebcTagsHdrIcon.textContent = "🏷";
-        ebcTagsHdrIcon.style.cssText = "font-size:11px;";
+        ebcTagsHdrIcon.style.fontSize = "10px";
         const ebcTagsHdrLabel = document.createElement("span");
-        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.08em;color:#c47a9a;text-transform:uppercase;";
+        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#b06888;";
         ebcTagsHdrLabel.textContent = "EBC Tag Toggles";
         ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
         ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
 
         const ebcTagsChev = document.createElement("span");
-        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a4a6a;";
+        ebcTagsChev.style.cssText = "font-size:8px;color:#5a3048;";
 
         ebcTagsHdr.appendChild(ebcTagsHdrLeft);
         ebcTagsHdr.appendChild(ebcTagsChev);
         ebcTagsStrip.appendChild(ebcTagsHdr);
 
-        // Body — two buttons centered
+        // Body
         const ebcTagsBody = document.createElement("div");
-        ebcTagsBody.style.cssText = "display:flex;align-items:center;justify-content:center;gap:10px;padding:7px 10px 8px;background:rgba(10,3,7,0.6);";
+        ebcTagsBody.style.cssText = "padding:0 10px 9px;";
 
-        const makeTagToggleBtn = (
+        // Description line
+        const ebcTagsDesc = document.createElement("div");
+        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a50;line-height:1.4;margin-bottom:7px;";
+        ebcTagsDesc.textContent = "Controls whose EBC overhead tags you see. Only affects your own screen — others always see your tag regardless.";
+        ebcTagsBody.appendChild(ebcTagsDesc);
+
+        // Card row
+        const ebcTagsCardRow = document.createElement("div");
+        ebcTagsCardRow.style.cssText = "display:flex;gap:7px;";
+
+        const makeTagCard = (
+            icon: string,
+            label: string,
+            sublabel: string,
             getVal: () => boolean,
             setVal: (v: boolean) => void,
-            labelOn: string,
-            labelOff: string,
-            tooltip: string,
         ): void => {
-            const btn = document.createElement("button");
-            btn.title = tooltip;
-            const refreshBtn = (): void => {
+            const card = document.createElement("div");
+            card.style.cssText = "flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;";
+            card.title = sublabel;
+
+            const cardTop = document.createElement("div");
+            cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+            const cardIcon = document.createElement("span");
+            cardIcon.style.fontSize = "12px";
+            cardIcon.textContent = icon;
+            const cardLabel = document.createElement("span");
+            cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;";
+            cardLabel.textContent = label;
+            cardTop.appendChild(cardIcon);
+            cardTop.appendChild(cardLabel);
+
+            const cardSub = document.createElement("div");
+            cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.35;margin-bottom:6px;";
+            cardSub.textContent = sublabel;
+
+            const cardStatus = document.createElement("div");
+            cardStatus.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:10px;";
+
+            const cardDot = document.createElement("span");
+            cardDot.style.cssText = "width:5px;height:5px;border-radius:50%;display:inline-block;flex-shrink:0;";
+
+            cardStatus.appendChild(cardDot);
+            const cardStatusText = document.createElement("span");
+            cardStatus.appendChild(cardStatusText);
+
+            card.appendChild(cardTop);
+            card.appendChild(cardSub);
+            card.appendChild(cardStatus);
+
+            const refresh = (): void => {
                 const on = getVal();
-                btn.textContent = on ? labelOn : labelOff;
-                btn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
-                    "padding:5px 16px", "border-radius:5px", "cursor:pointer", "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                    "background:" + (on ? "#4a1f30" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#7a5070"),
-                    "transition:background 0.12s,border-color 0.12s,color 0.12s",
-                ].join(";");
+                card.style.cssText = `flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;border:1px solid ${on ? "#7a2e4a" : "#2e1020"};background:${on ? "#2a0f1e" : "#130810"};`;
+                cardLabel.style.color = on ? "#e8b4cc" : "#6a3a54";
+                cardSub.style.color = on ? "#7a4a62" : "#3a1a2a";
+                cardDot.style.background = on ? "#d06090" : "#4a2038";
+                cardStatus.style.background = on ? "#3d1228" : "#1a0812";
+                cardStatus.style.color = on ? "#e090b8" : "#5a3050";
+                cardStatusText.textContent = on ? "ON" : "OFF";
             };
-            refreshBtn();
-            btn.addEventListener("click", () => { setVal(!getVal()); refreshBtn(); });
-            ebcTagsBody.appendChild(btn);
+            refresh();
+            card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
+            ebcTagsCardRow.appendChild(card);
         };
 
-        makeTagToggleBtn(
-            getBadgeEnabled, setBadgeEnabled,
-            "👤 My tag: ON", "👤 My tag: OFF",
-            "Show your own EBC badge above your head (on your screen only)",
-        );
-        makeTagToggleBtn(
-            getShowOthersBadge, setShowOthersBadge,
-            "👥 Others: ON", "👥 Others: OFF",
-            "Show EBC badges above other players' heads",
-        );
+        makeTagCard("👤", "My Tag", "Your own EBC tag above your head (your screen only)", getBadgeEnabled, setBadgeEnabled);
+        makeTagCard("👥", "Others", "EBC tags above other players' heads", getShowOthersBadge, setShowOthersBadge);
 
+        ebcTagsBody.appendChild(ebcTagsCardRow);
         ebcTagsStrip.appendChild(ebcTagsBody);
 
         const updateEbcTagsCollapse = (): void => {

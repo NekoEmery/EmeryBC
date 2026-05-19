@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.23";
+const MOD_VERSION = "2.5.24";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.24",
+        changes: [
+            "UX: EBC Tag Toggles strip redesigned as card-style toggles — each toggle is now a card showing icon, label, sub-description, and a coloured ON/OFF pill. Added a description line explaining the toggles only affect your own screen.",
+        ],
+    },
     {
         version: "2.5.23",
         changes: [
