@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.7.7";
+const MOD_VERSION = "2.7.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.7.8",
+        changes: [
+            "Fix: touch scroll now works inside the panel while in-game. BC's in-game touch handlers were calling preventDefault() at the document level, killing native scroll in HTML overlays. Panel now stops touch event propagation before BC can intercept it, and the scrollable body has touch-action:pan-y + overscroll-behavior:contain.",
+        ],
+    },
     {
         version: "2.7.7",
         changes: ["UX: Added top padding to EBC tag toggles description text for more breathing room."],

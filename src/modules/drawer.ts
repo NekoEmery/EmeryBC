@@ -576,6 +576,8 @@ const CSS = `
     padding: 7px;
     scrollbar-width: thin;
     scrollbar-color: #cf6f98 #1a0814;
+    touch-action: pan-y; /* allow vertical touch scroll */
+    overscroll-behavior: contain;
 }
 
 /* Unified scrollbar theme for all EBC scrollable areas */
@@ -3134,6 +3136,15 @@ export class EBCDrawer {
         document.body.appendChild(root);
         this.rootEl  = root;
         this.panelEl = slideContainer;
+
+        // Stop BC's in-game touch handlers from eating our touch events.
+        // BC registers touchmove/touchstart at document level (non-passive) and calls
+        // preventDefault(), which kills native scroll inside HTML overlays.
+        // Stopping propagation here keeps those events inside the panel only.
+        const stopTouch = (e: TouchEvent): void => { e.stopPropagation(); };
+        slideContainer.addEventListener("touchstart", stopTouch, { passive: true });
+        slideContainer.addEventListener("touchmove",  stopTouch, { passive: true });
+        slideContainer.addEventListener("touchend",   stopTouch, { passive: true });
 
         // Header
         const header = document.createElement("div");
