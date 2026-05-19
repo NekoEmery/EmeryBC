@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.8.4";
+const MOD_VERSION = "2.8.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.8.5",
+        changes: [
+            "Fix: EBC badge no longer appears on players who used EBC in a past session but are not running it now. Presence broadcasts now include a timestamp; presences without a timestamp (old EBC versions) or older than 8 hours are rejected as stale server data. Presence ts is also refreshed whenever a new member joins the room, keeping it current for long sessions.",
+        ],
+    },
     {
         version: "2.8.4",
         changes: [
@@ -3759,6 +3765,11 @@ interface EmeryPresence {
     version: string;
     marker: string;
     isDev?: boolean;
+    /** Unix timestamp (seconds) when this presence was last broadcast.
+     *  Absent on old EBC versions (pre-2.8.5).  Presences without a ts are
+     *  rejected so stale OnlineSharedSettings from previous EBC sessions no
+     *  longer cause the badge to appear for users who are not running EBC. */
+    ts?: number;
 }
 
 interface EmeryAddonSettings {
@@ -3766,17 +3777,31 @@ interface EmeryAddonSettings {
     [key: string]: unknown;
 }
 
+// Maximum age (seconds) we trust a presence that arrived via ChatRoomSync.
+// Presences older than this are treated as stale server-side data left over
+// from a previous EBC session.  Active EBC users refresh their ts on every
+// room join and whenever a new member enters, so 8 hours is very generous.
+const PRESENCE_MAX_AGE_S = 8 * 3600; // 8 hours
+
 function getSharedPresence(character: Character | null | undefined): EmeryPresence | null {
     if (!character) return null;
 
     // OnlineSharedSettings are broadcast to all room members via ChatRoomSync
-    // and CharacterUpdate — this is the only live/authoritative path.
+    // and CharacterRefresh — this is the only live/authoritative path.
     // Do NOT fall back to ExtensionSettings: that data persists indefinitely and
     // would make the badge keep appearing for users who have since disabled EBC.
     const shared = character.OnlineSharedSettings?.[MOD_NAME];
     if (shared && typeof shared === "object") {
         const presence = (shared as EmeryAddonSettings).presence;
-        if (presence?.marker === "EBC") return presence;
+        if (presence?.marker === "EBC") {
+            // Require a fresh timestamp.  Presences from old EBC versions (pre-2.8.5)
+            // have no ts field and are rejected — they are indistinguishable from
+            // stale data left on the BC server from a long-ago session.
+            if (typeof presence.ts !== "number") return null;
+            const ageSeconds = Date.now() / 1000 - presence.ts;
+            if (ageSeconds > PRESENCE_MAX_AGE_S) return null; // stale — not running EBC
+            return presence;
+        }
     }
     return null;
 }
@@ -3808,7 +3833,12 @@ function syncPresenceMarker(): void {
     // broadcasting. Your EBC presence is always sent so others always see
     // your tag. The toggle only controls whether YOU see it above your own head.
 
-    const presence: EmeryPresence = { version: MOD_VERSION, marker: "EBC", ...(IS_DEV_BUILD ? { isDev: true } : {}) };
+    const presence: EmeryPresence = {
+        version: MOD_VERSION,
+        marker:  "EBC",
+        ts:      Math.floor(Date.now() / 1000), // seconds — refreshed every broadcast
+        ...(IS_DEV_BUILD ? { isDev: true } : {}),
+    };
 
     // Write to ExtensionSettings only if presence isn't already recorded —
     // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
@@ -4253,6 +4283,10 @@ function init(): void {
                 try { storeRawBundle(structuredClone(c)); } catch { /* ignore */ }
             }
         } catch { /* ignore */ }
+        // Refresh our own presence ts so the new joiner sees a fresh timestamp.
+        // This keeps the ts current for long-running sessions where ChatRoomSync
+        // (which also calls syncPresenceMarker) was fired hours ago.
+        try { syncPresenceMarker(); } catch { /* ignore */ }
         return next(args);
     });
 
