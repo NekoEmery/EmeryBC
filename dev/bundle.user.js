@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.7.4
+// @version      2.7.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16145,20 +16145,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#0e0509;";
             // Header row — clickable to collapse
             const ebcTagsHdr = document.createElement("div");
-            ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;";
-            ebcTagsHdr.title = "Collapse / expand EBC tag toggles";
+            ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;transition:background 0.1s;";
+            ebcTagsHdr.title = "Click to show / hide";
+            ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#1a0810"; });
+            ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
             const ebcTagsHdrLeft = document.createElement("div");
             ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
             const ebcTagsHdrIcon = document.createElement("span");
             ebcTagsHdrIcon.textContent = "🏷";
             ebcTagsHdrIcon.style.fontSize = "10px";
             const ebcTagsHdrLabel = document.createElement("span");
-            ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#b06888;";
+            ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
             ebcTagsHdrLabel.textContent = "EBC Tag Toggles";
             ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
             ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
+            // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
             const ebcTagsChev = document.createElement("span");
-            ebcTagsChev.style.cssText = "font-size:8px;color:#5a3048;";
+            ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#9a6070;padding:1px 5px;border:1px solid #3a1828;border-radius:3px;background:#1a0810;";
             ebcTagsHdr.appendChild(ebcTagsHdrLeft);
             ebcTagsHdr.appendChild(ebcTagsChev);
             ebcTagsStrip.appendChild(ebcTagsHdr);
@@ -16167,7 +16170,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsBody.style.cssText = "padding:0 10px 9px;";
             // Description line
             const ebcTagsDesc = document.createElement("div");
-            ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a50;line-height:1.4;margin-bottom:7px;";
+            ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;";
             ebcTagsDesc.textContent = "Controls whose EBC overhead tags you see. Only affects your own screen — others always see your tag regardless.";
             ebcTagsBody.appendChild(ebcTagsDesc);
             // Card row
@@ -16175,10 +16178,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsCardRow.style.cssText = "display:flex;gap:7px;";
             const makeTagCard = (icon, label, sublabel, getVal, setVal) => {
                 const card = document.createElement("div");
-                card.style.cssText = "flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;";
                 card.title = sublabel;
                 const cardTop = document.createElement("div");
-                cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:4px;";
+                cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
                 const cardIcon = document.createElement("span");
                 cardIcon.style.fontSize = "12px";
                 cardIcon.textContent = icon;
@@ -16188,7 +16190,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 cardTop.appendChild(cardIcon);
                 cardTop.appendChild(cardLabel);
                 const cardSub = document.createElement("div");
-                cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.35;margin-bottom:6px;";
+                cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.4;margin-bottom:6px;";
                 cardSub.textContent = sublabel;
                 const cardStatus = document.createElement("div");
                 cardStatus.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:10px;";
@@ -16202,12 +16204,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 card.appendChild(cardStatus);
                 const refresh = () => {
                     const on = getVal();
-                    card.style.cssText = `flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;border:1px solid ${on ? "#7a2e4a" : "#2e1020"};background:${on ? "#2a0f1e" : "#130810"};`;
-                    cardLabel.style.color = on ? "#e8b4cc" : "#6a3a54";
-                    cardSub.style.color = on ? "#7a4a62" : "#3a1a2a";
+                    card.style.cssText = `flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;border:1px solid ${on ? "#8a3458" : "#321220"};background:${on ? "#2e1020" : "#150a10"};`;
+                    cardLabel.style.color = on ? "#f0c0d8" : "#7a4a60";
+                    cardSub.style.color = on ? "#b08898" : "#6a4050";
                     cardDot.style.background = on ? "#d06090" : "#4a2038";
-                    cardStatus.style.background = on ? "#3d1228" : "#1a0812";
-                    cardStatus.style.color = on ? "#e090b8" : "#5a3050";
+                    cardStatus.style.background = on ? "#3d1228" : "#1e0c16";
+                    cardStatus.style.color = on ? "#f0a0c8" : "#6a4050";
                     cardStatusText.textContent = on ? "ON" : "OFF";
                 };
                 refresh();
@@ -16219,7 +16221,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsBody.appendChild(ebcTagsCardRow);
             ebcTagsStrip.appendChild(ebcTagsBody);
             const updateEbcTagsCollapse = () => {
-                ebcTagsChev.textContent = ebcTagsCollapsed ? "▶" : "▼";
+                ebcTagsChev.textContent = ebcTagsCollapsed ? "Show ▶" : "Hide ▼";
                 ebcTagsBody.style.display = ebcTagsCollapsed ? "none" : "";
             };
             updateEbcTagsCollapse();
@@ -29945,7 +29947,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.7.4";
+    const MOD_VERSION = "2.7.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29956,6 +29958,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.7.5",
+            changes: [
+                "UX: EBC Tag Toggles strip — improved readability: description and card sub-text colours brightened significantly; collapse hint changed to explicit 'Hide ▼' / 'Show ▶' pill so it's obvious the header is clickable; header gains a subtle hover tint.",
+            ],
+        },
         {
             version: "2.7.4",
             changes: [
