@@ -135,12 +135,11 @@ import {
 } from "./kitty";
 import {
     EXPR_GROUPS, EXPR_GROUP_LABELS,
-    getExprGroupOptions, applyExprGroup,
+    applyExprGroup,
     getExpressionPresets, saveExpressionPresets,
     captureCurrentExpression, applyExpressionPreset,
     getDefaultExprPresetId, setDefaultExprPresetId,
     getExpressionTriggers, saveExpressionTriggers,
-    applyExprPresetWithRevert,
     type ExpressionPreset, type ExpressionTrigger,
 } from "./expressions";
 import {
@@ -13399,99 +13398,9 @@ export class EBCDrawer {
                 botLine.className = "ebc-slot-bottom";
 
                 const currentStyle: ActionStyle = (btn.style as ActionStyle) ?? "action";
-                const isSeq        = currentStyle === "seq";
-                const isExprPreset = currentStyle === "exprPreset";
-                const isExpression = currentStyle === "expression";
+                const isSeq = currentStyle === "seq";
 
-                if (isExprPreset) {
-                    // exprPreset: face preset selector + how-long dropdown
-                    const presetSel = document.createElement("select");
-                    presetSel.className = "ebc-slot-emote";
-                    presetSel.style.cssText = "font-size:9px;cursor:pointer;flex:1;";
-                    const emptyOpt = document.createElement("option");
-                    emptyOpt.value = ""; emptyOpt.textContent = "— pick face —";
-                    presetSel.appendChild(emptyOpt);
-                    for (const p of getExpressionPresets()) {
-                        const opt = document.createElement("option");
-                        opt.value = p.id; opt.textContent = p.name;
-                        opt.selected = p.id === btn.emote;
-                        presetSel.appendChild(opt);
-                    }
-                    presetSel.addEventListener("change", () => { btns[idx].emote = presetSel.value; });
-
-                    // How long to hold the expression before reverting
-                    const REVERT_OPTS: [string, number][] = [
-                        ["♾ keep", 0],
-                        ["3 s",    3000],
-                        ["5 s",    5000],
-                        ["10 s",  10000],
-                        ["30 s",  30000],
-                        ["1 min", 60000],
-                    ];
-                    const revertSel = document.createElement("select");
-                    revertSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#9060c0;padding:1px 2px;cursor:pointer;flex-shrink:0;max-width:52px;";
-                    revertSel.title = "How long to hold this face (♾ = keep forever, never revert)";
-                    const curMs = btn.exprRevertMs ?? 0;
-                    let revertMatched = false;
-                    for (const [label, ms] of REVERT_OPTS) {
-                        const o = document.createElement("option");
-                        o.value = String(ms); o.textContent = label;
-                        if (ms === curMs) { o.selected = true; revertMatched = true; }
-                        revertSel.appendChild(o);
-                    }
-                    if (!revertMatched && curMs > 0) {
-                        const o = document.createElement("option");
-                        o.value = String(curMs); o.textContent = `${Math.round(curMs / 1000)} s`;
-                        o.selected = true; revertSel.appendChild(o);
-                    }
-                    revertSel.addEventListener("change", () => { btns[idx].exprRevertMs = parseInt(revertSel.value) || 0; });
-
-                    botLine.appendChild(presetSel);
-                    botLine.appendChild(revertSel);
-                } else if (isExpression) {
-                    // Single-expression: group dropdown + expression dropdown
-                    const sep = btn.emote.indexOf(":");
-                    const curGroup = sep !== -1 ? btn.emote.slice(0, sep) : (EXPR_GROUPS[0] as string);
-                    const curExpr  = sep !== -1 ? btn.emote.slice(sep + 1) : "";
-
-                    const groupSel = document.createElement("select");
-                    groupSel.className = "ebc-slot-emote";
-                    groupSel.style.cssText = "font-size:9px;cursor:pointer;flex-shrink:0;max-width:54px;";
-                    groupSel.title = "Expression group";
-                    for (const g of EXPR_GROUPS) {
-                        const o = document.createElement("option");
-                        o.value = g; o.textContent = EXPR_GROUP_LABELS[g] ?? g; o.selected = g === curGroup;
-                        groupSel.appendChild(o);
-                    }
-
-                    const exprSel = document.createElement("select");
-                    exprSel.className = "ebc-slot-emote";
-                    exprSel.style.cssText = "font-size:9px;cursor:pointer;flex:1;";
-                    exprSel.title = "Expression variant";
-
-                    const rebuildExprOpts = (group: string, current: string): void => {
-                        while (exprSel.firstChild) exprSel.removeChild(exprSel.firstChild);
-                        const none = document.createElement("option");
-                        none.value = ""; none.textContent = "— none —"; none.selected = !current;
-                        exprSel.appendChild(none);
-                        for (const opt of getExprGroupOptions(group)) {
-                            const o = document.createElement("option");
-                            o.value = opt; o.textContent = opt; o.selected = opt === current;
-                            exprSel.appendChild(o);
-                        }
-                    };
-                    rebuildExprOpts(curGroup, curExpr);
-
-                    const syncExprEmote = (): void => {
-                        const g = groupSel.value; const e = exprSel.value;
-                        btns[idx].emote = e ? `${g}:${e}` : g;
-                    };
-                    groupSel.addEventListener("change", () => { rebuildExprOpts(groupSel.value, ""); syncExprEmote(); });
-                    exprSel.addEventListener("change", syncExprEmote);
-
-                    botLine.appendChild(groupSel);
-                    botLine.appendChild(exprSel);
-                } else if (isSeq) {
+                if (isSeq) {
                     // seq: badge only — step builder below handles all config
                     const seqBadge = document.createElement("span");
                     seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7ac8;padding:1px 4px;";
@@ -15597,40 +15506,6 @@ export class EBCDrawer {
                     this.rerender();
                 });
 
-                // → Add to sidebar
-                const sidebarBtn = document.createElement("button");
-                sidebarBtn.style.cssText = BTN_BASE + "border:1px solid #3a2258;background:#200a2a;color:#9a6ac8;";
-                sidebarBtn.textContent = "→";
-                sidebarBtn.title = "Add as a sidebar button — keeps the face on forever by default (change in slot editor)";
-                sidebarBtn.addEventListener("click", () => {
-                    const catIdx  = getActiveCategoryIndex();
-                    const allCats = getCategories().map(c => ({ ...c, buttons: c.buttons.map(b => ({ ...b })) }));
-                    const cat = allCats[catIdx];
-                    if (!cat) return;
-                    const newBtn: ActionButton = {
-                        label: preset.name.slice(0, 5),
-                        emote: preset.id,
-                        color: "#7a44a0",
-                        enabled: true,
-                        style: "exprPreset",
-                        exprRevertMs: 0,
-                    };
-                    const emptyIdx = cat.buttons.findIndex(b => !b.enabled || !b.label);
-                    if (emptyIdx !== -1) {
-                        cat.buttons[emptyIdx] = newBtn;
-                    } else if (cat.buttons.length < ABSOLUTE_MAX) {
-                        cat.buttons.push(newBtn);
-                        cat.slotCount = Math.min(ABSOLUTE_MAX, cat.buttons.length);
-                    } else {
-                        sidebarBtn.textContent = "Full!";
-                        window.setTimeout(() => { sidebarBtn.textContent = "→"; }, 1200);
-                        return;
-                    }
-                    saveCategories([...allCats], catIdx);
-                    sidebarBtn.textContent = "✓";
-                    window.setTimeout(() => { sidebarBtn.textContent = "→"; }, 1200);
-                });
-
                 // × Delete
                 const delBtn = document.createElement("button");
                 delBtn.className = "ebc-outfit-del";
@@ -15646,7 +15521,6 @@ export class EBCDrawer {
                 pRow.appendChild(applyBtn);
                 pRow.appendChild(nameEl);
                 pRow.appendChild(defaultBtn);
-                pRow.appendChild(sidebarBtn);
                 pRow.appendChild(delBtn);
                 presetList.appendChild(pRow);
             }

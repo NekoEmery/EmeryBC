@@ -1,23 +1,19 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
 import { callBC, syncSettings } from "./bcUtils";
-import { applyExprGroup, applyExprPresetWithRevert } from "./expressions";
 
-export type ActionStyle = "action" | "emote" | "seq" | "expression" | "exprPreset";
-// "action"     = (Name text)
-// "emote"      = * Name text *
-// "seq"        = pose/action sequence (pipe-separated steps)
-// "expression" = single facial expression; emote field = "Group:ExpressionName"
-// "exprPreset" = full preset; emote field = preset ID; exprRevertMs = auto-revert delay
+export type ActionStyle = "action" | "emote" | "seq";
+// "action" = (Name text)
+// "emote"  = * Name text *
+// "seq"    = pose/action sequence (pipe-separated steps)
 
 export interface ActionButton {
     label:   string;
-    emote:   string;   // for "seq": pipe-separated steps; for "exprPreset": preset ID; for "expression": "Group:Name"
+    emote:   string;   // for "seq": pipe-separated steps; for "action"/"emote": the chat text
     color:   string;
     enabled: boolean;
     style:   ActionStyle;
     includeNameInAnnounce?: boolean; // default true; only applies to "action" style
-    exprRevertMs?: number;           // "exprPreset" only: ms before reverting to default face (0 = stay)
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
@@ -65,7 +61,25 @@ export function getCategories(): ButtonCategory[] {
         delete store.actionSlotCount;
     }
     const cats = store.buttonCategories;
-    if (Array.isArray(cats) && cats.length > 0) return cats as ButtonCategory[];
+    if (Array.isArray(cats) && cats.length > 0) {
+        // Migrate buttons that still carry the removed "expression"/"exprPreset" styles.
+        // Convert them to plain "action" slots with empty emote so they're harmless and
+        // the user can reconfigure or delete them in the Buttons tab.
+        const catsList = cats as ButtonCategory[];
+        let didMigrate = false;
+        for (const cat of catsList) {
+            for (const btn of cat.buttons as ActionButton[]) {
+                const s = btn.style as string;
+                if (s === "expression" || s === "exprPreset") {
+                    btn.style = "action";
+                    btn.emote = "";
+                    didMigrate = true;
+                }
+            }
+        }
+        if (didMigrate) { store.buttonCategories = catsList; syncSettings(); }
+        return catsList;
+    }
     return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
 }
 
@@ -654,27 +668,6 @@ export function handleActionButtonClick(): boolean {
         const y = btnStartY + i * BTN_SIZE;
         if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
             my >= y         && my <= y + BTN_SIZE) {
-            const btnStyle = btn.style ?? "action";
-            if (btnStyle === "exprPreset") {
-                if (!btn.emote) {
-                    localNotice("Expression preset not configured — open BUTTONS tab to set it up.");
-                } else {
-                    try { applyExprPresetWithRevert(btn.emote, btn.exprRevertMs ?? 0); } catch { /* ignore */ }
-                }
-                return true;
-            }
-            if (btnStyle === "expression") {
-                // emote field encodes "Group:ExpressionName"
-                const sep = btn.emote.indexOf(":");
-                if (sep !== -1) {
-                    const grp = btn.emote.slice(0, sep);
-                    const expr = btn.emote.slice(sep + 1) || null;
-                    try { applyExprGroup(grp, expr); } catch { /* ignore */ }
-                } else {
-                    localNotice("Expression not configured — open BUTTONS tab to set Group:Name.");
-                }
-                return true;
-            }
             const animOk = triggerLabelAnimation(btn.label);
             if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
             return true;
