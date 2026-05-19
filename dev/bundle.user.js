@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.8.3
+// @version      2.8.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12196,8 +12196,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "tabs.outfits": { en: "OUTFITS", de: "OUTFITS", zh: "服装", fr: "TENUES", es: "ATUENDOS", ru: "НАРЯДЫ" },
         "tabs.buttons": { en: "BUTTONS", de: "TASTEN", zh: "按键", fr: "BOUTONS", es: "BOTONES", ru: "КНОПКИ" },
         "tabs.anims": { en: "ANIMS", de: "ANIMS", zh: "动作", fr: "ANIMS", es: "ANIMS", ru: "АНИМАЦИИ" },
-        "tabs.inbox": { en: "INBOX", de: "INBOX", zh: "收件箱", fr: "INBOX", es: "INBOX", ru: "ВХОДЯЩИЕ" },
-        "tabs.inboxTitle": { en: "Unread messages & recent conversations", de: "Ungelesene Nachrichten & letzte Gespräche", zh: "未读消息和最近对话", fr: "Messages non lus & conversations récentes", es: "Mensajes no leídos y conversaciones recientes", ru: "Непрочитанные сообщения и недавние беседы" },
         "tabs.users": { en: "USERS", de: "NUTZER", zh: "用户", fr: "UTILISATEURS", es: "USUARIOS", ru: "ПОЛЬЗОВАТЕЛИ" },
         "tabs.credits": { en: "CREDITS", de: "CREDITS", zh: "致谢", fr: "CRÉDITS", es: "CRÉDITOS", ru: "АВТОРЫ" },
         "tabs.dev": { en: "DEV", de: "DEV", zh: "开发", fr: "DEV", es: "DEV", ru: "DEV" },
@@ -14696,31 +14694,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 .ebc-beep-win-unread-dot.visible { display: block; }
 
-/* -- Inbox tab cards -------------------------------------------------------- */
+/* -- Messages dropdown cards (inside USERS tab) ----------------------------- */
 .ebc-inbox-card {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 7px 8px;
-    border-radius: 7px;
-    border: 1px solid #2a1421;
-    background: #120810;
-    margin-bottom: 5px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #221218;
+    background: #110810;
+    margin-bottom: 4px;
     transition: background 0.12s, border-color 0.12s;
     cursor: pointer;
 }
-.ebc-inbox-card:hover {
-    background: #1e0e18;
-    border-color: #4c2537;
-}
-.ebc-inbox-card.unread {
-    border-color: #4c2537;
-    background: #1c0c16;
-}
-.ebc-inbox-card.unread:hover {
-    background: #2a1020;
-    border-color: #cf6f98;
-}
+.ebc-inbox-card:hover      { background: #1e0e18; border-color: #4c2537; }
+.ebc-inbox-card.unread     { border-color: #3a1a28; background: #1c0c16; }
+.ebc-inbox-card.unread:hover { background: #2a1020; border-color: #cf6f98; }
 
 .ebc-beep-reply-bar {
     display: flex;
@@ -15313,10 +15302,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // ── Drawer appearance / layout helpers ───────────────────────────────────
     const EBC_COLORS_KEY = "EBC_colors";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
-    const EBC_USER_TABS = ["outfits", "buttons", "anims", "inbox", "notes", "thanks", "dev"];
+    const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
         outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
-        inbox: "INBOX", notes: "USERS", thanks: "CREDITS", dev: "DEV",
+        notes: "USERS", thanks: "CREDITS", dev: "DEV",
     };
     const DEFAULT_COLORS = {
         bg: "#1a0d14",
@@ -15742,24 +15731,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             btnsTabBtn.id = "ebc-tab-buttons";
             btnsTabBtn.textContent = t("tabs.buttons");
             btnsTabBtn.title = t("tabs.buttonsTitle");
-            const inboxTabBtn = document.createElement("button");
-            inboxTabBtn.className = "ebc-tab-btn";
-            inboxTabBtn.id = "ebc-tab-inbox";
-            inboxTabBtn.title = t("tabs.inboxTitle");
-            inboxTabBtn.style.position = "relative";
-            // Inner layout: text + live unread badge
-            const inboxTabLabel = document.createElement("span");
-            inboxTabLabel.textContent = t("tabs.inbox");
-            inboxTabBtn.appendChild(inboxTabLabel);
-            const inboxTabBadge = document.createElement("span");
-            inboxTabBadge.id = "ebc-inbox-tab-badge";
-            inboxTabBadge.style.cssText = "display:none;position:absolute;top:3px;right:3px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:8px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
-            inboxTabBtn.appendChild(inboxTabBadge);
             const notesTabBtn = document.createElement("button");
             notesTabBtn.className = "ebc-tab-btn";
             notesTabBtn.id = "ebc-tab-notes";
-            notesTabBtn.textContent = t("tabs.users");
+            notesTabBtn.style.position = "relative";
             notesTabBtn.title = t("tabs.usersTitle");
+            const notesTabLabel = document.createElement("span");
+            notesTabLabel.textContent = t("tabs.users");
+            notesTabBtn.appendChild(notesTabLabel);
+            const notesBadgeEl = document.createElement("span");
+            notesBadgeEl.id = "ebc-notes-tab-badge";
+            notesBadgeEl.style.cssText = "display:none;position:absolute;top:3px;right:2px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:8px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
+            notesTabBtn.appendChild(notesBadgeEl);
             const thanksTabBtn = document.createElement("button");
             thanksTabBtn.className = "ebc-tab-btn";
             thanksTabBtn.id = "ebc-tab-thanks";
@@ -15795,7 +15778,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._i18nRefs.tabOutfits = outfitTabBtn;
             this._i18nRefs.tabButtons = btnsTabBtn;
             this._i18nRefs.tabAnims = posesTabBtn;
-            this._i18nRefs.tabInbox = inboxTabBtn;
             this._i18nRefs.tabNotes = notesTabBtn;
             this._i18nRefs.tabThanks = thanksTabBtn;
             this._i18nRefs.tabDev = devTabBtn2;
@@ -15805,7 +15787,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tabBar.appendChild(outfitTabBtn);
             tabBar.appendChild(btnsTabBtn);
             tabBar.appendChild(posesTabBtn);
-            tabBar.appendChild(inboxTabBtn);
             tabBar.appendChild(notesTabBtn);
             tabBar.appendChild(thanksTabBtn);
             tabBar.appendChild(devTabBtn2);
@@ -16722,7 +16703,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
             outfitTabBtn.addEventListener("click", () => this.switchTab("outfits"));
             posesTabBtn.addEventListener("click", () => this.switchTab("anims"));
-            inboxTabBtn.addEventListener("click", () => this.switchTab("inbox"));
             notesTabBtn.addEventListener("click", () => this.switchTab("notes"));
             thanksTabBtn.addEventListener("click", () => this.switchTab("thanks"));
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
@@ -17147,7 +17127,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ["ebc-tab-outfits", "outfits"],
                 ["ebc-tab-poses", "anims"],
                 ["ebc-tab-buttons", "buttons"],
-                ["ebc-tab-inbox", "inbox"],
                 ["ebc-tab-notes", "notes"],
                 ["ebc-tab-thanks", "thanks"],
                 ["ebc-tab-dev", "dev"],
@@ -17168,8 +17147,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.renderPoses();
             else if (this.currentTab === "buttons")
                 this.renderButtons();
-            else if (this.currentTab === "inbox")
-                this.renderInbox();
             else if (this.currentTab === "notes")
                 this.renderNotes();
             else if (this.currentTab === "thanks")
@@ -17257,15 +17234,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             if (r.tabAnims)
                 r.tabAnims.textContent = t("tabs.anims");
-            if (r.tabInbox) {
-                // Inbox tab has a label span + badge span — update label span only
-                const lbl = r.tabInbox.querySelector("span:first-child");
-                if (lbl)
-                    lbl.textContent = t("tabs.inbox");
-                r.tabInbox.title = t("tabs.inboxTitle");
-            }
             if (r.tabNotes) {
-                r.tabNotes.textContent = t("tabs.users");
+                const lbl = r.tabNotes.querySelector("span:first-child");
+                if (lbl)
+                    lbl.textContent = t("tabs.users");
                 r.tabNotes.title = t("tabs.usersTitle");
             }
             if (r.tabThanks) {
@@ -21738,40 +21710,39 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // -- Beep window -----------------------------------------------------------
         refreshTabDot() {
             var _a, _b;
-            // Outer EBC tab button dot (on the BC UI sidebar)
             const tab = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
-            if (tab) {
-                const hasUnread = this.beepUnread.size > 0;
-                let dot = tab.querySelector("#ebc-tab-unread-dot");
-                if (hasUnread && !dot) {
-                    dot = document.createElement("div");
-                    dot.id = "ebc-tab-unread-dot";
-                    dot.title = "Click to dismiss";
-                    dot.style.cursor = "pointer";
-                    dot.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        // Open the panel and jump straight to inbox
-                        if (!this.isOpen)
-                            this.open();
-                        this.switchTab("inbox");
-                    });
-                    tab.style.position = "relative";
-                    tab.appendChild(dot);
-                }
-                else if (!hasUnread && dot) {
-                    dot.remove();
-                }
+            if (!tab)
+                return;
+            const hasUnread = this.beepUnread.size > 0;
+            let dot = tab.querySelector("#ebc-tab-unread-dot");
+            if (hasUnread && !dot) {
+                dot = document.createElement("div");
+                dot.id = "ebc-tab-unread-dot";
+                dot.title = "Click to open messages";
+                dot.style.cursor = "pointer";
+                dot.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    // Open panel on the USERS tab so the messages dropdown is visible
+                    if (!this.isOpen)
+                        this.open();
+                    this.switchTab("notes");
+                });
+                tab.style.position = "relative";
+                tab.appendChild(dot);
             }
-            // Inbox tab button badge (inside the panel tab bar)
-            const inboxBadge = (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-inbox-tab-badge");
-            if (inboxBadge) {
+            else if (!hasUnread && dot) {
+                dot.remove();
+            }
+            // Keep the USERS tab button badge in sync
+            const notesBadge = (_b = this.rootEl) === null || _b === void 0 ? void 0 : _b.querySelector("#ebc-notes-tab-badge");
+            if (notesBadge) {
                 const total = [...this.beepUnread.values()].reduce((s, n) => s + n, 0);
                 if (total > 0) {
-                    inboxBadge.textContent = total > 99 ? "99+" : String(total);
-                    inboxBadge.style.display = "block";
+                    notesBadge.textContent = total > 99 ? "99+" : String(total);
+                    notesBadge.style.display = "block";
                 }
                 else {
-                    inboxBadge.style.display = "none";
+                    notesBadge.style.display = "none";
                 }
             }
         }
@@ -22239,107 +22210,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const refresh = entry.el._refresh;
             refresh === null || refresh === void 0 ? void 0 : refresh();
         }
-        // -- Inbox tab -------------------------------------------------------------
-        renderInbox() {
-            var _a, _b, _c;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
-            if (!body)
-                return;
-            while (body.firstChild)
-                body.removeChild(body.firstChild);
-            const self = (_b = Player.MemberNumber) !== null && _b !== void 0 ? _b : 0;
-            const history = getBeepHistory();
-            const seenNums = new Set();
-            const convs = [];
-            for (let i = history.length - 1; i >= 0; i--) {
-                const e = history[i];
-                const partner = e.from === self ? e.to : e.from;
-                if (!partner || partner === self)
-                    continue;
-                if (seenNums.has(partner))
-                    continue;
-                seenNums.add(partner);
-                convs.push({
-                    num: partner,
-                    name: resolveName(partner),
-                    lastMsg: stripBeepMetadata(e.message),
-                    lastTs: e.ts,
-                    unread: (_c = this.beepUnread.get(partner)) !== null && _c !== void 0 ? _c : 0,
-                });
-                if (convs.length >= 60)
-                    break;
-            }
-            // Sort: unread first, then by timestamp
-            convs.sort((a, b) => {
-                if (a.unread > 0 && b.unread === 0)
-                    return -1;
-                if (a.unread === 0 && b.unread > 0)
-                    return 1;
-                return b.lastTs - a.lastTs;
-            });
-            const totalUnread = [...this.beepUnread.values()].reduce((s, n) => s + n, 0);
-            const unreadSenders = convs.filter(c => c.unread > 0);
-            // ── Header row ──────────────────────────────────────────────────────
-            const headerRow = document.createElement("div");
-            headerRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:6px;";
-            const headerLbl = document.createElement("div");
-            headerLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;letter-spacing:0.08em;";
-            headerLbl.textContent = totalUnread > 0
-                ? `📬 INBOX  ·  ${totalUnread} unread`
-                : "📬 INBOX";
-            headerRow.appendChild(headerLbl);
-            if (totalUnread > 0) {
-                const markAllBtn = document.createElement("button");
-                markAllBtn.textContent = "✓ Mark all read";
-                markAllBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;transition:color 0.12s,border-color 0.12s;flex-shrink:0;";
-                markAllBtn.addEventListener("mouseenter", () => { markAllBtn.style.color = "#cf6f98"; markAllBtn.style.borderColor = "#cf6f98"; });
-                markAllBtn.addEventListener("mouseleave", () => { markAllBtn.style.color = "#7a5a6a"; markAllBtn.style.borderColor = "#3a1928"; });
-                markAllBtn.addEventListener("click", () => {
-                    this.beepUnread.clear();
-                    this.refreshTabDot();
-                    this.rerender();
-                });
-                headerRow.appendChild(markAllBtn);
-            }
-            body.appendChild(headerRow);
-            // ── Empty state ─────────────────────────────────────────────────────
-            if (convs.length === 0) {
-                const empty = document.createElement("div");
-                empty.style.cssText = "text-align:center;color:#5a3040;font-size:11px;padding:40px 0 20px;font-family:'Trebuchet MS',serif;";
-                empty.innerHTML = "📭<br><span style='display:block;margin-top:6px;'>No beep conversations yet.</span><span style='display:block;margin-top:4px;font-size:10px;color:#3a2030;'>Beep someone from the USERS tab!</span>";
-                body.appendChild(empty);
-                return;
-            }
-            // ── Unread section ──────────────────────────────────────────────────
-            if (unreadSenders.length > 0) {
-                const unreadHdr = document.createElement("div");
-                unreadHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#8a5070;letter-spacing:0.1em;margin:0 0 5px;padding-left:2px;text-transform:uppercase;";
-                unreadHdr.textContent = "Unread";
-                body.appendChild(unreadHdr);
-                for (const conv of unreadSenders) {
-                    body.appendChild(this.buildInboxCard(conv.num, conv.name, conv.lastMsg, conv.lastTs, conv.unread));
-                }
-                // Divider before recent section
-                if (convs.some(c => c.unread === 0)) {
-                    const div = document.createElement("div");
-                    div.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
-                    body.appendChild(div);
-                }
-            }
-            // ── All conversations ────────────────────────────────────────────────
-            const readConvs = convs.filter(c => c.unread === 0);
-            if (readConvs.length > 0) {
-                if (unreadSenders.length > 0) {
-                    const recentHdr = document.createElement("div");
-                    recentHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#8a5070;letter-spacing:0.1em;margin:0 0 5px;padding-left:2px;text-transform:uppercase;";
-                    recentHdr.textContent = "Recent";
-                    body.appendChild(recentHdr);
-                }
-                for (const conv of readConvs) {
-                    body.appendChild(this.buildInboxCard(conv.num, conv.name, conv.lastMsg, conv.lastTs, 0));
-                }
-            }
-        }
+        // -- Messages dropdown (inside USERS tab) ----------------------------------
+        /** Build a single conversation row for the messages dropdown. */
         buildInboxCard(num, name, lastMsg, lastTs, unread) {
             const card = document.createElement("div");
             card.className = "ebc-inbox-card" + (unread > 0 ? " unread" : "");
@@ -22429,7 +22301,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // No window open at all
                 this.beepUnread.set(fromNum, ((_b = this.beepUnread.get(fromNum)) !== null && _b !== void 0 ? _b : 0) + 1);
                 this.refreshTabDot();
-                if (this.currentTab === "notes" || this.currentTab === "inbox") {
+                if (this.currentTab === "notes") {
                     try {
                         this.rerender();
                     }
@@ -22488,6 +22360,144 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ }
         }
         // -- Notes tab -------------------------------------------------------------
+        /** Collapsible "📬 Messages" section prepended to the USERS tab. */
+        renderMessagesDropdown(body) {
+            var _a, _b;
+            const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            const totalUnread = [...this.beepUnread.values()].reduce((s, n) => s + n, 0);
+            const history = getBeepHistory();
+            const seenNums = new Set();
+            const convs = [];
+            for (let i = history.length - 1; i >= 0; i--) {
+                const e = history[i];
+                const partner = e.from === self ? e.to : e.from;
+                if (!partner || partner === self)
+                    continue;
+                if (seenNums.has(partner))
+                    continue;
+                seenNums.add(partner);
+                convs.push({
+                    num: partner, name: resolveName(partner),
+                    lastMsg: stripBeepMetadata(e.message), lastTs: e.ts,
+                    unread: (_b = this.beepUnread.get(partner)) !== null && _b !== void 0 ? _b : 0,
+                });
+                if (convs.length >= 60)
+                    break;
+            }
+            convs.sort((a, b) => {
+                if (a.unread > 0 && b.unread === 0)
+                    return -1;
+                if (a.unread === 0 && b.unread > 0)
+                    return 1;
+                return b.lastTs - a.lastTs;
+            });
+            // Persist collapsed state; auto-expand when there are unreads
+            const COLL_KEY = "EBC_messagesCollapsed";
+            let collapsed;
+            try {
+                const stored = localStorage.getItem(COLL_KEY);
+                collapsed = stored === null ? convs.length === 0 : stored === "1";
+            }
+            catch (_c) {
+                collapsed = convs.length === 0;
+            }
+            // Always expand when there are fresh unreads
+            if (totalUnread > 0)
+                collapsed = false;
+            // ── Header ────────────────────────────────────────────────────────
+            const hdr = document.createElement("div");
+            hdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;padding:4px 0 4px;";
+            const hdrLeft = document.createElement("div");
+            hdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
+            const hdrIcon = document.createElement("span");
+            hdrIcon.style.cssText = "font-size:12px;line-height:1;";
+            hdrIcon.textContent = "📬";
+            hdrLeft.appendChild(hdrIcon);
+            const hdrLbl = document.createElement("span");
+            hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#8a5070;letter-spacing:0.08em;text-transform:uppercase;";
+            hdrLbl.textContent = "Messages";
+            hdrLeft.appendChild(hdrLbl);
+            if (totalUnread > 0) {
+                const unreadPill = document.createElement("span");
+                unreadPill.style.cssText = "background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-weight:bold;padding:1px 5px;line-height:14px;";
+                unreadPill.textContent = String(totalUnread);
+                hdrLeft.appendChild(unreadPill);
+            }
+            hdr.appendChild(hdrLeft);
+            const hdrRight = document.createElement("div");
+            hdrRight.style.cssText = "display:flex;align-items:center;gap:5px;";
+            // Mark-all-read button (only when unreads exist)
+            if (totalUnread > 0) {
+                const markBtn = document.createElement("button");
+                markBtn.textContent = "✓ All read";
+                markBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+                markBtn.addEventListener("mouseenter", () => { markBtn.style.color = "#cf6f98"; markBtn.style.borderColor = "#cf6f98"; });
+                markBtn.addEventListener("mouseleave", () => { markBtn.style.color = "#7a5a6a"; markBtn.style.borderColor = "#3a1928"; });
+                markBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    this.beepUnread.clear();
+                    this.refreshTabDot();
+                    this.rerender();
+                });
+                hdrRight.appendChild(markBtn);
+            }
+            const chevron = document.createElement("span");
+            chevron.style.cssText = "font-size:9px;color:#7a5060;transition:transform 0.15s;";
+            chevron.textContent = collapsed ? "▶" : "▼";
+            hdrRight.appendChild(chevron);
+            hdr.appendChild(hdrRight);
+            // ── Content panel ─────────────────────────────────────────────────
+            const panel = document.createElement("div");
+            panel.style.cssText = `overflow:hidden;transition:max-height 0.2s ease;max-height:${collapsed ? "0" : "800px"};`;
+            const toggle = () => {
+                collapsed = !collapsed;
+                panel.style.maxHeight = collapsed ? "0" : "800px";
+                chevron.textContent = collapsed ? "▶" : "▼";
+                try {
+                    localStorage.setItem(COLL_KEY, collapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            hdr.addEventListener("click", toggle);
+            // ── Inner content ─────────────────────────────────────────────────
+            if (convs.length === 0) {
+                const empty = document.createElement("div");
+                empty.style.cssText = "text-align:center;color:#4a2838;font-size:10px;padding:10px 0 6px;font-family:'Trebuchet MS',serif;";
+                empty.textContent = "No conversations yet — beep someone below!";
+                panel.appendChild(empty);
+            }
+            else {
+                const unreadConvs = convs.filter(c => c.unread > 0);
+                const readConvs = convs.filter(c => c.unread === 0);
+                if (unreadConvs.length > 0) {
+                    const subHdr = document.createElement("div");
+                    subHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#6a3050;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 4px 2px;";
+                    subHdr.textContent = "Unread";
+                    panel.appendChild(subHdr);
+                    for (const c of unreadConvs)
+                        panel.appendChild(this.buildInboxCard(c.num, c.name, c.lastMsg, c.lastTs, c.unread));
+                }
+                if (readConvs.length > 0) {
+                    if (unreadConvs.length > 0) {
+                        const div = document.createElement("div");
+                        div.style.cssText = "height:1px;background:#221218;margin:5px 0 4px;";
+                        panel.appendChild(div);
+                        const subHdr = document.createElement("div");
+                        subHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#6a3050;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 4px 2px;";
+                        subHdr.textContent = "Recent";
+                        panel.appendChild(subHdr);
+                    }
+                    for (const c of readConvs)
+                        panel.appendChild(this.buildInboxCard(c.num, c.name, c.lastMsg, c.lastTs, 0));
+                }
+            }
+            // Divider between this section and AFK/friends below
+            const divider = document.createElement("div");
+            divider.style.cssText = "height:1px;background:#2a1421;margin:6px 0 8px;";
+            body.appendChild(hdr);
+            body.appendChild(panel);
+            body.appendChild(divider);
+        }
         renderNotes() {
             var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
@@ -22495,6 +22505,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Messages dropdown ─────────────────────────────────────────────────
+            this.renderMessagesDropdown(body);
             // ── AFK auto-reply ────────────────────────────────────────────────────
             let afkCollapsed = true;
             try {
@@ -30577,7 +30589,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.8.3";
+    const MOD_VERSION = "2.8.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30589,9 +30601,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "2.8.3",
+            version: "2.8.4",
             changes: [
-                "Feature: Inbox tab — new 📬 INBOX tab collects all beep conversations in one place. Unread messages are highlighted at the top with a pink badge. Clicking a card opens the chat window. The EBC sidebar dot now jumps straight to Inbox when clicked. Tab button shows a live unread count.",
+                "Feature: Messages dropdown — collapsible 📬 Messages section at the top of the USERS tab. Unread conversations float to the top with a pink badge; read conversations listed below. Clicking a row opens the chat window. USERS tab button shows a live unread count. The EBC sidebar dot navigates to USERS on click.",
             ],
         },
         {
