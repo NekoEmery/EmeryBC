@@ -24828,7 +24828,7 @@
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a, _b;
+            var _a;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -25486,155 +25486,6 @@
                     importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
                 }
             });
-            // ── Expression Quick-Add ─────────────────────────────────────────────
-            // Collapsible section: click any expression chip to pin it as an
-            // "expression" style sidebar button in the active category.
-            {
-                const EXPR_COLOR = "#7a44a0";
-                let exprCollapsed = true;
-                try {
-                    const v = localStorage.getItem("EBC_btnExprCollapsed");
-                    if (v !== null)
-                        exprCollapsed = v === "1";
-                }
-                catch ( /* ignore */_c) { /* ignore */ }
-                const exprHdr = document.createElement("div");
-                exprHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:4px 0;margin-top:8px;";
-                const exprChev = document.createElement("span");
-                exprChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
-                const exprSectionLbl = document.createElement("span");
-                exprSectionLbl.className = "ebc-section-label";
-                exprSectionLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
-                exprSectionLbl.textContent = "EXPRESSIONS";
-                const exprHint = document.createElement("span");
-                exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
-                exprHint.textContent = "click chip to add as button";
-                exprHdr.appendChild(exprChev);
-                exprHdr.appendChild(exprSectionLbl);
-                exprHdr.appendChild(exprHint);
-                body.appendChild(exprHdr);
-                const exprBody = document.createElement("div");
-                const updateExprChev = () => { exprChev.textContent = exprCollapsed ? "▶" : "▼"; exprBody.style.display = exprCollapsed ? "none" : ""; };
-                updateExprChev();
-                exprHdr.addEventListener("click", () => {
-                    exprCollapsed = !exprCollapsed;
-                    try {
-                        localStorage.setItem("EBC_btnExprCollapsed", exprCollapsed ? "1" : "0");
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    updateExprChev();
-                });
-                // ── Currently-added expression/preset buttons ──────────────────
-                {
-                    const _catIdx = getActiveCategoryIndex();
-                    const _allCats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
-                    const _cat = _allCats[_catIdx];
-                    const addedBtns = _cat
-                        ? _cat.buttons.map((b, i) => ({ b, i })).filter(({ b }) => (b.style === "expression" || b.style === "exprPreset") && b.enabled && b.label)
-                        : [];
-                    if (addedBtns.length > 0) {
-                        const addedLbl = document.createElement("div");
-                        addedLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a9e;margin-bottom:3px;letter-spacing:0.05em;";
-                        addedLbl.textContent = "ADDED BUTTONS";
-                        exprBody.appendChild(addedLbl);
-                        for (const { b, i } of addedBtns) {
-                            const row = document.createElement("div");
-                            row.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:2px;";
-                            const lbl = document.createElement("span");
-                            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c090e0;background:#2a1a3a;border:1px solid #5a3a7e;border-radius:3px;padding:1px 4px;min-width:28px;text-align:center;";
-                            lbl.textContent = b.label;
-                            const info = document.createElement("span");
-                            info.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a9e;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                            if (b.style === "exprPreset") {
-                                const preset = getExpressionPresets().find(p => p.id === b.emote);
-                                info.textContent = `preset: ${preset ? preset.name : b.emote}`;
-                            }
-                            else {
-                                info.textContent = b.emote; // "Group:ExprName"
-                            }
-                            const removeBtn = document.createElement("button");
-                            removeBtn.className = "ebc-delete-btn";
-                            removeBtn.style.cssText = "padding:0 5px;font-size:11px;line-height:16px;";
-                            removeBtn.textContent = "×";
-                            removeBtn.title = "Remove this expression button";
-                            removeBtn.addEventListener("click", () => {
-                                const ci = getActiveCategoryIndex();
-                                const ac = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(bb => (Object.assign({}, bb))) })));
-                                const cat = ac[ci];
-                                if (!cat || !cat.buttons[i])
-                                    return;
-                                cat.buttons[i] = { label: "", emote: "", color: "#c2185b", enabled: false, style: "action" };
-                                saveCategories([...ac], ci);
-                                this.renderButtons();
-                            });
-                            row.appendChild(lbl);
-                            row.appendChild(info);
-                            row.appendChild(removeBtn);
-                            exprBody.appendChild(row);
-                        }
-                        const addedSep = document.createElement("div");
-                        addedSep.className = "ebc-divider";
-                        addedSep.style.margin = "5px 0";
-                        exprBody.appendChild(addedSep);
-                    }
-                }
-                for (const group of EXPR_GROUPS) {
-                    const ghdr = document.createElement("div");
-                    ghdr.className = "ebc-expr-group-hdr";
-                    ghdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a9e;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:4px 0 2px;";
-                    ghdr.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
-                    exprBody.appendChild(ghdr);
-                    const chipsRow = document.createElement("div");
-                    chipsRow.className = "ebc-expr-chips";
-                    const options = getExprGroupOptions(group);
-                    for (const opt of options) {
-                        const chip = document.createElement("button");
-                        chip.className = "ebc-expr-chip";
-                        chip.style.cssText += ";background:#2a1a3a;border-color:#5a3a7e;color:#c090e0;";
-                        chip.textContent = opt;
-                        chip.title = `Add "${opt}" (${group}) as a sidebar button`;
-                        chip.addEventListener("click", () => {
-                            const catIdx = getActiveCategoryIndex();
-                            const allCats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
-                            const cat = allCats[catIdx];
-                            if (!cat)
-                                return;
-                            const newBtn = {
-                                label: opt.slice(0, 5),
-                                emote: `${group}:${opt}`,
-                                color: EXPR_COLOR,
-                                enabled: true,
-                                style: "expression",
-                            };
-                            // Prefer to fill an empty/disabled slot; otherwise append
-                            const emptyIdx = cat.buttons.findIndex(b => !b.enabled || !b.label);
-                            if (emptyIdx !== -1) {
-                                cat.buttons[emptyIdx] = newBtn;
-                            }
-                            else if (cat.buttons.length < ABSOLUTE_MAX) {
-                                cat.buttons.push(newBtn);
-                                cat.slotCount = Math.min(ABSOLUTE_MAX, (cat.slotCount || cat.buttons.length));
-                            }
-                            else {
-                                chip.textContent = "Full!";
-                                window.setTimeout(() => { chip.textContent = opt; }, 1200);
-                                return;
-                            }
-                            saveCategories([...allCats], catIdx);
-                            chip.textContent = "Added!";
-                            window.setTimeout(() => { chip.textContent = opt; }, 1200);
-                            this.renderButtons();
-                        });
-                        chipsRow.appendChild(chip);
-                    }
-                    exprBody.appendChild(chipsRow);
-                }
-                body.appendChild(exprBody);
-                const exprDiv = document.createElement("div");
-                exprDiv.className = "ebc-divider";
-                exprDiv.style.marginTop = "6px";
-                body.appendChild(exprDiv);
-            }
             // -- Fun Actions --------------------------------------------------------
             const funLbl = document.createElement("div");
             funLbl.className = "ebc-section-label";
@@ -29427,7 +29278,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.4.5";
+    const MOD_VERSION = "2.4.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29438,6 +29289,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.4.6",
+            changes: [
+                "Remove: the standalone EXPRESSIONS collapsible section in the BUTTONS tab is gone. Use the style dropdown on any existing slot instead — pick '🎭 preset' or '🎭 expr' directly on NOD, SHAKE, or any other button.",
+            ],
+        },
         {
             version: "2.4.5",
             changes: [
