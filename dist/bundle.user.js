@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.0
+// @version      2.5.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -25016,7 +25016,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slotList.id = "ebc-slot-list";
             activeBodyEl.appendChild(slotList);
             const renderSlots = () => {
-                var _a, _b;
+                var _a, _b, _c;
                 // Always ensure btns has a real object for every slot — prevents "undefined" crashes
                 while (btns.length < slotCount) {
                     btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
@@ -25134,38 +25134,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const isSeq = currentStyle === "seq";
                     const isExprPreset = currentStyle === "exprPreset";
                     const isExpression = currentStyle === "expression";
-                    // Universal style selector — always shown, lets user switch between all styles
-                    const styleSel = document.createElement("select");
-                    styleSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#b080d0;padding:1px 2px;cursor:pointer;flex-shrink:0;max-width:64px;";
-                    styleSel.title = "Button style";
-                    for (const [val, lbl] of [
-                        ["action", "( ) action"],
-                        ["emote", "* * emote"],
-                        ["exprPreset", "🎭 preset"],
-                        ["expression", "🎭 expr"],
-                        ["seq", "✨ seq"],
-                    ]) {
-                        const o = document.createElement("option");
-                        o.value = val;
-                        o.textContent = lbl;
-                        o.selected = val === currentStyle;
-                        styleSel.appendChild(o);
-                    }
-                    styleSel.addEventListener("change", () => {
-                        btns[i].style = styleSel.value;
-                        if (styleSel.value !== "exprPreset")
-                            delete btns[i].exprRevertMs;
-                        renderSlots();
-                    });
-                    botLine.appendChild(styleSel);
                     if (isExprPreset) {
-                        // exprPreset: preset selector + optional revert duration
+                        // exprPreset: face preset selector + how-long dropdown
                         const presetSel = document.createElement("select");
                         presetSel.className = "ebc-slot-emote";
-                        presetSel.style.cssText = "font-size:9px;cursor:pointer;";
+                        presetSel.style.cssText = "font-size:9px;cursor:pointer;flex:1;";
                         const emptyOpt = document.createElement("option");
                         emptyOpt.value = "";
-                        emptyOpt.textContent = "— pick preset —";
+                        emptyOpt.textContent = "— pick face —";
                         presetSel.appendChild(emptyOpt);
                         for (const p of getExpressionPresets()) {
                             const opt = document.createElement("option");
@@ -25175,42 +25151,107 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             presetSel.appendChild(opt);
                         }
                         presetSel.addEventListener("change", () => { btns[idx].emote = presetSel.value; });
-                        const revertLbl = document.createElement("span");
-                        revertLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a8a;flex-shrink:0;white-space:nowrap;";
-                        revertLbl.textContent = "revert";
-                        const revertInp = document.createElement("input");
-                        revertInp.type = "number";
-                        revertInp.min = "0";
-                        revertInp.max = "3600";
-                        revertInp.step = "1";
-                        revertInp.value = String(Math.round(((_b = btn.exprRevertMs) !== null && _b !== void 0 ? _b : 0) / 1000));
-                        revertInp.style.cssText = "width:38px;font-size:9px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;text-align:right;flex-shrink:0;";
-                        revertInp.title = "Revert to default face after this many seconds (0 = keep forever)";
-                        revertInp.addEventListener("input", () => {
-                            btns[idx].exprRevertMs = Math.max(0, parseInt(revertInp.value) || 0) * 1000;
-                        });
-                        const revertSfx = document.createElement("span");
-                        revertSfx.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a8a;flex-shrink:0;";
-                        revertSfx.textContent = "s";
+                        // How long to hold the expression before reverting
+                        const REVERT_OPTS = [
+                            ["♾ keep", 0],
+                            ["3 s", 3000],
+                            ["5 s", 5000],
+                            ["10 s", 10000],
+                            ["30 s", 30000],
+                            ["1 min", 60000],
+                        ];
+                        const revertSel = document.createElement("select");
+                        revertSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#9060c0;padding:1px 2px;cursor:pointer;flex-shrink:0;max-width:52px;";
+                        revertSel.title = "How long to hold this face (♾ = keep forever, never revert)";
+                        const curMs = (_b = btn.exprRevertMs) !== null && _b !== void 0 ? _b : 0;
+                        let revertMatched = false;
+                        for (const [label, ms] of REVERT_OPTS) {
+                            const o = document.createElement("option");
+                            o.value = String(ms);
+                            o.textContent = label;
+                            if (ms === curMs) {
+                                o.selected = true;
+                                revertMatched = true;
+                            }
+                            revertSel.appendChild(o);
+                        }
+                        if (!revertMatched && curMs > 0) {
+                            const o = document.createElement("option");
+                            o.value = String(curMs);
+                            o.textContent = `${Math.round(curMs / 1000)} s`;
+                            o.selected = true;
+                            revertSel.appendChild(o);
+                        }
+                        revertSel.addEventListener("change", () => { btns[idx].exprRevertMs = parseInt(revertSel.value) || 0; });
                         botLine.appendChild(presetSel);
-                        botLine.appendChild(revertLbl);
-                        botLine.appendChild(revertInp);
-                        botLine.appendChild(revertSfx);
+                        botLine.appendChild(revertSel);
                     }
                     else if (isExpression) {
-                        // Single-expression: editable "Group:Name" field
-                        const emoteInp = document.createElement("input");
-                        emoteInp.className = "ebc-slot-emote";
-                        emoteInp.type = "text";
-                        emoteInp.maxLength = 60;
-                        emoteInp.placeholder = "Group:ExprName";
-                        emoteInp.value = btn.emote;
-                        emoteInp.title = "Group:ExpressionName — e.g. Eyes:Shy";
-                        emoteInp.addEventListener("input", () => { btns[idx].emote = emoteInp.value; });
-                        botLine.appendChild(emoteInp);
+                        // Single-expression: group dropdown + expression dropdown
+                        const sep = btn.emote.indexOf(":");
+                        const curGroup = sep !== -1 ? btn.emote.slice(0, sep) : EXPR_GROUPS[0];
+                        const curExpr = sep !== -1 ? btn.emote.slice(sep + 1) : "";
+                        const groupSel = document.createElement("select");
+                        groupSel.className = "ebc-slot-emote";
+                        groupSel.style.cssText = "font-size:9px;cursor:pointer;flex-shrink:0;max-width:54px;";
+                        groupSel.title = "Expression group";
+                        for (const g of EXPR_GROUPS) {
+                            const o = document.createElement("option");
+                            o.value = g;
+                            o.textContent = (_c = EXPR_GROUP_LABELS[g]) !== null && _c !== void 0 ? _c : g;
+                            o.selected = g === curGroup;
+                            groupSel.appendChild(o);
+                        }
+                        const exprSel = document.createElement("select");
+                        exprSel.className = "ebc-slot-emote";
+                        exprSel.style.cssText = "font-size:9px;cursor:pointer;flex:1;";
+                        exprSel.title = "Expression variant";
+                        const rebuildExprOpts = (group, current) => {
+                            while (exprSel.firstChild)
+                                exprSel.removeChild(exprSel.firstChild);
+                            const none = document.createElement("option");
+                            none.value = "";
+                            none.textContent = "— none —";
+                            none.selected = !current;
+                            exprSel.appendChild(none);
+                            for (const opt of getExprGroupOptions(group)) {
+                                const o = document.createElement("option");
+                                o.value = opt;
+                                o.textContent = opt;
+                                o.selected = opt === current;
+                                exprSel.appendChild(o);
+                            }
+                        };
+                        rebuildExprOpts(curGroup, curExpr);
+                        const syncExprEmote = () => {
+                            const g = groupSel.value;
+                            const e = exprSel.value;
+                            btns[idx].emote = e ? `${g}:${e}` : g;
+                        };
+                        groupSel.addEventListener("change", () => { rebuildExprOpts(groupSel.value, ""); syncExprEmote(); });
+                        exprSel.addEventListener("change", syncExprEmote);
+                        botLine.appendChild(groupSel);
+                        botLine.appendChild(exprSel);
+                    }
+                    else if (isSeq) {
+                        // seq: badge only — step builder below handles all config
+                        const seqBadge = document.createElement("span");
+                        seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7ac8;padding:1px 4px;";
+                        seqBadge.textContent = "✨ sequence";
+                        botLine.appendChild(seqBadge);
                     }
                     else {
-                        // action / emote / seq — text emote input + optional name chip
+                        // action / emote — restore classic () / ** toggle button
+                        const styleBtn = document.createElement("button");
+                        styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
+                        styleBtn.textContent = currentStyle === "emote" ? "**" : "()";
+                        styleBtn.title = currentStyle === "emote"
+                            ? "Emote (* Name text *) — click to switch to action"
+                            : "Action (( Name text )) — click to switch to emote";
+                        styleBtn.addEventListener("click", () => {
+                            btns[idx].style = (btns[idx].style === "emote" ? "action" : "emote");
+                            renderSlots();
+                        });
                         const emoteInp = document.createElement("input");
                         emoteInp.className = "ebc-slot-emote";
                         emoteInp.type = "text";
@@ -25218,7 +25259,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         emoteInp.placeholder = "e.g. nods.";
                         emoteInp.value = btn.emote;
                         emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                        emoteInp.style.display = isSeq ? "none" : "";
                         emoteInp.addEventListener("input", () => { btns[idx].emote = emoteInp.value; });
                         const nameIncluded = btn.includeNameInAnnounce !== false;
                         const nameChip = document.createElement("button");
@@ -25228,13 +25268,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             ? "Your name is included — click to send anonymously"
                             : "Sending without name — click to include name";
                         nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
-                        nameChip.style.display = (currentStyle === "action") ? "" : "none";
+                        nameChip.style.display = currentStyle === "action" ? "" : "none";
                         nameChip.addEventListener("click", () => {
                             const next = btns[idx].includeNameInAnnounce === false;
                             btns[idx].includeNameInAnnounce = next;
                             nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
                             nameChip.textContent = next ? "name" : "anon";
                         });
+                        botLine.appendChild(styleBtn);
                         botLine.appendChild(nameChip);
                         botLine.appendChild(emoteInp);
                     }
@@ -25778,6 +25819,52 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 refreshLeashBtn();
             });
             leashRow.appendChild(leashBtn);
+            // Pull Leash — triggers echo-activity-ext's "拉到身边" (Pull to One's Side) activity.
+            // Sends a standard BC Activity message; echo-activity-ext hooks ChatRoomMessage on both
+            // clients and runs the pair-and-follow handler when it sees this content.
+            const pullBtn = document.createElement("button");
+            pullBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;padding:9px 12px;border-radius:8px;cursor:pointer;border:2px solid #7a6a3888;background:rgba(60,50,30,0.35);color:#b0a070;flex-shrink:0;transition:background 0.12s,border-color 0.12s;";
+            pullBtn.textContent = "↗ Pull";
+            pullBtn.title = "Pull Emery to your side (requires echo-activity-ext on both ends; leash must be held)";
+            pullBtn.addEventListener("mouseenter", () => { pullBtn.style.background = "rgba(100,80,30,0.5)"; });
+            pullBtn.addEventListener("mouseleave", () => { pullBtn.style.background = "rgba(60,50,30,0.35)"; });
+            pullBtn.addEventListener("click", () => {
+                var _a, _b;
+                if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
+                    return;
+                if (!isLeashHeld()) {
+                    pullBtn.textContent = "Hold leash first!";
+                    window.setTimeout(() => { pullBtn.textContent = "↗ Pull"; }, 1500);
+                    return;
+                }
+                const mood = getKittyMood();
+                sendRoomEmote(mood === "rough"
+                    ? "gives Emery's leash a firm yank, pulling her sharply to her side~"
+                    : "gives a gentle tug on Emery's leash, coaxing her softly to her side~");
+                try {
+                    // echo-activity-ext's run() handler reads SourceCharacter and TargetCharacter
+                    // from the Dictionary (as plain MemberNumber integers) to decide which side
+                    // of the pair logic runs on each client.  Without these entries both
+                    // TargetCharacter === player.MemberNumber checks fail and the handler exits
+                    // silently, which is why Emery didn't move despite the message being sent.
+                    const w = window;
+                    const room = w.ChatRoomCharacter;
+                    const emeryChar = room === null || room === void 0 ? void 0 : room.find((c) => c.MemberNumber === EMERY_MEMBER);
+                    const emeryName = (_a = emeryChar === null || emeryChar === void 0 ? void 0 : emeryChar.Name) !== null && _a !== void 0 ? _a : "Emery";
+                    ServerSend("ChatRoomChat", {
+                        Content: "拉到身边",
+                        Type: "Activity",
+                        Target: EMERY_MEMBER,
+                        Dictionary: [
+                            { Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" },
+                            { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber, Text: (_b = Player.Name) !== null && _b !== void 0 ? _b : "" },
+                            { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER, Text: emeryName },
+                        ],
+                    });
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+            });
+            leashRow.appendChild(pullBtn);
             body.appendChild(leashRow);
             // Helper: pill-style action button (big, easy to tap).
             // cooldownMs: if > 0, button is briefly disabled after click to prevent
@@ -27640,7 +27727,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             body.appendChild(exprWrap2);
         }
         renderExpressions(container) {
-            var _a, _b, _c, _d, _e, _f;
+            var _a, _b, _c;
             const body = container !== null && container !== void 0 ? container : (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -27664,6 +27751,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 body.appendChild(hint);
             }
             else {
+                // Quick-apply dropdown
+                const quickRow = document.createElement("div");
+                quickRow.style.cssText = "display:flex;gap:5px;margin-bottom:6px;align-items:center;";
+                const quickSel = document.createElement("select");
+                quickSel.className = "ebc-form-input";
+                quickSel.style.cssText += "flex:1;min-width:0;font-size:9px;";
+                const qPh = document.createElement("option");
+                qPh.value = "";
+                qPh.textContent = "— pick face to apply —";
+                qPh.disabled = true;
+                qPh.selected = true;
+                quickSel.appendChild(qPh);
+                for (const p of presets) {
+                    const o = document.createElement("option");
+                    o.value = p.id;
+                    o.textContent = p.name;
+                    quickSel.appendChild(o);
+                }
+                const quickApplyBtn = document.createElement("button");
+                quickApplyBtn.className = "ebc-create-btn";
+                quickApplyBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:3px 8px;";
+                quickApplyBtn.textContent = "✓ Apply";
+                quickApplyBtn.addEventListener("click", () => {
+                    const p = presets.find(pr => pr.id === quickSel.value);
+                    if (p) {
+                        applyExpressionPreset(p);
+                        this.rerender(150);
+                    }
+                });
+                quickRow.appendChild(quickSel);
+                quickRow.appendChild(quickApplyBtn);
+                body.appendChild(quickRow);
                 const presetList = document.createElement("div");
                 presetList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;";
                 for (const preset of presets) {
@@ -27675,10 +27794,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     applyBtn.textContent = "✓";
                     applyBtn.title = "Apply this preset";
                     applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
-                    // Name
-                    const nameEl = document.createElement("span");
-                    nameEl.style.cssText = `${F}10px;color:#e8d0d8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
-                    nameEl.textContent = preset.name;
+                    // Name — editable inline; click to rename
+                    const nameEl = document.createElement("input");
+                    nameEl.type = "text";
+                    nameEl.value = preset.name;
+                    nameEl.maxLength = 30;
+                    nameEl.title = "Click to rename";
+                    nameEl.style.cssText = `${F}10px;flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:#e8d0d8;padding:1px 4px;outline:none;font-family:'Trebuchet MS',serif;`;
+                    nameEl.addEventListener("focus", () => { nameEl.style.borderColor = "#5a3a6e"; });
+                    nameEl.addEventListener("blur", () => {
+                        nameEl.style.borderColor = "transparent";
+                        const trimmed = nameEl.value.trim();
+                        if (!trimmed) {
+                            nameEl.value = preset.name;
+                            return;
+                        }
+                        const all = getExpressionPresets();
+                        const pi = all.findIndex(p => p.id === preset.id);
+                        if (pi !== -1 && trimmed !== all[pi].name) {
+                            all[pi] = Object.assign(Object.assign({}, all[pi]), { name: trimmed });
+                            saveExpressionPresets(all);
+                        }
+                    });
                     // ★ Default
                     const isDefault = preset.id === defaultId;
                     const defaultBtn = document.createElement("button");
@@ -27695,7 +27832,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const sidebarBtn = document.createElement("button");
                     sidebarBtn.style.cssText = BTN_BASE + "border:1px solid #3a2258;background:#200a2a;color:#9a6ac8;";
                     sidebarBtn.textContent = "→";
-                    sidebarBtn.title = "Add as sidebar quick-key button (5 s revert default)";
+                    sidebarBtn.title = "Add as a sidebar button — keeps the face on forever by default (change in slot editor)";
                     sidebarBtn.addEventListener("click", () => {
                         const catIdx = getActiveCategoryIndex();
                         const allCats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
@@ -27708,7 +27845,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             color: "#7a44a0",
                             enabled: true,
                             style: "exprPreset",
-                            exprRevertMs: 5000,
+                            exprRevertMs: 0,
                         };
                         const emptyIdx = cat.buttons.findIndex(b => !b.enabled || !b.label);
                         if (emptyIdx !== -1) {
@@ -27761,7 +27898,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 activeParts.push(`${(_c = EXPR_GROUP_LABELS[g]) !== null && _c !== void 0 ? _c : g}: ${n}`);
                         }
                     }
-                    catch ( /* skip group */_g) { /* skip group */ }
+                    catch ( /* skip group */_d) { /* skip group */ }
                 }
                 const facePreview = document.createElement("div");
                 facePreview.style.cssText = `${F}8px;color:#7a5080;margin-bottom:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`;
@@ -27806,33 +27943,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.rerender(150);
             });
             body.appendChild(clearBtn);
-            // ── Per-group expression pickers ──────────────────────────────────────
-            for (const group of EXPR_GROUPS) {
-                const hdr = document.createElement("div");
-                hdr.className = "ebc-expr-group-hdr";
-                hdr.textContent = (_d = EXPR_GROUP_LABELS[group]) !== null && _d !== void 0 ? _d : group;
-                body.appendChild(hdr);
-                const currentItem = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                const currentName = (_f = (_e = currentItem === null || currentItem === void 0 ? void 0 : currentItem.Property) === null || _e === void 0 ? void 0 : _e.Expression) !== null && _f !== void 0 ? _f : null;
-                const chips = document.createElement("div");
-                chips.className = "ebc-expr-chips";
-                for (const opt of getExprGroupOptions(group)) {
-                    const chip = document.createElement("button");
-                    chip.className = "ebc-expr-chip" + (opt === currentName ? " active" : "");
-                    chip.textContent = opt;
-                    chip.title = opt;
-                    chip.addEventListener("click", () => {
-                        const toggle = chip.classList.contains("active") ? null : opt;
-                        try {
-                            applyExprGroup(group, toggle);
-                        }
-                        catch ( /* ignore */_a) { /* ignore */ }
-                        this.rerender(150);
-                    });
-                    chips.appendChild(chip);
-                }
-                body.appendChild(chips);
-            }
             // ── Triggers section ──────────────────────────────────────────────────
             // Collapsible. Fires a preset when outgoing chat contains a match string.
             {
@@ -27846,7 +27956,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (v !== null)
                         trigCollapsed = v === "1";
                 }
-                catch ( /* ignore */_h) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
                 const trigHdr = document.createElement("div");
                 trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
                 const trigChev = document.createElement("span");
@@ -27960,20 +28070,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         opt.textContent = p.name;
                         presetSel.appendChild(opt);
                     }
-                    const durInp = document.createElement("input");
-                    durInp.style.cssText = INP_CSS + "width:38px;text-align:right;flex-shrink:0;";
-                    durInp.type = "number";
-                    durInp.min = "0";
-                    durInp.max = "3600";
-                    durInp.step = "1";
-                    durInp.value = "5";
-                    durInp.title = "Revert after this many seconds (0 = permanent)";
-                    const durSfx = document.createElement("span");
-                    durSfx.style.cssText = `${F}9px;color:#7a5a8a;flex-shrink:0;`;
-                    durSfx.textContent = "s";
+                    const TRIG_DUR_OPTS = [
+                        ["♾ keep", 0], ["3 s", 3000], ["5 s", 5000],
+                        ["10 s", 10000], ["30 s", 30000], ["1 min", 60000],
+                    ];
+                    const durSel = document.createElement("select");
+                    durSel.style.cssText = INP_CSS + "flex-shrink:0;max-width:60px;cursor:pointer;";
+                    durSel.title = "How long to hold this face before reverting (♾ = keep forever)";
+                    for (const [label, ms] of TRIG_DUR_OPTS) {
+                        const o = document.createElement("option");
+                        o.value = String(ms);
+                        o.textContent = label;
+                        if (ms === 5000)
+                            o.selected = true;
+                        durSel.appendChild(o);
+                    }
                     formRow2.appendChild(presetSel);
-                    formRow2.appendChild(durInp);
-                    formRow2.appendChild(durSfx);
+                    formRow2.appendChild(durSel);
                     trigBody.appendChild(formRow2);
                     const addTrigBtn = document.createElement("button");
                     addTrigBtn.className = "ebc-create-btn";
@@ -27992,7 +28105,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             name: nameInp.value.trim() || match.slice(0, 15),
                             matchText: match,
                             presetId,
-                            durationMs: Math.max(0, parseInt(durInp.value) || 0) * 1000,
+                            durationMs: parseInt(durSel.value) || 0,
                         };
                         saveExpressionTriggers([...getExpressionTriggers(), newTrig]);
                         renderTrigList();
@@ -29398,7 +29511,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.0";
+    const MOD_VERSION = "2.5.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29409,6 +29522,35 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.4",
+            changes: [
+                "Fix: ↗ Pull button now correctly provides SourceCharacter and TargetCharacter Dictionary entries so echo-activity-ext's run() handler can identify both sides of the pull. Previously the Dictionary only contained FocusAssetGroup, causing both MemberNumber checks to fail silently — Emery received the Activity message but didn't move.",
+            ],
+        },
+        {
+            version: "2.5.3",
+            changes: [
+                "Kitty: ↗ Pull button added to the leash row. Sends echo-activity-ext's '拉到身边' (Pull to One's Side) Activity message — if both clients have echo-activity-ext installed it pairs Emery to Lucy's side and establishes the follow relationship. Requires the leash to be held first; shows a tooltip if not.",
+            ],
+        },
+        {
+            version: "2.5.2",
+            changes: [
+                "Remove: per-group expression chip rows (Blush/Emoticon/Eyebrows/etc.) are gone from FACE PRESETS — just save with BC's emote menu.",
+                "Add: quick-apply dropdown in FACE PRESETS (pick a face from the list and hit ✓ Apply) replaces having to scroll to each row.",
+                "Revert: button slot style selector restored to the classic () / ** toggle button for action/emote buttons. Seq buttons show a ✨ sequence badge. Expression preset and single-expr buttons still show their relevant dropdowns.",
+            ],
+        },
+        {
+            version: "2.5.1",
+            changes: [
+                "UX: Expression slot editor reworked. 🎭 expr buttons now show two dropdowns (group picker + expression variant picker) instead of a raw 'Group:ExprName' text field. 🎭 preset buttons now show a ♾ keep / 3s / 5s / 10s / 30s / 1min dropdown instead of a bare number input.",
+                "UX: New face preset buttons added via → now default to ♾ keep (no auto-revert) instead of 5 s.",
+                "UX: Preset names in the FACE PRESETS list are now inline-editable — click the name to rename without having to delete and recreate.",
+                "UX: Trigger form duration replaced with same ♾ / time dropdown for consistency.",
+            ],
+        },
         {
             version: "2.5.0",
             changes: [

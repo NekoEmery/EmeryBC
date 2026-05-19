@@ -14119,11 +14119,24 @@ export class EBCDrawer {
                 ? "gives Emery's leash a firm yank, pulling her sharply to her side~"
                 : "gives a gentle tug on Emery's leash, coaxing her softly to her side~");
             try {
+                // echo-activity-ext's run() handler reads SourceCharacter and TargetCharacter
+                // from the Dictionary (as plain MemberNumber integers) to decide which side
+                // of the pair logic runs on each client.  Without these entries both
+                // TargetCharacter === player.MemberNumber checks fail and the handler exits
+                // silently, which is why Emery didn't move despite the message being sent.
+                const w = window as unknown as Record<string, unknown>;
+                const room = w.ChatRoomCharacter as Character[] | undefined;
+                const emeryChar = room?.find((c: Character) => c.MemberNumber === EMERY_MEMBER);
+                const emeryName = emeryChar?.Name ?? "Emery";
                 ServerSend("ChatRoomChat", {
                     Content: "拉到身边",
                     Type: "Activity",
                     Target: EMERY_MEMBER,
-                    Dictionary: [{ Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" }],
+                    Dictionary: [
+                        { Tag: "FocusAssetGroup", AssetGroupName: "ItemNeckRestraints" },
+                        { Tag: "SourceCharacter", MemberNumber: Player.MemberNumber, Text: Player.Name ?? "" },
+                        { Tag: "TargetCharacter", MemberNumber: EMERY_MEMBER, Text: emeryName },
+                    ],
                 });
             } catch { /* ignore */ }
         });
