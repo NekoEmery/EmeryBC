@@ -1,6 +1,6 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
-import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS, getLoginOutfit } from "./modules/outfitManager";
+import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
@@ -21,7 +21,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.4.1";
+const MOD_VERSION = "2.4.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -35,6 +35,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.4.2",
+        changes: [
+            "Remove: login outfit feature removed. The '👢 Login outfit' toggle chip and automatic startup outfit application have been removed. Use /outfit commands directly if you want a specific outfit on load.",
+            "Fix: facial expressions now correctly detect the active expression. BC stores expression variants in item.Property.Expression, not item.Asset.Name — the FACE tab chips now highlight the right active option, and preset capture now saves the correct expression names instead of the group base asset name.",
+            "Whisper log moved to DEV tab: the standalone 💬 tab is gone. Whisper history is now a collapsible 'WHISPER LOG' section inside the DEV tab — same partner-list + conversation view, just tucked away.",
+            "Expressions in BUTTONS tab: the BUTTONS tab now has a collapsible 'EXPRESSIONS' section at the bottom. Click any expression chip to instantly add it as an 'expression' style sidebar button in the active category. Expression buttons apply the facial expression directly — no chat message sent. Label and colour are fully editable after adding.",
+        ],
+    },
     {
         version: "2.4.1",
         changes: [
@@ -3677,13 +3686,6 @@ function init(): void {
         // Bootstrap room history in case the addon loaded while already in a room
         // (ChatRoomSync won't fire again so we seed the current visit manually).
         window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); } catch { /* ignore */ } }, 600);
-        // Apply login outfit — wait a bit for BC appearance to fully load before applying.
-        window.setTimeout(() => {
-            try {
-                const loginOutfit = getLoginOutfit();
-                if (loginOutfit) handleOutfitCommand("/" + loginOutfit.command);
-            } catch { /* ignore */ }
-        }, 1500);
         // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
         migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => {});
     } catch (err) {

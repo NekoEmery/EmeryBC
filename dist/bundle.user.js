@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.4.1
+// @version      2.4.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -538,26 +538,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             restraint.nameInAnnounce = value;
             saveRestraints(restraints);
         }
-    }
-    // Returns the outfit marked as the login outfit, or null if none.
-    function getLoginOutfit() {
-        var _a;
-        return (_a = getOutfits().find(o => !!o.wearAtLogin)) !== null && _a !== void 0 ? _a : null;
-    }
-    // Set or clear wearAtLogin on an outfit. Setting to true clears all others first
-    // so only one outfit can be the login outfit at a time.
-    function setOutfitWearAtLogin(id, value) {
-        const outfits = getOutfits();
-        for (const o of outfits) {
-            if (value) {
-                // Enable only the target, clear every other outfit
-                o.wearAtLogin = o.id === id ? true : undefined;
-            }
-            else if (o.id === id) {
-                o.wearAtLogin = undefined;
-            }
-        }
-        saveOutfits(outfits);
     }
     function getOutfitTags() {
         const raw = getAddon$1().outfitTags;
@@ -2322,6 +2302,145 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
 
+    // Expression presets and sequences — live expression picker + animated sequences.
+    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
+    // Friendly labels shown in the picker row headers
+    const EXPR_GROUP_LABELS = {
+        Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
+        Eyes: "Eyes L", Eyes2: "Eyes R", Mouth: "Mouth", Tears: "Tears",
+    };
+    function uid$3() {
+        return Math.random().toString(36).slice(2, 9);
+    }
+    function getStore$4() {
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return null;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            return Player.ExtensionSettings.EmeryBC;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    // -- Expression option discovery -----------------------------------------------
+    // Query BC's runtime Asset array for all expression options in a group.
+    // Falls back to a hardcoded list if the global isn't available.
+    const EXPR_FALLBACK = {
+        Blush: ["1", "2", "3", "4", "5"],
+        Emoticon: [
+            "Afk", "Anger", "Auction", "BecomeLeader", "Bed", "BrokenHeart", "Cake",
+            "Captured", "CollaredPickup", "Confused", "Dead", "GagTalk", "Heart",
+            "HighHeel", "Juice", "LostLeader", "Love", "Maid", "Meditate", "Music",
+            "Obey", "Orgasm", "Pain", "Question", "Read", "Shy", "Skull", "Sleeping",
+            "Snow", "Star", "Study", "Whisper", "XP", "Yell",
+        ],
+        Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Soft"],
+        Eyes: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
+        Eyes2: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
+        Mouth: ["Angry", "HalfOpen", "Open", "Sad", "Smile"],
+        Tears: ["Crying", "HeavyCrying", "Tear1", "Tear2", "Tear3"],
+    };
+    function getExprGroupOptions(group) {
+        var _a, _b;
+        try {
+            const bcAsset = window.Asset;
+            if (Array.isArray(bcAsset)) {
+                const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
+                // Family lives on the Group in BC, not on the Asset itself.
+                // Accept any asset whose group name matches and whose group family
+                // is either the player's family or unset (shared assets).
+                const opts = bcAsset
+                    .filter(a => a.Group.Name === group &&
+                    (a.Group.Family === family || !a.Group.Family))
+                    .map(a => a.Name);
+                if (opts.length > 0)
+                    return opts;
+            }
+        }
+        catch ( /* fall through */_c) { /* fall through */ }
+        return (_b = EXPR_FALLBACK[group]) !== null && _b !== void 0 ? _b : [];
+    }
+    // -- Single-expression apply ---------------------------------------------------
+    // Uses CharacterSetFacialExpression (BC's proper API) if available,
+    // otherwise falls back to direct Appearance manipulation.
+    function applyExprGroup(group, exprName) {
+        try {
+            const setExpr = window.CharacterSetFacialExpression;
+            if (setExpr) {
+                setExpr(Player, group, exprName, null, null);
+            }
+            else {
+                const idx = Player.Appearance.findIndex((i) => i.Asset.Group.Name === group);
+                if (idx !== -1)
+                    Player.Appearance.splice(idx, 1);
+                if (exprName) {
+                    const asset = AssetGet(Player.AssetFamily, group, exprName);
+                    if (asset)
+                        Player.Appearance.push({ Asset: asset, Color: "Default", Difficulty: 0 });
+                }
+            }
+            callBC(() => CharacterRefresh(Player, false));
+            syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
+    function getExpressionPresets() {
+        var _a;
+        try {
+            const list = (_a = getStore$4()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function saveExpressionPresets(presets) {
+        try {
+            const store = getStore$4();
+            if (!store)
+                return;
+            store.expressionPresets = presets;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function captureCurrentExpression(name) {
+        var _a;
+        const groups = {};
+        try {
+            for (const group of EXPR_GROUPS) {
+                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
+                if (item) {
+                    // BC stores the expression variant name in Property.Expression, not Asset.Name.
+                    // Asset.Name is the base group asset name (always the group name itself).
+                    const exprName = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.Expression;
+                    groups[group] = exprName
+                        ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
+                        : null;
+                }
+                else {
+                    groups[group] = null;
+                }
+            }
+        }
+        catch ( /* return whatever captured so far */_b) { /* return whatever captured so far */ }
+        return { id: uid$3(), name: name, groups };
+    }
+    function applyExpressionPreset(preset) {
+        try {
+            for (const [group, entry] of Object.entries(preset.groups)) {
+                try {
+                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
+                }
+                catch ( /* skip group */_a) { /* skip group */ }
+            }
+        }
+        catch ( /* ignore */_b) { /* ignore */ }
+    }
+
     var _a, _b;
     const DEFAULT_BUTTONS = [
         { label: "NOD", emote: "nods.", color: "#c2185b", enabled: true, style: "action" },
@@ -2335,14 +2454,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const ABSOLUTE_MAX = 12;
     const DEFAULT_SLOTS = DEFAULT_BUTTONS.length;
     // --- Storage -----------------------------------------------------------------
-    function getStore$4() {
+    function getStore$3() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     /** Returns all categories, migrating from old flat format if needed. */
     function getCategories() {
-        const store = getStore$4();
+        const store = getStore$3();
         // Migrate old flat actionButtons → first category "Default"
         if (!store.buttonCategories && store.actionButtons) {
             const migrated = [{
@@ -2362,7 +2481,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return [{ name: "Default", buttons: [...DEFAULT_BUTTONS], slotCount: DEFAULT_SLOTS }];
     }
     function getActiveCategoryIndex() {
-        const store = getStore$4();
+        const store = getStore$3();
         const cats = getCategories();
         const idx = store.activeCategoryIndex;
         if (typeof idx === "number" && idx >= 0 && idx < cats.length)
@@ -2370,7 +2489,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return 0;
     }
     function setActiveCategoryIndex(idx) {
-        const store = getStore$4();
+        const store = getStore$3();
         store.activeCategoryIndex = idx;
         syncSettings();
     }
@@ -2383,7 +2502,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return getActiveCategory().buttons;
     }
     function saveButtons(buttons, slotCount) {
-        const store = getStore$4();
+        const store = getStore$3();
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         cats[idx].buttons = buttons;
@@ -2392,7 +2511,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         syncSettings();
     }
     function saveCategories(categories, activeIndex) {
-        const store = getStore$4();
+        const store = getStore$3();
         store.buttonCategories = categories;
         store.activeCategoryIndex = activeIndex;
         syncSettings();
@@ -2862,7 +2981,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     function handleActionButtonClick() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         if (CurrentScreen !== "ChatRoom")
             return false;
         const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
@@ -2904,9 +3023,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const y = btnStartY + i * BTN_SIZE;
             if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
                 my >= y && my <= y + BTN_SIZE) {
+                if (((_c = btn.style) !== null && _c !== void 0 ? _c : "action") === "expression") {
+                    // emote field encodes "Group:ExpressionName"
+                    const sep = btn.emote.indexOf(":");
+                    if (sep !== -1) {
+                        const grp = btn.emote.slice(0, sep);
+                        const expr = btn.emote.slice(sep + 1) || null;
+                        try {
+                            applyExprGroup(grp, expr);
+                        }
+                        catch ( /* ignore */_e) { /* ignore */ }
+                    }
+                    return true;
+                }
                 const animOk = triggerLabelAnimation(btn.label);
                 if (animOk)
-                    sendAction(btn.emote, (_c = btn.style) !== null && _c !== void 0 ? _c : "action", btn.includeNameInAnnounce !== false);
+                    sendAction(btn.emote, (_d = btn.style) !== null && _d !== void 0 ? _d : "action", btn.includeNameInAnnounce !== false);
                 return true;
             }
         }
@@ -3081,7 +3213,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     let lastRecordedRoomName = null;
     // Member numbers already accounted for so we never double-count on each poll.
     let knownMemberNums = new Set();
-    function uid$3() { return Math.random().toString(36).slice(2, 9); }
+    function uid$2() { return Math.random().toString(36).slice(2, 9); }
     function loadHistory() {
         try {
             const raw = localStorage.getItem(LS_KEY$1);
@@ -3149,7 +3281,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 });
                 const space = typeof (data === null || data === void 0 ? void 0 : data.Space) === "string" ? data.Space : "";
                 currentVisit = {
-                    id: uid$3(), name, space,
+                    id: uid$2(), name, space,
                     enteredAt: Date.now(), leftAt: null,
                     members, joins: [],
                 };
@@ -3275,7 +3407,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         saveLog(log);
     }
     // ─────────────────────────────────────────────────────────────────────────────
-    function uid$2() { return Math.random().toString(36).slice(2, 9); }
+    function uid$1() { return Math.random().toString(36).slice(2, 9); }
     function loadLog() {
         try {
             const raw = localStorage.getItem(LS_KEY);
@@ -3351,7 +3483,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         continue;
                     const itemName = item.Asset.Description
                         || item.Asset.Name;
-                    const id = uid$2();
+                    const id = uid$1();
                     activeIds.set(group, id);
                     // Capture lock state at time of application
                     const prop = item.Property;
@@ -10114,7 +10246,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         msg = msg.replace(/[\uDB80-\uDBFF][\uDC00-\uDFFF][\s\S]*$/, "").trim();
         return msg;
     }
-    function getStore$3() {
+    function getStore$2() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
@@ -10130,11 +10262,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // -- Name cache ----------------------------------------------------------------
     function getCachedNames() {
-        const v = getStore$3().friendNames;
+        const v = getStore$2().friendNames;
         return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
     }
     function cacheName(memberNumber, name) {
-        const store = getStore$3();
+        const store = getStore$2();
         if (!store.friendNames || typeof store.friendNames !== "object")
             store.friendNames = {};
         store.friendNames[String(memberNumber)] = name;
@@ -10211,7 +10343,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const nowOffline = [...prevOnline].filter(num => !onlineSet.has(num));
         if (nowOffline.length > 0) {
             try {
-                const store = getStore$3();
+                const store = getStore$2();
                 const data = getLastSeenMap();
                 const now = Date.now();
                 for (const num of nowOffline)
@@ -10259,7 +10391,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const LAST_SEEN_CAP = 300;
     function getLastSeenMap() {
         try {
-            const store = getStore$3();
+            const store = getStore$2();
             // One-time migration from localStorage → ExtensionSettings
             if (!store.lastSeenMigrated) {
                 try {
@@ -10318,7 +10450,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // (e.g. on AccountQueryResult) so newly added friends are recorded promptly.
     function syncFriendsSince() {
         try {
-            const store = getStore$3();
+            const store = getStore$2();
             if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
                 store.friendSince = {};
             }
@@ -10340,7 +10472,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function getFriendSince(memberNumber) {
         try {
-            const store = getStore$3();
+            const store = getStore$2();
             if (!store.friendSince || typeof store.friendSince !== "object" || Array.isArray(store.friendSince)) {
                 store.friendSince = {};
             }
@@ -10382,14 +10514,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // -- Pinned friends ------------------------------------------------------------
     function getPinnedFriends() {
-        const v = getStore$3().pinnedFriends;
+        const v = getStore$2().pinnedFriends;
         return Array.isArray(v) ? v : [];
     }
     function isFriendPinned(memberNumber) {
         return getPinnedFriends().includes(memberNumber);
     }
     function togglePinFriend(memberNumber) {
-        const store = getStore$3();
+        const store = getStore$2();
         const list = getPinnedFriends();
         const idx = list.indexOf(memberNumber);
         if (idx >= 0)
@@ -10448,7 +10580,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return [];
     }
     function getFriendTagList(memberNumber) {
-        const store = getStore$3();
+        const store = getStore$2();
         const raw = store.friendTags;
         const userTags = (!raw || typeof raw !== "object" || Array.isArray(raw))
             ? []
@@ -10461,7 +10593,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function setFriendTagList(memberNumber, tagList) {
         // Strip any locked tags before saving — they must never enter storage
         const toSave = tagList.filter(t => !t.locked);
-        const store = getStore$3();
+        const store = getStore$2();
         if (!store.friendTags || typeof store.friendTags !== "object")
             store.friendTags = {};
         const tags = store.friendTags;
@@ -10474,11 +10606,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // -- Beep history --------------------------------------------------------------
     const MAX_ENTRIES$2 = 300;
     function getBeepHistory() {
-        const v = getStore$3().beepHistory;
+        const v = getStore$2().beepHistory;
         return Array.isArray(v) ? v : [];
     }
     function addBeepEntry(entry) {
-        const store = getStore$3();
+        const store = getStore$2();
         const history = getBeepHistory();
         history.push(entry);
         if (history.length > MAX_ENTRIES$2)
@@ -10638,7 +10770,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         redAnnounce: true,
         redLeave: true,
     };
-    function getStore$2() {
+    function getStore$1() {
         try {
             if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
                 return null;
@@ -10652,7 +10784,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function getSafewordConfig() {
         var _a;
-        const raw = (_a = getStore$2()) === null || _a === void 0 ? void 0 : _a.safeword;
+        const raw = (_a = getStore$1()) === null || _a === void 0 ? void 0 : _a.safeword;
         if (!raw || typeof raw !== "object" || Array.isArray(raw))
             return Object.assign({}, DEFAULTS);
         const r = raw;
@@ -10676,7 +10808,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function setSafewordConfig(cfg) {
         try {
-            const store = getStore$2();
+            const store = getStore$1();
             if (!store)
                 return;
             store.safeword = cfg;
@@ -10895,15 +11027,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     ];
     const DEFAULT_ANNOUNCE = "snaps her fingers as {name} appears on {targets}~";
     // ── Internal ─────────────────────────────────────────────────────────────────
-    function uid$1() { return Math.random().toString(36).slice(2, 9); }
-    function getStore$1() {
+    function uid() { return Math.random().toString(36).slice(2, 9); }
+    function getStore() {
         if (!Player.ExtensionSettings.EmeryBC)
             Player.ExtensionSettings.EmeryBC = {};
         return Player.ExtensionSettings.EmeryBC;
     }
     function loadConfig() {
         try {
-            const v = getStore$1().domConfig;
+            const v = getStore().domConfig;
             if (v && Array.isArray(v.targets)) {
                 return {
                     targets: v.targets,
@@ -10916,7 +11048,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function saveConfig(cfg) {
         try {
-            getStore$1().domConfig = cfg;
+            getStore().domConfig = cfg;
             syncSettings();
         }
         catch ( /* ignore */_a) { /* ignore */ }
@@ -10966,7 +11098,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function createDomSet(name, command, announceTemplate) {
         const cfg = loadConfig();
         const set = {
-            id: uid$1(),
+            id: uid(),
             name: name.trim() || "New Set",
             command: command.toLowerCase().trim().replace(/\s+/g, ""),
             announceTemplate: announceTemplate.trim() || DEFAULT_ANNOUNCE,
@@ -11721,136 +11853,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
         }
         catch ( /* ignore */_a) { /* ignore */ }
-    }
-
-    // Expression presets and sequences — live expression picker + animated sequences.
-    const EXPR_GROUPS = ["Blush", "Emoticon", "Eyebrows", "Eyes", "Eyes2", "Mouth", "Tears"];
-    // Friendly labels shown in the picker row headers
-    const EXPR_GROUP_LABELS = {
-        Blush: "Blush", Emoticon: "Emoticon", Eyebrows: "Eyebrows",
-        Eyes: "Eyes L", Eyes2: "Eyes R", Mouth: "Mouth", Tears: "Tears",
-    };
-    function uid() {
-        return Math.random().toString(36).slice(2, 9);
-    }
-    function getStore() {
-        try {
-            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
-                return null;
-            if (!Player.ExtensionSettings.EmeryBC)
-                Player.ExtensionSettings.EmeryBC = {};
-            return Player.ExtensionSettings.EmeryBC;
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    // -- Expression option discovery -----------------------------------------------
-    // Query BC's runtime Asset array for all expression options in a group.
-    // Falls back to a hardcoded list if the global isn't available.
-    const EXPR_FALLBACK = {
-        Blush: ["1", "2", "3", "4", "5"],
-        Emoticon: [
-            "Afk", "Anger", "Auction", "BecomeLeader", "Bed", "BrokenHeart", "Cake",
-            "Captured", "CollaredPickup", "Confused", "Dead", "GagTalk", "Heart",
-            "HighHeel", "Juice", "LostLeader", "Love", "Maid", "Meditate", "Music",
-            "Obey", "Orgasm", "Pain", "Question", "Read", "Shy", "Skull", "Sleeping",
-            "Snow", "Star", "Study", "Whisper", "XP", "Yell",
-        ],
-        Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Soft"],
-        Eyes: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
-        Eyes2: ["Closed", "Dazed", "Lewd", "Sad", "Shy", "Smiling"],
-        Mouth: ["Angry", "HalfOpen", "Open", "Sad", "Smile"],
-        Tears: ["Crying", "HeavyCrying", "Tear1", "Tear2", "Tear3"],
-    };
-    function getExprGroupOptions(group) {
-        var _a, _b;
-        try {
-            const bcAsset = window.Asset;
-            if (Array.isArray(bcAsset)) {
-                const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
-                // Family lives on the Group in BC, not on the Asset itself.
-                // Accept any asset whose group name matches and whose group family
-                // is either the player's family or unset (shared assets).
-                const opts = bcAsset
-                    .filter(a => a.Group.Name === group &&
-                    (a.Group.Family === family || !a.Group.Family))
-                    .map(a => a.Name);
-                if (opts.length > 0)
-                    return opts;
-            }
-        }
-        catch ( /* fall through */_c) { /* fall through */ }
-        return (_b = EXPR_FALLBACK[group]) !== null && _b !== void 0 ? _b : [];
-    }
-    // -- Single-expression apply ---------------------------------------------------
-    // Uses CharacterSetFacialExpression (BC's proper API) if available,
-    // otherwise falls back to direct Appearance manipulation.
-    function applyExprGroup(group, exprName) {
-        try {
-            const setExpr = window.CharacterSetFacialExpression;
-            if (setExpr) {
-                setExpr(Player, group, exprName, null, null);
-            }
-            else {
-                const idx = Player.Appearance.findIndex((i) => i.Asset.Group.Name === group);
-                if (idx !== -1)
-                    Player.Appearance.splice(idx, 1);
-                if (exprName) {
-                    const asset = AssetGet(Player.AssetFamily, group, exprName);
-                    if (asset)
-                        Player.Appearance.push({ Asset: asset, Color: "Default", Difficulty: 0 });
-                }
-            }
-            callBC(() => CharacterRefresh(Player, false));
-            syncAppearance(); // debounced — collapses rapid clicks into one server round-trip
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    // -- Presets (saved full-face snapshots for quick-apply) -----------------------
-    function getExpressionPresets() {
-        var _a;
-        try {
-            const list = (_a = getStore()) === null || _a === void 0 ? void 0 : _a.expressionPresets;
-            return Array.isArray(list) ? list : [];
-        }
-        catch (_b) {
-            return [];
-        }
-    }
-    function saveExpressionPresets(presets) {
-        try {
-            const store = getStore();
-            if (!store)
-                return;
-            store.expressionPresets = presets;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function captureCurrentExpression(name) {
-        const groups = {};
-        try {
-            for (const group of EXPR_GROUPS) {
-                const item = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                groups[group] = item
-                    ? { Name: item.Asset.Name, Color: item.Color !== undefined ? item.Color : undefined }
-                    : null;
-            }
-        }
-        catch ( /* return whatever captured so far */_a) { /* return whatever captured so far */ }
-        return { id: uid(), name: name, groups };
-    }
-    function applyExpressionPreset(preset) {
-        try {
-            for (const [group, entry] of Object.entries(preset.groups)) {
-                try {
-                    applyExprGroup(group, (entry !== null && entry !== undefined) ? entry.Name : null);
-                }
-                catch ( /* skip group */_a) { /* skip group */ }
-            }
-        }
-        catch ( /* ignore */_b) { /* ignore */ }
     }
 
     // Session whisper log — in-memory only, clears on reload.
@@ -14759,13 +14761,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.slPresetDropdown = null;
             this.slDurSlider = null;
             this.slDurVal = null;
-            this.selectedWhisperPartner = null;
+            this.selectedWhisperPartner = null; // used by whisper log in DEV tab
             EBCDrawer._instance = this;
             this.version = version;
             this.isDev = isDev;
-            // Live-update the whisper tab when new messages arrive
+            // Live-update the DEV tab whisper log section when new messages arrive
             setWhisperUpdateCallback(() => {
-                if (this.isOpen && this.currentTab === "whispers") {
+                if (this.isOpen && this.currentTab === "dev") {
                     this.rerender();
                 }
             });
@@ -14921,11 +14923,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             exprTabBtn.id = "ebc-tab-expr";
             exprTabBtn.textContent = "FACE";
             exprTabBtn.title = "Expression Quickbar";
-            const whispersTabBtn = document.createElement("button");
-            whispersTabBtn.className = "ebc-tab-btn";
-            whispersTabBtn.id = "ebc-tab-whispers";
-            whispersTabBtn.textContent = "💬";
-            whispersTabBtn.title = "Whisper Log";
             const notesTabBtn = document.createElement("button");
             notesTabBtn.className = "ebc-tab-btn";
             notesTabBtn.id = "ebc-tab-notes";
@@ -14965,7 +14962,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tabBar.appendChild(btnsTabBtn);
             tabBar.appendChild(posesTabBtn);
             tabBar.appendChild(exprTabBtn);
-            tabBar.appendChild(whispersTabBtn);
             tabBar.appendChild(notesTabBtn);
             tabBar.appendChild(thanksTabBtn);
             tabBar.appendChild(devTabBtn2);
@@ -15624,7 +15620,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             devTabBtn2.addEventListener("click", () => this.switchTab("dev"));
             btnsTabBtn.addEventListener("click", () => this.switchTab("buttons"));
             exprTabBtn.addEventListener("click", () => this.switchTab("expr"));
-            whispersTabBtn.addEventListener("click", () => this.switchTab("whispers"));
             domTabBtn.addEventListener("click", () => this.switchTab("dom"));
             puppyTabBtn.addEventListener("click", () => this.switchTab("puppy"));
             kittyTabBtn.addEventListener("click", () => this.switchTab("kitty"));
@@ -16038,7 +16033,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ["ebc-tab-poses", "anims"],
                 ["ebc-tab-buttons", "buttons"],
                 ["ebc-tab-expr", "expr"],
-                ["ebc-tab-whispers", "whispers"],
                 ["ebc-tab-notes", "notes"],
                 ["ebc-tab-thanks", "thanks"],
                 ["ebc-tab-dev", "dev"],
@@ -16061,8 +16055,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.renderButtons();
             else if (this.currentTab === "expr")
                 this.renderExpressions();
-            else if (this.currentTab === "whispers")
-                this.renderWhisperLog();
             else if (this.currentTab === "notes")
                 this.renderNotes();
             else if (this.currentTab === "thanks")
@@ -17671,7 +17663,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const isPreserving = o.preserveRestraints !== false;
             const isPreservingClothing = !!o.preserveClothing;
             const isNameInAnnounce = o.nameInAnnounce !== false;
-            const isWearAtLogin = !!o.wearAtLogin;
             // Labeled toggle chips — live inside the info column so they're readable without hover
             const flagsRow = document.createElement("div");
             flagsRow.className = "ebc-outfit-flags";
@@ -17684,14 +17675,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const nameInAnnounceBtn = document.createElement("button");
             nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
             nameInAnnounceBtn.textContent = isNameInAnnounce ? "👤 With name" : "👤 No name";
-            const wearAtLoginBtn = document.createElement("button");
-            wearAtLoginBtn.className = "ebc-flag-chip" + (isWearAtLogin ? " on" : "");
-            wearAtLoginBtn.textContent = isWearAtLogin ? "👢 Login outfit" : "👢 Not login";
-            wearAtLoginBtn.title = "Automatically wear this outfit when the addon loads";
             flagsRow.appendChild(preserveBtn);
             flagsRow.appendChild(preserveClothingBtn);
             flagsRow.appendChild(nameInAnnounceBtn);
-            flagsRow.appendChild(wearAtLoginBtn);
             info.appendChild(nameEl);
             info.appendChild(cmdEl);
             info.appendChild(flagsRow);
@@ -17919,12 +17905,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 nameInAnnounceBtn.className = "ebc-flag-chip" + (next ? " on" : "");
                 nameInAnnounceBtn.textContent = next ? "👤 With name" : "👤 No name";
                 setOutfitNameInAnnounce(o.id, next);
-            });
-            wearAtLoginBtn.addEventListener("click", () => {
-                const next = !wearAtLoginBtn.classList.contains("on");
-                setOutfitWearAtLogin(o.id, next);
-                // Re-render the whole list so any previously-active login chip gets cleared
-                this.rerender();
             });
             wearBtn.addEventListener("click", () => {
                 const fresh = getOutfits().find(x => x.id === o.id);
@@ -22577,6 +22557,90 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 div.className = "ebc-divider";
                 body.appendChild(div);
             };
+            // ── Whisper Log ───────────────────────────────────────────────────────
+            makeSection("WHISPER LOG", "EBC_devWhisperLogCollapsed", true, (cnt) => {
+                var _a, _b, _c, _d, _e;
+                const partners = getWhisperPartners();
+                if (partners.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:8px 4px;text-align:center;";
+                    empty.textContent = "No whispers this session yet.";
+                    cnt.appendChild(empty);
+                    return;
+                }
+                // Clear button row
+                const whClearRow = document.createElement("div");
+                whClearRow.style.cssText = "display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;";
+                const whClearBtn = document.createElement("button");
+                whClearBtn.className = "ebc-outfit-del";
+                whClearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
+                whClearBtn.textContent = "Clear";
+                whClearBtn.title = "Clear whisper log";
+                whClearBtn.addEventListener("click", () => {
+                    this.selectedWhisperPartner = null;
+                    clearWhisperLog();
+                    this.rerender();
+                });
+                whClearRow.appendChild(whClearBtn);
+                cnt.appendChild(whClearRow);
+                // Fall back if selected partner is gone
+                if (this.selectedWhisperPartner !== null && !partners.includes(this.selectedWhisperPartner)) {
+                    this.selectedWhisperPartner = partners[0];
+                }
+                const activePartner = (_a = this.selectedWhisperPartner) !== null && _a !== void 0 ? _a : partners[0];
+                // Partner selector
+                const partnerList = document.createElement("div");
+                partnerList.style.cssText = "display:flex;flex-direction:column;gap:2px;margin-bottom:8px;";
+                for (const num of partners) {
+                    const conv = getWhisperConversation(num);
+                    const lastName = (_c = (_b = conv[conv.length - 1]) === null || _b === void 0 ? void 0 : _b.partnerName) !== null && _c !== void 0 ? _c : `#${num}`;
+                    const btn = document.createElement("button");
+                    btn.className = "ebc-whisper-partner-btn" + (num === activePartner ? " active" : "");
+                    const nameSpan = document.createElement("span");
+                    nameSpan.textContent = lastName;
+                    const countSpan = document.createElement("span");
+                    countSpan.style.cssText = "font-size:8px;color:#7a5070;flex-shrink:0;";
+                    countSpan.textContent = `${conv.length} msg${conv.length !== 1 ? "s" : ""}`;
+                    btn.appendChild(nameSpan);
+                    btn.appendChild(countSpan);
+                    btn.addEventListener("click", () => { this.selectedWhisperPartner = num; this.rerender(); });
+                    partnerList.appendChild(btn);
+                }
+                cnt.appendChild(partnerList);
+                // Conversation view
+                const activeName = (_e = (_d = getWhisperConversation(activePartner)[0]) === null || _d === void 0 ? void 0 : _d.partnerName) !== null && _e !== void 0 ? _e : `#${activePartner}`;
+                const convLbl = document.createElement("div");
+                convLbl.className = "ebc-section-label";
+                convLbl.textContent = `With ${activeName}`;
+                cnt.appendChild(convLbl);
+                const myName = (() => {
+                    var _a, _b;
+                    try {
+                        const nickFn = window.CharacterNickname;
+                        if (typeof nickFn === "function")
+                            return nickFn(Player);
+                    }
+                    catch ( /* ignore */_c) { /* ignore */ }
+                    return (_b = (_a = Player === null || Player === void 0 ? void 0 : Player.Nickname) !== null && _a !== void 0 ? _a : Player === null || Player === void 0 ? void 0 : Player.Name) !== null && _b !== void 0 ? _b : "You";
+                })();
+                for (const entry of getWhisperConversation(activePartner)) {
+                    const row = document.createElement("div");
+                    row.className = "ebc-whisper-msg " + entry.direction;
+                    const meta = document.createElement("div");
+                    meta.className = "ebc-whisper-meta";
+                    const time = new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                    meta.textContent = entry.direction === "out"
+                        ? `${myName} → ${entry.partnerName}  ${time}`
+                        : `${entry.partnerName} → ${myName}  ${time}`;
+                    const text = document.createElement("div");
+                    text.className = "ebc-whisper-text";
+                    text.textContent = entry.message;
+                    row.appendChild(meta);
+                    row.appendChild(text);
+                    cnt.appendChild(row);
+                }
+                window.setTimeout(() => { cnt.scrollTop = cnt.scrollHeight; }, 0);
+            });
             // ── Drawer Preferences ────────────────────────────────────────────────
             makeSection("DRAWER PREFERENCES", "EBC_devAppearanceCollapsed", false, (cnt) => {
                 var _a, _b;
@@ -24672,7 +24736,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a;
+            var _a, _b;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -25291,6 +25355,101 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     importError.textContent = err instanceof Error ? err.message : "Invalid format — check the pasted text.";
                 }
             });
+            // ── Expression Quick-Add ─────────────────────────────────────────────
+            // Collapsible section: click any expression chip to pin it as an
+            // "expression" style sidebar button in the active category.
+            {
+                const EXPR_COLOR = "#7a44a0";
+                let exprCollapsed = true;
+                try {
+                    const v = localStorage.getItem("EBC_btnExprCollapsed");
+                    if (v !== null)
+                        exprCollapsed = v === "1";
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+                const exprHdr = document.createElement("div");
+                exprHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:4px 0;margin-top:8px;";
+                const exprChev = document.createElement("span");
+                exprChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6ac8;min-width:10px;";
+                const exprSectionLbl = document.createElement("span");
+                exprSectionLbl.className = "ebc-section-label";
+                exprSectionLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;letter-spacing:0.06em;";
+                exprSectionLbl.textContent = "EXPRESSIONS";
+                const exprHint = document.createElement("span");
+                exprHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a6e;margin-left:4px;";
+                exprHint.textContent = "click chip to add as button";
+                exprHdr.appendChild(exprChev);
+                exprHdr.appendChild(exprSectionLbl);
+                exprHdr.appendChild(exprHint);
+                body.appendChild(exprHdr);
+                const exprBody = document.createElement("div");
+                const updateExprChev = () => { exprChev.textContent = exprCollapsed ? "▶" : "▼"; exprBody.style.display = exprCollapsed ? "none" : ""; };
+                updateExprChev();
+                exprHdr.addEventListener("click", () => {
+                    exprCollapsed = !exprCollapsed;
+                    try {
+                        localStorage.setItem("EBC_btnExprCollapsed", exprCollapsed ? "1" : "0");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    updateExprChev();
+                });
+                for (const group of EXPR_GROUPS) {
+                    const ghdr = document.createElement("div");
+                    ghdr.className = "ebc-expr-group-hdr";
+                    ghdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a9e;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:4px 0 2px;";
+                    ghdr.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
+                    exprBody.appendChild(ghdr);
+                    const chipsRow = document.createElement("div");
+                    chipsRow.className = "ebc-expr-chips";
+                    const options = getExprGroupOptions(group);
+                    for (const opt of options) {
+                        const chip = document.createElement("button");
+                        chip.className = "ebc-expr-chip";
+                        chip.style.cssText += ";background:#2a1a3a;border-color:#5a3a7e;color:#c090e0;";
+                        chip.textContent = opt;
+                        chip.title = `Add "${opt}" (${group}) as a sidebar button`;
+                        chip.addEventListener("click", () => {
+                            const catIdx = getActiveCategoryIndex();
+                            const allCats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
+                            const cat = allCats[catIdx];
+                            if (!cat)
+                                return;
+                            const newBtn = {
+                                label: opt.slice(0, 5),
+                                emote: `${group}:${opt}`,
+                                color: EXPR_COLOR,
+                                enabled: true,
+                                style: "expression",
+                            };
+                            // Prefer to fill an empty/disabled slot; otherwise append
+                            const emptyIdx = cat.buttons.findIndex(b => !b.enabled || !b.label);
+                            if (emptyIdx !== -1) {
+                                cat.buttons[emptyIdx] = newBtn;
+                            }
+                            else if (cat.buttons.length < ABSOLUTE_MAX) {
+                                cat.buttons.push(newBtn);
+                                cat.slotCount = Math.min(ABSOLUTE_MAX, (cat.slotCount || cat.buttons.length));
+                            }
+                            else {
+                                chip.textContent = "Full!";
+                                window.setTimeout(() => { chip.textContent = opt; }, 1200);
+                                return;
+                            }
+                            saveCategories([...allCats], catIdx);
+                            chip.textContent = "Added!";
+                            window.setTimeout(() => { chip.textContent = opt; }, 1200);
+                            this.renderButtons();
+                        });
+                        chipsRow.appendChild(chip);
+                    }
+                    exprBody.appendChild(chipsRow);
+                }
+                body.appendChild(exprBody);
+                const exprDiv = document.createElement("div");
+                exprDiv.className = "ebc-divider";
+                exprDiv.style.marginTop = "6px";
+                body.appendChild(exprDiv);
+            }
             // -- Fun Actions --------------------------------------------------------
             const funLbl = document.createElement("div");
             funLbl.className = "ebc-section-label";
@@ -27349,113 +27508,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             exprCBody.appendChild(exprHint);
             body.appendChild(exprWrap2);
         }
-        renderWhisperLog() {
-            var _a, _b, _c, _d, _e;
-            const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
-            if (!body)
-                return;
-            while (body.firstChild)
-                body.removeChild(body.firstChild);
-            const partners = getWhisperPartners();
-            if (partners.length === 0) {
-                const empty = document.createElement("div");
-                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:12px 4px;text-align:center;";
-                empty.textContent = "No whispers this session yet.";
-                body.appendChild(empty);
-                return;
-            }
-            // Header row: partner list + clear button
-            const headerRow = document.createElement("div");
-            headerRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;";
-            const headerLbl = document.createElement("div");
-            headerLbl.className = "ebc-section-label";
-            headerLbl.style.margin = "0";
-            headerLbl.textContent = "Whispers";
-            const clearBtn = document.createElement("button");
-            clearBtn.className = "ebc-outfit-del";
-            clearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
-            clearBtn.textContent = "Clear";
-            clearBtn.title = "Clear whisper log";
-            clearBtn.addEventListener("click", () => {
-                this.selectedWhisperPartner = null;
-                clearWhisperLog();
-                this.rerender();
-            });
-            headerRow.appendChild(headerLbl);
-            headerRow.appendChild(clearBtn);
-            body.appendChild(headerRow);
-            // If selected partner has left, fall back to first partner
-            if (this.selectedWhisperPartner !== null && !partners.includes(this.selectedWhisperPartner)) {
-                this.selectedWhisperPartner = partners[0];
-            }
-            const activePartner = (_b = this.selectedWhisperPartner) !== null && _b !== void 0 ? _b : partners[0];
-            // Partner selector tabs
-            const partnerList = document.createElement("div");
-            partnerList.style.cssText = "display:flex;flex-direction:column;gap:2px;margin-bottom:8px;";
-            for (const num of partners) {
-                const log = getWhisperConversation(num);
-                const lastEntry = log[log.length - 1];
-                const name = (_c = lastEntry === null || lastEntry === void 0 ? void 0 : lastEntry.partnerName) !== null && _c !== void 0 ? _c : `#${num}`;
-                log.filter(e => e.direction === "in").length;
-                const btn = document.createElement("button");
-                btn.className = "ebc-whisper-partner-btn" + (num === activePartner ? " active" : "");
-                const nameSpan = document.createElement("span");
-                nameSpan.textContent = name;
-                const countSpan = document.createElement("span");
-                countSpan.style.cssText = "font-size:8px;color:#7a5070;flex-shrink:0;";
-                countSpan.textContent = `${log.length} msg${log.length !== 1 ? "s" : ""}`;
-                btn.appendChild(nameSpan);
-                btn.appendChild(countSpan);
-                btn.addEventListener("click", () => {
-                    this.selectedWhisperPartner = num;
-                    this.rerender();
-                });
-                partnerList.appendChild(btn);
-            }
-            body.appendChild(partnerList);
-            // Conversation display
-            const convLbl = document.createElement("div");
-            convLbl.className = "ebc-section-label";
-            const activeName = (_e = (_d = getWhisperConversation(activePartner)[0]) === null || _d === void 0 ? void 0 : _d.partnerName) !== null && _e !== void 0 ? _e : `#${activePartner}`;
-            convLbl.textContent = `With ${activeName}`;
-            body.appendChild(convLbl);
-            const convEntries = getWhisperConversation(activePartner);
-            if (convEntries.length === 0) {
-                const empty = document.createElement("div");
-                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#5a3a4e;padding:6px 4px;";
-                empty.textContent = "No messages yet.";
-                body.appendChild(empty);
-                return;
-            }
-            const myName = (() => {
-                var _a, _b;
-                try {
-                    const nickFn = window.CharacterNickname;
-                    if (typeof nickFn === "function")
-                        return nickFn(Player);
-                }
-                catch ( /* ignore */_c) { /* ignore */ }
-                return (_b = (_a = Player === null || Player === void 0 ? void 0 : Player.Nickname) !== null && _a !== void 0 ? _a : Player === null || Player === void 0 ? void 0 : Player.Name) !== null && _b !== void 0 ? _b : "You";
-            })();
-            for (const entry of convEntries) {
-                const row = document.createElement("div");
-                row.className = "ebc-whisper-msg " + entry.direction;
-                const meta = document.createElement("div");
-                meta.className = "ebc-whisper-meta";
-                const time = new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                meta.textContent = entry.direction === "out"
-                    ? `${myName} → ${entry.partnerName}  ${time}`
-                    : `${entry.partnerName} → ${myName}  ${time}`;
-                const text = document.createElement("div");
-                text.className = "ebc-whisper-text";
-                text.textContent = entry.message;
-                row.appendChild(meta);
-                row.appendChild(text);
-                body.appendChild(row);
-            }
-            // Scroll to bottom after render
-            window.setTimeout(() => { body.scrollTop = body.scrollHeight; }, 0);
-        }
         renderExpressions() {
             var _a, _b, _c, _d;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
@@ -27546,7 +27598,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 hdr.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
                 body.appendChild(hdr);
                 const currentItem = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                const currentName = (_d = (_c = currentItem === null || currentItem === void 0 ? void 0 : currentItem.Asset) === null || _c === void 0 ? void 0 : _c.Name) !== null && _d !== void 0 ? _d : null;
+                // BC stores the active expression variant in Property.Expression, not Asset.Name.
+                const currentName = (_d = (_c = currentItem === null || currentItem === void 0 ? void 0 : currentItem.Property) === null || _c === void 0 ? void 0 : _c.Expression) !== null && _d !== void 0 ? _d : null;
                 const chips = document.createElement("div");
                 chips.className = "ebc-expr-chips";
                 const options = getExprGroupOptions(group);
@@ -28964,7 +29017,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.4.1";
+    const MOD_VERSION = "2.4.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -28975,6 +29028,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.4.2",
+            changes: [
+                "Remove: login outfit feature removed. The '👢 Login outfit' toggle chip and automatic startup outfit application have been removed. Use /outfit commands directly if you want a specific outfit on load.",
+                "Fix: facial expressions now correctly detect the active expression. BC stores expression variants in item.Property.Expression, not item.Asset.Name — the FACE tab chips now highlight the right active option, and preset capture now saves the correct expression names instead of the group base asset name.",
+                "Whisper log moved to DEV tab: the standalone 💬 tab is gone. Whisper history is now a collapsible 'WHISPER LOG' section inside the DEV tab — same partner-list + conversation view, just tucked away.",
+                "Expressions in BUTTONS tab: the BUTTONS tab now has a collapsible 'EXPRESSIONS' section at the bottom. Click any expression chip to instantly add it as an 'expression' style sidebar button in the active category. Expression buttons apply the facial expression directly — no chat message sent. Label and colour are fully editable after adding.",
+            ],
+        },
         {
             version: "2.4.1",
             changes: [
@@ -32607,15 +32669,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 detectNewJoins();
             }
             catch ( /* ignore */_a) { /* ignore */ } }, 600);
-            // Apply login outfit — wait a bit for BC appearance to fully load before applying.
-            window.setTimeout(() => {
-                try {
-                    const loginOutfit = getLoginOutfit();
-                    if (loginOutfit)
-                        handleOutfitCommand("/" + loginOutfit.command);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            }, 1500);
             // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
             migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => { });
         }

@@ -28,7 +28,6 @@ export interface ConfiguredOutfit {
     preserveRestraints: boolean; // keep existing restraints when applying (default: true)
     preserveClothing: boolean;   // keep existing clothing (non-restraint) when applying (default: false)
     nameInAnnounce: boolean;     // whether to prepend the player name to the announce text (default: true)
-    wearAtLogin?: boolean;       // automatically apply this outfit on addon startup (only one active at a time)
     items: SerializedItem[];
 }
 
@@ -485,25 +484,6 @@ export function setOutfitNameInAnnounce(id: string, value: boolean): void {
     }
 }
 
-// Returns the outfit marked as the login outfit, or null if none.
-export function getLoginOutfit(): ConfiguredOutfit | null {
-    return getOutfits().find(o => !!o.wearAtLogin) ?? null;
-}
-
-// Set or clear wearAtLogin on an outfit. Setting to true clears all others first
-// so only one outfit can be the login outfit at a time.
-export function setOutfitWearAtLogin(id: string, value: boolean): void {
-    const outfits = getOutfits();
-    for (const o of outfits) {
-        if (value) {
-            // Enable only the target, clear every other outfit
-            o.wearAtLogin = o.id === id ? true : undefined;
-        } else if (o.id === id) {
-            o.wearAtLogin = undefined;
-        }
-    }
-    saveOutfits(outfits);
-}
 
 export function getOutfitTags(): OutfitTag[] {
     const raw = getAddon().outfitTags;

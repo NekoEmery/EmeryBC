@@ -1,11 +1,13 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
 import { callBC, syncSettings } from "./bcUtils";
+import { applyExprGroup } from "./expressions";
 
-export type ActionStyle = "action" | "emote" | "seq";
-// "action" = (Name text)
-// "emote"  = * Name text *
-// "seq"    = pose/action sequence (pipe-separated steps)
+export type ActionStyle = "action" | "emote" | "seq" | "expression";
+// "action"     = (Name text)
+// "emote"      = * Name text *
+// "seq"        = pose/action sequence (pipe-separated steps)
+// "expression" = facial expression; emote field = "Group:ExpressionName"
 
 export interface ActionButton {
     label:   string;
@@ -650,6 +652,16 @@ export function handleActionButtonClick(): boolean {
         const y = btnStartY + i * BTN_SIZE;
         if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
             my >= y         && my <= y + BTN_SIZE) {
+            if ((btn.style ?? "action") === "expression") {
+                // emote field encodes "Group:ExpressionName"
+                const sep = btn.emote.indexOf(":");
+                if (sep !== -1) {
+                    const grp = btn.emote.slice(0, sep);
+                    const expr = btn.emote.slice(sep + 1) || null;
+                    try { applyExprGroup(grp, expr); } catch { /* ignore */ }
+                }
+                return true;
+            }
             const animOk = triggerLabelAnimation(btn.label);
             if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
             return true;

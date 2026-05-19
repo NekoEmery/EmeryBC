@@ -127,9 +127,16 @@ export function captureCurrentExpression(name: string): ExpressionPreset {
     try {
         for (const group of EXPR_GROUPS) {
             const item = Player.Appearance.find((i: Item) => i.Asset.Group.Name === group);
-            groups[group] = item
-                ? { Name: item.Asset.Name, Color: item.Color !== undefined ? item.Color : undefined }
-                : null;
+            if (item) {
+                // BC stores the expression variant name in Property.Expression, not Asset.Name.
+                // Asset.Name is the base group asset name (always the group name itself).
+                const exprName = (item.Property as Record<string, unknown> | undefined)?.Expression as string | null | undefined;
+                groups[group] = exprName
+                    ? { Name: exprName, Color: item.Color !== undefined ? item.Color : undefined }
+                    : null;
+            } else {
+                groups[group] = null;
+            }
         }
     } catch { /* return whatever captured so far */ }
     return { id: uid(), name: name || "Preset", groups };
