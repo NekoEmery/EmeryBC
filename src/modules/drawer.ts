@@ -13403,28 +13403,6 @@ export class EBCDrawer {
                 const isExprPreset = currentStyle === "exprPreset";
                 const isExpression = currentStyle === "expression";
 
-                // Universal style selector — always shown, lets user switch between all styles
-                const styleSel = document.createElement("select");
-                styleSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#b080d0;padding:1px 2px;cursor:pointer;flex-shrink:0;max-width:64px;";
-                styleSel.title = "Button style";
-                for (const [val, lbl] of [
-                    ["action",    "( ) action"  ],
-                    ["emote",     "* * emote"   ],
-                    ["exprPreset","🎭 preset"   ],
-                    ["expression","🎭 expr"     ],
-                    ["seq",       "✨ seq"       ],
-                ] as [ActionStyle, string][]) {
-                    const o = document.createElement("option");
-                    o.value = val; o.textContent = lbl; o.selected = val === currentStyle;
-                    styleSel.appendChild(o);
-                }
-                styleSel.addEventListener("change", () => {
-                    btns[i].style = styleSel.value as ActionStyle;
-                    if (styleSel.value !== "exprPreset") delete btns[i].exprRevertMs;
-                    renderSlots();
-                });
-                botLine.appendChild(styleSel);
-
                 if (isExprPreset) {
                     // exprPreset: face preset selector + how-long dropdown
                     const presetSel = document.createElement("select");
@@ -13513,15 +13491,31 @@ export class EBCDrawer {
 
                     botLine.appendChild(groupSel);
                     botLine.appendChild(exprSel);
+                } else if (isSeq) {
+                    // seq: badge only — step builder below handles all config
+                    const seqBadge = document.createElement("span");
+                    seqBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7ac8;padding:1px 4px;";
+                    seqBadge.textContent = "✨ sequence";
+                    botLine.appendChild(seqBadge);
                 } else {
-                    // action / emote / seq — text emote input + optional name chip
+                    // action / emote — restore classic () / ** toggle button
+                    const styleBtn = document.createElement("button");
+                    styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
+                    styleBtn.textContent = currentStyle === "emote" ? "**" : "()";
+                    styleBtn.title = currentStyle === "emote"
+                        ? "Emote (* Name text *) — click to switch to action"
+                        : "Action (( Name text )) — click to switch to emote";
+                    styleBtn.addEventListener("click", () => {
+                        btns[idx].style = (btns[idx].style === "emote" ? "action" : "emote") as ActionStyle;
+                        renderSlots();
+                    });
+
                     const emoteInp = document.createElement("input");
                     emoteInp.className = "ebc-slot-emote";
                     emoteInp.type = "text"; emoteInp.maxLength = 240;
                     emoteInp.placeholder = "e.g. nods.";
                     emoteInp.value = btn.emote;
                     emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                    emoteInp.style.display = isSeq ? "none" : "";
                     emoteInp.addEventListener("input", () => { btns[idx].emote = emoteInp.value; });
 
                     const nameIncluded = btn.includeNameInAnnounce !== false;
@@ -13532,8 +13526,7 @@ export class EBCDrawer {
                         ? "Your name is included — click to send anonymously"
                         : "Sending without name — click to include name";
                     nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
-                    nameChip.style.display = (currentStyle === "action") ? "" : "none";
-
+                    nameChip.style.display = currentStyle === "action" ? "" : "none";
                     nameChip.addEventListener("click", () => {
                         const next = btns[idx].includeNameInAnnounce === false;
                         btns[idx].includeNameInAnnounce = next;
@@ -13541,6 +13534,7 @@ export class EBCDrawer {
                         nameChip.textContent = next ? "name" : "anon";
                     });
 
+                    botLine.appendChild(styleBtn);
                     botLine.appendChild(nameChip);
                     botLine.appendChild(emoteInp);
                 }
@@ -15489,6 +15483,31 @@ export class EBCDrawer {
             hint.textContent = "No presets yet — save your current face below.";
             body.appendChild(hint);
         } else {
+            // Quick-apply dropdown
+            const quickRow = document.createElement("div");
+            quickRow.style.cssText = "display:flex;gap:5px;margin-bottom:6px;align-items:center;";
+            const quickSel = document.createElement("select");
+            quickSel.className = "ebc-form-input";
+            quickSel.style.cssText += "flex:1;min-width:0;font-size:9px;";
+            const qPh = document.createElement("option");
+            qPh.value = ""; qPh.textContent = "— pick face to apply —"; qPh.disabled = true; qPh.selected = true;
+            quickSel.appendChild(qPh);
+            for (const p of presets) {
+                const o = document.createElement("option"); o.value = p.id; o.textContent = p.name;
+                quickSel.appendChild(o);
+            }
+            const quickApplyBtn = document.createElement("button");
+            quickApplyBtn.className = "ebc-create-btn";
+            quickApplyBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:3px 8px;";
+            quickApplyBtn.textContent = "✓ Apply";
+            quickApplyBtn.addEventListener("click", () => {
+                const p = presets.find(pr => pr.id === quickSel.value);
+                if (p) { applyExpressionPreset(p); this.rerender(150); }
+            });
+            quickRow.appendChild(quickSel);
+            quickRow.appendChild(quickApplyBtn);
+            body.appendChild(quickRow);
+
             const presetList = document.createElement("div");
             presetList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;";
 
@@ -15642,34 +15661,6 @@ export class EBCDrawer {
             this.rerender(150);
         });
         body.appendChild(clearBtn);
-
-        // ── Per-group expression pickers ──────────────────────────────────────
-        for (const group of EXPR_GROUPS) {
-            const hdr = document.createElement("div");
-            hdr.className = "ebc-expr-group-hdr";
-            hdr.textContent = EXPR_GROUP_LABELS[group] ?? group;
-            body.appendChild(hdr);
-
-            const currentItem = (Player.Appearance as Item[]).find((i: Item) => i.Asset.Group.Name === group);
-            const currentName = (currentItem?.Property as Record<string, unknown> | undefined)
-                ?.Expression as string | null | undefined ?? null;
-
-            const chips = document.createElement("div");
-            chips.className = "ebc-expr-chips";
-            for (const opt of getExprGroupOptions(group)) {
-                const chip = document.createElement("button");
-                chip.className = "ebc-expr-chip" + (opt === currentName ? " active" : "");
-                chip.textContent = opt;
-                chip.title = opt;
-                chip.addEventListener("click", () => {
-                    const toggle = chip.classList.contains("active") ? null : opt;
-                    try { applyExprGroup(group, toggle); } catch { /* ignore */ }
-                    this.rerender(150);
-                });
-                chips.appendChild(chip);
-            }
-            body.appendChild(chips);
-        }
 
         // ── Triggers section ──────────────────────────────────────────────────
         // Collapsible. Fires a preset when outgoing chat contains a match string.

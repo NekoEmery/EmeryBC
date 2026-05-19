@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.5.1";
+const MOD_VERSION = "2.5.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.5.2",
+        changes: [
+            "Remove: per-group expression chip rows (Blush/Emoticon/Eyebrows/etc.) are gone from FACE PRESETS — just save with BC's emote menu.",
+            "Add: quick-apply dropdown in FACE PRESETS (pick a face from the list and hit ✓ Apply) replaces having to scroll to each row.",
+            "Revert: button slot style selector restored to the classic () / ** toggle button for action/emote buttons. Seq buttons show a ✨ sequence badge. Expression preset and single-expr buttons still show their relevant dropdowns.",
+        ],
+    },
     {
         version: "2.5.1",
         changes: [
