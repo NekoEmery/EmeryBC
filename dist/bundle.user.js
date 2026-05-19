@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.4.2
+// @version      2.4.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2427,7 +2427,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         catch ( /* return whatever captured so far */_b) { /* return whatever captured so far */ }
-        return { id: uid$3(), name: name, groups };
+        return { id: uid$3(), name: name || "Preset", groups };
     }
     function applyExpressionPreset(preset) {
         try {
@@ -2439,6 +2439,107 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         catch ( /* ignore */_b) { /* ignore */ }
+    }
+    // -- Default expression preset -------------------------------------------------
+    // The preset the user reverts to after a timed expression or trigger fires.
+    // null = clear all groups back to neutral.
+    function getDefaultExprPresetId() {
+        var _a;
+        try {
+            const v = (_a = getStore$4()) === null || _a === void 0 ? void 0 : _a.defaultExprPresetId;
+            return typeof v === "string" && v ? v : null;
+        }
+        catch (_b) {
+            return null;
+        }
+    }
+    function setDefaultExprPresetId(id) {
+        try {
+            const store = getStore$4();
+            if (!store)
+                return;
+            if (id) {
+                store.defaultExprPresetId = id;
+            }
+            else {
+                delete store.defaultExprPresetId;
+            }
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getExpressionTriggers() {
+        var _a;
+        try {
+            const v = (_a = getStore$4()) === null || _a === void 0 ? void 0 : _a.expressionTriggers;
+            return Array.isArray(v) ? v : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function saveExpressionTriggers(triggers) {
+        try {
+            const store = getStore$4();
+            if (!store)
+                return;
+            store.expressionTriggers = triggers;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Timed expression revert ---------------------------------------------------
+    let _revertTimer = null;
+    function cancelExpressionRevert() {
+        if (_revertTimer !== null) {
+            clearTimeout(_revertTimer);
+            _revertTimer = null;
+        }
+    }
+    /** Apply a preset, then after revertMs ms revert to the default preset
+     *  (or clear all groups if no default is set). revertMs = 0 means stay forever. */
+    function applyExprPresetWithRevert(presetId, revertMs) {
+        const preset = getExpressionPresets().find(p => p.id === presetId);
+        if (!preset)
+            return;
+        cancelExpressionRevert();
+        applyExpressionPreset(preset);
+        if (revertMs > 0) {
+            _revertTimer = setTimeout(() => {
+                _revertTimer = null;
+                const defaultId = getDefaultExprPresetId();
+                if (defaultId) {
+                    const defPreset = getExpressionPresets().find(p => p.id === defaultId);
+                    if (defPreset) {
+                        applyExpressionPreset(defPreset);
+                        return;
+                    }
+                }
+                // No default — clear all expression groups back to neutral
+                for (const g of EXPR_GROUPS) {
+                    try {
+                        applyExprGroup(g, null);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }, revertMs);
+        }
+    }
+    // -- Trigger checker -----------------------------------------------------------
+    // Call once per outgoing chat message. First matching trigger fires.
+    function checkExpressionTriggers(message) {
+        const triggers = getExpressionTriggers();
+        if (!triggers.length)
+            return;
+        const lower = message.toLowerCase();
+        for (const trigger of triggers) {
+            if (!trigger.matchText || !trigger.presetId)
+                continue;
+            if (lower.includes(trigger.matchText.toLowerCase())) {
+                applyExprPresetWithRevert(trigger.presetId, trigger.durationMs);
+                break; // first match wins per message
+            }
+        }
     }
 
     var _a, _b;
@@ -2981,7 +3082,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     function handleActionButtonClick() {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         if (CurrentScreen !== "ChatRoom")
             return false;
         const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
@@ -3023,7 +3124,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const y = btnStartY + i * BTN_SIZE;
             if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
                 my >= y && my <= y + BTN_SIZE) {
-                if (((_c = btn.style) !== null && _c !== void 0 ? _c : "action") === "expression") {
+                const btnStyle = (_c = btn.style) !== null && _c !== void 0 ? _c : "action";
+                if (btnStyle === "exprPreset") {
+                    try {
+                        applyExprPresetWithRevert(btn.emote, (_d = btn.exprRevertMs) !== null && _d !== void 0 ? _d : 0);
+                    }
+                    catch ( /* ignore */_f) { /* ignore */ }
+                    return true;
+                }
+                if (btnStyle === "expression") {
                     // emote field encodes "Group:ExpressionName"
                     const sep = btn.emote.indexOf(":");
                     if (sep !== -1) {
@@ -3032,13 +3141,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         try {
                             applyExprGroup(grp, expr);
                         }
-                        catch ( /* ignore */_e) { /* ignore */ }
+                        catch ( /* ignore */_g) { /* ignore */ }
                     }
                     return true;
                 }
                 const animOk = triggerLabelAnimation(btn.label);
                 if (animOk)
-                    sendAction(btn.emote, (_d = btn.style) !== null && _d !== void 0 ? _d : "action", btn.includeNameInAnnounce !== false);
+                    sendAction(btn.emote, (_e = btn.style) !== null && _e !== void 0 ? _e : "action", btn.includeNameInAnnounce !== false);
                 return true;
             }
         }
@@ -24874,7 +24983,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slotList.id = "ebc-slot-list";
             activeBodyEl.appendChild(slotList);
             const renderSlots = () => {
-                var _a;
+                var _a, _b;
                 // Always ensure btns has a real object for every slot — prevents "undefined" crashes
                 while (btns.length < slotCount) {
                     btns.push({ label: "", emote: "", color: "#c2185b", enabled: false, style: "action" });
@@ -24985,48 +25094,130 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     topLine.appendChild(moveUpBtn);
                     topLine.appendChild(moveDownBtn);
                     topLine.appendChild(delBtn);
-                    // Bottom line: style toggle (hidden for seq) | emote/seq input
+                    // Bottom line: style toggle | emote input  (varies by style)
                     const botLine = document.createElement("div");
                     botLine.className = "ebc-slot-bottom";
                     const currentStyle = (_a = btn.style) !== null && _a !== void 0 ? _a : "action";
                     const isSeq = currentStyle === "seq";
-                    const styleBtn = document.createElement("button");
-                    styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
-                    styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
-                    styleBtn.title = currentStyle === "emote"
-                        ? "Style: * emote * — click to switch"
-                        : "Style: ( action ) — click to switch";
-                    // Seq buttons don't show the style toggle — animation is internal
-                    styleBtn.style.display = isSeq ? "none" : "";
-                    // For seq buttons, show a small non-interactive badge instead
-                    const seqBadge = document.createElement("span");
-                    seqBadge.className = "ebc-slot-seq-badge";
-                    seqBadge.textContent = "✨";
-                    seqBadge.title = "Animation button — edit the sequence below";
-                    seqBadge.style.display = isSeq ? "inline" : "none";
-                    const emoteInp = document.createElement("input");
-                    emoteInp.className = "ebc-slot-emote";
-                    emoteInp.type = "text";
-                    emoteInp.maxLength = 240;
-                    emoteInp.placeholder = "e.g. nods.";
-                    emoteInp.value = btn.emote;
-                    emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
-                    emoteInp.style.display = isSeq ? "none" : "";
-                    // Name-in-announce chip — only meaningful for ( ) action style
-                    const nameIncluded = btn.includeNameInAnnounce !== false;
-                    const nameChip = document.createElement("button");
-                    nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
-                    nameChip.textContent = nameIncluded ? "name" : "anon";
-                    nameChip.title = nameIncluded
-                        ? "Your name is included — click to send anonymously"
-                        : "Sending without name — click to include name";
-                    nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
-                    // only show for action style (emote always has name; seq not applicable)
-                    nameChip.style.display = (currentStyle === "action") ? "" : "none";
-                    botLine.appendChild(styleBtn);
-                    botLine.appendChild(seqBadge);
-                    botLine.appendChild(nameChip);
-                    botLine.appendChild(emoteInp);
+                    const isExprPreset = currentStyle === "exprPreset";
+                    const isExpression = currentStyle === "expression";
+                    if (isExprPreset) {
+                        // exprPreset: preset selector + revert duration
+                        const exprBadge = document.createElement("span");
+                        exprBadge.className = "ebc-slot-seq-badge";
+                        exprBadge.textContent = "🎭";
+                        exprBadge.title = "Expression preset button";
+                        const presetSel = document.createElement("select");
+                        presetSel.className = "ebc-slot-emote";
+                        presetSel.style.cssText = "font-size:9px;cursor:pointer;";
+                        const emptyOpt = document.createElement("option");
+                        emptyOpt.value = "";
+                        emptyOpt.textContent = "— pick preset —";
+                        presetSel.appendChild(emptyOpt);
+                        for (const p of getExpressionPresets()) {
+                            const opt = document.createElement("option");
+                            opt.value = p.id;
+                            opt.textContent = p.name;
+                            opt.selected = p.id === btn.emote;
+                            presetSel.appendChild(opt);
+                        }
+                        presetSel.addEventListener("change", () => { btns[idx].emote = presetSel.value; });
+                        const revertLbl = document.createElement("span");
+                        revertLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a8a;flex-shrink:0;white-space:nowrap;";
+                        revertLbl.textContent = "revert";
+                        const revertInp = document.createElement("input");
+                        revertInp.type = "number";
+                        revertInp.min = "0";
+                        revertInp.max = "3600";
+                        revertInp.step = "1";
+                        revertInp.value = String(Math.round(((_b = btn.exprRevertMs) !== null && _b !== void 0 ? _b : 0) / 1000));
+                        revertInp.style.cssText = "width:38px;font-size:9px;font-family:'Courier New',monospace;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 3px;outline:none;text-align:right;flex-shrink:0;";
+                        revertInp.title = "Revert to default face after this many seconds (0 = keep forever)";
+                        revertInp.addEventListener("input", () => {
+                            btns[idx].exprRevertMs = Math.max(0, parseInt(revertInp.value) || 0) * 1000;
+                        });
+                        const revertSfx = document.createElement("span");
+                        revertSfx.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a8a;flex-shrink:0;";
+                        revertSfx.textContent = "s";
+                        botLine.appendChild(exprBadge);
+                        botLine.appendChild(presetSel);
+                        botLine.appendChild(revertLbl);
+                        botLine.appendChild(revertInp);
+                        botLine.appendChild(revertSfx);
+                    }
+                    else if (isExpression) {
+                        // Single-expression: badge + editable "Group:Name" field
+                        const exprBadge = document.createElement("span");
+                        exprBadge.className = "ebc-slot-seq-badge";
+                        exprBadge.textContent = "🎭";
+                        exprBadge.title = "Single expression button (Group:ExprName)";
+                        const emoteInp = document.createElement("input");
+                        emoteInp.className = "ebc-slot-emote";
+                        emoteInp.type = "text";
+                        emoteInp.maxLength = 60;
+                        emoteInp.placeholder = "Group:ExprName";
+                        emoteInp.value = btn.emote;
+                        emoteInp.title = "Group:ExpressionName — e.g. Eyes:Shy";
+                        emoteInp.addEventListener("input", () => { btns[idx].emote = emoteInp.value; });
+                        botLine.appendChild(exprBadge);
+                        botLine.appendChild(emoteInp);
+                    }
+                    else {
+                        // action / emote / seq — original layout
+                        const styleBtn = document.createElement("button");
+                        styleBtn.className = "ebc-slot-style" + (currentStyle === "emote" ? " emote" : "");
+                        styleBtn.textContent = currentStyle === "emote" ? "* *" : "( )";
+                        styleBtn.title = currentStyle === "emote"
+                            ? "Style: * emote * — click to switch"
+                            : "Style: ( action ) — click to switch";
+                        styleBtn.style.display = isSeq ? "none" : "";
+                        const seqBadge = document.createElement("span");
+                        seqBadge.className = "ebc-slot-seq-badge";
+                        seqBadge.textContent = "✨";
+                        seqBadge.title = "Animation button — edit the sequence below";
+                        seqBadge.style.display = isSeq ? "inline" : "none";
+                        const emoteInp = document.createElement("input");
+                        emoteInp.className = "ebc-slot-emote";
+                        emoteInp.type = "text";
+                        emoteInp.maxLength = 240;
+                        emoteInp.placeholder = "e.g. nods.";
+                        emoteInp.value = btn.emote;
+                        emoteInp.title = currentStyle === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
+                        emoteInp.style.display = isSeq ? "none" : "";
+                        emoteInp.addEventListener("input", () => { btns[idx].emote = emoteInp.value; });
+                        const nameIncluded = btn.includeNameInAnnounce !== false;
+                        const nameChip = document.createElement("button");
+                        nameChip.className = "ebc-slot-style" + (nameIncluded ? "" : " emote");
+                        nameChip.textContent = nameIncluded ? "name" : "anon";
+                        nameChip.title = nameIncluded
+                            ? "Your name is included — click to send anonymously"
+                            : "Sending without name — click to include name";
+                        nameChip.style.cssText = "width:auto;padding:0 5px;flex-shrink:0;";
+                        nameChip.style.display = (currentStyle === "action") ? "" : "none";
+                        nameChip.addEventListener("click", () => {
+                            const next = btns[idx].includeNameInAnnounce === false;
+                            btns[idx].includeNameInAnnounce = next;
+                            nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
+                            nameChip.textContent = next ? "name" : "anon";
+                        });
+                        styleBtn.addEventListener("click", () => {
+                            var _a;
+                            const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action";
+                            if (cur === "seq")
+                                return;
+                            const next = cur === "action" ? "emote" : "action";
+                            btns[idx].style = next;
+                            styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
+                            styleBtn.textContent = next === "emote" ? "* *" : "( )";
+                            styleBtn.title = next === "emote" ? "Style: * emote * — click to switch" : "Style: ( action ) — click to switch";
+                            emoteInp.title = next === "emote" ? "Text sent as * Name text *" : "Text sent as ( Name text )";
+                            nameChip.style.display = next === "action" ? "" : "none";
+                        });
+                        botLine.appendChild(styleBtn);
+                        botLine.appendChild(seqBadge);
+                        botLine.appendChild(nameChip);
+                        botLine.appendChild(emoteInp);
+                    }
                     row.appendChild(topLine);
                     row.appendChild(botLine);
                     slotList.appendChild(row);
@@ -25071,36 +25262,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         else {
                             colorInp.style.color = "#cf3060";
                         }
-                    });
-                    emoteInp.addEventListener("input", () => {
-                        btns[idx].emote = emoteInp.value;
-                    });
-                    nameChip.addEventListener("click", () => {
-                        const next = btns[idx].includeNameInAnnounce === false; // toggle
-                        btns[idx].includeNameInAnnounce = next;
-                        nameChip.className = "ebc-slot-style" + (next ? "" : " emote");
-                        nameChip.textContent = next ? "name" : "anon";
-                        nameChip.title = next
-                            ? "Your name is included — click to send anonymously"
-                            : "Sending without name — click to include name";
-                    });
-                    styleBtn.addEventListener("click", () => {
-                        var _a;
-                        const cur = (_a = btns[idx].style) !== null && _a !== void 0 ? _a : "action";
-                        if (cur === "seq")
-                            return; // seq buttons don't cycle through styles
-                        const next = cur === "action" ? "emote" : "action";
-                        btns[idx].style = next;
-                        styleBtn.className = "ebc-slot-style" + (next === "emote" ? " emote" : "");
-                        styleBtn.textContent = next === "emote" ? "* *" : "( )";
-                        styleBtn.title = next === "emote"
-                            ? "Style: * emote * — click to switch"
-                            : "Style: ( action ) — click to switch";
-                        emoteInp.title = next === "emote"
-                            ? "Text sent as * Name text *"
-                            : "Text sent as ( Name text )";
-                        // name chip only applies to action style
-                        nameChip.style.display = next === "action" ? "" : "none";
                     });
                     let slotDelPending = false;
                     let slotDelTimer = null;
@@ -27515,51 +27676,111 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
-            // ── Presets section ────────────────────────────────────────────────────
+            const F = "font-family:'Trebuchet MS',serif;font-size:";
+            const BTN_BASE = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;`;
+            // ── Presets section ───────────────────────────────────────────────────
             const presetsLbl = document.createElement("div");
             presetsLbl.className = "ebc-section-label";
             presetsLbl.textContent = "Presets";
             body.appendChild(presetsLbl);
+            const defaultId = getDefaultExprPresetId();
             const presets = getExpressionPresets();
             if (presets.length === 0) {
                 const hint = document.createElement("div");
-                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#6a4a5e;margin-bottom:6px;";
-                hint.textContent = "No presets yet — save your current face using the button below.";
+                hint.style.cssText = `${F}9px;color:#6a4a5e;margin-bottom:6px;`;
+                hint.textContent = "No presets yet — save your current face below.";
                 body.appendChild(hint);
             }
             else {
-                const presetRow = document.createElement("div");
-                presetRow.className = "ebc-expr-preset-row";
+                const presetList = document.createElement("div");
+                presetList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;";
                 for (const preset of presets) {
-                    const item = document.createElement("div");
-                    item.className = "ebc-expr-preset-item";
+                    const pRow = document.createElement("div");
+                    pRow.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(30,10,25,0.6);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;";
+                    // ✓ Apply
                     const applyBtn = document.createElement("button");
-                    applyBtn.className = "ebc-expr-preset-chip";
-                    applyBtn.textContent = preset.name;
-                    applyBtn.addEventListener("click", () => {
-                        applyExpressionPreset(preset);
-                        this.rerender(150);
+                    applyBtn.style.cssText = BTN_BASE + "border:1px solid #5a2840;background:#3a1020;color:#cf6f98;";
+                    applyBtn.textContent = "✓";
+                    applyBtn.title = "Apply this preset";
+                    applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
+                    // Name
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = `${F}10px;color:#e8d0d8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                    nameEl.textContent = preset.name;
+                    // ★ Default
+                    const isDefault = preset.id === defaultId;
+                    const defaultBtn = document.createElement("button");
+                    defaultBtn.style.cssText = `${F}12px;background:none;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;color:${isDefault ? "#f0c040" : "#4a3040"};`;
+                    defaultBtn.textContent = "★";
+                    defaultBtn.title = isDefault
+                        ? "This is your default face — click to unset"
+                        : "Set as default face (reverts here after timed expressions)";
+                    defaultBtn.addEventListener("click", () => {
+                        setDefaultExprPresetId(isDefault ? null : preset.id);
+                        this.rerender();
                     });
+                    // → Add to sidebar
+                    const sidebarBtn = document.createElement("button");
+                    sidebarBtn.style.cssText = BTN_BASE + "border:1px solid #3a2258;background:#200a2a;color:#9a6ac8;";
+                    sidebarBtn.textContent = "→";
+                    sidebarBtn.title = "Add as sidebar quick-key button (5 s revert default)";
+                    sidebarBtn.addEventListener("click", () => {
+                        const catIdx = getActiveCategoryIndex();
+                        const allCats = getCategories().map(c => (Object.assign(Object.assign({}, c), { buttons: c.buttons.map(b => (Object.assign({}, b))) })));
+                        const cat = allCats[catIdx];
+                        if (!cat)
+                            return;
+                        const newBtn = {
+                            label: preset.name.slice(0, 5),
+                            emote: preset.id,
+                            color: "#7a44a0",
+                            enabled: true,
+                            style: "exprPreset",
+                            exprRevertMs: 5000,
+                        };
+                        const emptyIdx = cat.buttons.findIndex(b => !b.enabled || !b.label);
+                        if (emptyIdx !== -1) {
+                            cat.buttons[emptyIdx] = newBtn;
+                        }
+                        else if (cat.buttons.length < ABSOLUTE_MAX) {
+                            cat.buttons.push(newBtn);
+                            cat.slotCount = Math.min(ABSOLUTE_MAX, cat.buttons.length);
+                        }
+                        else {
+                            sidebarBtn.textContent = "Full!";
+                            window.setTimeout(() => { sidebarBtn.textContent = "→"; }, 1200);
+                            return;
+                        }
+                        saveCategories([...allCats], catIdx);
+                        sidebarBtn.textContent = "✓";
+                        window.setTimeout(() => { sidebarBtn.textContent = "→"; }, 1200);
+                    });
+                    // × Delete
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-outfit-del";
                     delBtn.textContent = "×";
                     delBtn.title = "Delete preset";
                     delBtn.addEventListener("click", () => {
+                        // Remove preset; if it was the default, clear the default too
+                        if (preset.id === getDefaultExprPresetId())
+                            setDefaultExprPresetId(null);
                         saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
                         this.rerender();
                     });
-                    item.appendChild(applyBtn);
-                    item.appendChild(delBtn);
-                    presetRow.appendChild(item);
+                    pRow.appendChild(applyBtn);
+                    pRow.appendChild(nameEl);
+                    pRow.appendChild(defaultBtn);
+                    pRow.appendChild(sidebarBtn);
+                    pRow.appendChild(delBtn);
+                    presetList.appendChild(pRow);
                 }
-                body.appendChild(presetRow);
+                body.appendChild(presetList);
             }
             // Save current face as preset
             const captureRow = document.createElement("div");
-            captureRow.style.cssText = "display:flex;gap:5px;margin-bottom:10px;align-items:center;";
+            captureRow.style.cssText = "display:flex;gap:5px;margin-bottom:8px;align-items:center;";
             const captureInput = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", maxLength: 30,
-                placeholder: "Preset name…",
+                className: "ebc-form-input", type: "text", maxLength: 30, placeholder: "Preset name…",
             });
             captureInput.style.flex = "1";
             const captureBtn = document.createElement("button");
@@ -27568,8 +27789,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             captureBtn.textContent = "Save face";
             captureBtn.addEventListener("click", () => {
                 const name = captureInput.value.trim() || "Preset";
-                const preset = captureCurrentExpression(name);
-                saveExpressionPresets([...getExpressionPresets(), preset]);
+                saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
                 captureInput.value = "";
                 this.rerender();
             });
@@ -27598,12 +27818,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 hdr.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
                 body.appendChild(hdr);
                 const currentItem = Player.Appearance.find((i) => i.Asset.Group.Name === group);
-                // BC stores the active expression variant in Property.Expression, not Asset.Name.
                 const currentName = (_d = (_c = currentItem === null || currentItem === void 0 ? void 0 : currentItem.Property) === null || _c === void 0 ? void 0 : _c.Expression) !== null && _d !== void 0 ? _d : null;
                 const chips = document.createElement("div");
                 chips.className = "ebc-expr-chips";
-                const options = getExprGroupOptions(group);
-                for (const opt of options) {
+                for (const opt of getExprGroupOptions(group)) {
                     const chip = document.createElement("button");
                     chip.className = "ebc-expr-chip" + (opt === currentName ? " active" : "");
                     chip.textContent = opt;
@@ -27619,6 +27837,174 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     chips.appendChild(chip);
                 }
                 body.appendChild(chips);
+            }
+            // ── Triggers section ──────────────────────────────────────────────────
+            // Collapsible. Fires a preset when outgoing chat contains a match string.
+            {
+                const divEl = document.createElement("div");
+                divEl.className = "ebc-divider";
+                divEl.style.margin = "10px 0 6px";
+                body.appendChild(divEl);
+                let trigCollapsed = true;
+                try {
+                    const v = localStorage.getItem("EBC_exprTriggersCollapsed");
+                    if (v !== null)
+                        trigCollapsed = v === "1";
+                }
+                catch ( /* ignore */_e) { /* ignore */ }
+                const trigHdr = document.createElement("div");
+                trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
+                const trigChev = document.createElement("span");
+                trigChev.style.cssText = `${F}10px;color:#9a6ac8;min-width:10px;`;
+                const trigLbl = document.createElement("span");
+                trigLbl.className = "ebc-section-label";
+                trigLbl.style.cssText = "margin:0;font-size:9px;color:#9a6ac8;";
+                trigLbl.textContent = "TRIGGERS";
+                const trigHint = document.createElement("span");
+                trigHint.style.cssText = `${F}8px;color:#5a3a6e;margin-left:4px;`;
+                trigHint.textContent = "apply preset when you send a message";
+                trigHdr.appendChild(trigChev);
+                trigHdr.appendChild(trigLbl);
+                trigHdr.appendChild(trigHint);
+                body.appendChild(trigHdr);
+                const trigBody = document.createElement("div");
+                const updateTrigChev = () => {
+                    trigChev.textContent = trigCollapsed ? "▶" : "▼";
+                    trigBody.style.display = trigCollapsed ? "none" : "";
+                };
+                updateTrigChev();
+                trigHdr.addEventListener("click", () => {
+                    trigCollapsed = !trigCollapsed;
+                    try {
+                        localStorage.setItem("EBC_exprTriggersCollapsed", trigCollapsed ? "1" : "0");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    updateTrigChev();
+                });
+                body.appendChild(trigBody);
+                // Render trigger list
+                const renderTrigList = () => {
+                    var _a, _b;
+                    while (trigBody.firstChild)
+                        trigBody.removeChild(trigBody.firstChild);
+                    const triggers = getExpressionTriggers();
+                    const allPresets = getExpressionPresets();
+                    if (triggers.length === 0) {
+                        const emptyNote = document.createElement("div");
+                        emptyNote.style.cssText = `${F}9px;color:#5a3a5a;padding:4px 0;`;
+                        emptyNote.textContent = "No triggers yet.";
+                        trigBody.appendChild(emptyNote);
+                    }
+                    else {
+                        const trigList = document.createElement("div");
+                        trigList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:8px;";
+                        for (const trig of triggers) {
+                            const presetName = (_b = (_a = allPresets.find(p => p.id === trig.presetId)) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : "?";
+                            const durStr = trig.durationMs > 0 ? `${Math.round(trig.durationMs / 1000)} s` : "∞";
+                            const tRow = document.createElement("div");
+                            tRow.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(28,10,35,0.6);border:1px solid #2a1440;border-radius:5px;padding:3px 7px;";
+                            const tInfo = document.createElement("span");
+                            tInfo.style.cssText = `${F}9px;color:#c0a0d8;flex:1;min-width:0;`;
+                            tInfo.innerHTML = "";
+                            const namePart = document.createElement("b");
+                            namePart.style.color = "#d0b0e8";
+                            namePart.textContent = trig.name || "Trigger";
+                            const restPart = document.createTextNode(`: when msg contains "${trig.matchText}" → ${presetName} (${durStr})`);
+                            tInfo.appendChild(namePart);
+                            tInfo.appendChild(restPart);
+                            const tDel = document.createElement("button");
+                            tDel.className = "ebc-outfit-del";
+                            tDel.textContent = "×";
+                            tDel.title = "Delete trigger";
+                            tDel.addEventListener("click", () => {
+                                saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
+                                renderTrigList();
+                            });
+                            tRow.appendChild(tInfo);
+                            tRow.appendChild(tDel);
+                            trigList.appendChild(tRow);
+                        }
+                        trigBody.appendChild(trigList);
+                    }
+                    // Add trigger form
+                    const formLbl = document.createElement("div");
+                    formLbl.style.cssText = `${F}9px;color:#7a5a9e;font-weight:bold;margin-bottom:4px;`;
+                    formLbl.textContent = "New trigger";
+                    trigBody.appendChild(formLbl);
+                    const INP_CSS = `${F}9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;`;
+                    // Row 1: name + match text
+                    const formRow1 = document.createElement("div");
+                    formRow1.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
+                    const nameInp = document.createElement("input");
+                    nameInp.className = "ebc-form-input";
+                    nameInp.style.cssText = INP_CSS + "width:70px;flex-shrink:0;";
+                    nameInp.type = "text";
+                    nameInp.maxLength = 20;
+                    nameInp.placeholder = "Label…";
+                    const matchInp = document.createElement("input");
+                    matchInp.className = "ebc-form-input";
+                    matchInp.style.cssText = INP_CSS + "flex:1;min-width:0;";
+                    matchInp.type = "text";
+                    matchInp.maxLength = 60;
+                    matchInp.placeholder = "match text (e.g. whimpers)";
+                    formRow1.appendChild(nameInp);
+                    formRow1.appendChild(matchInp);
+                    trigBody.appendChild(formRow1);
+                    // Row 2: preset picker + duration
+                    const formRow2 = document.createElement("div");
+                    formRow2.style.cssText = "display:flex;gap:4px;margin-bottom:6px;align-items:center;";
+                    const presetSel = document.createElement("select");
+                    presetSel.style.cssText = INP_CSS + "flex:1;min-width:0;";
+                    const emptyOpt = document.createElement("option");
+                    emptyOpt.value = "";
+                    emptyOpt.textContent = "— pick preset —";
+                    presetSel.appendChild(emptyOpt);
+                    for (const p of getExpressionPresets()) {
+                        const opt = document.createElement("option");
+                        opt.value = p.id;
+                        opt.textContent = p.name;
+                        presetSel.appendChild(opt);
+                    }
+                    const durInp = document.createElement("input");
+                    durInp.style.cssText = INP_CSS + "width:38px;text-align:right;flex-shrink:0;";
+                    durInp.type = "number";
+                    durInp.min = "0";
+                    durInp.max = "3600";
+                    durInp.step = "1";
+                    durInp.value = "5";
+                    durInp.title = "Revert after this many seconds (0 = permanent)";
+                    const durSfx = document.createElement("span");
+                    durSfx.style.cssText = `${F}9px;color:#7a5a8a;flex-shrink:0;`;
+                    durSfx.textContent = "s";
+                    formRow2.appendChild(presetSel);
+                    formRow2.appendChild(durInp);
+                    formRow2.appendChild(durSfx);
+                    trigBody.appendChild(formRow2);
+                    const addTrigBtn = document.createElement("button");
+                    addTrigBtn.className = "ebc-create-btn";
+                    addTrigBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:9px;";
+                    addTrigBtn.textContent = "+ Add Trigger";
+                    addTrigBtn.addEventListener("click", () => {
+                        const match = matchInp.value.trim();
+                        const presetId = presetSel.value;
+                        if (!match || !presetId) {
+                            addTrigBtn.textContent = "Fill in match text and preset!";
+                            window.setTimeout(() => { addTrigBtn.textContent = "+ Add Trigger"; }, 1500);
+                            return;
+                        }
+                        const newTrig = {
+                            id: Math.random().toString(36).slice(2, 9),
+                            name: nameInp.value.trim() || match.slice(0, 15),
+                            matchText: match,
+                            presetId,
+                            durationMs: Math.max(0, parseInt(durInp.value) || 0) * 1000,
+                        };
+                        saveExpressionTriggers([...getExpressionTriggers(), newTrig]);
+                        renderTrigList();
+                    });
+                    trigBody.appendChild(addTrigBtn);
+                };
+                renderTrigList();
             }
         }
         renderThanks() {
@@ -29017,7 +29403,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.4.2";
+    const MOD_VERSION = "2.4.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29028,6 +29414,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.4.3",
+            changes: [
+                "Expression presets: default face — mark one preset with ★ to designate it as your default face. Timed expressions and triggers revert to it automatically.",
+                "Expression presets → sidebar buttons: each preset in the FACE tab has a → button that pins it as a full-face quick-key in the active sidebar category. The slot editor in the BUTTONS tab shows a preset picker and a 'revert after N seconds' field for these buttons. Default revert is 5 s.",
+                "Expression triggers: new collapsible TRIGGERS section at the bottom of the FACE tab. Define a match text (e.g. 'whimpers') and a preset — whenever you send a chat message containing that text (case-insensitive), the preset is applied and reverts to your default face after the set duration. First matching trigger per message fires.",
+            ],
+        },
         {
             version: "2.4.2",
             changes: [
@@ -33222,6 +33616,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         input.value = "";
                     return;
                 }
+                // Expression triggers — check outgoing message against saved triggers.
+                // Uses `raw` (pre-OOC-prefix) so the match text is never mangled.
+                try {
+                    if (raw.trim())
+                        checkExpressionTriggers(raw);
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
                 // OOC mode: prepend "(" to normal messages.
                 // Skip commands (/), emotes (*), and already-OOC messages (().
                 if (input && getOocEnabled()) {
@@ -33231,7 +33632,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                 }
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return next(args);
         });
         try {

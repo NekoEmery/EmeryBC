@@ -17,11 +17,12 @@ import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBee
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC } from "./modules/bcUtils";
+import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.4.2";
+const MOD_VERSION = "2.4.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -35,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.4.3",
+        changes: [
+            "Expression presets: default face — mark one preset with ★ to designate it as your default face. Timed expressions and triggers revert to it automatically.",
+            "Expression presets → sidebar buttons: each preset in the FACE tab has a → button that pins it as a full-face quick-key in the active sidebar category. The slot editor in the BUTTONS tab shows a preset picker and a 'revert after N seconds' field for these buttons. Default revert is 5 s.",
+            "Expression triggers: new collapsible TRIGGERS section at the bottom of the FACE tab. Define a match text (e.g. 'whimpers') and a preset — whenever you send a chat message containing that text (case-insensitive), the preset is applied and reverts to your default face after the set duration. First matching trigger per message fires.",
+        ],
+    },
     {
         version: "2.4.2",
         changes: [
@@ -4138,6 +4147,9 @@ function init(): void {
                 if (input) input.value = "";
                 return;
             }
+            // Expression triggers — check outgoing message against saved triggers.
+            // Uses `raw` (pre-OOC-prefix) so the match text is never mangled.
+            try { if (raw.trim()) checkExpressionTriggers(raw); } catch { /* ignore */ }
             // OOC mode: prepend "(" to normal messages.
             // Skip commands (/), emotes (*), and already-OOC messages (().
             if (input && getOocEnabled()) {

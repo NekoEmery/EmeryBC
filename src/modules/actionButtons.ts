@@ -1,21 +1,23 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
 import { callBC, syncSettings } from "./bcUtils";
-import { applyExprGroup } from "./expressions";
+import { applyExprGroup, applyExprPresetWithRevert } from "./expressions";
 
-export type ActionStyle = "action" | "emote" | "seq" | "expression";
+export type ActionStyle = "action" | "emote" | "seq" | "expression" | "exprPreset";
 // "action"     = (Name text)
 // "emote"      = * Name text *
 // "seq"        = pose/action sequence (pipe-separated steps)
-// "expression" = facial expression; emote field = "Group:ExpressionName"
+// "expression" = single facial expression; emote field = "Group:ExpressionName"
+// "exprPreset" = full preset; emote field = preset ID; exprRevertMs = auto-revert delay
 
 export interface ActionButton {
     label:   string;
-    emote:   string;   // for "seq" style: pipe-separated sequence steps
+    emote:   string;   // for "seq": pipe-separated steps; for "exprPreset": preset ID; for "expression": "Group:Name"
     color:   string;
     enabled: boolean;
     style:   ActionStyle;
     includeNameInAnnounce?: boolean; // default true; only applies to "action" style
+    exprRevertMs?: number;           // "exprPreset" only: ms before reverting to default face (0 = stay)
 }
 
 export const DEFAULT_BUTTONS: ActionButton[] = [
@@ -652,7 +654,12 @@ export function handleActionButtonClick(): boolean {
         const y = btnStartY + i * BTN_SIZE;
         if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
             my >= y         && my <= y + BTN_SIZE) {
-            if ((btn.style ?? "action") === "expression") {
+            const btnStyle = btn.style ?? "action";
+            if (btnStyle === "exprPreset") {
+                try { applyExprPresetWithRevert(btn.emote, btn.exprRevertMs ?? 0); } catch { /* ignore */ }
+                return true;
+            }
+            if (btnStyle === "expression") {
                 // emote field encodes "Group:ExpressionName"
                 const sep = btn.emote.indexOf(":");
                 if (sep !== -1) {

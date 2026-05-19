@@ -174,6 +174,102 @@ export function createExpressionSequence(name: string, steps: ExprSequenceStep[]
     return { id: uid(), name: name || "Sequence", steps };
 }
 
+// -- Default expression preset -------------------------------------------------
+// The preset the user reverts to after a timed expression or trigger fires.
+// null = clear all groups back to neutral.
+
+export function getDefaultExprPresetId(): string | null {
+    try {
+        const v = getStore()?.defaultExprPresetId;
+        return typeof v === "string" && v ? v : null;
+    } catch { return null; }
+}
+
+export function setDefaultExprPresetId(id: string | null): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        if (id) { store.defaultExprPresetId = id; } else { delete store.defaultExprPresetId; }
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+// -- Expression triggers -------------------------------------------------------
+// When the player sends an outgoing chat message whose text contains matchText
+// (case-insensitive), the named preset is applied for durationMs ms, then the
+// face reverts to the default preset (or clears to neutral if none is set).
+
+export interface ExpressionTrigger {
+    id: string;
+    name: string;       // user label e.g. "Whimper"
+    matchText: string;  // substring to match in outgoing chat (case-insensitive)
+    presetId: string;   // which preset to apply
+    durationMs: number; // ms before reverting (0 = stay permanently)
+}
+
+export function getExpressionTriggers(): ExpressionTrigger[] {
+    try {
+        const v = getStore()?.expressionTriggers;
+        return Array.isArray(v) ? (v as ExpressionTrigger[]) : [];
+    } catch { return []; }
+}
+
+export function saveExpressionTriggers(triggers: ExpressionTrigger[]): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.expressionTriggers = triggers;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+// -- Timed expression revert ---------------------------------------------------
+
+let _revertTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function cancelExpressionRevert(): void {
+    if (_revertTimer !== null) { clearTimeout(_revertTimer); _revertTimer = null; }
+}
+
+/** Apply a preset, then after revertMs ms revert to the default preset
+ *  (or clear all groups if no default is set). revertMs = 0 means stay forever. */
+export function applyExprPresetWithRevert(presetId: string, revertMs: number): void {
+    const preset = getExpressionPresets().find(p => p.id === presetId);
+    if (!preset) return;
+    cancelExpressionRevert();
+    applyExpressionPreset(preset);
+    if (revertMs > 0) {
+        _revertTimer = setTimeout(() => {
+            _revertTimer = null;
+            const defaultId = getDefaultExprPresetId();
+            if (defaultId) {
+                const defPreset = getExpressionPresets().find(p => p.id === defaultId);
+                if (defPreset) { applyExpressionPreset(defPreset); return; }
+            }
+            // No default — clear all expression groups back to neutral
+            for (const g of EXPR_GROUPS) {
+                try { applyExprGroup(g, null); } catch { /* ignore */ }
+            }
+        }, revertMs);
+    }
+}
+
+// -- Trigger checker -----------------------------------------------------------
+// Call once per outgoing chat message. First matching trigger fires.
+
+export function checkExpressionTriggers(message: string): void {
+    const triggers = getExpressionTriggers();
+    if (!triggers.length) return;
+    const lower = message.toLowerCase();
+    for (const trigger of triggers) {
+        if (!trigger.matchText || !trigger.presetId) continue;
+        if (lower.includes(trigger.matchText.toLowerCase())) {
+            applyExprPresetWithRevert(trigger.presetId, trigger.durationMs);
+            break; // first match wins per message
+        }
+    }
+}
+
 let _seqRunning = false;
 export function isSeqRunning(): boolean { return _seqRunning; }
 
