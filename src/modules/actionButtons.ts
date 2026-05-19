@@ -71,8 +71,10 @@ export function getCategories(): ButtonCategory[] {
             for (const btn of cat.buttons as ActionButton[]) {
                 const s = btn.style as string;
                 if (s === "expression" || s === "exprPreset") {
-                    btn.style = "action";
-                    btn.emote = "";
+                    btn.style   = "action";
+                    btn.emote   = "";
+                    btn.label   = "";
+                    btn.enabled = false;
                     didMigrate = true;
                 }
             }
