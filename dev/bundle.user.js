@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.5.11
+// @version      2.5.12
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15206,6 +15206,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
             // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
             this._langUnsubscribe = null;
+            this._langPillsRefresh = null;
             this._i18nRefs = {};
             EBCDrawer._instance = this;
             this.version = version;
@@ -15302,45 +15303,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             resetLocBtn.textContent = t("header.resetPos");
             resetLocBtn.style.display = "none"; // hidden until panel is in free-float mode
             this.resetLocationBtn = resetLocBtn;
-            // Language switcher — compact select in header button area
-            const langSelect = document.createElement("select");
-            langSelect.title = t("header.language");
-            langSelect.style.cssText = [
-                "font-family:'Trebuchet MS',serif",
-                "font-size:9px",
-                "background:#1a0812",
-                "color:#b08898",
-                "border:1px solid #3a1928",
-                "border-radius:4px",
-                "padding:2px 3px",
-                "cursor:pointer",
-                "outline:none",
-                "flex-shrink:0",
-            ].join(";");
-            for (const code of LANG_CODES) {
-                const opt = document.createElement("option");
-                opt.value = code;
-                opt.textContent = LANG_NAMES[code];
-                if (code === getLanguage())
-                    opt.selected = true;
-                langSelect.appendChild(opt);
-            }
-            langSelect.addEventListener("change", () => {
-                setLanguage(langSelect.value);
-            });
             const closeBtn = document.createElement("button");
             closeBtn.className = "ebc-icon-btn";
             closeBtn.title = t("header.close");
             closeBtn.textContent = "X";
-            // Store refs for later translation updates
+            // Store refs for later translation updates (langSelect ref stored after pill row is built below)
             this._i18nRefs.refreshBtn = refreshBtn;
             this._i18nRefs.moveHandle = moveHandle;
             this._i18nRefs.resetLocBtn = resetLocBtn;
             this._i18nRefs.closeBtn = closeBtn;
-            this._i18nRefs.langSelect = langSelect;
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
-            headerBtns.appendChild(langSelect);
             headerBtns.appendChild(resetLocBtn);
             headerBtns.appendChild(closeBtn);
             header.appendChild(title);
@@ -15349,8 +15322,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // In anchored mode it drags to detach the panel; after 5px movement the panel
             // enters free-float mode and follows the cursor from that point.
             addPointerDown(header, (start, e) => {
-                // Don't interfere with button clicks inside the header
-                if (e.target.closest("button"))
+                // Don't interfere with button or interactive element clicks inside the header
+                if (e.target.closest("button, select, input, a"))
                     return;
                 e.preventDefault();
                 const panelEl = slideContainer;
@@ -15457,6 +15430,48 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tabBar.appendChild(domTabBtn);
             tabBar.appendChild(puppyTabBtn);
             tabBar.appendChild(kittyTabBtn);
+            // ── Language picker row — sits between tab bar and quick-actions ─────
+            const langRow = document.createElement("div");
+            langRow.style.cssText = "display:flex;align-items:center;gap:3px;padding:3px 6px 3px;border-bottom:1px solid #2a1020;background:rgba(15,6,12,0.4);flex-wrap:nowrap;";
+            const langIcon = document.createElement("span");
+            langIcon.textContent = "🌐";
+            langIcon.style.cssText = "font-size:10px;flex-shrink:0;opacity:0.7;";
+            langRow.appendChild(langIcon);
+            const langPills = [];
+            const refreshLangPills = () => {
+                const cur = getLanguage();
+                for (const pill of langPills) {
+                    const active = pill.dataset.lang === cur;
+                    pill.style.cssText = [
+                        "font-family:'Trebuchet MS',serif",
+                        "font-size:9px",
+                        "padding:2px 6px",
+                        "border-radius:10px",
+                        "cursor:pointer",
+                        "flex-shrink:0",
+                        "transition:background 0.12s,color 0.12s,border-color 0.12s",
+                        active
+                            ? "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;"
+                            : "border:1px solid #2a1020;background:transparent;color:#7a5060;",
+                    ].join(";");
+                }
+            };
+            for (const code of LANG_CODES) {
+                const pill = document.createElement("button");
+                pill.dataset.lang = code;
+                pill.textContent = LANG_NAMES[code];
+                pill.addEventListener("click", () => {
+                    setLanguage(code);
+                    refreshLangPills();
+                });
+                langPills.push(pill);
+                langRow.appendChild(pill);
+            }
+            refreshLangPills();
+            // Store the first pill as the ref anchor so updateStaticTranslations can call refreshLangPills
+            // We do this by adding a custom refresh to the _i18nRefs via a synthetic select-like object
+            // The simplest approach: expose refreshLangPills so updateStaticTranslations can call it
+            this._langPillsRefresh = refreshLangPills;
             // Quick actions bar (always visible below tabs)
             const quickActions = document.createElement("div");
             quickActions.className = "ebc-quick-actions";
@@ -16032,6 +16047,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.timerEl = timerEl;
             panel.appendChild(header);
             panel.appendChild(tabBar);
+            panel.appendChild(langRow);
             panel.appendChild(quickActions);
             panel.appendChild(selfPickPanel);
             panel.appendChild(safewordRow);
@@ -16610,7 +16626,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         /** Update every static element that was built once in setup() and never re-rendered. */
         updateStaticTranslations() {
-            var _a;
+            var _a, _b;
             const r = this._i18nRefs;
             // Header
             if (r.refreshBtn)
@@ -16623,14 +16639,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             if (r.closeBtn)
                 r.closeBtn.title = t("header.close");
-            if (r.langSelect)
-                r.langSelect.title = t("header.language");
-            // Sync the language select to the current language (in case programmatic change)
-            if (r.langSelect) {
-                for (const opt of Array.from(r.langSelect.options)) {
-                    opt.selected = opt.value === getLanguage();
-                }
-            }
+            // Sync language pill active state
+            (_a = this._langPillsRefresh) === null || _a === void 0 ? void 0 : _a.call(this);
             // Tabs
             if (r.tabOutfits)
                 r.tabOutfits.textContent = t("tabs.outfits");
@@ -16672,7 +16682,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (r.qaConfirmLbl)
                 r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
             if (r.qaConfirmToggle)
-                (_a = this.refreshConfirmToggle) === null || _a === void 0 ? void 0 : _a.call(this);
+                (_b = this.refreshConfirmToggle) === null || _b === void 0 ? void 0 : _b.call(this);
             if (r.pickBtn) {
                 r.pickBtn.textContent = t("qa.pickRestraints");
                 r.pickBtn.title = t("qa.pickTitle");
@@ -29787,7 +29797,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.5.11";
+    const MOD_VERSION = "2.5.12";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -29798,6 +29808,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.5.12",
+            changes: [
+                "Fix: language switcher moved out of the cramped header buttons row into its own pill-button row between the tab bar and quick-actions bar — 🌐 + one pill per language, active one highlighted pink.",
+                "Fix: header drag handler now also guards against select/input/a elements (not just button) so interactive elements inside the header receive their clicks correctly.",
+            ],
+        },
         {
             version: "2.5.11",
             changes: [
