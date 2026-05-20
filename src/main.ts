@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.3.0";
+const MOD_VERSION = "3.3.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.3.1",
+        changes: [
+            "Theme presets: replaced the 6 loosely-coloured presets with 8 fully cohesive themes — Rose (default), Sakura, Lavender, Ocean, Forest, Crimson, Amber, Obsidian. Each has backgrounds, borders, text and accent all tinted consistently around the same hue.",
+            "Colour slots: reorganised the 9 colour pickers into three labelled groups (Backgrounds / Accents / Text) with 3 slots each displayed in a 3-column grid. Each slot is renamed to describe what it visually affects ('Panel BG', 'Card BG', 'Input BG', 'Buttons/Tabs', 'Borders', 'Gold Details', 'Main Text', 'Label Text', 'Dim Text').",
+            "Beep chat: emoji picker expanded from 30 to 60 emojis, covering happy/sad faces, gestures, hearts, sparkle/celebration, and cute animals/nature.",
+        ],
+    },
     {
         version: "3.3.0",
         changes: [

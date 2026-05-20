@@ -396,14 +396,19 @@ const S: Record<string, T> = {
     "strip.styleBtnCat":    { en: "Cat",                       de: "Katze",                                zh: "猫",                       fr: "Chat",                                             es: "Gato",                                      ru: "Кошка",                           ja: "猫"                                 },
 
     // ─── THEMES ────────────────────────────────────────────────────────────
-    "theme.drawerBg":  { en: "Drawer BG",   de: "Schublade HG",      zh: "面板背景",        fr: "BG panneau",         es: "Fondo panel",          ru: "Фон панели",          ja: "パネル背景"                },
-    "theme.cardBg":    { en: "Card BG",     de: "Karte HG",          zh: "卡片背景",        fr: "BG carte",           es: "Fondo tarjeta",        ru: "Фон карточки",        ja: "カード背景"                },
-    "theme.insetBg":   { en: "Inset BG",    de: "Eingebettetes HG",  zh: "内嵌背景",        fr: "BG incrusté",        es: "Fondo interior",       ru: "Фон вставки",         ja: "インセット背景"            },
-    "theme.border":    { en: "Border",      de: "Rahmen",            zh: "边框",            fr: "Bordure",            es: "Borde",                ru: "Граница",             ja: "ボーダー"                  },
-    "theme.accent":    { en: "Accent",      de: "Akzent",            zh: "强调色",          fr: "Accent",             es: "Acento",               ru: "Акцент",              ja: "アクセント"                },
-    "theme.gold":      { en: "Gold",        de: "Gold",              zh: "金色",            fr: "Or",                 es: "Dorado",               ru: "Золото",              ja: "ゴールド"                  },
-    "theme.text":      { en: "Text",        de: "Text",              zh: "文字",            fr: "Texte",              es: "Texto",                ru: "Текст",               ja: "テキスト"                  },
-    "theme.subtext":   { en: "Subtext",     de: "Untertext",         zh: "副文字",          fr: "Sous-texte",         es: "Subtexto",             ru: "Подтекст",            ja: "サブテキスト"              },
+    // Group headers
+    "theme.groupBg":     { en: "Backgrounds",  de: "Hintergründe",       zh: "背景",            fr: "Arrière-plans",      es: "Fondos",               ru: "Фоны",                ja: "背景"                      },
+    "theme.groupAccent": { en: "Accents",       de: "Akzente",            zh: "强调",            fr: "Accents",            es: "Acentos",              ru: "Акценты",             ja: "アクセント"                },
+    "theme.groupText":   { en: "Text",          de: "Text",               zh: "文字",            fr: "Texte",              es: "Texto",                ru: "Текст",               ja: "テキスト"                  },
+    // Slot labels — named by what they visually affect, not their technical role
+    "theme.panelBg":   { en: "Panel BG",    de: "Panel HG",          zh: "面板背景",        fr: "Fond panneau",       es: "Fondo panel",          ru: "Фон панели",          ja: "パネル背景"                },
+    "theme.cardBg":    { en: "Card BG",     de: "Karte HG",          zh: "卡片背景",        fr: "Fond carte",         es: "Fondo tarjeta",        ru: "Фон карточки",        ja: "カード背景"                },
+    "theme.inputBg":   { en: "Input BG",    de: "Eingabe HG",        zh: "输入背景",        fr: "Fond saisie",        es: "Fondo entrada",        ru: "Фон поля",            ja: "入力背景"                  },
+    "theme.buttons":   { en: "Buttons/Tabs", de: "Buttons/Tabs",     zh: "按钮/标签",       fr: "Boutons/Onglets",    es: "Botones/Pestañas",     ru: "Кнопки/Вкладки",     ja: "ボタン/タブ"               },
+    "theme.borders":   { en: "Borders",     de: "Rahmen",            zh: "边框",            fr: "Bordures",           es: "Bordes",               ru: "Границы",             ja: "ボーダー"                  },
+    "theme.gold":      { en: "Gold Details", de: "Gold-Details",     zh: "金色细节",        fr: "Détails dorés",      es: "Detalles dorados",     ru: "Золотые детали",      ja: "ゴールド詳細"              },
+    "theme.mainText":  { en: "Main Text",   de: "Haupttext",         zh: "主文字",          fr: "Texte principal",    es: "Texto principal",      ru: "Основной текст",      ja: "メインテキスト"            },
+    "theme.labelText": { en: "Label Text",  de: "Beschriftung",      zh: "标签文字",        fr: "Texte étiquette",    es: "Texto etiqueta",       ru: "Текст метки",         ja: "ラベルテキスト"            },
     "theme.dimText":   { en: "Dim Text",    de: "Gedimmter Text",    zh: "暗文字",          fr: "Texte atténué",      es: "Texto atenuado",       ru: "Приглушённый текст",  ja: "薄いテキスト"              },
 };
 
