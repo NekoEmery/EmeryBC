@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.3.5";
+const MOD_VERSION = "3.3.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.3.6",
+        changes: [
+            "Guide: detached from the main panel — now opens as a floating side panel beside the EBC panel so the full menu stays visible while reading. Closes automatically when the panel closes.",
+            "DEV tab: added 'EBC Users in Room' collapsible section — lists every room member who has been detected running EBC this session, with their name, member number, and version badge. Includes a ↻ Refresh button.",
+        ],
+    },
     {
         version: "3.3.5",
         changes: [

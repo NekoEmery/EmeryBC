@@ -10583,6 +10583,25 @@
         var _a;
         return (_a = ebcVersionCache.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
     }
+    // Returns all session-cached EBC users filtered to those currently in the room.
+    function getEBCUsersInRoom() {
+        try {
+            const chars = (typeof ChatRoomCharacter !== "undefined" ? ChatRoomCharacter : []);
+            return chars
+                .filter(c => typeof c.MemberNumber === "number" && ebcVersionCache.has(c.MemberNumber))
+                .map(c => {
+                var _a;
+                return ({
+                    memberNumber: c.MemberNumber,
+                    name: String((_a = c.Name) !== null && _a !== void 0 ? _a : c.MemberNumber),
+                    version: ebcVersionCache.get(c.MemberNumber),
+                });
+            });
+        }
+        catch (_a) {
+            return [];
+        }
+    }
     function updateOnlineFriends(entries) {
         const prevOnline = new Set(onlineSet);
         onlineSet.clear();
@@ -15538,19 +15557,18 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-/* ── Interactive guide overlay ──────────────────────────────────────── */
-.ebc-guide-card {
-    position: absolute;
-    bottom: 52px;
-    left: 6px;
-    right: 6px;
+/* ── Interactive guide — floating side panel ────────────────────────── */
+/* Detached from the main panel so the full menu stays visible while reading. */
+.ebc-guide-side {
+    position: fixed;
+    width: 240px;
     background: #170810;
     border: 2px solid #cf6f98;
     border-left: 4px solid #cf6f98;
     border-radius: 10px;
     padding: 11px 13px 10px;
-    box-shadow: 0 6px 30px rgba(0,0,0,0.85), 0 0 0 1px rgba(207,111,152,0.12);
-    z-index: 999;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.9), 0 0 0 1px rgba(207,111,152,0.12);
+    z-index: 10010;
     font-family: "Trebuchet MS", serif;
     display: flex;
     flex-direction: column;
@@ -15595,7 +15613,7 @@
     font-size: 11px;
     color: #e0c8d8;
     line-height: 1.65;
-    max-height: 110px;
+    max-height: 280px;
     overflow-y: auto;
     padding-right: 3px;
 }
@@ -16864,13 +16882,8 @@
             while (panel.firstChild)
                 zoomWrapper.appendChild(panel.firstChild);
             panel.appendChild(zoomWrapper);
-            // Guide overlay card — appended to slideContainer (outside zoom wrapper) so it
-            // sits on top of all panel content and isn't clipped by the zoom wrapper.
-            const guideCard = document.createElement("div");
-            guideCard.className = "ebc-guide-card";
-            guideCard.style.display = "none";
-            slideContainer.appendChild(guideCard);
-            this.guideEl = guideCard;
+            // Guide is now a detached side panel (created dynamically in startGuide).
+            this.guideEl = null;
             // (slideContainer/root/body already anchored early in setup — see above)
             this.applyPanelOpacity();
             this.applyPanelZoom();
@@ -17366,8 +17379,31 @@
             catch ( /* ignore */_f) { /* ignore */ }
         }
         startGuide() {
-            if (!this.guideEl)
-                return;
+            var _a, _b, _c, _d;
+            // Tear down any previous instance
+            if (this.guideEl) {
+                this.guideEl.remove();
+                this.guideEl = null;
+            }
+            // Create the floating side panel and position it beside the EBC panel
+            const side = document.createElement("div");
+            side.className = "ebc-guide-side";
+            // Pick a side (prefer left; fall back to right if not enough room)
+            const panelRect = (_b = (_a = this.panelEl) === null || _a === void 0 ? void 0 : _a.getBoundingClientRect()) !== null && _b !== void 0 ? _b : { left: 0, right: 360, top: 60};
+            const gw = 248; // panel width + gap
+            let left;
+            if (panelRect.left >= gw + 4) {
+                left = panelRect.left - gw;
+            }
+            else {
+                left = ((_c = panelRect.right) !== null && _c !== void 0 ? _c : 360) + 8;
+            }
+            left = Math.max(4, Math.min(window.innerWidth - gw - 4, left));
+            const top = Math.max(4, Math.min(window.innerHeight - 60, (_d = panelRect.top) !== null && _d !== void 0 ? _d : 60));
+            side.style.left = `${left}px`;
+            side.style.top = `${top}px`;
+            document.body.appendChild(side);
+            this.guideEl = side;
             this.guideStep = 0;
             this.renderGuideStep();
         }
@@ -17499,8 +17535,10 @@
         }
         closeGuide() {
             this.clearGuideSpotlights();
-            if (this.guideEl)
-                this.guideEl.style.display = "none";
+            if (this.guideEl) {
+                this.guideEl.remove();
+                this.guideEl = null;
+            }
         }
         clearGuideSpotlights() {
             var _a;
@@ -25343,6 +25381,44 @@
             let renderRoom = () => { };
             let renderRlog = () => { };
             let renderMsgLog = () => { };
+            // ── EBC Users in Room ─────────────────────────────────────────────────
+            makeSection("EBC Users in Room", "EBC_devEBCUsersCollapsed", false, (cnt) => {
+                const renderEBCUsers = () => {
+                    while (cnt.firstChild)
+                        cnt.removeChild(cnt.firstChild);
+                    const users = getEBCUsersInRoom();
+                    const refreshBtn = document.createElement("button");
+                    refreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;background:transparent;border:1px solid #3a1928;border-radius:4px;padding:2px 8px;cursor:pointer;margin-bottom:6px;";
+                    refreshBtn.textContent = "↻ Refresh";
+                    refreshBtn.addEventListener("click", renderEBCUsers);
+                    cnt.appendChild(refreshBtn);
+                    if (!users.length) {
+                        const empty = document.createElement("div");
+                        empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4a58;padding:4px 2px;";
+                        empty.textContent = "No EBC users detected in room yet.";
+                        cnt.appendChild(empty);
+                        return;
+                    }
+                    for (const u of users) {
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:5px;margin-bottom:3px;";
+                        const nameEl = document.createElement("span");
+                        nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f0d8e8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                        nameEl.textContent = u.name;
+                        const idEl = document.createElement("span");
+                        idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+                        idEl.textContent = `#${u.memberNumber}`;
+                        const verEl = document.createElement("span");
+                        verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#cf6f98;flex-shrink:0;background:#2a0e1e;border:1px solid #6b3050;border-radius:4px;padding:1px 5px;";
+                        verEl.textContent = `v${u.version}`;
+                        row.appendChild(nameEl);
+                        row.appendChild(idEl);
+                        row.appendChild(verEl);
+                        cnt.appendChild(row);
+                    }
+                };
+                renderEBCUsers();
+            });
             makeSection(t("dev.logs"), "EBC_devLogSectionCollapsed", true, (cnt) => {
                 // -- shared helpers --
                 const fmtDuration = (ms) => {
@@ -31371,6 +31447,7 @@
             var _a;
             if (!this.panelEl)
                 return;
+            this.closeGuide(); // remove floating guide side panel if open
             this.stopDevLogPoller();
             this.isOpen = false;
             // Panel is closing — clip tab so it no longer blocks the BC canvas
@@ -31389,6 +31466,7 @@
         // -- Lifecycle -------------------------------------------------------------
         destroy() {
             var _a, _b;
+            this.closeGuide();
             (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
             this.stopCrabsPoller();
             this.stopTimerPoller();
@@ -31501,7 +31579,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.5";
+    const MOD_VERSION = "3.3.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31512,6 +31590,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.6",
+            changes: [
+                "Guide: detached from the main panel — now opens as a floating side panel beside the EBC panel so the full menu stays visible while reading. Closes automatically when the panel closes.",
+                "DEV tab: added 'EBC Users in Room' collapsible section — lists every room member who has been detected running EBC this session, with their name, member number, and version badge. Includes a ↻ Refresh button.",
+            ],
+        },
         {
             version: "3.3.5",
             changes: [

@@ -92,7 +92,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, getEBCUsersInRoom, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings } from "./bcUtils";
@@ -2830,19 +2830,18 @@ const CSS = `
     -webkit-tap-highlight-color: transparent;
 }
 
-/* ── Interactive guide overlay ──────────────────────────────────────── */
-.ebc-guide-card {
-    position: absolute;
-    bottom: 52px;
-    left: 6px;
-    right: 6px;
+/* ── Interactive guide — floating side panel ────────────────────────── */
+/* Detached from the main panel so the full menu stays visible while reading. */
+.ebc-guide-side {
+    position: fixed;
+    width: 240px;
     background: #170810;
     border: 2px solid #cf6f98;
     border-left: 4px solid #cf6f98;
     border-radius: 10px;
     padding: 11px 13px 10px;
-    box-shadow: 0 6px 30px rgba(0,0,0,0.85), 0 0 0 1px rgba(207,111,152,0.12);
-    z-index: 999;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.9), 0 0 0 1px rgba(207,111,152,0.12);
+    z-index: 10010;
     font-family: "Trebuchet MS", serif;
     display: flex;
     flex-direction: column;
@@ -2887,7 +2886,7 @@ const CSS = `
     font-size: 11px;
     color: #e0c8d8;
     line-height: 1.65;
-    max-height: 110px;
+    max-height: 280px;
     overflow-y: auto;
     padding-right: 3px;
 }
@@ -4300,13 +4299,8 @@ export class EBCDrawer {
         while (panel.firstChild) zoomWrapper.appendChild(panel.firstChild);
         panel.appendChild(zoomWrapper);
 
-        // Guide overlay card — appended to slideContainer (outside zoom wrapper) so it
-        // sits on top of all panel content and isn't clipped by the zoom wrapper.
-        const guideCard = document.createElement("div");
-        guideCard.className = "ebc-guide-card";
-        guideCard.style.display = "none";
-        slideContainer.appendChild(guideCard);
-        this.guideEl = guideCard;
+        // Guide is now a detached side panel (created dynamically in startGuide).
+        this.guideEl = null;
 
         // (slideContainer/root/body already anchored early in setup — see above)
         this.applyPanelOpacity();
@@ -4877,7 +4871,30 @@ export class EBCDrawer {
     ];
 
     private startGuide(): void {
-        if (!this.guideEl) return;
+        // Tear down any previous instance
+        if (this.guideEl) { this.guideEl.remove(); this.guideEl = null; }
+
+        // Create the floating side panel and position it beside the EBC panel
+        const side = document.createElement("div");
+        side.className = "ebc-guide-side";
+
+        // Pick a side (prefer left; fall back to right if not enough room)
+        const panelRect = this.panelEl?.getBoundingClientRect() ?? { left: 0, right: 360, top: 60, bottom: 700 };
+        const gw = 248; // panel width + gap
+        let left: number;
+        if (panelRect.left >= gw + 4) {
+            left = panelRect.left - gw;
+        } else {
+            left = (panelRect.right ?? 360) + 8;
+        }
+        left = Math.max(4, Math.min(window.innerWidth - gw - 4, left));
+        const top  = Math.max(4, Math.min(window.innerHeight - 60, panelRect.top ?? 60));
+
+        side.style.left = `${left}px`;
+        side.style.top  = `${top}px`;
+
+        document.body.appendChild(side);
+        this.guideEl   = side;
         this.guideStep = 0;
         this.renderGuideStep();
     }
@@ -5023,7 +5040,7 @@ export class EBCDrawer {
 
     private closeGuide(): void {
         this.clearGuideSpotlights();
-        if (this.guideEl) this.guideEl.style.display = "none";
+        if (this.guideEl) { this.guideEl.remove(); this.guideEl = null; }
     }
 
     private clearGuideSpotlights(): void {
@@ -13002,6 +13019,51 @@ export class EBCDrawer {
         let renderRlog:   () => void = () => { /* populated below */ };
         let renderMsgLog: () => void = () => { /* populated below */ };
 
+        // ── EBC Users in Room ─────────────────────────────────────────────────
+        makeSection("EBC Users in Room", "EBC_devEBCUsersCollapsed", false, (cnt) => {
+            const renderEBCUsers = (): void => {
+                while (cnt.firstChild) cnt.removeChild(cnt.firstChild);
+                const users = getEBCUsersInRoom();
+
+                const refreshBtn = document.createElement("button");
+                refreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;background:transparent;border:1px solid #3a1928;border-radius:4px;padding:2px 8px;cursor:pointer;margin-bottom:6px;";
+                refreshBtn.textContent = "↻ Refresh";
+                refreshBtn.addEventListener("click", renderEBCUsers);
+                cnt.appendChild(refreshBtn);
+
+                if (!users.length) {
+                    const empty = document.createElement("div");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4a58;padding:4px 2px;";
+                    empty.textContent = "No EBC users detected in room yet.";
+                    cnt.appendChild(empty);
+                    return;
+                }
+
+                for (const u of users) {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:5px;margin-bottom:3px;";
+
+                    const nameEl = document.createElement("span");
+                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f0d8e8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameEl.textContent = u.name;
+
+                    const idEl = document.createElement("span");
+                    idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
+                    idEl.textContent = `#${u.memberNumber}`;
+
+                    const verEl = document.createElement("span");
+                    verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#cf6f98;flex-shrink:0;background:#2a0e1e;border:1px solid #6b3050;border-radius:4px;padding:1px 5px;";
+                    verEl.textContent = `v${u.version}`;
+
+                    row.appendChild(nameEl);
+                    row.appendChild(idEl);
+                    row.appendChild(verEl);
+                    cnt.appendChild(row);
+                }
+            };
+            renderEBCUsers();
+        });
+
         makeSection(t("dev.logs"), "EBC_devLogSectionCollapsed", true, (cnt) => {
             // -- shared helpers --
             const fmtDuration = (ms: number): string => {
@@ -18535,6 +18597,7 @@ export class EBCDrawer {
 
     public close(): void {
         if (!this.panelEl) return;
+        this.closeGuide();      // remove floating guide side panel if open
         this.stopDevLogPoller();
         this.isOpen = false;
 
@@ -18554,6 +18617,7 @@ export class EBCDrawer {
     // -- Lifecycle -------------------------------------------------------------
 
     public destroy(): void {
+        this.closeGuide();
         this.resizeObserver?.disconnect();
         this.stopCrabsPoller();
         this.stopTimerPoller();
