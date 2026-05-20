@@ -367,6 +367,20 @@ export function setBadgeScale(v: number): void {
     try { const s = getStore(); if (s) { s.badgeScale = Math.max(0.3, Math.min(4, v)); syncSettings(); } } catch { /* ignore */ }
 }
 
+// -- Badge opacity -------------------------------------------------------------
+// Controls how transparent the overhead badge is. 1.0 = fully opaque, 0.1 = nearly invisible.
+// Range: 0.1 – 1.0. Default: 1.0.
+
+export function getBadgeOpacity(): number {
+    try {
+        const v = getStore()?.badgeOpacity;
+        return typeof v === "number" && v >= 0.1 && v <= 1 ? v : 1.0;
+    } catch { return 1.0; }
+}
+export function setBadgeOpacity(v: number): void {
+    try { const s = getStore(); if (s) { s.badgeOpacity = Math.max(0.1, Math.min(1, v)); syncSettings(); } } catch { /* ignore */ }
+}
+
 // -- Badge position offset (character-relative) --------------------------------
 // Stored as offsets from the character's draw origin (left, top), in
 // character-local canvas pixels — multiplied by zoom when drawing.

@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeOpacity, setBadgeOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4276,8 +4276,8 @@ export class EBCDrawer {
         ebcTagsBody.appendChild(badgeDivider);
 
         const badgeAppLbl = document.createElement("div");
-        badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.08em;color:#9a6878;margin-bottom:6px;";
-        badgeAppLbl.textContent = t("strip.badgeAppearance");
+        badgeAppLbl.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
+        badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
         ebcTagsBody.appendChild(badgeAppLbl);
 
         // ── Style picker: Text | Cat ─────────────────────────────────────────
@@ -4357,12 +4357,44 @@ export class EBCDrawer {
         scaleRow.appendChild(scaleVal);
         ebcTagsBody.appendChild(scaleRow);
 
+        // ── Opacity slider ────────────────────────────────────────────────────
+        const opacityRow = document.createElement("div");
+        opacityRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+
+        const opacityLbl = document.createElement("span");
+        opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
+        opacityLbl.textContent = t("strip.opacity");
+
+        const opacitySlider = document.createElement("input");
+        opacitySlider.type  = "range";
+        opacitySlider.min   = "0.1";
+        opacitySlider.max   = "1";
+        opacitySlider.step  = "0.05";
+        opacitySlider.value = String(getBadgeOpacity());
+        opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+        opacitySlider.title = "Badge opacity (1 = fully opaque)";
+
+        const opacityVal = document.createElement("span");
+        opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+        opacityVal.textContent = Math.round(getBadgeOpacity() * 100) + "%";
+
+        opacitySlider.addEventListener("input", () => {
+            const v = parseFloat(opacitySlider.value);
+            setBadgeOpacity(v);
+            opacityVal.textContent = Math.round(v * 100) + "%";
+        });
+
+        opacityRow.appendChild(opacityLbl);
+        opacityRow.appendChild(opacitySlider);
+        opacityRow.appendChild(opacityVal);
+        ebcTagsBody.appendChild(opacityRow);
+
         // ── Position drag row ─────────────────────────────────────────────────
         const posRow = document.createElement("div");
         posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
 
         const posHint = document.createElement("span");
-        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex:1;line-height:1.35;";
+        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex:1;line-height:1.35;";
         posHint.textContent = t("strip.dragHint");
 
         const dragBtn = document.createElement("button");
