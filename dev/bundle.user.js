@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.1.0
+// @version      3.1.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -2009,6 +2009,53 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function resetBadgePosition() {
         setBadgeOffsetX(250);
         setBadgeOffsetY(72);
+    }
+    // -- Version text offset (cat mode — drawn separately from cat icon) -----------
+    // Independent X/Y position for the floating version label when badge style is
+    // "cat" and version display is enabled. Defaults: X=250, Y=95 (just below cat).
+    function getVersionTextOffsetX() {
+        var _a;
+        try {
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetX;
+            return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250;
+        }
+        catch (_b) {
+            return 250;
+        }
+    }
+    function setVersionTextOffsetX(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.versionTextOffsetX = Math.round(v);
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getVersionTextOffsetY() {
+        var _a;
+        try {
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetY;
+            return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 95;
+        }
+        catch (_b) {
+            return 95;
+        }
+    }
+    function setVersionTextOffsetY(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.versionTextOffsetY = Math.round(v);
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function resetVersionTextPosition() {
+        setVersionTextOffsetX(250);
+        setVersionTextOffsetY(95);
     }
     // -- Badge drag mode (in-memory only, never persisted) -------------------------
     // When true: a dashed ring appears on your own badge in the chatroom canvas,
@@ -16625,18 +16672,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Card row
             const ebcTagsCardRow = document.createElement("div");
             ebcTagsCardRow.style.cssText = "display:flex;gap:7px;";
-            const makeTagCard = (icon, label, sublabel, getVal, setVal, container) => {
+            const makeTagCard = (label, sublabel, getVal, setVal, container) => {
                 const card = document.createElement("div");
                 card.title = sublabel;
                 const cardTop = document.createElement("div");
                 cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
-                const cardIcon = document.createElement("span");
-                cardIcon.style.fontSize = "12px";
-                cardIcon.textContent = icon;
                 const cardLabel = document.createElement("span");
                 cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;";
                 cardLabel.textContent = label;
-                cardTop.appendChild(cardIcon);
                 cardTop.appendChild(cardLabel);
                 const cardSub = document.createElement("div");
                 cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.4;margin-bottom:6px;";
@@ -16665,8 +16708,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
                 container.appendChild(card);
             };
-            makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
-            makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
+            makeTagCard(t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
+            makeTagCard(t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
             ebcTagsBody.appendChild(ebcTagsCardRow);
             // ── Version display row ───────────────────────────────────────────────
             const versionRowLbl = document.createElement("div");
@@ -16675,8 +16718,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsBody.appendChild(versionRowLbl);
             const versionCardRow = document.createElement("div");
             versionCardRow.style.cssText = "display:flex;gap:7px;";
-            makeTagCard("v", t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
-            makeTagCard("v", t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
+            makeTagCard(t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
+            makeTagCard(t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
             ebcTagsBody.appendChild(versionCardRow);
             // ── Badge Appearance ─────────────────────────────────────────────────
             const badgeDivider = document.createElement("div");
@@ -16824,6 +16867,50 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             posRow.appendChild(dragBtn);
             posRow.appendChild(resetPosBtn);
             ebcTagsBody.appendChild(posRow);
+            // ── Cat icon X/Y numeric inputs ───────────────────────────────────────
+            const makePosInputRow = (rowLabel, getX, setX, getY, setY, resetFn) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:30px;";
+                lbl.textContent = rowLabel;
+                const xLbl = document.createElement("span");
+                xLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
+                xLbl.textContent = "X";
+                const xIn = document.createElement("input");
+                xIn.type = "number";
+                xIn.min = "-500";
+                xIn.max = "1000";
+                xIn.step = "1";
+                xIn.value = String(getX());
+                xIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
+                xIn.addEventListener("input", () => setX(Number(xIn.value)));
+                const yLbl = document.createElement("span");
+                yLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
+                yLbl.textContent = "Y";
+                const yIn = document.createElement("input");
+                yIn.type = "number";
+                yIn.min = "-200";
+                yIn.max = "900";
+                yIn.step = "1";
+                yIn.value = String(getY());
+                yIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
+                yIn.addEventListener("input", () => setY(Number(yIn.value)));
+                const resetBtn = document.createElement("button");
+                resetBtn.textContent = "⟳";
+                resetBtn.title = "Reset to default";
+                resetBtn.style.cssText = "font-size:12px;padding:2px 6px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;";
+                resetBtn.addEventListener("click", () => { resetFn(); xIn.value = String(getX()); yIn.value = String(getY()); });
+                row.appendChild(lbl);
+                row.appendChild(xLbl);
+                row.appendChild(xIn);
+                row.appendChild(yLbl);
+                row.appendChild(yIn);
+                row.appendChild(resetBtn);
+                ebcTagsBody.appendChild(row);
+            };
+            makePosInputRow("Icon", getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, resetBadgePosition);
+            makePosInputRow("Ver.", getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition);
             ebcTagsStrip.appendChild(ebcTagsBody);
             const updateEbcTagsCollapse = () => {
                 ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
@@ -30812,7 +30899,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.1.0";
+    const MOD_VERSION = "3.1.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30823,6 +30910,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.1.1",
+            changes: [
+                "Remove emoji icons from badge toggle cards (My tag, Others, My version, Others' ver.).",
+                "Cat style: version text now renders as a separate floating label when version display is enabled, independent of the cat icon.",
+                "New position controls: Icon X/Y and Ver. X/Y number inputs in the badge settings strip for precise positioning of both elements independently.",
+            ],
+        },
         {
             version: "3.1.0",
             changes: [
@@ -34988,6 +35083,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     roundRect();
                     ctx.stroke();
                     ctx.shadowColor = "transparent";
+                }
+                // ── Version text label (cat mode + version enabled) ───────────────
+                if (showVer) {
+                    const vx = left + getVersionTextOffsetX() * zoom;
+                    const vy = top + getVersionTextOffsetY() * zoom;
+                    const fontSize = Math.max(7, Math.round(9 * zoom * userScale));
+                    ctx.font = `bold ${fontSize}px "Trebuchet MS",serif`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillStyle = isDevUser ? "#ffb060" : "#cf6f98";
+                    ctx.fillText(isDevUser ? "dev | v" + verStr : "v" + verStr, vx, vy);
                 }
                 ctx.restore();
             }
