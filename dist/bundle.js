@@ -29995,6 +29995,13 @@
                 const reason = document.createElement("span");
                 reason.className = "ebc-thanks-reason";
                 reason.textContent = p.reason;
+                if (isPawCard) {
+                    const aboveName = document.createElement("span");
+                    aboveName.className = "ebc-thanks-paw-icon";
+                    aboveName.style.cssText = "font-size:11px;line-height:1;margin-bottom:1px;display:block;";
+                    aboveName.textContent = "🐾";
+                    info.appendChild(aboveName);
+                }
                 info.appendChild(nameRow);
                 info.appendChild(reason);
                 const heart = document.createElement("span");
@@ -31387,7 +31394,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.2.7";
+    const MOD_VERSION = "3.2.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31398,6 +31405,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.2.8",
+            changes: [
+                "Credits: Emery's card now shows a small golden flashing paw directly above the name, always visible.",
+            ],
+        },
         {
             version: "3.2.7",
             changes: [

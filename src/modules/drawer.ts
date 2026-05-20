@@ -17144,6 +17144,13 @@ export class EBCDrawer {
             reason.className = "ebc-thanks-reason";
             reason.textContent = p.reason;
 
+            if (isPawCard) {
+                const aboveName = document.createElement("span");
+                aboveName.className = "ebc-thanks-paw-icon";
+                aboveName.style.cssText = "font-size:11px;line-height:1;margin-bottom:1px;display:block;";
+                aboveName.textContent = "🐾";
+                info.appendChild(aboveName);
+            }
             info.appendChild(nameRow);
             info.appendChild(reason);
 
