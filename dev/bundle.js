@@ -16591,7 +16591,7 @@
             ebcTagsHdrIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
             const ebcTagsHdrLabel = document.createElement("span");
             ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-            ebcTagsHdrLabel.textContent = "EBC";
+            ebcTagsHdrLabel.textContent = "EBC Tag Settings";
             ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
             ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
             // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
@@ -16673,23 +16673,15 @@
             badgeAppLbl.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
             badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
             ebcTagsBody.appendChild(badgeAppLbl);
-            // ── Style picker: Text | Cat (shared helper) ─────────────────────────
-            const EBC_SVG_14 = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 90 90" style="flex-shrink:0;vertical-align:middle"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
             // Builds a Text|Cat row and appends it to the given parent.
             // getter/setter allow the same helper to drive both "mine" and "others'" rows.
             const buildStyleRow = (getter, setter) => {
                 const row = document.createElement("div");
                 row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
-                const makeBtn = (styleName, iconHtml, labelText) => {
+                const makeBtn = (styleName, labelText) => {
                     const btn = document.createElement("button");
-                    btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;display:inline-flex;align-items:center;justify-content:center;gap:5px;";
-                    const iconWrap = document.createElement("span");
-                    iconWrap.style.cssText = "line-height:0;flex-shrink:0;";
-                    iconWrap.innerHTML = iconHtml;
-                    const txtNode = document.createElement("span");
-                    txtNode.textContent = labelText;
-                    btn.appendChild(iconWrap);
-                    btn.appendChild(txtNode);
+                    btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                    btn.textContent = labelText;
                     const refresh = () => {
                         const active = getter() === styleName;
                         btn.style.background = active ? "#2e1020" : "#150a10";
@@ -16706,8 +16698,8 @@
                     btn.addEventListener("ebc-refresh", refresh);
                     return btn;
                 };
-                row.appendChild(makeBtn("text", "🏷", "Text"));
-                row.appendChild(makeBtn("cat", EBC_SVG_14, "Cat"));
+                row.appendChild(makeBtn("text", "Text"));
+                row.appendChild(makeBtn("cat", "Cat"));
                 ebcTagsBody.appendChild(row);
             };
             // "Mine:" label
@@ -30807,7 +30799,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.7";
+    const MOD_VERSION = "2.10.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30818,6 +30810,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.10.8",
+            changes: [
+                "Style picker buttons (Text / Cat) now show plain text only — removed the label icon and EBC SVG icon from those buttons.",
+                "EBC tag strip header renamed from 'EBC' to 'EBC Tag Settings'.",
+                "Cat badge: draws an orange rounded-rect outline around the cat icon when the player is on a dev build; no outline for normal users.",
+            ],
+        },
         {
             version: "2.10.7",
             changes: [
@@ -34931,6 +34931,25 @@
                 ctx.save();
                 ctx.globalAlpha = badgeTextOp;
                 ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+                if (isDevUser) {
+                    const bx = x - size / 2;
+                    const by = y - size / 2;
+                    const r = size * 0.2;
+                    ctx.strokeStyle = "#ff8800";
+                    ctx.lineWidth = Math.max(2, Math.round(size * 0.1));
+                    ctx.beginPath();
+                    ctx.moveTo(bx + r, by);
+                    ctx.lineTo(bx + size - r, by);
+                    ctx.arcTo(bx + size, by, bx + size, by + r, r);
+                    ctx.lineTo(bx + size, by + size - r);
+                    ctx.arcTo(bx + size, by + size, bx + size - r, by + size, r);
+                    ctx.lineTo(bx + r, by + size);
+                    ctx.arcTo(bx, by + size, bx, by + size - r, r);
+                    ctx.lineTo(bx, by + r);
+                    ctx.arcTo(bx, by, bx + r, by, r);
+                    ctx.closePath();
+                    ctx.stroke();
+                }
                 ctx.restore();
             }
         }
