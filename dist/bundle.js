@@ -31579,7 +31579,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.6";
+    const MOD_VERSION = "3.3.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31590,6 +31590,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.7",
+            changes: [
+                "Creator mark: golden paw is now drawn just above Emery's character name on the BC canvas, visible to all EBC users in the room. Previously only visible to dev-build users and positioned near the badge — now anchored to the name position and always shown regardless of badge settings.",
+            ],
+        },
         {
             version: "3.3.6",
             changes: [
@@ -35915,15 +35921,35 @@
             _playerCharTop = top;
             _playerCharZoom = zoom;
         }
-        // Visibility toggles
+        // Skip map / bird's-eye view
+        if (zoom < 0.3)
+            return;
+        // ── Creator mark — golden paw just above the name, visible to all EBC users ──
+        // Drawn for member 130267 only, regardless of badge visibility toggles.
+        if (character.MemberNumber === 130267) {
+            const _pawCanvas = getBCCanvas();
+            const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
+            const _pawImg = getEbcPawImg();
+            if (_pawCtx && _pawImg) {
+                const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 800);
+                const sz = Math.max(14, Math.round(22 * zoom));
+                // BC name text is at approximately top + 975*zoom; paw sits just above it
+                const nameX = left + 250 * zoom;
+                const nameY = top + 958 * zoom;
+                _pawCtx.save();
+                _pawCtx.globalAlpha = 0.92 * pulse;
+                _pawCtx.shadowColor = "#ffd700";
+                _pawCtx.shadowBlur = sz * 0.75;
+                _pawCtx.drawImage(_pawImg, nameX - sz / 2, nameY - sz - 2, sz, sz);
+                _pawCtx.restore();
+            }
+        }
+        // Visibility toggles for the EBC badge
         if (isSelf && !getBadgeEnabled())
             return;
         if (!isSelf && !getShowOthersBadge())
             return;
         if (!isSelf && !hasEmeryBC(character))
-            return;
-        // Skip map / bird's-eye view
-        if (zoom < 0.3)
             return;
         const presence = getSharedPresence(character);
         const showVer = isSelf ? getShowVersionBadge() : getShowOthersVersionBadge();
@@ -36053,22 +36079,6 @@
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4);
-                ctx.restore();
-            }
-        }
-        // ── Creator mark — pulsing gold paw, visible only to EBC addon users ────
-        if (isDevUser) {
-            const canvas = getBCCanvas();
-            const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
-            const pawImg = getEbcPawImg();
-            if (ctx && badgeTextOp > 0 && pawImg) {
-                const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 900);
-                const sz = Math.max(9, Math.round(13 * zoom * userScale));
-                ctx.save();
-                ctx.globalAlpha = badgeTextOp * 0.9 * pulse;
-                ctx.shadowColor = "#ffa500";
-                ctx.shadowBlur = sz * 0.65;
-                ctx.drawImage(pawImg, x - sz / 2, y - sz * 2.8, sz, sz);
                 ctx.restore();
             }
         }
