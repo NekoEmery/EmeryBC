@@ -49,38 +49,56 @@ export function applyPoses(poses: string[]): void {
     const filtered = safeList.filter(Boolean);
     const result   = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
 
-    // 1. Update BC's internal pose state.
-    //    Prefer PoseSetActive (BC R107+) which writes ActivePoseMapping — the
-    //    canonical pose state in modern BC.  Fall back to direct ActivePose
-    //    assignment for older builds.
-    const psa = (window as unknown as Record<string, unknown>).PoseSetActive as
+    const win = window as unknown as Record<string, unknown>;
+    const psa = win.PoseSetActive as
         ((C: unknown, name: string | null, force?: boolean, push?: boolean) => void) | undefined;
+    const pfn = win.AssetPoseFindName as
+        ((name: string) => { Category?: string } | null | undefined) | undefined;
 
+    // 1a. PoseSetActive (BC R107+) — sets ActivePoseMapping the canonical way.
     if (typeof psa === "function") {
         try {
             if (result.length === 0) {
                 psa(Player, null, true, false);
             } else {
-                // force=true on first call resets mapping; subsequent calls add into it
                 psa(Player, result[0], true, false);
                 for (let i = 1; i < result.length; i++) {
                     psa(Player, result[i], false, false);
                 }
             }
         } catch { /* ignore */ }
-    } else {
+    }
+
+    // 1b. Also set ActivePoseMapping directly via AssetPoseFindName.
+    //     This is the critical belt-and-suspenders step: PoseSetActive can silently
+    //     return early (e.g. pose not found) without throwing, leaving the mapping
+    //     unchanged.  Every subsequent CharacterRefresh then recomputes ActivePose
+    //     from that unchanged (empty) mapping and wipes the pose we tried to set.
+    //     Setting the mapping ourselves guarantees CharacterRefresh always sees the
+    //     correct categories regardless of whether PoseSetActive succeeded.
+    if (typeof pfn === "function") {
+        try {
+            const mapping: Record<string, string> = {};
+            for (const p of result) {
+                const data = pfn(p);
+                if (data?.Category) mapping[data.Category] = p;
+            }
+            (Player as unknown as Record<string, unknown>).ActivePoseMapping =
+                result.length === 0 ? {} : mapping;
+        } catch { /* ignore */ }
+    } else if (typeof psa !== "function") {
+        // Truly old BC (no PoseSetActive, no AssetPoseFindName): direct ActivePose assignment.
         try {
             (Player as unknown as Record<string, unknown>).ActivePose =
                 result.length > 0 ? result : null;
         } catch { /* ignore */ }
     }
 
-    // 2. Local visual refresh only — Push=false so we don't double-send.
+    // 2. Local visual refresh — Push=false, we push below.
     callBC(() => CharacterRefresh(Player, false));
 
-    // 3. Push to room via ServerSend directly, the same approach the sequence
-    //    runner in actionButtons.ts uses (known to work).  This is more reliable
-    //    than CharacterRefresh(Push=true) which may drop ActivePose in some BC versions.
+    // 3. Push to room via direct ServerSend (same approach as sequence runner in
+    //    actionButtons.ts which is known to work).
     try {
         if (Player.OnlineID != null) {
             ServerSend("ChatRoomCharacterUpdate", {

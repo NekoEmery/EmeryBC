@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.7.2";
+const MOD_VERSION = "3.7.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,9 +37,16 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "3.7.3",
+        changes: [
+            "Fix: pose combos/buttons now correctly maintain the set pose. Root cause: PoseSetActive can silently return early (no throw) if the pose lookup fails, leaving ActivePoseMapping unchanged. Every CharacterRefresh then recomputes ActivePose from that empty mapping and wipes the pose. Fix: also set ActivePoseMapping directly via AssetPoseFindName so all subsequent refreshes see the correct categories.",
+            "Action button cooldown display: replaced '12s' plain text with a custom canvas button — dimmed label at top, large pink countdown number in centre, fill-bar progress indicator along the bottom edge.",
+        ],
+    },
+    {
         version: "3.7.2",
         changes: [
-            "Fix: pose combos (and single-click pose buttons) now reliably push to the room. Replaced the unreliable CharacterRefresh(Push=true) path with a direct ServerSend('ChatRoomCharacterUpdate') — the same approach used by the sequence runner which is known to work.",
+            "Fix: pose application now pushes to room via direct ServerSend instead of CharacterRefresh(Push=true).",
         ],
     },
     {

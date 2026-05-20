@@ -546,6 +546,59 @@ export function initDragListener(): void {
     canvas.addEventListener("touchstart", onDown as EventListener, { passive: false });
 }
 
+/**
+ * Draw a cooldown button at (x, y) with a dimmed label, large countdown
+ * number, and a fill-bar progress indicator along the bottom edge.
+ */
+function drawCooldownButton(
+    x: number, y: number, size: number,
+    label: string, remainMs: number,
+): void {
+    // Dark background + subtle border
+    DrawRect(x, y, size, size, "rgba(10,3,8,0.92)");
+    DrawEmptyRect(x, y, size, size, "#2a0e1a", 1);
+
+    const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
+    const ctx = canvas?.getContext("2d");
+    if (ctx) {
+        ctx.save();
+        ctx.textAlign = "center";
+
+        // Dimmed label at the top so the user knows which button this is
+        ctx.font = "bold 11px arial";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "#3a1525";
+        ctx.fillText(label.length > 5 ? label.slice(0, 5) : label, x + size / 2, y + 4);
+
+        // Countdown number centred — bright pink, large
+        const secs = Math.ceil(remainMs / 1000);
+        ctx.font = "bold 20px arial";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#cf6f98";
+        ctx.fillText(String(secs), x + size / 2, y + size / 2 + 4);
+
+        // Fill-bar: dark trough then pink fill growing left→right as cooldown drains
+        const barH  = 3;
+        const barX  = x + 2;
+        const barY  = y + size - barH - 2;
+        const barW  = size - 4;
+        const filled = (1 - remainMs / BUTTON_COOLDOWN_MS) * barW;
+        ctx.fillStyle = "#1a080f";
+        ctx.fillRect(barX, barY, barW, barH);
+        ctx.fillStyle = "#cf6f98";
+        ctx.fillRect(barX, barY, Math.max(0, Math.min(barW, filled)), barH);
+
+        ctx.restore();
+    } else {
+        // Canvas context unavailable — simple text fallback
+        DrawTextFit(
+            Math.ceil(remainMs / 1000) + "s",
+            x + size / 2, y + size / 2,
+            size - 4, "#cf6f98",
+        );
+    }
+}
+
 /** Converts a 6-digit hex color to rgba() with the given alpha (0–1). */
 function withAlpha(hex: string, alpha: number): string {
     const h = hex.replace("#", "");
@@ -631,13 +684,12 @@ export function drawActionButtons(): void {
         const cdKey     = idx * 100 + i;
         const remainMs  = BUTTON_COOLDOWN_MS - (now - (_btnCooldowns.get(cdKey) ?? 0));
         const onCooldown = remainMs > 0;
-        DrawButton(
-            sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
-            onCooldown ? Math.ceil(remainMs / 1000) + "s" : btn.label,
-            onCooldown ? withAlpha("#1a0a14", 0.88) : withAlpha(btn.color || "#c2185b", 0.90),
-            "",
-            onCooldown ? "" : btn.emote,
-        );
+        if (onCooldown) {
+            drawCooldownButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
+        } else {
+            DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
+                btn.label, withAlpha(btn.color || "#c2185b", 0.90), "", btn.emote);
+        }
     }
 }
 
