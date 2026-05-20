@@ -11956,94 +11956,6 @@ export class EBCDrawer {
             body.appendChild(div);
         };
 
-        // ── Whisper Log ───────────────────────────────────────────────────────
-        makeSection(t("dev.whisperLog"), "EBC_devWhisperLogCollapsed", true, (cnt) => {
-            const partners = getWhisperPartners();
-            if (partners.length === 0) {
-                const empty = document.createElement("div");
-                empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:8px 4px;text-align:center;";
-                empty.textContent = t("dev.noWhispers");
-                cnt.appendChild(empty);
-                return;
-            }
-
-            // Clear button row
-            const whClearRow = document.createElement("div");
-            whClearRow.style.cssText = "display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;";
-            const whClearBtn = document.createElement("button");
-            whClearBtn.className = "ebc-outfit-del";
-            whClearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
-            whClearBtn.textContent = t("dev.clearLog");
-            whClearBtn.title = "Clear whisper log";
-            whClearBtn.addEventListener("click", () => {
-                this.selectedWhisperPartner = null;
-                clearWhisperLog();
-                this.rerender();
-            });
-            whClearRow.appendChild(whClearBtn);
-            cnt.appendChild(whClearRow);
-
-            // Fall back if selected partner is gone
-            if (this.selectedWhisperPartner !== null && !partners.includes(this.selectedWhisperPartner)) {
-                this.selectedWhisperPartner = partners[0];
-            }
-            const activePartner = this.selectedWhisperPartner ?? partners[0];
-
-            // Partner selector
-            const partnerList = document.createElement("div");
-            partnerList.style.cssText = "display:flex;flex-direction:column;gap:2px;margin-bottom:8px;";
-            for (const num of partners) {
-                const conv = getWhisperConversation(num);
-                const lastName = conv[conv.length - 1]?.partnerName ?? `#${num}`;
-                const btn = document.createElement("button");
-                btn.className = "ebc-whisper-partner-btn" + (num === activePartner ? " active" : "");
-                const nameSpan = document.createElement("span");
-                nameSpan.textContent = lastName;
-                const countSpan = document.createElement("span");
-                countSpan.style.cssText = "font-size:8px;color:#7a5070;flex-shrink:0;";
-                countSpan.textContent = `${conv.length} msg${conv.length !== 1 ? "s" : ""}`;
-                btn.appendChild(nameSpan);
-                btn.appendChild(countSpan);
-                btn.addEventListener("click", () => { this.selectedWhisperPartner = num; this.rerender(); });
-                partnerList.appendChild(btn);
-            }
-            cnt.appendChild(partnerList);
-
-            // Conversation view
-            const activeName = getWhisperConversation(activePartner)[0]?.partnerName ?? `#${activePartner}`;
-            const convLbl = document.createElement("div");
-            convLbl.className = "ebc-section-label";
-            convLbl.textContent = `With ${activeName}`;
-            cnt.appendChild(convLbl);
-
-            const myName = (() => {
-                try {
-                    const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
-                    if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
-                } catch { /* ignore */ }
-                return (Player as unknown as Record<string, unknown>)?.Nickname as string | undefined
-                    ?? Player?.Name ?? "You";
-            })();
-
-            for (const entry of getWhisperConversation(activePartner)) {
-                const row = document.createElement("div");
-                row.className = "ebc-whisper-msg " + entry.direction;
-                const meta = document.createElement("div");
-                meta.className = "ebc-whisper-meta";
-                const time = new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                meta.textContent = entry.direction === "out"
-                    ? `${myName} → ${entry.partnerName}  ${time}`
-                    : `${entry.partnerName} → ${myName}  ${time}`;
-                const text = document.createElement("div");
-                text.className = "ebc-whisper-text";
-                text.textContent = entry.message;
-                row.appendChild(meta);
-                row.appendChild(text);
-                cnt.appendChild(row);
-            }
-            window.setTimeout(() => { cnt.scrollTop = cnt.scrollHeight; }, 0);
-        });
-
         // ── Drawer Preferences ────────────────────────────────────────────────
         makeSection(t("dev.drawerPrefs"), "EBC_devAppearanceCollapsed", false, (cnt) => {
 
@@ -12448,99 +12360,8 @@ export class EBCDrawer {
             cnt.appendChild(hotkeyWrap);
         });
 
-        // ── EBC Users In This Room ─────────────────────────────────────────────
-        makeSection(t("dev.ebcUsersInRoom"), "EBC_devEbcUsersCollapsed", true, (cnt) => {
-            const presListEl = document.createElement("div");
-            cnt.appendChild(presListEl);
-
-            const refreshPresence = (): void => {
-                while (presListEl.firstChild) presListEl.removeChild(presListEl.firstChild);
-                const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Array<Record<string, unknown>> | undefined) ?? [];
-                const found: Array<{ gameName: string; nickname: string; id: number; version: string; isSelf: boolean }> = [];
-                for (const c of room) {
-                    const memberNum = c.MemberNumber as number | undefined;
-                    const isSelf = memberNum === Player.MemberNumber;
-                    const gameName = String(c.Name ?? "?");
-                    const nickname = String((c.Nickname as string | undefined)?.trim() || gameName);
-                    if (isSelf) { found.push({ gameName, nickname, id: memberNum ?? 0, version: "self", isSelf: true }); continue; }
-                    const shared = (c.OnlineSharedSettings as Record<string, unknown> | undefined)?.["EBC"] as Record<string, unknown> | undefined;
-                    const presence = shared?.["presence"] as Record<string, unknown> | undefined;
-                    if (presence?.["marker"] === "EBC")
-                        found.push({ gameName, nickname, id: memberNum ?? 0, version: String(presence["version"] ?? "?"), isSelf: false });
-                }
-                if (found.length === 0) {
-                    const hint = document.createElement("div");
-                    hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
-                    hint.textContent = t("dev.noEbcUsers");
-                    presListEl.appendChild(hint);
-                    return;
-                }
-                for (const p of found) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:5px;margin-bottom:2px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;";
-                    const nameWrap = document.createElement("span");
-                    nameWrap.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;";
-                    const nicknameEl = document.createElement("span");
-                    nicknameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                    nicknameEl.textContent = p.nickname !== p.gameName ? p.nickname : p.gameName;
-                    nameWrap.appendChild(nicknameEl);
-                    if (p.nickname !== p.gameName) {
-                        const gameNameEl = document.createElement("span");
-                        gameNameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-                        gameNameEl.textContent = "(" + p.gameName + ")";
-                        nameWrap.appendChild(gameNameEl);
-                    }
-                    const idEl = document.createElement("span");
-                    idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
-                    idEl.textContent = "#" + p.id;
-                    const verEl = document.createElement("span");
-                    verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:1px 6px;border-radius:4px;flex-shrink:0;" +
-                        (p.isSelf ? "color:#7a5a6a;background:#1b0d17;border:1px solid #3a1928;" : "color:#cf6f98;background:#2a1421;border:1px solid #6b3048;");
-                    verEl.textContent = p.isSelf ? "you" : ("v" + p.version);
-                    row.appendChild(nameWrap); row.appendChild(idEl); row.appendChild(verEl);
-                    presListEl.appendChild(row);
-                }
-            };
-            refreshPresence();
-            const refreshBtn = document.createElement("button");
-            refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-            refreshBtn.textContent = t("dev.refreshList");
-            refreshBtn.addEventListener("click", refreshPresence);
-            cnt.appendChild(refreshBtn);
-        });
-
         // ── Developer Tools ────────────────────────────────────────────────────
         makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
-            // Version badge toggle
-            const verRow = document.createElement("div");
-            verRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;background:rgba(42,20,33,0.4);border:1px solid #3a1928;margin-bottom:8px;";
-            const verInfo = document.createElement("div");
-            verInfo.style.cssText = "flex:1;min-width:0;";
-            const verLbl = document.createElement("span");
-            verLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;display:block;";
-            verLbl.textContent = t("dev.showVersionBadge");
-            const verHint = document.createElement("span");
-            verHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-            verHint.textContent = t("dev.showVersionHint");
-            verInfo.appendChild(verLbl); verInfo.appendChild(verHint);
-            const verToggle = document.createElement("button");
-            const refreshVerToggle = (): void => {
-                const on = getShowVersionBadge();
-                verToggle.textContent = on ? t("core.on") : t("core.off");
-                verToggle.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:10px", "font-weight:bold",
-                    "padding:2px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#4c2537"),
-                    "background:" + (on ? "#6b3048" : "#1b0d17"),
-                    "color:" + (on ? "#f7e6ee" : "#9a7080"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-            };
-            refreshVerToggle();
-            verToggle.addEventListener("click", () => { setShowVersionBadge(!getShowVersionBadge()); refreshVerToggle(); });
-            verRow.appendChild(verInfo); verRow.appendChild(verToggle);
-            cnt.appendChild(verRow);
-
             // Character Inspector
             const charLbl = document.createElement("div");
             charLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;";
@@ -12897,7 +12718,7 @@ export class EBCDrawer {
         let renderRlog:   () => void = () => { /* populated below */ };
         let renderMsgLog: () => void = () => { /* populated below */ };
 
-        makeSection(t("dev.devLog"), "EBC_devLogSectionCollapsed", true, (cnt) => {
+        makeSection(t("dev.logs"), "EBC_devLogSectionCollapsed", true, (cnt) => {
             // -- shared helpers --
             const fmtDuration = (ms: number): string => {
                 const s = Math.floor(ms / 1000);
@@ -12945,6 +12766,94 @@ export class EBCDrawer {
                 });
                 cnt.appendChild(hdr); cnt.appendChild(inner);
             };
+
+            // ── Whisper Log ───────────────────────────────────────────────────
+            makeInner(t("dev.whisperLog"), "EBC_devWhisperLogCollapsed", true, (cnt) => {
+                const partners = getWhisperPartners();
+                if (partners.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a3a4e;padding:8px 4px;text-align:center;";
+                    empty.textContent = t("dev.noWhispers");
+                    cnt.appendChild(empty);
+                    return;
+                }
+
+                // Clear button row
+                const whClearRow = document.createElement("div");
+                whClearRow.style.cssText = "display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;";
+                const whClearBtn = document.createElement("button");
+                whClearBtn.className = "ebc-outfit-del";
+                whClearBtn.style.cssText = "font-size:9px;padding:2px 7px;border-radius:4px;";
+                whClearBtn.textContent = t("dev.clearLog");
+                whClearBtn.title = "Clear whisper log";
+                whClearBtn.addEventListener("click", () => {
+                    this.selectedWhisperPartner = null;
+                    clearWhisperLog();
+                    this.rerender();
+                });
+                whClearRow.appendChild(whClearBtn);
+                cnt.appendChild(whClearRow);
+
+                // Fall back if selected partner is gone
+                if (this.selectedWhisperPartner !== null && !partners.includes(this.selectedWhisperPartner)) {
+                    this.selectedWhisperPartner = partners[0];
+                }
+                const activePartner = this.selectedWhisperPartner ?? partners[0];
+
+                // Partner selector
+                const partnerList = document.createElement("div");
+                partnerList.style.cssText = "display:flex;flex-direction:column;gap:2px;margin-bottom:8px;";
+                for (const num of partners) {
+                    const conv = getWhisperConversation(num);
+                    const lastName = conv[conv.length - 1]?.partnerName ?? `#${num}`;
+                    const btn = document.createElement("button");
+                    btn.className = "ebc-whisper-partner-btn" + (num === activePartner ? " active" : "");
+                    const nameSpan = document.createElement("span");
+                    nameSpan.textContent = lastName;
+                    const countSpan = document.createElement("span");
+                    countSpan.style.cssText = "font-size:8px;color:#7a5070;flex-shrink:0;";
+                    countSpan.textContent = `${conv.length} msg${conv.length !== 1 ? "s" : ""}`;
+                    btn.appendChild(nameSpan);
+                    btn.appendChild(countSpan);
+                    btn.addEventListener("click", () => { this.selectedWhisperPartner = num; this.rerender(); });
+                    partnerList.appendChild(btn);
+                }
+                cnt.appendChild(partnerList);
+
+                // Conversation view
+                const activeName = getWhisperConversation(activePartner)[0]?.partnerName ?? `#${activePartner}`;
+                const convLbl = document.createElement("div");
+                convLbl.className = "ebc-section-label";
+                convLbl.textContent = `With ${activeName}`;
+                cnt.appendChild(convLbl);
+
+                const myName = (() => {
+                    try {
+                        const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
+                        if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
+                    } catch { /* ignore */ }
+                    return (Player as unknown as Record<string, unknown>)?.Nickname as string | undefined
+                        ?? Player?.Name ?? "You";
+                })();
+
+                for (const entry of getWhisperConversation(activePartner)) {
+                    const row = document.createElement("div");
+                    row.className = "ebc-whisper-msg " + entry.direction;
+                    const meta = document.createElement("div");
+                    meta.className = "ebc-whisper-meta";
+                    const time = new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                    meta.textContent = entry.direction === "out"
+                        ? `${myName} → ${entry.partnerName}  ${time}`
+                        : `${entry.partnerName} → ${myName}  ${time}`;
+                    const text = document.createElement("div");
+                    text.className = "ebc-whisper-text";
+                    text.textContent = entry.message;
+                    row.appendChild(meta);
+                    row.appendChild(text);
+                    cnt.appendChild(row);
+                }
+                window.setTimeout(() => { cnt.scrollTop = cnt.scrollHeight; }, 0);
+            });
 
             // ── Current Room ──────────────────────────────────────────────────
             // Always live — no toggle needed. Shows who is in the current room
@@ -13411,6 +13320,131 @@ export class EBCDrawer {
                 msgRefreshBtn2.addEventListener("click", renderMsgLog);
                 msgClearBtn.addEventListener("click", () => { showConfirmOverlay("Clear the entire message log? This cannot be undone.", "Cancel", "Clear", () => { clearDevLog(); renderMsgLog(); }); });
             });
+
+            // ── People Met ────────────────────────────────────────────────────
+            makeInner(t("dev.peopleMet"), "EBC_peoplemetCollapsed", true, (cnt) => {
+                const PFONT = "font-family:'Trebuchet MS',serif;";
+
+                // Controls row: count + search + clear
+                const ctrlRow = document.createElement("div");
+                ctrlRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
+
+                const countLbl = document.createElement("span");
+                countLbl.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex:1;`;
+
+                const searchInp = document.createElement("input");
+                searchInp.type = "text";
+                searchInp.placeholder = t("dev.searchPlaceholder");
+                searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
+
+                const clearBtn = document.createElement("button");
+                clearBtn.textContent = t("core.clearAll");
+                clearBtn.style.cssText = `${PFONT}font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
+                clearBtn.addEventListener("mouseenter", () => { clearBtn.style.color = "#e05070"; clearBtn.style.borderColor = "#e05070"; });
+                clearBtn.addEventListener("mouseleave", () => { clearBtn.style.color = "#7a5a6a"; clearBtn.style.borderColor = "#4c2537"; });
+
+                ctrlRow.appendChild(countLbl);
+                ctrlRow.appendChild(searchInp);
+                ctrlRow.appendChild(clearBtn);
+                cnt.appendChild(ctrlRow);
+
+                // Scrollable list
+                const listEl = document.createElement("div");
+                listEl.style.cssText = "max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;";
+                cnt.appendChild(listEl);
+
+                const renderList = (): void => {
+                    while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+                    const all: PersonMet[] = getPeopleMet();
+                    const q = searchInp.value.trim().toLowerCase();
+                    const filtered = q
+                        ? all.filter(p => p.name.toLowerCase().includes(q) || String(p.n).includes(q))
+                        : all;
+
+                    countLbl.textContent = `${filtered.length} / ${all.length} people`;
+
+                    if (filtered.length === 0) {
+                        const hint = document.createElement("div");
+                        hint.style.cssText = `${PFONT}font-size:9px;color:#5a3a4a;font-style:italic;padding:6px 2px;text-align:center;`;
+                        hint.textContent = q ? "No matches." : "No one recorded yet — meet people in rooms!";
+                        listEl.appendChild(hint);
+                        return;
+                    }
+
+                    for (const person of [...filtered].reverse()) {
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:3px;background:#1a0810;border:1px solid #2a1421;";
+
+                        const nameSpan = document.createElement("span");
+                        nameSpan.style.cssText = `${PFONT}font-size:10px;color:#f0d8ec;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                        nameSpan.textContent = person.name;
+                        nameSpan.title = person.name;
+
+                        const numSpan = document.createElement("span");
+                        numSpan.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex-shrink:0;`;
+                        numSpan.textContent = `#${person.n}`;
+
+                        const profBtn = document.createElement("button");
+                        profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
+                        profBtn.title = "View profile";
+                        profBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
+                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
+                        profBtn.addEventListener("click", async () => {
+                            const w = window as unknown as Record<string, unknown>;
+                            const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
+                            const hideEls    = w.ChatRoomHideElements as (() => void) | undefined;
+                            const loadOnline = w.CharacterLoadOnline  as ((d: unknown, n: number) => unknown) | undefined;
+                            const roomChars  = w.ChatRoomCharacter    as Array<Record<string, unknown>> | undefined;
+
+                            const openProfile = (C: unknown): void => {
+                                this.close();
+                                if (w.CurrentScreen === "ChatRoom") {
+                                    try { hideEls?.(); } catch { /* ignore */ }
+                                    try {
+                                        const bgData = (w.ChatRoomData as Record<string, unknown> | undefined)?.Background;
+                                        if (bgData) w.ChatRoomBackground = bgData;
+                                    } catch { /* ignore */ }
+                                }
+                                loadChar!(C);
+                            };
+
+                            if (!loadChar || !loadOnline) {
+                                try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
+                                return;
+                            }
+
+                            const inRoom = Array.isArray(roomChars)
+                                ? roomChars.find(c => c.MemberNumber === person.n)
+                                : undefined;
+                            if (inRoom) {
+                                try { openProfile(inRoom); return; } catch { /* ignore */ }
+                            }
+
+                            const bundle = await getCharacterBundle(person.n);
+                            if (bundle) {
+                                try {
+                                    const C = loadOnline(bundle, person.n);
+                                    if (C) { openProfile(C); return; }
+                                } catch { /* ignore */ }
+                            }
+
+                            try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
+                        });
+
+                        row.appendChild(nameSpan);
+                        row.appendChild(numSpan);
+                        row.appendChild(profBtn);
+                        listEl.appendChild(row);
+                    }
+                };
+
+                renderList();
+                searchInp.addEventListener("input", renderList);
+                clearBtn.addEventListener("click", () => {
+                    showConfirmOverlay("Clear the entire People Met list? This cannot be undone.", "Cancel", "Clear All", () => { clearPeopleMet(); renderList(); });
+                });
+            });
         });
 
         // ── Stat Editor (credited members only) ───────────────────────────────
@@ -13715,139 +13749,6 @@ export class EBCDrawer {
                 cnt.appendChild(applyBtn);
             });
         }
-
-        // ── People Met ────────────────────────────────────────────────────────
-        makeSection(t("dev.peopleMet"), "EBC_peoplemetCollapsed", true, (cnt) => {
-            const PFONT = "font-family:'Trebuchet MS',serif;";
-
-            // Controls row: count + search + clear
-            const ctrlRow = document.createElement("div");
-            ctrlRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
-
-            const countLbl = document.createElement("span");
-            countLbl.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex:1;`;
-
-            const searchInp = document.createElement("input");
-            searchInp.type = "text";
-            searchInp.placeholder = t("dev.searchPlaceholder");
-            searchInp.style.cssText = `${PFONT}font-size:10px;flex:2;background:#1a0810;color:#f0d8ec;border:1px solid #4c2537;border-radius:3px;padding:2px 6px;outline:none;`;
-
-            const clearBtn = document.createElement("button");
-            clearBtn.textContent = t("core.clearAll");
-            clearBtn.style.cssText = `${PFONT}font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.1s,border-color 0.1s;`;
-            clearBtn.addEventListener("mouseenter", () => { clearBtn.style.color = "#e05070"; clearBtn.style.borderColor = "#e05070"; });
-            clearBtn.addEventListener("mouseleave", () => { clearBtn.style.color = "#7a5a6a"; clearBtn.style.borderColor = "#4c2537"; });
-
-            ctrlRow.appendChild(countLbl);
-            ctrlRow.appendChild(searchInp);
-            ctrlRow.appendChild(clearBtn);
-            cnt.appendChild(ctrlRow);
-
-            // Scrollable list
-            const listEl = document.createElement("div");
-            listEl.style.cssText = "max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;";
-            cnt.appendChild(listEl);
-
-            const renderList = (): void => {
-                while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
-                const all: PersonMet[] = getPeopleMet();
-                const q = searchInp.value.trim().toLowerCase();
-                const filtered = q
-                    ? all.filter(p => p.name.toLowerCase().includes(q) || String(p.n).includes(q))
-                    : all;
-
-                countLbl.textContent = `${filtered.length} / ${all.length} people`;
-
-                if (filtered.length === 0) {
-                    const hint = document.createElement("div");
-                    hint.style.cssText = `${PFONT}font-size:9px;color:#5a3a4a;font-style:italic;padding:6px 2px;text-align:center;`;
-                    hint.textContent = q ? "No matches." : "No one recorded yet — meet people in rooms!";
-                    listEl.appendChild(hint);
-                    return;
-                }
-
-                for (const person of [...filtered].reverse()) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:3px;background:#1a0810;border:1px solid #2a1421;";
-
-                    const nameSpan = document.createElement("span");
-                    nameSpan.style.cssText = `${PFONT}font-size:10px;color:#f0d8ec;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
-                    nameSpan.textContent = person.name;
-                    nameSpan.title = person.name;
-
-                    const numSpan = document.createElement("span");
-                    numSpan.style.cssText = `${PFONT}font-size:9px;color:#7a5a6a;flex-shrink:0;`;
-                    numSpan.textContent = `#${person.n}`;
-
-                    // Profile button — opens BC info sheet if person is in current room,
-                    // otherwise shows a quick popup with their stored info.
-                    const profBtn = document.createElement("button");
-                    profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
-                    profBtn.title = "View profile";
-                    profBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-                    profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
-                    profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
-                    profBtn.addEventListener("click", async () => {
-                        const w = window as unknown as Record<string, unknown>;
-                        const loadChar   = w.InformationSheetLoadCharacter as ((c: unknown) => void) | undefined;
-                        const hideEls    = w.ChatRoomHideElements as (() => void) | undefined;
-                        const loadOnline = w.CharacterLoadOnline  as ((d: unknown, n: number) => unknown) | undefined;
-                        const roomChars  = w.ChatRoomCharacter    as Array<Record<string, unknown>> | undefined;
-
-                        // Open a BC info-sheet — mirrors WCE's openCharacter() exactly.
-                        const openProfile = (C: unknown): void => {
-                            this.close();
-                            if (w.CurrentScreen === "ChatRoom") {
-                                try { hideEls?.(); } catch { /* ignore */ }
-                                // Restore background so the info sheet renders correctly (WCE does this too)
-                                try {
-                                    const bgData = (w.ChatRoomData as Record<string, unknown> | undefined)?.Background;
-                                    if (bgData) w.ChatRoomBackground = bgData;
-                                } catch { /* ignore */ }
-                            }
-                            loadChar!(C);
-                        };
-
-                        if (!loadChar || !loadOnline) {
-                            // BC globals not ready — copy number as fallback
-                            try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
-                            return;
-                        }
-
-                        // Prefer live character object if they're still in the room
-                        const inRoom = Array.isArray(roomChars)
-                            ? roomChars.find(c => c.MemberNumber === person.n)
-                            : undefined;
-                        if (inRoom) {
-                            try { openProfile(inRoom); return; } catch { /* ignore */ }
-                        }
-
-                        // Reconstruct from stored bundle (WCE-style offline profile)
-                        const bundle = await getCharacterBundle(person.n);
-                        if (bundle) {
-                            try {
-                                const C = loadOnline(bundle, person.n);
-                                if (C) { openProfile(C); return; }
-                            } catch { /* ignore */ }
-                        }
-
-                        // Absolute last resort — copy member number
-                        try { navigator.clipboard.writeText(String(person.n)); } catch { /* ignore */ }
-                    });
-
-                    row.appendChild(nameSpan);
-                    row.appendChild(numSpan);
-                    row.appendChild(profBtn);
-                    listEl.appendChild(row);
-                }
-            };
-
-            renderList();
-            searchInp.addEventListener("input", renderList);
-            clearBtn.addEventListener("click", () => {
-                showConfirmOverlay("Clear the entire People Met list? This cannot be undone.", "Cancel", "Clear All", () => { clearPeopleMet(); renderList(); });
-            });
-        });
 
         // Auto-refresh every 1.5 s while the DEV tab is open.
         // Room History always refreshes (cheap read). Message log only if logging is on.

@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.1.8";
+const MOD_VERSION = "3.1.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.1.9",
+        changes: [
+            "DEV tab restructure: Whisper Log and People Met sections moved inside the Logs collapsible section as nested sub-sections. The Logs section header is renamed from 'Dev Log' to 'Logs'. The standalone Whisper Log and People Met top-level sections are removed.",
+        ],
+    },
     {
         version: "3.1.8",
         changes: [
