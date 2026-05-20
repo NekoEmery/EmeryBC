@@ -15649,17 +15649,17 @@
 /* Highlighted keyword chips — the main teaching tool */
 .ebc-guide-hl {
     display: inline-block;
-    background: #4a1535;
-    border: 1px solid #cf6f98;
+    background: #b84878;
+    border: 1px solid #e888b8;
     border-radius: 4px;
-    padding: 1px 6px;
-    color: #ffcce8;
+    padding: 1px 7px;
+    color: #fff0f8;
     font-weight: bold;
     font-size: 10px;
     white-space: nowrap;
     vertical-align: middle;
-    line-height: 1.6;
-    box-shadow: 0 0 6px rgba(207,111,152,0.25);
+    line-height: 1.7;
+    box-shadow: 0 0 8px rgba(207,111,152,0.55), inset 0 1px 0 rgba(255,200,228,0.15);
 }
 .ebc-guide-note {
     display: block;
@@ -31443,7 +31443,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.1";
+    const MOD_VERSION = "3.3.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31454,6 +31454,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.2",
+            changes: [
+                "Guide: keyword highlight chips are now clearly visible — background raised from near-black #4a1535 to a vivid #b84878, brighter border, stronger glow. They now pop against the dark guide card instead of blending in.",
+            ],
+        },
         {
             version: "3.3.1",
             changes: [
