@@ -12527,6 +12527,7 @@
         "dev.clearExpressions": { en: "✕ Clear all expressions", de: "✕ Alle Ausdrücke löschen", zh: "✕ 清除所有表情", fr: "✕ Effacer toutes les expressions", es: "✕ Borrar todas las expresiones", ru: "✕ Очистить все выражения", ja: "✕ すべての表情をクリア" },
         "dev.whisperLog": { en: "Whisper Log", de: "Flüster-Log", zh: "私语日志", fr: "Journal des chuchotements", es: "Registro de susurros", ru: "Журнал шёпота", ja: "ウィスパーログ" },
         "dev.devLog": { en: "Dev Log", de: "Entwickler-Log", zh: "开发日志", fr: "Journal de développement", es: "Registro de desarrollo", ru: "Журнал разработчика", ja: "開発ログ" },
+        "dev.logs": { en: "Logs", de: "Protokolle", zh: "日志", fr: "Journaux", es: "Registros", ru: "Журналы", ja: "ログ" },
         "dev.noWhispers": { en: "No whispers this session yet.", de: "Noch keine Flüster-Nachrichten in dieser Sitzung.", zh: "本次会话暂无私语。", fr: "Aucun chuchotement dans cette session.", es: "Sin susurros en esta sesión aún.", ru: "Шёпота в этой сессии пока нет.", ja: "このセッションにウィスパーはまだありません。" },
         "dev.enableDevLogging": { en: "📟 Enable dev logging", de: "📟 Protokollierung aktivieren", zh: "📟 启用开发日志", fr: "📟 Activer la journalisation", es: "📟 Activar registro dev", ru: "📟 Включить журнал разработчика", ja: "📟 開発ログを有効化" },
         "dev.injectTestEntry": { en: "Inject test entry", de: "Testeintrag einfügen", zh: "注入测试条目", fr: "Injecter entrée test", es: "Inyectar entrada prueba", ru: "Вставить тестовую запись", ja: "テストエントリを挿入" },
@@ -15428,6 +15429,106 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* ── Interactive guide overlay ──────────────────────────────────────── */
+.ebc-guide-card {
+    position: absolute;
+    bottom: 60px;
+    left: 10px;
+    right: 10px;
+    background: #1f0e1a;
+    border: 1px solid #cf6f98;
+    border-radius: 10px;
+    padding: 12px 14px 10px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+    z-index: 999;
+    font-family: "Trebuchet MS", serif;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    animation: ebc-guide-in 0.18s ease;
+}
+@keyframes ebc-guide-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.ebc-guide-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.ebc-guide-step-lbl {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    color: #9a6878;
+    text-transform: uppercase;
+}
+.ebc-guide-close-btn {
+    background: none;
+    border: none;
+    color: #7a5a6a;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+}
+.ebc-guide-close-btn:hover { color: #cf6f98; }
+.ebc-guide-tab-lbl {
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #cf6f98;
+    text-transform: uppercase;
+}
+.ebc-guide-text {
+    font-size: 11px;
+    color: #d4b0be;
+    line-height: 1.5;
+}
+.ebc-guide-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2px;
+}
+.ebc-guide-nav-btn {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    padding: 4px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 1px solid #3a1928;
+    background: #2a1020;
+    color: #cf6f98;
+    transition: background 0.12s, border-color 0.12s;
+}
+.ebc-guide-nav-btn:hover { background: #3a1830; border-color: #cf6f98; }
+.ebc-guide-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.ebc-guide-dots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+.ebc-guide-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #3a1928;
+    transition: background 0.15s;
+}
+.ebc-guide-dot.active { background: #cf6f98; }
+.ebc-guide-btn {
+    background: none;
+    border: 1px solid #3a1928;
+    border-radius: 4px;
+    color: #9a7888;
+    font-size: 11px;
+    padding: 3px 7px;
+    cursor: pointer;
+    font-family: "Trebuchet MS", serif;
+    transition: border-color 0.12s, color 0.12s;
+}
+.ebc-guide-btn:hover { border-color: #cf6f98; color: #cf6f98; }
+
 `;
     // ── Generic confirm overlay ───────────────────────────────────────────────
     // Same style as the anti-restraint escape prompt. Used for any destructive
@@ -15840,6 +15941,9 @@
             // Free-float panel position. null = anchored to chat log (default slide behaviour).
             this.panelPosition = null;
             this.resetLocationBtn = null;
+            // Interactive guide overlay
+            this.guideEl = null;
+            this.guideStep = 0;
             // Category dropdown in quick actions bar
             // DEV tab auto-refresh poller
             this.devLogPoller = null;
@@ -15969,14 +16073,20 @@
             closeBtn.className = "ebc-icon-btn";
             closeBtn.title = t("header.close");
             closeBtn.textContent = "X";
+            const guideBtn = document.createElement("button");
+            guideBtn.className = "ebc-guide-btn";
+            guideBtn.title = "Interactive guide — walks you through every feature";
+            guideBtn.textContent = "?";
             // Store refs for later translation updates (langSelect ref stored after pill row is built below)
             this._i18nRefs.refreshBtn = refreshBtn;
             this._i18nRefs.moveHandle = moveHandle;
             this._i18nRefs.resetLocBtn = resetLocBtn;
             this._i18nRefs.closeBtn = closeBtn;
+            guideBtn.addEventListener("click", () => this.startGuide());
             headerBtns.appendChild(refreshBtn);
             headerBtns.appendChild(moveHandle);
             headerBtns.appendChild(resetLocBtn);
+            headerBtns.appendChild(guideBtn);
             headerBtns.appendChild(closeBtn);
             header.appendChild(title);
             header.appendChild(headerBtns);
@@ -16987,6 +17097,13 @@
             while (panel.firstChild)
                 zoomWrapper.appendChild(panel.firstChild);
             panel.appendChild(zoomWrapper);
+            // Guide overlay card — appended to slideContainer (outside zoom wrapper) so it
+            // sits on top of all panel content and isn't clipped by the zoom wrapper.
+            const guideCard = document.createElement("div");
+            guideCard.className = "ebc-guide-card";
+            guideCard.style.display = "none";
+            slideContainer.appendChild(guideCard);
+            this.guideEl = guideCard;
             // (slideContainer/root/body already anchored early in setup — see above)
             this.applyPanelOpacity();
             this.applyPanelZoom();
@@ -17497,6 +17614,89 @@
                 this.slowLeaveBtn.style.background = "";
                 this.slowLeaveBtn.style.color = "";
             }
+        }
+        startGuide() {
+            if (!this.guideEl)
+                return;
+            this.guideStep = 0;
+            this.renderGuideStep();
+        }
+        renderGuideStep() {
+            const card = this.guideEl;
+            if (!card)
+                return;
+            const steps = EBCDrawer.GUIDE_STEPS;
+            const step = steps[this.guideStep];
+            if (!step)
+                return;
+            // Switch to the relevant tab (but don't re-trigger if we're already there)
+            if (step.tab && step.tab !== this.currentTab) {
+                this.switchTab(step.tab);
+            }
+            card.innerHTML = "";
+            card.style.display = "";
+            // Top row: step counter + close
+            const top = document.createElement("div");
+            top.className = "ebc-guide-top";
+            const stepLbl = document.createElement("span");
+            stepLbl.className = "ebc-guide-step-lbl";
+            stepLbl.textContent = `Step ${this.guideStep + 1} / ${steps.length}`;
+            const closeX = document.createElement("button");
+            closeX.className = "ebc-guide-close-btn";
+            closeX.textContent = "✕";
+            closeX.title = "Close guide";
+            closeX.addEventListener("click", () => this.closeGuide());
+            top.appendChild(stepLbl);
+            top.appendChild(closeX);
+            card.appendChild(top);
+            // Tab / section label
+            const tabLbl = document.createElement("div");
+            tabLbl.className = "ebc-guide-tab-lbl";
+            tabLbl.textContent = step.label;
+            card.appendChild(tabLbl);
+            // Description text (support \n for line breaks)
+            const textEl = document.createElement("div");
+            textEl.className = "ebc-guide-text";
+            for (const line of step.text.split("\n")) {
+                if (textEl.childNodes.length > 0)
+                    textEl.appendChild(document.createElement("br"));
+                textEl.appendChild(document.createTextNode(line));
+            }
+            card.appendChild(textEl);
+            // Nav row: prev · dots · next
+            const nav = document.createElement("div");
+            nav.className = "ebc-guide-nav";
+            const prevBtn = document.createElement("button");
+            prevBtn.className = "ebc-guide-nav-btn";
+            prevBtn.textContent = "← Prev";
+            if (this.guideStep === 0)
+                prevBtn.disabled = true;
+            prevBtn.addEventListener("click", () => { this.guideStep--; this.renderGuideStep(); });
+            const dots = document.createElement("div");
+            dots.className = "ebc-guide-dots";
+            for (let i = 0; i < steps.length; i++) {
+                const dot = document.createElement("div");
+                dot.className = "ebc-guide-dot" + (i === this.guideStep ? " active" : "");
+                dots.appendChild(dot);
+            }
+            const nextBtn = document.createElement("button");
+            nextBtn.className = "ebc-guide-nav-btn";
+            if (this.guideStep === steps.length - 1) {
+                nextBtn.textContent = "Done ✓";
+                nextBtn.addEventListener("click", () => this.closeGuide());
+            }
+            else {
+                nextBtn.textContent = "Next →";
+                nextBtn.addEventListener("click", () => { this.guideStep++; this.renderGuideStep(); });
+            }
+            nav.appendChild(prevBtn);
+            nav.appendChild(dots);
+            nav.appendChild(nextBtn);
+            card.appendChild(nav);
+        }
+        closeGuide() {
+            if (this.guideEl)
+                this.guideEl.style.display = "none";
         }
         // -- Tab switching ---------------------------------------------------------
         stopDevLogPoller() {
@@ -30946,6 +31146,49 @@
         }
     }
     EBCDrawer._instance = null;
+    // -- Interactive guide ─────────────────────────────────────────────────────
+    EBCDrawer.GUIDE_STEPS = [
+        {
+            tab: null,
+            label: "Welcome to EBC ✨",
+            text: "This guide walks you through every feature of the addon. Use Next / Prev to move between sections — the panel will switch tabs automatically as you go.",
+        },
+        {
+            tab: "outfits",
+            label: "📦 Outfits",
+            text: "Save your current full look as a named preset, then apply any saved outfit with one click. Great for switching between roleplay looks instantly. Use the ✏ icon to rename or 🗑 to delete.",
+        },
+        {
+            tab: "buttons",
+            label: "🎛 Action Buttons",
+            text: "Build a personal quick-action bar. Each button can run a BC chat command, emote, expression change, or a pose combo. Tap + to add one, then drag handles to reorder.",
+        },
+        {
+            tab: "anims",
+            label: "🎭 Poses & Anims",
+            text: "Create pose combos — multi-step sequences with delays between each step. Give a combo a /command so you can trigger it just by typing in chat. Useful for transition animations.",
+        },
+        {
+            tab: "notes",
+            label: "👥 Users",
+            text: "Your live room list and friends. Tap ★ on any person to give them a golden plate highlight — great for keeping track of close friends. Expand a card to whisper, copy ID, or open their profile.",
+        },
+        {
+            tab: "dev",
+            label: "⚙ DEV — Preferences",
+            text: "Drawer Preferences lets you change themes, panel opacity, text size, visible tabs, and your menu hotkey. Use Quick Preset to apply a full colour theme in one click.",
+        },
+        {
+            tab: "dev",
+            label: "📋 DEV — Logs",
+            text: "The Logs section keeps a Whisper Log (all whispers this session), Current Room (who's here now), Rooms Visited, a Restraint Log, and a People Met history that persists between sessions.",
+        },
+        {
+            tab: null,
+            label: "💡 Tips",
+            text: "• Type /yourcommand in chat to trigger a pose combo.\n• Press your hotkey (set in DEV → Hotkey) to open/close the menu.\n• Drag the ⠿ handle in the header to reposition the panel anywhere on screen.\n• The ↻ button refreshes your friend list and clears stale data.",
+        },
+    ];
 
     var bcmodsdk = {};
 
@@ -30967,7 +31210,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.1.9";
+    const MOD_VERSION = "3.2.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30978,6 +31221,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.2.0",
+            changes: [
+                "Interactive guide: added a ? button in the panel header that opens a step-through tour overlay. It walks through all 8 major features/tabs with descriptions, auto-switches to the relevant tab on each step, and has Prev / Next / Done navigation with dot indicators.",
+                "DEV tab: added missing 'Logs' translation key for all 7 supported languages (the renamed section previously fell back to the English key).",
+            ],
+        },
         {
             version: "3.1.9",
             changes: [
