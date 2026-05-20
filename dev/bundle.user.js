@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.6.9
+// @version      3.7.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -3120,6 +3120,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     let sidebarCollapsed = false;
+    // Per-button cooldown — prevents spamming action emotes too fast.
+    // Key: categoryIndex * 100 + buttonSlotIndex  →  timestamp of last fire (ms).
+    const BUTTON_COOLDOWN_MS = 15000;
+    const _btnCooldowns = new Map();
     // Drag state
     let isDragging = false;
     let dragAnchorMouseX = 0;
@@ -3243,6 +3247,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return `rgba(${r},${g},${b},${alpha})`;
     }
     function drawActionButtons() {
+        var _a;
         if (CurrentScreen !== "ChatRoom")
             return;
         // Derived Y positions
@@ -3297,15 +3302,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", cats[idx].name);
         }
         const buttons = getButtons();
+        const now = Date.now();
         for (let i = 0; i < buttons.length; i++) {
             const btn = buttons[i];
             if (!(btn === null || btn === void 0 ? void 0 : btn.enabled) || !btn.label)
                 continue;
-            DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90), "", btn.emote);
+            const cdKey = idx * 100 + i;
+            const remainMs = BUTTON_COOLDOWN_MS - (now - ((_a = _btnCooldowns.get(cdKey)) !== null && _a !== void 0 ? _a : 0));
+            const onCooldown = remainMs > 0;
+            DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE, onCooldown ? Math.ceil(remainMs / 1000) + "s" : btn.label, onCooldown ? withAlpha("#1a0a14", 0.88) : withAlpha(btn.color || "#c2185b", 0.90), "", onCooldown ? "" : btn.emote);
         }
     }
     function handleActionButtonClick() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         if (CurrentScreen !== "ChatRoom")
             return false;
         const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
@@ -3340,6 +3349,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return true;
         }
         const buttons = getButtons();
+        const now = Date.now();
         for (let i = 0; i < buttons.length; i++) {
             const btn = buttons[i];
             if (!(btn === null || btn === void 0 ? void 0 : btn.enabled) || !btn.label)
@@ -3347,9 +3357,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const y = btnStartY + i * BTN_SIZE;
             if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
                 my >= y && my <= y + BTN_SIZE) {
+                const cdKey = idx * 100 + i;
+                if (now - ((_c = _btnCooldowns.get(cdKey)) !== null && _c !== void 0 ? _c : 0) < BUTTON_COOLDOWN_MS)
+                    return true; // cooldown active — consume click, do nothing
+                _btnCooldowns.set(cdKey, now);
                 const animOk = triggerLabelAnimation(btn.label);
                 if (animOk)
-                    sendAction(btn.emote, (_c = btn.style) !== null && _c !== void 0 ? _c : "action", btn.includeNameInAnnounce !== false);
+                    sendAction(btn.emote, (_d = btn.style) !== null && _d !== void 0 ? _d : "action", btn.includeNameInAnnounce !== false);
                 return true;
             }
         }
@@ -31759,7 +31773,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.6.9";
+    const MOD_VERSION = "3.7.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31770,6 +31784,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.7.0",
+            changes: [
+                "Action buttons: 15-second per-button cooldown — after firing, the button face shows a live countdown (e.g. '12s') and clicks are ignored until the timer expires. Prevents spam-clicking action emotes.",
+            ],
+        },
         {
             version: "3.6.9",
             changes: [
