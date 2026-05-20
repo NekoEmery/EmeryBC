@@ -15837,6 +15837,7 @@
     catch ( /* ignore */_a) { /* ignore */ } }
     // ── Drawer appearance / layout helpers ───────────────────────────────────
     const EBC_COLORS_KEY = "EBC_colors";
+    const EBC_PRESET_KEY = "EBC_activePreset";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
     const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
@@ -15857,14 +15858,14 @@
     const EBC_THEME_PRESETS = {
         // Each preset is fully cohesive — backgrounds tinted with the theme hue,
         // accent is the primary colour, text & border complement it naturally.
-        rose: { name: "🌸 Rose (Default)", colors: DEFAULT_COLORS },
-        sakura: { name: "🌺 Sakura", colors: { bg: "#1c0e12", card: "#281419", cardMuted: "#220f15", border: "#481a24", accent: "#e8608a", textBright: "#ffecf2", textSub: "#d8a0b0", textMuted: "#906070", gold: "#e0b060" } },
-        lavender: { name: "💜 Lavender", colors: { bg: "#0e0b1a", card: "#150f28", cardMuted: "#120c22", border: "#281a42", accent: "#9b6fcf", textBright: "#ece6f8", textSub: "#9888c0", textMuted: "#5a5278", gold: "#c8b46a" } },
-        ocean: { name: "🌊 Ocean", colors: { bg: "#0a1220", card: "#0e1c30", cardMuted: "#0c1828", border: "#162e4c", accent: "#5a98c8", textBright: "#e0eef8", textSub: "#789ab8", textMuted: "#3e5870", gold: "#c0a860" } },
-        forest: { name: "🌿 Forest", colors: { bg: "#091410", card: "#0d1e16", cardMuted: "#0b1812", border: "#163422", accent: "#52b870", textBright: "#daf0e2", textSub: "#70a880", textMuted: "#3e5e48", gold: "#aab840" } },
-        crimson: { name: "🔴 Crimson", colors: { bg: "#180a0a", card: "#221010", cardMuted: "#1c0c0c", border: "#3c1414", accent: "#c84848", textBright: "#f8e0e0", textSub: "#b87878", textMuted: "#704848", gold: "#c89050" } },
-        amber: { name: "🟡 Amber", colors: { bg: "#150e06", card: "#201508", cardMuted: "#1a1006", border: "#3a2412", accent: "#d08030", textBright: "#f8ecd8", textSub: "#c09870", textMuted: "#806848", gold: "#e8c040" } },
-        obsidian: { name: "🖤 Obsidian", colors: { bg: "#111216", card: "#1a1c22", cardMuted: "#151720", border: "#28293a", accent: "#8090b8", textBright: "#e8eaf0", textSub: "#8890a0", textMuted: "#545a68", gold: "#a89058" } },
+        rose: { name: "Rose (Default)", colors: DEFAULT_COLORS },
+        sakura: { name: "Sakura", colors: { bg: "#1c0e12", card: "#281419", cardMuted: "#220f15", border: "#481a24", accent: "#e8608a", textBright: "#ffecf2", textSub: "#d8a0b0", textMuted: "#906070", gold: "#e0b060" } },
+        lavender: { name: "Lavender", colors: { bg: "#0e0b1a", card: "#150f28", cardMuted: "#120c22", border: "#281a42", accent: "#9b6fcf", textBright: "#ece6f8", textSub: "#9888c0", textMuted: "#5a5278", gold: "#c8b46a" } },
+        ocean: { name: "Ocean", colors: { bg: "#0a1220", card: "#0e1c30", cardMuted: "#0c1828", border: "#162e4c", accent: "#5a98c8", textBright: "#e0eef8", textSub: "#789ab8", textMuted: "#3e5870", gold: "#c0a860" } },
+        forest: { name: "Forest", colors: { bg: "#091410", card: "#0d1e16", cardMuted: "#0b1812", border: "#163422", accent: "#52b870", textBright: "#daf0e2", textSub: "#70a880", textMuted: "#3e5e48", gold: "#aab840" } },
+        crimson: { name: "Crimson", colors: { bg: "#180a0a", card: "#221010", cardMuted: "#1c0c0c", border: "#3c1414", accent: "#c84848", textBright: "#f8e0e0", textSub: "#b87878", textMuted: "#704848", gold: "#c89050" } },
+        amber: { name: "Amber", colors: { bg: "#150e06", card: "#201508", cardMuted: "#1a1006", border: "#3a2412", accent: "#d08030", textBright: "#f8ecd8", textSub: "#c09870", textMuted: "#806848", gold: "#e8c040" } },
+        obsidian: { name: "Obsidian", colors: { bg: "#111216", card: "#1a1c22", cardMuted: "#151720", border: "#28293a", accent: "#8090b8", textBright: "#e8eaf0", textSub: "#8890a0", textMuted: "#545a68", gold: "#a89058" } },
     };
     // ── Colour math helpers ───────────────────────────────────────────────────
     function hexToRgb(hex) {
@@ -24612,7 +24613,7 @@
             };
             // ── Drawer Preferences ────────────────────────────────────────────────
             makeSection(t("dev.drawerPrefs"), "EBC_devAppearanceCollapsed", false, (cnt) => {
-                var _a, _b;
+                var _a, _b, _c;
                 // ── Touch / phone mode toggle (dev preview) ───────────────────────
                 const touchRow = document.createElement("div");
                 touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -24778,12 +24779,12 @@
                     fn(c); };
                 // ── Preset dropdown ────────────────────────────────────────────────
                 const presetRow = document.createElement("div");
-                presetRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
+                presetRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 8px;background:var(--ebc-card);border:1px solid var(--ebc-border);border-radius:6px;";
                 const presetLbl = document.createElement("span");
-                presetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
+                presetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);flex:1;";
                 presetLbl.textContent = t("dev.quickPreset");
                 const presetSel = document.createElement("select");
-                presetSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
+                presetSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:var(--ebc-card-muted);border:1px solid var(--ebc-border-light);border-radius:4px;color:var(--ebc-text-bright);padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
                 const blankOpt = document.createElement("option");
                 blankOpt.value = "";
                 blankOpt.textContent = t("dev.choosePreset");
@@ -24794,28 +24795,40 @@
                     opt.textContent = preset.name;
                     presetSel.appendChild(opt);
                 }
+                // Restore the last active preset so the dropdown isn't always blank
+                try {
+                    presetSel.value = (_a = localStorage.getItem(EBC_PRESET_KEY)) !== null && _a !== void 0 ? _a : "";
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
                 presetSel.addEventListener("change", () => {
                     const preset = EBC_THEME_PRESETS[presetSel.value];
                     if (!preset)
                         return;
                     liveColors = Object.assign({}, preset.colors);
                     saveCoreColors(liveColors);
+                    try {
+                        localStorage.setItem(EBC_PRESET_KEY, presetSel.value);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                     syncAllPickers(liveColors);
                     this.injectStyles();
-                    this.rerender(); // rebuild all rendered elements so inline styles pick up new vars
-                    presetSel.value = ""; // reset dropdown back to placeholder
+                    this.rerender();
                 });
                 const resetBtn = document.createElement("button");
                 resetBtn.textContent = t("dev.resetTheme");
                 resetBtn.title = "Reset to default theme";
-                resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;";
+                resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid var(--ebc-border-light);border-radius:4px;color:var(--ebc-text-muted);cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;";
                 resetBtn.addEventListener("click", () => {
                     liveColors = Object.assign({}, DEFAULT_COLORS);
                     saveCoreColors(liveColors);
+                    try {
+                        localStorage.setItem(EBC_PRESET_KEY, "rose");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                     syncAllPickers(liveColors);
-                    presetSel.value = "";
+                    presetSel.value = "rose";
                     this.injectStyles();
-                    this.rerender(); // rebuild all rendered elements so inline styles pick up default vars
+                    this.rerender();
                 });
                 presetRow.appendChild(presetLbl);
                 presetRow.appendChild(presetSel);
@@ -24869,11 +24882,17 @@
                         picker.title = hint;
                         picker.style.cssText = "width:28px;height:22px;padding:0;border:1px solid #4c2537;border-radius:3px;background:transparent;cursor:pointer;";
                         const lbl = document.createElement("span");
-                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;text-align:center;line-height:1.3;";
+                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:var(--ebc-text-sub);text-align:center;line-height:1.3;";
                         lbl.textContent = label;
                         picker.addEventListener("input", () => {
                             liveColors = Object.assign(Object.assign({}, liveColors), { [key]: picker.value });
                             saveCoreColors(liveColors);
+                            try {
+                                localStorage.removeItem(EBC_PRESET_KEY);
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                            if (presetSel)
+                                presetSel.value = "";
                             this.injectStyles();
                         });
                         // Register a syncer so preset/reset can update this picker's displayed value
@@ -24896,7 +24915,7 @@
                     if (tabId === "dev") {
                         const chip = document.createElement("button");
                         chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
-                        chip.textContent = ((_a = EBC_TAB_LABELS[tabId]) !== null && _a !== void 0 ? _a : "DEV") + " 🔒";
+                        chip.textContent = ((_b = EBC_TAB_LABELS[tabId]) !== null && _b !== void 0 ? _b : "DEV") + " 🔒";
                         chip.title = t("dev.devTabLocked");
                         chip.disabled = true;
                         tabVisGrid.appendChild(chip);
@@ -24904,8 +24923,8 @@
                     }
                     const isVisible = !hiddenTabs.includes(tabId);
                     const chip = document.createElement("button");
-                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "#91405f" : "#3a1928"};background:${isVisible ? "#2a1421" : "transparent"};color:${isVisible ? "#cf6f98" : "#7a5a6a"};`;
-                    chip.textContent = (_b = EBC_TAB_LABELS[tabId]) !== null && _b !== void 0 ? _b : tabId.toUpperCase();
+                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
+                    chip.textContent = (_c = EBC_TAB_LABELS[tabId]) !== null && _c !== void 0 ? _c : tabId.toUpperCase();
                     chip.dataset["tabId"] = tabId;
                     chip.addEventListener("click", () => {
                         const cur = getHiddenTabs();
@@ -24915,9 +24934,9 @@
                             return;
                         setHiddenTabs(nowHidden);
                         const nowVis = !nowHidden.includes(tabId);
-                        chip.style.borderColor = nowVis ? "#91405f" : "#3a1928";
-                        chip.style.background = nowVis ? "#2a1421" : "transparent";
-                        chip.style.color = nowVis ? "#cf6f98" : "#7a5a6a";
+                        chip.style.borderColor = nowVis ? "var(--ebc-accent-dim)" : "var(--ebc-border)";
+                        chip.style.background = nowVis ? "var(--ebc-card)" : "transparent";
+                        chip.style.color = nowVis ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
                         this.applyTabVisibility();
                     });
                     tabVisGrid.appendChild(chip);
@@ -31541,7 +31560,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.4.0";
+    const MOD_VERSION = "3.4.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31552,6 +31571,15 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.4.1",
+            changes: [
+                "Theme presets: removed emojis from preset names — they looked inconsistent in the native select dropdown.",
+                "Theme presets: the dropdown now remembers and shows the last applied preset instead of resetting to '-- choose preset --' after every selection. Reset button correctly resets back to Rose.",
+                "Theme presets: manually tweaking a colour slot now clears the active preset indicator (since the colours are no longer a pure preset).",
+                "Theme UI: preset row, colour picker labels, and tab visibility chips now use CSS variables so they update immediately when any theme is applied, without needing a tab switch.",
+            ],
+        },
         {
             version: "3.4.0",
             changes: [
