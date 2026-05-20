@@ -30983,7 +30983,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.1.3";
+    const MOD_VERSION = "3.1.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30994,6 +30994,16 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.1.4",
+            changes: [
+                "Creator mark: replaced gold crown text character with a canvas-drawn paw print (palm pad + four toe circles) — subtler and more on-brand.",
+                "Badge drag: both the cat icon and version text labels now have independent drag handles (pink ring = icon, amber ring = version text) when drag mode is active.",
+                "Badge drag: all clicks are now blocked from passing through to BC while drag mode is active — no more accidental character tab opens.",
+                "Fix: orange dev outline on cat badge simplified to a single-pass glow — cleaner, less visually noisy.",
+                "Fix: version text in cat mode now has a dark pill background with a matching border so it's readable on any background.",
+            ],
+        },
         {
             version: "3.1.3",
             changes: [
@@ -34994,7 +35004,7 @@
     let _playerCharLeft = 0;
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
-    let _isDraggingBadge = false;
+    let _dragTarget = null;
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -35050,32 +35060,52 @@
             window.setTimeout(initBadgeDragListeners, 1000);
             return;
         }
-        const HIT = 35; // px radius around badge centre that counts as a "hit"
+        const HIT = 35; // px radius that counts as a target "hit"
         const onDown = (clientX, clientY, consume) => {
             if (!getBadgeDragMode())
                 return;
+            // Always consume in drag mode — prevents BC canvas click-through.
+            consume();
             const pos = toCanvasPos(canvas, clientX, clientY);
+            // Check icon hit first
             const bx = _playerCharLeft + getBadgeOffsetX() * _playerCharZoom;
             const by = _playerCharTop + getBadgeOffsetY() * _playerCharZoom;
             if (Math.abs(pos.x - bx) < HIT && Math.abs(pos.y - by) < HIT) {
-                _isDraggingBadge = true;
-                consume();
+                _dragTarget = "icon";
+                return;
             }
+            // Check version text hit (cat mode + version visible)
+            if (getBadgeStyle() === "cat" && getShowVersionBadge()) {
+                const vx = _playerCharLeft + getVersionTextOffsetX() * _playerCharZoom;
+                const vy = _playerCharTop + getVersionTextOffsetY() * _playerCharZoom;
+                if (Math.abs(pos.x - vx) < HIT && Math.abs(pos.y - vy) < HIT) {
+                    _dragTarget = "version";
+                    return;
+                }
+            }
+            // Clicked empty space in drag mode — consume but no drag starts
+            _dragTarget = null;
         };
         const onMove = (clientX, clientY, consume) => {
-            if (!_isDraggingBadge)
+            if (!_dragTarget)
                 return;
             const pos = toCanvasPos(canvas, clientX, clientY);
             if (_playerCharZoom > 0) {
-                setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
-                setBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                if (_dragTarget === "icon") {
+                    setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                    setBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                }
+                else {
+                    setVersionTextOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                    setVersionTextOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                }
             }
             consume();
         };
         const onUp = () => {
-            if (_isDraggingBadge) {
-                _isDraggingBadge = false;
-                setBadgeDragMode(false); // auto-exit drag mode on release
+            if (_dragTarget !== null) {
+                _dragTarget = null;
+                setBadgeDragMode(false); // auto-exit drag mode after completing a drag
             }
         };
         // Mouse
@@ -35167,20 +35197,14 @@
                         ctx.arcTo(bx, by, bx + r, by, r);
                         ctx.closePath();
                     };
-                    const lw = Math.max(1, size * 0.07);
-                    // Wide soft glow pass
-                    ctx.shadowColor = "#ff7722";
-                    ctx.shadowBlur = size * 0.65;
-                    ctx.strokeStyle = "rgba(255,150,50,0.8)";
+                    const lw = Math.max(1, size * 0.065);
+                    ctx.shadowColor = "#ff8833";
+                    ctx.shadowBlur = size * 0.45;
+                    ctx.strokeStyle = "rgba(255,155,55,0.92)";
                     ctx.lineWidth = lw;
                     roundRect();
                     ctx.stroke();
-                    // Crisp bright highlight pass on top
                     ctx.shadowBlur = 0;
-                    ctx.strokeStyle = "rgba(255,210,110,0.9)";
-                    ctx.lineWidth = Math.max(1, lw * 0.55);
-                    roundRect();
-                    ctx.stroke();
                     ctx.shadowColor = "transparent";
                 }
                 // ── Version text label (cat mode + version enabled) ───────────────
@@ -35188,11 +35212,39 @@
                     const vx = left + getVersionTextOffsetX() * zoom;
                     const vy = top + getVersionTextOffsetY() * zoom;
                     const fontSize = Math.max(7, Math.round(9 * zoom * userScale));
+                    const verLabel = isDevUser ? "dev | v" + verStr : "v" + verStr;
                     ctx.font = `bold ${fontSize}px "Trebuchet MS",serif`;
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
+                    // Background pill
+                    const tw = ctx.measureText(verLabel).width;
+                    const ph = fontSize * 1.55;
+                    const pw = tw + Math.max(4, fontSize * 0.9);
+                    const pr = ph / 2;
+                    const plx = vx - pw / 2;
+                    const ply = vy - ph / 2;
+                    ctx.save();
+                    ctx.globalAlpha = badgeTextOp * 0.85;
+                    ctx.fillStyle = "rgba(20,8,15,0.80)";
+                    ctx.beginPath();
+                    ctx.moveTo(plx + pr, ply);
+                    ctx.lineTo(plx + pw - pr, ply);
+                    ctx.arcTo(plx + pw, ply, plx + pw, ply + pr, pr);
+                    ctx.lineTo(plx + pw, ply + ph - pr);
+                    ctx.arcTo(plx + pw, ply + ph, plx + pw - pr, ply + ph, pr);
+                    ctx.lineTo(plx + pr, ply + ph);
+                    ctx.arcTo(plx, ply + ph, plx, ply + ph - pr, pr);
+                    ctx.lineTo(plx, ply + pr);
+                    ctx.arcTo(plx, ply, plx + pr, ply, pr);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = isDevUser ? "rgba(255,160,80,0.75)" : "rgba(207,111,152,0.75)";
+                    ctx.lineWidth = Math.max(0.8, 0.9 * zoom);
+                    ctx.stroke();
+                    ctx.restore();
+                    // Text on top (outer globalAlpha = badgeTextOp)
                     ctx.fillStyle = isDevUser ? "#ffb060" : "#cf6f98";
-                    ctx.fillText(isDevUser ? "dev | v" + verStr : "v" + verStr, vx, vy);
+                    ctx.fillText(verLabel, vx, vy);
                 }
                 ctx.restore();
             }
@@ -35233,32 +35285,49 @@
                 ctx.restore();
             }
         }
-        // ── Creator mark — pulsing gold crown, visible only to EBC addon users ────
+        // ── Creator mark — pulsing gold paw, visible only to EBC addon users ────
         if (isDevUser) {
             const canvas = getBCCanvas();
             const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
             if (ctx && badgeTextOp > 0) {
                 const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 900);
                 const sz = Math.max(8, Math.round(11 * zoom * userScale));
+                const px = x;
+                const py = y - sz * 2.4;
                 ctx.save();
                 ctx.globalAlpha = badgeTextOp * 0.88 * pulse;
-                ctx.font = `${sz}px serif`;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
                 ctx.fillStyle = "#ffd700";
-                ctx.shadowColor = "#ffa000";
-                ctx.shadowBlur = sz * 0.85;
-                ctx.fillText("♛", x, y - sz * 2.4);
+                ctx.shadowColor = "#ffa500";
+                ctx.shadowBlur = sz * 0.7;
+                // Main palm pad (ellipse)
+                ctx.beginPath();
+                ctx.ellipse(px, py + sz * 0.10, sz * 0.42, sz * 0.34, 0, 0, Math.PI * 2);
+                ctx.fill();
+                // Four toe pads
+                [
+                    [px - sz * 0.40, py - sz * 0.20, sz * 0.16],
+                    [px - sz * 0.15, py - sz * 0.43, sz * 0.17],
+                    [px + sz * 0.15, py - sz * 0.43, sz * 0.17],
+                    [px + sz * 0.40, py - sz * 0.20, sz * 0.16],
+                ].forEach(([tx, ty, tr]) => {
+                    ctx.beginPath();
+                    ctx.arc(tx, ty, tr, 0, Math.PI * 2);
+                    ctx.fill();
+                });
                 ctx.restore();
             }
         }
-        // ── Drag-mode handle (own character only) ─────────────────────────────────
+        // ── Drag-mode handles (own character only) ────────────────────────────────
         if (isSelf && getBadgeDragMode()) {
             const canvas = getBCCanvas();
             const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
             if (ctx) {
-                const r = Math.max(16, 22 * zoom * userScale);
                 ctx.save();
+                const labelFont = `bold ${Math.max(9, Math.round(11 * zoom))}px "Trebuchet MS",serif`;
+                ctx.font = labelFont;
+                ctx.textAlign = "center";
+                // Icon ring (pink)
+                const r = Math.max(16, 22 * zoom * userScale);
                 ctx.strokeStyle = "rgba(207,111,152,0.9)";
                 ctx.lineWidth = 2;
                 ctx.setLineDash([5, 4]);
@@ -35266,12 +35335,25 @@
                 ctx.arc(x, y, r, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.setLineDash([]);
-                // Small "move" label above ring
                 ctx.fillStyle = "rgba(207,111,152,0.9)";
-                ctx.font = `bold ${Math.max(9, Math.round(11 * zoom))}px "Trebuchet MS",serif`;
-                ctx.textAlign = "center";
                 ctx.textBaseline = "bottom";
                 ctx.fillText("drag", x, y - r - 2);
+                // Version text ring (amber) — only in cat mode with version visible
+                if (badgeStyle === "cat" && showVer) {
+                    const vx = left + getVersionTextOffsetX() * zoom;
+                    const vy = top + getVersionTextOffsetY() * zoom;
+                    const vr = Math.max(12, 16 * zoom * userScale);
+                    ctx.strokeStyle = "rgba(255,185,70,0.88)";
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 3]);
+                    ctx.beginPath();
+                    ctx.arc(vx, vy, vr, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = "rgba(255,185,70,0.88)";
+                    ctx.textBaseline = "bottom";
+                    ctx.fillText("drag", vx, vy - vr - 2);
+                }
                 ctx.restore();
             }
         }
@@ -35316,6 +35398,10 @@
             return result;
         });
         modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
+            // Block all BC click handling while drag mode is active to prevent
+            // click-through to character tabs and other BC canvas interactions.
+            if (getBadgeDragMode())
+                return;
             try {
                 if (handleActionButtonClick())
                     return;
@@ -35633,7 +35719,7 @@
             catch ( /* ignore */_b) { /* ignore */ }
             try {
                 setBadgeDragMode(false);
-                _isDraggingBadge = false;
+                _dragTarget = null;
             }
             catch ( /* ignore */_c) { /* ignore */ }
             return result;
