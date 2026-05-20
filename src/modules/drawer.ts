@@ -2728,17 +2728,13 @@ const CSS = `
 .ebc-whisper-text { color: #d0a0b8; word-break: break-word; }
 .ebc-whisper-msg.out .ebc-whisper-text { color: #e8b0d0; }
 
-/* ── Creator paw glow animation (credits card) ──────────────────────────── */
-@keyframes ebc-paw-glow {
-    0%, 100% { opacity: 0.82; filter: drop-shadow(0 0 3px #c89030); }
-    50%       { opacity: 1.00; filter: drop-shadow(0 0 7px #ffd700) drop-shadow(0 0 3px #c89030); }
-}
+/* ── Creator paw (credits card) ─────────────────────────────────────────── */
 .ebc-creator-paw-img {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    animation: ebc-paw-glow 2.4s ease-in-out infinite;
-    vertical-align: middle;
+    width: 28px;
+    height: 28px;
+    display: block;
+    filter: drop-shadow(0 0 4px #c89030);
+    opacity: 0.88;
 }
 
 /* ── Touch / phone mode ─────────────────────────────────────────────────── */
@@ -17425,9 +17421,10 @@ export class EBCDrawer {
 
             const info = document.createElement("div");
             info.className = "ebc-thanks-info";
+            if (isPawCard) info.style.alignItems = "center"; // center paw + name row + text
 
             const nameRow = document.createElement("div");
-            nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+            nameRow.style.cssText = "display:flex;align-items:center;gap:6px;" + (isPawCard ? "justify-content:center;" : "");
 
             const namEl = document.createElement("span");
             namEl.className = "ebc-thanks-name";
@@ -17449,19 +17446,6 @@ export class EBCDrawer {
                 idElCreator.textContent = "#" + p.memberId;
                 idElCreator.title = "BC Member Number";
                 nameRow.appendChild(idElCreator);
-                // Paw mark — use the gold PNG if available, fall back to emoji
-                if (EBCDrawer.pawDataUri) {
-                    const pawImg = document.createElement("img");
-                    pawImg.src = EBCDrawer.pawDataUri;
-                    pawImg.className = "ebc-creator-paw-img";
-                    pawImg.alt = "🐾";
-                    nameRow.appendChild(pawImg);
-                } else {
-                    const pawMark = document.createElement("span");
-                    pawMark.style.cssText = "font-size:13px;line-height:1;filter:drop-shadow(0 0 3px #c89030);flex-shrink:0;";
-                    pawMark.textContent = "🐾";
-                    nameRow.appendChild(pawMark);
-                }
             } else {
                 const idEl2 = document.createElement("span");
                 idEl2.className = "ebc-member-chip";
@@ -17473,7 +17457,26 @@ export class EBCDrawer {
             const reason = document.createElement("span");
             reason.className = "ebc-thanks-reason";
             reason.textContent = p.reason;
+            if (isPawCard) reason.style.textAlign = "center";
 
+            // Creator card only: paw centered above the name row
+            if (isPawCard) {
+                const pawWrap = document.createElement("div");
+                pawWrap.style.cssText = "display:flex;justify-content:center;margin-bottom:6px;";
+                if (EBCDrawer.pawDataUri) {
+                    const pawImg = document.createElement("img");
+                    pawImg.src = EBCDrawer.pawDataUri;
+                    pawImg.className = "ebc-creator-paw-img";
+                    pawImg.alt = "🐾";
+                    pawWrap.appendChild(pawImg);
+                } else {
+                    const pawMark = document.createElement("span");
+                    pawMark.style.cssText = "font-size:18px;line-height:1;filter:drop-shadow(0 0 4px #c89030);opacity:0.88;";
+                    pawMark.textContent = "🐾";
+                    pawWrap.appendChild(pawMark);
+                }
+                info.appendChild(pawWrap);
+            }
             info.appendChild(nameRow);
             info.appendChild(reason);
 
