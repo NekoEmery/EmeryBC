@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.3.8
+// @version      3.3.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -14115,6 +14115,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     50%       { filter: drop-shadow(0 0 14px rgba(255, 225, 55, 1));   }
 }
 .ebc-thanks-avatar-paw {
+    width: 44px !important;
+    height: 44px !important;
     border-color: #b07010 !important;
     background: #26180a !important;
     animation: ebc-paw-ring 2.6s ease-in-out infinite;
@@ -30116,7 +30118,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const avatar = document.createElement("div");
                 avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
                 if (isPawCard) {
-                    avatar.appendChild(makePawSvg(22));
+                    avatar.appendChild(makePawSvg(28));
                 }
                 else {
                     avatar.textContent = p.emoji;
@@ -30152,13 +30154,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 reason.textContent = p.reason;
                 info.appendChild(nameRow);
                 info.appendChild(reason);
-                // Right decoration — plain emoji for everyone (SVG at this size looks like a blob)
-                const heart = document.createElement("span");
-                heart.className = "ebc-thanks-heart";
-                heart.textContent = p.heart;
                 card.appendChild(avatar);
                 card.appendChild(info);
-                card.appendChild(heart);
+                // Right decoration — skip for the creator card (avatar already has the paw)
+                if (!isPawCard) {
+                    const heart = document.createElement("span");
+                    heart.className = "ebc-thanks-heart";
+                    heart.textContent = p.heart;
+                    card.appendChild(heart);
+                }
                 body.appendChild(card);
             }
         }
@@ -31539,7 +31543,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.8";
+    const MOD_VERSION = "3.3.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31550,6 +31554,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.9",
+            changes: [
+                "Credits: fixed paw SVG rendering on Emery's card — avatar circle enlarged to 44px and paw drawn at 28px so the toe pads are actually legible instead of a blob. Removed the redundant right-side 🐾 emoji.",
+            ],
+        },
         {
             version: "3.3.8",
             changes: [
