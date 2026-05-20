@@ -1403,13 +1403,8 @@ const CSS = `
     display: inline-block;
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
-    font-weight: bold;
-    color: #d08898;
-    background: #2a0e1e;
-    border: 1px solid #6b3050;
-    border-radius: 4px;
-    padding: 1px 5px;
-    letter-spacing: 0.03em;
+    color: #7a5a6a;
+    letter-spacing: 0.02em;
     flex-shrink: 0;
     user-select: all;
 }
@@ -17164,6 +17159,10 @@ export class EBCDrawer {
             card.className = "ebc-thanks-card";
 
             const isPawCard = p.memberId === 130267;
+            if (isPawCard) {
+                // Subtle golden tint to mark the creator card
+                card.style.cssText = "background:rgba(38,28,8,0.75);border-color:#5a3c10;";
+            }
 
             const avatar = document.createElement("div");
             avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
@@ -17197,11 +17196,6 @@ export class EBCDrawer {
             reason.className = "ebc-thanks-reason";
             reason.textContent = p.reason;
 
-            if (isPawCard) {
-                const aboveName = makePawSvg(12);
-                aboveName.style.cssText = "line-height:1;margin-bottom:2px;display:block;";
-                info.appendChild(aboveName);
-            }
             info.appendChild(nameRow);
             info.appendChild(reason);
 
