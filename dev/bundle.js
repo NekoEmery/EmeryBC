@@ -3131,10 +3131,13 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
     let sidebarCollapsed = false;
-    // Per-button cooldown — prevents spamming action emotes too fast.
-    // Key: categoryIndex * 100 + buttonSlotIndex  →  timestamp of last fire (ms).
-    const BUTTON_COOLDOWN_MS = 5000;
-    const _btnCooldowns = new Map();
+    // Per-button spam cooldown.
+    // First press always fires.  If a second press lands within SPAM_WINDOW_MS the
+    // cooldown activates and blocks the button for BUTTON_COOLDOWN_MS.
+    const BUTTON_COOLDOWN_MS = 5000; // how long the button is locked after spam is detected
+    const SPAM_WINDOW_MS = 2000; // two presses within this window triggers the lockout
+    const _btnLastFire = new Map(); // key → timestamp of last successful fire
+    const _btnCooldowns = new Map(); // key → timestamp cooldown was activated
     // Drag state
     let isDragging = false;
     let dragAnchorMouseX = 0;
@@ -3371,7 +3374,7 @@
         }
     }
     function handleActionButtonClick() {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         if (CurrentScreen !== "ChatRoom")
             return false;
         const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
@@ -3415,12 +3418,19 @@
             if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
                 my >= y && my <= y + BTN_SIZE) {
                 const cdKey = idx * 100 + i;
+                // Blocked: cooldown is active
                 if (now - ((_c = _btnCooldowns.get(cdKey)) !== null && _c !== void 0 ? _c : 0) < BUTTON_COOLDOWN_MS)
-                    return true; // cooldown active — consume click, do nothing
-                _btnCooldowns.set(cdKey, now);
+                    return true;
+                // Spam detected: second press within SPAM_WINDOW_MS → activate cooldown, block
+                if (now - ((_d = _btnLastFire.get(cdKey)) !== null && _d !== void 0 ? _d : 0) < SPAM_WINDOW_MS) {
+                    _btnCooldowns.set(cdKey, now);
+                    return true;
+                }
+                // Normal fire: record time and send the action
+                _btnLastFire.set(cdKey, now);
                 const animOk = triggerLabelAnimation(btn.label);
                 if (animOk)
-                    sendAction(btn.emote, (_d = btn.style) !== null && _d !== void 0 ? _d : "action", btn.includeNameInAnnounce !== false);
+                    sendAction(btn.emote, (_e = btn.style) !== null && _e !== void 0 ? _e : "action", btn.includeNameInAnnounce !== false);
                 return true;
             }
         }
@@ -31830,7 +31840,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.7.3";
+    const MOD_VERSION = "3.7.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31841,6 +31851,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.7.4",
+            changes: [
+                "Action buttons: cooldown now only activates on spam. First press always fires freely. A second press within 2 seconds triggers the 5s lockout. Waiting 2s between presses resets the window — no penalty for normal use.",
+            ],
+        },
         {
             version: "3.7.3",
             changes: [
