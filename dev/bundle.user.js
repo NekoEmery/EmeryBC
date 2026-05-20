@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.1.7
+// @version      3.1.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12531,6 +12531,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "users.typeMessage": { en: "Type a message...", de: "Nachricht eingeben...", zh: "输入消息...", fr: "Tapez un message...", es: "Escribe un mensaje...", ru: "Введите сообщение...", ja: "メッセージを入力..." },
         "users.reply": { en: "↩ reply", de: "↩ Antworten", zh: "↩ 回复", fr: "↩ répondre", es: "↩ responder", ru: "↩ ответить", ja: "↩ 返信" },
         "users.noConversation": { en: "No conversation yet.", de: "Noch keine Unterhaltung.", zh: "还没有对话。", fr: "Aucune conversation.", es: "Sin conversación aún.", ru: "Разговора пока нет.", ja: "まだ会話がありません。" },
+        "users.markSpecial": { en: "Mark as special friend (golden highlight)", de: "Als besonderen Freund markieren (goldene Hervorhebung)", zh: "标记为特别好友（金色高亮）", fr: "Marquer comme ami spécial (surbrillance dorée)", es: "Marcar como amigo especial (resaltado dorado)", ru: "Отметить как особого друга (золотая подсветка)", ja: "特別フレンドにマーク（ゴールドハイライト）" },
+        "users.removeSpecial": { en: "Remove from special friends", de: "Aus besonderen Freunden entfernen", zh: "从特别好友中移除", fr: "Retirer des amis spéciaux", es: "Quitar de amigos especiales", ru: "Убрать из особых друзей", ja: "特別フレンドから削除" },
         // ─── DEV TAB ───────────────────────────────────────────────────────────
         "dev.characterInspector": { en: "Character Inspector", de: "Charakter-Inspektor", zh: "角色检查器", fr: "Inspecteur de personnage", es: "Inspector de personaje", ru: "Инспектор персонажа", ja: "キャラクター検査ツール" },
         "dev.searchPlaceholder": { en: "Search name or #id…", de: "Name oder #ID suchen…", zh: "搜索名称或 #ID…", fr: "Chercher nom ou #id…", es: "Buscar nombre o #id…", ru: "Поиск по имени или #id…", ja: "名前または #id で検索…" },
@@ -14434,7 +14436,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 
 /* -- Friends section -- */
-.ebc-friend-wrap { margin-bottom: 3px; }
+.ebc-friend-wrap { margin-bottom: 3px; border: 1px solid transparent; border-radius: 5px; overflow: hidden; transition: background 0.2s, border-color 0.2s; }
 
 .ebc-friend-row {
     display: flex;
@@ -15659,6 +15661,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const borderLight = lighten(c.border, 0.35);
         const accentHover = lighten(c.accent, 0.15);
         const accentDim = darken(c.accent, 0.20);
+        // CSS custom properties injected on #emerybc-panel so every child element
+        // (including those using inline style.cssText with var(--ebc-xxx)) automatically
+        // reflects the active theme whenever injectStyles() is called.
+        const vars = `#emerybc-panel{` +
+            `--ebc-bg:${c.bg};--ebc-card:${c.card};--ebc-card-muted:${c.cardMuted};` +
+            `--ebc-bg-dark:${bgDark};--ebc-bg-darker:${bgDarker};--ebc-bg-mid:${bgMid};` +
+            `--ebc-border:${c.border};--ebc-border-light:${borderLight};` +
+            `--ebc-accent:${c.accent};--ebc-accent-hover:${accentHover};--ebc-accent-dim:${accentDim};` +
+            `--ebc-text-muted:${c.textMuted};--ebc-text-sub:${c.textSub};--ebc-text-bright:${c.textBright};` +
+            `--ebc-gold:${c.gold};}\n`;
         let css = CSS;
         css = css.split("#1a0d14").join(c.bg);
         css = css.split("#23101d").join(c.card);
@@ -15675,7 +15687,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         css = css.split("#c09098").join(c.textSub);
         css = css.split("#f7e6ee").join(c.textBright);
         css = css.split("#c9ab72").join(c.gold);
-        return css;
+        return vars + css;
     }
     // -- VIP members (highlighted in Notes tab when present in the room) -----------
     const VIP_MEMBERS = {
@@ -23089,8 +23101,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const wrap = document.createElement("div");
                         wrap.className = "ebc-friend-wrap";
                         if (isSpecialFriend(num)) {
-                            wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
-                            wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                            wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
+                            wrap.style.borderColor = "rgba(255,200,50,0.55)";
                         }
                         const row = document.createElement("div");
                         row.className = "ebc-friend-row";
@@ -23166,7 +23178,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const ebcBadge = document.createElement("span");
                             ebcBadge.textContent = "EBC " + ebcVer;
                             ebcBadge.title = "Uses EmeryBC v" + ebcVer;
-                            ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
+                            ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
                             metaRow.appendChild(ebcBadge);
                         }
                         // Tag chips from friend list (if any)
@@ -23202,9 +23214,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const profBtn = document.createElement("button");
                         profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                         profBtn.title = "View profile";
-                        profBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#3a1428"; profBtn.style.borderColor = "#cf6f98"; });
-                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "#2a0e1e"; profBtn.style.borderColor = "#4c2537"; });
+                        profBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
+                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
                         profBtn.addEventListener("click", (e) => {
                             var _a;
                             e.stopPropagation();
@@ -23235,9 +23247,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const copyIdBtnR = document.createElement("button");
                         copyIdBtnR.innerHTML = COPY_SVG_R;
                         copyIdBtnR.title = `Copy ID: ${num}`;
-                        copyIdBtnR.style.cssText = "color:#cf6f98;background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
-                        copyIdBtnR.addEventListener("mouseenter", () => { copyIdBtnR.style.background = "#3a1428"; copyIdBtnR.style.borderColor = "#cf6f98"; });
-                        copyIdBtnR.addEventListener("mouseleave", () => { copyIdBtnR.style.background = "#2a0e1e"; copyIdBtnR.style.borderColor = "#4c2537"; copyIdBtnR.style.color = "#cf6f98"; });
+                        copyIdBtnR.style.cssText = "color:var(--ebc-accent);background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                        copyIdBtnR.addEventListener("mouseenter", () => { copyIdBtnR.style.background = "var(--ebc-bg-mid)"; copyIdBtnR.style.borderColor = "var(--ebc-accent)"; });
+                        copyIdBtnR.addEventListener("mouseleave", () => { copyIdBtnR.style.background = "var(--ebc-bg-darker)"; copyIdBtnR.style.borderColor = "var(--ebc-border-light)"; copyIdBtnR.style.color = "var(--ebc-accent)"; });
                         copyIdBtnR.addEventListener("click", (e) => {
                             e.stopPropagation();
                             try {
@@ -23246,7 +23258,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             catch ( /* ignore */_a) { /* ignore */ }
                             copyIdBtnR.style.color = "#a0d080";
                             copyIdBtnR.style.borderColor = "#a0d080";
-                            window.setTimeout(() => { copyIdBtnR.style.color = "#cf6f98"; copyIdBtnR.style.borderColor = "#4c2537"; }, 1200);
+                            window.setTimeout(() => { copyIdBtnR.style.color = "var(--ebc-accent)"; copyIdBtnR.style.borderColor = "var(--ebc-border-light)"; }, 1200);
                         });
                         // Build btnCol
                         const btnCol = document.createElement("div");
@@ -23282,8 +23294,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const refreshStarBtnR = () => {
                             const sp = isSpecialFriend(num);
                             starBtnR.textContent = sp ? "★" : "☆";
-                            starBtnR.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
-                            starBtnR.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                            starBtnR.title = sp ? t("users.removeSpecial") : t("users.markSpecial");
+                            starBtnR.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "var(--ebc-border)"};background:${sp ? "#1e1800" : "var(--ebc-bg-darker)"};color:${sp ? "#ffd700" : "var(--ebc-text-muted)"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
                         };
                         refreshStarBtnR();
                         starBtnR.addEventListener("click", (e) => {
@@ -23293,8 +23305,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             else
                                 addSpecialFriend(num);
                             const sp = isSpecialFriend(num);
-                            wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
-                            wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                            wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
+                            wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
                             refreshStarBtnR();
                         });
                         btnCol.appendChild(starBtnR);
@@ -23436,8 +23448,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const wrap = document.createElement("div");
                     wrap.className = "ebc-friend-wrap";
                     if (isSpecialFriend(num)) {
-                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
-                        wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
+                        wrap.style.borderColor = "rgba(255,200,50,0.55)";
                     }
                     // ── Row ────────────────────────────────────────────────────
                     const row = document.createElement("div");
@@ -23554,7 +23566,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ebcBadge = document.createElement("span");
                         ebcBadge.textContent = "EBC " + ebcVer;
                         ebcBadge.title = "Uses EmeryBC v" + ebcVer;
-                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
+                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
                     }
                     // ── Tag display area (first tag + "+N more", hover = tooltip) ──
                     const tagArea = document.createElement("span");
@@ -23666,9 +23678,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const friendProfBtn = document.createElement("button");
                     friendProfBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                     friendProfBtn.title = "View profile";
-                    friendProfBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-                    friendProfBtn.addEventListener("mouseenter", () => { friendProfBtn.style.background = "#3a1428"; friendProfBtn.style.borderColor = "#cf6f98"; });
-                    friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "#2a0e1e"; friendProfBtn.style.borderColor = "#4c2537"; });
+                    friendProfBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                    friendProfBtn.addEventListener("mouseenter", () => { friendProfBtn.style.background = "var(--ebc-bg-mid)"; friendProfBtn.style.borderColor = "var(--ebc-accent)"; });
+                    friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "var(--ebc-bg-darker)"; friendProfBtn.style.borderColor = "var(--ebc-border-light)"; });
                     friendProfBtn.addEventListener("click", async (e) => {
                         e.stopPropagation();
                         const w2 = window;
@@ -23751,9 +23763,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const copyIdBtn = document.createElement("button");
                     copyIdBtn.innerHTML = COPY_SVG;
                     copyIdBtn.title = `Copy ID: ${num}`;
-                    copyIdBtn.style.cssText = "color:#cf6f98;background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
-                    copyIdBtn.addEventListener("mouseenter", () => { copyIdBtn.style.background = "#3a1428"; copyIdBtn.style.borderColor = "#cf6f98"; });
-                    copyIdBtn.addEventListener("mouseleave", () => { copyIdBtn.style.background = "#2a0e1e"; copyIdBtn.style.borderColor = "#4c2537"; copyIdBtn.style.color = "#cf6f98"; });
+                    copyIdBtn.style.cssText = "color:var(--ebc-accent);background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                    copyIdBtn.addEventListener("mouseenter", () => { copyIdBtn.style.background = "var(--ebc-bg-mid)"; copyIdBtn.style.borderColor = "var(--ebc-accent)"; });
+                    copyIdBtn.addEventListener("mouseleave", () => { copyIdBtn.style.background = "var(--ebc-bg-darker)"; copyIdBtn.style.borderColor = "var(--ebc-border-light)"; copyIdBtn.style.color = "var(--ebc-accent)"; });
                     copyIdBtn.addEventListener("click", (e) => {
                         e.stopPropagation();
                         try {
@@ -23762,7 +23774,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         catch ( /* ignore */_a) { /* ignore */ }
                         copyIdBtn.style.color = "#a0d080";
                         copyIdBtn.style.borderColor = "#a0d080";
-                        window.setTimeout(() => { copyIdBtn.style.color = "#cf6f98"; copyIdBtn.style.borderColor = "#4c2537"; }, 1200);
+                        window.setTimeout(() => { copyIdBtn.style.color = "var(--ebc-accent)"; copyIdBtn.style.borderColor = "var(--ebc-border-light)"; }, 1200);
                     });
                     // btnCol: friendProfBtn + beepBtn + starBtn + copyIdBtn
                     const btnCol = document.createElement("div");
@@ -23774,8 +23786,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const refreshStarBtn = () => {
                         const sp = isSpecialFriend(num);
                         starBtn.textContent = sp ? "★" : "☆";
-                        starBtn.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
-                        starBtn.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                        starBtn.title = sp ? t("users.removeSpecial") : t("users.markSpecial");
+                        starBtn.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "var(--ebc-border)"};background:${sp ? "#1e1800" : "var(--ebc-bg-darker)"};color:${sp ? "#ffd700" : "var(--ebc-text-muted)"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
                     };
                     refreshStarBtn();
                     starBtn.addEventListener("click", (e) => {
@@ -23785,8 +23797,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         else
                             addSpecialFriend(num);
                         const sp = isSpecialFriend(num);
-                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
-                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
+                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
                         refreshStarBtn();
                     });
                     btnCol.appendChild(starBtn);
@@ -24585,6 +24597,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     saveCoreColors(liveColors);
                     syncAllPickers(liveColors);
                     this.injectStyles();
+                    this.rerender(); // rebuild all rendered elements so inline styles pick up new vars
                     presetSel.value = ""; // reset dropdown back to placeholder
                 });
                 const resetBtn = document.createElement("button");
@@ -24597,6 +24610,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     syncAllPickers(liveColors);
                     presetSel.value = "";
                     this.injectStyles();
+                    this.rerender(); // rebuild all rendered elements so inline styles pick up default vars
                 });
                 presetRow.appendChild(presetLbl);
                 presetRow.appendChild(presetSel);
@@ -26161,9 +26175,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const profBtn = document.createElement("button");
                         profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                         profBtn.title = "View profile";
-                        profBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#3a1428"; profBtn.style.borderColor = "#cf6f98"; });
-                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "#2a0e1e"; profBtn.style.borderColor = "#4c2537"; });
+                        profBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
+                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
                         profBtn.addEventListener("click", async () => {
                             const w = window;
                             const loadChar = w.InformationSheetLoadCharacter;
@@ -31075,7 +31089,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.1.7";
+    const MOD_VERSION = "3.1.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31086,6 +31100,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.1.8",
+            changes: [
+                "Special friends golden highlight fixed: added border to the friend-wrap container so the colored border actually shows, and raised gradient + border opacity so the gold tint is clearly visible.",
+                "Theme system: buildCSS() now emits CSS custom properties (--ebc-bg, --ebc-card, --ebc-accent, etc.) on #emerybc-panel so any inline style using var(--ebc-xxx) auto-updates when the theme changes. Key button and badge styles in the user list now use these vars. Applying a preset or resetting the theme also triggers a full re-render so the whole panel reflects the new colors.",
+                "Translations: special friend star button now uses t() for its tooltip text in all supported languages.",
+            ],
+        },
         {
             version: "3.1.7",
             changes: [
