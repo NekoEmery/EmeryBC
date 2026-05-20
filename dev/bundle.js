@@ -16841,14 +16841,23 @@
             const zoomWrapper = document.createElement("div");
             zoomWrapper.className = "ebc-zoom-wrapper";
             zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
+            // middleArea: wraps all chrome elements + body in a single flex column
+            // that takes all remaining space between the header/tabBar/langRow and the
+            // footer.  Because middleArea is flex:1;min-height:0, the footer (below it)
+            // is ALWAYS visible regardless of how tall the chrome items become.
+            // overflow:hidden prevents chrome from stealing scroll events — the body
+            // inside still scrolls normally when the cursor is over it.
+            const middleArea = document.createElement("div");
+            middleArea.style.cssText = "flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;";
+            middleArea.appendChild(quickActions);
+            middleArea.appendChild(selfPickPanel);
+            middleArea.appendChild(safewordRow);
+            middleArea.appendChild(ebcTagsStrip);
+            middleArea.appendChild(body);
             panel.appendChild(header);
             panel.appendChild(tabBar);
             panel.appendChild(langRow);
-            panel.appendChild(quickActions);
-            panel.appendChild(selfPickPanel);
-            panel.appendChild(safewordRow);
-            panel.appendChild(ebcTagsStrip);
-            panel.appendChild(body);
+            panel.appendChild(middleArea);
             panel.appendChild(footer);
             // Move all panel children into the wrapper, then add wrapper to panel.
             while (panel.firstChild)
@@ -30804,7 +30813,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.4";
+    const MOD_VERSION = "2.10.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30815,6 +30824,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.10.5",
+            changes: [
+                "Fix: Footer is now always visible on every page. Chrome elements (quick-actions, safewords, EBC strip) and the body are wrapped in a shared flex column (middleArea: flex:1; min-height:0; overflow:hidden). The footer lives outside that container so it can never be pushed off-screen regardless of chrome height or body content. This also eliminates scroll-event stealing — only the body scrolls, and only when the cursor is over it.",
+            ],
+        },
         {
             version: "2.10.4",
             changes: [
