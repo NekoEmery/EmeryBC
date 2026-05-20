@@ -14510,6 +14510,7 @@
 
 /* -- Friends section -- */
 .ebc-friend-wrap { margin-bottom: 3px; border: 1px solid transparent; border-radius: 5px; overflow: hidden; transition: background 0.2s, border-color 0.2s; }
+.ebc-friend-wrap.ebc-friend-starred { border-left: 3px solid rgba(255, 200, 50, 0.8); }
 
 .ebc-friend-row {
     display: flex;
@@ -23584,10 +23585,8 @@
                         const name = resolveName(num) || nameRaw;
                         const wrap = document.createElement("div");
                         wrap.className = "ebc-friend-wrap";
-                        if (isSpecialFriend(num)) {
-                            wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
-                            wrap.style.borderColor = "rgba(255,200,50,0.55)";
-                        }
+                        if (isSpecialFriend(num))
+                            wrap.classList.add("ebc-friend-starred");
                         const row = document.createElement("div");
                         row.className = "ebc-friend-row";
                         // Green dot — in room
@@ -23789,8 +23788,7 @@
                             else
                                 addSpecialFriend(num);
                             const sp = isSpecialFriend(num);
-                            wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
-                            wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
+                            wrap.classList.toggle("ebc-friend-starred", sp);
                             refreshStarBtnR();
                         });
                         btnCol.appendChild(starBtnR);
@@ -23932,10 +23930,8 @@
                     // Wrapper holds both the row and the expand panel
                     const wrap = document.createElement("div");
                     wrap.className = "ebc-friend-wrap";
-                    if (isSpecialFriend(num)) {
-                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
-                        wrap.style.borderColor = "rgba(255,200,50,0.55)";
-                    }
+                    if (isSpecialFriend(num))
+                        wrap.classList.add("ebc-friend-starred");
                     // ── Row ────────────────────────────────────────────────────
                     const row = document.createElement("div");
                     row.className = "ebc-friend-row" + (pinned ? " pinned" : "");
@@ -24282,8 +24278,7 @@
                         else
                             addSpecialFriend(num);
                         const sp = isSpecialFriend(num);
-                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
-                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
+                        wrap.classList.toggle("ebc-friend-starred", sp);
                         refreshStarBtn();
                     });
                     btnCol.appendChild(starBtn);
@@ -31756,7 +31751,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.5.7";
+    const MOD_VERSION = "3.5.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31767,6 +31762,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.5.8",
+            changes: [
+                "Users tab: favourited (★) friend cards now show a gold left-side tab stripe instead of a full gradient background and border — cleaner and less visually noisy.",
+            ],
+        },
         {
             version: "3.5.7",
             changes: [
