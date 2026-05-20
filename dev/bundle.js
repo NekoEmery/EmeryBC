@@ -22412,7 +22412,7 @@
                         steps[i] = entries[i].getStep();
                     }
                 };
-                const fullRebuild = () => {
+                const fullRebuild = (scrollToIdx) => {
                     entries.length = 0;
                     while (stepsContainer.firstChild)
                         stepsContainer.removeChild(stepsContainer.firstChild);
@@ -22429,11 +22429,11 @@
                         const entry = buildStepCard(steps[i], idx > 0 ? () => {
                             syncFromEntries();
                             [steps[idx - 1], steps[idx]] = [steps[idx], steps[idx - 1]];
-                            fullRebuild();
+                            fullRebuild(idx - 1);
                         } : null, idx < steps.length - 1 ? () => {
                             syncFromEntries();
                             [steps[idx], steps[idx + 1]] = [steps[idx + 1], steps[idx]];
-                            fullRebuild();
+                            fullRebuild(idx + 1);
                         } : null, () => {
                             syncFromEntries();
                             steps.splice(idx, 1);
@@ -22441,10 +22441,26 @@
                         }, () => {
                             syncFromEntries();
                             steps.splice(idx + 1, 0, Object.assign({}, steps[idx]));
-                            fullRebuild();
+                            fullRebuild(idx + 1);
                         });
+                        // Step number badge — shows clear visual order in the card header
+                        const hdr = entry.el.querySelector(".ebc-scene-step-header");
+                        if (hdr) {
+                            const numBadge = document.createElement("span");
+                            numBadge.className = "ebc-step-num";
+                            numBadge.textContent = String(i + 1);
+                            numBadge.style.cssText = "flex-shrink:0;min-width:16px;";
+                            hdr.insertBefore(numBadge, hdr.firstChild);
+                        }
                         entries.push(entry);
                         stepsContainer.appendChild(entry.el);
+                    }
+                    // Scroll moved/added step into view so the user can see the change
+                    if (scrollToIdx !== undefined && scrollToIdx >= 0 && scrollToIdx < entries.length) {
+                        window.setTimeout(() => {
+                            var _a;
+                            (_a = entries[scrollToIdx]) === null || _a === void 0 ? void 0 : _a.el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                        }, 30);
                     }
                 };
                 fullRebuild();
@@ -31871,7 +31887,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.7.7";
+    const MOD_VERSION = "3.7.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31883,9 +31899,15 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "3.7.8",
+            changes: [
+                "Scenes step editor: each step card now shows its step number (1, 2, 3…) so reordering with ↑/↓ is visually obvious. After a move the newly positioned card scrolls into view.",
+            ],
+        },
+        {
             version: "3.7.7",
             changes: [
-                "Scenes pose step: Arms dropdown first option renamed from 'None' to 'Relaxed' to match pose combo vocabulary.",
+                "Scenes: pose step Arms dropdown first option renamed from 'None' to 'Relaxed' to match pose combo vocabulary.",
             ],
         },
         {
