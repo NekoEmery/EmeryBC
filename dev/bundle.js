@@ -14080,23 +14080,17 @@
     user-select: none;
 }
 
-/* Golden paw icon used on Emery's credits card (avatar + right decoration) */
+/* Golden paw SVG icon used on Emery's credits card (same FA paw as the in-game creator badge) */
 .ebc-thanks-paw-icon {
-    display: inline-block;
-    font-size: inherit;
-    filter: sepia(1) saturate(5) hue-rotate(-10deg) brightness(1.25)
-            drop-shadow(0 0 5px rgba(255, 175, 30, 0.7));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 0 5px rgba(255, 200, 40, 0.65));
     animation: ebc-paw-flash 2.6s ease-in-out infinite;
 }
 @keyframes ebc-paw-flash {
-    0%, 100% {
-        filter: sepia(1) saturate(4) hue-rotate(-10deg) brightness(1.15)
-                drop-shadow(0 0 4px rgba(240, 160, 20, 0.55));
-    }
-    50% {
-        filter: sepia(1) saturate(7) hue-rotate(-12deg) brightness(1.55)
-                drop-shadow(0 0 14px rgba(255, 210, 50, 1));
-    }
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(240, 170, 20, 0.45)); }
+    50%       { filter: drop-shadow(0 0 14px rgba(255, 225, 55, 1));   }
 }
 .ebc-thanks-avatar-paw {
     border-color: #b07010 !important;
@@ -29960,6 +29954,14 @@
                     heart: "💛",
                 },
             ];
+            // Same FA paw SVG path used by the in-game creator badge in main.ts.
+            // Inlined here so the credits card can use it as a real SVG rather than an emoji.
+            const makePawSvg = (size) => {
+                const span = document.createElement("span");
+                span.className = "ebc-thanks-paw-icon";
+                span.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}"><path fill="#ffd700" d="M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5 .3-86.2 32.6-96.8 70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3-14.3-70.1 10.2-84.1 59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5 0 46.3-30.6 88.4-76.2 92.2-17.6 1.5-34.7-3.5-53.9-9.2-15.7-4.7-32.8-9.9-51.9-9.9-19.1 0-36.2 5.2-51.9 9.9-19.2 5.7-36.3 10.7-53.9 9.2C57.6 519.6 27 477.5 27 431.2c0-10.4 1.6-20.8 5.2-30.5zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5 46.9 53.9 32.6 96.8-52.1 69.1-84.4 58.5zM421.6 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3 29.1 51.7 10.2 84.1-54 47.3-78.5 33.3z"/></svg>`;
+                return span;
+            };
             for (const p of people) {
                 const card = document.createElement("div");
                 card.className = "ebc-thanks-card";
@@ -29967,11 +29969,7 @@
                 const avatar = document.createElement("div");
                 avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
                 if (isPawCard) {
-                    // Wrap emoji in a span so the CSS filter/animation applies cleanly
-                    const pawSpan = document.createElement("span");
-                    pawSpan.className = "ebc-thanks-paw-icon";
-                    pawSpan.textContent = p.emoji;
-                    avatar.appendChild(pawSpan);
+                    avatar.appendChild(makePawSvg(22));
                 }
                 else {
                     avatar.textContent = p.emoji;
@@ -29996,10 +29994,8 @@
                 reason.className = "ebc-thanks-reason";
                 reason.textContent = p.reason;
                 if (isPawCard) {
-                    const aboveName = document.createElement("span");
-                    aboveName.className = "ebc-thanks-paw-icon";
-                    aboveName.style.cssText = "font-size:11px;line-height:1;margin-bottom:1px;display:block;";
-                    aboveName.textContent = "🐾";
+                    const aboveName = makePawSvg(12);
+                    aboveName.style.cssText = "line-height:1;margin-bottom:2px;display:block;";
                     info.appendChild(aboveName);
                 }
                 info.appendChild(nameRow);
@@ -30007,10 +30003,7 @@
                 const heart = document.createElement("span");
                 heart.className = "ebc-thanks-heart";
                 if (isPawCard) {
-                    const pawSpan = document.createElement("span");
-                    pawSpan.className = "ebc-thanks-paw-icon";
-                    pawSpan.textContent = p.heart;
-                    heart.appendChild(pawSpan);
+                    heart.appendChild(makePawSvg(18));
                 }
                 else {
                     heart.textContent = p.heart;
@@ -31394,7 +31387,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.2.8";
+    const MOD_VERSION = "3.2.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31405,6 +31398,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.2.9",
+            changes: [
+                "Credits: Emery's paw icons now use the real FA paw SVG (same gold path as the in-game creator badge) instead of the 🐾 emoji. All three instances — avatar circle, above-name decoration, and right side — are the proper vector paw with the gold glow pulse.",
+            ],
+        },
         {
             version: "3.2.8",
             changes: [
