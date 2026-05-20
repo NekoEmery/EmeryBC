@@ -4850,7 +4850,7 @@ export class EBCDrawer {
         label: string;
         text: string;
         spotlight?: string[]; // extra CSS selectors to spotlight beyond the tab button
-        action?: { label: string; kind: string }; // optional interactive button
+        autoExpand?: string[]; // data-guide-target selectors to expand automatically on step entry
     }> = [
         {
             tab: null,
@@ -4865,15 +4865,16 @@ export class EBCDrawer {
         {
             tab: "outfits",
             label: "Outfits — Save & Apply Looks",
-            text: "Click [[+ New Outfit from Current Look]] (the button highlighted in the panel) to save your full appearance as a named preset.\nOnce saved, click [[Apply]] on any outfit card to restore that look — all layers and colours instantly.\nEach card has [[Rename]], [[Delete]], and [[Up]] / [[Down]] arrow buttons to manage your list.\n((Use the button below to create a sample outfit you can apply, rename and delete right now.))",
+            text: "Click [[+ New Outfit from Current Look]] (the highlighted button) to save your full appearance as a named preset — the form is already expanded below so you can try it now.\nOnce saved, click [[Apply]] on any outfit card to restore that look — all layers and colours instantly.\nEach card has [[Rename]], [[Delete]], and [[Up]] / [[Down]] arrow buttons to manage your list.",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
-            action: { label: "Create a sample outfit to practise with →", kind: "create-sample-outfit" },
+            autoExpand: ["btn-new-outfit"],
         },
         {
             tab: "outfits",
             label: "Outfit Tags & Schedules",
-            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the tag icon on any outfit card to assign it tags — then use the filter at the top to narrow your list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day. Expand the [[Schedules]] section at the bottom of this tab to set one up.\n((You can also [[Export]] outfits as share-codes and send them to friends — use [[Import]] to load a code you received.))",
+            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the tag icon on any outfit card to assign it tags — then use the filter at the top to narrow your list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day — both sections are expanded so you can explore them now.\n((You can also [[Export]] outfits as share-codes and send them to friends — use [[Import]] to load a code you received.))",
             spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
+            autoExpand: ["section-outfit-tags", "section-schedules"],
         },
         {
             tab: "buttons",
@@ -4898,18 +4899,21 @@ export class EBCDrawer {
             label: "Users & Friends",
             text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate — perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions — a permanent address book of everyone you've encountered.))",
             spotlight: ["[data-guide-target='section-room-people']"],
+            autoExpand: ["section-room-people"],
         },
         {
             tab: "dev",
             label: "DEV — Preferences & Themes",
             text: "[[Quick Preset]] lets you apply a full colour theme instantly — try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
             spotlight: ["[data-guide-target='section-dev-prefs']"],
+            autoExpand: ["section-dev-prefs"],
         },
         {
             tab: "dev",
             label: "DEV — Logs & History",
             text: "[[Whisper Log]] — every whisper sent and received this session.\n[[Current Room]] — who is in your room right now, with member IDs.\n[[Rooms Visited]] — all rooms you've entered this session.\n[[Restraint Log]] — when items were applied or removed.\n[[People Met]] — persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
             spotlight: ["[data-guide-target='section-dev-logs']"],
+            autoExpand: ["section-dev-logs"],
         },
         {
             tab: null,
@@ -5049,16 +5053,6 @@ export class EBCDrawer {
         EBCDrawer.parseGuideMarkup(step.text, textEl);
         card.appendChild(textEl);
 
-        // Optional interactive action button
-        if (step.action) {
-            const actBtn = document.createElement("button");
-            actBtn.className = "ebc-guide-action-btn";
-            actBtn.textContent = step.action.label;
-            const actionKind = step.action.kind;
-            actBtn.addEventListener("click", () => this.runGuideAction(actionKind, actBtn));
-            card.appendChild(actBtn);
-        }
-
         // Progress bar
         const progress = document.createElement("div");
         progress.className = "ebc-guide-progress";
@@ -5106,6 +5100,12 @@ export class EBCDrawer {
                 for (const sel of step.spotlight!) this.spotlightEl(sel);
             }, 80);
         }
+        // Auto-expand collapsible sections so users can see the content immediately
+        if (step.autoExpand?.length) {
+            window.setTimeout(() => {
+                for (const sel of step.autoExpand!) this.expandGuideTarget(sel);
+            }, 120);
+        }
     }
 
     private closeGuide(): void {
@@ -5113,30 +5113,27 @@ export class EBCDrawer {
         if (this.guideEl) { this.guideEl.remove(); this.guideEl = null; }
     }
 
-    private runGuideAction(kind: string, btn: HTMLButtonElement): void {
-        if (kind === "create-sample-outfit") {
-            const cmd = "guidepreview";
-            if (getOutfits().some(o => o.command === cmd)) {
-                btn.textContent = "Sample outfit already exists — scroll down in Outfits to find it!";
-                btn.disabled = true;
-                return;
+    /**
+     * Expand a collapsible section identified by its data-guide-target attribute.
+     * Detects the collapsed state and clicks the toggle to open it.
+     *   • Accordion-style: element or its first child span has "▶" textContent
+     *   • ebc-new-outfit-btn: next sibling .ebc-new-form is not yet visible (display !== "flex")
+     */
+    private expandGuideTarget(selector: string): void {
+        try {
+            const el = this.rootEl?.querySelector(`[data-guide-target="${selector}"]`) as HTMLElement | null;
+            if (!el) return;
+            // Case 1: element textContent starts with ▶ — direct toggle (tagToggleBtn, schedules lbl, roomToggle)
+            if (el.textContent?.charAt(0) === "▶") { el.click(); return; }
+            // Case 2: first child span has ▶ — makeSection hdr pattern (dev-prefs, dev-logs)
+            const firstChild = el.firstElementChild as HTMLElement | null;
+            if (firstChild?.textContent?.trim() === "▶") { el.click(); return; }
+            // Case 3: ebc-new-outfit-btn — next sibling is an ebc-new-form that is hidden
+            const next = el.nextElementSibling as HTMLElement | null;
+            if (next?.classList.contains("ebc-new-form") && next.style.display !== "flex") {
+                el.click();
             }
-            const result = createOutfitFromCurrent(cmd, "Guide Preview", "", false, false);
-            if (result) {
-                btn.textContent = "Created! Scroll down in the Outfits tab to see it.";
-                btn.disabled = true;
-                // Refresh the outfits tab so the new card is immediately visible
-                if (this.currentTab === "outfits") {
-                    this.renderCurrentTab();
-                    // Re-apply spotlight since re-render replaces DOM
-                    window.setTimeout(() => this.spotlightEl("[data-guide-target='btn-new-outfit']"), 60);
-                } else {
-                    this.switchTab("outfits");
-                }
-            } else {
-                btn.textContent = "Could not save — try the + New Outfit button directly.";
-            }
-        }
+        } catch { /* ignore invalid selectors or detached nodes */ }
     }
 
     private clearGuideSpotlights(): void {
@@ -5198,6 +5195,8 @@ export class EBCDrawer {
         else if (this.currentTab === "dom")      this.renderDomTools();
         else if (this.currentTab === "puppy")    this.renderPuppy();
         else if (this.currentTab === "kitty")    this.renderKittyTab();
+        // Fix inline styles that bypass CSS class rules by hardcoding the default palette
+        this.repaintTheme();
     }
 
     /** Show or hide each pinned strip based on the active tab and the stored filter. */
@@ -5222,7 +5221,8 @@ export class EBCDrawer {
     applyPanelOpacity(alpha = loadPanelOpacity()): void {
         const panel = this.rootEl?.querySelector(".ebc-panel") as HTMLElement | null;
         if (!panel) return;
-        panel.style.background = `rgba(27, 13, 23, ${alpha})`;
+        const [pr, pg, pb] = hexToRgb(getCoreColors().bg);
+        panel.style.background = `rgba(${pr}, ${pg}, ${pb}, ${alpha})`;
         const style = panel.style as CSSStyleDeclaration & { webkitBackdropFilter?: string };
         if (alpha < 0.99) {
             const blur = `blur(${Math.round((1 - alpha) * 20)}px)`;
@@ -5232,6 +5232,80 @@ export class EBCDrawer {
             panel.style.backdropFilter = "none";
             if (style.webkitBackdropFilter !== undefined) style.webkitBackdropFilter = "none";
         }
+    }
+
+    /**
+     * Walk every element inside the panel that has an inline style and replace
+     * any hardcoded default hex/rgba values with the currently active theme
+     * colours.  Called after every renderCurrentTab() and after live colour-picker
+     * changes so that inline styles (which cannot be reached by CSS class rules)
+     * reflect the active theme.
+     *
+     * Short-circuits immediately when the active theme matches the defaults —
+     * inline styles are always built with the default palette so nothing needs
+     * rewriting in that case.
+     */
+    private repaintTheme(): void {
+        const c = getCoreColors();
+        // Nothing to rewrite when theme equals defaults — inline styles already use those values
+        if (c.bg === DEFAULT_COLORS.bg && c.card === DEFAULT_COLORS.card &&
+            c.cardMuted === DEFAULT_COLORS.cardMuted && c.border === DEFAULT_COLORS.border &&
+            c.accent === DEFAULT_COLORS.accent && c.textBright === DEFAULT_COLORS.textBright &&
+            c.textSub === DEFAULT_COLORS.textSub && c.textMuted === DEFAULT_COLORS.textMuted &&
+            c.gold === DEFAULT_COLORS.gold) return;
+
+        const root = this.rootEl;
+        if (!root) return;
+
+        const bgDark      = darken(c.bg, 0.18);
+        const bgDarker    = darken(c.bg, 0.30);
+        const bgMid       = lighten(c.bg, 0.45);
+        const borderLight = lighten(c.border, 0.35);
+        const accentHover = lighten(c.accent, 0.15);
+        const accentDim   = darken(c.accent, 0.20);
+
+        // Hex literal replacements — same mapping as buildCSS()
+        const hexMap: [string, string][] = [
+            ["#1b0d17", c.bg],        ["#2a1421", c.card],
+            ["#190b13", c.cardMuted], ["#1a0d14", c.cardMuted],
+            ["#1e0d1a", bgDark],      ["#130810", bgDark],
+            ["#100810", bgDarker],    ["#2d1422", bgMid],
+            ["#3a1928", c.border],    ["#4c2537", borderLight],
+            ["#cf6f98", c.accent],    ["#e085ad", accentHover],
+            ["#a85678", accentDim],   ["#7a5a6a", c.textMuted],
+            ["#967281", c.textSub],   ["#9a7888", c.textSub],
+            ["#f7e6ee", c.textBright],["#c9ab72", c.gold],
+        ];
+
+        // rgba component replacements — JS inline styles use "rgba(r,g,b,alpha)"
+        // Build from the known DEFAULT_COLORS rgb values → themed rgb values
+        const [dbR, dbG, dbB] = hexToRgb(DEFAULT_COLORS.bg);    // 27, 13, 23
+        const [dcR, dcG, dcB] = hexToRgb(DEFAULT_COLORS.card);  // 42, 20, 33
+        const [br, bg, bb]    = hexToRgb(c.bg);
+        const [cr, cg, cb]    = hexToRgb(c.card);
+        const rgbaMap: [string, string][] = [];
+        if (c.bg !== DEFAULT_COLORS.bg) {
+            rgbaMap.push([`rgba(${dbR},${dbG},${dbB},`,         `rgba(${br},${bg},${bb},`]);
+            rgbaMap.push([`rgba(${dbR}, ${dbG}, ${dbB},`,       `rgba(${br}, ${bg}, ${bb},`]);
+        }
+        if (c.card !== DEFAULT_COLORS.card) {
+            rgbaMap.push([`rgba(${dcR},${dcG},${dcB},`,         `rgba(${cr},${cg},${cb},`]);
+            rgbaMap.push([`rgba(${dcR}, ${dcG}, ${dcB},`,       `rgba(${cr}, ${cg}, ${cb},`]);
+        }
+
+        root.querySelectorAll("[style]").forEach(raw => {
+            const el = raw as HTMLElement;
+            const orig = el.getAttribute("style");
+            if (!orig) return;
+            let s = orig;
+            for (const [from, to] of hexMap) {
+                if (s.includes(from)) s = s.split(from).join(to);
+            }
+            for (const [from, to] of rgbaMap) {
+                if (s.includes(from)) s = s.split(from).join(to);
+            }
+            if (s !== orig) el.setAttribute("style", s);
+        });
     }
 
     /** Scale the entire EBC panel.
@@ -7526,7 +7600,7 @@ export class EBCDrawer {
         form.appendChild(createBtn);
 
         newBtn.addEventListener("click", () => {
-            const open = form.style.display !== "none";
+            const open = form.style.display === "flex"; // true only once explicitly opened
             form.style.display = open ? "none" : "flex";
             newBtn.textContent = open ? t("outfits.newOutfit") : t("core.cancel");
             if (!open) cmdInput.focus();
@@ -12632,6 +12706,9 @@ export class EBCDrawer {
                         try { localStorage.removeItem(EBC_PRESET_KEY); } catch { /* ignore */ }
                         if (presetSel) presetSel.value = "";
                         this.injectStyles();
+                        // Repaint inline styles and panel bg so live changes are visible instantly
+                        this.repaintTheme();
+                        this.applyPanelOpacity();
                     });
 
                     // Register a syncer so preset/reset can update this picker's displayed value

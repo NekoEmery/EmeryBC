@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.5.1
+// @version      3.5.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15539,7 +15539,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 #emerybc-panel[data-touch] .ebc-body {
     padding: 10px !important;
     overflow-y: scroll !important; /* 'scroll' works more reliably than 'auto' on iOS */
-    -webkit-overflow-scrolling: touch; /* momentum scroll on older iOS */
+    -webkit-overflow-scrolling: touch; /* momentum scroll on older iOS (no-op on iOS 13+) */
+    overscroll-behavior: contain; /* prevent scroll chaining to the page on modern iOS/Android */
 }
 
 #emerybc-panel[data-touch] .ebc-section-label {
@@ -15695,6 +15696,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     transition: border-color 0.12s, color 0.12s;
 }
 .ebc-guide-btn:hover { border-color: #cf6f98; color: #cf6f98; }
+.ebc-guide-action-btn {
+    width: 100%;
+    background: #2e0e22;
+    border: 1px solid #7a3858;
+    border-radius: 6px;
+    color: #dda0c0;
+    font-size: 10px;
+    font-weight: bold;
+    font-family: "Trebuchet MS", serif;
+    padding: 7px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.12s, border-color 0.12s;
+    margin-top: 2px;
+}
+.ebc-guide-action-btn:hover:not(:disabled) { background: #4a1535; border-color: #cf6f98; color: #f0b0d0; }
+.ebc-guide-action-btn:disabled { opacity: 0.65; cursor: default; }
 /* Highlighted keyword chips — the main teaching tool */
 .ebc-guide-hl {
     display: inline-block;
@@ -17475,7 +17493,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         renderGuideStep() {
-            var _a, _b;
+            var _a, _b, _c;
             // Clear spotlights from the previous step before building the new one
             this.clearGuideSpotlights();
             const card = this.guideEl;
@@ -17560,6 +17578,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         this.spotlightEl(sel);
                 }, 80);
             }
+            // Auto-expand collapsible sections so users can see the content immediately
+            if ((_c = step.autoExpand) === null || _c === void 0 ? void 0 : _c.length) {
+                window.setTimeout(() => {
+                    for (const sel of step.autoExpand)
+                        this.expandGuideTarget(sel);
+                }, 120);
+            }
         }
         closeGuide() {
             this.clearGuideSpotlights();
@@ -17567,6 +17592,37 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.guideEl.remove();
                 this.guideEl = null;
             }
+        }
+        /**
+         * Expand a collapsible section identified by its data-guide-target attribute.
+         * Detects the collapsed state and clicks the toggle to open it.
+         *   • Accordion-style: element or its first child span has "▶" textContent
+         *   • ebc-new-outfit-btn: next sibling .ebc-new-form is not yet visible (display !== "flex")
+         */
+        expandGuideTarget(selector) {
+            var _a, _b, _c;
+            try {
+                const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(`[data-guide-target="${selector}"]`);
+                if (!el)
+                    return;
+                // Case 1: element textContent starts with ▶ — direct toggle (tagToggleBtn, schedules lbl, roomToggle)
+                if (((_b = el.textContent) === null || _b === void 0 ? void 0 : _b.charAt(0)) === "▶") {
+                    el.click();
+                    return;
+                }
+                // Case 2: first child span has ▶ — makeSection hdr pattern (dev-prefs, dev-logs)
+                const firstChild = el.firstElementChild;
+                if (((_c = firstChild === null || firstChild === void 0 ? void 0 : firstChild.textContent) === null || _c === void 0 ? void 0 : _c.trim()) === "▶") {
+                    el.click();
+                    return;
+                }
+                // Case 3: ebc-new-outfit-btn — next sibling is an ebc-new-form that is hidden
+                const next = el.nextElementSibling;
+                if ((next === null || next === void 0 ? void 0 : next.classList.contains("ebc-new-form")) && next.style.display !== "flex") {
+                    el.click();
+                }
+            }
+            catch ( /* ignore invalid selectors or detached nodes */_d) { /* ignore invalid selectors or detached nodes */ }
         }
         clearGuideSpotlights() {
             var _a;
@@ -17641,6 +17697,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.renderPuppy();
             else if (this.currentTab === "kitty")
                 this.renderKittyTab();
+            // Fix inline styles that bypass CSS class rules by hardcoding the default palette
+            this.repaintTheme();
         }
         /** Show or hide each pinned strip based on the active tab and the stored filter. */
         updatePinnedStrips() {
@@ -17665,7 +17723,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const panel = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(".ebc-panel");
             if (!panel)
                 return;
-            panel.style.background = `rgba(27, 13, 23, ${alpha})`;
+            const [pr, pg, pb] = hexToRgb(getCoreColors().bg);
+            panel.style.background = `rgba(${pr}, ${pg}, ${pb}, ${alpha})`;
             const style = panel.style;
             if (alpha < 0.99) {
                 const blur = `blur(${Math.round((1 - alpha) * 20)}px)`;
@@ -17678,6 +17737,80 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (style.webkitBackdropFilter !== undefined)
                     style.webkitBackdropFilter = "none";
             }
+        }
+        /**
+         * Walk every element inside the panel that has an inline style and replace
+         * any hardcoded default hex/rgba values with the currently active theme
+         * colours.  Called after every renderCurrentTab() and after live colour-picker
+         * changes so that inline styles (which cannot be reached by CSS class rules)
+         * reflect the active theme.
+         *
+         * Short-circuits immediately when the active theme matches the defaults —
+         * inline styles are always built with the default palette so nothing needs
+         * rewriting in that case.
+         */
+        repaintTheme() {
+            const c = getCoreColors();
+            // Nothing to rewrite when theme equals defaults — inline styles already use those values
+            if (c.bg === DEFAULT_COLORS.bg && c.card === DEFAULT_COLORS.card &&
+                c.cardMuted === DEFAULT_COLORS.cardMuted && c.border === DEFAULT_COLORS.border &&
+                c.accent === DEFAULT_COLORS.accent && c.textBright === DEFAULT_COLORS.textBright &&
+                c.textSub === DEFAULT_COLORS.textSub && c.textMuted === DEFAULT_COLORS.textMuted &&
+                c.gold === DEFAULT_COLORS.gold)
+                return;
+            const root = this.rootEl;
+            if (!root)
+                return;
+            const bgDark = darken(c.bg, 0.18);
+            const bgDarker = darken(c.bg, 0.30);
+            const bgMid = lighten(c.bg, 0.45);
+            const borderLight = lighten(c.border, 0.35);
+            const accentHover = lighten(c.accent, 0.15);
+            const accentDim = darken(c.accent, 0.20);
+            // Hex literal replacements — same mapping as buildCSS()
+            const hexMap = [
+                ["#1b0d17", c.bg], ["#2a1421", c.card],
+                ["#190b13", c.cardMuted], ["#1a0d14", c.cardMuted],
+                ["#1e0d1a", bgDark], ["#130810", bgDark],
+                ["#100810", bgDarker], ["#2d1422", bgMid],
+                ["#3a1928", c.border], ["#4c2537", borderLight],
+                ["#cf6f98", c.accent], ["#e085ad", accentHover],
+                ["#a85678", accentDim], ["#7a5a6a", c.textMuted],
+                ["#967281", c.textSub], ["#9a7888", c.textSub],
+                ["#f7e6ee", c.textBright], ["#c9ab72", c.gold],
+            ];
+            // rgba component replacements — JS inline styles use "rgba(r,g,b,alpha)"
+            // Build from the known DEFAULT_COLORS rgb values → themed rgb values
+            const [dbR, dbG, dbB] = hexToRgb(DEFAULT_COLORS.bg); // 27, 13, 23
+            const [dcR, dcG, dcB] = hexToRgb(DEFAULT_COLORS.card); // 42, 20, 33
+            const [br, bg, bb] = hexToRgb(c.bg);
+            const [cr, cg, cb] = hexToRgb(c.card);
+            const rgbaMap = [];
+            if (c.bg !== DEFAULT_COLORS.bg) {
+                rgbaMap.push([`rgba(${dbR},${dbG},${dbB},`, `rgba(${br},${bg},${bb},`]);
+                rgbaMap.push([`rgba(${dbR}, ${dbG}, ${dbB},`, `rgba(${br}, ${bg}, ${bb},`]);
+            }
+            if (c.card !== DEFAULT_COLORS.card) {
+                rgbaMap.push([`rgba(${dcR},${dcG},${dcB},`, `rgba(${cr},${cg},${cb},`]);
+                rgbaMap.push([`rgba(${dcR}, ${dcG}, ${dcB},`, `rgba(${cr}, ${cg}, ${cb},`]);
+            }
+            root.querySelectorAll("[style]").forEach(raw => {
+                const el = raw;
+                const orig = el.getAttribute("style");
+                if (!orig)
+                    return;
+                let s = orig;
+                for (const [from, to] of hexMap) {
+                    if (s.includes(from))
+                        s = s.split(from).join(to);
+                }
+                for (const [from, to] of rgbaMap) {
+                    if (s.includes(from))
+                        s = s.split(from).join(to);
+                }
+                if (s !== orig)
+                    el.setAttribute("style", s);
+            });
         }
         /** Scale the entire EBC panel.
          *
@@ -20014,7 +20147,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             createBtn.textContent = t("outfits.saveNewOutfit");
             form.appendChild(createBtn);
             newBtn.addEventListener("click", () => {
-                const open = form.style.display !== "none";
+                const open = form.style.display === "flex"; // true only once explicitly opened
                 form.style.display = open ? "none" : "flex";
                 newBtn.textContent = open ? t("outfits.newOutfit") : t("core.cancel");
                 if (!open)
@@ -22011,7 +22144,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const step = { type: currentType, delayMs: delay };
                     switch (currentType) {
                         case "pose":
-                            step.poses = posePoses.filter(Boolean);
+                            step.poses = posePoses.slice(); // preserve "" (Relaxed arms marker) — filter(Boolean) would strip it
                             break;
                         case "equip":
                         case "equip-restraint":
@@ -24931,6 +25064,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             if (presetSel)
                                 presetSel.value = "";
                             this.injectStyles();
+                            // Repaint inline styles and panel bg so live changes are visible instantly
+                            this.repaintTheme();
+                            this.applyPanelOpacity();
                         });
                         // Register a syncer so preset/reset can update this picker's displayed value
                         pickerSyncers.push((c) => { picker.value = c[key]; });
@@ -31530,19 +31666,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             tab: "outfits",
             label: "Outfits — Save & Apply Looks",
-            text: "Click [[💾 Save]] to store your current full appearance as a named preset.\nClick any saved outfit card to [[Apply]] it — restoring every clothing layer and colour instantly.\nUse [[✏]] to rename, [[🗑]] to delete, and the [[↑ ↓]] arrows to reorder your list.\n((Great for switching between different roleplay or casual looks in seconds.))",
+            text: "Click [[+ New Outfit from Current Look]] (the highlighted button) to save your full appearance as a named preset — the form is already expanded below so you can try it now.\nOnce saved, click [[Apply]] on any outfit card to restore that look — all layers and colours instantly.\nEach card has [[Rename]], [[Delete]], and [[Up]] / [[Down]] arrow buttons to manage your list.",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
+            autoExpand: ["btn-new-outfit"],
         },
         {
             tab: "outfits",
             label: "Outfit Tags & Schedules",
-            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the [[🏷]] icon on any outfit card to assign tags — then filter by tag at the top of the list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day. Expand the [[Schedules]] section at the bottom of this tab to set one up.\n((You can also [[📤 Export]] outfits as codes and share them — use [[📥 Import]] to load a code someone sent you.))",
+            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the tag icon on any outfit card to assign it tags — then use the filter at the top to narrow your list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day — both sections are expanded so you can explore them now.\n((You can also [[Export]] outfits as share-codes and send them to friends — use [[Import]] to load a code you received.))",
             spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
+            autoExpand: ["section-outfit-tags", "section-schedules"],
         },
         {
             tab: "buttons",
             label: "Action Buttons — Quick Commands",
-            text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] handle on a button card to reorder it. [[✏]] edits it, [[🗑]] deletes it.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
+            text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] grip on a button card to reorder it. Use the [[Edit]] and [[Delete]] icons to manage each one.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
@@ -31562,23 +31700,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             label: "Users & Friends",
             text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate — perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions — a permanent address book of everyone you've encountered.))",
             spotlight: ["[data-guide-target='section-room-people']"],
+            autoExpand: ["section-room-people"],
         },
         {
             tab: "dev",
             label: "DEV — Preferences & Themes",
             text: "[[Quick Preset]] lets you apply a full colour theme instantly — try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
             spotlight: ["[data-guide-target='section-dev-prefs']"],
+            autoExpand: ["section-dev-prefs"],
         },
         {
             tab: "dev",
             label: "DEV — Logs & History",
             text: "[[Whisper Log]] — every whisper sent and received this session.\n[[Current Room]] — who is in your room right now, with member IDs.\n[[Rooms Visited]] — all rooms you've entered this session.\n[[Restraint Log]] — when items were applied or removed.\n[[People Met]] — persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
             spotlight: ["[data-guide-target='section-dev-logs']"],
+            autoExpand: ["section-dev-logs"],
         },
         {
             tab: null,
             label: "EBC Tag Settings Strip",
-            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use [[📍 Text]] and [[📍 Cat]] buttons to drag each badge to its exact position on screen.",
+            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Pin Text]] and [[Pin Cat]] buttons to drag each badge to its exact on-screen position.",
             spotlight: ["[data-guide-target='strip-ebc-tags']"],
         },
         {
@@ -31590,7 +31731,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             tab: null,
             label: "Tips & Tricks",
-            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[📤 Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
+            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
         },
     ];
 
@@ -31614,7 +31755,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.5.1";
+    const MOD_VERSION = "3.5.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31625,6 +31766,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.5.4",
+            changes: [
+                "Guide: removed 'Create sample outfit' action button; replaced with auto-expansion — sections spotlighted by the guide now open automatically so users can see and interact with the content immediately.",
+                "Guide: fixed new-outfit form toggle (first click now opens the form instead of being silently swallowed by an initial-state mismatch).",
+                "Theme system: repaintTheme() DOM walk replaces hardcoded default hex/rgba values in inline styles after every tab render, so panel backgrounds, cards, and borders now reflect the active theme.",
+                "Theme system: applyPanelOpacity() now derives the panel background from getCoreColors().bg instead of the hardcoded rose default, so the panel bg changes with the theme.",
+                "Theme system: live colour-picker changes now also trigger repaintTheme() + applyPanelOpacity() for immediate visual feedback without needing a tab switch.",
+            ],
+        },
+        {
+            version: "3.5.3",
+            changes: [
+                "Creator paw: corrected y to top+975*zoom (BC draws character names at CharTop+975*Zoom); reduced x gap from 76 to 54 units so the paw sits tightly inline with the name.",
+            ],
+        },
+        {
+            version: "3.5.2",
+            changes: [
+                "Scene sequencer: fixed Relaxed arms pose being stripped on save — the empty-string Relaxed marker is now preserved in step.poses.",
+                "Guide: outfits step now names the real button label, removes emoji chips, and adds a one-click 'Create sample outfit' button so users can practise apply/rename/delete immediately.",
+                "Guide: removed emoji from tags, buttons, EBC-tags, and tips steps; replaced with plain text equivalents.",
+                "Touch mode: added overscroll-behavior:contain to the panel body so scroll momentum stays inside the panel and doesn't chain to the page (fixes rubber-banding on modern iOS/Android).",
+            ],
+        },
         {
             version: "3.5.1",
             changes: [
@@ -36061,14 +36227,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // Pulse stays between 0.72 and 1.0 — never fades to near-invisible
                 const pulse = 0.86 + 0.14 * Math.sin(Date.now() / 1200);
                 const sz = Math.max(10, Math.round(16 * zoom));
-                // Place paw to the right of the name, centred on the name baseline
+                // BC draws the character name at CharTop + 975 * Zoom.
+                // x offset 54*zoom puts the paw ~8px past the right edge of a typical 6-char name.
                 const nameX = left + 250 * zoom;
-                const nameY = top + 960 * zoom;
+                const nameY = top + 975 * zoom;
                 _pawCtx.save();
                 _pawCtx.globalAlpha = pulse;
                 _pawCtx.shadowColor = "#ffd700";
                 _pawCtx.shadowBlur = sz * 0.8;
-                _pawCtx.drawImage(_pawImg, nameX + Math.round(76 * zoom), nameY - sz / 2, sz, sz);
+                _pawCtx.drawImage(_pawImg, nameX + Math.round(54 * zoom), nameY - sz / 2, sz, sz);
                 _pawCtx.restore();
             }
         }

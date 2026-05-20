@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.5.3";
+const MOD_VERSION = "3.5.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,16 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.5.4",
+        changes: [
+            "Guide: removed 'Create sample outfit' action button; replaced with auto-expansion — sections spotlighted by the guide now open automatically so users can see and interact with the content immediately.",
+            "Guide: fixed new-outfit form toggle (first click now opens the form instead of being silently swallowed by an initial-state mismatch).",
+            "Theme system: repaintTheme() DOM walk replaces hardcoded default hex/rgba values in inline styles after every tab render, so panel backgrounds, cards, and borders now reflect the active theme.",
+            "Theme system: applyPanelOpacity() now derives the panel background from getCoreColors().bg instead of the hardcoded rose default, so the panel bg changes with the theme.",
+            "Theme system: live colour-picker changes now also trigger repaintTheme() + applyPanelOpacity() for immediate visual feedback without needing a tab switch.",
+        ],
+    },
     {
         version: "3.5.3",
         changes: [
