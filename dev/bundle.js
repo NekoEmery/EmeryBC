@@ -1286,10 +1286,35 @@
         const wantsRelaxed = poses.includes("");
         const filtered = poses.filter(Boolean);
         const result = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
+        // Prefer BC's PoseSetActive API (current BC) — it writes ActivePoseMapping which
+        // is the authoritative pose state in modern BC. Direct ActivePose assignment is the
+        // old approach and may be silently ignored in newer versions.
+        const psa = window.PoseSetActive;
+        if (typeof psa === "function") {
+            try {
+                if (result.length === 0) {
+                    // Clear everything (stand + relaxed)
+                    psa(Player, null, true, false);
+                }
+                else {
+                    // First pose with forceChange=true resets the mapping; subsequent poses
+                    // add into it without clobbering the first.
+                    psa(Player, result[0], true, false);
+                    for (let i = 1; i < result.length; i++) {
+                        psa(Player, result[i], false, false);
+                    }
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            // Push final state to server (PoseSetActive only does Push=false internally)
+            callBC(() => CharacterRefresh(Player, true));
+            return;
+        }
+        // Fallback: direct ActivePose assignment for older BC builds
         try {
             Player.ActivePose = result;
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_b) { /* ignore */ }
         callBC(() => CharacterRefresh(Player, false));
         callBC(() => ChatRoomCharacterUpdate(Player));
         callBC(() => ServerPlayerAppearanceSync());
@@ -31751,7 +31776,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.6.1";
+    const MOD_VERSION = "3.6.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31762,6 +31787,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.6.2",
+            changes: [
+                "Fix: pose combos now use BC's PoseSetActive API (the modern approach that writes ActivePoseMapping) instead of directly setting the legacy ActivePose array, which BC no longer reliably picks up for visual/sync updates.",
+            ],
+        },
         {
             version: "3.6.1",
             changes: [
