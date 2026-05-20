@@ -17043,8 +17043,18 @@
         // Skipped entirely when the user has pinned a custom position via drag.
         // Safe to call at any frequency — writes the DOM only when the value changes.
         updateCrabsPosition() {
-            if (!this.rootEl || !this.positioned)
+            if (!this.rootEl)
                 return;
+            // Heartbeat guard: BC's screen-transition code can set display:none on unknown
+            // DOM elements. Restore visibility within one 200 ms poller tick if that happens.
+            if (this.positioned && this.rootEl.style.display !== "block") {
+                this.rootEl.style.display = "block";
+            }
+            if (!this.positioned) {
+                // Haven't anchored to the chat log yet — keep retrying until we succeed.
+                this.syncToChat();
+                return;
+            }
             if (this.tabDragging)
                 return; // don't interfere with an active drag
             const tabEl = this.rootEl.querySelector("#ebc-tab");
@@ -17182,35 +17192,28 @@
                     catch ( /* ignore */_d) { /* ignore */ }
                 }
             }
-            // Try to position; if the chat log isn't laid out yet, retry next frame
-            const synced = this.syncToChat();
-            const showPanel = (el) => {
-                // Suppress the slide transition for the very first reveal — switching
-                // from display:none to display:block can cause the browser to animate
-                // the transform from an unrendered state, making the panel flash visible.
-                if (!this.hasBeenShown) {
-                    this.hasBeenShown = true;
-                    if (this.panelEl)
-                        this.panelEl.style.transition = "none";
-                    el.style.display = "block";
-                    requestAnimationFrame(() => {
-                        if (this.panelEl)
-                            this.panelEl.style.transition = "";
-                    });
-                }
-                else {
-                    el.style.display = "block";
-                }
-            };
-            if (synced) {
-                showPanel(this.rootEl);
+            // Always make the root visible immediately — do NOT gate on syncToChat().
+            // BC can temporarily clear or resize TextAreaChatLog during screen transitions
+            // (reconnect, room load, character menus) causing syncToChat() to fail, which
+            // previously left the root hidden indefinitely. Visibility and positioning are
+            // now separate concerns: show first, position best-effort.
+            if (!this.hasBeenShown) {
+                // Suppress the slide transition on the very first reveal — switching from
+                // display:none to display:block can cause the browser to animate the
+                // transform from an unrendered state, making the panel flash visible.
+                this.hasBeenShown = true;
+                if (this.panelEl)
+                    this.panelEl.style.transition = "none";
+                this.rootEl.style.display = "block";
+                requestAnimationFrame(() => { if (this.panelEl)
+                    this.panelEl.style.transition = ""; });
             }
             else {
-                requestAnimationFrame(() => {
-                    if (this.syncToChat() && this.rootEl) {
-                        showPanel(this.rootEl);
-                    }
-                });
+                this.rootEl.style.display = "block";
+            }
+            // Position against the chat log (best-effort; retry next frame if not ready yet).
+            if (!this.syncToChat()) {
+                requestAnimationFrame(() => { this.syncToChat(); });
             }
             if (!this.resizeObserver && typeof ResizeObserver !== "undefined") {
                 const chatLog = document.getElementById("TextAreaChatLog");
@@ -30717,7 +30720,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.9.4";
+    const MOD_VERSION = "2.9.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30728,6 +30731,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.9.5",
+            changes: [
+                "Fix: drawer icon could vanish entirely (requiring opening wardrobe/profile to recover). Root cause: the chatroom branch of updateVisibility() only set display:block when syncToChat() succeeded — if BC temporarily zeroed or removed TextAreaChatLog during a screen transition the root stayed hidden indefinitely. Fix: visibility is now always restored immediately; syncToChat() is used for positioning only. A 200 ms heartbeat in the CRABS poller additionally restores the root within one tick if any external code hides it again.",
+            ],
+        },
         {
             version: "2.9.4",
             changes: [
