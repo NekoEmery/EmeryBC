@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.4.7
+// @version      3.4.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -31476,77 +31476,77 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     EBCDrawer.GUIDE_STEPS = [
         {
             tab: null,
-            label: "✨ Welcome to EBC",
+            label: "Welcome to EBC",
             text: "This guide walks you through every feature step by step.\nThe menu will switch tabs automatically as you go — just hit [[Next →]].\n((EBC adds outfit saving, action buttons, pose animations, friend notes, and custom name tags above players' heads.))",
         },
         {
             tab: null,
-            label: "🔑 Opening & Moving the Menu",
+            label: "Opening & Moving the Menu",
             text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel to any spot on screen.\n[[↻]] refreshes your friend list and room data.  [[✕]] closes the panel.\n((The [[?]] button in the header re-opens this guide any time.))",
         },
         {
             tab: "outfits",
-            label: "👗 Outfits — Save & Apply Looks",
+            label: "Outfits — Save & Apply Looks",
             text: "Click [[💾 Save]] to store your current full appearance as a named preset.\nClick any saved outfit card to [[Apply]] it — restoring every clothing layer and colour instantly.\nUse [[✏]] to rename, [[🗑]] to delete, and the [[↑ ↓]] arrows to reorder your list.\n((Great for switching between different roleplay or casual looks in seconds.))",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
         },
         {
             tab: "outfits",
-            label: "🏷 Outfit Tags & Schedules",
+            label: "Outfit Tags & Schedules",
             text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the [[🏷]] icon on any outfit card to assign tags — then filter by tag at the top of the list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day. Expand the [[Schedules]] section at the bottom of this tab to set one up.\n((You can also [[📤 Export]] outfits as codes and share them — use [[📥 Import]] to load a code someone sent you.))",
             spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
         },
         {
             tab: "buttons",
-            label: "🎛 Action Buttons — Quick Commands",
+            label: "Action Buttons — Quick Commands",
             text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] handle on a button card to reorder it. [[✏]] edits it, [[🗑]] deletes it.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "buttons",
-            label: "🚶 Slow Leave",
+            label: "Slow Leave",
             text: "[[Slow Leave]] is in the [[Useful Buttons]] section — it sends a scripted departure sequence to the room before you leave, so it feels natural and in-character.\nClick the [[Slow Leave]] button to start the sequence.\nExpand the [[▶ Slow Leave]] accordion below the button to customise:\n  • [[Preset]] — pick a pre-written departure style\n  • [[Sequence]] — the text sent to the room\n  • [[Duration]] — time (in seconds) between messages",
             spotlight: ["[data-guide-target='section-useful-btns']", "[data-guide-target='btn-slow-leave']"],
         },
         {
             tab: "anims",
-            label: "🎭 Poses & Animations",
+            label: "Poses & Animations",
             text: "Pose combos chain multiple pose changes together with delays — perfect for transition animations or emote sequences.\nClick [[+ New combo]] to create one, add steps with poses or emotes, then assign a [[/command]] name.\nType [[/yourcommand]] directly in the BC chat box to trigger it — no need to open the menu.\n((Combos can mix [[Pose]] steps and [[Emote]] steps so messages appear alongside pose changes.))",
             spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "notes",
-            label: "👥 Users & Friends",
+            label: "Users & Friends",
             text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate — perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions — a permanent address book of everyone you've encountered.))",
             spotlight: ["[data-guide-target='section-room-people']"],
         },
         {
             tab: "dev",
-            label: "⚙ DEV — Preferences & Themes",
+            label: "DEV — Preferences & Themes",
             text: "[[Quick Preset]] lets you apply a full colour theme instantly — try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
             spotlight: ["[data-guide-target='section-dev-prefs']"],
         },
         {
             tab: "dev",
-            label: "📋 DEV — Logs & History",
+            label: "DEV — Logs & History",
             text: "[[Whisper Log]] — every whisper sent and received this session.\n[[Current Room]] — who is in your room right now, with member IDs.\n[[Rooms Visited]] — all rooms you've entered this session.\n[[Restraint Log]] — when items were applied or removed.\n[[People Met]] — persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
             spotlight: ["[data-guide-target='section-dev-logs']"],
         },
         {
             tab: null,
-            label: "🏷 EBC Tag Settings Strip",
+            label: "EBC Tag Settings Strip",
             text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use [[📍 Text]] and [[📍 Cat]] buttons to drag each badge to its exact position on screen.",
             spotlight: ["[data-guide-target='strip-ebc-tags']"],
         },
         {
             tab: null,
-            label: "🛡 Safewords Strip",
+            label: "Safewords Strip",
             text: "The [[SAFEWORDS]] bar is always pinned at the top of the panel — reachable instantly no matter which tab you're on.\nSet up to [[3 safewords]] — clicking one sends a pre-written safety message to the room immediately.\nConfigure a [[Grace period]] (in minutes) to prevent accidental taps, and enable a [[Confirm step]] for extra safety.\n((Both the Safewords and EBC Tags strips can be hidden per-tab in [[DEV → Pinned strip visibility]].))",
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
         {
             tab: null,
-            label: "💡 Tips & Tricks",
+            label: "Tips & Tricks",
             text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[📤 Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
         },
     ];
@@ -31571,7 +31571,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.4.7";
+    const MOD_VERSION = "3.4.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31582,6 +31582,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.4.8",
+            changes: [
+                "Guide: removed all emoji from step labels.",
+            ],
+        },
         {
             version: "3.4.7",
             changes: [
