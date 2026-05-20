@@ -8203,32 +8203,7 @@ export class EBCDrawer {
                 parent.appendChild(btnRow);
             }
 
-            // Custom pose add
-            const customHint = document.createElement("div");
-            customHint.className = "ebc-import-hint";
-            customHint.style.marginTop = "3px";
-            customHint.textContent = "Custom pose key:";
-            parent.appendChild(customHint);
-
-            const customRow = document.createElement("div");
-            customRow.style.cssText = "display:flex;gap:5px;";
-            const customInp = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", placeholder: "e.g. Hogtied",
-                maxLength: 40,
-            }) as HTMLInputElement;
-            customInp.style.flex = "1";
-            const addCustomBtn = document.createElement("button");
-            addCustomBtn.className = "ebc-update-btn";
-            addCustomBtn.textContent = t("core.add");
-            addCustomBtn.addEventListener("click", () => {
-                const val = customInp.value.trim();
-                if (val) { poses.push(val); customInp.value = ""; renderList(); }
-            });
-            customRow.appendChild(customInp);
-            customRow.appendChild(addCustomBtn);
-            parent.appendChild(customRow);
-
-            // Add delay row after the custom row
+            // Add delay row after the pose buttons
             parent.appendChild(delayRowEl);
 
             return {
