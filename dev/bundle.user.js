@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.5.6
+// @version      3.5.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16163,6 +16163,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Interactive guide overlay
             this.guideEl = null;
             this.guideStep = 0;
+            this.guideSpotlightIndex = 0; // which spotlight in the current step is active
             // Category dropdown in quick actions bar
             // DEV tab auto-refresh poller
             this.devLogPoller = null;
@@ -17447,6 +17448,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             document.body.appendChild(side);
             this.guideEl = side;
             this.guideStep = 0;
+            this.guideSpotlightIndex = 0;
             this.renderGuideStep();
         }
         // Parses simple inline markup in guide text:
@@ -17489,7 +17491,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         renderGuideStep() {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             // Clear spotlights from the previous step before building the new one
             this.clearGuideSpotlights();
             const card = this.guideEl;
@@ -17499,15 +17501,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const step = steps[this.guideStep];
             if (!step)
                 return;
-            // Switch to the relevant tab
-            if (step.tab && step.tab !== this.currentTab) {
+            const spotCount = (_b = (_a = step.spotlight) === null || _a === void 0 ? void 0 : _a.length) !== null && _b !== void 0 ? _b : 0;
+            // Clamp spotlight index in case we arrived from a step with more spotlights
+            if (this.guideSpotlightIndex >= spotCount)
+                this.guideSpotlightIndex = 0;
+            const spotIdx = this.guideSpotlightIndex;
+            // Switch to the relevant tab (only on first spotlight of the step)
+            if (spotIdx === 0 && step.tab && step.tab !== this.currentTab) {
                 this.switchTab(step.tab);
             }
             card.innerHTML = "";
             card.style.display = "";
             // Top row: step counter + close
-            const top = document.createElement("div");
-            top.className = "ebc-guide-top";
+            const topRow = document.createElement("div");
+            topRow.className = "ebc-guide-top";
             const stepLbl = document.createElement("span");
             stepLbl.className = "ebc-guide-step-lbl";
             stepLbl.textContent = `Step ${this.guideStep + 1} / ${steps.length}`;
@@ -17516,9 +17523,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             closeX.textContent = "✕";
             closeX.title = "Close guide";
             closeX.addEventListener("click", () => this.closeGuide());
-            top.appendChild(stepLbl);
-            top.appendChild(closeX);
-            card.appendChild(top);
+            topRow.appendChild(stepLbl);
+            topRow.appendChild(closeX);
+            card.appendChild(topRow);
             // Section label
             const tabLbl = document.createElement("div");
             tabLbl.className = "ebc-guide-tab-lbl";
@@ -17529,7 +17536,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             textEl.className = "ebc-guide-text";
             EBCDrawer.parseGuideMarkup(step.text, textEl);
             card.appendChild(textEl);
-            // Progress bar
+            // Spotlight dots — shown when the step has multiple spotlights
+            // One dot per spotlight; the active dot is accent-coloured
+            if (spotCount > 1) {
+                const dotsRow = document.createElement("div");
+                dotsRow.style.cssText = "display:flex;justify-content:center;gap:5px;margin:4px 0 2px;";
+                for (let i = 0; i < spotCount; i++) {
+                    const dot = document.createElement("span");
+                    dot.style.cssText = `width:6px;height:6px;border-radius:50%;display:inline-block;transition:background 0.15s;background:${i === spotIdx ? "#cf6f98" : "#3a1928"};`;
+                    dotsRow.appendChild(dot);
+                }
+                card.appendChild(dotsRow);
+            }
+            // Progress bar (reflects step progress, not spotlight sub-step)
             const progress = document.createElement("div");
             progress.className = "ebc-guide-progress";
             const fill = document.createElement("div");
@@ -17543,18 +17562,45 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const prevBtn = document.createElement("button");
             prevBtn.className = "ebc-guide-nav-prev";
             prevBtn.textContent = "← Back";
-            if (this.guideStep === 0)
+            // Back is disabled on the very first spotlight of the very first step
+            if (this.guideStep === 0 && spotIdx === 0)
                 prevBtn.disabled = true;
-            prevBtn.addEventListener("click", () => { this.guideStep--; this.renderGuideStep(); });
+            prevBtn.addEventListener("click", () => {
+                var _a;
+                if (spotIdx > 0) {
+                    // Back within spotlight sub-steps
+                    this.guideSpotlightIndex--;
+                }
+                else {
+                    // Back to previous step, land on its last spotlight
+                    this.guideStep--;
+                    const prev = steps[this.guideStep];
+                    this.guideSpotlightIndex = ((_a = prev === null || prev === void 0 ? void 0 : prev.spotlight) === null || _a === void 0 ? void 0 : _a.length) ? prev.spotlight.length - 1 : 0;
+                }
+                this.renderGuideStep();
+            });
+            const isLastSpot = spotIdx >= spotCount - 1;
+            const isLastStep = this.guideStep === steps.length - 1;
             const nextBtn = document.createElement("button");
             nextBtn.className = "ebc-guide-nav-next";
-            if (this.guideStep === steps.length - 1) {
+            if (isLastStep && isLastSpot) {
                 nextBtn.textContent = "Done ✓";
-                nextBtn.addEventListener("click", () => this.closeGuide());
+                nextBtn.addEventListener("click", () => this.closeGuide(true));
+            }
+            else if (!isLastSpot) {
+                nextBtn.textContent = "Next →";
+                nextBtn.addEventListener("click", () => {
+                    this.guideSpotlightIndex++;
+                    this.renderGuideStep();
+                });
             }
             else {
                 nextBtn.textContent = "Next →";
-                nextBtn.addEventListener("click", () => { this.guideStep++; this.renderGuideStep(); });
+                nextBtn.addEventListener("click", () => {
+                    this.guideStep++;
+                    this.guideSpotlightIndex = 0;
+                    this.renderGuideStep();
+                });
             }
             nav.appendChild(prevBtn);
             nav.appendChild(nextBtn);
@@ -17563,31 +17609,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Tab button: whenever the guide is on a tab-specific step, glow the tab
             if (step.tab) {
                 const tabIdMap = { anims: "poses" };
-                const tabBtnId = (_a = tabIdMap[step.tab]) !== null && _a !== void 0 ? _a : step.tab;
-                // Delay slightly so the tab re-render finishes before we add the class
+                const tabBtnId = (_c = tabIdMap[step.tab]) !== null && _c !== void 0 ? _c : step.tab;
                 window.setTimeout(() => this.spotlightEl(`#ebc-tab-${tabBtnId}`), 60);
             }
-            // Additional per-step element spotlights
-            if ((_b = step.spotlight) === null || _b === void 0 ? void 0 : _b.length) {
+            // Spotlight only the current sub-step element (one at a time)
+            if (spotCount > 0) {
                 window.setTimeout(() => {
-                    for (const sel of step.spotlight)
-                        this.spotlightEl(sel);
+                    this.spotlightEl(step.spotlight[spotIdx]);
                 }, 80);
             }
-            // Auto-expand collapsible sections so users can see the content immediately
-            if ((_c = step.autoExpand) === null || _c === void 0 ? void 0 : _c.length) {
+            // Auto-expand only on first entry to the step (spotIdx === 0)
+            if (spotIdx === 0 && ((_d = step.autoExpand) === null || _d === void 0 ? void 0 : _d.length)) {
                 window.setTimeout(() => {
                     for (const sel of step.autoExpand)
                         this.expandGuideTarget(sel);
                 }, 120);
             }
         }
-        closeGuide() {
+        /** Close the guide overlay. Pass `andClosePanel = true` when the user
+         *  intentionally finishes the guide — the main panel is closed too. */
+        closeGuide(andClosePanel = false) {
             this.clearGuideSpotlights();
             if (this.guideEl) {
                 this.guideEl.remove();
                 this.guideEl = null;
             }
+            if (andClosePanel)
+                this.close();
         }
         /**
          * Expand a collapsible section identified by its data-guide-target attribute.
@@ -31725,7 +31773,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.5.6";
+    const MOD_VERSION = "3.5.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31736,6 +31784,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.5.7",
+            changes: [
+                "Guide: spotlight elements now cycle one at a time as the user clicks Next — each highlighted element is shown individually before advancing to the next step.",
+                "Guide: steps with multiple spotlights show a row of dots indicating which element is currently highlighted and how many are left.",
+                "Guide: Back button now steps back through spotlight sub-steps before returning to the previous guide step.",
+                "Guide: clicking Done at the end (or ✕) closes the main panel automatically.",
+            ],
+        },
         {
             version: "3.5.6",
             changes: [
