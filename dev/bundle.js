@@ -3105,7 +3105,7 @@
     let sidebarCollapsed = false;
     // Per-button cooldown — prevents spamming action emotes too fast.
     // Key: categoryIndex * 100 + buttonSlotIndex  →  timestamp of last fire (ms).
-    const BUTTON_COOLDOWN_MS = 15000;
+    const BUTTON_COOLDOWN_MS = 5000;
     const _btnCooldowns = new Map();
     // Drag state
     let isDragging = false;
@@ -31756,7 +31756,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.7.0";
+    const MOD_VERSION = "3.7.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31768,9 +31768,15 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "3.7.1",
+            changes: [
+                "Action buttons: reduced cooldown from 15s to 5s.",
+            ],
+        },
+        {
             version: "3.7.0",
             changes: [
-                "Action buttons: 15-second per-button cooldown — after firing, the button face shows a live countdown (e.g. '12s') and clicks are ignored until the timer expires. Prevents spam-clicking action emotes.",
+                "Action buttons: 5-second per-button cooldown — after firing, the button face shows a live countdown and clicks are ignored until the timer expires. Prevents spam-clicking action emotes.",
             ],
         },
         {
