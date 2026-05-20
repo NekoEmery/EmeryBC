@@ -1390,6 +1390,8 @@ const CSS = `
     50%       { filter: drop-shadow(0 0 14px rgba(255, 225, 55, 1));   }
 }
 .ebc-thanks-avatar-paw {
+    width: 44px !important;
+    height: 44px !important;
     border-color: #b07010 !important;
     background: #26180a !important;
     animation: ebc-paw-ring 2.6s ease-in-out infinite;
@@ -17243,7 +17245,7 @@ export class EBCDrawer {
             const avatar = document.createElement("div");
             avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
             if (isPawCard) {
-                avatar.appendChild(makePawSvg(22));
+                avatar.appendChild(makePawSvg(28));
             } else {
                 avatar.textContent = p.emoji;
             }
@@ -17283,14 +17285,16 @@ export class EBCDrawer {
             info.appendChild(nameRow);
             info.appendChild(reason);
 
-            // Right decoration — plain emoji for everyone (SVG at this size looks like a blob)
-            const heart = document.createElement("span");
-            heart.className = "ebc-thanks-heart";
-            heart.textContent = p.heart;
-
             card.appendChild(avatar);
             card.appendChild(info);
-            card.appendChild(heart);
+
+            // Right decoration — skip for the creator card (avatar already has the paw)
+            if (!isPawCard) {
+                const heart = document.createElement("span");
+                heart.className = "ebc-thanks-heart";
+                heart.textContent = p.heart;
+                card.appendChild(heart);
+            }
             body.appendChild(card);
         }
     }

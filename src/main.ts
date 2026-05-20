@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.3.8";
+const MOD_VERSION = "3.3.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.3.9",
+        changes: [
+            "Credits: fixed paw SVG rendering on Emery's card — avatar circle enlarged to 44px and paw drawn at 28px so the toe pads are actually legible instead of a blob. Removed the redundant right-side 🐾 emoji.",
+        ],
+    },
     {
         version: "3.3.8",
         changes: [
