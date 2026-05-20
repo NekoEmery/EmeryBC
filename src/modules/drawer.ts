@@ -15000,18 +15000,10 @@ export class EBCDrawer {
         });
         body.appendChild(clearPoseBtn);
 
-        // ── Slow Leave ────────────────────────────────────────────────────────
-        const slLbl = document.createElement("div");
-        slLbl.className = "ebc-section-label";
-        slLbl.style.marginTop = "10px";
-        slLbl.textContent = t("sl.header");
-        body.appendChild(slLbl);
-
-        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;margin-bottom:3px;";
-
+        // ── Slow Leave trigger button — lives with Useful Buttons ─────────────
         const slLeaveBtn = document.createElement("button");
         slLeaveBtn.className = "ebc-create-btn";
-        slLeaveBtn.style.cssText = "margin:4px 0 3px; width:100%;";
+        slLeaveBtn.style.cssText = "margin:4px 0 0; width:100%;";
         const seqRunning = isSeqRunning();
         slLeaveBtn.textContent = seqRunning ? t("sl.cancel") : t("sl.leave");
         slLeaveBtn.title = t("sl.leaveTitle");
@@ -15022,6 +15014,9 @@ export class EBCDrawer {
         slLeaveBtn.addEventListener("click", () => {
             if (isSeqRunning()) {
                 cancelSequence();
+                slLeaveBtn.textContent = t("sl.leave");
+                slLeaveBtn.style.background = "";
+                slLeaveBtn.style.color = "";
                 return;
             }
             const livePresets = getSlowLeavePresets();
@@ -15040,6 +15035,34 @@ export class EBCDrawer {
         });
         body.appendChild(slLeaveBtn);
 
+        // ── Slow Leave editor — collapsible accordion card ────────────────────
+        const slEditorOpen = localStorage.getItem("EBC_slowLeaveEditorOpen") === "1";
+
+        const slEditorCard = document.createElement("div");
+        slEditorCard.style.cssText = "border:1px solid " + (slEditorOpen ? "#5a2840" : "#2a1421") + ";border-radius:7px;margin-top:6px;overflow:hidden;";
+
+        // Header row — click to expand/collapse
+        const slEditorHdr = document.createElement("div");
+        slEditorHdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;background:" + (slEditorOpen ? "#2a0e1e" : "#1b0d17") + ";";
+
+        const slEditorChev = document.createElement("span");
+        slEditorChev.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+        slEditorChev.textContent = slEditorOpen ? "▼" : "▶";
+
+        const slEditorLbl = document.createElement("span");
+        slEditorLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;";
+        slEditorLbl.textContent = t("sl.header");
+
+        slEditorHdr.appendChild(slEditorChev);
+        slEditorHdr.appendChild(slEditorLbl);
+        slEditorCard.appendChild(slEditorHdr);
+
+        // Editor body
+        const slEditorBody = document.createElement("div");
+        slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
+
+        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+
         const slPresetDropdown = document.createElement("select");
         slPresetDropdown.style.cssText = DD_CSS;
         const populateSlPresets = (): void => {
@@ -15056,12 +15079,12 @@ export class EBCDrawer {
             const pi = parseInt(slPresetDropdown.value, 10);
             slSeqArea.value = lp[pi]?.seq ?? "";
         });
-        body.appendChild(slPresetDropdown);
+        slEditorBody.appendChild(slPresetDropdown);
 
         const slSeqArea = document.createElement("textarea");
         slSeqArea.rows = 3;
         slSeqArea.spellcheck = false;
-        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;margin-bottom:3px;";
+        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
         slSeqArea.title = t("sl.seqHint");
         const slSeqInitPresets = getSlowLeavePresets();
         const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
@@ -15074,7 +15097,7 @@ export class EBCDrawer {
                 saveSlowLeavePresets(lp);
             }
         });
-        body.appendChild(slSeqArea);
+        slEditorBody.appendChild(slSeqArea);
 
         const slDurRow = document.createElement("div");
         slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
@@ -15094,7 +15117,19 @@ export class EBCDrawer {
             try { localStorage.setItem("EBC_slowLeaveDuration", slDurSlider.value); } catch { /* ignore */ }
         });
         slDurRow.appendChild(slDurLbl); slDurRow.appendChild(slDurSlider); slDurRow.appendChild(slDurVal);
-        body.appendChild(slDurRow);
+        slEditorBody.appendChild(slDurRow);
+
+        slEditorCard.appendChild(slEditorBody);
+        body.appendChild(slEditorCard);
+
+        slEditorHdr.addEventListener("click", () => {
+            const open = slEditorBody.style.display === "none";
+            slEditorBody.style.display = open ? "flex" : "none";
+            slEditorChev.textContent = open ? "▼" : "▶";
+            slEditorHdr.style.background = open ? "#2a0e1e" : "#1b0d17";
+            slEditorCard.style.borderColor = open ? "#5a2840" : "#2a1421";
+            try { localStorage.setItem("EBC_slowLeaveEditorOpen", open ? "1" : "0"); } catch { /* ignore */ }
+        });
 
     }
 

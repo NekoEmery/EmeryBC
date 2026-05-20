@@ -1926,6 +1926,7 @@
     // -- Badge scale ---------------------------------------------------------------
     // Multiplier applied on top of the room zoom. 1.0 = default size.
     // Range: 0.3 – 4.0
+    // Legacy single scale kept for migration; new code uses style-specific getters below.
     function getBadgeScale() {
         var _a;
         try {
@@ -1936,11 +1937,43 @@
             return 1.0;
         }
     }
-    function setBadgeScale(v) {
+    // Per-style scales — Text and Cat can be sized independently.
+    // Both fall back to the legacy `badgeScale` value on first use (migration).
+    function getTextBadgeScale() {
+        try {
+            const s = getStore$7();
+            const v = s === null || s === void 0 ? void 0 : s.textBadgeScale;
+            return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
+        }
+        catch (_a) {
+            return 1.0;
+        }
+    }
+    function setTextBadgeScale(v) {
         try {
             const s = getStore$7();
             if (s) {
-                s.badgeScale = Math.max(0.3, Math.min(4, v));
+                s.textBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getCatBadgeScale() {
+        try {
+            const s = getStore$7();
+            const v = s === null || s === void 0 ? void 0 : s.catBadgeScale;
+            return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
+        }
+        catch (_a) {
+            return 1.0;
+        }
+    }
+    function setCatBadgeScale(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.catBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
                 syncSettings();
             }
         }
@@ -2021,7 +2054,7 @@
         var _a;
         try {
             const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeOffsetY;
-            return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 72;
+            return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : 72;
         }
         catch (_b) {
             return 72;
@@ -2031,7 +2064,7 @@
         try {
             const s = getStore$7();
             if (s) {
-                s.badgeOffsetY = Math.round(v);
+                s.badgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v)));
                 syncSettings();
             }
         }
@@ -2040,6 +2073,53 @@
     function resetBadgePosition() {
         setBadgeOffsetX(250);
         setBadgeOffsetY(72);
+    }
+    // -- Cat badge position offset -------------------------------------------------
+    // Separate X/Y for the cat icon so it can be placed independently of the text badge.
+    // Falls back to the shared badgeOffsetX/Y on first use (migration).
+    function getCatBadgeOffsetX() {
+        try {
+            const s = getStore$7();
+            const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetX;
+            return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : getBadgeOffsetX();
+        }
+        catch (_a) {
+            return 250;
+        }
+    }
+    function setCatBadgeOffsetX(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.catBadgeOffsetX = Math.round(v);
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getCatBadgeOffsetY() {
+        try {
+            const s = getStore$7();
+            const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetY;
+            return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : getBadgeOffsetY();
+        }
+        catch (_a) {
+            return 72;
+        }
+    }
+    function setCatBadgeOffsetY(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.catBadgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v)));
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function resetCatBadgePosition() {
+        setCatBadgeOffsetX(250);
+        setCatBadgeOffsetY(72);
     }
     // -- Version text offset (cat mode — drawn separately from cat icon) -----------
     // Independent X/Y position for the floating version label when badge style is
@@ -2092,9 +2172,14 @@
     // When true: a dashed ring appears on your own badge in the chatroom canvas,
     // and canvas mouse/touch events allow click-dragging the badge to reposition.
     // Automatically cleared when the drag completes or the user leaves a room.
+    // _badgeDragStyleTarget controls WHICH badge style is being repositioned —
+    // 'text' moves the text badge offset, 'cat' moves the cat badge offset.
     let _badgeDragMode = false;
+    let _badgeDragStyleTarget = "text";
     function getBadgeDragMode() { return _badgeDragMode; }
     function setBadgeDragMode(v) { _badgeDragMode = v; }
+    function getBadgeDragStyleTarget() { return _badgeDragStyleTarget; }
+    function setBadgeDragStyleTarget(v) { _badgeDragStyleTarget = v; }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
     // another character is immediately removed and a glare emote is sent.
@@ -12398,9 +12483,9 @@
         "qa.removedN": { en: "✓ Removed {n} item(s).", de: "✓ {n} Element(e) entfernt.", zh: "✓ 已移除 {n} 件物品。", fr: "✓ {n} élément(s) retiré(s).", es: "✓ {n} elemento(s) quitado(s).", ru: "✓ Снято {n} предм.", ja: "✓ {n} 件を解除しました。" },
         "qa.unlockedN": { en: "✓ Unlocked {n} item(s).", de: "✓ {n} Element(e) entsperrt.", zh: "✓ 已解锁 {n} 件物品。", fr: "✓ {n} élément(s) déverrouillé(s).", es: "✓ {n} elemento(s) desbloqueado(s).", ru: "✓ Разблоков. {n} предм.", ja: "✓ {n} 件の錠前を外しました。" },
         // ─── SLOW LEAVE ────────────────────────────────────────────────────────
-        "sl.header": { en: "🚶 Slow Leave", de: "🚶 Langsam gehen", zh: "🚶 慢慢离开", fr: "🚶 Partir lentement", es: "🚶 Salida lenta", ru: "🚶 Медленный уход", ja: "🚶 ゆっくり退場" },
+        "sl.header": { en: "Slow Leave", de: "Langsam gehen", zh: "慢慢离开", fr: "Partir lentement", es: "Salida lenta", ru: "Медленный уход", ja: "ゆっくり退場" },
         "sl.durationTitle": { en: "Slow leave duration", de: "Dauer des langsamen Gehens", zh: "慢离开持续时间", fr: "Durée de la sortie lente", es: "Duración de salida lenta", ru: "Продолжительность медленного ухода", ja: "ゆっくり退場の所要時間" },
-        "sl.leave": { en: "🚶 Slow Leave", de: "🚶 Langsam gehen", zh: "🚶 慢慢离开", fr: "🚶 Partir lentement", es: "🚶 Salida lenta", ru: "🚶 Медленный уход", ja: "🚶 ゆっくり退場" },
+        "sl.leave": { en: "Slow Leave", de: "Langsam gehen", zh: "慢慢离开", fr: "Partir lentement", es: "Salida lenta", ru: "Медленный уход", ja: "ゆっくり退場" },
         "sl.leaveTitle": { en: "Wave goodbye and slowly head for the door", de: "Auf Wiedersehen winken und langsam zur Tür gehen", zh: "挥手告别，慢慢走向门口", fr: "Dire au revoir et se diriger lentement vers la porte", es: "Despedirse y caminar lentamente hacia la puerta", ru: "Помашите на прощание и медленно направьтесь к двери", ja: "手を振ってゆっくりドアへ向かう" },
         "sl.cancel": { en: "✕ Cancel Leave", de: "✕ Abbrechen", zh: "✕ 取消离开", fr: "✕ Annuler la sortie", es: "✕ Cancelar salida", ru: "✕ Отменить уход", ja: "✕ 退場をキャンセル" },
         "sl.seqHint": { en: "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}", de: "Sequenz für dieses Preset — bearbeiten zum Anpassen. Schritte durch | getrennt, Dauer @{DUR}", zh: "此预设的序列——编辑以自定义。步骤以 | 分隔，时长占位符 @{DUR}", fr: "Séquence pour ce preset — modifier pour personnaliser. Étapes séparées par |, durée @{DUR}", es: "Secuencia para este preset — editar para personalizar. Pasos con |, marcador @{DUR}", ru: "Последовательность — редактировать для настройки. Шаги через |, длительность @{DUR}", ja: "このプリセットのシーケンス — 編集してカスタマイズ。ステップは | で区切り、時間は @{DUR}" },
@@ -12674,6 +12759,8 @@
         "strip.hideChev": { en: "Hide ▼", de: "Verbergen ▼", zh: "隐藏 ▼", fr: "Masquer ▼", es: "Ocultar ▼", ru: "Скрыть ▼", ja: "非表示 ▼" },
         "strip.myStyle": { en: "My style", de: "Mein Stil", zh: "我的样式", fr: "Mon style", es: "Mi estilo", ru: "Мой стиль", ja: "自分のスタイル" },
         "strip.othersStyle": { en: "Others' style", de: "Stil der anderen", zh: "他人样式", fr: "Style des autres", es: "Estilo de otros", ru: "Стиль других", ja: "他人のスタイル" },
+        "strip.styleBtnText": { en: "Text", de: "Text", zh: "文字", fr: "Texte", es: "Texto", ru: "Текст", ja: "テキスト" },
+        "strip.styleBtnCat": { en: "Cat", de: "Katze", zh: "猫", fr: "Chat", es: "Gato", ru: "Кошка", ja: "猫" },
         // ─── THEMES ────────────────────────────────────────────────────────────
         "theme.drawerBg": { en: "Drawer BG", de: "Schublade HG", zh: "面板背景", fr: "BG panneau", es: "Fondo panel", ru: "Фон панели", ja: "パネル背景" },
         "theme.cardBg": { en: "Card BG", de: "Karte HG", zh: "卡片背景", fr: "BG carte", es: "Fondo tarjeta", ru: "Фон карточки", ja: "カード背景" },
@@ -15950,12 +16037,6 @@
             // Tag tooltip — kept at instance level so it survives list rebuilds
             this.tagTooltipEl = null;
             this.tagTooltipMoveListener = null;
-            this.slowLeaveBtn = null;
-            this.slCollapseHdr = null;
-            this.slCollapseBody = null;
-            this.slPresetDropdown = null;
-            this.slDurSlider = null;
-            this.slDurVal = null;
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
             // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
             this.safewordRowEl = null;
@@ -15988,7 +16069,6 @@
         }
         // -- Setup -----------------------------------------------------------------
         setup() {
-            var _a, _b, _c, _d;
             if (this.rootEl)
                 return;
             this.injectStyles();
@@ -16314,148 +16394,6 @@
             selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none")
                 selfPickToggle.style.color = "#7a4a5e"; });
             quickActions.appendChild(selfPickToggle);
-            // ── Slow Leave — collapsible block ────────────────────────────────────
-            // Outer wrapper, hidden when not in a chatroom
-            const slWrap = document.createElement("div");
-            slWrap.style.cssText = "display:none;flex-direction:column;width:100%;";
-            quickActions.appendChild(slWrap);
-            // Collapse header row: click to expand/collapse
-            const slCollapseHdr = document.createElement("div");
-            slCollapseHdr.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;cursor:pointer;padding:3px 0;user-select:none;";
-            const slHdrLbl = document.createElement("span");
-            slHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            slHdrLbl.textContent = t("sl.header");
-            this._i18nRefs.slCollapseHdr = slCollapseHdr;
-            const slHdrArrow = document.createElement("span");
-            slHdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
-            slHdrArrow.textContent = "▼";
-            slCollapseHdr.appendChild(slHdrLbl);
-            slCollapseHdr.appendChild(slHdrArrow);
-            slWrap.appendChild(slCollapseHdr);
-            this.slCollapseHdr = slCollapseHdr;
-            // Collapsible body
-            const slCollapseBody = document.createElement("div");
-            const slExpanded = localStorage.getItem("EBC_slowLeaveOpen") === "1";
-            slCollapseBody.style.cssText = `display:${slExpanded ? "flex" : "none"};flex-direction:column;gap:3px;padding:4px 0 2px;`;
-            slHdrArrow.textContent = slExpanded ? "▲" : "▼";
-            slWrap.appendChild(slCollapseBody);
-            this.slCollapseBody = slCollapseBody;
-            slCollapseHdr.addEventListener("click", () => {
-                const open = slCollapseBody.style.display === "none";
-                slCollapseBody.style.display = open ? "flex" : "none";
-                slHdrArrow.textContent = open ? "▲" : "▼";
-                try {
-                    localStorage.setItem("EBC_slowLeaveOpen", open ? "1" : "0");
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            });
-            // Slow Leave action button
-            const slowLeaveBtn = document.createElement("button");
-            slowLeaveBtn.className = "ebc-action-btn";
-            slowLeaveBtn.textContent = t("sl.leave");
-            slowLeaveBtn.title = t("sl.leaveTitle");
-            slowLeaveBtn.style.cssText = "width:100%;";
-            this._i18nRefs.slLeaveBtn = slowLeaveBtn;
-            slowLeaveBtn.addEventListener("click", () => {
-                var _a, _b;
-                if (isSeqRunning()) {
-                    cancelSequence();
-                    return;
-                }
-                const livePresets = getSlowLeavePresets();
-                const durMs = Math.max(500, (parseInt((_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5", 10)) * 1000);
-                const pIdx = Math.min(livePresets.length - 1, Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10)));
-                const seq = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
-                setSeqDoneCallback(() => {
-                    slowLeaveBtn.textContent = t("sl.leave");
-                    slowLeaveBtn.style.background = "";
-                    slowLeaveBtn.style.color = "";
-                });
-                slowLeaveBtn.textContent = t("sl.cancel");
-                slowLeaveBtn.style.background = "#4a1a2a";
-                slowLeaveBtn.style.color = "#ff8aaa";
-                runSequence(seq);
-            });
-            slCollapseBody.appendChild(slowLeaveBtn);
-            this.slowLeaveBtn = slowLeaveBtn;
-            // Preset selector
-            const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
-            const slPresetDropdown = document.createElement("select");
-            slPresetDropdown.style.cssText = DD_CSS;
-            const populateSlPresets = () => {
-                var _a;
-                while (slPresetDropdown.firstChild)
-                    slPresetDropdown.removeChild(slPresetDropdown.firstChild);
-                getSlowLeavePresets().forEach((p, i) => {
-                    const o = document.createElement("option");
-                    o.value = String(i);
-                    o.textContent = p.label;
-                    slPresetDropdown.appendChild(o);
-                });
-                slPresetDropdown.value = (_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0";
-            };
-            populateSlPresets();
-            slPresetDropdown.addEventListener("change", () => {
-                var _a, _b;
-                try {
-                    localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value);
-                }
-                catch ( /* ignore */_c) { /* ignore */ }
-                // Update seq textarea
-                const lp = getSlowLeavePresets();
-                const pi = parseInt(slPresetDropdown.value, 10);
-                slSeqArea.value = (_b = (_a = lp[pi]) === null || _a === void 0 ? void 0 : _a.seq) !== null && _b !== void 0 ? _b : "";
-            });
-            slCollapseBody.appendChild(slPresetDropdown);
-            this.slPresetDropdown = slPresetDropdown;
-            // Seq textarea — lets the user customise the selected preset's sequence
-            const slSeqArea = document.createElement("textarea");
-            slSeqArea.rows = 3;
-            slSeqArea.spellcheck = false;
-            slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
-            slSeqArea.title = t("sl.seqHint");
-            const slSeqInitPresets = getSlowLeavePresets();
-            const slSeqInitIdx = parseInt((_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0", 10);
-            slSeqArea.value = (_c = (_b = slSeqInitPresets[slSeqInitIdx]) === null || _b === void 0 ? void 0 : _b.seq) !== null && _c !== void 0 ? _c : "";
-            slSeqArea.addEventListener("change", () => {
-                const lp = getSlowLeavePresets();
-                const pi = parseInt(slPresetDropdown.value, 10);
-                if (pi >= 0 && pi < lp.length) {
-                    lp[pi].seq = slSeqArea.value;
-                    saveSlowLeavePresets(lp);
-                }
-            });
-            slCollapseBody.appendChild(slSeqArea);
-            // Duration slider
-            const slDurRow = document.createElement("div");
-            slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
-            const slDurLbl = document.createElement("span");
-            slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
-            slDurLbl.textContent = "⏱";
-            slDurLbl.title = "Slow leave duration";
-            const slDurSlider = document.createElement("input");
-            slDurSlider.type = "range";
-            slDurSlider.min = "2";
-            slDurSlider.max = "30";
-            slDurSlider.step = "1";
-            slDurSlider.value = (_d = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _d !== void 0 ? _d : "5";
-            slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            const slDurVal = document.createElement("span");
-            slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
-            slDurVal.textContent = slDurSlider.value + "s";
-            slDurSlider.addEventListener("input", () => {
-                slDurVal.textContent = slDurSlider.value + "s";
-                try {
-                    localStorage.setItem("EBC_slowLeaveDuration", slDurSlider.value);
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            });
-            slDurRow.appendChild(slDurLbl);
-            slDurRow.appendChild(slDurSlider);
-            slDurRow.appendChild(slDurVal);
-            slCollapseBody.appendChild(slDurRow);
-            this.slDurSlider = slDurSlider;
-            this.slDurVal = slDurVal;
             // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
             const selfPickPanel = document.createElement("div");
             selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
@@ -16830,7 +16768,7 @@
                 if (v !== null)
                     ebcTagsCollapsed = v === "1";
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_a) { /* ignore */ }
             const ebcTagsStrip = document.createElement("div");
             ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
             this.ebcTagsStripEl = ebcTagsStrip;
@@ -16844,7 +16782,7 @@
             ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
             const ebcTagsHdrLabel = document.createElement("span");
             ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-            ebcTagsHdrLabel.textContent = "EBC Tag Settings";
+            ebcTagsHdrLabel.textContent = t("dev.ebcTags");
             ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
             // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
             const ebcTagsChev = document.createElement("span");
@@ -16894,7 +16832,7 @@
                     cardDot.style.background = on ? "#d06090" : "#4a2038";
                     cardStatus.style.background = on ? "#3d1228" : "#1e0c16";
                     cardStatus.style.color = on ? "#f0a0c8" : "#6a4050";
-                    cardStatusText.textContent = on ? "ON" : "OFF";
+                    cardStatusText.textContent = on ? t("core.on") : t("core.off");
                 };
                 refresh();
                 card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
@@ -16946,8 +16884,8 @@
                     btn.addEventListener("ebc-refresh", refresh);
                     return btn;
                 };
-                row.appendChild(makeBtn("text", "Text"));
-                row.appendChild(makeBtn("cat", "Cat"));
+                row.appendChild(makeBtn("text", t("strip.styleBtnText")));
+                row.appendChild(makeBtn("cat", t("strip.styleBtnCat")));
                 ebcTagsBody.appendChild(row);
             };
             // "Mine:" label
@@ -16962,32 +16900,41 @@
             othersStyleLbl.textContent = t("strip.othersStyle");
             ebcTagsBody.appendChild(othersStyleLbl);
             buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
-            // ── Scale slider ─────────────────────────────────────────────────────
-            const scaleRow = document.createElement("div");
-            scaleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
-            const scaleLbl = document.createElement("span");
-            scaleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
-            scaleLbl.textContent = t("strip.scale");
-            const scaleSlider = document.createElement("input");
-            scaleSlider.type = "range";
-            scaleSlider.min = "0.3";
-            scaleSlider.max = "3";
-            scaleSlider.step = "0.05";
-            scaleSlider.value = String(getBadgeScale());
-            scaleSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            scaleSlider.title = "Badge size multiplier (1 = default)";
-            const scaleVal = document.createElement("span");
-            scaleVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
-            scaleVal.textContent = getBadgeScale().toFixed(2) + "×";
-            scaleSlider.addEventListener("input", () => {
-                const v = parseFloat(scaleSlider.value);
-                setBadgeScale(v);
-                scaleVal.textContent = v.toFixed(2) + "×";
-            });
-            scaleRow.appendChild(scaleLbl);
-            scaleRow.appendChild(scaleSlider);
-            scaleRow.appendChild(scaleVal);
-            ebcTagsBody.appendChild(scaleRow);
+            // ── Per-style scale sliders ──────────────────────────────────────────
+            // Text and Cat scales are independent so each style can be sized freely.
+            const makeScaleRow = (labelText, getVal, setVal) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:6px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:54px;";
+                lbl.textContent = labelText;
+                const slider = document.createElement("input");
+                slider.type = "range";
+                slider.min = "0.3";
+                slider.max = "3";
+                slider.step = "0.05";
+                slider.value = String(getVal());
+                slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+                slider.title = "Scale multiplier (1.0 = default)";
+                const valLbl = document.createElement("span");
+                valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:32px;text-align:right;flex-shrink:0;";
+                valLbl.textContent = getVal().toFixed(2) + "×";
+                slider.addEventListener("input", () => {
+                    const v = parseFloat(slider.value);
+                    setVal(v);
+                    valLbl.textContent = v.toFixed(2) + "×";
+                });
+                row.appendChild(lbl);
+                row.appendChild(slider);
+                row.appendChild(valLbl);
+                ebcTagsBody.appendChild(row);
+            };
+            const scaleSectionLbl = document.createElement("div");
+            scaleSectionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 5px;";
+            scaleSectionLbl.textContent = t("strip.scale");
+            ebcTagsBody.appendChild(scaleSectionLbl);
+            makeScaleRow(t("strip.styleBtnText"), getTextBadgeScale, setTextBadgeScale);
+            makeScaleRow(t("strip.styleBtnCat"), getCatBadgeScale, setCatBadgeScale);
             // ── BG opacity slider ─────────────────────────────────────────────────
             const makeOpacitySliderRow = (labelKey, getVal, setVal, titleHint) => {
                 const row = document.createElement("div");
@@ -17019,44 +16966,61 @@
             makeOpacitySliderRow("strip.bgOpacity", getBadgeBgOpacity, setBadgeBgOpacity, "Background rectangle opacity (0 = transparent)");
             makeOpacitySliderRow("strip.textOpacity", getBadgeTextOpacity, setBadgeTextOpacity, "Text / icon opacity (0 = invisible)");
             // ── Position drag row ─────────────────────────────────────────────────
+            const posHint = document.createElement("div");
+            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5878;line-height:1.35;margin-bottom:4px;";
+            posHint.textContent = t("strip.dragHint");
+            ebcTagsBody.appendChild(posHint);
             const posRow = document.createElement("div");
             posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-            const posHint = document.createElement("span");
-            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex:1;line-height:1.35;";
-            posHint.textContent = t("strip.dragHint");
-            const dragBtn = document.createElement("button");
-            const refreshDragBtn = () => {
-                const on = getBadgeDragMode();
-                dragBtn.textContent = on ? t("core.done") : t("strip.badgePosition");
-                dragBtn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif",
-                    "font-size:9px",
-                    "font-weight:bold",
-                    "padding:4px 8px",
-                    "border-radius:4px",
-                    "cursor:pointer",
-                    "flex-shrink:0",
-                    "transition:background 0.12s,border-color 0.12s,color 0.12s",
-                    `border:1px solid ${on ? "#cf6f98" : "#4c2537"}`,
-                    `background:${on ? "#4a1f30" : "#1b0d17"}`,
-                    `color:${on ? "#f7e6ee" : "#c08890"}`,
-                ].join(";");
+            const BTN_BASE = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:9px",
+                "font-weight:bold",
+                "padding:4px 8px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "flex:1",
+                "transition:background 0.12s,border-color 0.12s,color 0.12s",
+            ].join(";");
+            const makePosBtn = (styleTarget, label) => {
+                const btn = document.createElement("button");
+                const refresh = () => {
+                    const active = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
+                    btn.textContent = active ? t("core.done") : label;
+                    btn.style.cssText = BTN_BASE + ";" + [
+                        `border:1px solid ${active ? "#cf6f98" : "#4c2537"}`,
+                        `background:${active ? "#4a1f30" : "#1b0d17"}`,
+                        `color:${active ? "#f7e6ee" : "#c08890"}`,
+                    ].join(";");
+                };
+                refresh();
+                btn.addEventListener("click", () => {
+                    const wasActive = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
+                    setBadgeDragMode(!wasActive);
+                    if (!wasActive)
+                        setBadgeDragStyleTarget(styleTarget);
+                    refresh();
+                    // Also refresh the other button so it de-highlights
+                    posRow.querySelectorAll("button[data-pos-btn]")
+                        .forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                });
+                btn.addEventListener("ebc-refresh", refresh);
+                btn.dataset["posBtn"] = "1";
+                return btn;
             };
-            refreshDragBtn();
-            dragBtn.addEventListener("click", () => {
-                setBadgeDragMode(!getBadgeDragMode());
-                refreshDragBtn();
-            });
+            const textPosBtn = makePosBtn("text", "📍 " + t("strip.styleBtnText"));
+            const catPosBtn = makePosBtn("cat", "📍 " + t("strip.styleBtnCat"));
             const resetPosBtn = document.createElement("button");
             resetPosBtn.textContent = "⟳";
-            resetPosBtn.title = "Reset icon and version text positions to default";
+            resetPosBtn.title = "Reset all badge positions to default (text, cat, and version text)";
             resetPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;transition:background 0.12s,color 0.12s;";
             resetPosBtn.addEventListener("click", () => {
                 resetBadgePosition();
+                resetCatBadgePosition();
                 resetVersionTextPosition();
             });
-            posRow.appendChild(posHint);
-            posRow.appendChild(dragBtn);
+            posRow.appendChild(textPosBtn);
+            posRow.appendChild(catPosBtn);
             posRow.appendChild(resetPosBtn);
             ebcTagsBody.appendChild(posRow);
             ebcTagsStrip.appendChild(ebcTagsBody);
@@ -17597,23 +17561,6 @@
                 (_c = this.refreshSwEnableBtn) === null || _c === void 0 ? void 0 : _c.call(this);
             }
             catch ( /* ignore */_f) { /* ignore */ }
-            this.updateSlowLeaveVisibility();
-        }
-        updateSlowLeaveVisibility() {
-            var _a;
-            if (!this.slowLeaveBtn)
-                return;
-            const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
-            // Show/hide the outer collapsible wrapper
-            const wrapper = (_a = this.slCollapseHdr) === null || _a === void 0 ? void 0 : _a.parentElement;
-            if (wrapper)
-                wrapper.style.display = inRoom ? "flex" : "none";
-            // Reset button label if no sequence is currently running
-            if (!isSeqRunning()) {
-                this.slowLeaveBtn.textContent = "🚶 Slow Leave";
-                this.slowLeaveBtn.style.background = "";
-                this.slowLeaveBtn.style.color = "";
-            }
         }
         startGuide() {
             if (!this.guideEl)
@@ -17913,17 +17860,6 @@
             if (r.pickBtn) {
                 r.pickBtn.textContent = t("qa.pickRestraints");
                 r.pickBtn.title = t("qa.pickTitle");
-            }
-            // Slow leave header label (first child span)
-            if (r.slCollapseHdr) {
-                const lbl = r.slCollapseHdr.querySelector("span");
-                if (lbl)
-                    lbl.textContent = t("sl.header");
-            }
-            // Slow leave button (only if not currently running)
-            if (r.slLeaveBtn && !isSeqRunning()) {
-                r.slLeaveBtn.textContent = t("sl.leave");
-                r.slLeaveBtn.title = t("sl.leaveTitle");
             }
         }
         // -- Timer -----------------------------------------------------------------
@@ -26710,7 +26646,7 @@
         }
         // -- Buttons tab -----------------------------------------------------------
         renderButtons() {
-            var _a;
+            var _a, _b, _c, _d, _e;
             const body = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -27401,6 +27337,144 @@
                 catch ( /* ignore */_a) { /* ignore */ }
             });
             body.appendChild(clearPoseBtn);
+            // ── Slow Leave trigger button — lives with Useful Buttons ─────────────
+            const slLeaveBtn = document.createElement("button");
+            slLeaveBtn.className = "ebc-create-btn";
+            slLeaveBtn.style.cssText = "margin:4px 0 0; width:100%;";
+            const seqRunning = isSeqRunning();
+            slLeaveBtn.textContent = seqRunning ? t("sl.cancel") : t("sl.leave");
+            slLeaveBtn.title = t("sl.leaveTitle");
+            if (seqRunning) {
+                slLeaveBtn.style.background = "#4a1a2a";
+                slLeaveBtn.style.color = "#ff8aaa";
+            }
+            slLeaveBtn.addEventListener("click", () => {
+                var _a, _b;
+                if (isSeqRunning()) {
+                    cancelSequence();
+                    slLeaveBtn.textContent = t("sl.leave");
+                    slLeaveBtn.style.background = "";
+                    slLeaveBtn.style.color = "";
+                    return;
+                }
+                const livePresets = getSlowLeavePresets();
+                const durMs = Math.max(500, (parseInt((_a = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _a !== void 0 ? _a : "5", 10)) * 1000);
+                const pIdx = Math.min(livePresets.length - 1, Math.max(0, parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10)));
+                const seq = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
+                setSeqDoneCallback(() => {
+                    slLeaveBtn.textContent = t("sl.leave");
+                    slLeaveBtn.style.background = "";
+                    slLeaveBtn.style.color = "";
+                });
+                slLeaveBtn.textContent = t("sl.cancel");
+                slLeaveBtn.style.background = "#4a1a2a";
+                slLeaveBtn.style.color = "#ff8aaa";
+                runSequence(seq);
+            });
+            body.appendChild(slLeaveBtn);
+            // ── Slow Leave editor — collapsible accordion card ────────────────────
+            const slEditorOpen = localStorage.getItem("EBC_slowLeaveEditorOpen") === "1";
+            const slEditorCard = document.createElement("div");
+            slEditorCard.style.cssText = "border:1px solid " + (slEditorOpen ? "#5a2840" : "#2a1421") + ";border-radius:7px;margin-top:6px;overflow:hidden;";
+            // Header row — click to expand/collapse
+            const slEditorHdr = document.createElement("div");
+            slEditorHdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;background:" + (slEditorOpen ? "#2a0e1e" : "#1b0d17") + ";";
+            const slEditorChev = document.createElement("span");
+            slEditorChev.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+            slEditorChev.textContent = slEditorOpen ? "▼" : "▶";
+            const slEditorLbl = document.createElement("span");
+            slEditorLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;";
+            slEditorLbl.textContent = t("sl.header");
+            slEditorHdr.appendChild(slEditorChev);
+            slEditorHdr.appendChild(slEditorLbl);
+            slEditorCard.appendChild(slEditorHdr);
+            // Editor body
+            const slEditorBody = document.createElement("div");
+            slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
+            const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
+            const slPresetDropdown = document.createElement("select");
+            slPresetDropdown.style.cssText = DD_CSS;
+            const populateSlPresets = () => {
+                var _a;
+                while (slPresetDropdown.firstChild)
+                    slPresetDropdown.removeChild(slPresetDropdown.firstChild);
+                getSlowLeavePresets().forEach((p, i) => {
+                    const o = document.createElement("option");
+                    o.value = String(i);
+                    o.textContent = p.label;
+                    slPresetDropdown.appendChild(o);
+                });
+                slPresetDropdown.value = (_a = localStorage.getItem("EBC_slowLeavePreset")) !== null && _a !== void 0 ? _a : "0";
+            };
+            populateSlPresets();
+            slPresetDropdown.addEventListener("change", () => {
+                var _a, _b;
+                try {
+                    localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value);
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+                const lp = getSlowLeavePresets();
+                const pi = parseInt(slPresetDropdown.value, 10);
+                slSeqArea.value = (_b = (_a = lp[pi]) === null || _a === void 0 ? void 0 : _a.seq) !== null && _b !== void 0 ? _b : "";
+            });
+            slEditorBody.appendChild(slPresetDropdown);
+            const slSeqArea = document.createElement("textarea");
+            slSeqArea.rows = 3;
+            slSeqArea.spellcheck = false;
+            slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
+            slSeqArea.title = t("sl.seqHint");
+            const slSeqInitPresets = getSlowLeavePresets();
+            const slSeqInitIdx = parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10);
+            slSeqArea.value = (_d = (_c = slSeqInitPresets[slSeqInitIdx]) === null || _c === void 0 ? void 0 : _c.seq) !== null && _d !== void 0 ? _d : "";
+            slSeqArea.addEventListener("change", () => {
+                const lp = getSlowLeavePresets();
+                const pi = parseInt(slPresetDropdown.value, 10);
+                if (pi >= 0 && pi < lp.length) {
+                    lp[pi].seq = slSeqArea.value;
+                    saveSlowLeavePresets(lp);
+                }
+            });
+            slEditorBody.appendChild(slSeqArea);
+            const slDurRow = document.createElement("div");
+            slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
+            const slDurLbl = document.createElement("span");
+            slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
+            slDurLbl.textContent = "⏱";
+            slDurLbl.title = t("sl.header");
+            const slDurSlider = document.createElement("input");
+            slDurSlider.type = "range";
+            slDurSlider.min = "2";
+            slDurSlider.max = "30";
+            slDurSlider.step = "1";
+            slDurSlider.value = (_e = localStorage.getItem("EBC_slowLeaveDuration")) !== null && _e !== void 0 ? _e : "5";
+            slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            const slDurVal = document.createElement("span");
+            slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
+            slDurVal.textContent = slDurSlider.value + "s";
+            slDurSlider.addEventListener("input", () => {
+                slDurVal.textContent = slDurSlider.value + "s";
+                try {
+                    localStorage.setItem("EBC_slowLeaveDuration", slDurSlider.value);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
+            slDurRow.appendChild(slDurLbl);
+            slDurRow.appendChild(slDurSlider);
+            slDurRow.appendChild(slDurVal);
+            slEditorBody.appendChild(slDurRow);
+            slEditorCard.appendChild(slEditorBody);
+            body.appendChild(slEditorCard);
+            slEditorHdr.addEventListener("click", () => {
+                const open = slEditorBody.style.display === "none";
+                slEditorBody.style.display = open ? "flex" : "none";
+                slEditorChev.textContent = open ? "▼" : "▶";
+                slEditorHdr.style.background = open ? "#2a0e1e" : "#1b0d17";
+                slEditorCard.style.borderColor = open ? "#5a2840" : "#2a1421";
+                try {
+                    localStorage.setItem("EBC_slowLeaveEditorOpen", open ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
         }
         renderKittyTab() {
             var _a;
@@ -31210,7 +31284,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.2.0";
+    const MOD_VERSION = "3.2.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31221,6 +31295,38 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.2.5",
+            changes: [
+                "Slow Leave moved out of the quick-actions bar (no longer shown on every tab). It now lives as a plain button inside Useful Buttons. Below it is a collapsible accordion editor (same style as button category cards) for the preset dropdown, sequence textarea, and duration slider. The 🚶 emote has been removed from the button label.",
+            ],
+        },
+        {
+            version: "3.2.4",
+            changes: [
+                "EBC Tag Settings: position row now has two separate buttons — '📍 Text' and '📍 Cat' — so each badge style can be dragged to its own position without needing to switch styles first. Clicking a button activates drag mode for that style only; clicking again (or completing a drag) exits it.",
+            ],
+        },
+        {
+            version: "3.2.3",
+            changes: [
+                "Cat badge position is now independent from the text badge position. Enabling drag mode and dragging the cat icon only moves the cat offset; switching to text style drags only the text badge. The ⟳ reset button resets all three positions (text badge, cat badge, version text).",
+            ],
+        },
+        {
+            version: "3.2.2",
+            changes: [
+                "EBC Tag Settings: Text and Cat badge styles now each have their own independent scale slider. Existing scale value migrates automatically — both start at whatever you had set before.",
+            ],
+        },
+        {
+            version: "3.2.1",
+            changes: [
+                "EBC Tag Settings: fixed all untranslated strings — section header, ON/OFF status chips, and Text/Cat style-picker buttons now all use t() with full 7-language coverage.",
+                "Slow Leave moved from the persistent quick-actions bar (visible on all tabs) into the BUTTONS tab under the Useful Buttons section. It no longer appears everywhere.",
+                "Badge Y-axis offset maximum raised from 900 to 1500, giving enough range to drag the badge all the way down to the character name line.",
+            ],
+        },
         {
             version: "3.2.0",
             changes: [
@@ -35355,15 +35461,16 @@
             // Always consume in drag mode — prevents BC canvas click-through.
             consume();
             const pos = toCanvasPos(canvas, clientX, clientY);
-            // Check icon hit first
-            const bx = _playerCharLeft + getBadgeOffsetX() * _playerCharZoom;
-            const by = _playerCharTop + getBadgeOffsetY() * _playerCharZoom;
+            // Check icon hit — use the drag target style's offset, independent of display style
+            const dragTargetIsCat = getBadgeDragStyleTarget() === "cat";
+            const bx = _playerCharLeft + (dragTargetIsCat ? getCatBadgeOffsetX() : getBadgeOffsetX()) * _playerCharZoom;
+            const by = _playerCharTop + (dragTargetIsCat ? getCatBadgeOffsetY() : getBadgeOffsetY()) * _playerCharZoom;
             if (Math.abs(pos.x - bx) < HIT && Math.abs(pos.y - by) < HIT) {
                 _dragTarget = "icon";
                 return;
             }
             // Check version text hit (cat mode + version visible)
-            if (getBadgeStyle() === "cat" && getShowVersionBadge()) {
+            if (dragTargetIsCat && getShowVersionBadge()) {
                 const vx = _playerCharLeft + getVersionTextOffsetX() * _playerCharZoom;
                 const vy = _playerCharTop + getVersionTextOffsetY() * _playerCharZoom;
                 if (Math.abs(pos.x - vx) < HIT && Math.abs(pos.y - vy) < HIT) {
@@ -35380,8 +35487,14 @@
             const pos = toCanvasPos(canvas, clientX, clientY);
             if (_playerCharZoom > 0) {
                 if (_dragTarget === "icon") {
-                    setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
-                    setBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                    if (getBadgeDragStyleTarget() === "cat") {
+                        setCatBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                        setCatBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                    }
+                    else {
+                        setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                        setBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                    }
                 }
                 else {
                     setVersionTextOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
@@ -35449,11 +35562,11 @@
         const label = isDevUser
             ? (showVer ? "dev | v" + verStr : "dev | EBC")
             : (showVer ? "v" + verStr : "EBC");
-        // User-configured position offset + scale
-        const offsetX = getBadgeOffsetX(); // default 250 (char horiz centre)
-        const offsetY = getBadgeOffsetY(); // default 72  (below WCE name)
-        const userScale = getBadgeScale(); // default 1.0
-        const badgeStyle = isSelf ? getBadgeStyle() : getOthersBadgeStyle(); // per-target style
+        // User-configured position offset + scale — both are per-style
+        const badgeStyle = isSelf ? getBadgeStyle() : getOthersBadgeStyle();
+        const offsetX = badgeStyle === "cat" ? getCatBadgeOffsetX() : getBadgeOffsetX();
+        const offsetY = badgeStyle === "cat" ? getCatBadgeOffsetY() : getBadgeOffsetY();
+        const userScale = badgeStyle === "cat" ? getCatBadgeScale() : getTextBadgeScale();
         const badgeBgOp = getBadgeBgOpacity(); // default 1.0
         const badgeTextOp = getBadgeTextOpacity(); // default 1.0
         const x = left + offsetX * zoom;
