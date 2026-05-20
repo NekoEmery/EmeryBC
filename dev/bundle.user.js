@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.8.9
+// @version      2.9.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12187,8 +12187,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "core.moveDownTitle": { en: "Move down", de: "Nach unten", zh: "下移", fr: "Déplacer vers le bas", es: "Mover abajo", ru: "Переместить вниз" },
         // ─── HEADER ────────────────────────────────────────────────────────────
         "header.dragToMove": { en: "Drag to move", de: "Ziehen zum Verschieben", zh: "拖动以移动", fr: "Glisser pour déplacer", es: "Arrastrar para mover", ru: "Перетащить" },
-        "header.resetPos": { en: "⌖ Reset pos", de: "⌖ Pos. zurücksetzen", zh: "⌖ 重置位置", fr: "⌖ Réinitialiser pos", es: "⌖ Restablecer pos", ru: "⌖ Сбросить позицию" },
-        "header.resetPosTitle": { en: "Reset drawer to default position (anchored to chat log)", de: "Fenster auf Standardposition zurücksetzen", zh: "将抽屉重置为默认位置（锚定至聊天框）", fr: "Réinitialiser à la position par défaut", es: "Restablecer posición predeterminada", ru: "Сбросить панель в исходное положение" },
+        "header.resetPos": { en: "⌖ Reset all", de: "⌖ Alles zurücksetzen", zh: "⌖ 全部重置", fr: "⌖ Tout réinitialiser", es: "⌖ Restablecer todo", ru: "⌖ Сбросить всё" },
+        "header.resetPosTitle": { en: "Reset panel to default position and text size", de: "Position und Textgröße zurücksetzen", zh: "重置面板位置和文字大小", fr: "Réinitialiser la position et la taille du texte", es: "Restablecer posición y tamaño de texto", ru: "Сбросить позицию и размер текста" },
         "header.close": { en: "Close", de: "Schließen", zh: "关闭", fr: "Fermer", es: "Cerrar", ru: "Закрыть" },
         "header.refresh": { en: "Refresh", de: "Aktualisieren", zh: "刷新", fr: "Actualiser", es: "Actualizar", ru: "Обновить" },
         "header.language": { en: "Language", de: "Sprache", zh: "语言", fr: "Langue", es: "Idioma", ru: "Язык" },
@@ -16707,6 +16707,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.panelPosition = null;
                 this.savePanelPosition(null);
                 this.exitFreeMode();
+                // Reset text size to default
+                savePanelZoom(1);
+                this.applyPanelZoom(1);
                 // Also reset the hamburger tab to auto-position (follow CRABS)
                 this.userTabOffset = null;
                 this.lastCrabsBottom = -1;
@@ -30590,7 +30593,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.8.9";
+    const MOD_VERSION = "2.9.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30601,6 +30604,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.9.0",
+            changes: [
+                "UX: '⌖ Reset all' button now also resets text size back to 100% in addition to snapping the panel back to its default anchored position. Button label and tooltip updated to reflect this.",
+            ],
+        },
         {
             version: "2.8.9",
             changes: [
