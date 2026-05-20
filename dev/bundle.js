@@ -30795,7 +30795,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.9";
+    const MOD_VERSION = "2.11.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30806,6 +30806,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.11.0",
+            changes: [
+                "Dev cat badge outline: replaced flat solid orange stroke with a two-pass glow effect — wide soft amber halo (shadowBlur) plus a crisp bright highlight line on top.",
+            ],
+        },
         {
             version: "2.10.9",
             changes: [
@@ -34936,21 +34942,35 @@
                 if (isDevUser) {
                     const bx = x - size / 2;
                     const by = y - size / 2;
-                    const r = size * 0.2;
-                    ctx.strokeStyle = "#ff8800";
-                    ctx.lineWidth = Math.max(2, Math.round(size * 0.1));
-                    ctx.beginPath();
-                    ctx.moveTo(bx + r, by);
-                    ctx.lineTo(bx + size - r, by);
-                    ctx.arcTo(bx + size, by, bx + size, by + r, r);
-                    ctx.lineTo(bx + size, by + size - r);
-                    ctx.arcTo(bx + size, by + size, bx + size - r, by + size, r);
-                    ctx.lineTo(bx + r, by + size);
-                    ctx.arcTo(bx, by + size, bx, by + size - r, r);
-                    ctx.lineTo(bx, by + r);
-                    ctx.arcTo(bx, by, bx + r, by, r);
-                    ctx.closePath();
+                    const r = size * 0.22;
+                    const roundRect = () => {
+                        ctx.beginPath();
+                        ctx.moveTo(bx + r, by);
+                        ctx.lineTo(bx + size - r, by);
+                        ctx.arcTo(bx + size, by, bx + size, by + r, r);
+                        ctx.lineTo(bx + size, by + size - r);
+                        ctx.arcTo(bx + size, by + size, bx + size - r, by + size, r);
+                        ctx.lineTo(bx + r, by + size);
+                        ctx.arcTo(bx, by + size, bx, by + size - r, r);
+                        ctx.lineTo(bx, by + r);
+                        ctx.arcTo(bx, by, bx + r, by, r);
+                        ctx.closePath();
+                    };
+                    const lw = Math.max(1, size * 0.07);
+                    // Wide soft glow pass
+                    ctx.shadowColor = "#ff7722";
+                    ctx.shadowBlur = size * 0.65;
+                    ctx.strokeStyle = "rgba(255,150,50,0.8)";
+                    ctx.lineWidth = lw;
+                    roundRect();
                     ctx.stroke();
+                    // Crisp bright highlight pass on top
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = "rgba(255,210,110,0.9)";
+                    ctx.lineWidth = Math.max(1, lw * 0.55);
+                    roundRect();
+                    ctx.stroke();
+                    ctx.shadowColor = "transparent";
                 }
                 ctx.restore();
             }
