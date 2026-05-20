@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.6.3
+// @version      3.6.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16168,6 +16168,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.friendRefreshDebounce = null;
             this.offlineFriendsCollapsed = true;
             this.roomPeopleCollapsed = false;
+            this.friendSort = "status"; // persisted in localStorage as EBC_friendSort
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
             this.crabsPoller = null;
@@ -23601,6 +23602,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }, 80);
         }
         renderFriendRows(body) {
+            var _a;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             const friendList = getFriendList();
@@ -23618,7 +23620,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         this.roomPeopleCollapsed = localStorage.getItem("EBC_roomPeopleCollapsed") === "1";
                     }
-                    catch ( /* ignore */_a) { /* ignore */ }
+                    catch ( /* ignore */_b) { /* ignore */ }
                     const roomContainer = document.createElement("div");
                     const buildRoomRow = (char, container) => {
                         var _a;
@@ -23904,10 +23906,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 divF.className = "ebc-divider";
                 body.appendChild(divF);
                 const onlineCount = friendList.filter(n => getFriendStatus(n) !== "away").length;
-                friendList.length - onlineCount;
                 const lblF = document.createElement("div");
                 lblF.className = "ebc-section-label";
-                lblF.style.cssText = "display:flex;align-items:center;gap:6px;";
+                lblF.style.cssText = "display:flex;align-items:center;gap:5px;flex-wrap:wrap;";
                 const lblFText = document.createElement("span");
                 lblFText.textContent = t("users.friends");
                 const lblFCount = document.createElement("span");
@@ -23915,11 +23916,47 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 lblFCount.textContent = `${onlineCount} online · ${friendList.length} total`;
                 lblF.appendChild(lblFText);
                 lblF.appendChild(lblFCount);
+                // ── Sort dropdown ──────────────────────────────────────────────────
+                try {
+                    this.friendSort = (_a = localStorage.getItem("EBC_friendSort")) !== null && _a !== void 0 ? _a : "status";
+                }
+                catch ( /* ignore */_c) { /* ignore */ }
+                const sortSel = document.createElement("select");
+                sortSel.title = "Sort friends";
+                sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
+                const SORT_OPTIONS = [
+                    ["status", "↕ Status"],
+                    ["starred", "★ Starred first"],
+                    ["az", "A → Z"],
+                    ["za", "Z → A"],
+                    ["since_old", "Friends longest"],
+                    ["since_new", "Friends newest"],
+                ];
+                for (const [val, lbl] of SORT_OPTIONS) {
+                    const opt = document.createElement("option");
+                    opt.value = val;
+                    opt.textContent = lbl;
+                    if (val === this.friendSort)
+                        opt.selected = true;
+                    sortSel.appendChild(opt);
+                }
+                sortSel.addEventListener("change", () => {
+                    this.friendSort = sortSel.value;
+                    try {
+                        localStorage.setItem("EBC_friendSort", this.friendSort);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    try {
+                        this.renderFriendRows(body);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                });
+                lblF.appendChild(sortSel);
                 if (this.beepUnread.size > 0) {
                     const markReadBtn = document.createElement("button");
-                    markReadBtn.textContent = "✓ Mark all read";
+                    markReadBtn.textContent = "✓ All read";
                     markReadBtn.title = "Dismiss all unread beep notifications";
-                    markReadBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
+                    markReadBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;";
                     markReadBtn.addEventListener("mouseenter", () => { markReadBtn.style.color = "#cf6f98"; markReadBtn.style.borderColor = "#cf6f98"; });
                     markReadBtn.addEventListener("mouseleave", () => { markReadBtn.style.color = "#7a5a6a"; markReadBtn.style.borderColor = "#3a1928"; });
                     markReadBtn.addEventListener("click", () => {
@@ -23935,17 +23972,38 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 body.appendChild(lblF);
                 // Preset tag colours
                 const TAG_COLORS = ["#cf6f98", "#e06060", "#e09040", "#c8b840", "#5aaa70", "#40a0b8", "#7060d0", "#a060c0"];
-                // Sort: pinned first, then room/online/away, then alphabetical
-                const statusOrder = (n) => ({ room: 0, online: 1, away: 2 }[getFriendStatus(n)]);
+                // Sort friends according to selected mode
+                const statusOrder = (n) => { var _a; return ((_a = { room: 0, online: 1, away: 2 }[getFriendStatus(n)]) !== null && _a !== void 0 ? _a : 2); };
+                const nameOf = (n) => resolveName(n).toLowerCase();
+                const sinceOf = (n) => { var _a; return (_a = getFriendSince(n)) !== null && _a !== void 0 ? _a : (this.friendSort === "since_old" ? Infinity : -Infinity); };
                 const sorted = [...friendList].sort((a, b) => {
+                    // Pinned friends always bubble to the top regardless of sort mode
                     const pa = isFriendPinned(a) ? 0 : 1;
                     const pb = isFriendPinned(b) ? 0 : 1;
                     if (pa !== pb)
                         return pa - pb;
-                    const diff = statusOrder(a) - statusOrder(b);
-                    if (diff !== 0)
-                        return diff;
-                    return resolveName(a).localeCompare(resolveName(b));
+                    switch (this.friendSort) {
+                        case "starred": {
+                            const sa = isSpecialFriend(a) ? 0 : 1;
+                            const sb = isSpecialFriend(b) ? 0 : 1;
+                            if (sa !== sb)
+                                return sa - sb;
+                            const sd = statusOrder(a) - statusOrder(b);
+                            return sd !== 0 ? sd : nameOf(a).localeCompare(nameOf(b));
+                        }
+                        case "az":
+                            return nameOf(a).localeCompare(nameOf(b));
+                        case "za":
+                            return nameOf(b).localeCompare(nameOf(a));
+                        case "since_old":
+                            return sinceOf(a) - sinceOf(b);
+                        case "since_new":
+                            return sinceOf(b) - sinceOf(a);
+                        default: { // "status"
+                            const sd = statusOrder(a) - statusOrder(b);
+                            return sd !== 0 ? sd : nameOf(a).localeCompare(nameOf(b));
+                        }
+                    }
                 });
                 // Split into always-visible (pinned or online/room) and offline
                 const activeFriends = sorted.filter(n => isFriendPinned(n) || getFriendStatus(n) !== "away");
@@ -24656,7 +24714,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         cacheName(num, fallbackName);
                     }
-                    catch ( /* ignore */_b) { /* ignore */ }
+                    catch ( /* ignore */_d) { /* ignore */ }
                     if (!friendList.includes(num)) {
                         buildFriendRow(num, body);
                     }
@@ -24670,7 +24728,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     try {
                         this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                     }
-                    catch ( /* ignore */_c) { /* ignore */ }
+                    catch ( /* ignore */_e) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -31793,7 +31851,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.6.3";
+    const MOD_VERSION = "3.6.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31804,6 +31862,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.6.4",
+            changes: [
+                "Friends list: added sort dropdown — Status (default), ★ Starred first, A→Z, Z→A, Friends longest, Friends newest. Choice persists across sessions.",
+            ],
+        },
         {
             version: "3.6.3",
             changes: [
