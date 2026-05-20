@@ -2172,9 +2172,14 @@
     // When true: a dashed ring appears on your own badge in the chatroom canvas,
     // and canvas mouse/touch events allow click-dragging the badge to reposition.
     // Automatically cleared when the drag completes or the user leaves a room.
+    // _badgeDragStyleTarget controls WHICH badge style is being repositioned —
+    // 'text' moves the text badge offset, 'cat' moves the cat badge offset.
     let _badgeDragMode = false;
+    let _badgeDragStyleTarget = "text";
     function getBadgeDragMode() { return _badgeDragMode; }
     function setBadgeDragMode(v) { _badgeDragMode = v; }
+    function getBadgeDragStyleTarget() { return _badgeDragStyleTarget; }
+    function setBadgeDragStyleTarget(v) { _badgeDragStyleTarget = v; }
 
     // Anti-restraint — when enabled, any restraint applied to the player by
     // another character is immediately removed and a glare emote is sent.
@@ -16961,34 +16966,50 @@
             makeOpacitySliderRow("strip.bgOpacity", getBadgeBgOpacity, setBadgeBgOpacity, "Background rectangle opacity (0 = transparent)");
             makeOpacitySliderRow("strip.textOpacity", getBadgeTextOpacity, setBadgeTextOpacity, "Text / icon opacity (0 = invisible)");
             // ── Position drag row ─────────────────────────────────────────────────
+            const posHint = document.createElement("div");
+            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5878;line-height:1.35;margin-bottom:4px;";
+            posHint.textContent = t("strip.dragHint");
+            ebcTagsBody.appendChild(posHint);
             const posRow = document.createElement("div");
             posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-            const posHint = document.createElement("span");
-            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex:1;line-height:1.35;";
-            posHint.textContent = t("strip.dragHint");
-            const dragBtn = document.createElement("button");
-            const refreshDragBtn = () => {
-                const on = getBadgeDragMode();
-                dragBtn.textContent = on ? t("core.done") : t("strip.badgePosition");
-                dragBtn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif",
-                    "font-size:9px",
-                    "font-weight:bold",
-                    "padding:4px 8px",
-                    "border-radius:4px",
-                    "cursor:pointer",
-                    "flex-shrink:0",
-                    "transition:background 0.12s,border-color 0.12s,color 0.12s",
-                    `border:1px solid ${on ? "#cf6f98" : "#4c2537"}`,
-                    `background:${on ? "#4a1f30" : "#1b0d17"}`,
-                    `color:${on ? "#f7e6ee" : "#c08890"}`,
-                ].join(";");
+            const BTN_BASE = [
+                "font-family:'Trebuchet MS',serif",
+                "font-size:9px",
+                "font-weight:bold",
+                "padding:4px 8px",
+                "border-radius:4px",
+                "cursor:pointer",
+                "flex:1",
+                "transition:background 0.12s,border-color 0.12s,color 0.12s",
+            ].join(";");
+            const makePosBtn = (styleTarget, label) => {
+                const btn = document.createElement("button");
+                const refresh = () => {
+                    const active = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
+                    btn.textContent = active ? t("core.done") : label;
+                    btn.style.cssText = BTN_BASE + ";" + [
+                        `border:1px solid ${active ? "#cf6f98" : "#4c2537"}`,
+                        `background:${active ? "#4a1f30" : "#1b0d17"}`,
+                        `color:${active ? "#f7e6ee" : "#c08890"}`,
+                    ].join(";");
+                };
+                refresh();
+                btn.addEventListener("click", () => {
+                    const wasActive = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
+                    setBadgeDragMode(!wasActive);
+                    if (!wasActive)
+                        setBadgeDragStyleTarget(styleTarget);
+                    refresh();
+                    // Also refresh the other button so it de-highlights
+                    posRow.querySelectorAll("button[data-pos-btn]")
+                        .forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                });
+                btn.addEventListener("ebc-refresh", refresh);
+                btn.dataset["posBtn"] = "1";
+                return btn;
             };
-            refreshDragBtn();
-            dragBtn.addEventListener("click", () => {
-                setBadgeDragMode(!getBadgeDragMode());
-                refreshDragBtn();
-            });
+            const textPosBtn = makePosBtn("text", "📍 " + t("strip.styleBtnText"));
+            const catPosBtn = makePosBtn("cat", "📍 " + t("strip.styleBtnCat"));
             const resetPosBtn = document.createElement("button");
             resetPosBtn.textContent = "⟳";
             resetPosBtn.title = "Reset all badge positions to default (text, cat, and version text)";
@@ -16998,8 +17019,8 @@
                 resetCatBadgePosition();
                 resetVersionTextPosition();
             });
-            posRow.appendChild(posHint);
-            posRow.appendChild(dragBtn);
+            posRow.appendChild(textPosBtn);
+            posRow.appendChild(catPosBtn);
             posRow.appendChild(resetPosBtn);
             ebcTagsBody.appendChild(posRow);
             ebcTagsStrip.appendChild(ebcTagsBody);
@@ -31233,7 +31254,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.2.3";
+    const MOD_VERSION = "3.2.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31244,6 +31265,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.2.4",
+            changes: [
+                "EBC Tag Settings: position row now has two separate buttons — '📍 Text' and '📍 Cat' — so each badge style can be dragged to its own position without needing to switch styles first. Clicking a button activates drag mode for that style only; clicking again (or completing a drag) exits it.",
+            ],
+        },
         {
             version: "3.2.3",
             changes: [
@@ -35398,16 +35425,16 @@
             // Always consume in drag mode — prevents BC canvas click-through.
             consume();
             const pos = toCanvasPos(canvas, clientX, clientY);
-            // Check icon hit — use style-specific offset so text and cat are dragged independently
-            const isCat = getBadgeStyle() === "cat";
-            const bx = _playerCharLeft + (isCat ? getCatBadgeOffsetX() : getBadgeOffsetX()) * _playerCharZoom;
-            const by = _playerCharTop + (isCat ? getCatBadgeOffsetY() : getBadgeOffsetY()) * _playerCharZoom;
+            // Check icon hit — use the drag target style's offset, independent of display style
+            const dragTargetIsCat = getBadgeDragStyleTarget() === "cat";
+            const bx = _playerCharLeft + (dragTargetIsCat ? getCatBadgeOffsetX() : getBadgeOffsetX()) * _playerCharZoom;
+            const by = _playerCharTop + (dragTargetIsCat ? getCatBadgeOffsetY() : getBadgeOffsetY()) * _playerCharZoom;
             if (Math.abs(pos.x - bx) < HIT && Math.abs(pos.y - by) < HIT) {
                 _dragTarget = "icon";
                 return;
             }
             // Check version text hit (cat mode + version visible)
-            if (isCat && getShowVersionBadge()) {
+            if (dragTargetIsCat && getShowVersionBadge()) {
                 const vx = _playerCharLeft + getVersionTextOffsetX() * _playerCharZoom;
                 const vy = _playerCharTop + getVersionTextOffsetY() * _playerCharZoom;
                 if (Math.abs(pos.x - vx) < HIT && Math.abs(pos.y - vy) < HIT) {
@@ -35424,7 +35451,7 @@
             const pos = toCanvasPos(canvas, clientX, clientY);
             if (_playerCharZoom > 0) {
                 if (_dragTarget === "icon") {
-                    if (getBadgeStyle() === "cat") {
+                    if (getBadgeDragStyleTarget() === "cat") {
                         setCatBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
                         setCatBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
                     }
