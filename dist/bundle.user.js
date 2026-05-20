@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.10.8
+// @version      3.1.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1296,10 +1296,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ],
         },
     ];
+    const ARM_POSES = ["OverTheHead", "BackCuffs", "BackBoxTie", "Yoked"];
     function applyPoses(poses) {
+        // An explicit empty string ("") in the list means "Relaxed arms" —
+        // clear any active arm pose from the result set.
+        const wantsRelaxed = poses.includes("");
         const filtered = poses.filter(Boolean);
+        const result = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
         try {
-            Player.ActivePose = filtered;
+            Player.ActivePose = result;
         }
         catch ( /* ignore */_a) { /* ignore */ }
         callBC(() => CharacterRefresh(Player, false));
@@ -1310,14 +1315,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Respects the exact order provided — the user controls sequencing via the editor.
     // e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
     function applyPosesSequential(poses, stepDelayMs = 420) {
+        // Preserve empty strings — applyPoses handles the "Relaxed arms" case.
+        const wantsRelaxed = poses.includes("");
         const steps = poses.filter(Boolean);
         if (steps.length <= 1) {
-            applyPoses(steps);
+            // Pass original list so applyPoses sees the empty-string Relaxed marker.
+            applyPoses(wantsRelaxed ? [...steps, ""] : steps);
             return;
         }
         for (let i = 0; i < steps.length; i++) {
             const subset = steps.slice(0, i + 1);
-            window.setTimeout(() => applyPoses(subset), i * stepDelayMs);
+            // On the step where we'd apply Relaxed, include the marker.
+            window.setTimeout(() => applyPoses(wantsRelaxed ? [...subset, ""] : subset), i * stepDelayMs);
         }
     }
     function getCurrentPoses() {
@@ -1562,6 +1571,45 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function removeFromAntiRestraintWhitelist(group) {
         setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
+    }
+    // -- Special friends ----------------------------------------------------------
+    // Member numbers displayed with a golden gradient highlight in the People in
+    // Room and Friends lists. Stored server-side so it persists across devices.
+    function getSpecialFriends() {
+        var _a;
+        try {
+            const list = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.specialFriends;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function isSpecialFriend(memberNumber) {
+        return getSpecialFriends().includes(memberNumber);
+    }
+    function addSpecialFriend(memberNumber) {
+        try {
+            const store = getStore$7();
+            if (!store)
+                return;
+            const list = getSpecialFriends();
+            if (!list.includes(memberNumber)) {
+                store.specialFriends = [...list, memberNumber];
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function removeSpecialFriend(memberNumber) {
+        try {
+            const store = getStore$7();
+            if (!store)
+                return;
+            store.specialFriends = getSpecialFriends().filter(n => n !== memberNumber);
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // -- Anti-restraint confirm dialog ---------------------------------------------
     // When enabled, shows a confirm() prompt before auto-escaping so the user
@@ -2009,6 +2057,53 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function resetBadgePosition() {
         setBadgeOffsetX(250);
         setBadgeOffsetY(72);
+    }
+    // -- Version text offset (cat mode — drawn separately from cat icon) -----------
+    // Independent X/Y position for the floating version label when badge style is
+    // "cat" and version display is enabled. Defaults: X=250, Y=95 (just below cat).
+    function getVersionTextOffsetX() {
+        var _a;
+        try {
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetX;
+            return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250;
+        }
+        catch (_b) {
+            return 250;
+        }
+    }
+    function setVersionTextOffsetX(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.versionTextOffsetX = Math.round(v);
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getVersionTextOffsetY() {
+        var _a;
+        try {
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.versionTextOffsetY;
+            return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 95;
+        }
+        catch (_b) {
+            return 95;
+        }
+    }
+    function setVersionTextOffsetY(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.versionTextOffsetY = Math.round(v);
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function resetVersionTextPosition() {
+        setVersionTextOffsetX(250);
+        setVersionTextOffsetY(95);
     }
     // -- Badge drag mode (in-memory only, never persisted) -------------------------
     // When true: a dashed ring appears on your own badge in the chatroom canvas,
@@ -16603,13 +16698,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
             const ebcTagsHdrLeft = document.createElement("div");
             ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
-            const ebcTagsHdrIcon = document.createElement("span");
-            ebcTagsHdrIcon.style.cssText = "flex-shrink:0;line-height:0;";
-            ebcTagsHdrIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
             const ebcTagsHdrLabel = document.createElement("span");
             ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
             ebcTagsHdrLabel.textContent = "EBC Tag Settings";
-            ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
             ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
             // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
             const ebcTagsChev = document.createElement("span");
@@ -16629,18 +16720,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Card row
             const ebcTagsCardRow = document.createElement("div");
             ebcTagsCardRow.style.cssText = "display:flex;gap:7px;";
-            const makeTagCard = (icon, label, sublabel, getVal, setVal, container) => {
+            const makeTagCard = (label, sublabel, getVal, setVal, container) => {
                 const card = document.createElement("div");
                 card.title = sublabel;
                 const cardTop = document.createElement("div");
                 cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
-                const cardIcon = document.createElement("span");
-                cardIcon.style.fontSize = "12px";
-                cardIcon.textContent = icon;
                 const cardLabel = document.createElement("span");
                 cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;";
                 cardLabel.textContent = label;
-                cardTop.appendChild(cardIcon);
                 cardTop.appendChild(cardLabel);
                 const cardSub = document.createElement("div");
                 cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.4;margin-bottom:6px;";
@@ -16669,8 +16756,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
                 container.appendChild(card);
             };
-            makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
-            makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
+            makeTagCard(t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
+            makeTagCard(t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
             ebcTagsBody.appendChild(ebcTagsCardRow);
             // ── Version display row ───────────────────────────────────────────────
             const versionRowLbl = document.createElement("div");
@@ -16679,16 +16766,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsBody.appendChild(versionRowLbl);
             const versionCardRow = document.createElement("div");
             versionCardRow.style.cssText = "display:flex;gap:7px;";
-            makeTagCard("v", t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
-            makeTagCard("v", t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
+            makeTagCard(t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
+            makeTagCard(t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
             ebcTagsBody.appendChild(versionCardRow);
             // ── Badge Appearance ─────────────────────────────────────────────────
             const badgeDivider = document.createElement("div");
             badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
             ebcTagsBody.appendChild(badgeDivider);
             const badgeAppLbl = document.createElement("div");
-            badgeAppLbl.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
-            badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
+            badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 6px;";
+            badgeAppLbl.textContent = t("strip.badgeAppearance");
             ebcTagsBody.appendChild(badgeAppLbl);
             // Builds a Text|Cat row and appends it to the given parent.
             // getter/setter allow the same helper to drive both "mine" and "others'" rows.
@@ -16828,6 +16915,50 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             posRow.appendChild(dragBtn);
             posRow.appendChild(resetPosBtn);
             ebcTagsBody.appendChild(posRow);
+            // ── Cat icon X/Y numeric inputs ───────────────────────────────────────
+            const makePosInputRow = (rowLabel, getX, setX, getY, setY, resetFn) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:30px;";
+                lbl.textContent = rowLabel;
+                const xLbl = document.createElement("span");
+                xLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
+                xLbl.textContent = "X";
+                const xIn = document.createElement("input");
+                xIn.type = "number";
+                xIn.min = "-500";
+                xIn.max = "1000";
+                xIn.step = "1";
+                xIn.value = String(getX());
+                xIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
+                xIn.addEventListener("input", () => setX(Number(xIn.value)));
+                const yLbl = document.createElement("span");
+                yLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
+                yLbl.textContent = "Y";
+                const yIn = document.createElement("input");
+                yIn.type = "number";
+                yIn.min = "-200";
+                yIn.max = "900";
+                yIn.step = "1";
+                yIn.value = String(getY());
+                yIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
+                yIn.addEventListener("input", () => setY(Number(yIn.value)));
+                const resetBtn = document.createElement("button");
+                resetBtn.textContent = "⟳";
+                resetBtn.title = "Reset to default";
+                resetBtn.style.cssText = "font-size:12px;padding:2px 6px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;";
+                resetBtn.addEventListener("click", () => { resetFn(); xIn.value = String(getX()); yIn.value = String(getY()); });
+                row.appendChild(lbl);
+                row.appendChild(xLbl);
+                row.appendChild(xIn);
+                row.appendChild(yLbl);
+                row.appendChild(yIn);
+                row.appendChild(resetBtn);
+                ebcTagsBody.appendChild(row);
+            };
+            makePosInputRow("Icon", getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, resetBadgePosition);
+            makePosInputRow("Ver.", getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition);
             ebcTagsStrip.appendChild(ebcTagsBody);
             const updateEbcTagsCollapse = () => {
                 ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
@@ -20550,7 +20681,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const btnRow = document.createElement("div");
                     btnRow.className = "ebc-pose-add-grid";
                     for (const p of group.poses) {
-                        if (!p.key)
+                        // Body: skip empty key (Stand = clear all, not a useful combo step)
+                        // Arms: keep empty key — it's "Relaxed", a valid step
+                        if (!p.key && group.group !== "Arms")
                             continue;
                         const btn = document.createElement("button");
                         btn.className = "ebc-pose-add-btn";
@@ -20564,7 +20697,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // Add delay row after the pose buttons
                 parent.appendChild(delayRowEl);
                 return {
-                    getPoses: () => poses.filter(Boolean),
+                    getPoses: () => [...poses], // keep "" (Relaxed) — applyPoses handles it
                     getDelay: () => Number(delayInp.value),
                 };
             };
@@ -21213,7 +21346,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                                 var _a, _b, _c, _d;
                                 const bKey = (_b = (_a = fieldsEl.querySelector("[data-axis='body']")) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "";
                                 const aKey = (_d = (_c = fieldsEl.querySelector("[data-axis='arms']")) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : "";
-                                posePoses = [bKey, aKey].filter(Boolean);
+                                // Keep "" for arms (Relaxed) — applyPoses strips arm poses when it sees ""
+                                posePoses = [bKey, aKey];
                             });
                             wrap.appendChild(lbl);
                             wrap.appendChild(sel);
@@ -22942,6 +23076,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const name = resolveName(num) || nameRaw;
                         const wrap = document.createElement("div");
                         wrap.className = "ebc-friend-wrap";
+                        if (isSpecialFriend(num)) {
+                            wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
+                            wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                        }
                         const row = document.createElement("div");
                         row.className = "ebc-friend-row";
                         // Green dot — in room
@@ -23127,6 +23265,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             });
                             btnCol.appendChild(beepBtn);
                         }
+                        // Special friend star button
+                        const starBtnR = document.createElement("button");
+                        const refreshStarBtnR = () => {
+                            const sp = isSpecialFriend(num);
+                            starBtnR.textContent = sp ? "★" : "☆";
+                            starBtnR.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
+                            starBtnR.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                        };
+                        refreshStarBtnR();
+                        starBtnR.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            if (isSpecialFriend(num))
+                                removeSpecialFriend(num);
+                            else
+                                addSpecialFriend(num);
+                            const sp = isSpecialFriend(num);
+                            wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
+                            wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                            refreshStarBtnR();
+                        });
+                        btnCol.appendChild(starBtnR);
                         btnCol.appendChild(copyIdBtnR);
                         // Assemble row
                         dot.style.marginTop = "1px";
@@ -23264,6 +23423,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     // Wrapper holds both the row and the expand panel
                     const wrap = document.createElement("div");
                     wrap.className = "ebc-friend-wrap";
+                    if (isSpecialFriend(num)) {
+                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
+                        wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                    }
                     // ── Row ────────────────────────────────────────────────────
                     const row = document.createElement("div");
                     row.className = "ebc-friend-row" + (pinned ? " pinned" : "");
@@ -23589,11 +23752,32 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         copyIdBtn.style.borderColor = "#a0d080";
                         window.setTimeout(() => { copyIdBtn.style.color = "#cf6f98"; copyIdBtn.style.borderColor = "#4c2537"; }, 1200);
                     });
-                    // btnCol: friendProfBtn + beepBtn + copyIdBtn
+                    // btnCol: friendProfBtn + beepBtn + starBtn + copyIdBtn
                     const btnCol = document.createElement("div");
                     btnCol.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;align-self:center;";
                     btnCol.appendChild(friendProfBtn);
                     btnCol.appendChild(beepBtn);
+                    // Special friend star button
+                    const starBtn = document.createElement("button");
+                    const refreshStarBtn = () => {
+                        const sp = isSpecialFriend(num);
+                        starBtn.textContent = sp ? "★" : "☆";
+                        starBtn.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
+                        starBtn.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                    };
+                    refreshStarBtn();
+                    starBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        if (isSpecialFriend(num))
+                            removeSpecialFriend(num);
+                        else
+                            addSpecialFriend(num);
+                        const sp = isSpecialFriend(num);
+                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
+                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                        refreshStarBtn();
+                    });
+                    btnCol.appendChild(starBtn);
                     btnCol.appendChild(copyIdBtn);
                     // Assemble row
                     dot.style.marginTop = "1px";
@@ -30816,7 +31000,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.8";
+    const MOD_VERSION = "3.1.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30827,6 +31011,51 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.1.4",
+            changes: [
+                "Creator mark: replaced gold crown text character with a canvas-drawn paw print (palm pad + four toe circles) — subtler and more on-brand.",
+                "Badge drag: both the cat icon and version text labels now have independent drag handles (pink ring = icon, amber ring = version text) when drag mode is active.",
+                "Badge drag: all clicks are now blocked from passing through to BC while drag mode is active — no more accidental character tab opens.",
+                "Fix: orange dev outline on cat badge simplified to a single-pass glow — cleaner, less visually noisy.",
+                "Fix: version text in cat mode now has a dark pill background with a matching border so it's readable on any background.",
+            ],
+        },
+        {
+            version: "3.1.3",
+            changes: [
+                "Fix: Relaxed arm pose now works in pose combos and scenes. Three bugs fixed: (1) Relaxed button was hidden in the combo step quick-add grid; (2) getPoses() was stripping the empty-string Relaxed marker before saving; (3) the scene step Arms dropdown onChange was also filtering it out with filter(Boolean).",
+            ],
+        },
+        {
+            version: "3.1.2",
+            changes: [
+                "Remove cat SVG icon from the Badge Appearance section header — now shows a clean text label.",
+                "Creator mark: a pulsing gold crown (♛) is drawn above the creator's badge position in the chatroom canvas, visible only to EBC addon users.",
+                "Special friends: star (☆/★) button on every People in Room and Friends row — toggling marks that person with a golden gradient card highlight.",
+                "Fix: Relaxed arm pose (empty key) now works correctly in pose combos and scenes — it explicitly clears active arm poses instead of being silently dropped by filter(Boolean).",
+            ],
+        },
+        {
+            version: "3.1.1",
+            changes: [
+                "Remove emoji icons from badge toggle cards (My tag, Others, My version, Others' ver.).",
+                "Cat style: version text now renders as a separate floating label when version display is enabled, independent of the cat icon.",
+                "New position controls: Icon X/Y and Ver. X/Y number inputs in the badge settings strip for precise positioning of both elements independently.",
+            ],
+        },
+        {
+            version: "3.1.0",
+            changes: [
+                "Dev cat badge outline: replaced flat solid orange stroke with a two-pass glow effect — wide soft amber halo (shadowBlur) plus a crisp bright highlight line on top.",
+            ],
+        },
+        {
+            version: "2.10.9",
+            changes: [
+                "Remove small cat SVG icon from the EBC Tag Settings strip header — text label only.",
+            ],
+        },
         {
             version: "2.10.8",
             changes: [
@@ -34792,7 +35021,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     let _playerCharLeft = 0;
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
-    let _isDraggingBadge = false;
+    let _dragTarget = null;
     // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
     // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
     // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
@@ -34848,32 +35077,52 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             window.setTimeout(initBadgeDragListeners, 1000);
             return;
         }
-        const HIT = 35; // px radius around badge centre that counts as a "hit"
+        const HIT = 35; // px radius that counts as a target "hit"
         const onDown = (clientX, clientY, consume) => {
             if (!getBadgeDragMode())
                 return;
+            // Always consume in drag mode — prevents BC canvas click-through.
+            consume();
             const pos = toCanvasPos(canvas, clientX, clientY);
+            // Check icon hit first
             const bx = _playerCharLeft + getBadgeOffsetX() * _playerCharZoom;
             const by = _playerCharTop + getBadgeOffsetY() * _playerCharZoom;
             if (Math.abs(pos.x - bx) < HIT && Math.abs(pos.y - by) < HIT) {
-                _isDraggingBadge = true;
-                consume();
+                _dragTarget = "icon";
+                return;
             }
+            // Check version text hit (cat mode + version visible)
+            if (getBadgeStyle() === "cat" && getShowVersionBadge()) {
+                const vx = _playerCharLeft + getVersionTextOffsetX() * _playerCharZoom;
+                const vy = _playerCharTop + getVersionTextOffsetY() * _playerCharZoom;
+                if (Math.abs(pos.x - vx) < HIT && Math.abs(pos.y - vy) < HIT) {
+                    _dragTarget = "version";
+                    return;
+                }
+            }
+            // Clicked empty space in drag mode — consume but no drag starts
+            _dragTarget = null;
         };
         const onMove = (clientX, clientY, consume) => {
-            if (!_isDraggingBadge)
+            if (!_dragTarget)
                 return;
             const pos = toCanvasPos(canvas, clientX, clientY);
             if (_playerCharZoom > 0) {
-                setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
-                setBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                if (_dragTarget === "icon") {
+                    setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                    setBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                }
+                else {
+                    setVersionTextOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                    setVersionTextOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                }
             }
             consume();
         };
         const onUp = () => {
-            if (_isDraggingBadge) {
-                _isDraggingBadge = false;
-                setBadgeDragMode(false); // auto-exit drag mode on release
+            if (_dragTarget !== null) {
+                _dragTarget = null;
+                setBadgeDragMode(false); // auto-exit drag mode after completing a drag
             }
         };
         // Mouse
@@ -34951,21 +35200,68 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (isDevUser) {
                     const bx = x - size / 2;
                     const by = y - size / 2;
-                    const r = size * 0.2;
-                    ctx.strokeStyle = "#ff8800";
-                    ctx.lineWidth = Math.max(2, Math.round(size * 0.1));
-                    ctx.beginPath();
-                    ctx.moveTo(bx + r, by);
-                    ctx.lineTo(bx + size - r, by);
-                    ctx.arcTo(bx + size, by, bx + size, by + r, r);
-                    ctx.lineTo(bx + size, by + size - r);
-                    ctx.arcTo(bx + size, by + size, bx + size - r, by + size, r);
-                    ctx.lineTo(bx + r, by + size);
-                    ctx.arcTo(bx, by + size, bx, by + size - r, r);
-                    ctx.lineTo(bx, by + r);
-                    ctx.arcTo(bx, by, bx + r, by, r);
-                    ctx.closePath();
+                    const r = size * 0.22;
+                    const roundRect = () => {
+                        ctx.beginPath();
+                        ctx.moveTo(bx + r, by);
+                        ctx.lineTo(bx + size - r, by);
+                        ctx.arcTo(bx + size, by, bx + size, by + r, r);
+                        ctx.lineTo(bx + size, by + size - r);
+                        ctx.arcTo(bx + size, by + size, bx + size - r, by + size, r);
+                        ctx.lineTo(bx + r, by + size);
+                        ctx.arcTo(bx, by + size, bx, by + size - r, r);
+                        ctx.lineTo(bx, by + r);
+                        ctx.arcTo(bx, by, bx + r, by, r);
+                        ctx.closePath();
+                    };
+                    const lw = Math.max(1, size * 0.065);
+                    ctx.shadowColor = "#ff8833";
+                    ctx.shadowBlur = size * 0.45;
+                    ctx.strokeStyle = "rgba(255,155,55,0.92)";
+                    ctx.lineWidth = lw;
+                    roundRect();
                     ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    ctx.shadowColor = "transparent";
+                }
+                // ── Version text label (cat mode + version enabled) ───────────────
+                if (showVer) {
+                    const vx = left + getVersionTextOffsetX() * zoom;
+                    const vy = top + getVersionTextOffsetY() * zoom;
+                    const fontSize = Math.max(7, Math.round(9 * zoom * userScale));
+                    const verLabel = isDevUser ? "dev | v" + verStr : "v" + verStr;
+                    ctx.font = `bold ${fontSize}px "Trebuchet MS",serif`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    // Background pill
+                    const tw = ctx.measureText(verLabel).width;
+                    const ph = fontSize * 1.55;
+                    const pw = tw + Math.max(4, fontSize * 0.9);
+                    const pr = ph / 2;
+                    const plx = vx - pw / 2;
+                    const ply = vy - ph / 2;
+                    ctx.save();
+                    ctx.globalAlpha = badgeTextOp * 0.85;
+                    ctx.fillStyle = "rgba(20,8,15,0.80)";
+                    ctx.beginPath();
+                    ctx.moveTo(plx + pr, ply);
+                    ctx.lineTo(plx + pw - pr, ply);
+                    ctx.arcTo(plx + pw, ply, plx + pw, ply + pr, pr);
+                    ctx.lineTo(plx + pw, ply + ph - pr);
+                    ctx.arcTo(plx + pw, ply + ph, plx + pw - pr, ply + ph, pr);
+                    ctx.lineTo(plx + pr, ply + ph);
+                    ctx.arcTo(plx, ply + ph, plx, ply + ph - pr, pr);
+                    ctx.lineTo(plx, ply + pr);
+                    ctx.arcTo(plx, ply, plx + pr, ply, pr);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = isDevUser ? "rgba(255,160,80,0.75)" : "rgba(207,111,152,0.75)";
+                    ctx.lineWidth = Math.max(0.8, 0.9 * zoom);
+                    ctx.stroke();
+                    ctx.restore();
+                    // Text on top (outer globalAlpha = badgeTextOp)
+                    ctx.fillStyle = isDevUser ? "#ffb060" : "#cf6f98";
+                    ctx.fillText(verLabel, vx, vy);
                 }
                 ctx.restore();
             }
@@ -35006,13 +35302,49 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ctx.restore();
             }
         }
-        // ── Drag-mode handle (own character only) ─────────────────────────────────
+        // ── Creator mark — pulsing gold paw, visible only to EBC addon users ────
+        if (isDevUser) {
+            const canvas = getBCCanvas();
+            const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
+            if (ctx && badgeTextOp > 0) {
+                const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 900);
+                const sz = Math.max(8, Math.round(11 * zoom * userScale));
+                const px = x;
+                const py = y - sz * 2.4;
+                ctx.save();
+                ctx.globalAlpha = badgeTextOp * 0.88 * pulse;
+                ctx.fillStyle = "#ffd700";
+                ctx.shadowColor = "#ffa500";
+                ctx.shadowBlur = sz * 0.7;
+                // Main palm pad (ellipse)
+                ctx.beginPath();
+                ctx.ellipse(px, py + sz * 0.10, sz * 0.42, sz * 0.34, 0, 0, Math.PI * 2);
+                ctx.fill();
+                // Four toe pads
+                [
+                    [px - sz * 0.40, py - sz * 0.20, sz * 0.16],
+                    [px - sz * 0.15, py - sz * 0.43, sz * 0.17],
+                    [px + sz * 0.15, py - sz * 0.43, sz * 0.17],
+                    [px + sz * 0.40, py - sz * 0.20, sz * 0.16],
+                ].forEach(([tx, ty, tr]) => {
+                    ctx.beginPath();
+                    ctx.arc(tx, ty, tr, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+            }
+        }
+        // ── Drag-mode handles (own character only) ────────────────────────────────
         if (isSelf && getBadgeDragMode()) {
             const canvas = getBCCanvas();
             const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
             if (ctx) {
-                const r = Math.max(16, 22 * zoom * userScale);
                 ctx.save();
+                const labelFont = `bold ${Math.max(9, Math.round(11 * zoom))}px "Trebuchet MS",serif`;
+                ctx.font = labelFont;
+                ctx.textAlign = "center";
+                // Icon ring (pink)
+                const r = Math.max(16, 22 * zoom * userScale);
                 ctx.strokeStyle = "rgba(207,111,152,0.9)";
                 ctx.lineWidth = 2;
                 ctx.setLineDash([5, 4]);
@@ -35020,12 +35352,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ctx.arc(x, y, r, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.setLineDash([]);
-                // Small "move" label above ring
                 ctx.fillStyle = "rgba(207,111,152,0.9)";
-                ctx.font = `bold ${Math.max(9, Math.round(11 * zoom))}px "Trebuchet MS",serif`;
-                ctx.textAlign = "center";
                 ctx.textBaseline = "bottom";
                 ctx.fillText("drag", x, y - r - 2);
+                // Version text ring (amber) — only in cat mode with version visible
+                if (badgeStyle === "cat" && showVer) {
+                    const vx = left + getVersionTextOffsetX() * zoom;
+                    const vy = top + getVersionTextOffsetY() * zoom;
+                    const vr = Math.max(12, 16 * zoom * userScale);
+                    ctx.strokeStyle = "rgba(255,185,70,0.88)";
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 3]);
+                    ctx.beginPath();
+                    ctx.arc(vx, vy, vr, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = "rgba(255,185,70,0.88)";
+                    ctx.textBaseline = "bottom";
+                    ctx.fillText("drag", vx, vy - vr - 2);
+                }
                 ctx.restore();
             }
         }
@@ -35070,6 +35415,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return result;
         });
         modAPI.hookFunction("ChatRoomClick", 3, (args, next) => {
+            // Block all BC click handling while drag mode is active to prevent
+            // click-through to character tabs and other BC canvas interactions.
+            if (getBadgeDragMode())
+                return;
             try {
                 if (handleActionButtonClick())
                     return;
@@ -35387,7 +35736,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_b) { /* ignore */ }
             try {
                 setBadgeDragMode(false);
-                _isDraggingBadge = false;
+                _dragTarget = null;
             }
             catch ( /* ignore */_c) { /* ignore */ }
             return result;
