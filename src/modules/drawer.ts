@@ -2912,6 +2912,25 @@ const CSS = `
     transition: border-color 0.12s, color 0.12s;
 }
 .ebc-guide-btn:hover { border-color: #cf6f98; color: #cf6f98; }
+.ebc-guide-hl {
+    display: inline;
+    background: #3a1028;
+    border: 1px solid #7a3050;
+    border-radius: 3px;
+    padding: 0 4px;
+    color: #f0a0c8;
+    font-weight: bold;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.ebc-guide-note {
+    display: block;
+    margin-top: 5px;
+    font-size: 9px;
+    color: #7a5870;
+    font-style: italic;
+    line-height: 1.4;
+}
 
 `;
 
@@ -4200,339 +4219,11 @@ export class EBCDrawer {
         this.timerEl = timerEl;
 
         // ── EBC Tags strip — collapsible, always below safewords ─────────────
-        let ebcTagsCollapsed = false;
-        try { const v = localStorage.getItem("EBC_tagsCollapsed"); if (v !== null) ebcTagsCollapsed = v === "1"; } catch { /* ignore */ }
-
         const ebcTagsStrip = document.createElement("div");
         ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
         this.ebcTagsStripEl = ebcTagsStrip;
+        this.rebuildEbcTagsStrip();
 
-        // Header row — clickable to collapse
-        const ebcTagsHdr = document.createElement("div");
-        ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;transition:background 0.1s;";
-        ebcTagsHdr.title = "Click to show / hide";
-        ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#251220"; });
-        ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
-
-        const ebcTagsHdrLeft = document.createElement("div");
-        ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
-        const ebcTagsHdrLabel = document.createElement("span");
-        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-        ebcTagsHdrLabel.textContent = t("dev.ebcTags");
-        ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
-
-        // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
-        const ebcTagsChev = document.createElement("span");
-        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#d090a8;padding:3px 10px;border:1px solid #7a3050;border-radius:4px;background:#2e1020;";
-
-        ebcTagsHdr.appendChild(ebcTagsHdrLeft);
-        ebcTagsHdr.appendChild(ebcTagsChev);
-        ebcTagsStrip.appendChild(ebcTagsHdr);
-
-        // Body — capped height so footer is never pushed off-screen
-        const ebcTagsBody = document.createElement("div");
-        ebcTagsBody.className = "ebc-tags-body";
-        ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
-
-        // Description line
-        const ebcTagsDesc = document.createElement("div");
-        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
-        ebcTagsDesc.textContent = t("strip.tagToggleDesc");
-        ebcTagsBody.appendChild(ebcTagsDesc);
-
-        // Card row
-        const ebcTagsCardRow = document.createElement("div");
-        ebcTagsCardRow.style.cssText = "display:flex;gap:7px;";
-
-        const makeTagCard = (
-            label: string,
-            sublabel: string,
-            getVal: () => boolean,
-            setVal: (v: boolean) => void,
-            container: HTMLElement,
-        ): void => {
-            const card = document.createElement("div");
-            card.title = sublabel;
-
-            const cardTop = document.createElement("div");
-            cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
-            const cardLabel = document.createElement("span");
-            cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;";
-            cardLabel.textContent = label;
-            cardTop.appendChild(cardLabel);
-
-            const cardSub = document.createElement("div");
-            cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.4;margin-bottom:6px;";
-            cardSub.textContent = sublabel;
-
-            const cardStatus = document.createElement("div");
-            cardStatus.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:10px;";
-
-            const cardDot = document.createElement("span");
-            cardDot.style.cssText = "width:5px;height:5px;border-radius:50%;display:inline-block;flex-shrink:0;";
-
-            cardStatus.appendChild(cardDot);
-            const cardStatusText = document.createElement("span");
-            cardStatus.appendChild(cardStatusText);
-
-            card.appendChild(cardTop);
-            card.appendChild(cardSub);
-            card.appendChild(cardStatus);
-
-            const refresh = (): void => {
-                const on = getVal();
-                card.style.cssText = `flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;border:1px solid ${on ? "#8a3458" : "#321220"};background:${on ? "#2e1020" : "#150a10"};`;
-                cardLabel.style.color = on ? "#f0c0d8" : "#7a4a60";
-                cardSub.style.color = on ? "#b08898" : "#6a4050";
-                cardDot.style.background = on ? "#d06090" : "#4a2038";
-                cardStatus.style.background = on ? "#3d1228" : "#1e0c16";
-                cardStatus.style.color = on ? "#f0a0c8" : "#6a4050";
-                cardStatusText.textContent = on ? t("core.on") : t("core.off");
-            };
-            refresh();
-            card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
-            container.appendChild(card);
-        };
-
-        makeTagCard(t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
-        makeTagCard(t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
-
-        ebcTagsBody.appendChild(ebcTagsCardRow);
-
-        // ── Version display row ───────────────────────────────────────────────
-        const versionRowLbl = document.createElement("div");
-        versionRowLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:6px 0 4px;";
-        versionRowLbl.textContent = t("strip.versionDisplay");
-        ebcTagsBody.appendChild(versionRowLbl);
-
-        const versionCardRow = document.createElement("div");
-        versionCardRow.style.cssText = "display:flex;gap:7px;";
-        makeTagCard(t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
-        makeTagCard(t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
-        ebcTagsBody.appendChild(versionCardRow);
-
-        // ── Badge Appearance ─────────────────────────────────────────────────
-        const badgeDivider = document.createElement("div");
-        badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
-        ebcTagsBody.appendChild(badgeDivider);
-
-        const badgeAppLbl = document.createElement("div");
-        badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 6px;";
-        badgeAppLbl.textContent = t("strip.badgeAppearance");
-        ebcTagsBody.appendChild(badgeAppLbl);
-
-        // ── Style picker: Text | Cat (shared helper) ─────────────────────────
-        const EBC_SVG_14 = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 90 90" style="flex-shrink:0;vertical-align:middle"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
-
-        // Builds a Text|Cat row and appends it to the given parent.
-        // getter/setter allow the same helper to drive both "mine" and "others'" rows.
-        const buildStyleRow = (
-            getter: () => BadgeStyle,
-            setter: (v: BadgeStyle) => void,
-        ): void => {
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
-
-            const makeBtn = (styleName: BadgeStyle, labelText: string): HTMLButtonElement => {
-                const btn = document.createElement("button");
-                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
-                btn.textContent = labelText;
-                const refresh = (): void => {
-                    const active = getter() === styleName;
-                    btn.style.background = active ? "#2e1020" : "#150a10";
-                    btn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                    btn.style.color      = active ? "#f0c0d8" : "#7a4a60";
-                };
-                refresh();
-                btn.addEventListener("click", () => {
-                    setter(styleName);
-                    // Refresh both buttons in this row
-                    row.querySelectorAll<HTMLButtonElement>("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
-                    refresh();
-                });
-                btn.addEventListener("ebc-refresh", refresh);
-                return btn;
-            };
-
-            row.appendChild(makeBtn("text", t("strip.styleBtnText")));
-            row.appendChild(makeBtn("cat",  t("strip.styleBtnCat")));
-            ebcTagsBody.appendChild(row);
-        };
-
-        // "Mine:" label
-        const myStyleLbl = document.createElement("div");
-        myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
-        myStyleLbl.textContent = t("strip.myStyle");
-        ebcTagsBody.appendChild(myStyleLbl);
-        buildStyleRow(getBadgeStyle, setBadgeStyle);
-
-        // "Others':" label
-        const othersStyleLbl = document.createElement("div");
-        othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
-        othersStyleLbl.textContent = t("strip.othersStyle");
-        ebcTagsBody.appendChild(othersStyleLbl);
-        buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
-
-        // ── Per-style scale sliders ──────────────────────────────────────────
-        // Text and Cat scales are independent so each style can be sized freely.
-        const makeScaleRow = (
-            labelText: string,
-            getVal: () => number,
-            setVal: (v: number) => void,
-        ): void => {
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:6px;";
-
-            const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:54px;";
-            lbl.textContent = labelText;
-
-            const slider = document.createElement("input");
-            slider.type  = "range";
-            slider.min   = "0.3";
-            slider.max   = "3";
-            slider.step  = "0.05";
-            slider.value = String(getVal());
-            slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            slider.title = "Scale multiplier (1.0 = default)";
-
-            const valLbl = document.createElement("span");
-            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:32px;text-align:right;flex-shrink:0;";
-            valLbl.textContent = getVal().toFixed(2) + "×";
-
-            slider.addEventListener("input", () => {
-                const v = parseFloat(slider.value);
-                setVal(v);
-                valLbl.textContent = v.toFixed(2) + "×";
-            });
-
-            row.appendChild(lbl);
-            row.appendChild(slider);
-            row.appendChild(valLbl);
-            ebcTagsBody.appendChild(row);
-        };
-
-        const scaleSectionLbl = document.createElement("div");
-        scaleSectionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 5px;";
-        scaleSectionLbl.textContent = t("strip.scale");
-        ebcTagsBody.appendChild(scaleSectionLbl);
-
-        makeScaleRow(t("strip.styleBtnText"), getTextBadgeScale, setTextBadgeScale);
-        makeScaleRow(t("strip.styleBtnCat"),  getCatBadgeScale,  setCatBadgeScale);
-
-        // ── BG opacity slider ─────────────────────────────────────────────────
-        const makeOpacitySliderRow = (
-            labelKey: string,
-            getVal: () => number,
-            setVal: (v: number) => void,
-            titleHint: string,
-        ): void => {
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
-            const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:28px;";
-            lbl.textContent = t(labelKey);
-            const slider = document.createElement("input");
-            slider.type  = "range";
-            slider.min   = "0";
-            slider.max   = "1";
-            slider.step  = "0.05";
-            slider.value = String(getVal());
-            slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            slider.title = titleHint;
-            const valLbl = document.createElement("span");
-            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
-            valLbl.textContent = Math.round(getVal() * 100) + "%";
-            slider.addEventListener("input", () => {
-                const v = parseFloat(slider.value);
-                setVal(v);
-                valLbl.textContent = Math.round(v * 100) + "%";
-            });
-            row.appendChild(lbl);
-            row.appendChild(slider);
-            row.appendChild(valLbl);
-            ebcTagsBody.appendChild(row);
-        };
-
-        makeOpacitySliderRow("strip.bgOpacity",   getBadgeBgOpacity,   setBadgeBgOpacity,   "Background rectangle opacity (0 = transparent)");
-        makeOpacitySliderRow("strip.textOpacity",  getBadgeTextOpacity, setBadgeTextOpacity, "Text / icon opacity (0 = invisible)");
-
-        // ── Position drag row ─────────────────────────────────────────────────
-        const posHint = document.createElement("div");
-        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5878;line-height:1.35;margin-bottom:4px;";
-        posHint.textContent = t("strip.dragHint");
-        ebcTagsBody.appendChild(posHint);
-
-        const posRow = document.createElement("div");
-        posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
-
-        const BTN_BASE = [
-            "font-family:'Trebuchet MS',serif",
-            "font-size:9px",
-            "font-weight:bold",
-            "padding:4px 8px",
-            "border-radius:4px",
-            "cursor:pointer",
-            "flex:1",
-            "transition:background 0.12s,border-color 0.12s,color 0.12s",
-        ].join(";");
-
-        const makePosBtn = (styleTarget: "text" | "cat", label: string): HTMLButtonElement => {
-            const btn = document.createElement("button");
-            const refresh = (): void => {
-                const active = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
-                btn.textContent = active ? t("core.done") : label;
-                btn.style.cssText = BTN_BASE + ";" + [
-                    `border:1px solid ${active ? "#cf6f98" : "#4c2537"}`,
-                    `background:${active ? "#4a1f30" : "#1b0d17"}`,
-                    `color:${active ? "#f7e6ee" : "#c08890"}`,
-                ].join(";");
-            };
-            refresh();
-            btn.addEventListener("click", () => {
-                const wasActive = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
-                setBadgeDragMode(!wasActive);
-                if (!wasActive) setBadgeDragStyleTarget(styleTarget);
-                refresh();
-                // Also refresh the other button so it de-highlights
-                posRow.querySelectorAll<HTMLButtonElement>("button[data-pos-btn]")
-                    .forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
-            });
-            btn.addEventListener("ebc-refresh", refresh);
-            btn.dataset["posBtn"] = "1";
-            return btn;
-        };
-
-        const textPosBtn = makePosBtn("text", "📍 " + t("strip.styleBtnText"));
-        const catPosBtn  = makePosBtn("cat",  "📍 " + t("strip.styleBtnCat"));
-
-        const resetPosBtn = document.createElement("button");
-        resetPosBtn.textContent = "⟳";
-        resetPosBtn.title = "Reset all badge positions to default (text, cat, and version text)";
-        resetPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;transition:background 0.12s,color 0.12s;";
-        resetPosBtn.addEventListener("click", () => {
-            resetBadgePosition();
-            resetCatBadgePosition();
-            resetVersionTextPosition();
-        });
-
-        posRow.appendChild(textPosBtn);
-        posRow.appendChild(catPosBtn);
-        posRow.appendChild(resetPosBtn);
-        ebcTagsBody.appendChild(posRow);
-
-        ebcTagsStrip.appendChild(ebcTagsBody);
-
-        const updateEbcTagsCollapse = (): void => {
-            ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
-            ebcTagsBody.style.display = ebcTagsCollapsed ? "none" : "";
-        };
-        updateEbcTagsCollapse();
-        ebcTagsHdr.addEventListener("click", () => {
-            ebcTagsCollapsed = !ebcTagsCollapsed;
-            try { localStorage.setItem("EBC_tagsCollapsed", ebcTagsCollapsed ? "1" : "0"); } catch { /* ignore */ }
-            updateEbcTagsCollapse();
-        });
 
         // Wrap all panel children in .ebc-zoom-wrapper.
         // applyPanelZoom() uses transform:scale() on this wrapper instead of
@@ -5059,6 +4750,7 @@ export class EBCDrawer {
 
     // -- Interactive guide ─────────────────────────────────────────────────────
 
+    // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
     private static readonly GUIDE_STEPS: Array<{
         tab: DrawerTab | null;
         label: string;
@@ -5066,43 +4758,68 @@ export class EBCDrawer {
     }> = [
         {
             tab: null,
-            label: "Welcome to EBC ✨",
-            text: "This guide walks you through every feature of the addon. Use Next / Prev to move between sections — the panel will switch tabs automatically as you go.",
-        },
-        {
-            tab: "outfits",
-            label: "📦 Outfits",
-            text: "Save your current full look as a named preset, then apply any saved outfit with one click. Great for switching between roleplay looks instantly. Use the ✏ icon to rename or 🗑 to delete.",
-        },
-        {
-            tab: "buttons",
-            label: "🎛 Action Buttons",
-            text: "Build a personal quick-action bar. Each button can run a BC chat command, emote, expression change, or a pose combo. Tap + to add one, then drag handles to reorder.",
-        },
-        {
-            tab: "anims",
-            label: "🎭 Poses & Anims",
-            text: "Create pose combos — multi-step sequences with delays between each step. Give a combo a /command so you can trigger it just by typing in chat. Useful for transition animations.",
-        },
-        {
-            tab: "notes",
-            label: "👥 Users",
-            text: "Your live room list and friends. Tap ★ on any person to give them a golden plate highlight — great for keeping track of close friends. Expand a card to whisper, copy ID, or open their profile.",
-        },
-        {
-            tab: "dev",
-            label: "⚙ DEV — Preferences",
-            text: "Drawer Preferences lets you change themes, panel opacity, text size, visible tabs, and your menu hotkey. Use Quick Preset to apply a full colour theme in one click.",
-        },
-        {
-            tab: "dev",
-            label: "📋 DEV — Logs",
-            text: "The Logs section keeps a Whisper Log (all whispers this session), Current Room (who's here now), Rooms Visited, a Restraint Log, and a People Met history that persists between sessions.",
+            label: "✨ Welcome to EBC",
+            text: "This guide walks you through every feature step by step.\nThe menu will switch tabs automatically as you go — just hit [[Next →]].\n((EBC adds outfit saving, action buttons, pose animations, friend notes, and custom name tags above players' heads.))",
         },
         {
             tab: null,
-            label: "💡 Tips",
-            text: "• Type /yourcommand in chat to trigger a pose combo.\n• Press your hotkey (set in DEV → Hotkey) to open/close the menu.\n• Drag the ⠿ handle in the header to reposition the panel anywhere on screen.\n• The ↻ button refreshes your friend list and clears stale data.",
+            label: "🔑 Opening & Moving the Menu",
+            text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel to any spot on screen.\n[[↻]] refreshes your friend list and room data.  [[✕]] closes the panel.\n((The [[?]] button in the header re-opens this guide any time.))",
+        },
+        {
+            tab: "outfits",
+            label: "👗 Outfits — Save & Apply Looks",
+            text: "Click [[💾 Save]] to store your current full appearance as a named preset.\nClick any saved outfit card to [[Apply]] it — restoring every clothing layer and colour instantly.\nUse [[✏]] to rename, [[🗑]] to delete, and the [[↑ ↓]] arrows to reorder your list.\n((Great for switching between different roleplay or casual looks in seconds.))",
+        },
+        {
+            tab: "outfits",
+            label: "🏷 Outfit Tags & Schedules",
+            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the [[🏷]] icon on any outfit card to assign tags — then filter by tag at the top of the list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day. Expand the [[Schedules]] section at the bottom of this tab to set one up.\n((You can also [[📤 Export]] outfits as codes and share them — use [[📥 Import]] to load a code someone sent you.))",
+        },
+        {
+            tab: "buttons",
+            label: "🎛 Action Buttons — Quick Commands",
+            text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] handle on a button card to reorder it. [[✏]] edits it, [[🗑]] deletes it.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
+        },
+        {
+            tab: "buttons",
+            label: "🚶 Slow Leave",
+            text: "[[Slow Leave]] is in the [[Useful Buttons]] section — it sends a scripted departure sequence to the room before you leave, so it feels natural and in-character.\nClick the [[Slow Leave]] button to start the sequence.\nExpand the [[▶ Slow Leave]] accordion below the button to customise:\n  • [[Preset]] — pick a pre-written departure style\n  • [[Sequence]] — the text sent to the room\n  • [[Duration]] — time (in seconds) between messages",
+        },
+        {
+            tab: "anims",
+            label: "🎭 Poses & Animations",
+            text: "Pose combos chain multiple pose changes together with delays — perfect for transition animations or emote sequences.\nClick [[+ New combo]] to create one, add steps with poses or emotes, then assign a [[/command]] name.\nType [[/yourcommand]] directly in the BC chat box to trigger it — no need to open the menu.\n((Combos can mix [[Pose]] steps and [[Emote]] steps so messages appear alongside pose changes.))",
+        },
+        {
+            tab: "notes",
+            label: "👥 Users & Friends",
+            text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate — perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions — a permanent address book of everyone you've encountered.))",
+        },
+        {
+            tab: "dev",
+            label: "⚙ DEV — Preferences & Themes",
+            text: "[[Quick Preset]] lets you apply a full colour theme instantly — try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
+        },
+        {
+            tab: "dev",
+            label: "📋 DEV — Logs & History",
+            text: "[[Whisper Log]] — every whisper sent and received this session.\n[[Current Room]] — who is in your room right now, with member IDs.\n[[Rooms Visited]] — all rooms you've entered this session.\n[[Restraint Log]] — when items were applied or removed.\n[[People Met]] — persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
+        },
+        {
+            tab: null,
+            label: "🏷 EBC Tag Settings Strip",
+            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use [[📍 Text]] and [[📍 Cat]] buttons to drag each badge to its exact position on screen.",
+        },
+        {
+            tab: null,
+            label: "🛡 Safewords Strip",
+            text: "The [[SAFEWORDS]] bar is always pinned at the top of the panel — reachable instantly no matter which tab you're on.\nSet up to [[3 safewords]] — clicking one sends a pre-written safety message to the room immediately.\nConfigure a [[Grace period]] (in minutes) to prevent accidental taps, and enable a [[Confirm step]] for extra safety.\n((Both the Safewords and EBC Tags strips can be hidden per-tab in [[DEV → Pinned strip visibility]].))",
+        },
+        {
+            tab: null,
+            label: "💡 Tips & Tricks",
+            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[📤 Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
         },
     ];
 
@@ -5110,6 +4827,47 @@ export class EBCDrawer {
         if (!this.guideEl) return;
         this.guideStep = 0;
         this.renderGuideStep();
+    }
+
+    // Parses simple inline markup in guide text:
+    //   [[text]]   → <span class="ebc-guide-hl">text</span>  (pink chip highlight)
+    //   ((text))   → <span class="ebc-guide-note">text</span> (small italic note, full line)
+    //   \n         → line break
+    private static parseGuideMarkup(raw: string, container: HTMLElement): void {
+        // Split on \n first, then process each line for inline markup
+        const lines = raw.split("\n");
+        for (let li = 0; li < lines.length; li++) {
+            if (li > 0) container.appendChild(document.createElement("br"));
+            const line = lines[li];
+
+            // Check if entire line is a ((note))
+            const noteMatch = /^\(\((.+?)\)\)$/.exec(line);
+            if (noteMatch) {
+                const note = document.createElement("span");
+                note.className = "ebc-guide-note";
+                // parse inline [[hl]] inside the note too
+                EBCDrawer.parseInlineHighlights(noteMatch[1], note);
+                container.appendChild(note);
+                continue;
+            }
+
+            EBCDrawer.parseInlineHighlights(line, container);
+        }
+    }
+
+    private static parseInlineHighlights(line: string, container: HTMLElement): void {
+        const parts = line.split(/(\[\[.+?\]\])/);
+        for (const part of parts) {
+            const m = /^\[\[(.+?)\]\]$/.exec(part);
+            if (m) {
+                const hl = document.createElement("span");
+                hl.className = "ebc-guide-hl";
+                hl.textContent = m[1];
+                container.appendChild(hl);
+            } else if (part) {
+                container.appendChild(document.createTextNode(part));
+            }
+        }
     }
 
     private renderGuideStep(): void {
@@ -5120,7 +4878,7 @@ export class EBCDrawer {
         const step  = steps[this.guideStep];
         if (!step) return;
 
-        // Switch to the relevant tab (but don't re-trigger if we're already there)
+        // Switch to the relevant tab
         if (step.tab && step.tab !== this.currentTab) {
             this.switchTab(step.tab);
         }
@@ -5146,19 +4904,16 @@ export class EBCDrawer {
         top.appendChild(closeX);
         card.appendChild(top);
 
-        // Tab / section label
+        // Section label
         const tabLbl = document.createElement("div");
         tabLbl.className = "ebc-guide-tab-lbl";
         tabLbl.textContent = step.label;
         card.appendChild(tabLbl);
 
-        // Description text (support \n for line breaks)
+        // Description text with markup support
         const textEl = document.createElement("div");
         textEl.className = "ebc-guide-text";
-        for (const line of step.text.split("\n")) {
-            if (textEl.childNodes.length > 0) textEl.appendChild(document.createElement("br"));
-            textEl.appendChild(document.createTextNode(line));
-        }
+        EBCDrawer.parseGuideMarkup(step.text, textEl);
         card.appendChild(textEl);
 
         // Nav row: prev · dots · next
@@ -5360,6 +5115,277 @@ export class EBCDrawer {
         if (r.qaConfirmLbl) r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
         if (r.qaConfirmToggle) this.refreshConfirmToggle?.();
         if (r.pickBtn) { r.pickBtn.textContent = t("qa.pickRestraints"); r.pickBtn.title = t("qa.pickTitle"); }
+        // EBC tags strip is a persistent DOM section — rebuild it so all labels re-translate
+        this.rebuildEbcTagsStrip();
+    }
+
+    // -- EBC Tags strip builder (called once on setup and again on every lang change) --
+
+    private rebuildEbcTagsStrip(): void {
+        const strip = this.ebcTagsStripEl;
+        if (!strip) return;
+
+        // Clear existing children
+        while (strip.firstChild) strip.removeChild(strip.firstChild);
+
+        let ebcTagsCollapsed = false;
+        try { const v = localStorage.getItem("EBC_tagsCollapsed"); if (v !== null) ebcTagsCollapsed = v === "1"; } catch { /* ignore */ }
+
+        // Header row — clickable to collapse
+        const ebcTagsHdr = document.createElement("div");
+        ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;transition:background 0.1s;";
+        ebcTagsHdr.title = "Click to show / hide";
+        ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#251220"; });
+        ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
+
+        const ebcTagsHdrLeft = document.createElement("div");
+        ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
+        const ebcTagsHdrLabel = document.createElement("span");
+        ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
+        ebcTagsHdrLabel.textContent = t("dev.ebcTags");
+        ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
+
+        const ebcTagsChev = document.createElement("span");
+        ebcTagsChev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#d090a8;padding:3px 10px;border:1px solid #7a3050;border-radius:4px;background:#2e1020;";
+
+        ebcTagsHdr.appendChild(ebcTagsHdrLeft);
+        ebcTagsHdr.appendChild(ebcTagsChev);
+        strip.appendChild(ebcTagsHdr);
+
+        // Body
+        const ebcTagsBody = document.createElement("div");
+        ebcTagsBody.className = "ebc-tags-body";
+        ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
+
+        // Description line
+        const ebcTagsDesc = document.createElement("div");
+        ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
+        ebcTagsDesc.textContent = t("strip.tagToggleDesc");
+        ebcTagsBody.appendChild(ebcTagsDesc);
+
+        // Tag toggle cards
+        const ebcTagsCardRow = document.createElement("div");
+        ebcTagsCardRow.style.cssText = "display:flex;gap:7px;";
+
+        const makeTagCard = (
+            label: string,
+            sublabel: string,
+            getVal: () => boolean,
+            setVal: (v: boolean) => void,
+            container: HTMLElement,
+        ): void => {
+            const card = document.createElement("div");
+            card.title = sublabel;
+
+            const cardTop = document.createElement("div");
+            cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
+            const cardLabel = document.createElement("span");
+            cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;";
+            cardLabel.textContent = label;
+            cardTop.appendChild(cardLabel);
+
+            const cardSub = document.createElement("div");
+            cardSub.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;line-height:1.4;margin-bottom:6px;";
+            cardSub.textContent = sublabel;
+
+            const cardStatus = document.createElement("div");
+            cardStatus.style.cssText = "display:inline-flex;align-items:center;gap:3px;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:10px;";
+
+            const cardDot = document.createElement("span");
+            cardDot.style.cssText = "width:5px;height:5px;border-radius:50%;display:inline-block;flex-shrink:0;";
+
+            cardStatus.appendChild(cardDot);
+            const cardStatusText = document.createElement("span");
+            cardStatus.appendChild(cardStatusText);
+
+            card.appendChild(cardTop);
+            card.appendChild(cardSub);
+            card.appendChild(cardStatus);
+
+            const refresh = (): void => {
+                const on = getVal();
+                card.style.cssText = `flex:1;border-radius:6px;padding:7px 8px 6px;cursor:pointer;user-select:none;transition:background 0.12s,border-color 0.12s;border:1px solid ${on ? "#8a3458" : "#321220"};background:${on ? "#2e1020" : "#150a10"};`;
+                cardLabel.style.color = on ? "#f0c0d8" : "#7a4a60";
+                cardSub.style.color = on ? "#b08898" : "#6a4050";
+                cardDot.style.background = on ? "#d06090" : "#4a2038";
+                cardStatus.style.background = on ? "#3d1228" : "#1e0c16";
+                cardStatus.style.color = on ? "#f0a0c8" : "#6a4050";
+                cardStatusText.textContent = on ? t("core.on") : t("core.off");
+            };
+            refresh();
+            card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
+            container.appendChild(card);
+        };
+
+        makeTagCard(t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
+        makeTagCard(t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
+        ebcTagsBody.appendChild(ebcTagsCardRow);
+
+        // Version display row
+        const versionRowLbl = document.createElement("div");
+        versionRowLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:6px 0 4px;";
+        versionRowLbl.textContent = t("strip.versionDisplay");
+        ebcTagsBody.appendChild(versionRowLbl);
+
+        const versionCardRow = document.createElement("div");
+        versionCardRow.style.cssText = "display:flex;gap:7px;";
+        makeTagCard(t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
+        makeTagCard(t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
+        ebcTagsBody.appendChild(versionCardRow);
+
+        // Badge Appearance divider
+        const badgeDivider = document.createElement("div");
+        badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
+        ebcTagsBody.appendChild(badgeDivider);
+
+        const badgeAppLbl = document.createElement("div");
+        badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 6px;";
+        badgeAppLbl.textContent = t("strip.badgeAppearance");
+        ebcTagsBody.appendChild(badgeAppLbl);
+
+        // Style picker: Text | Cat
+        const buildStyleRow = (getter: () => BadgeStyle, setter: (v: BadgeStyle) => void): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
+            const makeBtn = (styleName: BadgeStyle, labelText: string): HTMLButtonElement => {
+                const btn = document.createElement("button");
+                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                btn.textContent = labelText;
+                const refresh = (): void => {
+                    const active = getter() === styleName;
+                    btn.style.background = active ? "#2e1020" : "#150a10";
+                    btn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                    btn.style.color      = active ? "#f0c0d8" : "#7a4a60";
+                };
+                refresh();
+                btn.addEventListener("click", () => {
+                    setter(styleName);
+                    row.querySelectorAll<HTMLButtonElement>("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                    refresh();
+                });
+                btn.addEventListener("ebc-refresh", refresh);
+                return btn;
+            };
+            row.appendChild(makeBtn("text", t("strip.styleBtnText")));
+            row.appendChild(makeBtn("cat",  t("strip.styleBtnCat")));
+            ebcTagsBody.appendChild(row);
+        };
+
+        const myStyleLbl = document.createElement("div");
+        myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
+        myStyleLbl.textContent = t("strip.myStyle");
+        ebcTagsBody.appendChild(myStyleLbl);
+        buildStyleRow(getBadgeStyle, setBadgeStyle);
+
+        const othersStyleLbl = document.createElement("div");
+        othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
+        othersStyleLbl.textContent = t("strip.othersStyle");
+        ebcTagsBody.appendChild(othersStyleLbl);
+        buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
+
+        // Per-style scale sliders
+        const makeScaleRow = (labelText: string, getVal: () => number, setVal: (v: number) => void): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:6px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:54px;";
+            lbl.textContent = labelText;
+            const slider = document.createElement("input");
+            slider.type  = "range"; slider.min = "0.3"; slider.max = "3"; slider.step = "0.05";
+            slider.value = String(getVal());
+            slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            slider.title = "Scale multiplier (1.0 = default)";
+            const valLbl = document.createElement("span");
+            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:32px;text-align:right;flex-shrink:0;";
+            valLbl.textContent = getVal().toFixed(2) + "×";
+            slider.addEventListener("input", () => { const v = parseFloat(slider.value); setVal(v); valLbl.textContent = v.toFixed(2) + "×"; });
+            row.appendChild(lbl); row.appendChild(slider); row.appendChild(valLbl);
+            ebcTagsBody.appendChild(row);
+        };
+
+        const scaleSectionLbl = document.createElement("div");
+        scaleSectionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 5px;";
+        scaleSectionLbl.textContent = t("strip.scale");
+        ebcTagsBody.appendChild(scaleSectionLbl);
+        makeScaleRow(t("strip.styleBtnText"), getTextBadgeScale, setTextBadgeScale);
+        makeScaleRow(t("strip.styleBtnCat"),  getCatBadgeScale,  setCatBadgeScale);
+
+        // Opacity sliders
+        const makeOpacitySliderRow = (labelKey: string, getVal: () => number, setVal: (v: number) => void, titleHint: string): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:28px;";
+            lbl.textContent = t(labelKey);
+            const slider = document.createElement("input");
+            slider.type = "range"; slider.min = "0"; slider.max = "1"; slider.step = "0.05";
+            slider.value = String(getVal());
+            slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            slider.title = titleHint;
+            const valLbl = document.createElement("span");
+            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+            valLbl.textContent = Math.round(getVal() * 100) + "%";
+            slider.addEventListener("input", () => { const v = parseFloat(slider.value); setVal(v); valLbl.textContent = Math.round(v * 100) + "%"; });
+            row.appendChild(lbl); row.appendChild(slider); row.appendChild(valLbl);
+            ebcTagsBody.appendChild(row);
+        };
+        makeOpacitySliderRow("strip.bgOpacity",   getBadgeBgOpacity,   setBadgeBgOpacity,   "Background rectangle opacity (0 = transparent)");
+        makeOpacitySliderRow("strip.textOpacity",  getBadgeTextOpacity, setBadgeTextOpacity, "Text / icon opacity (0 = invisible)");
+
+        // Position drag row
+        const posHint = document.createElement("div");
+        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5878;line-height:1.35;margin-bottom:4px;";
+        posHint.textContent = t("strip.dragHint");
+        ebcTagsBody.appendChild(posHint);
+
+        const posRow = document.createElement("div");
+        posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
+
+        const BTN_BASE = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:4px;cursor:pointer;flex:1;transition:background 0.12s,border-color 0.12s,color 0.12s";
+
+        const makePosBtn = (styleTarget: "text" | "cat", label: string): HTMLButtonElement => {
+            const btn = document.createElement("button");
+            const refresh = (): void => {
+                const active = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
+                btn.textContent = active ? t("core.done") : label;
+                btn.style.cssText = BTN_BASE + `;border:1px solid ${active ? "#cf6f98" : "#4c2537"};background:${active ? "#4a1f30" : "#1b0d17"};color:${active ? "#f7e6ee" : "#c08890"};`;
+            };
+            refresh();
+            btn.addEventListener("click", () => {
+                const wasActive = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
+                setBadgeDragMode(!wasActive);
+                if (!wasActive) setBadgeDragStyleTarget(styleTarget);
+                refresh();
+                posRow.querySelectorAll<HTMLButtonElement>("button[data-pos-btn]").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+            });
+            btn.addEventListener("ebc-refresh", refresh);
+            btn.dataset["posBtn"] = "1";
+            return btn;
+        };
+
+        posRow.appendChild(makePosBtn("text", "📍 " + t("strip.styleBtnText")));
+        posRow.appendChild(makePosBtn("cat",  "📍 " + t("strip.styleBtnCat")));
+
+        const resetPosBtn = document.createElement("button");
+        resetPosBtn.textContent = "⟳";
+        resetPosBtn.title = "Reset all badge positions to default (text, cat, and version text)";
+        resetPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;transition:background 0.12s,color 0.12s;";
+        resetPosBtn.addEventListener("click", () => { resetBadgePosition(); resetCatBadgePosition(); resetVersionTextPosition(); });
+        posRow.appendChild(resetPosBtn);
+        ebcTagsBody.appendChild(posRow);
+
+        strip.appendChild(ebcTagsBody);
+
+        const updateEbcTagsCollapse = (): void => {
+            ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
+            ebcTagsBody.style.display = ebcTagsCollapsed ? "none" : "";
+        };
+        updateEbcTagsCollapse();
+        ebcTagsHdr.addEventListener("click", () => {
+            ebcTagsCollapsed = !ebcTagsCollapsed;
+            try { localStorage.setItem("EBC_tagsCollapsed", ebcTagsCollapsed ? "1" : "0"); } catch { /* ignore */ }
+            updateEbcTagsCollapse();
+        });
     }
 
     // -- Timer -----------------------------------------------------------------
@@ -17012,7 +17038,7 @@ export class EBCDrawer {
 
         const people = [
             {
-                emoji: "🌺",
+                emoji: "🐾",
                 name: "Emery",
                 memberId: 130267,
                 reason: t("credits.emery"),

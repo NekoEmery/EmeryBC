@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.2.5";
+const MOD_VERSION = "3.2.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.2.6",
+        changes: [
+            "Guide (? button): expanded to 13 steps with richer detail; key terms are now pink highlighted chips ([[text]] markup); added italic note lines for extra context; new steps cover outfit tags, Slow Leave editor, safewords, and tips.",
+            "EBC Tag Settings strip now correctly re-translates when the language is changed — previously all labels stayed in the language they were first built in.",
+            "Credits: Emery's avatar emoji changed from 🌺 to 🐾 to better reflect the connection.",
+        ],
+    },
     {
         version: "3.2.5",
         changes: [
