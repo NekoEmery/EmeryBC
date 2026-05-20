@@ -4544,60 +4544,17 @@ export class EBCDrawer {
 
         const resetPosBtn = document.createElement("button");
         resetPosBtn.textContent = "⟳";
-        resetPosBtn.title = "Reset badge position to default";
+        resetPosBtn.title = "Reset icon and version text positions to default";
         resetPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;transition:background 0.12s,color 0.12s;";
         resetPosBtn.addEventListener("click", () => {
             resetBadgePosition();
-            setBadgeOffsetX(getBadgeOffsetX()); // trigger sync
+            resetVersionTextPosition();
         });
 
         posRow.appendChild(posHint);
         posRow.appendChild(dragBtn);
         posRow.appendChild(resetPosBtn);
         ebcTagsBody.appendChild(posRow);
-
-        // ── Cat icon X/Y numeric inputs ───────────────────────────────────────
-        const makePosInputRow = (
-            rowLabel: string,
-            getX: () => number, setX: (v: number) => void,
-            getY: () => number, setY: (v: number) => void,
-            resetFn: () => void,
-        ): void => {
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
-            const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:30px;";
-            lbl.textContent = rowLabel;
-            const xLbl = document.createElement("span");
-            xLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
-            xLbl.textContent = "X";
-            const xIn = document.createElement("input");
-            xIn.type = "number"; xIn.min = "-500"; xIn.max = "1000"; xIn.step = "1";
-            xIn.value = String(getX());
-            xIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
-            xIn.addEventListener("input", () => setX(Number(xIn.value)));
-            const yLbl = document.createElement("span");
-            yLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
-            yLbl.textContent = "Y";
-            const yIn = document.createElement("input");
-            yIn.type = "number"; yIn.min = "-200"; yIn.max = "900"; yIn.step = "1";
-            yIn.value = String(getY());
-            yIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
-            yIn.addEventListener("input", () => setY(Number(yIn.value)));
-            const resetBtn = document.createElement("button");
-            resetBtn.textContent = "⟳";
-            resetBtn.title = "Reset to default";
-            resetBtn.style.cssText = "font-size:12px;padding:2px 6px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;";
-            resetBtn.addEventListener("click", () => { resetFn(); xIn.value = String(getX()); yIn.value = String(getY()); });
-            row.appendChild(lbl);
-            row.appendChild(xLbl); row.appendChild(xIn);
-            row.appendChild(yLbl); row.appendChild(yIn);
-            row.appendChild(resetBtn);
-            ebcTagsBody.appendChild(row);
-        };
-
-        makePosInputRow("Icon",  getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, resetBadgePosition);
-        makePosInputRow("Ver.",  getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition);
 
         // ── Tab visibility filter (EBC Tags strip) ────────────────────────────
         appendStripTabFilter(ebcTagsBody, "EBC_tagsTabFilter", () => this.updatePinnedStrips());

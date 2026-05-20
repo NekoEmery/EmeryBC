@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.1.5";
+const MOD_VERSION = "3.1.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.1.6",
+        changes: [
+            "Creator paw: replaced hand-drawn canvas paw with a proper SVG paw icon (Font Awesome fa-paw paths, MIT licensed) loaded as a Blob image — same quality as the cat badge.",
+            "Badge drag: removed Icon X/Y and Ver. X/Y numeric input rows from the EBC Tag Settings panel. The drag button and combined reset button (⟳) remain.",
+        ],
+    },
     {
         version: "3.1.5",
         changes: [
@@ -4098,6 +4105,26 @@ function getEbcCatImg(): HTMLImageElement | null {
 // Trigger early load so the image is ready by the time any character renders.
 getEbcCatImg();
 
+// ── EBC paw SVG image cache (creator mark) ────────────────────────────────────
+// Font Awesome 6 "fa-paw" path, MIT licensed path data, colored gold.
+const EBC_PAW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#ffd700" d="M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5 .3-86.2 32.6-96.8 70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3-14.3-70.1 10.2-84.1 59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5 0 46.3-30.6 88.4-76.2 92.2-17.6 1.5-34.7-3.5-53.9-9.2-15.7-4.7-32.8-9.9-51.9-9.9-19.1 0-36.2 5.2-51.9 9.9-19.2 5.7-36.3 10.7-53.9 9.2C57.6 519.6 27 477.5 27 431.2c0-10.4 1.6-20.8 5.2-30.5zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5 46.9 53.9 32.6 96.8-52.1 69.1-84.4 58.5zM421.6 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3 29.1 51.7 10.2 84.1-54 47.3-78.5 33.3z"/></svg>`;
+let _ebcPawImg: HTMLImageElement | null = null;
+let _ebcPawImgReady = false;
+function getEbcPawImg(): HTMLImageElement | null {
+    if (_ebcPawImgReady) return _ebcPawImg;
+    if (!_ebcPawImg) {
+        try {
+            const blob = new Blob([EBC_PAW_SVG], { type: "image/svg+xml" });
+            const url  = URL.createObjectURL(blob);
+            _ebcPawImg = new Image();
+            _ebcPawImg.onload = () => { _ebcPawImgReady = true; };
+            _ebcPawImg.src = url;
+        } catch { /* ignore */ }
+    }
+    return null;
+}
+getEbcPawImg();
+
 /** Returns the BC main canvas element, checking both the window global and DOM. */
 function getBCCanvas(): HTMLCanvasElement | null {
     try {
@@ -4354,31 +4381,15 @@ function drawPresenceMarker(args: unknown[]): void {
     if (isDevUser) {
         const canvas = getBCCanvas();
         const ctx = canvas?.getContext("2d");
-        if (ctx && badgeTextOp > 0) {
+        const pawImg = getEbcPawImg();
+        if (ctx && badgeTextOp > 0 && pawImg) {
             const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 900);
-            const sz    = Math.max(8, Math.round(11 * zoom * userScale));
-            const px    = x;
-            const py    = y - sz * 2.4;
+            const sz    = Math.max(9, Math.round(13 * zoom * userScale));
             ctx.save();
-            ctx.globalAlpha = badgeTextOp * 0.88 * pulse;
-            ctx.fillStyle   = "#ffd700";
+            ctx.globalAlpha = badgeTextOp * 0.9 * pulse;
             ctx.shadowColor = "#ffa500";
-            ctx.shadowBlur  = sz * 0.7;
-            // Main palm pad (ellipse)
-            ctx.beginPath();
-            ctx.ellipse(px, py + sz * 0.10, sz * 0.42, sz * 0.34, 0, 0, Math.PI * 2);
-            ctx.fill();
-            // Four toe pads
-            ([
-                [px - sz * 0.40, py - sz * 0.20, sz * 0.16],
-                [px - sz * 0.15, py - sz * 0.43, sz * 0.17],
-                [px + sz * 0.15, py - sz * 0.43, sz * 0.17],
-                [px + sz * 0.40, py - sz * 0.20, sz * 0.16],
-            ] as [number, number, number][]).forEach(([tx, ty, tr]) => {
-                ctx.beginPath();
-                ctx.arc(tx, ty, tr, 0, Math.PI * 2);
-                ctx.fill();
-            });
+            ctx.shadowBlur  = sz * 0.65;
+            ctx.drawImage(pawImg, x - sz / 2, y - sz * 2.8, sz, sz);
             ctx.restore();
         }
     }
