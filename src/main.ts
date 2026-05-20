@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.1.9";
+const MOD_VERSION = "3.2.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.2.0",
+        changes: [
+            "Interactive guide: added a ? button in the panel header that opens a step-through tour overlay. It walks through all 8 major features/tabs with descriptions, auto-switches to the relevant tab on each step, and has Prev / Next / Done navigation with dot indicators.",
+            "DEV tab: added missing 'Logs' translation key for all 7 supported languages (the renamed section previously fell back to the English key).",
+        ],
+    },
     {
         version: "3.1.9",
         changes: [
