@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4458,36 +4458,53 @@ export class EBCDrawer {
         makeOpacitySliderRow("strip.textOpacity",  getBadgeTextOpacity, setBadgeTextOpacity, "Text / icon opacity (0 = invisible)");
 
         // ── Position drag row ─────────────────────────────────────────────────
+        const posHint = document.createElement("div");
+        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5878;line-height:1.35;margin-bottom:4px;";
+        posHint.textContent = t("strip.dragHint");
+        ebcTagsBody.appendChild(posHint);
+
         const posRow = document.createElement("div");
         posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
 
-        const posHint = document.createElement("span");
-        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex:1;line-height:1.35;";
-        posHint.textContent = t("strip.dragHint");
+        const BTN_BASE = [
+            "font-family:'Trebuchet MS',serif",
+            "font-size:9px",
+            "font-weight:bold",
+            "padding:4px 8px",
+            "border-radius:4px",
+            "cursor:pointer",
+            "flex:1",
+            "transition:background 0.12s,border-color 0.12s,color 0.12s",
+        ].join(";");
 
-        const dragBtn = document.createElement("button");
-        const refreshDragBtn = (): void => {
-            const on = getBadgeDragMode();
-            dragBtn.textContent = on ? t("core.done") : t("strip.badgePosition");
-            dragBtn.style.cssText = [
-                "font-family:'Trebuchet MS',serif",
-                "font-size:9px",
-                "font-weight:bold",
-                "padding:4px 8px",
-                "border-radius:4px",
-                "cursor:pointer",
-                "flex-shrink:0",
-                "transition:background 0.12s,border-color 0.12s,color 0.12s",
-                `border:1px solid ${on ? "#cf6f98" : "#4c2537"}`,
-                `background:${on ? "#4a1f30" : "#1b0d17"}`,
-                `color:${on ? "#f7e6ee" : "#c08890"}`,
-            ].join(";");
+        const makePosBtn = (styleTarget: "text" | "cat", label: string): HTMLButtonElement => {
+            const btn = document.createElement("button");
+            const refresh = (): void => {
+                const active = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
+                btn.textContent = active ? t("core.done") : label;
+                btn.style.cssText = BTN_BASE + ";" + [
+                    `border:1px solid ${active ? "#cf6f98" : "#4c2537"}`,
+                    `background:${active ? "#4a1f30" : "#1b0d17"}`,
+                    `color:${active ? "#f7e6ee" : "#c08890"}`,
+                ].join(";");
+            };
+            refresh();
+            btn.addEventListener("click", () => {
+                const wasActive = getBadgeDragMode() && getBadgeDragStyleTarget() === styleTarget;
+                setBadgeDragMode(!wasActive);
+                if (!wasActive) setBadgeDragStyleTarget(styleTarget);
+                refresh();
+                // Also refresh the other button so it de-highlights
+                posRow.querySelectorAll<HTMLButtonElement>("button[data-pos-btn]")
+                    .forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+            });
+            btn.addEventListener("ebc-refresh", refresh);
+            btn.dataset["posBtn"] = "1";
+            return btn;
         };
-        refreshDragBtn();
-        dragBtn.addEventListener("click", () => {
-            setBadgeDragMode(!getBadgeDragMode());
-            refreshDragBtn();
-        });
+
+        const textPosBtn = makePosBtn("text", "📍 " + t("strip.styleBtnText"));
+        const catPosBtn  = makePosBtn("cat",  "📍 " + t("strip.styleBtnCat"));
 
         const resetPosBtn = document.createElement("button");
         resetPosBtn.textContent = "⟳";
@@ -4499,8 +4516,8 @@ export class EBCDrawer {
             resetVersionTextPosition();
         });
 
-        posRow.appendChild(posHint);
-        posRow.appendChild(dragBtn);
+        posRow.appendChild(textPosBtn);
+        posRow.appendChild(catPosBtn);
         posRow.appendChild(resetPosBtn);
         ebcTagsBody.appendChild(posRow);
 

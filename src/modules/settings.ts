@@ -563,7 +563,12 @@ export function resetVersionTextPosition(): void {
 // When true: a dashed ring appears on your own badge in the chatroom canvas,
 // and canvas mouse/touch events allow click-dragging the badge to reposition.
 // Automatically cleared when the drag completes or the user leaves a room.
+// _badgeDragStyleTarget controls WHICH badge style is being repositioned —
+// 'text' moves the text badge offset, 'cat' moves the cat badge offset.
 
 let _badgeDragMode = false;
+let _badgeDragStyleTarget: "text" | "cat" = "text";
 export function getBadgeDragMode(): boolean { return _badgeDragMode; }
 export function setBadgeDragMode(v: boolean): void { _badgeDragMode = v; }
+export function getBadgeDragStyleTarget(): "text" | "cat" { return _badgeDragStyleTarget; }
+export function setBadgeDragStyleTarget(v: "text" | "cat"): void { _badgeDragStyleTarget = v; }

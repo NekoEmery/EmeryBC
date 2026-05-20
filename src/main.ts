@@ -6,7 +6,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.2.3";
+const MOD_VERSION = "3.2.4";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.2.4",
+        changes: [
+            "EBC Tag Settings: position row now has two separate buttons — '📍 Text' and '📍 Cat' — so each badge style can be dragged to its own position without needing to switch styles first. Clicking a button activates drag mode for that style only; clicking again (or completing a drag) exits it.",
+        ],
+    },
     {
         version: "3.2.3",
         changes: [
@@ -4207,16 +4213,16 @@ function initBadgeDragListeners(): void {
         // Always consume in drag mode — prevents BC canvas click-through.
         consume();
         const pos = toCanvasPos(canvas, clientX, clientY);
-        // Check icon hit — use style-specific offset so text and cat are dragged independently
-        const isCat = getBadgeStyle() === "cat";
-        const bx = _playerCharLeft + (isCat ? getCatBadgeOffsetX() : getBadgeOffsetX()) * _playerCharZoom;
-        const by = _playerCharTop  + (isCat ? getCatBadgeOffsetY() : getBadgeOffsetY()) * _playerCharZoom;
+        // Check icon hit — use the drag target style's offset, independent of display style
+        const dragTargetIsCat = getBadgeDragStyleTarget() === "cat";
+        const bx = _playerCharLeft + (dragTargetIsCat ? getCatBadgeOffsetX() : getBadgeOffsetX()) * _playerCharZoom;
+        const by = _playerCharTop  + (dragTargetIsCat ? getCatBadgeOffsetY() : getBadgeOffsetY()) * _playerCharZoom;
         if (Math.abs(pos.x - bx) < HIT && Math.abs(pos.y - by) < HIT) {
             _dragTarget = "icon";
             return;
         }
         // Check version text hit (cat mode + version visible)
-        if (isCat && getShowVersionBadge()) {
+        if (dragTargetIsCat && getShowVersionBadge()) {
             const vx = _playerCharLeft + getVersionTextOffsetX() * _playerCharZoom;
             const vy = _playerCharTop  + getVersionTextOffsetY() * _playerCharZoom;
             if (Math.abs(pos.x - vx) < HIT && Math.abs(pos.y - vy) < HIT) {
@@ -4233,7 +4239,7 @@ function initBadgeDragListeners(): void {
         const pos = toCanvasPos(canvas, clientX, clientY);
         if (_playerCharZoom > 0) {
             if (_dragTarget === "icon") {
-                if (getBadgeStyle() === "cat") {
+                if (getBadgeDragStyleTarget() === "cat") {
                     setCatBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
                     setCatBadgeOffsetY((pos.y - _playerCharTop)  / _playerCharZoom);
                 } else {
