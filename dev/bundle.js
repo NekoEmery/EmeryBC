@@ -31840,7 +31840,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.6.5";
+    const MOD_VERSION = "3.6.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -36179,10 +36179,7 @@
     const EBC_PAW_DATA = "data:image/png;base64,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";
     let _ebcPawImg = null;
     let _ebcPawImgReady = false;
-    // Stable paw draw position — snaps to new coords only when the character moves
-    // significantly (> 4 px). Absorbs the 1–2 px jitter BC produces when another
-    // player joins and triggers a full room-sync CharacterRefresh cascade.
-    let _pawStableX = 0, _pawStableY = 0, _pawStableSz = 0, _pawPosInit = false;
+    // Paw image cache — loaded once, drawn from DrawCharacter args each frame.
     function getEbcPawImg() {
         if (_ebcPawImgReady)
             return _ebcPawImg;
@@ -36330,21 +36327,15 @@
             const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
+                // Draw directly from the current draw-call coordinates — the paw is computed
+                // from the same left/top/zoom that just drew the character, so it is always
+                // perfectly locked to the character regardless of room layout changes.
                 const sz = Math.max(12, Math.round(20 * zoom));
-                const rawX = Math.floor(left + 250 * zoom - sz / 2);
-                const rawY = Math.floor(top + 975 * zoom - sz - 8 * zoom);
-                // Only snap to the new position when it moves > 4 px or on first draw.
-                // This absorbs the 1-2 px jitter BC produces during join-event
-                // CharacterRefresh cascades without making the paw feel sluggish.
-                if (!_pawPosInit || Math.abs(rawX - _pawStableX) > 4 || Math.abs(rawY - _pawStableY) > 4 || sz !== _pawStableSz) {
-                    _pawStableX = rawX;
-                    _pawStableY = rawY;
-                    _pawStableSz = sz;
-                    _pawPosInit = true;
-                }
+                const px = Math.floor(left + 250 * zoom - sz / 2);
+                const py = Math.floor(top + 975 * zoom - sz - 8 * zoom);
                 _pawCtx.save();
                 _pawCtx.globalAlpha = 0.9;
-                _pawCtx.drawImage(_pawImg, _pawStableX, _pawStableY, _pawStableSz, _pawStableSz);
+                _pawCtx.drawImage(_pawImg, px, py, sz, sz);
                 _pawCtx.restore();
             }
         }
