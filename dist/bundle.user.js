@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.3.7
+// @version      3.4.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -10600,25 +10600,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         var _a;
         return (_a = ebcVersionCache.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
     }
-    // Returns all session-cached EBC users filtered to those currently in the room.
-    function getEBCUsersInRoom() {
-        try {
-            const chars = (typeof ChatRoomCharacter !== "undefined" ? ChatRoomCharacter : []);
-            return chars
-                .filter(c => typeof c.MemberNumber === "number" && ebcVersionCache.has(c.MemberNumber))
-                .map(c => {
-                var _a;
-                return ({
-                    memberNumber: c.MemberNumber,
-                    name: String((_a = c.Name) !== null && _a !== void 0 ? _a : c.MemberNumber),
-                    version: ebcVersionCache.get(c.MemberNumber),
-                });
-            });
-        }
-        catch (_a) {
-            return [];
-        }
-    }
     function updateOnlineFriends(entries) {
         const prevOnline = new Set(onlineSet);
         onlineSet.clear();
@@ -14121,27 +14102,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     user-select: none;
 }
 
-/* Golden paw SVG icon used on Emery's credits card (same FA paw as the in-game creator badge) */
-.ebc-thanks-paw-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    filter: drop-shadow(0 0 5px rgba(255, 200, 40, 0.65));
-    animation: ebc-paw-flash 2.6s ease-in-out infinite;
-}
-@keyframes ebc-paw-flash {
-    0%, 100% { filter: drop-shadow(0 0 4px rgba(240, 170, 20, 0.45)); }
-    50%       { filter: drop-shadow(0 0 14px rgba(255, 225, 55, 1));   }
-}
-.ebc-thanks-avatar-paw {
-    border-color: #b07010 !important;
-    background: #26180a !important;
-    animation: ebc-paw-ring 2.6s ease-in-out infinite;
-}
-@keyframes ebc-paw-ring {
-    0%, 100% { box-shadow: 0 0 6px  rgba(200, 130, 10, 0.35); border-color: #b07010; }
-    50%       { box-shadow: 0 0 16px rgba(255, 200, 40, 0.85); border-color: #f0c030; }
-}
+
 
 .ebc-member-chip {
     display: inline-block;
@@ -15650,39 +15611,54 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     position: relative;
     z-index: 2;
 }
+.ebc-guide-progress {
+    height: 3px;
+    background: #2a1020;
+    border-radius: 2px;
+    margin-top: 2px;
+    overflow: hidden;
+}
+.ebc-guide-progress-fill {
+    height: 100%;
+    background: #cf6f98;
+    border-radius: 2px;
+    transition: width 0.22s ease;
+}
 .ebc-guide-nav {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-top: 3px;
+    gap: 6px;
+    margin-top: 7px;
 }
-.ebc-guide-nav-btn {
+.ebc-guide-nav-prev {
+    flex-shrink: 0;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     font-weight: bold;
-    padding: 5px 14px;
+    padding: 6px 10px;
     border-radius: 5px;
     cursor: pointer;
-    border: 1px solid #5a2038;
-    background: #2e1020;
-    color: #f0a0c8;
+    border: 1px solid #4a2035;
+    background: transparent;
+    color: #9a6880;
+    transition: border-color 0.12s, color 0.12s;
+}
+.ebc-guide-nav-prev:hover { border-color: #cf6f98; color: #cf6f98; }
+.ebc-guide-nav-prev:disabled { opacity: 0.2; cursor: default; }
+.ebc-guide-nav-next {
+    flex: 1;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid #cf6f98;
+    background: #cf6f98;
+    color: #1a0812;
     transition: background 0.12s, border-color 0.12s;
 }
-.ebc-guide-nav-btn:hover { background: #3d1530; border-color: #cf6f98; }
-.ebc-guide-nav-btn:disabled { opacity: 0.25; cursor: default; }
-.ebc-guide-dots {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-}
-.ebc-guide-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #3a1928;
-    transition: background 0.15s, transform 0.15s;
-}
-.ebc-guide-dot.active { background: #cf6f98; transform: scale(1.3); }
+.ebc-guide-nav-next:hover { background: #e080aa; border-color: #e080aa; }
 .ebc-guide-btn {
     background: none;
     border: 1px solid #3a1928;
@@ -15856,6 +15832,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     catch ( /* ignore */_a) { /* ignore */ } }
     // ── Drawer appearance / layout helpers ───────────────────────────────────
     const EBC_COLORS_KEY = "EBC_colors";
+    const EBC_PRESET_KEY = "EBC_activePreset";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
     const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
@@ -15876,14 +15853,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const EBC_THEME_PRESETS = {
         // Each preset is fully cohesive — backgrounds tinted with the theme hue,
         // accent is the primary colour, text & border complement it naturally.
-        rose: { name: "🌸 Rose (Default)", colors: DEFAULT_COLORS },
-        sakura: { name: "🌺 Sakura", colors: { bg: "#1c0e12", card: "#281419", cardMuted: "#220f15", border: "#481a24", accent: "#e8608a", textBright: "#ffecf2", textSub: "#d8a0b0", textMuted: "#906070", gold: "#e0b060" } },
-        lavender: { name: "💜 Lavender", colors: { bg: "#0e0b1a", card: "#150f28", cardMuted: "#120c22", border: "#281a42", accent: "#9b6fcf", textBright: "#ece6f8", textSub: "#9888c0", textMuted: "#5a5278", gold: "#c8b46a" } },
-        ocean: { name: "🌊 Ocean", colors: { bg: "#0a1220", card: "#0e1c30", cardMuted: "#0c1828", border: "#162e4c", accent: "#5a98c8", textBright: "#e0eef8", textSub: "#789ab8", textMuted: "#3e5870", gold: "#c0a860" } },
-        forest: { name: "🌿 Forest", colors: { bg: "#091410", card: "#0d1e16", cardMuted: "#0b1812", border: "#163422", accent: "#52b870", textBright: "#daf0e2", textSub: "#70a880", textMuted: "#3e5e48", gold: "#aab840" } },
-        crimson: { name: "🔴 Crimson", colors: { bg: "#180a0a", card: "#221010", cardMuted: "#1c0c0c", border: "#3c1414", accent: "#c84848", textBright: "#f8e0e0", textSub: "#b87878", textMuted: "#704848", gold: "#c89050" } },
-        amber: { name: "🟡 Amber", colors: { bg: "#150e06", card: "#201508", cardMuted: "#1a1006", border: "#3a2412", accent: "#d08030", textBright: "#f8ecd8", textSub: "#c09870", textMuted: "#806848", gold: "#e8c040" } },
-        obsidian: { name: "🖤 Obsidian", colors: { bg: "#111216", card: "#1a1c22", cardMuted: "#151720", border: "#28293a", accent: "#8090b8", textBright: "#e8eaf0", textSub: "#8890a0", textMuted: "#545a68", gold: "#a89058" } },
+        rose: { name: "Rose (Default)", colors: DEFAULT_COLORS },
+        sakura: { name: "Sakura", colors: { bg: "#1c0e12", card: "#281419", cardMuted: "#220f15", border: "#481a24", accent: "#e8608a", textBright: "#ffecf2", textSub: "#d8a0b0", textMuted: "#906070", gold: "#e0b060" } },
+        lavender: { name: "Lavender", colors: { bg: "#0e0b1a", card: "#150f28", cardMuted: "#120c22", border: "#281a42", accent: "#9b6fcf", textBright: "#ece6f8", textSub: "#9888c0", textMuted: "#5a5278", gold: "#c8b46a" } },
+        ocean: { name: "Ocean", colors: { bg: "#0a1220", card: "#0e1c30", cardMuted: "#0c1828", border: "#162e4c", accent: "#5a98c8", textBright: "#e0eef8", textSub: "#789ab8", textMuted: "#3e5870", gold: "#c0a860" } },
+        forest: { name: "Forest", colors: { bg: "#091410", card: "#0d1e16", cardMuted: "#0b1812", border: "#163422", accent: "#52b870", textBright: "#daf0e2", textSub: "#70a880", textMuted: "#3e5e48", gold: "#aab840" } },
+        crimson: { name: "Crimson", colors: { bg: "#180a0a", card: "#221010", cardMuted: "#1c0c0c", border: "#3c1414", accent: "#c84848", textBright: "#f8e0e0", textSub: "#b87878", textMuted: "#704848", gold: "#c89050" } },
+        amber: { name: "Amber", colors: { bg: "#150e06", card: "#201508", cardMuted: "#1a1006", border: "#3a2412", accent: "#d08030", textBright: "#f8ecd8", textSub: "#c09870", textMuted: "#806848", gold: "#e8c040" } },
+        obsidian: { name: "Obsidian", colors: { bg: "#111216", card: "#1a1c22", cardMuted: "#151720", border: "#28293a", accent: "#8090b8", textBright: "#e8eaf0", textSub: "#8890a0", textMuted: "#545a68", gold: "#a89058" } },
     };
     // ── Colour math helpers ───────────────────────────────────────────────────
     function hexToRgb(hex) {
@@ -16649,6 +16626,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Header row — one line, always visible
             const swHdr = document.createElement("div");
             swHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;";
+            swHdr.setAttribute("data-guide-target", "strip-safewords");
             const swIcon = document.createElement("span");
             swIcon.textContent = "🛑";
             swIcon.style.cssText = "font-size:11px;flex-shrink:0;";
@@ -16873,6 +16851,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // ── EBC Tags strip — collapsible, always below safewords ─────────────
             const ebcTagsStrip = document.createElement("div");
             ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
+            ebcTagsStrip.setAttribute("data-guide-target", "strip-ebc-tags");
             this.ebcTagsStripEl = ebcTagsStrip;
             this.rebuildEbcTagsStrip();
             // Wrap all panel children in .ebc-zoom-wrapper.
@@ -17504,24 +17483,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             textEl.className = "ebc-guide-text";
             EBCDrawer.parseGuideMarkup(step.text, textEl);
             card.appendChild(textEl);
-            // Nav row: prev · dots · next
+            // Progress bar
+            const progress = document.createElement("div");
+            progress.className = "ebc-guide-progress";
+            const fill = document.createElement("div");
+            fill.className = "ebc-guide-progress-fill";
+            fill.style.width = `${((this.guideStep + 1) / steps.length) * 100}%`;
+            progress.appendChild(fill);
+            card.appendChild(progress);
+            // Nav row: ghost Prev | filled Next
             const nav = document.createElement("div");
             nav.className = "ebc-guide-nav";
             const prevBtn = document.createElement("button");
-            prevBtn.className = "ebc-guide-nav-btn";
-            prevBtn.textContent = "← Prev";
+            prevBtn.className = "ebc-guide-nav-prev";
+            prevBtn.textContent = "← Back";
             if (this.guideStep === 0)
                 prevBtn.disabled = true;
             prevBtn.addEventListener("click", () => { this.guideStep--; this.renderGuideStep(); });
-            const dots = document.createElement("div");
-            dots.className = "ebc-guide-dots";
-            for (let i = 0; i < steps.length; i++) {
-                const dot = document.createElement("div");
-                dot.className = "ebc-guide-dot" + (i === this.guideStep ? " active" : "");
-                dots.appendChild(dot);
-            }
             const nextBtn = document.createElement("button");
-            nextBtn.className = "ebc-guide-nav-btn";
+            nextBtn.className = "ebc-guide-nav-next";
             if (this.guideStep === steps.length - 1) {
                 nextBtn.textContent = "Done ✓";
                 nextBtn.addEventListener("click", () => this.closeGuide());
@@ -17531,7 +17511,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 nextBtn.addEventListener("click", () => { this.guideStep++; this.renderGuideStep(); });
             }
             nav.appendChild(prevBtn);
-            nav.appendChild(dots);
             nav.appendChild(nextBtn);
             card.appendChild(nav);
             // ── Spotlight UI elements this step is describing ─────────────────────
@@ -18191,6 +18170,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const tagToggleBtn = document.createElement("button");
             tagToggleBtn.className = "ebc-section-label";
             tagToggleBtn.style.cssText = "display:block;width:100%;background:transparent;border:none;cursor:pointer;text-align:left;padding:4px 4px 5px;margin-bottom:3px;transition:color 0.12s;";
+            tagToggleBtn.setAttribute("data-guide-target", "section-outfit-tags");
             const allTagsNow = getOutfitTags();
             tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` ${t("outfits.tagsN", { n: allTagsNow.length })}`;
             const tagMgmtBody = document.createElement("div");
@@ -18399,6 +18379,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             lbl.className = "ebc-section-label";
             lbl.style.cursor = "pointer";
             lbl.style.userSelect = "none";
+            lbl.setAttribute("data-guide-target", "section-schedules");
             const container = document.createElement("div");
             let collapsed = false;
             try {
@@ -19942,6 +19923,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const newBtn = document.createElement("button");
             newBtn.className = "ebc-new-outfit-btn";
             newBtn.textContent = t("outfits.newOutfit");
+            newBtn.setAttribute("data-guide-target", "btn-new-outfit");
             target.appendChild(newBtn);
             const form = document.createElement("div");
             form.className = "ebc-new-form";
@@ -20880,7 +20862,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Helper: build an ordered pose step editor.
             // Returns { getPoses, getDelay } so the caller reads values at save-time.
             const buildPoseOrderEditor = (parent, initialPoses, initialDelay = 420) => {
-                const poses = initialPoses.filter(Boolean).slice();
+                // Use filter(p => p != null) instead of filter(Boolean) so that
+                // "" (the Relaxed/clear-arms step) is preserved.
+                const poses = initialPoses.filter(p => p != null).slice();
                 // -- Step list --------------------------------------------------------
                 const listEl = document.createElement("div");
                 listEl.className = "ebc-step-list";
@@ -23629,6 +23613,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     };
                     // Collapsible section header — styled like a section label + arrow
                     const roomToggle = document.createElement("div");
+                    roomToggle.setAttribute("data-guide-target", "section-room-people");
                     const updateRoomToggle = () => {
                         const col = this.roomPeopleCollapsed;
                         roomToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
@@ -24590,7 +24575,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // EBC Tags toggles moved to the permanent strip below safewords (always visible).
             // No longer shown in DEV tab.
             // Helper: collapsible section wrapper
-            const makeSection = (labelText, lsKey, defaultCollapsed, buildContent) => {
+            const makeSection = (labelText, lsKey, defaultCollapsed, buildContent, guideTarget) => {
                 let collapsed = defaultCollapsed;
                 try {
                     const v = localStorage.getItem(lsKey);
@@ -24600,6 +24585,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_a) { /* ignore */ }
                 const hdr = document.createElement("div");
                 hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;margin-bottom:2px;";
+                if (guideTarget)
+                    hdr.setAttribute("data-guide-target", guideTarget);
                 const chev = document.createElement("span");
                 chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
                 const lbl = document.createElement("span");
@@ -24631,7 +24618,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             // ── Drawer Preferences ────────────────────────────────────────────────
             makeSection(t("dev.drawerPrefs"), "EBC_devAppearanceCollapsed", false, (cnt) => {
-                var _a, _b;
+                var _a, _b, _c;
                 // ── Touch / phone mode toggle (dev preview) ───────────────────────
                 const touchRow = document.createElement("div");
                 touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -24797,12 +24784,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     fn(c); };
                 // ── Preset dropdown ────────────────────────────────────────────────
                 const presetRow = document.createElement("div");
-                presetRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
+                presetRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 8px;background:var(--ebc-card);border:1px solid var(--ebc-border);border-radius:6px;";
                 const presetLbl = document.createElement("span");
-                presetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
+                presetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);flex:1;";
                 presetLbl.textContent = t("dev.quickPreset");
                 const presetSel = document.createElement("select");
-                presetSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
+                presetSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:var(--ebc-card-muted);border:1px solid var(--ebc-border-light);border-radius:4px;color:var(--ebc-text-bright);padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
                 const blankOpt = document.createElement("option");
                 blankOpt.value = "";
                 blankOpt.textContent = t("dev.choosePreset");
@@ -24813,28 +24800,40 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     opt.textContent = preset.name;
                     presetSel.appendChild(opt);
                 }
+                // Restore the last active preset so the dropdown isn't always blank
+                try {
+                    presetSel.value = (_a = localStorage.getItem(EBC_PRESET_KEY)) !== null && _a !== void 0 ? _a : "";
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
                 presetSel.addEventListener("change", () => {
                     const preset = EBC_THEME_PRESETS[presetSel.value];
                     if (!preset)
                         return;
                     liveColors = Object.assign({}, preset.colors);
                     saveCoreColors(liveColors);
+                    try {
+                        localStorage.setItem(EBC_PRESET_KEY, presetSel.value);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                     syncAllPickers(liveColors);
                     this.injectStyles();
-                    this.rerender(); // rebuild all rendered elements so inline styles pick up new vars
-                    presetSel.value = ""; // reset dropdown back to placeholder
+                    this.rerender();
                 });
                 const resetBtn = document.createElement("button");
                 resetBtn.textContent = t("dev.resetTheme");
                 resetBtn.title = "Reset to default theme";
-                resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;";
+                resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid var(--ebc-border-light);border-radius:4px;color:var(--ebc-text-muted);cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;";
                 resetBtn.addEventListener("click", () => {
                     liveColors = Object.assign({}, DEFAULT_COLORS);
                     saveCoreColors(liveColors);
+                    try {
+                        localStorage.setItem(EBC_PRESET_KEY, "rose");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
                     syncAllPickers(liveColors);
-                    presetSel.value = "";
+                    presetSel.value = "rose";
                     this.injectStyles();
-                    this.rerender(); // rebuild all rendered elements so inline styles pick up default vars
+                    this.rerender();
                 });
                 presetRow.appendChild(presetLbl);
                 presetRow.appendChild(presetSel);
@@ -24888,11 +24887,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         picker.title = hint;
                         picker.style.cssText = "width:28px;height:22px;padding:0;border:1px solid #4c2537;border-radius:3px;background:transparent;cursor:pointer;";
                         const lbl = document.createElement("span");
-                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;text-align:center;line-height:1.3;";
+                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:var(--ebc-text-sub);text-align:center;line-height:1.3;";
                         lbl.textContent = label;
                         picker.addEventListener("input", () => {
                             liveColors = Object.assign(Object.assign({}, liveColors), { [key]: picker.value });
                             saveCoreColors(liveColors);
+                            try {
+                                localStorage.removeItem(EBC_PRESET_KEY);
+                            }
+                            catch ( /* ignore */_a) { /* ignore */ }
+                            if (presetSel)
+                                presetSel.value = "";
                             this.injectStyles();
                         });
                         // Register a syncer so preset/reset can update this picker's displayed value
@@ -24915,7 +24920,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (tabId === "dev") {
                         const chip = document.createElement("button");
                         chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
-                        chip.textContent = ((_a = EBC_TAB_LABELS[tabId]) !== null && _a !== void 0 ? _a : "DEV") + " 🔒";
+                        chip.textContent = ((_b = EBC_TAB_LABELS[tabId]) !== null && _b !== void 0 ? _b : "DEV") + " 🔒";
                         chip.title = t("dev.devTabLocked");
                         chip.disabled = true;
                         tabVisGrid.appendChild(chip);
@@ -24923,8 +24928,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     }
                     const isVisible = !hiddenTabs.includes(tabId);
                     const chip = document.createElement("button");
-                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "#91405f" : "#3a1928"};background:${isVisible ? "#2a1421" : "transparent"};color:${isVisible ? "#cf6f98" : "#7a5a6a"};`;
-                    chip.textContent = (_b = EBC_TAB_LABELS[tabId]) !== null && _b !== void 0 ? _b : tabId.toUpperCase();
+                    chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
+                    chip.textContent = (_c = EBC_TAB_LABELS[tabId]) !== null && _c !== void 0 ? _c : tabId.toUpperCase();
                     chip.dataset["tabId"] = tabId;
                     chip.addEventListener("click", () => {
                         const cur = getHiddenTabs();
@@ -24934,9 +24939,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             return;
                         setHiddenTabs(nowHidden);
                         const nowVis = !nowHidden.includes(tabId);
-                        chip.style.borderColor = nowVis ? "#91405f" : "#3a1928";
-                        chip.style.background = nowVis ? "#2a1421" : "transparent";
-                        chip.style.color = nowVis ? "#cf6f98" : "#7a5a6a";
+                        chip.style.borderColor = nowVis ? "var(--ebc-accent-dim)" : "var(--ebc-border)";
+                        chip.style.background = nowVis ? "var(--ebc-card)" : "transparent";
+                        chip.style.color = nowVis ? "var(--ebc-accent)" : "var(--ebc-text-muted)";
                         this.applyTabVisibility();
                     });
                     tabVisGrid.appendChild(chip);
@@ -25024,7 +25029,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 hotkeyHint.textContent = t("dev.hotkeyHint");
                 hotkeyWrap.appendChild(hotkeyHint);
                 cnt.appendChild(hotkeyWrap);
-            });
+            }, "section-dev-prefs");
             // ── Developer Tools ────────────────────────────────────────────────────
             makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
                 // Character Inspector
@@ -25398,44 +25403,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             let renderRoom = () => { };
             let renderRlog = () => { };
             let renderMsgLog = () => { };
-            // ── EBC Users in Room ─────────────────────────────────────────────────
-            makeSection("EBC Users in Room", "EBC_devEBCUsersCollapsed", false, (cnt) => {
-                const renderEBCUsers = () => {
-                    while (cnt.firstChild)
-                        cnt.removeChild(cnt.firstChild);
-                    const users = getEBCUsersInRoom();
-                    const refreshBtn = document.createElement("button");
-                    refreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;background:transparent;border:1px solid #3a1928;border-radius:4px;padding:2px 8px;cursor:pointer;margin-bottom:6px;";
-                    refreshBtn.textContent = "↻ Refresh";
-                    refreshBtn.addEventListener("click", renderEBCUsers);
-                    cnt.appendChild(refreshBtn);
-                    if (!users.length) {
-                        const empty = document.createElement("div");
-                        empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4a58;padding:4px 2px;";
-                        empty.textContent = "No EBC users detected in room yet.";
-                        cnt.appendChild(empty);
-                        return;
-                    }
-                    for (const u of users) {
-                        const row = document.createElement("div");
-                        row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:5px;margin-bottom:3px;";
-                        const nameEl = document.createElement("span");
-                        nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f0d8e8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                        nameEl.textContent = u.name;
-                        const idEl = document.createElement("span");
-                        idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
-                        idEl.textContent = `#${u.memberNumber}`;
-                        const verEl = document.createElement("span");
-                        verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#cf6f98;flex-shrink:0;background:#2a0e1e;border:1px solid #6b3050;border-radius:4px;padding:1px 5px;";
-                        verEl.textContent = `v${u.version}`;
-                        row.appendChild(nameEl);
-                        row.appendChild(idEl);
-                        row.appendChild(verEl);
-                        cnt.appendChild(row);
-                    }
-                };
-                renderEBCUsers();
-            });
             makeSection(t("dev.logs"), "EBC_devLogSectionCollapsed", true, (cnt) => {
                 // -- shared helpers --
                 const fmtDuration = (ms) => {
@@ -26222,7 +26189,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         showConfirmOverlay("Clear the entire People Met list? This cannot be undone.", "Cancel", "Clear All", () => { clearPeopleMet(); renderList(); });
                     });
                 });
-            });
+            }, "section-dev-logs");
             // ── Stat Editor (credited members only) ───────────────────────────────
             const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
             if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
@@ -27040,6 +27007,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             addCatBtn.className = "ebc-cat-pill";
             addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
             addCatBtn.textContent = t("buttons.addCategory");
+            addCatBtn.setAttribute("data-guide-target", "btn-add-category");
             addCatBtn.addEventListener("click", () => {
                 var _a;
                 const name = (_a = window.prompt("Category name (e.g. RP, Casual):")) !== null && _a !== void 0 ? _a : "";
@@ -30152,48 +30120,36 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     heart: "💛",
                 },
             ];
-            // Same FA paw SVG path used by the in-game creator badge in main.ts.
-            // Inlined here so the credits card can use it as a real SVG rather than an emoji.
-            const makePawSvg = (size) => {
-                const span = document.createElement("span");
-                span.className = "ebc-thanks-paw-icon";
-                span.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}"><path fill="#ffd700" d="M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5 .3-86.2 32.6-96.8 70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3-14.3-70.1 10.2-84.1 59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5 0 46.3-30.6 88.4-76.2 92.2-17.6 1.5-34.7-3.5-53.9-9.2-15.7-4.7-32.8-9.9-51.9-9.9-19.1 0-36.2 5.2-51.9 9.9-19.2 5.7-36.3 10.7-53.9 9.2C57.6 519.6 27 477.5 27 431.2c0-10.4 1.6-20.8 5.2-30.5zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5 46.9 53.9 32.6 96.8-52.1 69.1-84.4 58.5zM421.6 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3 29.1 51.7 10.2 84.1-54 47.3-78.5 33.3z"/></svg>`;
-                return span;
-            };
             for (const p of people) {
                 const card = document.createElement("div");
                 card.className = "ebc-thanks-card";
                 const isPawCard = p.memberId === 130267;
-                // Creator card: golden left-border accent, no background tint
                 if (isPawCard) {
-                    card.style.borderLeftColor = "#c89030";
-                    card.style.borderLeftWidth = "3px";
+                    card.style.borderLeft = "4px solid #c89030";
                 }
-                // Avatar circle — paw SVG for creator, emoji for everyone else
-                const avatar = document.createElement("div");
-                avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
-                if (isPawCard) {
-                    avatar.appendChild(makePawSvg(22));
-                }
-                else {
+                // Creator card: no avatar circle — avatar is only shown for other members
+                if (!isPawCard) {
+                    const avatar = document.createElement("div");
+                    avatar.className = "ebc-thanks-avatar";
                     avatar.textContent = p.emoji;
+                    card.appendChild(avatar);
                 }
                 const info = document.createElement("div");
                 info.className = "ebc-thanks-info";
                 const nameRow = document.createElement("div");
-                nameRow.style.cssText = "display:flex;align-items:baseline;gap:5px;";
+                nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
                 const namEl = document.createElement("span");
                 namEl.className = "ebc-thanks-name";
                 namEl.textContent = p.name;
                 const vipCredit = VIP_MEMBERS[p.memberId];
                 if (vipCredit)
                     applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
-                // Creator gets a small golden "Creator" label; others get a muted member ID
+                nameRow.appendChild(namEl);
                 if (isPawCard) {
+                    // Proper gold pill badge
                     const creatorBadge = document.createElement("span");
-                    creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#c89030;letter-spacing:0.06em;text-transform:uppercase;";
+                    creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#1a0d02;background:#c89030;border-radius:3px;padding:1px 6px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;";
                     creatorBadge.textContent = "Creator";
-                    nameRow.appendChild(namEl);
                     nameRow.appendChild(creatorBadge);
                 }
                 else {
@@ -30201,7 +30157,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     idEl2.className = "ebc-member-chip";
                     idEl2.textContent = "#" + p.memberId;
                     idEl2.title = "BC Member Number";
-                    nameRow.appendChild(namEl);
                     nameRow.appendChild(idEl2);
                 }
                 const reason = document.createElement("span");
@@ -30209,13 +30164,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 reason.textContent = p.reason;
                 info.appendChild(nameRow);
                 info.appendChild(reason);
-                // Right decoration — plain emoji for everyone (SVG at this size looks like a blob)
-                const heart = document.createElement("span");
-                heart.className = "ebc-thanks-heart";
-                heart.textContent = p.heart;
-                card.appendChild(avatar);
                 card.appendChild(info);
-                card.appendChild(heart);
+                // Right decoration — skip for the creator card (avatar already has the paw)
+                if (!isPawCard) {
+                    const heart = document.createElement("span");
+                    heart.className = "ebc-thanks-heart";
+                    heart.textContent = p.heart;
+                    card.appendChild(heart);
+                }
                 body.appendChild(card);
             }
         }
@@ -31521,16 +31477,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tab: "outfits",
             label: "👗 Outfits — Save & Apply Looks",
             text: "Click [[💾 Save]] to store your current full appearance as a named preset.\nClick any saved outfit card to [[Apply]] it — restoring every clothing layer and colour instantly.\nUse [[✏]] to rename, [[🗑]] to delete, and the [[↑ ↓]] arrows to reorder your list.\n((Great for switching between different roleplay or casual looks in seconds.))",
+            spotlight: ["[data-guide-target='btn-new-outfit']"],
         },
         {
             tab: "outfits",
             label: "🏷 Outfit Tags & Schedules",
             text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the [[🏷]] icon on any outfit card to assign tags — then filter by tag at the top of the list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day. Expand the [[Schedules]] section at the bottom of this tab to set one up.\n((You can also [[📤 Export]] outfits as codes and share them — use [[📥 Import]] to load a code someone sent you.))",
+            spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
         },
         {
             tab: "buttons",
             label: "🎛 Action Buttons — Quick Commands",
             text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] handle on a button card to reorder it. [[✏]] edits it, [[🗑]] deletes it.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
+            spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "buttons",
@@ -31548,26 +31507,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             tab: "notes",
             label: "👥 Users & Friends",
             text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate — perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions — a permanent address book of everyone you've encountered.))",
+            spotlight: ["[data-guide-target='section-room-people']"],
         },
         {
             tab: "dev",
             label: "⚙ DEV — Preferences & Themes",
             text: "[[Quick Preset]] lets you apply a full colour theme instantly — try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
+            spotlight: ["[data-guide-target='section-dev-prefs']"],
         },
         {
             tab: "dev",
             label: "📋 DEV — Logs & History",
             text: "[[Whisper Log]] — every whisper sent and received this session.\n[[Current Room]] — who is in your room right now, with member IDs.\n[[Rooms Visited]] — all rooms you've entered this session.\n[[Restraint Log]] — when items were applied or removed.\n[[People Met]] — persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
+            spotlight: ["[data-guide-target='section-dev-logs']"],
         },
         {
             tab: null,
             label: "🏷 EBC Tag Settings Strip",
             text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use [[📍 Text]] and [[📍 Cat]] buttons to drag each badge to its exact position on screen.",
+            spotlight: ["[data-guide-target='strip-ebc-tags']"],
         },
         {
             tab: null,
             label: "🛡 Safewords Strip",
             text: "The [[SAFEWORDS]] bar is always pinned at the top of the panel — reachable instantly no matter which tab you're on.\nSet up to [[3 safewords]] — clicking one sends a pre-written safety message to the room immediately.\nConfigure a [[Grace period]] (in minutes) to prevent accidental taps, and enable a [[Confirm step]] for extra safety.\n((Both the Safewords and EBC Tags strips can be hidden per-tab in [[DEV → Pinned strip visibility]].))",
+            spotlight: ["[data-guide-target='strip-safewords']"],
         },
         {
             tab: null,
@@ -31596,7 +31560,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.7";
+    const MOD_VERSION = "3.4.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31607,6 +31571,52 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.4.4",
+            changes: [
+                "Guide: every step now spotlights the relevant UI element with a pulsing pink outline. New button, Tags section, Schedules, Add Category, Room People, DEV Preferences, DEV Logs, EBC Tags strip, and Safewords strip all have guide targets wired up.",
+            ],
+        },
+        {
+            version: "3.4.3",
+            changes: [
+                "Credits: removed the avatar circle from Emery's card entirely — no more SVG blob issues. Card now has a 4px solid gold left border, and 'Creator' is a proper gold pill badge (gold background, dark text). Clean and intentional.",
+            ],
+        },
+        {
+            version: "3.4.2",
+            changes: [
+                "Credits: fixed golden glow bleeding outside the paw avatar circle — added overflow:hidden so the drop-shadow stays clipped to the circle boundary.",
+                "Poses: fixed Relaxed step being silently dropped when reopening a combo editor. filter(Boolean) was stripping the empty string key used for Relaxed; changed to filter(p => p != null) so it's preserved.",
+            ],
+        },
+        {
+            version: "3.4.1",
+            changes: [
+                "Theme presets: removed emojis from preset names — they looked inconsistent in the native select dropdown.",
+                "Theme presets: the dropdown now remembers and shows the last applied preset instead of resetting to '-- choose preset --' after every selection. Reset button correctly resets back to Rose.",
+                "Theme presets: manually tweaking a colour slot now clears the active preset indicator (since the colours are no longer a pure preset).",
+                "Theme UI: preset row, colour picker labels, and tab visibility chips now use CSS variables so they update immediately when any theme is applied, without needing a tab switch.",
+            ],
+        },
+        {
+            version: "3.4.0",
+            changes: [
+                "Guide: replaced the 13-dot progress indicator with a clean progress bar. Next is now a filled pink primary button; Back is a small ghost button — clear visual hierarchy so the action you want is obvious.",
+            ],
+        },
+        {
+            version: "3.3.9",
+            changes: [
+                "Credits: fixed paw SVG rendering on Emery's card — avatar circle enlarged to 44px and paw drawn at 28px so the toe pads are actually legible instead of a blob. Removed the redundant right-side 🐾 emoji.",
+            ],
+        },
+        {
+            version: "3.3.8",
+            changes: [
+                "DEV tab: removed 'EBC Users in Room' section.",
+            ],
+        },
         {
             version: "3.3.7",
             changes: [
