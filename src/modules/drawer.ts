@@ -1394,6 +1394,7 @@ const CSS = `
     height: 44px !important;
     border-color: #b07010 !important;
     background: #26180a !important;
+    overflow: hidden;
     animation: ebc-paw-ring 2.6s ease-in-out infinite;
 }
 @keyframes ebc-paw-ring {
@@ -8393,7 +8394,9 @@ export class EBCDrawer {
             initialPoses: string[],
             initialDelay = 420,
         ): { getPoses: () => string[]; getDelay: () => number } => {
-            const poses = initialPoses.filter(Boolean).slice();
+            // Use filter(p => p != null) instead of filter(Boolean) so that
+            // "" (the Relaxed/clear-arms step) is preserved.
+            const poses = initialPoses.filter(p => p != null).slice();
 
             // -- Step list --------------------------------------------------------
             const listEl = document.createElement("div");
