@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.9.9
+// @version      2.10.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13150,14 +13150,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     overscroll-behavior: contain;
 }
 
+/* -- Chrome wrap (always-visible controls: quick actions, safeword, EBC tags) -- */
+/* Capped at 40% of the panel so the main tab body always has room to display and scroll. */
+.ebc-chrome-wrap {
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 40%;
+    scrollbar-width: thin;
+    scrollbar-color: #cf6f98 #1a0814;
+}
+
 /* Unified scrollbar theme for all EBC scrollable areas */
 .ebc-body::-webkit-scrollbar,
+.ebc-chrome-wrap::-webkit-scrollbar,
 .ebc-beep-win-history::-webkit-scrollbar { width: 5px; }
 .ebc-body::-webkit-scrollbar-track,
+.ebc-chrome-wrap::-webkit-scrollbar-track,
 .ebc-beep-win-history::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb,
+.ebc-chrome-wrap::-webkit-scrollbar-thumb,
 .ebc-beep-win-history::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb:hover,
+.ebc-chrome-wrap::-webkit-scrollbar-thumb:hover,
 .ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
@@ -16824,13 +16839,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const zoomWrapper = document.createElement("div");
             zoomWrapper.className = "ebc-zoom-wrapper";
             zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
+            // Wrap the always-visible chrome controls in a scrollable container that is
+            // capped at 40% of the panel height.  This prevents the chrome from consuming
+            // so much vertical space that the main tab body (ebc-body) gets zero height.
+            const chromeWrap = document.createElement("div");
+            chromeWrap.className = "ebc-chrome-wrap";
+            chromeWrap.appendChild(quickActions);
+            chromeWrap.appendChild(selfPickPanel);
+            chromeWrap.appendChild(safewordRow);
+            chromeWrap.appendChild(ebcTagsStrip);
             panel.appendChild(header);
             panel.appendChild(tabBar);
             panel.appendChild(langRow);
-            panel.appendChild(quickActions);
-            panel.appendChild(selfPickPanel);
-            panel.appendChild(safewordRow);
-            panel.appendChild(ebcTagsStrip);
+            panel.appendChild(chromeWrap);
             panel.appendChild(body);
             panel.appendChild(footer);
             // Move all panel children into the wrapper, then add wrapper to panel.
@@ -30814,7 +30835,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.9.9";
+    const MOD_VERSION = "2.10.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30825,6 +30846,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.10.0",
+            changes: [
+                "Fix: Text badge now renders using direct canvas text so the font size scales correctly at any badge scale value — previously DrawTextFit had an internal size cap that made large badges look broken.",
+                "Fix: The always-visible chrome area (quick actions, safeword section, EBC tag strip) now has a scrollable max-height cap so its contents never push the main tab body off-screen. All tabs now reliably display their scrollable content area.",
+            ],
+        },
         {
             version: "2.9.9",
             changes: [
@@ -34893,15 +34921,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (ctx)
                     ctx.restore();
             }
-            // Label text — independent opacity
-            if (badgeTextOp > 0) {
-                if (ctx) {
-                    ctx.save();
-                    ctx.globalAlpha = badgeTextOp;
-                }
-                DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
-                if (ctx)
-                    ctx.restore();
+            // Label text — direct canvas rendering so font size scales with badge height.
+            // DrawTextFit has an internal pixel cap that makes large badges look broken.
+            if (badgeTextOp > 0 && ctx) {
+                ctx.save();
+                ctx.globalAlpha = badgeTextOp;
+                ctx.font = `bold ${Math.max(8, Math.round(height * 0.66))}px "Trebuchet MS",sans-serif`;
+                ctx.fillStyle = UI.accent;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4);
+                ctx.restore();
             }
         }
         // ── Drag-mode handle (own character only) ─────────────────────────────────
