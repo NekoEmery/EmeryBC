@@ -1471,6 +1471,28 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Others' version badge visibility -----------------------------------------
+    // When enabled, other players' EBC overhead badges show their version number.
+    // Defaults to false (badge shows just "EBC" for others).
+    function getShowOthersVersionBadge() {
+        var _a;
+        try {
+            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.showOthersVersionBadge) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setShowOthersVersionBadge(value) {
+        try {
+            const store = getStore$7();
+            if (!store)
+                return;
+            store.showOthersVersionBadge = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Anti-restraint -----------------------------------------------------------
     // When enabled, any restraint applied to the player by someone else is
     // immediately removed and a playful emote is sent to the room.
@@ -12389,6 +12411,11 @@
         // ─── EBC TAGS STRIP ────────────────────────────────────────────────────────
         "strip.myTag": { en: "My tag", de: "Mein Tag", zh: "我的标签", fr: "Mon tag", es: "Mi tag", ru: "Мой тег", ja: "自分のタグ" },
         "strip.others": { en: "Others", de: "Andere", zh: "他人标签", fr: "Autres", es: "Otros", ru: "Другие", ja: "他のユーザー" },
+        "strip.myVersion": { en: "My version", de: "Meine Version", zh: "我的版本号", fr: "Ma version", es: "Mi versión", ru: "Моя версия", ja: "自分のバージョン" },
+        "strip.othersVersion": { en: "Others' ver.", de: "Andere Ver.", zh: "他人版本号", fr: "Ver. autres", es: "Ver. otros", ru: "Версия других", ja: "他人のバージョン" },
+        "strip.myVersionSub": { en: "Show version number in your own EBC badge", de: "Versionsnummer in deinem eigenen EBC-Abzeichen anzeigen", zh: "在自己的 EBC 标签中显示版本号", fr: "Afficher le numéro de version dans votre propre badge EBC", es: "Mostrar número de versión en tu propia insignia EBC", ru: "Показывать номер версии в вашем EBC-значке", ja: "自分のEBCバッジにバージョン番号を表示" },
+        "strip.othersVersionSub": { en: "Show version number in other players' EBC badges", de: "Versionsnummer in den EBC-Abzeichen anderer Spieler anzeigen", zh: "在其他玩家的 EBC 标签中显示版本号", fr: "Afficher le numéro de version dans les badges EBC des autres joueurs", es: "Mostrar número de versión en las insignias EBC de otros jugadores", ru: "Показывать номер версии в EBC-значках других игроков", ja: "他プレイヤーのEBCバッジにバージョン番号を表示" },
+        "strip.versionDisplay": { en: "VERSION", de: "VERSION", zh: "版本显示", fr: "VERSION", es: "VERSIÓN", ru: "ВЕРСИЯ", ja: "バージョン" },
         "strip.pinTab": { en: "Pin tab", de: "Tab anheften", zh: "固定标签", fr: "Épingler", es: "Fijar", ru: "Закрепить", ja: "タブを固定" },
         // ─── MISC ───────────────────────────────────────────────────────────────────
         "outfits.newTagName": { en: "New tag name", de: "Neuer Etikettenname", zh: "新标签名称", fr: "Nouveau nom de tag", es: "Nuevo nombre de etiqueta", ru: "Новое название тега", ja: "新しいタグ名" },
@@ -16495,13 +16522,13 @@
             ebcTagsHdr.addEventListener("mouseenter", () => { ebcTagsHdr.style.background = "#251220"; });
             ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
             const ebcTagsHdrLeft = document.createElement("div");
-            ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
+            ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
             const ebcTagsHdrIcon = document.createElement("span");
-            ebcTagsHdrIcon.textContent = "🏷";
-            ebcTagsHdrIcon.style.fontSize = "10px";
+            ebcTagsHdrIcon.style.cssText = "flex-shrink:0;line-height:0;";
+            ebcTagsHdrIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
             const ebcTagsHdrLabel = document.createElement("span");
             ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-            ebcTagsHdrLabel.textContent = t("strip.tagToggles");
+            ebcTagsHdrLabel.textContent = "EBC";
             ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
             ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
             // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
@@ -16521,7 +16548,7 @@
             // Card row
             const ebcTagsCardRow = document.createElement("div");
             ebcTagsCardRow.style.cssText = "display:flex;gap:7px;";
-            const makeTagCard = (icon, label, sublabel, getVal, setVal) => {
+            const makeTagCard = (icon, label, sublabel, getVal, setVal, container) => {
                 const card = document.createElement("div");
                 card.title = sublabel;
                 const cardTop = document.createElement("div");
@@ -16559,11 +16586,21 @@
                 };
                 refresh();
                 card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
-                ebcTagsCardRow.appendChild(card);
+                container.appendChild(card);
             };
-            makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled);
-            makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge);
+            makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
+            makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
             ebcTagsBody.appendChild(ebcTagsCardRow);
+            // ── Version display row ───────────────────────────────────────────────
+            const versionRowLbl = document.createElement("div");
+            versionRowLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:6px 0 4px;";
+            versionRowLbl.textContent = t("strip.versionDisplay");
+            ebcTagsBody.appendChild(versionRowLbl);
+            const versionCardRow = document.createElement("div");
+            versionCardRow.style.cssText = "display:flex;gap:7px;";
+            makeTagCard("v", t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
+            makeTagCard("v", t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
+            ebcTagsBody.appendChild(versionCardRow);
             // ── Badge Appearance ─────────────────────────────────────────────────
             const badgeDivider = document.createElement("div");
             badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
@@ -30720,7 +30757,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.9.5";
+    const MOD_VERSION = "2.9.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30731,6 +30768,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.9.6",
+            changes: [
+                "Feature: Separate version-badge controls for self and others. 'My version' toggles whether your own badge shows your EBC version; 'Others\\' ver.' toggles whether other players' badges show their version. Both are now in the EBC tag strip alongside the existing visibility cards.",
+                "UX: EBC tag strip section header now shows the EBC cat-face logo and the addon name instead of the generic 🏷 label.",
+            ],
+        },
         {
             version: "2.9.5",
             changes: [
@@ -34719,7 +34763,7 @@
         if (zoom < 0.3)
             return;
         const presence = getSharedPresence(character);
-        const showVer = getShowVersionBadge();
+        const showVer = isSelf ? getShowVersionBadge() : getShowOthersVersionBadge();
         const verStr = isSelf ? MOD_VERSION : ((_a = presence === null || presence === void 0 ? void 0 : presence.version) !== null && _a !== void 0 ? _a : "?");
         const isDevUser = isSelf ? IS_DEV_BUILD : ((presence === null || presence === void 0 ? void 0 : presence.isDev) === true);
         const label = isDevUser
