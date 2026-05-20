@@ -1377,30 +1377,7 @@ const CSS = `
     user-select: none;
 }
 
-/* Golden paw SVG icon used on Emery's credits card (same FA paw as the in-game creator badge) */
-.ebc-thanks-paw-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    filter: drop-shadow(0 0 5px rgba(255, 200, 40, 0.65));
-    animation: ebc-paw-flash 2.6s ease-in-out infinite;
-}
-@keyframes ebc-paw-flash {
-    0%, 100% { filter: drop-shadow(0 0 4px rgba(240, 170, 20, 0.45)); }
-    50%       { filter: drop-shadow(0 0 14px rgba(255, 225, 55, 1));   }
-}
-.ebc-thanks-avatar-paw {
-    width: 44px !important;
-    height: 44px !important;
-    border-color: #b07010 !important;
-    background: #26180a !important;
-    overflow: hidden;
-    animation: ebc-paw-ring 2.6s ease-in-out infinite;
-}
-@keyframes ebc-paw-ring {
-    0%, 100% { box-shadow: 0 0 6px  rgba(200, 130, 10, 0.35); border-color: #b07010; }
-    50%       { box-shadow: 0 0 16px rgba(255, 200, 40, 0.85); border-color: #f0c030; }
-}
+
 
 .ebc-member-chip {
     display: inline-block;
@@ -17245,40 +17222,28 @@ export class EBCDrawer {
             },
         ];
 
-        // Same FA paw SVG path used by the in-game creator badge in main.ts.
-        // Inlined here so the credits card can use it as a real SVG rather than an emoji.
-        const makePawSvg = (size: number): HTMLSpanElement => {
-            const span = document.createElement("span");
-            span.className = "ebc-thanks-paw-icon";
-            span.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="${size}" height="${size}"><path fill="#ffd700" d="M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5 .3-86.2 32.6-96.8 70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3-14.3-70.1 10.2-84.1 59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5 0 46.3-30.6 88.4-76.2 92.2-17.6 1.5-34.7-3.5-53.9-9.2-15.7-4.7-32.8-9.9-51.9-9.9-19.1 0-36.2 5.2-51.9 9.9-19.2 5.7-36.3 10.7-53.9 9.2C57.6 519.6 27 477.5 27 431.2c0-10.4 1.6-20.8 5.2-30.5zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5 46.9 53.9 32.6 96.8-52.1 69.1-84.4 58.5zM421.6 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3 29.1 51.7 10.2 84.1-54 47.3-78.5 33.3z"/></svg>`;
-            return span;
-        };
-
         for (const p of people) {
             const card = document.createElement("div");
             card.className = "ebc-thanks-card";
 
             const isPawCard = p.memberId === 130267;
-            // Creator card: golden left-border accent, no background tint
             if (isPawCard) {
-                card.style.borderLeftColor = "#c89030";
-                card.style.borderLeftWidth = "3px";
+                card.style.borderLeft = "4px solid #c89030";
             }
 
-            // Avatar circle — paw SVG for creator, emoji for everyone else
-            const avatar = document.createElement("div");
-            avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
-            if (isPawCard) {
-                avatar.appendChild(makePawSvg(28));
-            } else {
+            // Creator card: no avatar circle — avatar is only shown for other members
+            if (!isPawCard) {
+                const avatar = document.createElement("div");
+                avatar.className = "ebc-thanks-avatar";
                 avatar.textContent = p.emoji;
+                card.appendChild(avatar);
             }
 
             const info = document.createElement("div");
             info.className = "ebc-thanks-info";
 
             const nameRow = document.createElement("div");
-            nameRow.style.cssText = "display:flex;align-items:baseline;gap:5px;";
+            nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
 
             const namEl = document.createElement("span");
             namEl.className = "ebc-thanks-name";
@@ -17286,19 +17251,19 @@ export class EBCDrawer {
             const vipCredit = VIP_MEMBERS[p.memberId];
             if (vipCredit) applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
 
-            // Creator gets a small golden "Creator" label; others get a muted member ID
+            nameRow.appendChild(namEl);
+
             if (isPawCard) {
+                // Proper gold pill badge
                 const creatorBadge = document.createElement("span");
-                creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#c89030;letter-spacing:0.06em;text-transform:uppercase;";
+                creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#1a0d02;background:#c89030;border-radius:3px;padding:1px 6px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;";
                 creatorBadge.textContent = "Creator";
-                nameRow.appendChild(namEl);
                 nameRow.appendChild(creatorBadge);
             } else {
                 const idEl2 = document.createElement("span");
                 idEl2.className = "ebc-member-chip";
                 idEl2.textContent = "#" + p.memberId;
                 idEl2.title = "BC Member Number";
-                nameRow.appendChild(namEl);
                 nameRow.appendChild(idEl2);
             }
 

@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.4.2";
+const MOD_VERSION = "3.4.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.4.3",
+        changes: [
+            "Credits: removed the avatar circle from Emery's card entirely — no more SVG blob issues. Card now has a 4px solid gold left border, and 'Creator' is a proper gold pill badge (gold background, dark text). Clean and intentional.",
+        ],
+    },
     {
         version: "3.4.2",
         changes: [
