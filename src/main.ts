@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.3.1";
+const MOD_VERSION = "3.3.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.3.2",
+        changes: [
+            "Guide: keyword highlight chips are now clearly visible — background raised from near-black #4a1535 to a vivid #b84878, brighter border, stronger glow. They now pop against the dark guide card instead of blending in.",
+        ],
+    },
     {
         version: "3.3.1",
         changes: [

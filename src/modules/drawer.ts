@@ -2941,17 +2941,17 @@ const CSS = `
 /* Highlighted keyword chips — the main teaching tool */
 .ebc-guide-hl {
     display: inline-block;
-    background: #4a1535;
-    border: 1px solid #cf6f98;
+    background: #b84878;
+    border: 1px solid #e888b8;
     border-radius: 4px;
-    padding: 1px 6px;
-    color: #ffcce8;
+    padding: 1px 7px;
+    color: #fff0f8;
     font-weight: bold;
     font-size: 10px;
     white-space: nowrap;
     vertical-align: middle;
-    line-height: 1.6;
-    box-shadow: 0 0 6px rgba(207,111,152,0.25);
+    line-height: 1.7;
+    box-shadow: 0 0 8px rgba(207,111,152,0.55), inset 0 1px 0 rgba(255,200,228,0.15);
 }
 .ebc-guide-note {
     display: block;
