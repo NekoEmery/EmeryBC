@@ -424,10 +424,13 @@ export function resetSidebarPos(): void {
 
 let sidebarCollapsed = false;
 
-// Per-button cooldown — prevents spamming action emotes too fast.
-// Key: categoryIndex * 100 + buttonSlotIndex  →  timestamp of last fire (ms).
-const BUTTON_COOLDOWN_MS = 5_000;
-const _btnCooldowns = new Map<number, number>();
+// Per-button spam cooldown.
+// First press always fires.  If a second press lands within SPAM_WINDOW_MS the
+// cooldown activates and blocks the button for BUTTON_COOLDOWN_MS.
+const BUTTON_COOLDOWN_MS = 5_000;   // how long the button is locked after spam is detected
+const SPAM_WINDOW_MS     = 2_000;   // two presses within this window triggers the lockout
+const _btnLastFire    = new Map<number, number>(); // key → timestamp of last successful fire
+const _btnCooldowns   = new Map<number, number>(); // key → timestamp cooldown was activated
 
 // Drag state
 let isDragging = false;
@@ -738,8 +741,18 @@ export function handleActionButtonClick(): boolean {
         if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
             my >= y         && my <= y + BTN_SIZE) {
             const cdKey = idx * 100 + i;
-            if (now - (_btnCooldowns.get(cdKey) ?? 0) < BUTTON_COOLDOWN_MS) return true; // cooldown active — consume click, do nothing
-            _btnCooldowns.set(cdKey, now);
+
+            // Blocked: cooldown is active
+            if (now - (_btnCooldowns.get(cdKey) ?? 0) < BUTTON_COOLDOWN_MS) return true;
+
+            // Spam detected: second press within SPAM_WINDOW_MS → activate cooldown, block
+            if (now - (_btnLastFire.get(cdKey) ?? 0) < SPAM_WINDOW_MS) {
+                _btnCooldowns.set(cdKey, now);
+                return true;
+            }
+
+            // Normal fire: record time and send the action
+            _btnLastFire.set(cdKey, now);
             const animOk = triggerLabelAnimation(btn.label);
             if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
             return true;
