@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.7.4";
+const MOD_VERSION = "3.7.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,9 +37,9 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "3.7.4",
+        version: "3.7.5",
         changes: [
-            "Action buttons: cooldown now only activates on spam. First press always fires freely. A second press within 2 seconds triggers the 5s lockout. Waiting 2s between presses resets the window — no penalty for normal use.",
+            "Action buttons: first 3 rapid presses all fire freely; a 4th press within 2 seconds triggers the 5s cooldown lockout. Waiting 2s+ between presses resets the streak.",
         ],
     },
     {

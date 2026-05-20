@@ -425,11 +425,14 @@ export function resetSidebarPos(): void {
 let sidebarCollapsed = false;
 
 // Per-button spam cooldown.
-// First press always fires.  If a second press lands within SPAM_WINDOW_MS the
-// cooldown activates and blocks the button for BUTTON_COOLDOWN_MS.
-const BUTTON_COOLDOWN_MS = 5_000;   // how long the button is locked after spam is detected
-const SPAM_WINDOW_MS     = 2_000;   // two presses within this window triggers the lockout
+// Up to SPAM_FREE_PRESSES consecutive rapid presses are allowed; the next press
+// within SPAM_WINDOW_MS activates the cooldown and is blocked.
+// Waiting longer than SPAM_WINDOW_MS between presses resets the streak.
+const BUTTON_COOLDOWN_MS  = 5_000;  // lock duration once spam is detected
+const SPAM_WINDOW_MS      = 2_000;  // window in which consecutive presses are counted
+const SPAM_FREE_PRESSES   = 3;      // presses 1-3 fire freely; press 4+ triggers lockout
 const _btnLastFire    = new Map<number, number>(); // key → timestamp of last successful fire
+const _btnPressCount  = new Map<number, number>(); // key → consecutive rapid press count
 const _btnCooldowns   = new Map<number, number>(); // key → timestamp cooldown was activated
 
 // Drag state
@@ -745,13 +748,19 @@ export function handleActionButtonClick(): boolean {
             // Blocked: cooldown is active
             if (now - (_btnCooldowns.get(cdKey) ?? 0) < BUTTON_COOLDOWN_MS) return true;
 
-            // Spam detected: second press within SPAM_WINDOW_MS → activate cooldown, block
-            if (now - (_btnLastFire.get(cdKey) ?? 0) < SPAM_WINDOW_MS) {
+            // Count consecutive rapid presses; reset streak if the window expired
+            const streak = now - (_btnLastFire.get(cdKey) ?? 0) < SPAM_WINDOW_MS
+                ? (_btnPressCount.get(cdKey) ?? 0) + 1
+                : 1;
+            _btnPressCount.set(cdKey, streak);
+
+            // Spam threshold exceeded → activate cooldown, block this press
+            if (streak > SPAM_FREE_PRESSES) {
                 _btnCooldowns.set(cdKey, now);
                 return true;
             }
 
-            // Normal fire: record time and send the action
+            // Within free presses → fire normally
             _btnLastFire.set(cdKey, now);
             const animOk = triggerLabelAnimation(btn.label);
             if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
