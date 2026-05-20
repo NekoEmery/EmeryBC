@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.10.4";
+const MOD_VERSION = "2.10.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.10.5",
+        changes: [
+            "Fix: Footer is now always visible on every page. Chrome elements (quick-actions, safewords, EBC strip) and the body are wrapped in a shared flex column (middleArea: flex:1; min-height:0; overflow:hidden). The footer lives outside that container so it can never be pushed off-screen regardless of chrome height or body content. This also eliminates scroll-event stealing — only the body scrolls, and only when the cursor is over it.",
+        ],
+    },
     {
         version: "2.10.4",
         changes: [

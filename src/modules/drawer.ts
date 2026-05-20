@@ -4501,14 +4501,25 @@ export class EBCDrawer {
         zoomWrapper.className = "ebc-zoom-wrapper";
         zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
 
+        // middleArea: wraps all chrome elements + body in a single flex column
+        // that takes all remaining space between the header/tabBar/langRow and the
+        // footer.  Because middleArea is flex:1;min-height:0, the footer (below it)
+        // is ALWAYS visible regardless of how tall the chrome items become.
+        // overflow:hidden prevents chrome from stealing scroll events — the body
+        // inside still scrolls normally when the cursor is over it.
+        const middleArea = document.createElement("div");
+        middleArea.style.cssText = "flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;";
+
+        middleArea.appendChild(quickActions);
+        middleArea.appendChild(selfPickPanel);
+        middleArea.appendChild(safewordRow);
+        middleArea.appendChild(ebcTagsStrip);
+        middleArea.appendChild(body);
+
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(langRow);
-        panel.appendChild(quickActions);
-        panel.appendChild(selfPickPanel);
-        panel.appendChild(safewordRow);
-        panel.appendChild(ebcTagsStrip);
-        panel.appendChild(body);
+        panel.appendChild(middleArea);
         panel.appendChild(footer);
         // Move all panel children into the wrapper, then add wrapper to panel.
         while (panel.firstChild) zoomWrapper.appendChild(panel.firstChild);
