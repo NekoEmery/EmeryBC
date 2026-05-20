@@ -347,7 +347,7 @@ const PANEL_ZOOM_KEY = "EBC_panelZoom";
 function loadPanelZoom(): number {
     try {
         const v = parseFloat(localStorage.getItem(PANEL_ZOOM_KEY) ?? "1");
-        return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.5, v));
+        return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.4, v));
     } catch { return 1; }
 }
 
@@ -4416,6 +4416,14 @@ export class EBCDrawer {
             updateEbcTagsCollapse();
         });
 
+        // Wrap all panel children in .ebc-zoom-wrapper.
+        // applyPanelZoom() uses transform:scale() on this wrapper instead of
+        // CSS zoom on #emerybc-panel.  transform doesn't affect the slide
+        // container's layout, so #emerybc-panel never changes size and the
+        // slide transition never misfires — fixes the slider glitch.
+        const zoomWrapper = document.createElement("div");
+        zoomWrapper.className = "ebc-zoom-wrapper";
+        zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(langRow);
@@ -4425,6 +4433,9 @@ export class EBCDrawer {
         panel.appendChild(ebcTagsStrip);
         panel.appendChild(body);
         panel.appendChild(footer);
+        // Move all panel children into the wrapper, then add wrapper to panel.
+        while (panel.firstChild) zoomWrapper.appendChild(panel.firstChild);
+        panel.appendChild(zoomWrapper);
         // (slideContainer/root/body already anchored early in setup — see above)
         this.applyPanelOpacity();
         this.applyPanelZoom();
@@ -4992,33 +5003,32 @@ export class EBCDrawer {
         }
     }
 
-    /** Scale the entire EBC panel via the CSS zoom property.
+    /** Scale the entire EBC panel.
      *
-     * Zoom is applied to #emerybc-panel (the slide container) so the content
-     * fills the panel at every zoom level with no clipping and no background bleed.
+     * Applies transform:scale() to .ebc-zoom-wrapper (an inner div containing
+     * all panel content), NOT to #emerybc-panel (the slide container).
+     * transform doesn't affect layout outside the wrapper, so the slide
+     * container never changes size and its transition never misfires.
      *
-     * The catch: #emerybc-panel has `transition: transform ...` for its open/close
-     * animation, and that animation uses `translateX(calc(100% + 60px))`.  When
-     * zoom changes the element's rendered width, "100%" re-evaluates and the
-     * transition fires, making the panel appear to glitch-slide.
-     *
-     * Fix: suppress the transition inline for the single frame of the zoom change,
-     * force a reflow so the new zoom is committed, then restore the transition on
-     * the next rAF tick — before the next browser paint.  Normal open/close
-     * animations are completely unaffected.
+     * Inverse sizing (width/height = 100/scale %) ensures the scaled wrapper
+     * fills .ebc-panel exactly — no overflow, no clipping, no background bleed.
+     * Rapid slider changes are completely smooth since no layout reflow occurs
+     * on the outer container.
      */
     applyPanelZoom(scale = loadPanelZoom()): void {
-        const panelEl = this.panelEl;
-        if (!panelEl) return;
-        const s = panelEl.style as CSSStyleDeclaration & { zoom?: string; transition?: string };
-        // Disable the CSS transition so the zoom-induced width change doesn't
-        // re-trigger the translateX(calc(100% + 60px)) slide animation.
-        s.transition = "none";
-        s.zoom = scale === 1 ? "" : String(scale);
-        // Force a layout reflow so the zoom is committed before the next paint.
-        panelEl.getBoundingClientRect();
-        // Restore the transition on the next frame (after the frame is painted).
-        requestAnimationFrame(() => { s.transition = ""; });
+        const wrapper = this.rootEl?.querySelector(".ebc-zoom-wrapper") as HTMLElement | null;
+        if (!wrapper) return;
+        if (scale === 1) {
+            wrapper.style.transform = "";
+            wrapper.style.width     = "";
+            wrapper.style.height    = "";
+        } else {
+            // inv% × scale = 100% → scaled content fills .ebc-panel exactly.
+            const inv = (100 / scale).toFixed(4) + "%";
+            wrapper.style.transform = `scale(${scale})`;
+            wrapper.style.width     = inv;
+            wrapper.style.height    = inv;
+        }
     }
 
     /**
@@ -11964,7 +11974,7 @@ export class EBCDrawer {
             const zoomSlider = document.createElement("input");
             zoomSlider.type = "range";
             zoomSlider.min = "0.8";
-            zoomSlider.max = "1.5";
+            zoomSlider.max = "1.4";
             zoomSlider.step = "0.05";
             zoomSlider.value = String(loadPanelZoom());
             zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
