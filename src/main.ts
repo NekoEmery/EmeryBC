@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.5.1";
+const MOD_VERSION = "3.5.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.5.2",
+        changes: [
+            "Scene sequencer: fixed Relaxed arms pose being stripped on save — the empty-string Relaxed marker is now preserved in step.poses.",
+            "Guide: outfits step now names the real button label, removes emoji chips, and adds a one-click 'Create sample outfit' button so users can practise apply/rename/delete immediately.",
+            "Guide: removed emoji from tags, buttons, EBC-tags, and tips steps; replaced with plain text equivalents.",
+            "Touch mode: added overscroll-behavior:contain to the panel body so scroll momentum stays inside the panel and doesn't chain to the page (fixes rubber-banding on modern iOS/Android).",
+        ],
+    },
     {
         version: "3.5.1",
         changes: [
