@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.2.9";
+const MOD_VERSION = "3.3.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.3.0",
+        changes: [
+            "Guide: highlight chips are now much more prominent — bright pink border, darker background, glow, larger font. Tab title is bigger with an underline divider. Note lines have a left-accent bar. Card has a bold left-border accent and stronger shadow.",
+            "Fix: adding a Relaxed arms step now labels it 'Relaxed' instead of 'Stand' (both share key '' internally, but Stand is never added to sequences so '' always means Relaxed in that context).",
+            "Fix: Tags accordion in the Outfits tab now matches the standard section-label style (no more dashed box border making it look like a text input).",
+            "Credits: Lucy moved above Lara.",
+        ],
+    },
     {
         version: "3.2.9",
         changes: [

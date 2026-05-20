@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.2.9
+// @version      3.3.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15558,23 +15558,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 /* ── Interactive guide overlay ──────────────────────────────────────── */
 .ebc-guide-card {
     position: absolute;
-    bottom: 60px;
-    left: 10px;
-    right: 10px;
-    background: #1f0e1a;
-    border: 1px solid #cf6f98;
+    bottom: 52px;
+    left: 6px;
+    right: 6px;
+    background: #170810;
+    border: 2px solid #cf6f98;
+    border-left: 4px solid #cf6f98;
     border-radius: 10px;
-    padding: 12px 14px 10px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+    padding: 11px 13px 10px;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.85), 0 0 0 1px rgba(207,111,152,0.12);
     z-index: 999;
     font-family: "Trebuchet MS", serif;
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 6px;
     animation: ebc-guide-in 0.18s ease;
 }
 @keyframes ebc-guide-in {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 .ebc-guide-top {
@@ -15584,64 +15585,67 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 .ebc-guide-step-lbl {
     font-size: 9px;
-    letter-spacing: 0.5px;
-    color: #9a6878;
+    letter-spacing: 0.6px;
+    color: #8a5870;
     text-transform: uppercase;
 }
 .ebc-guide-close-btn {
     background: none;
     border: none;
     color: #7a5a6a;
-    font-size: 12px;
+    font-size: 13px;
     cursor: pointer;
     padding: 0 2px;
     line-height: 1;
 }
 .ebc-guide-close-btn:hover { color: #cf6f98; }
 .ebc-guide-tab-lbl {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: bold;
-    letter-spacing: 1px;
-    color: #cf6f98;
-    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #f0a0c8;
+    border-bottom: 1px solid #3a1428;
+    padding-bottom: 5px;
+    margin-bottom: 1px;
 }
 .ebc-guide-text {
     font-size: 11px;
-    color: #d4b0be;
-    line-height: 1.5;
+    color: #e0c8d8;
+    line-height: 1.65;
 }
 .ebc-guide-nav {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 2px;
+    margin-top: 3px;
 }
 .ebc-guide-nav-btn {
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
-    padding: 4px 12px;
+    font-weight: bold;
+    padding: 5px 14px;
     border-radius: 5px;
     cursor: pointer;
-    border: 1px solid #3a1928;
-    background: #2a1020;
-    color: #cf6f98;
+    border: 1px solid #5a2038;
+    background: #2e1020;
+    color: #f0a0c8;
     transition: background 0.12s, border-color 0.12s;
 }
-.ebc-guide-nav-btn:hover { background: #3a1830; border-color: #cf6f98; }
-.ebc-guide-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.ebc-guide-nav-btn:hover { background: #3d1530; border-color: #cf6f98; }
+.ebc-guide-nav-btn:disabled { opacity: 0.25; cursor: default; }
 .ebc-guide-dots {
     display: flex;
     gap: 5px;
     align-items: center;
 }
 .ebc-guide-dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: #3a1928;
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.15s;
 }
-.ebc-guide-dot.active { background: #cf6f98; }
+.ebc-guide-dot.active { background: #cf6f98; transform: scale(1.3); }
 .ebc-guide-btn {
     background: none;
     border: 1px solid #3a1928;
@@ -15654,24 +15658,30 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     transition: border-color 0.12s, color 0.12s;
 }
 .ebc-guide-btn:hover { border-color: #cf6f98; color: #cf6f98; }
+/* Highlighted keyword chips — the main teaching tool */
 .ebc-guide-hl {
-    display: inline;
-    background: #3a1028;
-    border: 1px solid #7a3050;
-    border-radius: 3px;
-    padding: 0 4px;
-    color: #f0a0c8;
+    display: inline-block;
+    background: #4a1535;
+    border: 1px solid #cf6f98;
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: #ffcce8;
     font-weight: bold;
-    font-size: 0.9em;
+    font-size: 10px;
     white-space: nowrap;
+    vertical-align: middle;
+    line-height: 1.6;
+    box-shadow: 0 0 6px rgba(207,111,152,0.25);
 }
 .ebc-guide-note {
     display: block;
-    margin-top: 5px;
-    font-size: 9px;
-    color: #7a5870;
+    margin-top: 4px;
+    font-size: 9.5px;
+    color: #9a7888;
     font-style: italic;
-    line-height: 1.4;
+    line-height: 1.5;
+    border-left: 2px solid #3a1428;
+    padding-left: 6px;
 }
 
 `;
@@ -18086,7 +18096,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_b) { /* ignore */ }
             const tagToggleBtn = document.createElement("button");
-            tagToggleBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #3a1928;border-radius:5px;color:#7a5060;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-bottom:3px;text-align:left;padding-left:8px;";
+            tagToggleBtn.className = "ebc-section-label";
+            tagToggleBtn.style.cssText = "display:block;width:100%;background:transparent;border:none;cursor:pointer;text-align:left;padding:4px 4px 5px;margin-bottom:3px;transition:color 0.12s;";
             const allTagsNow = getOutfitTags();
             tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` ${t("outfits.tagsN", { n: allTagsNow.length })}`;
             const tagMgmtBody = document.createElement("div");
@@ -20782,6 +20793,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 listEl.className = "ebc-step-list";
                 parent.appendChild(listEl);
                 const poseLabel = (key) => {
+                    // "" means "clear arm poses / Relaxed arms" when stored in a combo sequence.
+                    // The Body group also uses "" for its Stand entry but that is never added to sequences
+                    // (filtered out at the quick-add stage), so any "" here should read as "Relaxed".
+                    if (key === "")
+                        return "Relaxed";
                     for (const g of KNOWN_POSES) {
                         const found = g.poses.find(x => x.key === key);
                         if (found)
@@ -29950,18 +29966,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     heart: "💗",
                 },
                 {
-                    emoji: "🌸",
-                    name: "Lara",
-                    memberId: 124264,
-                    reason: t("credits.lara"),
-                    heart: "💖",
-                },
-                {
                     emoji: "🌙",
                     name: "Lucy",
                     memberId: 230466,
                     reason: t("credits.lucy"),
                     heart: "💜",
+                },
+                {
+                    emoji: "🌸",
+                    name: "Lara",
+                    memberId: 124264,
+                    reason: t("credits.lara"),
+                    heart: "💖",
                 },
                 {
                     emoji: "✨",
@@ -31404,7 +31420,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.2.9";
+    const MOD_VERSION = "3.3.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31415,6 +31431,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.0",
+            changes: [
+                "Guide: highlight chips are now much more prominent — bright pink border, darker background, glow, larger font. Tab title is bigger with an underline divider. Note lines have a left-accent bar. Card has a bold left-border accent and stronger shadow.",
+                "Fix: adding a Relaxed arms step now labels it 'Relaxed' instead of 'Stand' (both share key '' internally, but Stand is never added to sequences so '' always means Relaxed in that context).",
+                "Fix: Tags accordion in the Outfits tab now matches the standard section-label style (no more dashed box border making it look like a text input).",
+                "Credits: Lucy moved above Lara.",
+            ],
+        },
         {
             version: "3.2.9",
             changes: [
