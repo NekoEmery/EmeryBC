@@ -31554,7 +31554,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.4.8";
+    const MOD_VERSION = "3.4.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31565,6 +31565,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.4.9",
+            changes: [
+                "Creator paw: tightened position (76*zoom gap) and raised minimum opacity to 0.72 so it never fades to near-invisible.",
+            ],
+        },
         {
             version: "3.4.8",
             changes: [
@@ -35975,16 +35981,17 @@
             const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
-                const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 800);
+                // Pulse stays between 0.72 and 1.0 — never fades to near-invisible
+                const pulse = 0.86 + 0.14 * Math.sin(Date.now() / 1200);
                 const sz = Math.max(10, Math.round(16 * zoom));
-                // Place paw to the right of the name text so it does not overlap
+                // Place paw to the right of the name, centred on the name baseline
                 const nameX = left + 250 * zoom;
                 const nameY = top + 960 * zoom;
                 _pawCtx.save();
-                _pawCtx.globalAlpha = 0.90 * pulse;
+                _pawCtx.globalAlpha = pulse;
                 _pawCtx.shadowColor = "#ffd700";
                 _pawCtx.shadowBlur = sz * 0.8;
-                _pawCtx.drawImage(_pawImg, nameX + Math.round(90 * zoom), nameY - sz / 2 - Math.round(6 * zoom), sz, sz);
+                _pawCtx.drawImage(_pawImg, nameX + Math.round(76 * zoom), nameY - sz / 2, sz, sz);
                 _pawCtx.restore();
             }
         }
