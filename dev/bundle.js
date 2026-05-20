@@ -30795,7 +30795,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.11.0";
+    const MOD_VERSION = "3.1.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30807,7 +30807,7 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "2.11.0",
+            version: "3.1.0",
             changes: [
                 "Dev cat badge outline: replaced flat solid orange stroke with a two-pass glow effect — wide soft amber halo (shadowBlur) plus a crisp bright highlight line on top.",
             ],
