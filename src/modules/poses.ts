@@ -49,36 +49,47 @@ export function applyPoses(poses: string[]): void {
     const filtered = safeList.filter(Boolean);
     const result   = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
 
-    // Prefer BC's PoseSetActive API (current BC) — it writes ActivePoseMapping which
-    // is the authoritative pose state in modern BC. Direct ActivePose assignment is the
-    // old approach and may be silently ignored in newer versions.
+    // 1. Update BC's internal pose state.
+    //    Prefer PoseSetActive (BC R107+) which writes ActivePoseMapping — the
+    //    canonical pose state in modern BC.  Fall back to direct ActivePose
+    //    assignment for older builds.
     const psa = (window as unknown as Record<string, unknown>).PoseSetActive as
-        ((C: unknown, name: string | null, force?: boolean, rd?: boolean) => void) | undefined;
+        ((C: unknown, name: string | null, force?: boolean, push?: boolean) => void) | undefined;
 
     if (typeof psa === "function") {
         try {
             if (result.length === 0) {
-                // Clear everything (stand + relaxed)
                 psa(Player, null, true, false);
             } else {
-                // First pose with forceChange=true resets the mapping; subsequent poses
-                // add into it without clobbering the first.
+                // force=true on first call resets mapping; subsequent calls add into it
                 psa(Player, result[0], true, false);
                 for (let i = 1; i < result.length; i++) {
                     psa(Player, result[i], false, false);
                 }
             }
         } catch { /* ignore */ }
-        // Push final state to server (PoseSetActive only does Push=false internally)
-        callBC(() => CharacterRefresh(Player, true));
-        return;
+    } else {
+        try {
+            (Player as unknown as Record<string, unknown>).ActivePose =
+                result.length > 0 ? result : null;
+        } catch { /* ignore */ }
     }
 
-    // Fallback: direct ActivePose assignment for older BC builds
-    try { (Player as unknown as Record<string, unknown>).ActivePose = result; } catch { /* ignore */ }
-    callBC(() => CharacterRefresh(Player, true));
-    callBC(() => ChatRoomCharacterUpdate(Player));
-    callBC(() => ServerPlayerAppearanceSync());
+    // 2. Local visual refresh only — Push=false so we don't double-send.
+    callBC(() => CharacterRefresh(Player, false));
+
+    // 3. Push to room via ServerSend directly, the same approach the sequence
+    //    runner in actionButtons.ts uses (known to work).  This is more reliable
+    //    than CharacterRefresh(Push=true) which may drop ActivePose in some BC versions.
+    try {
+        if (Player.OnlineID != null) {
+            ServerSend("ChatRoomCharacterUpdate", {
+                ID:         Player.OnlineID,
+                ActivePose: result.length > 0 ? result : null,
+                Appearance: ServerAppearanceBundle(Player.Appearance),
+            });
+        }
+    } catch { /* ignore */ }
 }
 
 // Apply poses one-by-one in the given order with a delay between each step.
