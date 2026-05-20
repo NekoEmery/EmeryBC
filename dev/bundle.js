@@ -1287,19 +1287,18 @@
         const wantsRelaxed = safeList.includes("");
         const filtered = safeList.filter(Boolean);
         const result = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
-        // Prefer BC's PoseSetActive API (current BC) — it writes ActivePoseMapping which
-        // is the authoritative pose state in modern BC. Direct ActivePose assignment is the
-        // old approach and may be silently ignored in newer versions.
+        // 1. Update BC's internal pose state.
+        //    Prefer PoseSetActive (BC R107+) which writes ActivePoseMapping — the
+        //    canonical pose state in modern BC.  Fall back to direct ActivePose
+        //    assignment for older builds.
         const psa = window.PoseSetActive;
         if (typeof psa === "function") {
             try {
                 if (result.length === 0) {
-                    // Clear everything (stand + relaxed)
                     psa(Player, null, true, false);
                 }
                 else {
-                    // First pose with forceChange=true resets the mapping; subsequent poses
-                    // add into it without clobbering the first.
+                    // force=true on first call resets mapping; subsequent calls add into it
                     psa(Player, result[0], true, false);
                     for (let i = 1; i < result.length; i++) {
                         psa(Player, result[i], false, false);
@@ -1307,18 +1306,29 @@
                 }
             }
             catch ( /* ignore */_a) { /* ignore */ }
-            // Push final state to server (PoseSetActive only does Push=false internally)
-            callBC(() => CharacterRefresh(Player, true));
-            return;
         }
-        // Fallback: direct ActivePose assignment for older BC builds
+        else {
+            try {
+                Player.ActivePose =
+                    result.length > 0 ? result : null;
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        // 2. Local visual refresh only — Push=false so we don't double-send.
+        callBC(() => CharacterRefresh(Player, false));
+        // 3. Push to room via ServerSend directly, the same approach the sequence
+        //    runner in actionButtons.ts uses (known to work).  This is more reliable
+        //    than CharacterRefresh(Push=true) which may drop ActivePose in some BC versions.
         try {
-            Player.ActivePose = result;
+            if (Player.OnlineID != null) {
+                ServerSend("ChatRoomCharacterUpdate", {
+                    ID: Player.OnlineID,
+                    ActivePose: result.length > 0 ? result : null,
+                    Appearance: ServerAppearanceBundle(Player.Appearance),
+                });
+            }
         }
-        catch ( /* ignore */_b) { /* ignore */ }
-        callBC(() => CharacterRefresh(Player, true));
-        callBC(() => ChatRoomCharacterUpdate(Player));
-        callBC(() => ServerPlayerAppearanceSync());
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Respects the exact order provided — the user controls sequencing via the editor.
@@ -31756,7 +31766,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.7.1";
+    const MOD_VERSION = "3.7.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31767,6 +31777,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.7.2",
+            changes: [
+                "Fix: pose combos (and single-click pose buttons) now reliably push to the room. Replaced the unreliable CharacterRefresh(Push=true) path with a direct ServerSend('ChatRoomCharacterUpdate') — the same approach used by the sequence runner which is known to work.",
+            ],
+        },
         {
             version: "3.7.1",
             changes: [
