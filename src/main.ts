@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.10.5";
+const MOD_VERSION = "2.10.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.10.6",
+        changes: [
+            "Fix: Removed overflow:hidden from the middleArea container. Chrome has a known bug where overflow:hidden on a flex parent silently breaks overflow-y:auto scrolling on nested flex children — the body appeared correct in layout but its scroll context was never established. Removing overflow lets the body scroll normally. Footer visibility is guaranteed by the flex:1 layout, not by clipping.",
+        ],
+    },
     {
         version: "2.10.5",
         changes: [

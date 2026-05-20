@@ -4505,10 +4505,11 @@ export class EBCDrawer {
         // that takes all remaining space between the header/tabBar/langRow and the
         // footer.  Because middleArea is flex:1;min-height:0, the footer (below it)
         // is ALWAYS visible regardless of how tall the chrome items become.
-        // overflow:hidden prevents chrome from stealing scroll events — the body
-        // inside still scrolls normally when the cursor is over it.
+        // NOTE: NO overflow property here — setting overflow:hidden on a flex container
+        // breaks nested scroll containers in Chrome (nested flex children with
+        // overflow-y:auto stop scrolling). overflow:visible is the default and correct.
         const middleArea = document.createElement("div");
-        middleArea.style.cssText = "flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;";
+        middleArea.style.cssText = "flex:1;min-height:0;display:flex;flex-direction:column;";
 
         middleArea.appendChild(quickActions);
         middleArea.appendChild(selfPickPanel);
