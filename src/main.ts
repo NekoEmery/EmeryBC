@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.1.4";
+const MOD_VERSION = "3.1.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.1.5",
+        changes: [
+            "Pinned strip tab visibility: each strip (Safewords, EBC Tag Settings) now has a compact 'Visible on tabs' chip row in its settings panel. Toggle individual tab chips (OUT / BTN / ANM / USR / CRD / DEV / DOM) to hide the strip on tabs where you don't need it. Settings are per-device (localStorage) and persist across sessions.",
+        ],
+    },
     {
         version: "3.1.4",
         changes: [

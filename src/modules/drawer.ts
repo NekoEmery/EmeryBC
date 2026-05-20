@@ -3139,6 +3139,90 @@ function addPointerTracking(
 
 type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
 
+// ── Pinned-strip tab-filter helpers ──────────────────────────────────────────
+// Each pinned section (Safewords, EBC Tags) stores a Set of tab IDs it should
+// appear on.  null / absent key = "all tabs" (default).  Written to localStorage
+// so it survives panel re-builds without touching server-side ExtensionSettings.
+const PINNED_STRIP_TABS: DrawerTab[] = ["outfits", "buttons", "anims", "notes", "thanks", "dev", "dom"];
+const PINNED_TAB_SHORT: Partial<Record<DrawerTab, string>> = {
+    outfits: "OUT", buttons: "BTN", anims: "ANM",
+    notes: "USR",  thanks:  "CRD", dev:   "DEV", dom: "DOM",
+};
+
+function loadStripTabFilter(key: string): Set<DrawerTab> | null {
+    try {
+        const v = localStorage.getItem(key);
+        if (!v) return null;
+        const arr = JSON.parse(v) as DrawerTab[];
+        if (arr.length >= PINNED_STRIP_TABS.length) return null; // treat as "all"
+        return new Set(arr);
+    } catch { return null; }
+}
+
+function saveStripTabFilter(key: string, tabs: Set<DrawerTab> | null): void {
+    try {
+        if (!tabs || tabs.size >= PINNED_STRIP_TABS.length) {
+            localStorage.removeItem(key);
+        } else {
+            localStorage.setItem(key, JSON.stringify([...tabs]));
+        }
+    } catch { /* ignore */ }
+}
+
+/** Builds a compact tab-chip filter row and appends it to `container`. */
+function appendStripTabFilter(
+    container: HTMLElement,
+    storageKey: string,
+    onChanged: () => void,
+): void {
+    const divider = document.createElement("div");
+    divider.style.cssText = "height:1px;background:#2a1421;margin:6px 0 5px;";
+    container.appendChild(divider);
+
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#6a4060;text-transform:uppercase;margin-bottom:4px;";
+    lbl.textContent = "Visible on tabs:";
+    container.appendChild(lbl);
+
+    const chipRow = document.createElement("div");
+    chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+
+    for (const tid of PINNED_STRIP_TABS) {
+        const chip = document.createElement("button");
+        chip.textContent = PINNED_TAB_SHORT[tid] ?? tid;
+        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;padding:2px 6px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+        const refreshChip = (): void => {
+            const f = loadStripTabFilter(storageKey);
+            const on = !f || f.has(tid);
+            chip.style.background   = on ? "#2e1020" : "#150a10";
+            chip.style.border       = `1px solid ${on ? "#8a3458" : "#321220"}`;
+            chip.style.color        = on ? "#f0c0d8" : "#4a2838";
+        };
+        refreshChip();
+        chip.addEventListener("click", () => {
+            let f = loadStripTabFilter(storageKey);
+            if (!f) {
+                // Currently "all" — deselect this one tab
+                f = new Set(PINNED_STRIP_TABS);
+                f.delete(tid);
+            } else if (f.has(tid)) {
+                if (f.size <= 1) return; // keep at least one tab
+                f.delete(tid);
+            } else {
+                f.add(tid);
+                if (f.size >= PINNED_STRIP_TABS.length) f = null; // back to "all"
+            }
+            saveStripTabFilter(storageKey, f);
+            chipRow.querySelectorAll<HTMLButtonElement>("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+            onChanged();
+        });
+        chip.addEventListener("ebc-refresh", refreshChip);
+        chipRow.appendChild(chip);
+    }
+
+    container.appendChild(chipRow);
+}
+
 const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
 
 export class EBCDrawer {
@@ -3217,6 +3301,9 @@ export class EBCDrawer {
     private slDurSlider: HTMLInputElement | null = null;
     private slDurVal: HTMLSpanElement | null = null;
     private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
+    // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
+    private safewordRowEl: HTMLElement | null = null;
+    private ebcTagsStripEl: HTMLElement | null = null;
     // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
     private _langUnsubscribe: (() => void) | null = null;
     private _langPillsRefresh: (() => void) | null = null;
@@ -3904,6 +3991,7 @@ export class EBCDrawer {
         // Safeword permanent row (always visible, any tab)
         const safewordRow = document.createElement("div");
         safewordRow.style.cssText = "display:flex;flex-direction:column;flex-shrink:0;border-top:1px solid #2a1421;background:rgba(12,4,10,0.6);";
+        this.safewordRowEl = safewordRow;
 
         // Header row — one line, always visible
         const swHdr = document.createElement("div");
@@ -4143,6 +4231,9 @@ export class EBCDrawer {
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
             hint.textContent = t("strip.swHint");
             swInner.appendChild(hint);
+
+            // -- Tab visibility filter --
+            appendStripTabFilter(swInner, "EBC_swTabFilter", () => this.updatePinnedStrips());
         };
 
         // Toggle expand — rebuild inner content on every open
@@ -4182,6 +4273,7 @@ export class EBCDrawer {
 
         const ebcTagsStrip = document.createElement("div");
         ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
+        this.ebcTagsStripEl = ebcTagsStrip;
 
         // Header row — clickable to collapse
         const ebcTagsHdr = document.createElement("div");
@@ -4507,6 +4599,9 @@ export class EBCDrawer {
         makePosInputRow("Icon",  getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, resetBadgePosition);
         makePosInputRow("Ver.",  getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition);
 
+        // ── Tab visibility filter (EBC Tags strip) ────────────────────────────
+        appendStripTabFilter(ebcTagsBody, "EBC_tagsTabFilter", () => this.updatePinnedStrips());
+
         ebcTagsStrip.appendChild(ebcTagsBody);
 
         const updateEbcTagsCollapse = (): void => {
@@ -4547,6 +4642,7 @@ export class EBCDrawer {
         // (slideContainer/root/body already anchored early in setup — see above)
         this.applyPanelOpacity();
         this.applyPanelZoom();
+        this.updatePinnedStrips();
 
         // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
         // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
@@ -5083,6 +5179,7 @@ export class EBCDrawer {
         }
 
         this.renderCurrentTab();
+        try { this.updatePinnedStrips(); } catch { /* ignore */ }
     }
 
     private renderCurrentTab(): void {
@@ -5095,6 +5192,19 @@ export class EBCDrawer {
         else if (this.currentTab === "dom")      this.renderDomTools();
         else if (this.currentTab === "puppy")    this.renderPuppy();
         else if (this.currentTab === "kitty")    this.renderKittyTab();
+    }
+
+    /** Show or hide each pinned strip based on the active tab and the stored filter. */
+    private updatePinnedStrips(): void {
+        const tab = this.currentTab;
+        if (this.safewordRowEl) {
+            const f = loadStripTabFilter("EBC_swTabFilter");
+            this.safewordRowEl.style.display = (!f || f.has(tab)) ? "flex" : "none";
+        }
+        if (this.ebcTagsStripEl) {
+            const f = loadStripTabFilter("EBC_tagsTabFilter");
+            this.ebcTagsStripEl.style.display = (!f || f.has(tab)) ? "" : "none";
+        }
     }
 
     /**
