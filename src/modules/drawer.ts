@@ -4501,26 +4501,17 @@ export class EBCDrawer {
         zoomWrapper.className = "ebc-zoom-wrapper";
         zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
 
-        // middleArea: wraps all chrome elements + body in a single flex column
-        // that takes all remaining space between the header/tabBar/langRow and the
-        // footer.  Because middleArea is flex:1;min-height:0, the footer (below it)
-        // is ALWAYS visible regardless of how tall the chrome items become.
-        // NOTE: NO overflow property here — setting overflow:hidden on a flex container
-        // breaks nested scroll containers in Chrome (nested flex children with
-        // overflow-y:auto stop scrolling). overflow:visible is the default and correct.
-        const middleArea = document.createElement("div");
-        middleArea.style.cssText = "flex:1;min-height:0;display:flex;flex-direction:column;";
-
-        middleArea.appendChild(quickActions);
-        middleArea.appendChild(selfPickPanel);
-        middleArea.appendChild(safewordRow);
-        middleArea.appendChild(ebcTagsStrip);
-        middleArea.appendChild(body);
-
+        // Flat flex column — applyPanelZoom always keeps width/height:100% so the
+        // wrapper has a definite height, giving .ebc-body (flex:1;min-height:0) a
+        // real constraint and making overflow-y:auto scroll correctly.
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(langRow);
-        panel.appendChild(middleArea);
+        panel.appendChild(quickActions);
+        panel.appendChild(selfPickPanel);
+        panel.appendChild(safewordRow);
+        panel.appendChild(ebcTagsStrip);
+        panel.appendChild(body);
         panel.appendChild(footer);
         // Move all panel children into the wrapper, then add wrapper to panel.
         while (panel.firstChild) zoomWrapper.appendChild(panel.firstChild);
@@ -5116,9 +5107,9 @@ export class EBCDrawer {
         if (!wrapper) return;
         if (scale === 1) {
             wrapper.style.transform = "";
-            wrapper.style.width     = "";
-            wrapper.style.height    = "";
-        } else {
+            wrapper.style.width     = "100%";  // must keep 100% — clearing to "" removes the
+            wrapper.style.height    = "100%";  // inline height, collapsing the wrapper to content
+        } else {                               // height and breaking flex scroll + footer layout.
             // inv% × scale = 100% → scaled content fills .ebc-panel exactly.
             const inv = (100 / scale).toFixed(4) + "%";
             wrapper.style.transform = `scale(${scale})`;

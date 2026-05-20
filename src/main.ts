@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.10.6";
+const MOD_VERSION = "2.10.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.10.7",
+        changes: [
+            "Fix: Root cause of broken scroll and missing footer identified and fixed. applyPanelZoom() was clearing the zoom-wrapper's height to '' at scale=1, removing its 100% height entirely. This caused the wrapper to collapse to content height with no flex constraint, so the body never scrolled (it just expanded) and the footer was pushed past the panel clip boundary. Fix: always keep width/height at 100% at scale=1 instead of clearing them. Reverted middleArea back to the clean flat flex layout — it is no longer needed.",
+        ],
+    },
     {
         version: "2.10.6",
         changes: [
