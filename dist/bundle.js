@@ -12630,10 +12630,10 @@
         "credits.specialThanks": { en: "Special Thanks", de: "Besonderer Dank", zh: "特别感谢", fr: "Remerciements spéciaux", es: "Agradecimientos especiales", ru: "Особая благодарность", ja: "スペシャルサンクス" },
         "credits.intro": { en: "People who made EBC possible.", de: "Menschen, die EBC möglich gemacht haben.", zh: "让 EBC 成为可能的人们。", fr: "Les personnes qui ont rendu EBC possible.", es: "Las personas que hicieron posible EBC.", ru: "Люди, которые сделали EBC возможным.", ja: "EBCを実現してくれた人々。" },
         "credits.emery": { en: "Built this little thing out of love for the club. Still adding to it, still breaking it, still fixing it~", de: "Hat dieses kleine Ding aus Liebe zum Club gebaut. Fügt noch immer hinzu, bricht es, repariert es~", zh: "出于对俱乐部的热爱打造了这个小工具。还在添加功能，还在弄坏它，还在修复它~", fr: "A créé ce petit truc par amour pour le club. Ajoute encore, le casse encore, le répare encore~", es: "Construyó esta cosita por amor al club. Sigue añadiendo, sigue rompiéndola, sigue arreglándola~", ru: "Создала это из любви к клубу. Всё ещё добавляет, ломает и чинит~", ja: "クラブへの愛からこの小さなものを作りました。まだ追加し、まだ壊し、まだ直し続けています~" },
-        "credits.sin": { en: "Creator of CRABS — the sliding panel design that inspired the whole look and feel of this drawer. Her open code became the foundation it was all built on, and she was genuinely kind and helpful when it mattered too. Open code, open heart.", de: "Schöpferin von CRABS — das Schiebefeld-Design, das das Aussehen dieser Schublade inspiriert hat. Ihr offener Code wurde das Fundament, auf dem alles aufgebaut wurde. Offener Code, offenes Herz.", zh: "CRABS 的创建者——滑动面板设计启发了这个抽屉的整体外观。她的开源代码成为整个项目的基础，在最关键时刻也真诚地给予帮助。开放代码，开放的心。", fr: "Créatrice de CRABS — le design du panneau coulissant qui a inspiré ce tiroir. Son code ouvert en est le fondement, et elle a été vraiment aimable quand ça comptait. Code ouvert, cœur ouvert.", es: "Creadora de CRABS — el diseño del panel deslizante que inspiró este cajón. Su código abierto es el cimiento de todo, y fue genuinamente amable cuando importaba. Código abierto, corazón abierto.", ru: "Создательница CRABS — дизайн панели, вдохновившей весь облик этого интерфейса. Открытый код, открытое сердце.", ja: "CRABSの作者 — このパネルのスライドデザイン全体に影響を与えたスライドパネルデザイン。彼女のオープンコードがすべての基盤となり、大事な時に本当に親切で助けになってくれました。オープンコード、オープンハート。" },
+        "credits.sin": { en: "Creator of CRABS - the sliding panel design that inspired the whole look and feel of this drawer. Her open code became the foundation it was all built on, and she was genuinely kind and helpful when it mattered too. Open code, open heart.", de: "Schöpferin von CRABS — das Schiebefeld-Design, das das Aussehen dieser Schublade inspiriert hat. Ihr offener Code wurde das Fundament, auf dem alles aufgebaut wurde. Offener Code, offenes Herz.", zh: "CRABS 的创建者——滑动面板设计启发了这个抽屉的整体外观。她的开源代码成为整个项目的基础，在最关键时刻也真诚地给予帮助。开放代码，开放的心。", fr: "Créatrice de CRABS — le design du panneau coulissant qui a inspiré ce tiroir. Son code ouvert en est le fondement, et elle a été vraiment aimable quand ça comptait. Code ouvert, cœur ouvert.", es: "Creadora de CRABS — el diseño del panel deslizante que inspiró este cajón. Su código abierto es el cimiento de todo, y fue genuinamente amable cuando importaba. Código abierto, corazón abierto.", ru: "Создательница CRABS — дизайн панели, вдохновившей весь облик этого интерфейса. Открытый код, открытое сердце.", ja: "CRABSの作者 — このパネルのスライドデザイン全体に影響を与えたスライドパネルデザイン。彼女のオープンコードがすべての基盤となり、大事な時に本当に親切で助けになってくれました。オープンコード、オープンハート。" },
         "credits.lara": { en: "Keeping my bratty side in check, endless support and inspiration, and simply being the best friend anyone could ask for around here~", de: "Hält meine freche Seite in Schach, unendliche Unterstützung und Inspiration, und ist einfach die beste Freundin, die man sich hier wünschen könnte~", zh: "约束住我那淘气的一面，给予无尽的支持和灵感，是这里任何人都梦寐以求的最好朋友~", fr: "Garde mon côté espiègle en check, un soutien et une inspiration sans fin, et tout simplement la meilleure amie qu'on puisse espérer ici~", es: "Mantiene mi lado travieso a raya, apoyo e inspiración infinitos, y simplemente siendo la mejor amiga que alguien podría pedir por aquí~", ru: "Держит мою шаловливую сторону в узде, бесконечная поддержка и вдохновение, лучшая подруга~", ja: "わがままな一面を抑えてくれて、無限のサポートとインスピレーションを与えてくれる、ここで誰もが望む最高のフレンド~" },
-        "credits.lucy": { en: "Lost count of the hours a long time ago — what started as one very long late night turned into something much bigger, and she was there for all of it. Every idea, every problem, every version of this thing. She made it genuinely fun to build.", de: "Hat die Stunden längst verloren — was als eine lange späte Nacht begann, wurde zu etwas viel Größerem, und sie war bei allem dabei. Jede Idee, jedes Problem, jede Version. Sie hat es wirklich Spaß gemacht.", zh: "早就数不清有多少小时了——从一个漫长的深夜开始，演变成了更大的事情，而她一直在场。每一个想法，每一个问题，每一个版本。她让这一切变得真的很有趣。", fr: "A perdu le compte des heures — ce qui a commencé par une longue nuit est devenu bien plus grand, et elle était là pour tout. Chaque idée, chaque problème, chaque version. Elle a rendu ça vraiment fun.", es: "Perdió la cuenta de las horas hace mucho — lo que empezó como una noche larga se convirtió en algo mucho más grande, y estuvo en todo. Cada idea, cada problema, cada versión. Hizo que construirlo fuera genuinamente divertido.", ru: "Давно сбилась со счёта часов — рядом с первой долгой ночи до сих пор. Каждая идея, каждая версия. Сделала это по-настоящему увлекательным.", ja: "もうずっと前から時間を数えるのを止めた — 長い深夜から始まったことがずっと大きなものになり、彼女はすべてにいました。すべてのアイデア、すべての問題、すべてのバージョン。本当に楽しく作れるようにしてくれました。" },
-        "credits.sybil": { en: "Brilliant ideas, patient testing, and a genuinely kind presence — Sybil has shaped this addon in more ways than one, and her beautiful contributions to the club make it a richer place for everyone. Big thanks~", de: "Brillante Ideen, geduldiges Testen und eine aufrichtig freundliche Präsenz — Sybil hat dieses Addon auf vielfache Weise geprägt, und ihre schönen Beiträge zum Club machen ihn für alle reicher. Großen Dank~", zh: "出色的想法、耐心的测试和真诚温暖的存在——Sybil 以多种方式塑造了这个插件，她对俱乐部的贡献让每个人的体验都更加丰富。非常感谢~", fr: "Des idées brillantes, des tests patients et une présence vraiment bienveillante — Sybil a façonné cet addon de bien des manières, et ses belles contributions au club en font un endroit plus riche. Grand merci~", es: "Ideas brillantes, pruebas pacientes y una presencia genuinamente amable — Sybil ha dado forma a este addon de muchas maneras, y sus contribuciones hacen el club más rico para todos. ¡Muchas gracias~", ru: "Блестящие идеи, терпеливое тестирование и искренняя доброта — Sybil сформировала этот аддон во многих отношениях. Большое спасибо~", ja: "素晴らしいアイデア、忍耐強いテスト、そして真に親切な存在 — Sybilはこのアドオンを様々な形で形作り、クラブへの美しい貢献がすべての人をより豊かにしています。本当にありがとう~" },
+        "credits.lucy": { en: "Lost count of the hours a long time ago - what started as one very long late night turned into something much bigger, and she was there for all of it. Every idea, every problem, every version of this thing. She made it genuinely fun to build.", de: "Hat die Stunden längst verloren — was als eine lange späte Nacht begann, wurde zu etwas viel Größerem, und sie war bei allem dabei. Jede Idee, jedes Problem, jede Version. Sie hat es wirklich Spaß gemacht.", zh: "早就数不清有多少小时了——从一个漫长的深夜开始，演变成了更大的事情，而她一直在场。每一个想法，每一个问题，每一个版本。她让这一切变得真的很有趣。", fr: "A perdu le compte des heures — ce qui a commencé par une longue nuit est devenu bien plus grand, et elle était là pour tout. Chaque idée, chaque problème, chaque version. Elle a rendu ça vraiment fun.", es: "Perdió la cuenta de las horas hace mucho — lo que empezó como una noche larga se convirtió en algo mucho más grande, y estuvo en todo. Cada idea, cada problema, cada versión. Hizo que construirlo fuera genuinamente divertido.", ru: "Давно сбилась со счёта часов — рядом с первой долгой ночи до сих пор. Каждая идея, каждая версия. Сделала это по-настоящему увлекательным.", ja: "もうずっと前から時間を数えるのを止めた — 長い深夜から始まったことがずっと大きなものになり、彼女はすべてにいました。すべてのアイデア、すべての問題、すべてのバージョン。本当に楽しく作れるようにしてくれました。" },
+        "credits.sybil": { en: "Brilliant ideas, patient testing, and a genuinely kind presence - Sybil has shaped this addon in more ways than one, and her beautiful contributions to the club make it a richer place for everyone. Big thanks~", de: "Brillante Ideen, geduldiges Testen und eine aufrichtig freundliche Präsenz — Sybil hat dieses Addon auf vielfache Weise geprägt, und ihre schönen Beiträge zum Club machen ihn für alle reicher. Großen Dank~", zh: "出色的想法、耐心的测试和真诚温暖的存在——Sybil 以多种方式塑造了这个插件，她对俱乐部的贡献让每个人的体验都更加丰富。非常感谢~", fr: "Des idées brillantes, des tests patients et une présence vraiment bienveillante — Sybil a façonné cet addon de bien des manières, et ses belles contributions au club en font un endroit plus riche. Grand merci~", es: "Ideas brillantes, pruebas pacientes y una presencia genuinamente amable — Sybil ha dado forma a este addon de muchas maneras, y sus contribuciones hacen el club más rico para todos. ¡Muchas gracias~", ru: "Блестящие идеи, терпеливое тестирование и искренняя доброта — Sybil сформировала этот аддон во многих отношениях. Большое спасибо~", ja: "素晴らしいアイデア、忍耐強いテスト、そして真に親切な存在 — Sybilはこのアドオンを様々な形で形作り、クラブへの美しい貢献がすべての人をより豊かにしています。本当にありがとう~" },
         // ─── FOOTER ────────────────────────────────────────────────────────────────
         "footer.uiInspired": { en: "EBC v{v} · UI inspired by CRABS by Sin", de: "EBC v{v} · UI inspiriert von CRABS von Sin", zh: "EBC v{v} · UI 灵感来自 Sin 的 CRABS", fr: "EBC v{v} · UI inspirée de CRABS par Sin", es: "EBC v{v} · UI inspirada en CRABS de Sin", ru: "EBC v{v} · UI вдохновлён CRABS от Sin", ja: "EBC v{v} · UIはSinのCRABSにインスパイア" },
         "footer.onlineLabel": { en: "Online", de: "Online", zh: "在线", fr: "En ligne", es: "En línea", ru: "В сети", ja: "オンライン" },
@@ -30129,11 +30129,22 @@
                     applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
                 nameRow.appendChild(namEl);
                 if (isPawCard) {
-                    // Proper gold pill badge
+                    // Creator badge pill
                     const creatorBadge = document.createElement("span");
                     creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#1a0d02;background:#c89030;border-radius:3px;padding:1px 6px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;";
                     creatorBadge.textContent = "Creator";
                     nameRow.appendChild(creatorBadge);
+                    // Member number chip (same as other cards)
+                    const idElCreator = document.createElement("span");
+                    idElCreator.className = "ebc-member-chip";
+                    idElCreator.textContent = "#" + p.memberId;
+                    idElCreator.title = "BC Member Number";
+                    nameRow.appendChild(idElCreator);
+                    // Paw mark
+                    const pawMark = document.createElement("span");
+                    pawMark.style.cssText = "font-size:13px;line-height:1;filter:drop-shadow(0 0 3px #c89030);flex-shrink:0;";
+                    pawMark.textContent = "🐾";
+                    nameRow.appendChild(pawMark);
                 }
                 else {
                     const idEl2 = document.createElement("span");
@@ -31543,7 +31554,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.4.4";
+    const MOD_VERSION = "3.4.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31554,6 +31565,25 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.4.7",
+            changes: [
+                "Creator mark: recolored paw PNG to gold, repositioned it to the right of the name so it no longer overlaps.",
+                "Credits: restored member number chip and added paw mark emoji to the creator card.",
+            ],
+        },
+        {
+            version: "3.4.6",
+            changes: [
+                "Credits: replaced em dashes with plain hyphens in all English credit entries (Sin, Lucy, Sybil).",
+            ],
+        },
+        {
+            version: "3.4.5",
+            changes: [
+                "Creator mark: replaced the gold Font Awesome paw SVG with a custom 64x64 PNG (transparent background) embedded as a data URI — crisper at all zoom levels with no blob-URL async loading.",
+            ],
+        },
         {
             version: "3.4.4",
             changes: [
@@ -35787,9 +35817,9 @@
     }
     // Trigger early load so the image is ready by the time any character renders.
     getEbcCatImg();
-    // ── EBC paw SVG image cache (creator mark) ────────────────────────────────────
-    // Font Awesome 6 "fa-paw" path, MIT licensed path data, colored gold.
-    const EBC_PAW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#ffd700" d="M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5 .3-86.2 32.6-96.8 70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3-14.3-70.1 10.2-84.1 59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5 0 46.3-30.6 88.4-76.2 92.2-17.6 1.5-34.7-3.5-53.9-9.2-15.7-4.7-32.8-9.9-51.9-9.9-19.1 0-36.2 5.2-51.9 9.9-19.2 5.7-36.3 10.7-53.9 9.2C57.6 519.6 27 477.5 27 431.2c0-10.4 1.6-20.8 5.2-30.5zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5 46.9 53.9 32.6 96.8-52.1 69.1-84.4 58.5zM421.6 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3 29.1 51.7 10.2 84.1-54 47.3-78.5 33.3z"/></svg>`;
+    // ── EBC paw image cache (creator mark) ────────────────────────────────────────
+    // Custom paw PNG — 64x64, transparent background, embedded as data URI.
+    const EBC_PAW_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAOfUlEQVR42tWbf3Bc1XXHP+fe9/aHJEu2AWN+xA6urF+WLRuT2CFhBIWETJtOyhQ7ZKaTtjNppwltaDPT6TQMNdAmQ5tMkzZk2pQkZNphkti0pQnppNAZ44ZQSPAvSV4s2+AGTMHY2JYlrVa7797TP97btSS82pW8/pGneWNLWt13z497zvd8z3lwni5VpMHrGX5RrkYL/wt1lYXXA+1X6Ivrmxq1pu7tuv58KNY0WngRVHd3r6IQ/AutI83n4hGVv9vX04zoPzHQ+RsAuhV7ySlASSy/vT/A6JeAtWQuH2vI4qVSG8gSkHsA2IReeh6wJbY+l7+xgUBuR/UkheNhQ45UGGZRigjv0Zc6rxbBN+o4NE4B9ydWUfNh2owAo2QKJd3eH8DcN6tbsWzDiKBMuoWgbWRMmojO5CMNUUDQ0LN/oD1NQdciAiJ5WXZkAo5M+8wc1nMA+mrPYk65fqw0YwDl8ktOAZUYcNpnCIJljDsQenVf109Bt/JW4WGRnxfqVYIIqns7PkrKfprTfi2wEEXIuyLocOL+eukcgfsRAcWEd5ORHgrqgSyheQ8Lgy+yJPu0DvUsFkGrnV0F0S0YVUT3dP01zcETpORDGFmCSAqPJ2MElQ4RlG2N8YBzXkS3YOQBvA50/zop/pVIBYciCIoHjVgYpBhxz7Fw4W286/lJQGd6gipGBK+7Ox9gcfDnjDiHKiCmslZGDEV9E1fso++VY2VvuWgeoIrEwq9ehNcHMQgOhySKFQwiKU5FJRbbGzlx6gERPNumP1e3JMIPdH2QtNzLqHMoBhE7ba2Cj2izS5Hw7ljwTeaiekDF+oPdHyPku0yqR86qVMXiAYfzfbLmwP6KxTUR8dnOFhbwNM12A+PeIWcFO56UCEU9zMKxXll2ZGIuwbXxMaCS+vxthKKzBCYhUqXFpsD8fvyjTTItfrTxIVJmA3nvqwgf73dSIZAVjDRd3wgjmnNOfS+uaENl7RTHrxbaDRNeUf2IPndtVmSbU0W4H9WtWJRNpAS0hjVFHVkDmG4Anuk3FzcLZDJtwCK8wuzozFBUwcoK0s2rEi+Igc6KnmuAjRSVGmqcYnO9FoCbl5zfIKi1XMz4DEIGrcsZHRkjhFwHwM5X4uentAO4hqimEqdEA1kc/2fbOZXmpg5lz65hbzxQqm/bqlgBz1UzFnkXoQnwaF0eECv7WF1RvkaArO0B2j87WnS2gFKYEzYzEsw411cQCPWtIIJXQF+v5QA61JPSoZ6ls3mCqZbeAHSg64MMvPmns9bg2YnToK9hBOpORzp9M2rmksgsE96DvFStNK4IG0XvxfnHdOsmW80TzKzpTfgEyOapaO0dmnzs0BgwmLim1HmgYp5gfUvyHDlOpLVTmuJJieL0FUIdmnIgzjBHWzAVoGXt+8iaX6Z9aEU1XjGomt6GelrwrgeRDn2h6zLZsP/tM5/ZZMtpTASvd8hPKPg/xBAkaUyqCGCZ9KB6KE5hZb241ylJESOpWeOAqpI2hiJPSvfw6DQwBSapIBVAX1wf4sduJgyUtC6eezWosghYQKvNIO59OtD7M7LRNYynhkW2jScPjU++hD/FFXfSZDdS8A6qoLhQhEl/FDKxx9y8w8fPCg8i7jChdDCpZ1egooQi5H0e8d9OPHVqme30xfUhrSNX8pYdITXegchNTHgois49CHqjKBGRgtevoaUcJdlJpjSgQ113i6AV7a8ZfB0jj1L0Pilc9CzW82RFsPJvsnbgrcQdkyOgryE8iZVZQqk6mq0h4huy+uDeBETFpfOLVzVprus+mvO7KAb7aJUc8BgpWUDJnyDtX5t5XGoroJQaRXgNBQKzjNAspqQAK2i1D+tQ93d0qCdVYW2Y/HcifZysMQge8FOs50iZgDH3NpYvl61XLo+lN1dE+Q4T/jBZsWhMhpyxvUYssAEj0W5c9JeqSPJcrwPXXUm27UkW2Acx9AKthHItVjoJRIH/pnv/m9VqhtnSYKlymp1GlBKnn1TPqajEInsXkf+6bMbpVqysOXyU0DxI3v+IrLFYMSiKR0mLRfAofyI9+w+Uq8hpSN6YQUQ+T0lPkxELuLicRmi1AXkdBn5Lrj90DBDZjNPDfQuR1PdotrdwIipRUI9DKakn8kXiWvJ/E/7A1HcE7k+2lB5dhXAjBR8Hr6llKRJyolSizfy2DnbdVVYCPS/lwP8xE+5rqL5FKEJKBNVXmdBPyZrhR2daopwXpDdXROR7RP7PKOkR0saSNQZLiXH/AyK9U/qGB5MUrbq9P+D05FdpDfoZiSJEwrj8jgMiIgETCiof06GexbIZdzYsUD0IensLzdLCmPeYsyjKi6WoitO/0qGeJ1mVGweQNQf264H2zzFuHyeQbpRJIvO8XJ/LTRV+6mbKP5Pe3Ji+eu2jnFwwiLqbEAlxuptRtssHhkfL+CTOUkc3kTK/yYhziARVKkel2VxNwd8APJUY3FVVgBJXZzyQwFOx1cFNTFA4Wu0yxtxHRXgsZoB3RNJx6HSS5J55R3rdgmHVGdKz8vvt/QHP7PAxkcqPk3smuFERVLcvz+D5JGbWpAtGHYFYkF9KKkeBHTU8QCr/Ss1qW9A45ssdwGMc26HVYGcS8IzEARLds6aZxbKQUy6SNUNH5ZYdUQVxbsLP5A+nfX9ZugNlPZMqdcB5wfmmapVjcG5skcQlruhqPdCelo5Dk9WibYX22tNxHaF8Fin+Cqe5HIPTXNdBRLZxUr4lN+ZOJLDbvWOd+xPc4c1aMtLGpNZXPIn4eeAAinVUZUIEqCxlgiumBdGZhOcDeN3VeSdp+zwtwR8gsgJoRWQRoXkvTeaLXOZ36a7u25KAZatCdKt9hMK0VHt2MGeIFETj5sS2bbMrYBofI3KIokKtvrwqiAaIpKr19WPLd91Fk/kusIRTUUQpSVmRKnnvGYlKiCynSX+ou7t+VSTJLDNjiG6yqCyvwziKxTDhxjB2NwD7mMMR8O5nlOwxQrmcSH1Vb4njaoHIFKq6/d6ujQTyj3gsJT0TtWWq7sUw4R2hSZFhm+5eeaOsO7hnatyokChBjeCXEJVkrWXMP8uq3MvluqX+I5AxL6E8FefxqsWqEhhF5HXS9vhUN63wfbvar0D0kRiWqpuF8AQRS9E7Qslizbf0QHu6slZZ2PU7I4y+gtaoPkUgUjA8ksSS+vgAkdippXt4FORR8v44odgElb1TyykE9MfSmysm1tIK2ysoxm5hQdDLuJtd+DNkiWXcRbQF6xg39yRWM0ICmwXFyfMUfAlThYZRjWi1lgn9PpPNP9Bym6buIFj+6KLR51D9Chq3KaYpQfFYMYz7CJV/Pmu/YG/HraTk9xhzHpE5ELBiGfee0HxOh1deA/gyCAIgNP+D6g6ajABR4qGafEW02IAxN4yNPis37CzNRu2Zqs1JRWTZkQk0/QiR+ypGIJ0IoSiBGFqswfGQ9O1/vsINlF3/QHsrmIcITZgg+vr5e0GIvKfFtlGw94mgCXiKhViVO4rq35D3R2g2YeIJQiBx3VDwOSL5uKw+9HKtxomZtUMLImsH3kJSX6Ck9xL5gwieQATRo4z4v2Bs7Avv+FNByZs/osXcQN65Kt2i2l4w6jwpfkcHV/YlqbEChTkxuR2nnybvdiBMYIhAjzHmHqXEHbL2pd31dI3qtooeXp7hZEsnoV+DeEvJ7mFtbu/UB1Rcf8/KDaTsf6E0ESFzsv70s+xYYC2j7inpG75dt/cHZcRYobj2dC5DWE06SJGPfs7LdkA254p1t+Lr7f3XoscrMPWF9gU02f8kazcyXqWQmo8STvnflev3f0OVQGL4VbNr1bDOUDkCz7xnNE/ih2btQ7TYjeS9O2fhy3B7wnuy8re6p3uDxF3GaQBp5j2XZmndG0wosGl35Zdby2iv8zM02U/N0t2dT/86trfQREq/r7u6V4pMjwdV93UheoOqGNmM012dd5KRLzHpPb7BY62CYdI7QrOEjP5QX+hZKjIjNV6UAYky1N3V1U/GfBMvIW6OKa9+F7TkXUTWrCTrH9cD7WlWTT+KF3RAYkr/YBnqd5A27ybfgKBX+8klFgUhx93fybr99+hWrGyeTq5cyBEZQ+Q+T4t5N3nnzr/wABJyykU0m8/ovu5bK3zkhVRA4vrKYPuthPLxmDeUCzfOXi6OSvpl1Z4Um2rwAo1UQJk3VMWg9pNkjcXXOR3QuMuSd44FZjV7/UcS6G4vjAdoAkX39awA+ino+Ql6taNXzEcaPlGt63N+FFCmvLxfjZUrKak2euy+boA0qYLqRh1YvWi+A9TnsvHrSBsaNbI6L+OVFAK5Ei3Ne4DazH80TrNc7EvxpA0oV184BVyKl1Fbx7xUwxWgl4DoQknB6NvzfZPkHMbl5VjSLpeL5P5xYVz0J/A6XG65XzgFBDJAyZ8gNItmpc3PnwY8WWMZk5/IuoOvV6O9z98RMD4H8kQN2vzslgOfEKyOM3MAvu51FMUIyTzAw+dS15i5F2VTaPNAHibvB2kyFmZhaWLBYkEtQkoMWWPIGhvfYgjFVJhnnUUZiiLqaLWWov8H1u1/er7Wn/cRqNBj+3oH6Nx7HwX9e7L2qmTSW2ds2CSDEhanMKkTlPQNVN8ARlG1IIsQrgRdSsaEiEDRg2P6egpYsTSbgNPuCbRwryTNuQtfDic8oW5fnuGyzK9h5F6s9CUTn2dWLylE+n8oOxF5FnQP6l/FZ06gUiQsGQq0kPJXINKO6g2IfgCll7RpwciZtRQo+hEcX2ckfEhuGjxZD195Xl+ZqczkMdZFyIcJWIfKYlQjkCMouxD3AhK+LL25mi9S6n+0p1keLiXyfYi8H6ELIY0ygZDDuR8xfPC58sjLub4yIw1/b3jn+iycDCmEnvcP56dOgtTE6jK9g6Pb+wOWvpklVTIcaonk9oHx+TC/F0QBVQcjzjILVO94e9X1pI4p9jqv/weC/0eBctvNNQAAAABJRU5ErkJggg==";
     let _ebcPawImg = null;
     let _ebcPawImgReady = false;
     function getEbcPawImg() {
@@ -35797,11 +35827,9 @@
             return _ebcPawImg;
         if (!_ebcPawImg) {
             try {
-                const blob = new Blob([EBC_PAW_SVG], { type: "image/svg+xml" });
-                const url = URL.createObjectURL(blob);
                 _ebcPawImg = new Image();
                 _ebcPawImg.onload = () => { _ebcPawImgReady = true; };
-                _ebcPawImg.src = url;
+                _ebcPawImg.src = EBC_PAW_DATA;
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
@@ -35942,15 +35970,15 @@
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
                 const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 800);
-                const sz = Math.max(14, Math.round(22 * zoom));
-                // BC name text is at approximately top + 975*zoom; paw sits just above it
+                const sz = Math.max(10, Math.round(16 * zoom));
+                // Place paw to the right of the name text so it does not overlap
                 const nameX = left + 250 * zoom;
-                const nameY = top + 958 * zoom;
+                const nameY = top + 960 * zoom;
                 _pawCtx.save();
-                _pawCtx.globalAlpha = 0.92 * pulse;
+                _pawCtx.globalAlpha = 0.90 * pulse;
                 _pawCtx.shadowColor = "#ffd700";
-                _pawCtx.shadowBlur = sz * 0.75;
-                _pawCtx.drawImage(_pawImg, nameX - sz / 2, nameY - sz - 2, sz, sz);
+                _pawCtx.shadowBlur = sz * 0.8;
+                _pawCtx.drawImage(_pawImg, nameX + Math.round(90 * zoom), nameY - sz / 2 - Math.round(6 * zoom), sz, sz);
                 _pawCtx.restore();
             }
         }

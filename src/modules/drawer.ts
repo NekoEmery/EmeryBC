@@ -17271,11 +17271,22 @@ export class EBCDrawer {
             nameRow.appendChild(namEl);
 
             if (isPawCard) {
-                // Proper gold pill badge
+                // Creator badge pill
                 const creatorBadge = document.createElement("span");
                 creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#1a0d02;background:#c89030;border-radius:3px;padding:1px 6px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;";
                 creatorBadge.textContent = "Creator";
                 nameRow.appendChild(creatorBadge);
+                // Member number chip (same as other cards)
+                const idElCreator = document.createElement("span");
+                idElCreator.className = "ebc-member-chip";
+                idElCreator.textContent = "#" + p.memberId;
+                idElCreator.title = "BC Member Number";
+                nameRow.appendChild(idElCreator);
+                // Paw mark
+                const pawMark = document.createElement("span");
+                pawMark.style.cssText = "font-size:13px;line-height:1;filter:drop-shadow(0 0 3px #c89030);flex-shrink:0;";
+                pawMark.textContent = "🐾";
+                nameRow.appendChild(pawMark);
             } else {
                 const idEl2 = document.createElement("span");
                 idEl2.className = "ebc-member-chip";
