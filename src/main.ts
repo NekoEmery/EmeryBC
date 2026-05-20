@@ -6,7 +6,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getBadgeScale, getBadgeOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getBadgeScale, getBadgeOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.9.5";
+const MOD_VERSION = "2.9.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.9.6",
+        changes: [
+            "Feature: Separate version-badge controls for self and others. 'My version' toggles whether your own badge shows your EBC version; 'Others\\' ver.' toggles whether other players' badges show their version. Both are now in the EBC tag strip alongside the existing visibility cards.",
+            "UX: EBC tag strip section header now shows the EBC cat-face logo and the addon name instead of the generic 🏷 label.",
+        ],
+    },
     {
         version: "2.9.5",
         changes: [
@@ -4042,7 +4049,7 @@ function drawPresenceMarker(args: unknown[]): void {
     if (zoom < 0.3) return;
 
     const presence   = getSharedPresence(character);
-    const showVer    = getShowVersionBadge();
+    const showVer    = isSelf ? getShowVersionBadge() : getShowOthersVersionBadge();
     const verStr     = isSelf ? MOD_VERSION : (presence?.version ?? "?");
     const isDevUser  = isSelf ? IS_DEV_BUILD : (presence?.isDev === true);
     const label      = isDevUser

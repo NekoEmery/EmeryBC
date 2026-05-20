@@ -68,6 +68,23 @@ export function setShowVersionBadge(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Others' version badge visibility -----------------------------------------
+// When enabled, other players' EBC overhead badges show their version number.
+// Defaults to false (badge shows just "EBC" for others).
+
+export function getShowOthersVersionBadge(): boolean {
+    try { return getStore()?.showOthersVersionBadge === true; } catch { return false; }
+}
+
+export function setShowOthersVersionBadge(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.showOthersVersionBadge = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Anti-restraint -----------------------------------------------------------
 // When enabled, any restraint applied to the player by someone else is
 // immediately removed and a playful emote is sent to the room.

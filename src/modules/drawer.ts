@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeOpacity, setBadgeOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeOpacity, setBadgeOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4179,13 +4179,13 @@ export class EBCDrawer {
         ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
 
         const ebcTagsHdrLeft = document.createElement("div");
-        ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
+        ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
         const ebcTagsHdrIcon = document.createElement("span");
-        ebcTagsHdrIcon.textContent = "🏷";
-        ebcTagsHdrIcon.style.fontSize = "10px";
+        ebcTagsHdrIcon.style.cssText = "flex-shrink:0;line-height:0;";
+        ebcTagsHdrIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
         const ebcTagsHdrLabel = document.createElement("span");
         ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-        ebcTagsHdrLabel.textContent = t("strip.tagToggles");
+        ebcTagsHdrLabel.textContent = "EBC";
         ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
         ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
 
@@ -4217,6 +4217,7 @@ export class EBCDrawer {
             sublabel: string,
             getVal: () => boolean,
             setVal: (v: boolean) => void,
+            container: HTMLElement,
         ): void => {
             const card = document.createElement("div");
             card.title = sublabel;
@@ -4262,13 +4263,25 @@ export class EBCDrawer {
             };
             refresh();
             card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
-            ebcTagsCardRow.appendChild(card);
+            container.appendChild(card);
         };
 
-        makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled);
-        makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge);
+        makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
+        makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
 
         ebcTagsBody.appendChild(ebcTagsCardRow);
+
+        // ── Version display row ───────────────────────────────────────────────
+        const versionRowLbl = document.createElement("div");
+        versionRowLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:6px 0 4px;";
+        versionRowLbl.textContent = t("strip.versionDisplay");
+        ebcTagsBody.appendChild(versionRowLbl);
+
+        const versionCardRow = document.createElement("div");
+        versionCardRow.style.cssText = "display:flex;gap:7px;";
+        makeTagCard("v", t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
+        makeTagCard("v", t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
+        ebcTagsBody.appendChild(versionCardRow);
 
         // ── Badge Appearance ─────────────────────────────────────────────────
         const badgeDivider = document.createElement("div");

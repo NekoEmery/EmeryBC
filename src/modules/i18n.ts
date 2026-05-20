@@ -260,8 +260,13 @@ const S: Record<string, T> = {
     "footer.boundLabel":  { en: "Bound",   de: "Gefesselt", zh: "被束缚", fr: "Attaché",  es: "Atado",    ru: "Связан",   ja: "拘束中"    },
 
     // ─── EBC TAGS STRIP ────────────────────────────────────────────────────────
-    "strip.myTag":  { en: "My tag",  de: "Mein Tag",  zh: "我的标签", fr: "Mon tag",  es: "Mi tag",  ru: "Мой тег",      ja: "自分のタグ" },
-    "strip.others": { en: "Others",  de: "Andere",    zh: "他人标签", fr: "Autres",   es: "Otros",   ru: "Другие",       ja: "他のユーザー" },
+    "strip.myTag":           { en: "My tag",        de: "Mein Tag",       zh: "我的标签",    fr: "Mon tag",         es: "Mi tag",          ru: "Мой тег",          ja: "自分のタグ"       },
+    "strip.others":          { en: "Others",        de: "Andere",         zh: "他人标签",    fr: "Autres",          es: "Otros",           ru: "Другие",           ja: "他のユーザー"     },
+    "strip.myVersion":       { en: "My version",    de: "Meine Version",  zh: "我的版本号",  fr: "Ma version",      es: "Mi versión",      ru: "Моя версия",       ja: "自分のバージョン" },
+    "strip.othersVersion":   { en: "Others' ver.",  de: "Andere Ver.",    zh: "他人版本号",  fr: "Ver. autres",     es: "Ver. otros",      ru: "Версия других",    ja: "他人のバージョン" },
+    "strip.myVersionSub":    { en: "Show version number in your own EBC badge", de: "Versionsnummer in deinem eigenen EBC-Abzeichen anzeigen", zh: "在自己的 EBC 标签中显示版本号", fr: "Afficher le numéro de version dans votre propre badge EBC", es: "Mostrar número de versión en tu propia insignia EBC", ru: "Показывать номер версии в вашем EBC-значке", ja: "自分のEBCバッジにバージョン番号を表示" },
+    "strip.othersVersionSub":{ en: "Show version number in other players' EBC badges", de: "Versionsnummer in den EBC-Abzeichen anderer Spieler anzeigen", zh: "在其他玩家的 EBC 标签中显示版本号", fr: "Afficher le numéro de version dans les badges EBC des autres joueurs", es: "Mostrar número de versión en las insignias EBC de otros jugadores", ru: "Показывать номер версии в EBC-значках других игроков", ja: "他プレイヤーのEBCバッジにバージョン番号を表示" },
+    "strip.versionDisplay":  { en: "VERSION",       de: "VERSION",        zh: "版本显示",    fr: "VERSION",         es: "VERSIÓN",         ru: "ВЕРСИЯ",           ja: "バージョン"       },
     "strip.pinTab": { en: "Pin tab", de: "Tab anheften", zh: "固定标签", fr: "Épingler", es: "Fijar",  ru: "Закрепить",   ja: "タブを固定" },
 
     // ─── MISC ───────────────────────────────────────────────────────────────────
