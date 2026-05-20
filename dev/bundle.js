@@ -20664,7 +20664,9 @@
                     const btnRow = document.createElement("div");
                     btnRow.className = "ebc-pose-add-grid";
                     for (const p of group.poses) {
-                        if (!p.key)
+                        // Body: skip empty key (Stand = clear all, not a useful combo step)
+                        // Arms: keep empty key — it's "Relaxed", a valid step
+                        if (!p.key && group.group !== "Arms")
                             continue;
                         const btn = document.createElement("button");
                         btn.className = "ebc-pose-add-btn";
@@ -20678,7 +20680,7 @@
                 // Add delay row after the pose buttons
                 parent.appendChild(delayRowEl);
                 return {
-                    getPoses: () => poses.filter(Boolean),
+                    getPoses: () => [...poses], // keep "" (Relaxed) — applyPoses handles it
                     getDelay: () => Number(delayInp.value),
                 };
             };
@@ -21327,7 +21329,8 @@
                                 var _a, _b, _c, _d;
                                 const bKey = (_b = (_a = fieldsEl.querySelector("[data-axis='body']")) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "";
                                 const aKey = (_d = (_c = fieldsEl.querySelector("[data-axis='arms']")) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : "";
-                                posePoses = [bKey, aKey].filter(Boolean);
+                                // Keep "" for arms (Relaxed) — applyPoses strips arm poses when it sees ""
+                                posePoses = [bKey, aKey];
                             });
                             wrap.appendChild(lbl);
                             wrap.appendChild(sel);
@@ -30980,7 +30983,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.1.2";
+    const MOD_VERSION = "3.1.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30991,6 +30994,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.1.3",
+            changes: [
+                "Fix: Relaxed arm pose now works in pose combos and scenes. Three bugs fixed: (1) Relaxed button was hidden in the combo step quick-add grid; (2) getPoses() was stripping the empty-string Relaxed marker before saving; (3) the scene step Arms dropdown onChange was also filtering it out with filter(Boolean).",
+            ],
+        },
         {
             version: "3.1.2",
             changes: [
