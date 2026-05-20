@@ -1349,22 +1349,45 @@
         catch ( /* ignore */_d) { /* ignore */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
-    // Respects the exact order provided — the user controls sequencing via the editor.
-    // e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
+    // Each entry in `poses` is one step:
+    //   - a body-pose key ("Kneel", "AllFours", …) → replaces the body slot
+    //   - an arm-pose key ("BackBoxTie", "Yoked", …) → replaces the arm slot
+    //   - ""  (Relaxed marker)                       → clears the arm slot
+    // State is cumulative: every step passes the full [body?, arm?] snapshot to
+    // applyPoses, so the animation builds up correctly regardless of which steps
+    // include a Relaxed ("") entry.
     function applyPosesSequential(poses, stepDelayMs = 420) {
-        // Preserve empty strings — applyPoses handles the "Relaxed arms" case.
+        var _a;
         const safeList = Array.isArray(poses) ? poses : [];
-        const wantsRelaxed = safeList.includes("");
-        const steps = safeList.filter(Boolean);
+        if (safeList.length === 0) {
+            applyPoses([]);
+            return;
+        }
+        // Build a concrete pose-state snapshot for each step.
+        let bodyPose = null;
+        let armPose = null;
+        const steps = [];
+        for (const p of safeList) {
+            if (p === "") {
+                armPose = null; // Relaxed: clear arm slot
+            }
+            else if (ARM_POSES.includes(p)) {
+                armPose = p; // replace arm pose
+            }
+            else {
+                bodyPose = p; // replace body pose
+            }
+            steps.push([
+                ...(bodyPose !== null ? [bodyPose] : []),
+                ...(armPose !== null ? [armPose] : []),
+            ]);
+        }
         if (steps.length <= 1) {
-            // Pass original list so applyPoses sees the empty-string Relaxed marker.
-            applyPoses(wantsRelaxed ? [...steps, ""] : steps);
+            applyPoses((_a = steps[0]) !== null && _a !== void 0 ? _a : []);
             return;
         }
         for (let i = 0; i < steps.length; i++) {
-            const subset = steps.slice(0, i + 1);
-            // On each step include the Relaxed marker if needed so arm pose is cleared.
-            window.setTimeout(() => applyPoses(wantsRelaxed ? [...subset, ""] : subset), i * stepDelayMs);
+            window.setTimeout(() => applyPoses(steps[i]), i * stepDelayMs);
         }
     }
     function getCurrentPoses() {
@@ -31848,7 +31871,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.7.5";
+    const MOD_VERSION = "3.7.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31859,6 +31882,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.7.6",
+            changes: [
+                "Fix: pose combos with a Relaxed step now work correctly. Root cause: applyPosesSequential was stripping all arm poses from every step whenever any '' entry appeared in the list, so a combo like [Kneel, BackBoxTie, ''] would end up applying only Kneel. Rewrote the function to track a cumulative body+arm state per step so '' just clears the arm slot at that point without affecting other steps.",
+            ],
+        },
         {
             version: "3.7.5",
             changes: [
