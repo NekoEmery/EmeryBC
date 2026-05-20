@@ -17189,15 +17189,36 @@
                     style.webkitBackdropFilter = "none";
             }
         }
-        /** Scale the entire EBC panel via the CSS zoom property. */
+        /** Scale the entire EBC panel via the CSS zoom property.
+         *
+         * We target .ebc-panel (the inner visual div) rather than #emerybc-panel
+         * (the slide container) because #emerybc-panel uses
+         * transform: translateX(calc(100% + 60px)) for its open/close animation.
+         * When zoom changes the container's rendered width, "100%" re-evaluates
+         * and the transition fires, causing the panel to visually glitch-slide.
+         *
+         * By zooming .ebc-panel instead, the slide container is never touched.
+         * We compensate with inverse sizing (width = 100/scale %) so the zoomed
+         * inner panel fills its parent exactly — no overflow, no clipping.
+         */
         applyPanelZoom(scale = loadPanelZoom()) {
-            const panelEl = this.panelEl;
-            if (!panelEl)
+            var _a;
+            const panel = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(".ebc-panel");
+            if (!panel)
                 return;
-            // CSS zoom is Chromium-native and scales layout + rendering together.
-            // Unset when at default so the panel stays at its natural CSS size.
-            panelEl.style.zoom =
-                scale === 1 ? "" : String(scale);
+            const s = panel.style;
+            if (scale === 1) {
+                s.zoom = "";
+                panel.style.width = "";
+                panel.style.height = "";
+            }
+            else {
+                // inv% × zoom = 100% → content exactly fills the slide container.
+                const inv = (100 / scale).toFixed(4) + "%";
+                s.zoom = String(scale);
+                panel.style.width = inv;
+                panel.style.height = inv;
+            }
         }
         /**
          * Re-render the current tab in-place while preserving the panel's scroll
@@ -30554,7 +30575,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.8.7";
+    const MOD_VERSION = "2.8.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30565,6 +30586,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.8.8",
+            changes: [
+                "Fix: Text size slider no longer causes the panel to glitch/slide. Zoom is now applied to the inner visual panel instead of the slide container, avoiding a CSS transition conflict where changing zoom re-evaluated 100% in the translateX animation.",
+            ],
+        },
         {
             version: "2.8.7",
             changes: [
