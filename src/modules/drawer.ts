@@ -4486,6 +4486,9 @@ export class EBCDrawer {
             this.panelPosition = null;
             this.savePanelPosition(null);
             this.exitFreeMode();
+            // Reset text size to default
+            savePanelZoom(1);
+            this.applyPanelZoom(1);
             // Also reset the hamburger tab to auto-position (follow CRABS)
             this.userTabOffset = null;
             this.lastCrabsBottom = -1;
