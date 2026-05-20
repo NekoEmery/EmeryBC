@@ -20536,34 +20536,7 @@
                     }
                     parent.appendChild(btnRow);
                 }
-                // Custom pose add
-                const customHint = document.createElement("div");
-                customHint.className = "ebc-import-hint";
-                customHint.style.marginTop = "3px";
-                customHint.textContent = "Custom pose key:";
-                parent.appendChild(customHint);
-                const customRow = document.createElement("div");
-                customRow.style.cssText = "display:flex;gap:5px;";
-                const customInp = Object.assign(document.createElement("input"), {
-                    className: "ebc-form-input", type: "text", placeholder: "e.g. Hogtied",
-                    maxLength: 40,
-                });
-                customInp.style.flex = "1";
-                const addCustomBtn = document.createElement("button");
-                addCustomBtn.className = "ebc-update-btn";
-                addCustomBtn.textContent = t("core.add");
-                addCustomBtn.addEventListener("click", () => {
-                    const val = customInp.value.trim();
-                    if (val) {
-                        poses.push(val);
-                        customInp.value = "";
-                        renderList();
-                    }
-                });
-                customRow.appendChild(customInp);
-                customRow.appendChild(addCustomBtn);
-                parent.appendChild(customRow);
-                // Add delay row after the custom row
+                // Add delay row after the pose buttons
                 parent.appendChild(delayRowEl);
                 return {
                     getPoses: () => poses.filter(Boolean),
@@ -30818,7 +30791,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.0";
+    const MOD_VERSION = "2.10.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30829,6 +30802,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.10.1",
+            changes: [
+                "UX: Removed the 'Custom pose key' free-text input from the pose combo step editor. The preset pose buttons cover all known poses — the freeform field was not propagated correctly and has been removed until a proper implementation is ready.",
+            ],
+        },
         {
             version: "2.10.0",
             changes: [
