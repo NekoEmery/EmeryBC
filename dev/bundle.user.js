@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.5.2
+// @version      3.5.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -31669,7 +31669,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.5.2";
+    const MOD_VERSION = "3.5.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31680,6 +31680,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.5.3",
+            changes: [
+                "Creator paw: corrected y to top+975*zoom (BC draws character names at CharTop+975*Zoom); reduced x gap from 76 to 54 units so the paw sits tightly inline with the name.",
+            ],
+        },
         {
             version: "3.5.2",
             changes: [
@@ -36125,14 +36131,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // Pulse stays between 0.72 and 1.0 — never fades to near-invisible
                 const pulse = 0.86 + 0.14 * Math.sin(Date.now() / 1200);
                 const sz = Math.max(10, Math.round(16 * zoom));
-                // Place paw to the right of the name, centred on the name baseline
+                // BC draws the character name at CharTop + 975 * Zoom.
+                // x offset 54*zoom puts the paw ~8px past the right edge of a typical 6-char name.
                 const nameX = left + 250 * zoom;
-                const nameY = top + 960 * zoom;
+                const nameY = top + 975 * zoom;
                 _pawCtx.save();
                 _pawCtx.globalAlpha = pulse;
                 _pawCtx.shadowColor = "#ffd700";
                 _pawCtx.shadowBlur = sz * 0.8;
-                _pawCtx.drawImage(_pawImg, nameX + Math.round(76 * zoom), nameY - sz / 2, sz, sz);
+                _pawCtx.drawImage(_pawImg, nameX + Math.round(54 * zoom), nameY - sz / 2, sz, sz);
                 _pawCtx.restore();
             }
         }
