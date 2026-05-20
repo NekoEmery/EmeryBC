@@ -9906,7 +9906,7 @@ export class EBCDrawer {
                 }
             };
 
-            const fullRebuild = (): void => {
+            const fullRebuild = (scrollToIdx?: number): void => {
                 entries.length = 0;
                 while (stepsContainer.firstChild) stepsContainer.removeChild(stepsContainer.firstChild);
 
@@ -9926,12 +9926,12 @@ export class EBCDrawer {
                         idx > 0 ? () => {
                             syncFromEntries();
                             [steps[idx - 1], steps[idx]] = [steps[idx], steps[idx - 1]];
-                            fullRebuild();
+                            fullRebuild(idx - 1);
                         } : null,
                         idx < steps.length - 1 ? () => {
                             syncFromEntries();
                             [steps[idx], steps[idx + 1]] = [steps[idx + 1], steps[idx]];
-                            fullRebuild();
+                            fullRebuild(idx + 1);
                         } : null,
                         () => {
                             syncFromEntries();
@@ -9941,11 +9941,27 @@ export class EBCDrawer {
                         () => {
                             syncFromEntries();
                             steps.splice(idx + 1, 0, { ...steps[idx] });
-                            fullRebuild();
+                            fullRebuild(idx + 1);
                         },
                     );
+                    // Step number badge — shows clear visual order in the card header
+                    const hdr = entry.el.querySelector(".ebc-scene-step-header") as HTMLElement | null;
+                    if (hdr) {
+                        const numBadge = document.createElement("span");
+                        numBadge.className = "ebc-step-num";
+                        numBadge.textContent = String(i + 1);
+                        numBadge.style.cssText = "flex-shrink:0;min-width:16px;";
+                        hdr.insertBefore(numBadge, hdr.firstChild);
+                    }
                     entries.push(entry);
                     stepsContainer.appendChild(entry.el);
+                }
+
+                // Scroll moved/added step into view so the user can see the change
+                if (scrollToIdx !== undefined && scrollToIdx >= 0 && scrollToIdx < entries.length) {
+                    window.setTimeout(() => {
+                        entries[scrollToIdx]?.el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    }, 30);
                 }
             };
 

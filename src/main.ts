@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.7.7";
+const MOD_VERSION = "3.7.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,9 +37,15 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "3.7.8",
+        changes: [
+            "Scenes step editor: each step card now shows its step number (1, 2, 3…) so reordering with ↑/↓ is visually obvious. After a move the newly positioned card scrolls into view.",
+        ],
+    },
+    {
         version: "3.7.7",
         changes: [
-            "Scenes pose step: Arms dropdown first option renamed from 'None' to 'Relaxed' to match pose combo vocabulary.",
+            "Scenes: pose step Arms dropdown first option renamed from 'None' to 'Relaxed' to match pose combo vocabulary.",
         ],
     },
     {
