@@ -16609,6 +16609,7 @@
             // Header row — one line, always visible
             const swHdr = document.createElement("div");
             swHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;";
+            swHdr.setAttribute("data-guide-target", "strip-safewords");
             const swIcon = document.createElement("span");
             swIcon.textContent = "🛑";
             swIcon.style.cssText = "font-size:11px;flex-shrink:0;";
@@ -16833,6 +16834,7 @@
             // ── EBC Tags strip — collapsible, always below safewords ─────────────
             const ebcTagsStrip = document.createElement("div");
             ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
+            ebcTagsStrip.setAttribute("data-guide-target", "strip-ebc-tags");
             this.ebcTagsStripEl = ebcTagsStrip;
             this.rebuildEbcTagsStrip();
             // Wrap all panel children in .ebc-zoom-wrapper.
@@ -18151,6 +18153,7 @@
             const tagToggleBtn = document.createElement("button");
             tagToggleBtn.className = "ebc-section-label";
             tagToggleBtn.style.cssText = "display:block;width:100%;background:transparent;border:none;cursor:pointer;text-align:left;padding:4px 4px 5px;margin-bottom:3px;transition:color 0.12s;";
+            tagToggleBtn.setAttribute("data-guide-target", "section-outfit-tags");
             const allTagsNow = getOutfitTags();
             tagToggleBtn.textContent = (tagMgmtOpen ? "▼" : "▶") + ` ${t("outfits.tagsN", { n: allTagsNow.length })}`;
             const tagMgmtBody = document.createElement("div");
@@ -18359,6 +18362,7 @@
             lbl.className = "ebc-section-label";
             lbl.style.cursor = "pointer";
             lbl.style.userSelect = "none";
+            lbl.setAttribute("data-guide-target", "section-schedules");
             const container = document.createElement("div");
             let collapsed = false;
             try {
@@ -19902,6 +19906,7 @@
             const newBtn = document.createElement("button");
             newBtn.className = "ebc-new-outfit-btn";
             newBtn.textContent = t("outfits.newOutfit");
+            newBtn.setAttribute("data-guide-target", "btn-new-outfit");
             target.appendChild(newBtn);
             const form = document.createElement("div");
             form.className = "ebc-new-form";
@@ -23591,6 +23596,7 @@
                     };
                     // Collapsible section header — styled like a section label + arrow
                     const roomToggle = document.createElement("div");
+                    roomToggle.setAttribute("data-guide-target", "section-room-people");
                     const updateRoomToggle = () => {
                         const col = this.roomPeopleCollapsed;
                         roomToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
@@ -24552,7 +24558,7 @@
             // EBC Tags toggles moved to the permanent strip below safewords (always visible).
             // No longer shown in DEV tab.
             // Helper: collapsible section wrapper
-            const makeSection = (labelText, lsKey, defaultCollapsed, buildContent) => {
+            const makeSection = (labelText, lsKey, defaultCollapsed, buildContent, guideTarget) => {
                 let collapsed = defaultCollapsed;
                 try {
                     const v = localStorage.getItem(lsKey);
@@ -24562,6 +24568,8 @@
                 catch ( /* ignore */_a) { /* ignore */ }
                 const hdr = document.createElement("div");
                 hdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:3px 0;margin-bottom:2px;";
+                if (guideTarget)
+                    hdr.setAttribute("data-guide-target", guideTarget);
                 const chev = document.createElement("span");
                 chev.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:10px;";
                 const lbl = document.createElement("span");
@@ -25004,7 +25012,7 @@
                 hotkeyHint.textContent = t("dev.hotkeyHint");
                 hotkeyWrap.appendChild(hotkeyHint);
                 cnt.appendChild(hotkeyWrap);
-            });
+            }, "section-dev-prefs");
             // ── Developer Tools ────────────────────────────────────────────────────
             makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
                 // Character Inspector
@@ -26164,7 +26172,7 @@
                         showConfirmOverlay("Clear the entire People Met list? This cannot be undone.", "Cancel", "Clear All", () => { clearPeopleMet(); renderList(); });
                     });
                 });
-            });
+            }, "section-dev-logs");
             // ── Stat Editor (credited members only) ───────────────────────────────
             const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
             if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
@@ -26982,6 +26990,7 @@
             addCatBtn.className = "ebc-cat-pill";
             addCatBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 10px;border-radius:5px;border:1px dashed #4c2537;background:transparent;color:#7a5a6a;cursor:pointer;width:100%;text-align:center;";
             addCatBtn.textContent = t("buttons.addCategory");
+            addCatBtn.setAttribute("data-guide-target", "btn-add-category");
             addCatBtn.addEventListener("click", () => {
                 var _a;
                 const name = (_a = window.prompt("Category name (e.g. RP, Casual):")) !== null && _a !== void 0 ? _a : "";
@@ -30138,7 +30147,6 @@
                 reason.textContent = p.reason;
                 info.appendChild(nameRow);
                 info.appendChild(reason);
-                card.appendChild(avatar);
                 card.appendChild(info);
                 // Right decoration — skip for the creator card (avatar already has the paw)
                 if (!isPawCard) {
@@ -31452,16 +31460,19 @@
             tab: "outfits",
             label: "👗 Outfits — Save & Apply Looks",
             text: "Click [[💾 Save]] to store your current full appearance as a named preset.\nClick any saved outfit card to [[Apply]] it — restoring every clothing layer and colour instantly.\nUse [[✏]] to rename, [[🗑]] to delete, and the [[↑ ↓]] arrows to reorder your list.\n((Great for switching between different roleplay or casual looks in seconds.))",
+            spotlight: ["[data-guide-target='btn-new-outfit']"],
         },
         {
             tab: "outfits",
             label: "🏷 Outfit Tags & Schedules",
             text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the [[🏷]] icon on any outfit card to assign tags — then filter by tag at the top of the list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day. Expand the [[Schedules]] section at the bottom of this tab to set one up.\n((You can also [[📤 Export]] outfits as codes and share them — use [[📥 Import]] to load a code someone sent you.))",
+            spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
         },
         {
             tab: "buttons",
             label: "🎛 Action Buttons — Quick Commands",
             text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] handle on a button card to reorder it. [[✏]] edits it, [[🗑]] deletes it.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
+            spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "buttons",
@@ -31479,26 +31490,31 @@
             tab: "notes",
             label: "👥 Users & Friends",
             text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate — perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions — a permanent address book of everyone you've encountered.))",
+            spotlight: ["[data-guide-target='section-room-people']"],
         },
         {
             tab: "dev",
             label: "⚙ DEV — Preferences & Themes",
             text: "[[Quick Preset]] lets you apply a full colour theme instantly — try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
+            spotlight: ["[data-guide-target='section-dev-prefs']"],
         },
         {
             tab: "dev",
             label: "📋 DEV — Logs & History",
             text: "[[Whisper Log]] — every whisper sent and received this session.\n[[Current Room]] — who is in your room right now, with member IDs.\n[[Rooms Visited]] — all rooms you've entered this session.\n[[Restraint Log]] — when items were applied or removed.\n[[People Met]] — persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
+            spotlight: ["[data-guide-target='section-dev-logs']"],
         },
         {
             tab: null,
             label: "🏷 EBC Tag Settings Strip",
             text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use [[📍 Text]] and [[📍 Cat]] buttons to drag each badge to its exact position on screen.",
+            spotlight: ["[data-guide-target='strip-ebc-tags']"],
         },
         {
             tab: null,
             label: "🛡 Safewords Strip",
             text: "The [[SAFEWORDS]] bar is always pinned at the top of the panel — reachable instantly no matter which tab you're on.\nSet up to [[3 safewords]] — clicking one sends a pre-written safety message to the room immediately.\nConfigure a [[Grace period]] (in minutes) to prevent accidental taps, and enable a [[Confirm step]] for extra safety.\n((Both the Safewords and EBC Tags strips can be hidden per-tab in [[DEV → Pinned strip visibility]].))",
+            spotlight: ["[data-guide-target='strip-safewords']"],
         },
         {
             tab: null,
@@ -31527,7 +31543,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.4.3";
+    const MOD_VERSION = "3.4.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31538,6 +31554,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.4.4",
+            changes: [
+                "Guide: every step now spotlights the relevant UI element with a pulsing pink outline. New button, Tags section, Schedules, Add Category, Room People, DEV Preferences, DEV Logs, EBC Tags strip, and Safewords strip all have guide targets wired up.",
+            ],
+        },
         {
             version: "3.4.3",
             changes: [
