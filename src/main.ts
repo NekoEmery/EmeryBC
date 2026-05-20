@@ -6,7 +6,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.2.2";
+const MOD_VERSION = "3.2.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.2.3",
+        changes: [
+            "Cat badge position is now independent from the text badge position. Enabling drag mode and dragging the cat icon only moves the cat offset; switching to text style drags only the text badge. The ⟳ reset button resets all three positions (text badge, cat badge, version text).",
+        ],
+    },
     {
         version: "3.2.2",
         changes: [
@@ -4201,15 +4207,16 @@ function initBadgeDragListeners(): void {
         // Always consume in drag mode — prevents BC canvas click-through.
         consume();
         const pos = toCanvasPos(canvas, clientX, clientY);
-        // Check icon hit first
-        const bx = _playerCharLeft + getBadgeOffsetX() * _playerCharZoom;
-        const by = _playerCharTop  + getBadgeOffsetY() * _playerCharZoom;
+        // Check icon hit — use style-specific offset so text and cat are dragged independently
+        const isCat = getBadgeStyle() === "cat";
+        const bx = _playerCharLeft + (isCat ? getCatBadgeOffsetX() : getBadgeOffsetX()) * _playerCharZoom;
+        const by = _playerCharTop  + (isCat ? getCatBadgeOffsetY() : getBadgeOffsetY()) * _playerCharZoom;
         if (Math.abs(pos.x - bx) < HIT && Math.abs(pos.y - by) < HIT) {
             _dragTarget = "icon";
             return;
         }
         // Check version text hit (cat mode + version visible)
-        if (getBadgeStyle() === "cat" && getShowVersionBadge()) {
+        if (isCat && getShowVersionBadge()) {
             const vx = _playerCharLeft + getVersionTextOffsetX() * _playerCharZoom;
             const vy = _playerCharTop  + getVersionTextOffsetY() * _playerCharZoom;
             if (Math.abs(pos.x - vx) < HIT && Math.abs(pos.y - vy) < HIT) {
@@ -4226,8 +4233,13 @@ function initBadgeDragListeners(): void {
         const pos = toCanvasPos(canvas, clientX, clientY);
         if (_playerCharZoom > 0) {
             if (_dragTarget === "icon") {
-                setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
-                setBadgeOffsetY((pos.y - _playerCharTop)  / _playerCharZoom);
+                if (getBadgeStyle() === "cat") {
+                    setCatBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                    setCatBadgeOffsetY((pos.y - _playerCharTop)  / _playerCharZoom);
+                } else {
+                    setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                    setBadgeOffsetY((pos.y - _playerCharTop)  / _playerCharZoom);
+                }
             } else {
                 setVersionTextOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
                 setVersionTextOffsetY((pos.y - _playerCharTop)  / _playerCharZoom);
@@ -4294,10 +4306,10 @@ function drawPresenceMarker(args: unknown[]): void {
         ? (showVer ? "dev | v" + verStr : "dev | EBC")
         : (showVer ? "v" + verStr : "EBC");
 
-    // User-configured position offset + scale
-    const offsetX   = getBadgeOffsetX();   // default 250 (char horiz centre)
-    const offsetY   = getBadgeOffsetY();   // default 72  (below WCE name)
-    const badgeStyle    = isSelf ? getBadgeStyle() : getOthersBadgeStyle();  // per-target style
+    // User-configured position offset + scale — both are per-style
+    const badgeStyle    = isSelf ? getBadgeStyle() : getOthersBadgeStyle();
+    const offsetX   = badgeStyle === "cat" ? getCatBadgeOffsetX() : getBadgeOffsetX();
+    const offsetY   = badgeStyle === "cat" ? getCatBadgeOffsetY() : getBadgeOffsetY();
     const userScale     = badgeStyle === "cat" ? getCatBadgeScale() : getTextBadgeScale();
     const badgeBgOp     = getBadgeBgOpacity();  // default 1.0
     const badgeTextOp   = getBadgeTextOpacity();// default 1.0

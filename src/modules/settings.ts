@@ -509,6 +509,35 @@ export function resetBadgePosition(): void {
     setBadgeOffsetY(72);
 }
 
+// -- Cat badge position offset -------------------------------------------------
+// Separate X/Y for the cat icon so it can be placed independently of the text badge.
+// Falls back to the shared badgeOffsetX/Y on first use (migration).
+
+export function getCatBadgeOffsetX(): number {
+    try {
+        const s = getStore();
+        const v = (s as Record<string, unknown>)?.catBadgeOffsetX;
+        return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : getBadgeOffsetX();
+    } catch { return 250; }
+}
+export function setCatBadgeOffsetX(v: number): void {
+    try { const s = getStore(); if (s) { (s as Record<string, unknown>).catBadgeOffsetX = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+}
+export function getCatBadgeOffsetY(): number {
+    try {
+        const s = getStore();
+        const v = (s as Record<string, unknown>)?.catBadgeOffsetY;
+        return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : getBadgeOffsetY();
+    } catch { return 72; }
+}
+export function setCatBadgeOffsetY(v: number): void {
+    try { const s = getStore(); if (s) { (s as Record<string, unknown>).catBadgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v))); syncSettings(); } } catch { /* ignore */ }
+}
+export function resetCatBadgePosition(): void {
+    setCatBadgeOffsetX(250);
+    setCatBadgeOffsetY(72);
+}
+
 // -- Version text offset (cat mode — drawn separately from cat icon) -----------
 // Independent X/Y position for the floating version label when badge style is
 // "cat" and version display is enabled. Defaults: X=250, Y=95 (just below cat).
