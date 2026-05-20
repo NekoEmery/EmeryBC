@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.6.0
+// @version      3.6.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -31768,7 +31768,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.6.0";
+    const MOD_VERSION = "3.6.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31779,6 +31779,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.6.1",
+            changes: [
+                "Canvas paw: removed pulse animation and shadow blur — both were amplifying BC's character idle-animation position drift causing the paw to visibly shake. Now renders as a clean static image.",
+            ],
+        },
         {
             version: "3.6.0",
             changes: [
@@ -36278,18 +36284,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
-                // Pulse stays between 0.72 and 1.0 — never fades to near-invisible
-                const pulse = 0.86 + 0.14 * Math.sin(Date.now() / 1200);
                 const sz = Math.max(12, Math.round(20 * zoom));
                 // BC draws the character name at CharTop + 975 * Zoom.
                 const nameX = left + 250 * zoom;
                 const nameY = top + 975 * zoom;
                 _pawCtx.save();
-                _pawCtx.globalAlpha = pulse;
-                _pawCtx.shadowColor = "#ffd700";
-                _pawCtx.shadowBlur = sz * 0.8;
-                // Draw centered horizontally, higher above the character name
-                _pawCtx.drawImage(_pawImg, Math.round(nameX - sz / 2), Math.round(nameY - sz - 8 * zoom), sz, sz);
+                _pawCtx.globalAlpha = 0.9;
+                // No shadow / no pulse — prevents visual jitter from frame-to-frame
+                // alpha and blur changes amplifying BC's idle-animation position drift.
+                _pawCtx.drawImage(_pawImg, Math.floor(nameX - sz / 2), Math.floor(nameY - sz - 8 * zoom), sz, sz);
                 _pawCtx.restore();
             }
         }
