@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.8.8";
+const MOD_VERSION = "2.8.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.8.9",
+        changes: [
+            "Fix: Text size slider no longer clips content or shows background bleed. Zoom is applied to the slide container (correct target for full-panel scaling) with the CSS transition temporarily suppressed for the single frame of the zoom change, preventing the slide animation from firing.",
+        ],
+    },
     {
         version: "2.8.8",
         changes: [

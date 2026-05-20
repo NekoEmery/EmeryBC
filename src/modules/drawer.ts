@@ -4960,31 +4960,31 @@ export class EBCDrawer {
 
     /** Scale the entire EBC panel via the CSS zoom property.
      *
-     * We target .ebc-panel (the inner visual div) rather than #emerybc-panel
-     * (the slide container) because #emerybc-panel uses
-     * transform: translateX(calc(100% + 60px)) for its open/close animation.
-     * When zoom changes the container's rendered width, "100%" re-evaluates
-     * and the transition fires, causing the panel to visually glitch-slide.
+     * Zoom is applied to #emerybc-panel (the slide container) so the content
+     * fills the panel at every zoom level with no clipping and no background bleed.
      *
-     * By zooming .ebc-panel instead, the slide container is never touched.
-     * We compensate with inverse sizing (width = 100/scale %) so the zoomed
-     * inner panel fills its parent exactly — no overflow, no clipping.
+     * The catch: #emerybc-panel has `transition: transform ...` for its open/close
+     * animation, and that animation uses `translateX(calc(100% + 60px))`.  When
+     * zoom changes the element's rendered width, "100%" re-evaluates and the
+     * transition fires, making the panel appear to glitch-slide.
+     *
+     * Fix: suppress the transition inline for the single frame of the zoom change,
+     * force a reflow so the new zoom is committed, then restore the transition on
+     * the next rAF tick — before the next browser paint.  Normal open/close
+     * animations are completely unaffected.
      */
     applyPanelZoom(scale = loadPanelZoom()): void {
-        const panel = this.rootEl?.querySelector(".ebc-panel") as HTMLElement | null;
-        if (!panel) return;
-        const s = panel.style as CSSStyleDeclaration & { zoom?: string };
-        if (scale === 1) {
-            s.zoom   = "";
-            panel.style.width  = "";
-            panel.style.height = "";
-        } else {
-            // inv% × zoom = 100% → content exactly fills the slide container.
-            const inv = (100 / scale).toFixed(4) + "%";
-            s.zoom   = String(scale);
-            panel.style.width  = inv;
-            panel.style.height = inv;
-        }
+        const panelEl = this.panelEl;
+        if (!panelEl) return;
+        const s = panelEl.style as CSSStyleDeclaration & { zoom?: string; transition?: string };
+        // Disable the CSS transition so the zoom-induced width change doesn't
+        // re-trigger the translateX(calc(100% + 60px)) slide animation.
+        s.transition = "none";
+        s.zoom = scale === 1 ? "" : String(scale);
+        // Force a layout reflow so the zoom is committed before the next paint.
+        panelEl.getBoundingClientRect();
+        // Restore the transition on the next frame (after the frame is painted).
+        requestAnimationFrame(() => { s.transition = ""; });
     }
 
     /**
