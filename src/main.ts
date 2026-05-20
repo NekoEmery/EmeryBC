@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.9.0";
+const MOD_VERSION = "2.9.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.9.1",
+        changes: [
+            "UX: Text size slider capped at 80%–150% (was 60%–200%) to prevent UI breakage at extreme values. Stored values outside this range are automatically clamped on load.",
+            "Feature: Emergency drawer reset — hold the EBC tab icon for 5 seconds and release to get a confirmation dialog that resets text size, panel opacity, and position all at once. Useful if the panel gets into an unusable state.",
+        ],
+    },
     {
         version: "2.9.0",
         changes: [

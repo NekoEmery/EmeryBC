@@ -347,7 +347,7 @@ const PANEL_ZOOM_KEY = "EBC_panelZoom";
 function loadPanelZoom(): number {
     try {
         const v = parseFloat(localStorage.getItem(PANEL_ZOOM_KEY) ?? "1");
-        return isNaN(v) ? 1 : Math.max(0.6, Math.min(2, v));
+        return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.5, v));
     } catch { return 1; }
 }
 
@@ -4441,6 +4441,12 @@ export class EBCDrawer {
             const startTabX = tabRect.left;
             const startTabY = tabRect.top;
             let dragged = false;
+            let longPressed = false;
+
+            // Hold the tab for 5 seconds without dragging → emergency settings reset.
+            const lpTimer = setTimeout(() => {
+                if (!dragged) longPressed = true;
+            }, 5000);
 
             addPointerTracking(
                 (pos) => {
@@ -4448,6 +4454,7 @@ export class EBCDrawer {
                     const dy = pos.clientY - start.clientY;
                     if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
                     dragged = true;
+                    clearTimeout(lpTimer);
                     tab.style.cursor = "grabbing";
                     if (tab.style.position !== "fixed") tab.style.position = "fixed";
                     const newX = Math.max(0, Math.min(window.innerWidth  - 44, startTabX + dx));
@@ -4456,8 +4463,32 @@ export class EBCDrawer {
                     tab.style.top  = `${newY}px`;
                 },
                 () => {
+                    clearTimeout(lpTimer);
                     tab.style.cursor = "";
                     this.tabDragging = false;
+                    if (longPressed) {
+                        // Emergency reset — shown after 5-second hold on the tab.
+                        showConfirmOverlay(
+                            "Reset all EBC drawer settings?\n\nRestores the default position, text size, and panel opacity.",
+                            "Cancel", "Reset",
+                            () => {
+                                savePanelZoom(1);      this.applyPanelZoom(1);
+                                savePanelOpacity(1);   this.applyPanelOpacity(1);
+                                this.panelPosition = null;
+                                this.savePanelPosition(null);
+                                this.exitFreeMode();
+                                this.userTabOffset = null;
+                                this.lastCrabsBottom = -1;
+                                tab.style.position = "";
+                                tab.style.left = "";
+                                tab.style.top  = "";
+                                this.saveTabOffset(null);
+                                this.updateCrabsPosition();
+                                this.rerender();
+                            },
+                        );
+                        return;
+                    }
                     if (!dragged) { this.toggle(); return; }
                     const pos = { x: parseInt(tab.style.left, 10), y: parseInt(tab.style.top, 10) };
                     this.userTabOffset = pos;
@@ -11932,8 +11963,8 @@ export class EBCDrawer {
 
             const zoomSlider = document.createElement("input");
             zoomSlider.type = "range";
-            zoomSlider.min = "0.6";
-            zoomSlider.max = "2";
+            zoomSlider.min = "0.8";
+            zoomSlider.max = "1.5";
             zoomSlider.step = "0.05";
             zoomSlider.value = String(loadPanelZoom());
             zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
