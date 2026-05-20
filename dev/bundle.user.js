@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.7.8
+// @version      3.7.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12620,7 +12620,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "core.moveDownTitle": { en: "Move down", de: "Nach unten", zh: "下移", fr: "Déplacer vers le bas", es: "Mover abajo", ru: "Переместить вниз", ja: "下へ移動" },
         // ─── HEADER ────────────────────────────────────────────────────────────
         "header.dragToMove": { en: "Drag to move", de: "Ziehen zum Verschieben", zh: "拖动以移动", fr: "Glisser pour déplacer", es: "Arrastrar para mover", ru: "Перетащить", ja: "ドラッグして移動" },
-        "header.resetPos": { en: "⌖ Reset all", de: "⌖ Alles zurücksetzen", zh: "⌖ 全部重置", fr: "⌖ Tout réinitialiser", es: "⌖ Restablecer todo", ru: "⌖ Сбросить всё", ja: "⌖ すべてリセット" },
+        "header.resetPos": { en: "⌖ Reset all", de: "⌖ Zurücksetzen", zh: "⌖ 全部重置", fr: "⌖ Réinitialiser", es: "⌖ Restablecer todo", ru: "⌖ Сбросить всё", ja: "⌖ すべてリセット" },
         "header.resetPosTitle": { en: "Reset panel to default position and text size", de: "Position und Textgröße zurücksetzen", zh: "重置面板位置和文字大小", fr: "Réinitialiser la position et la taille du texte", es: "Restablecer posición y tamaño de texto", ru: "Сбросить позицию и размер текста", ja: "パネルの位置と文字サイズをデフォルトに戻す" },
         "header.close": { en: "Close", de: "Schließen", zh: "关闭", fr: "Fermer", es: "Cerrar", ru: "Закрыть", ja: "閉じる" },
         "header.refresh": { en: "Refresh", de: "Aktualisieren", zh: "刷新", fr: "Actualiser", es: "Actualizar", ru: "Обновить", ja: "更新" },
@@ -12804,6 +12804,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "dev.statEditor": { en: "STAT EDITOR", de: "STATISTIK-EDITOR", zh: "属性编辑器", fr: "ÉDITEUR DE STATS", es: "EDITOR DE STATS", ru: "РЕДАКТОР ХАРАКТЕРИСТИК", ja: "ステータスエディタ" },
         "dev.peopleMet": { en: "PEOPLE MET", de: "BEKANNTE PERSONEN", zh: "已认识的人", fr: "PERSONNES RENCONTRÉES", es: "PERSONAS CONOCIDAS", ru: "ВСТРЕЧЕННЫЕ ЛЮДИ", ja: "出会った人々" },
         // ─── CREDITS TAB ───────────────────────────────────────────────────────────
+        "credits.madeBy": { en: "Made By", de: "Erstellt von", zh: "制作者", fr: "Créé par", es: "Creado por", ru: "Автор", ja: "制作者" },
         "credits.specialThanks": { en: "Special Thanks", de: "Besonderer Dank", zh: "特别感谢", fr: "Remerciements spéciaux", es: "Agradecimientos especiales", ru: "Особая благодарность", ja: "スペシャルサンクス" },
         "credits.intro": { en: "People who made EBC possible.", de: "Menschen, die EBC möglich gemacht haben.", zh: "让 EBC 成为可能的人们。", fr: "Les personnes qui ont rendu EBC possible.", es: "Las personas que hicieron posible EBC.", ru: "Люди, которые сделали EBC возможным.", ja: "EBCを実現してくれた人々。" },
         "credits.emery": { en: "Built this little thing out of love for the club. Still adding to it, still breaking it, still fixing it~", de: "Hat dieses kleine Ding aus Liebe zum Club gebaut. Fügt noch immer hinzu, bricht es, repariert es~", zh: "出于对俱乐部的热爱打造了这个小工具。还在添加功能，还在弄坏它，还在修复它~", fr: "A créé ce petit truc par amour pour le club. Ajoute encore, le casse encore, le répare encore~", es: "Construyó esta cosita por amor al club. Sigue añadiendo, sigue rompiéndola, sigue arreglándola~", ru: "Создала это из любви к клубу. Всё ещё добавляет, ломает и чинит~", ja: "クラブへの愛からこの小さなものを作りました。まだ追加し、まだ壊し、まだ直し続けています~" },
@@ -15391,6 +15392,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     font-size: 10px;
     font-family: "Trebuchet MS", serif;
     white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: background 0.14s, color 0.14s, border-color 0.14s;
 }
 .ebc-reset-loc-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
@@ -15843,16 +15847,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-guide-nav-next:hover { background: #e080aa; border-color: #e080aa; }
 .ebc-guide-btn {
     background: none;
-    border: 1px solid #3a1928;
+    border: 1px solid #7a3858;
     border-radius: 4px;
-    color: #9a7888;
+    color: #cf6f98;
     font-size: 11px;
     padding: 3px 7px;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     transition: border-color 0.12s, color 0.12s;
 }
-.ebc-guide-btn:hover { border-color: #cf6f98; color: #cf6f98; }
+.ebc-guide-btn:hover { border-color: #e080aa; color: #e080aa; }
 .ebc-guide-action-btn {
     width: 100%;
     background: #2e0e22;
@@ -30414,6 +30418,65 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
+            // ── Creator card (above "Special Thanks") ─────────────────────────────
+            const madeLbl = document.createElement("div");
+            madeLbl.className = "ebc-section-label";
+            madeLbl.textContent = t("credits.madeBy");
+            body.appendChild(madeLbl);
+            const creatorPerson = {
+                emoji: "🐾",
+                name: "Emery",
+                memberId: 130267,
+                reason: t("credits.emery"),
+                heart: "🐾",
+            };
+            (() => {
+                const p = creatorPerson;
+                const card = document.createElement("div");
+                card.className = "ebc-thanks-card";
+                card.style.borderLeft = "4px solid #c89030";
+                const avatar = document.createElement("div");
+                avatar.className = "ebc-thanks-avatar";
+                if (EBCDrawer.pawDataUri) {
+                    const pawImg = document.createElement("img");
+                    pawImg.src = EBCDrawer.pawDataUri;
+                    pawImg.className = "ebc-creator-paw-img";
+                    pawImg.alt = "🐾";
+                    avatar.appendChild(pawImg);
+                }
+                else {
+                    avatar.textContent = p.emoji;
+                }
+                card.appendChild(avatar);
+                const info = document.createElement("div");
+                info.className = "ebc-thanks-info";
+                const nameRow = document.createElement("div");
+                nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+                const namEl = document.createElement("span");
+                namEl.className = "ebc-thanks-name";
+                namEl.textContent = p.name;
+                const vipCredit = VIP_MEMBERS[p.memberId];
+                if (vipCredit)
+                    applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
+                nameRow.appendChild(namEl);
+                const idEl = document.createElement("span");
+                idEl.className = "ebc-member-chip";
+                idEl.textContent = "#" + p.memberId;
+                idEl.title = "BC Member Number";
+                nameRow.appendChild(idEl);
+                const reason = document.createElement("span");
+                reason.className = "ebc-thanks-reason";
+                reason.textContent = p.reason;
+                info.appendChild(nameRow);
+                info.appendChild(reason);
+                card.appendChild(info);
+                const heart = document.createElement("span");
+                heart.className = "ebc-thanks-heart";
+                heart.textContent = p.heart;
+                card.appendChild(heart);
+                body.appendChild(card);
+            })();
+            // ── Special Thanks section ─────────────────────────────────────────────
             const credLbl = document.createElement("div");
             credLbl.className = "ebc-section-label";
             credLbl.textContent = t("credits.specialThanks");
@@ -30427,13 +30490,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             intro.appendChild(introSub);
             body.appendChild(intro);
             const people = [
-                {
-                    emoji: "🐾",
-                    name: "Emery",
-                    memberId: 130267,
-                    reason: t("credits.emery"),
-                    heart: "🐾",
-                },
                 {
                     emoji: "🎀",
                     name: "Sin",
@@ -30466,22 +30522,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             for (const p of people) {
                 const card = document.createElement("div");
                 card.className = "ebc-thanks-card";
-                const isPawCard = p.memberId === 130267;
-                if (isPawCard)
-                    card.style.borderLeft = "4px solid #c89030";
-                // Avatar circle — paw PNG for creator, emoji for everyone else
+                // Avatar circle
                 const avatar = document.createElement("div");
                 avatar.className = "ebc-thanks-avatar";
-                if (isPawCard && EBCDrawer.pawDataUri) {
-                    const pawImg = document.createElement("img");
-                    pawImg.src = EBCDrawer.pawDataUri;
-                    pawImg.className = "ebc-creator-paw-img";
-                    pawImg.alt = "🐾";
-                    avatar.appendChild(pawImg);
-                }
-                else {
-                    avatar.textContent = p.emoji;
-                }
+                avatar.textContent = p.emoji;
                 card.appendChild(avatar);
                 const info = document.createElement("div");
                 info.className = "ebc-thanks-info";
@@ -31904,7 +31948,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.7.8";
+    const MOD_VERSION = "3.7.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31915,6 +31959,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.7.9",
+            changes: [
+                "Credits tab: Emery card now appears above the Special Thanks section under its own 'Made By' heading.",
+                "Header ? button is now clearly visible (brighter pink colour).",
+                "German reset-position button text shortened to prevent header clipping; all languages now have a max-width safety truncation.",
+            ],
+        },
         {
             version: "3.7.8",
             changes: [
