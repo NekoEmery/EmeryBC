@@ -22023,11 +22023,11 @@
                             sel.className = "ebc-scene-type-sel";
                             sel.style.width = "90px";
                             sel.dataset.axis = dataAttr;
-                            // "None" option for arms axis
+                            // "Relaxed" option for arms axis (value="" = no arm pose)
                             if (dataAttr === "arms") {
                                 const none = document.createElement("option");
                                 none.value = "";
-                                none.textContent = "None";
+                                none.textContent = "Relaxed";
                                 none.selected = currentKey === "";
                                 sel.appendChild(none);
                             }
@@ -31871,7 +31871,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.7.6";
+    const MOD_VERSION = "3.7.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31882,6 +31882,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.7.7",
+            changes: [
+                "Scenes pose step: Arms dropdown first option renamed from 'None' to 'Relaxed' to match pose combo vocabulary.",
+            ],
+        },
         {
             version: "3.7.6",
             changes: [
