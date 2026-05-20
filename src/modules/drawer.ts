@@ -1802,6 +1802,7 @@ const CSS = `
 
 /* -- Friends section -- */
 .ebc-friend-wrap { margin-bottom: 3px; border: 1px solid transparent; border-radius: 5px; overflow: hidden; transition: background 0.2s, border-color 0.2s; }
+.ebc-friend-wrap.ebc-friend-starred { border-left: 3px solid rgba(255, 200, 50, 0.8); }
 
 .ebc-friend-row {
     display: flex;
@@ -11284,10 +11285,7 @@ export class EBCDrawer {
 
                     const wrap = document.createElement("div");
                     wrap.className = "ebc-friend-wrap";
-                    if (isSpecialFriend(num)) {
-                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
-                        wrap.style.borderColor = "rgba(255,200,50,0.55)";
-                    }
+                    if (isSpecialFriend(num)) wrap.classList.add("ebc-friend-starred");
 
                     const row = document.createElement("div");
                     row.className = "ebc-friend-row";
@@ -11473,8 +11471,7 @@ export class EBCDrawer {
                         e.stopPropagation();
                         if (isSpecialFriend(num)) removeSpecialFriend(num); else addSpecialFriend(num);
                         const sp = isSpecialFriend(num);
-                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
-                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
+                        wrap.classList.toggle("ebc-friend-starred", sp);
                         refreshStarBtnR();
                     });
                     btnCol.appendChild(starBtnR);
@@ -11620,10 +11617,7 @@ export class EBCDrawer {
                 // Wrapper holds both the row and the expand panel
                 const wrap = document.createElement("div");
                 wrap.className = "ebc-friend-wrap";
-                if (isSpecialFriend(num)) {
-                    wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
-                    wrap.style.borderColor = "rgba(255,200,50,0.55)";
-                }
+                if (isSpecialFriend(num)) wrap.classList.add("ebc-friend-starred");
 
                 // ── Row ────────────────────────────────────────────────────
                 const row = document.createElement("div");
@@ -11927,8 +11921,7 @@ export class EBCDrawer {
                     e.stopPropagation();
                     if (isSpecialFriend(num)) removeSpecialFriend(num); else addSpecialFriend(num);
                     const sp = isSpecialFriend(num);
-                    wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
-                    wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
+                    wrap.classList.toggle("ebc-friend-starred", sp);
                     refreshStarBtn();
                 });
                 btnCol.appendChild(starBtn);
