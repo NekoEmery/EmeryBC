@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.6.6
+// @version      3.6.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -31857,7 +31857,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.6.6";
+    const MOD_VERSION = "3.6.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -36347,9 +36347,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // Draw directly from the current draw-call coordinates — the paw is computed
                 // from the same left/top/zoom that just drew the character, so it is always
                 // perfectly locked to the character regardless of room layout changes.
+                //
+                // BC bottom-aligns characters: feet stay near canvas Y=1000 while the character
+                // shrinks upward as more players join. The name is at approximately
+                // top + 975*zoom. The gap "- 8*zoom" was too small at low zoom (→ 2px when
+                // 5+ players joined), causing the paw to merge into the name. Using a minimum
+                // gap of 8px ensures a consistently visible separation at every room size.
                 const sz = Math.max(12, Math.round(20 * zoom));
+                const gap = Math.max(8, Math.round(sz * 0.5)); // ≥8px gap below paw to name
                 const px = Math.floor(left + 250 * zoom - sz / 2);
-                const py = Math.floor(top + 975 * zoom - sz - 8 * zoom);
+                const py = Math.floor(top + 975 * zoom - sz - gap);
                 _pawCtx.save();
                 _pawCtx.globalAlpha = 0.9;
                 _pawCtx.drawImage(_pawImg, px, py, sz, sz);
