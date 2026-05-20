@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.4.9";
+const MOD_VERSION = "3.5.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.5.0",
+        changes: [
+            "Credits: creator card now shows the animated gold paw PNG instead of a plain emoji.",
+            "Phone mode: panel width capped to screen width so it never clips on narrow devices.",
+            "Phone mode: tab row scrolls horizontally when tabs don't fit instead of clipping.",
+            "Phone mode: body uses overflow-y:scroll + -webkit-overflow-scrolling:touch for reliable iOS momentum scroll.",
+        ],
+    },
     {
         version: "3.4.9",
         changes: [
@@ -4728,6 +4737,7 @@ function init(): void {
     // DOM drawer - outfit switcher panel beside the chat log
     let drawer: EBCDrawer | null = null;
     try {
+        EBCDrawer.pawDataUri = EBC_PAW_DATA;
         drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD);
         // Fire an initial visibility check in case the addon loads while the
         // player is already in a chat room (ChatRoomSync won't fire again).
