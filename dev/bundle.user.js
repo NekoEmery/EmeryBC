@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.8.6
+// @version      2.8.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12720,6 +12720,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Panel zoom (persisted to localStorage) ------------------------------------
+    // Scales the entire EBC panel (text, buttons, spacing — everything).
+    // Range: 0.6 – 2.0. Default 1.0 (matches native BC text density).
+    const PANEL_ZOOM_KEY = "EBC_panelZoom";
+    function loadPanelZoom() {
+        var _a;
+        try {
+            const v = parseFloat((_a = localStorage.getItem(PANEL_ZOOM_KEY)) !== null && _a !== void 0 ? _a : "1");
+            return isNaN(v) ? 1 : Math.max(0.6, Math.min(2, v));
+        }
+        catch (_b) {
+            return 1;
+        }
+    }
+    function savePanelZoom(v) {
+        try {
+            localStorage.setItem(PANEL_ZOOM_KEY, String(Math.round(v * 100) / 100));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Styles --------------------------------------------------------------------
     const CSS = `
 /*
@@ -16631,6 +16651,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             panel.appendChild(footer);
             // (slideContainer/root/body already anchored early in setup — see above)
             this.applyPanelOpacity();
+            this.applyPanelZoom();
             // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
             // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
             // Works with both mouse and touch input via addPointerDown / addPointerTracking.
@@ -17184,6 +17205,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (style.webkitBackdropFilter !== undefined)
                     style.webkitBackdropFilter = "none";
             }
+        }
+        /** Scale the entire EBC panel via the CSS zoom property. */
+        applyPanelZoom(scale = loadPanelZoom()) {
+            const panelEl = this.panelEl;
+            if (!panelEl)
+                return;
+            // CSS zoom is Chromium-native and scales layout + rendering together.
+            // Unset when at default so the panel stays at its natural CSS size.
+            panelEl.style.zoom =
+                scale === 1 ? "" : String(scale);
         }
         /**
          * Re-render the current tab in-place while preserving the panel's scroll
@@ -23991,6 +24022,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 opacityRow.appendChild(opacitySlider);
                 opacityRow.appendChild(opacityVal);
                 cnt.appendChild(opacityRow);
+                // ── Panel zoom slider ─────────────────────────────────────────────
+                const zoomRow = document.createElement("div");
+                zoomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+                const zoomLbl = document.createElement("span");
+                zoomLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+                zoomLbl.textContent = "Text size";
+                const zoomSlider = document.createElement("input");
+                zoomSlider.type = "range";
+                zoomSlider.min = "0.6";
+                zoomSlider.max = "2";
+                zoomSlider.step = "0.05";
+                zoomSlider.value = String(loadPanelZoom());
+                zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+                zoomSlider.title = "Scale the entire EBC panel — 100% matches default, higher for larger text";
+                const zoomVal = document.createElement("span");
+                zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+                zoomVal.textContent = Math.round(loadPanelZoom() * 100) + "%";
+                zoomSlider.addEventListener("input", () => {
+                    const v = parseFloat(zoomSlider.value);
+                    zoomVal.textContent = Math.round(v * 100) + "%";
+                    savePanelZoom(v);
+                    this.applyPanelZoom(v);
+                });
+                zoomRow.appendChild(zoomLbl);
+                zoomRow.appendChild(zoomSlider);
+                zoomRow.appendChild(zoomVal);
+                cnt.appendChild(zoomRow);
                 // Working copy of colours — mutated by pickers, written to storage on every change
                 let liveColors = getCoreColors();
                 // Helper: rebuild all picker values after a preset load / reset
@@ -30513,7 +30571,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.8.6";
+    const MOD_VERSION = "2.8.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30524,6 +30582,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.8.7",
+            changes: [
+                "Feature: Panel zoom — a 'Text size' slider in DEV → Drawer Prefs scales the entire EBC panel (text, buttons, spacing) from 60% to 200%. Setting is persisted across sessions. Solves readability on high-DPI / large-monitor setups.",
+            ],
+        },
         {
             version: "2.8.6",
             changes: [
