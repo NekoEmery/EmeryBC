@@ -1279,10 +1279,15 @@
             ],
         },
     ];
+    const ARM_POSES = ["OverTheHead", "BackCuffs", "BackBoxTie", "Yoked"];
     function applyPoses(poses) {
+        // An explicit empty string ("") in the list means "Relaxed arms" —
+        // clear any active arm pose from the result set.
+        const wantsRelaxed = poses.includes("");
         const filtered = poses.filter(Boolean);
+        const result = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
         try {
-            Player.ActivePose = filtered;
+            Player.ActivePose = result;
         }
         catch ( /* ignore */_a) { /* ignore */ }
         callBC(() => CharacterRefresh(Player, false));
@@ -1293,14 +1298,18 @@
     // Respects the exact order provided — the user controls sequencing via the editor.
     // e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
     function applyPosesSequential(poses, stepDelayMs = 420) {
+        // Preserve empty strings — applyPoses handles the "Relaxed arms" case.
+        const wantsRelaxed = poses.includes("");
         const steps = poses.filter(Boolean);
         if (steps.length <= 1) {
-            applyPoses(steps);
+            // Pass original list so applyPoses sees the empty-string Relaxed marker.
+            applyPoses(wantsRelaxed ? [...steps, ""] : steps);
             return;
         }
         for (let i = 0; i < steps.length; i++) {
             const subset = steps.slice(0, i + 1);
-            window.setTimeout(() => applyPoses(subset), i * stepDelayMs);
+            // On the step where we'd apply Relaxed, include the marker.
+            window.setTimeout(() => applyPoses(wantsRelaxed ? [...subset, ""] : subset), i * stepDelayMs);
         }
     }
     function getCurrentPoses() {
@@ -1545,6 +1554,45 @@
     }
     function removeFromAntiRestraintWhitelist(group) {
         setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
+    }
+    // -- Special friends ----------------------------------------------------------
+    // Member numbers displayed with a golden gradient highlight in the People in
+    // Room and Friends lists. Stored server-side so it persists across devices.
+    function getSpecialFriends() {
+        var _a;
+        try {
+            const list = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.specialFriends;
+            return Array.isArray(list) ? list : [];
+        }
+        catch (_b) {
+            return [];
+        }
+    }
+    function isSpecialFriend(memberNumber) {
+        return getSpecialFriends().includes(memberNumber);
+    }
+    function addSpecialFriend(memberNumber) {
+        try {
+            const store = getStore$7();
+            if (!store)
+                return;
+            const list = getSpecialFriends();
+            if (!list.includes(memberNumber)) {
+                store.specialFriends = [...list, memberNumber];
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function removeSpecialFriend(memberNumber) {
+        try {
+            const store = getStore$7();
+            if (!store)
+                return;
+            store.specialFriends = getSpecialFriends().filter(n => n !== memberNumber);
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
     }
     // -- Anti-restraint confirm dialog ---------------------------------------------
     // When enabled, shows a confirm() prompt before auto-escaping so the user
@@ -16709,8 +16757,8 @@
             badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
             ebcTagsBody.appendChild(badgeDivider);
             const badgeAppLbl = document.createElement("div");
-            badgeAppLbl.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
-            badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
+            badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 6px;";
+            badgeAppLbl.textContent = t("strip.badgeAppearance");
             ebcTagsBody.appendChild(badgeAppLbl);
             // Builds a Text|Cat row and appends it to the given parent.
             // getter/setter allow the same helper to drive both "mine" and "others'" rows.
@@ -23008,6 +23056,10 @@
                         const name = resolveName(num) || nameRaw;
                         const wrap = document.createElement("div");
                         wrap.className = "ebc-friend-wrap";
+                        if (isSpecialFriend(num)) {
+                            wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
+                            wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                        }
                         const row = document.createElement("div");
                         row.className = "ebc-friend-row";
                         // Green dot — in room
@@ -23193,6 +23245,27 @@
                             });
                             btnCol.appendChild(beepBtn);
                         }
+                        // Special friend star button
+                        const starBtnR = document.createElement("button");
+                        const refreshStarBtnR = () => {
+                            const sp = isSpecialFriend(num);
+                            starBtnR.textContent = sp ? "★" : "☆";
+                            starBtnR.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
+                            starBtnR.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                        };
+                        refreshStarBtnR();
+                        starBtnR.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            if (isSpecialFriend(num))
+                                removeSpecialFriend(num);
+                            else
+                                addSpecialFriend(num);
+                            const sp = isSpecialFriend(num);
+                            wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
+                            wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                            refreshStarBtnR();
+                        });
+                        btnCol.appendChild(starBtnR);
                         btnCol.appendChild(copyIdBtnR);
                         // Assemble row
                         dot.style.marginTop = "1px";
@@ -23330,6 +23403,10 @@
                     // Wrapper holds both the row and the expand panel
                     const wrap = document.createElement("div");
                     wrap.className = "ebc-friend-wrap";
+                    if (isSpecialFriend(num)) {
+                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
+                        wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                    }
                     // ── Row ────────────────────────────────────────────────────
                     const row = document.createElement("div");
                     row.className = "ebc-friend-row" + (pinned ? " pinned" : "");
@@ -23655,11 +23732,32 @@
                         copyIdBtn.style.borderColor = "#a0d080";
                         window.setTimeout(() => { copyIdBtn.style.color = "#cf6f98"; copyIdBtn.style.borderColor = "#4c2537"; }, 1200);
                     });
-                    // btnCol: friendProfBtn + beepBtn + copyIdBtn
+                    // btnCol: friendProfBtn + beepBtn + starBtn + copyIdBtn
                     const btnCol = document.createElement("div");
                     btnCol.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;align-self:center;";
                     btnCol.appendChild(friendProfBtn);
                     btnCol.appendChild(beepBtn);
+                    // Special friend star button
+                    const starBtn = document.createElement("button");
+                    const refreshStarBtn = () => {
+                        const sp = isSpecialFriend(num);
+                        starBtn.textContent = sp ? "★" : "☆";
+                        starBtn.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
+                        starBtn.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                    };
+                    refreshStarBtn();
+                    starBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        if (isSpecialFriend(num))
+                            removeSpecialFriend(num);
+                        else
+                            addSpecialFriend(num);
+                        const sp = isSpecialFriend(num);
+                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
+                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                        refreshStarBtn();
+                    });
+                    btnCol.appendChild(starBtn);
                     btnCol.appendChild(copyIdBtn);
                     // Assemble row
                     dot.style.marginTop = "1px";
@@ -30882,7 +30980,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.1.1";
+    const MOD_VERSION = "3.1.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30893,6 +30991,15 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.1.2",
+            changes: [
+                "Remove cat SVG icon from the Badge Appearance section header — now shows a clean text label.",
+                "Creator mark: a pulsing gold crown (♛) is drawn above the creator's badge position in the chatroom canvas, visible only to EBC addon users.",
+                "Special friends: star (☆/★) button on every People in Room and Friends row — toggling marks that person with a golden gradient card highlight.",
+                "Fix: Relaxed arm pose (empty key) now works correctly in pose combos and scenes — it explicitly clears active arm poses instead of being silently dropped by filter(Boolean).",
+            ],
+        },
         {
             version: "3.1.1",
             changes: [
@@ -35114,6 +35221,25 @@
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4);
+                ctx.restore();
+            }
+        }
+        // ── Creator mark — pulsing gold crown, visible only to EBC addon users ────
+        if (isDevUser) {
+            const canvas = getBCCanvas();
+            const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
+            if (ctx && badgeTextOp > 0) {
+                const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 900);
+                const sz = Math.max(8, Math.round(11 * zoom * userScale));
+                ctx.save();
+                ctx.globalAlpha = badgeTextOp * 0.88 * pulse;
+                ctx.font = `${sz}px serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "#ffd700";
+                ctx.shadowColor = "#ffa000";
+                ctx.shadowBlur = sz * 0.85;
+                ctx.fillText("♛", x, y - sz * 2.4);
                 ctx.restore();
             }
         }
