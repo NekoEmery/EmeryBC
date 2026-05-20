@@ -17159,11 +17159,13 @@ export class EBCDrawer {
             card.className = "ebc-thanks-card";
 
             const isPawCard = p.memberId === 130267;
+            // Creator card: golden left-border accent, no background tint
             if (isPawCard) {
-                // Subtle golden tint to mark the creator card
-                card.style.cssText = "background:rgba(38,28,8,0.75);border-color:#5a3c10;";
+                card.style.borderLeftColor = "#c89030";
+                card.style.borderLeftWidth = "3px";
             }
 
+            // Avatar circle — paw SVG for creator, emoji for everyone else
             const avatar = document.createElement("div");
             avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
             if (isPawCard) {
@@ -17184,13 +17186,21 @@ export class EBCDrawer {
             const vipCredit = VIP_MEMBERS[p.memberId];
             if (vipCredit) applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
 
-            const idEl2 = document.createElement("span");
-            idEl2.className = "ebc-member-chip";
-            idEl2.textContent = "#" + p.memberId;
-            idEl2.title = "BC Member Number";
-
-            nameRow.appendChild(namEl);
-            nameRow.appendChild(idEl2);
+            // Creator gets a small golden "Creator" label; others get a muted member ID
+            if (isPawCard) {
+                const creatorBadge = document.createElement("span");
+                creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#c89030;letter-spacing:0.06em;text-transform:uppercase;";
+                creatorBadge.textContent = "Creator";
+                nameRow.appendChild(namEl);
+                nameRow.appendChild(creatorBadge);
+            } else {
+                const idEl2 = document.createElement("span");
+                idEl2.className = "ebc-member-chip";
+                idEl2.textContent = "#" + p.memberId;
+                idEl2.title = "BC Member Number";
+                nameRow.appendChild(namEl);
+                nameRow.appendChild(idEl2);
+            }
 
             const reason = document.createElement("span");
             reason.className = "ebc-thanks-reason";
@@ -17199,13 +17209,10 @@ export class EBCDrawer {
             info.appendChild(nameRow);
             info.appendChild(reason);
 
+            // Right decoration — plain emoji for everyone (SVG at this size looks like a blob)
             const heart = document.createElement("span");
             heart.className = "ebc-thanks-heart";
-            if (isPawCard) {
-                heart.appendChild(makePawSvg(18));
-            } else {
-                heart.textContent = p.heart;
-            }
+            heart.textContent = p.heart;
 
             card.appendChild(avatar);
             card.appendChild(info);
