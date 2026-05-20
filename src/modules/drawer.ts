@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4221,7 +4221,6 @@ export class EBCDrawer {
         ebcTagsCardRow.style.cssText = "display:flex;gap:7px;";
 
         const makeTagCard = (
-            icon: string,
             label: string,
             sublabel: string,
             getVal: () => boolean,
@@ -4233,13 +4232,9 @@ export class EBCDrawer {
 
             const cardTop = document.createElement("div");
             cardTop.style.cssText = "display:flex;align-items:center;gap:4px;margin-bottom:3px;";
-            const cardIcon = document.createElement("span");
-            cardIcon.style.fontSize = "12px";
-            cardIcon.textContent = icon;
             const cardLabel = document.createElement("span");
             cardLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;";
             cardLabel.textContent = label;
-            cardTop.appendChild(cardIcon);
             cardTop.appendChild(cardLabel);
 
             const cardSub = document.createElement("div");
@@ -4275,8 +4270,8 @@ export class EBCDrawer {
             container.appendChild(card);
         };
 
-        makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
-        makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
+        makeTagCard(t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
+        makeTagCard(t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
 
         ebcTagsBody.appendChild(ebcTagsCardRow);
 
@@ -4288,8 +4283,8 @@ export class EBCDrawer {
 
         const versionCardRow = document.createElement("div");
         versionCardRow.style.cssText = "display:flex;gap:7px;";
-        makeTagCard("v", t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
-        makeTagCard("v", t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
+        makeTagCard(t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
+        makeTagCard(t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
         ebcTagsBody.appendChild(versionCardRow);
 
         // ── Badge Appearance ─────────────────────────────────────────────────
@@ -4468,6 +4463,49 @@ export class EBCDrawer {
         posRow.appendChild(dragBtn);
         posRow.appendChild(resetPosBtn);
         ebcTagsBody.appendChild(posRow);
+
+        // ── Cat icon X/Y numeric inputs ───────────────────────────────────────
+        const makePosInputRow = (
+            rowLabel: string,
+            getX: () => number, setX: (v: number) => void,
+            getY: () => number, setY: (v: number) => void,
+            resetFn: () => void,
+        ): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:30px;";
+            lbl.textContent = rowLabel;
+            const xLbl = document.createElement("span");
+            xLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
+            xLbl.textContent = "X";
+            const xIn = document.createElement("input");
+            xIn.type = "number"; xIn.min = "-500"; xIn.max = "1000"; xIn.step = "1";
+            xIn.value = String(getX());
+            xIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
+            xIn.addEventListener("input", () => setX(Number(xIn.value)));
+            const yLbl = document.createElement("span");
+            yLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
+            yLbl.textContent = "Y";
+            const yIn = document.createElement("input");
+            yIn.type = "number"; yIn.min = "-200"; yIn.max = "900"; yIn.step = "1";
+            yIn.value = String(getY());
+            yIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
+            yIn.addEventListener("input", () => setY(Number(yIn.value)));
+            const resetBtn = document.createElement("button");
+            resetBtn.textContent = "⟳";
+            resetBtn.title = "Reset to default";
+            resetBtn.style.cssText = "font-size:12px;padding:2px 6px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;";
+            resetBtn.addEventListener("click", () => { resetFn(); xIn.value = String(getX()); yIn.value = String(getY()); });
+            row.appendChild(lbl);
+            row.appendChild(xLbl); row.appendChild(xIn);
+            row.appendChild(yLbl); row.appendChild(yIn);
+            row.appendChild(resetBtn);
+            ebcTagsBody.appendChild(row);
+        };
+
+        makePosInputRow("Icon",  getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, resetBadgePosition);
+        makePosInputRow("Ver.",  getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition);
 
         ebcTagsStrip.appendChild(ebcTagsBody);
 

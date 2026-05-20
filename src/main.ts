@@ -6,7 +6,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getVersionTextOffsetX, getVersionTextOffsetY } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.1.0";
+const MOD_VERSION = "3.1.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.1.1",
+        changes: [
+            "Remove emoji icons from badge toggle cards (My tag, Others, My version, Others' ver.).",
+            "Cat style: version text now renders as a separate floating label when version display is enabled, independent of the cat icon.",
+            "New position controls: Icon X/Y and Ver. X/Y number inputs in the badge settings strip for precise positioning of both elements independently.",
+        ],
+    },
     {
         version: "3.1.0",
         changes: [
@@ -4219,6 +4227,17 @@ function drawPresenceMarker(args: unknown[]): void {
                 ctx.lineWidth    = Math.max(1, lw * 0.55);
                 roundRect(); ctx.stroke();
                 ctx.shadowColor  = "transparent";
+            }
+            // ── Version text label (cat mode + version enabled) ───────────────
+            if (showVer) {
+                const vx = left + getVersionTextOffsetX() * zoom;
+                const vy = top  + getVersionTextOffsetY() * zoom;
+                const fontSize = Math.max(7, Math.round(9 * zoom * userScale));
+                ctx.font         = `bold ${fontSize}px "Trebuchet MS",serif`;
+                ctx.textAlign    = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle    = isDevUser ? "#ffb060" : "#cf6f98";
+                ctx.fillText(isDevUser ? "dev | v" + verStr : "v" + verStr, vx, vy);
             }
             ctx.restore();
         }

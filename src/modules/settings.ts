@@ -448,6 +448,27 @@ export function resetBadgePosition(): void {
     setBadgeOffsetY(72);
 }
 
+// -- Version text offset (cat mode — drawn separately from cat icon) -----------
+// Independent X/Y position for the floating version label when badge style is
+// "cat" and version display is enabled. Defaults: X=250, Y=95 (just below cat).
+
+export function getVersionTextOffsetX(): number {
+    try { const v = getStore()?.versionTextOffsetX; return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : 250; } catch { return 250; }
+}
+export function setVersionTextOffsetX(v: number): void {
+    try { const s = getStore(); if (s) { s.versionTextOffsetX = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+}
+export function getVersionTextOffsetY(): number {
+    try { const v = getStore()?.versionTextOffsetY; return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 95; } catch { return 95; }
+}
+export function setVersionTextOffsetY(v: number): void {
+    try { const s = getStore(); if (s) { s.versionTextOffsetY = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+}
+export function resetVersionTextPosition(): void {
+    setVersionTextOffsetX(250);
+    setVersionTextOffsetY(95);
+}
+
 // -- Badge drag mode (in-memory only, never persisted) -------------------------
 // When true: a dashed ring appears on your own badge in the chatroom canvas,
 // and canvas mouse/touch events allow click-dragging the badge to reposition.
