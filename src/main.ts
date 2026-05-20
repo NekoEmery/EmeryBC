@@ -6,7 +6,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getBadgeScale, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.9.1";
+const MOD_VERSION = "2.10.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,110 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.10.7",
+        changes: [
+            "Fix: Root cause of broken scroll and missing footer identified and fixed. applyPanelZoom() was clearing the zoom-wrapper's height to '' at scale=1, removing its 100% height entirely. This caused the wrapper to collapse to content height with no flex constraint, so the body never scrolled (it just expanded) and the footer was pushed past the panel clip boundary. Fix: always keep width/height at 100% at scale=1 instead of clearing them. Reverted middleArea back to the clean flat flex layout — it is no longer needed.",
+        ],
+    },
+    {
+        version: "2.10.6",
+        changes: [
+            "Fix: Removed overflow:hidden from the middleArea container. Chrome has a known bug where overflow:hidden on a flex parent silently breaks overflow-y:auto scrolling on nested flex children — the body appeared correct in layout but its scroll context was never established. Removing overflow lets the body scroll normally. Footer visibility is guaranteed by the flex:1 layout, not by clipping.",
+        ],
+    },
+    {
+        version: "2.10.5",
+        changes: [
+            "Fix: Footer is now always visible on every page. Chrome elements (quick-actions, safewords, EBC strip) and the body are wrapped in a shared flex column (middleArea: flex:1; min-height:0; overflow:hidden). The footer lives outside that container so it can never be pushed off-screen regardless of chrome height or body content. This also eliminates scroll-event stealing — only the body scrolls, and only when the cursor is over it.",
+        ],
+    },
+    {
+        version: "2.10.4",
+        changes: [
+            "Fix: EBC tag strip body now has a max-height (210px, scrollable) so the footer is always visible regardless of how much badge-appearance content is expanded.",
+            "Feature: Added 'Others\\' style' picker in the EBC tag strip — independently choose Text or Cat style for other players' overhead badges on your screen.",
+        ],
+    },
+    {
+        version: "2.10.3",
+        changes: [
+            "Fix: Removed the chromeWrap container introduced in v2.10.0 — its overflow-y:auto was stealing scroll wheel events from the main tab body, making all pages non-scrollable. Chrome elements (quick actions, safeword, EBC tags) are now direct flex children again, restoring correct body scrolling.",
+        ],
+    },
+    {
+        version: "2.10.2",
+        changes: [
+            "Fix: Cat badge style now draws the EBC cat-face SVG icon overhead instead of the 🐱 emoji. The SVG is loaded once via a Blob URL and cached as an HTMLImageElement so it renders identically on all browsers.",
+        ],
+    },
+    {
+        version: "2.10.1",
+        changes: [
+            "UX: Removed the 'Custom pose key' free-text input from the pose combo step editor. The preset pose buttons cover all known poses — the freeform field was not propagated correctly and has been removed until a proper implementation is ready.",
+        ],
+    },
+    {
+        version: "2.10.0",
+        changes: [
+            "Fix: Text badge now renders using direct canvas text so the font size scales correctly at any badge scale value — previously DrawTextFit had an internal size cap that made large badges look broken.",
+            "Fix: The always-visible chrome area (quick actions, safeword section, EBC tag strip) now has a scrollable max-height cap so its contents never push the main tab body off-screen. All tabs now reliably display their scrollable content area.",
+        ],
+    },
+    {
+        version: "2.9.9",
+        changes: [
+            "Feature: Badge BG and Text opacity are now two independent sliders. 'BG' controls the background rectangle transparency (0 = invisible background, text floats freely); 'Text' controls the label / emoji opacity. Both are available in the badge appearance section.",
+            "Fix: Drawer body could not scroll — flex child lacked min-height:0 which prevented it from shrinking past its content height when fixed elements above it were too tall.",
+            "Fix: Language row reverted to single-line (nowrap) using short abbreviations (EN/DE/etc.) with full name shown on hover, so it no longer wraps and steals vertical space from the scrollable body.",
+        ],
+    },
+    {
+        version: "2.9.8",
+        changes: [
+            "UX: Cat badge style button now shows the EBC cat-face SVG icon instead of the 🐱 emoji.",
+        ],
+    },
+    {
+        version: "2.9.7",
+        changes: [
+            "Fix: Japanese language pill was hidden — the language row used flex-wrap:nowrap so the 7th pill overflowed off-screen with no visible scrollbar. Row now wraps to a second line when all pills don't fit.",
+        ],
+    },
+    {
+        version: "2.9.6",
+        changes: [
+            "Feature: Separate version-badge controls for self and others. 'My version' toggles whether your own badge shows your EBC version; 'Others\\' ver.' toggles whether other players' badges show their version. Both are now in the EBC tag strip alongside the existing visibility cards.",
+            "UX: EBC tag strip section header now shows the EBC cat-face logo and the addon name instead of the generic 🏷 label.",
+        ],
+    },
+    {
+        version: "2.9.5",
+        changes: [
+            "Fix: drawer icon could vanish entirely (requiring opening wardrobe/profile to recover). Root cause: the chatroom branch of updateVisibility() only set display:block when syncToChat() succeeded — if BC temporarily zeroed or removed TextAreaChatLog during a screen transition the root stayed hidden indefinitely. Fix: visibility is now always restored immediately; syncToChat() is used for positioning only. A 200 ms heartbeat in the CRABS poller additionally restores the root within one tick if any external code hides it again.",
+        ],
+    },
+    {
+        version: "2.9.4",
+        changes: [
+            "Feature: Badge opacity slider — control how transparent the overhead EBC badge is (10%–100%), stored per-character alongside scale.",
+            "UX: 'BADGE APPEARANCE' section header replaced with the EBC cat-face logo icon for a cleaner look.",
+            "UX: Drag-to-position hint text is now a more readable pink-rose colour (#c09098) instead of the hard-to-read dark muted shade it was before.",
+        ],
+    },
+    {
+        version: "2.9.3",
+        changes: [
+            "i18n: Full translation pass — DEV → Drawer Preferences (phone/touch mode, panel opacity, text size, quick preset, colour slots, visible tabs, menu hotkey), EBC tag strip (SAFEWORDS label, tag toggles, badge appearance, scale, drag-to-position), AFK section (reply message, hints), and Users/Notes tab (tags, note, self-note). All new strings translated into all 7 languages (EN/DE/ZH/FR/ES/RU/JA).",
+        ],
+    },
+    {
+        version: "2.9.2",
+        changes: [
+            "Fix: Text size slider no longer glitches. Zoom is now applied via transform:scale() on an inner wrapper div instead of CSS zoom on the slide container — transform doesn't affect the container's layout so the slide transition never misfires and the panel never resizes during slider drag.",
+            "Feature: Japanese (日本語) language support added.",
+        ],
+    },
     {
         version: "2.9.1",
         changes: [
@@ -3913,6 +4017,28 @@ let _playerCharTop  = 0;
 let _playerCharZoom = 1;
 let _isDraggingBadge = false;
 
+// ── EBC cat-face SVG image cache ──────────────────────────────────────────────
+// Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
+// and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
+const EBC_CAT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`;
+let _ebcCatImg: HTMLImageElement | null = null;
+let _ebcCatImgReady = false;
+function getEbcCatImg(): HTMLImageElement | null {
+    if (_ebcCatImgReady) return _ebcCatImg;
+    if (!_ebcCatImg) {
+        try {
+            const blob = new Blob([EBC_CAT_SVG], { type: "image/svg+xml" });
+            const url  = URL.createObjectURL(blob);
+            _ebcCatImg = new Image();
+            _ebcCatImg.onload = () => { _ebcCatImgReady = true; };
+            _ebcCatImg.src = url;
+        } catch { /* ignore — fallback: image stays null until retry */ }
+    }
+    return null; // not ready yet on first call; ready on subsequent frames
+}
+// Trigger early load so the image is ready by the time any character renders.
+getEbcCatImg();
+
 /** Returns the BC main canvas element, checking both the window global and DOM. */
 function getBCCanvas(): HTMLCanvasElement | null {
     try {
@@ -4015,7 +4141,7 @@ function drawPresenceMarker(args: unknown[]): void {
     if (zoom < 0.3) return;
 
     const presence   = getSharedPresence(character);
-    const showVer    = getShowVersionBadge();
+    const showVer    = isSelf ? getShowVersionBadge() : getShowOthersVersionBadge();
     const verStr     = isSelf ? MOD_VERSION : (presence?.version ?? "?");
     const isDevUser  = isSelf ? IS_DEV_BUILD : (presence?.isDev === true);
     const label      = isDevUser
@@ -4025,27 +4151,30 @@ function drawPresenceMarker(args: unknown[]): void {
     // User-configured position offset + scale
     const offsetX   = getBadgeOffsetX();   // default 250 (char horiz centre)
     const offsetY   = getBadgeOffsetY();   // default 72  (below WCE name)
-    const userScale = getBadgeScale();     // default 1.0
-    const badgeStyle = getBadgeStyle();    // "text" | "cat"
+    const userScale     = getBadgeScale();      // default 1.0
+    const badgeStyle    = isSelf ? getBadgeStyle() : getOthersBadgeStyle();  // per-target style
+    const badgeBgOp     = getBadgeBgOpacity();  // default 1.0
+    const badgeTextOp   = getBadgeTextOpacity();// default 1.0
 
     const x = left + offsetX * zoom;
     const y = top  + offsetY * zoom;
 
     if (badgeStyle === "cat") {
-        // ── Cat-face emoji badge ──────────────────────────────────────────────
+        // ── EBC cat-face SVG badge ────────────────────────────────────────────
         const canvas = getBCCanvas();
         const ctx = canvas?.getContext("2d");
-        if (ctx) {
-            const fontSize = Math.max(12, Math.round(22 * zoom * userScale));
+        const img = getEbcCatImg();
+        if (ctx && img && badgeTextOp > 0) {
+            const size = Math.max(12, Math.round(22 * zoom * userScale));
             ctx.save();
-            ctx.font = `${fontSize}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
-            ctx.textAlign    = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("🐱", x, y);
+            ctx.globalAlpha = badgeTextOp;
+            ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
             ctx.restore();
         }
     } else {
         // ── Text badge (original style) ───────────────────────────────────────
+        const canvas = getBCCanvas();
+        const ctx = canvas?.getContext("2d");
         const baseW = isDevUser
             ? (showVer ? 78 : 58)
             : (showVer ? 50 : 34);
@@ -4056,9 +4185,26 @@ function drawPresenceMarker(args: unknown[]): void {
         const badgeLeft = x - width  / 2;
         const badgeTop  = y - height / 2;
 
-        DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
-        DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
-        DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
+        // Background rect — independent opacity
+        if (badgeBgOp > 0) {
+            if (ctx) { ctx.save(); ctx.globalAlpha = badgeBgOp; }
+            DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
+            DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
+            if (ctx) ctx.restore();
+        }
+
+        // Label text — direct canvas rendering so font size scales with badge height.
+        // DrawTextFit has an internal pixel cap that makes large badges look broken.
+        if (badgeTextOp > 0 && ctx) {
+            ctx.save();
+            ctx.globalAlpha  = badgeTextOp;
+            ctx.font         = `bold ${Math.max(8, Math.round(height * 0.66))}px "Trebuchet MS",sans-serif`;
+            ctx.fillStyle    = UI.accent;
+            ctx.textAlign    = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4);
+            ctx.restore();
+        }
     }
 
     // ── Drag-mode handle (own character only) ─────────────────────────────────

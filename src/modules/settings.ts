@@ -68,6 +68,23 @@ export function setShowVersionBadge(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Others' version badge visibility -----------------------------------------
+// When enabled, other players' EBC overhead badges show their version number.
+// Defaults to false (badge shows just "EBC" for others).
+
+export function getShowOthersVersionBadge(): boolean {
+    try { return getStore()?.showOthersVersionBadge === true; } catch { return false; }
+}
+
+export function setShowOthersVersionBadge(value: boolean): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.showOthersVersionBadge = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Anti-restraint -----------------------------------------------------------
 // When enabled, any restraint applied to the player by someone else is
 // immediately removed and a playful emote is sent to the room.
@@ -342,7 +359,7 @@ export function clearPeopleMet(): void {
 
 // -- Badge style ---------------------------------------------------------------
 // "text": the classic EBC rectangle badge
-// "cat":  a cat-face emoji drawn directly on the canvas at the badge position
+// "cat":  a cat-face SVG icon drawn on the canvas at the badge position
 
 export type BadgeStyle = "text" | "cat";
 
@@ -351,6 +368,17 @@ export function getBadgeStyle(): BadgeStyle {
 }
 export function setBadgeStyle(v: BadgeStyle): void {
     try { const s = getStore(); if (s) { s.badgeStyle = v; syncSettings(); } } catch { /* ignore */ }
+}
+
+// -- Others' badge style -------------------------------------------------------
+// Client-side only: controls which badge style is drawn for OTHER players' badges
+// on your screen. Independent from your own badge style. Defaults to "text".
+
+export function getOthersBadgeStyle(): BadgeStyle {
+    try { return getStore()?.othersBadgeStyle === "cat" ? "cat" : "text"; } catch { return "text"; }
+}
+export function setOthersBadgeStyle(v: BadgeStyle): void {
+    try { const s = getStore(); if (s) { s.othersBadgeStyle = v; syncSettings(); } } catch { /* ignore */ }
 }
 
 // -- Badge scale ---------------------------------------------------------------
@@ -365,6 +393,34 @@ export function getBadgeScale(): number {
 }
 export function setBadgeScale(v: number): void {
     try { const s = getStore(); if (s) { s.badgeScale = Math.max(0.3, Math.min(4, v)); syncSettings(); } } catch { /* ignore */ }
+}
+
+// -- Badge background opacity --------------------------------------------------
+// Controls how opaque the background rectangle of the text badge is.
+// 0.0 = fully transparent (text only), 1.0 = fully opaque. Default: 1.0.
+
+export function getBadgeBgOpacity(): number {
+    try {
+        const v = getStore()?.badgeBgOpacity;
+        return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
+    } catch { return 1.0; }
+}
+export function setBadgeBgOpacity(v: number): void {
+    try { const s = getStore(); if (s) { s.badgeBgOpacity = Math.max(0, Math.min(1, v)); syncSettings(); } } catch { /* ignore */ }
+}
+
+// -- Badge text opacity --------------------------------------------------------
+// Controls how opaque the label text (or cat emoji) of the badge is.
+// 0.0 = invisible, 1.0 = fully opaque. Default: 1.0.
+
+export function getBadgeTextOpacity(): number {
+    try {
+        const v = getStore()?.badgeTextOpacity;
+        return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
+    } catch { return 1.0; }
+}
+export function setBadgeTextOpacity(v: number): void {
+    try { const s = getStore(); if (s) { s.badgeTextOpacity = Math.max(0, Math.min(1, v)); syncSettings(); } } catch { /* ignore */ }
 }
 
 // -- Badge position offset (character-relative) --------------------------------

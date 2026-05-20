@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -147,7 +147,7 @@ import {
     clearWhisperLog, setWhisperUpdateCallback,
     type WhisperEntry,
 } from "./whisperLog";
-import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES } from "./i18n";
+import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES, LANG_LABELS } from "./i18n";
 
 // -- Shared UI helpers ---------------------------------------------------------
 
@@ -347,7 +347,7 @@ const PANEL_ZOOM_KEY = "EBC_panelZoom";
 function loadPanelZoom(): number {
     try {
         const v = parseFloat(localStorage.getItem(PANEL_ZOOM_KEY) ?? "1");
-        return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.5, v));
+        return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.4, v));
     } catch { return 1; }
 }
 
@@ -624,15 +624,13 @@ const CSS = `
     border-bottom: 1px solid #2a1020;
     background: rgba(15, 6, 12, 0.4);
     flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none; /* Firefox */
-    touch-action: pan-x;
+    overflow: hidden;
 }
-.ebc-lang-row::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
 /* -- Body -- */
 .ebc-body {
     flex: 1;
+    min-height: 0; /* prevents flex children from refusing to shrink past content height */
     overflow-y: auto;
     padding: 7px;
     scrollbar-width: thin;
@@ -641,14 +639,27 @@ const CSS = `
     overscroll-behavior: contain;
 }
 
+/* -- EBC tags strip body (scrollable, capped height so footer stays visible) -- */
+.ebc-tags-body {
+    max-height: 210px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cf6f98 #1a0814;
+}
+
 /* Unified scrollbar theme for all EBC scrollable areas */
 .ebc-body::-webkit-scrollbar,
+.ebc-tags-body::-webkit-scrollbar,
 .ebc-beep-win-history::-webkit-scrollbar { width: 5px; }
 .ebc-body::-webkit-scrollbar-track,
+.ebc-tags-body::-webkit-scrollbar-track,
 .ebc-beep-win-history::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb,
+.ebc-tags-body::-webkit-scrollbar-thumb,
 .ebc-beep-win-history::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb:hover,
+.ebc-tags-body::-webkit-scrollbar-thumb:hover,
 .ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
@@ -3539,7 +3550,8 @@ export class EBCDrawer {
             const pill = document.createElement("button");
             pill.dataset.lang = code;
             pill.className = "ebc-lang-pill"; // enables touch-mode CSS targeting
-            pill.textContent = LANG_NAMES[code];
+            pill.textContent = LANG_LABELS[code];
+            pill.title = LANG_NAMES[code]; // full name on hover
             pill.addEventListener("click", () => {
                 setLanguage(code);
                 refreshLangPills();
@@ -3903,7 +3915,7 @@ export class EBCDrawer {
 
         const swLabel = document.createElement("span");
         swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.05em;flex:1;";
-        swLabel.textContent = "SAFEWORDS";
+        swLabel.textContent = t("strip.safewords");
 
         // Grace active indicator (hidden unless grace is running)
         const swGraceTag = document.createElement("span");
@@ -4120,7 +4132,7 @@ export class EBCDrawer {
             });
             const graceDurUnit = document.createElement("span");
             graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-            graceDurUnit.textContent = "min  (0 = indefinite)";
+            graceDurUnit.textContent = t("strip.graceUnit");
             graceDurRow.appendChild(graceDurLbl);
             graceDurRow.appendChild(graceDurInp);
             graceDurRow.appendChild(graceDurUnit);
@@ -4129,7 +4141,7 @@ export class EBCDrawer {
             // -- Hint --
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
-            hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger.";
+            hint.textContent = t("strip.swHint");
             swInner.appendChild(hint);
         };
 
@@ -4179,13 +4191,13 @@ export class EBCDrawer {
         ebcTagsHdr.addEventListener("mouseleave", () => { ebcTagsHdr.style.background = ""; });
 
         const ebcTagsHdrLeft = document.createElement("div");
-        ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
+        ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
         const ebcTagsHdrIcon = document.createElement("span");
-        ebcTagsHdrIcon.textContent = "🏷";
-        ebcTagsHdrIcon.style.fontSize = "10px";
+        ebcTagsHdrIcon.style.cssText = "flex-shrink:0;line-height:0;";
+        ebcTagsHdrIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
         const ebcTagsHdrLabel = document.createElement("span");
         ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-        ebcTagsHdrLabel.textContent = "EBC Tag Toggles";
+        ebcTagsHdrLabel.textContent = "EBC";
         ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
         ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
 
@@ -4197,14 +4209,15 @@ export class EBCDrawer {
         ebcTagsHdr.appendChild(ebcTagsChev);
         ebcTagsStrip.appendChild(ebcTagsHdr);
 
-        // Body
+        // Body — capped height so footer is never pushed off-screen
         const ebcTagsBody = document.createElement("div");
+        ebcTagsBody.className = "ebc-tags-body";
         ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
 
         // Description line
         const ebcTagsDesc = document.createElement("div");
         ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
-        ebcTagsDesc.textContent = "Controls whose EBC overhead tags you see. Only affects your own screen — others always see your tag regardless.";
+        ebcTagsDesc.textContent = t("strip.tagToggleDesc");
         ebcTagsBody.appendChild(ebcTagsDesc);
 
         // Card row
@@ -4217,6 +4230,7 @@ export class EBCDrawer {
             sublabel: string,
             getVal: () => boolean,
             setVal: (v: boolean) => void,
+            container: HTMLElement,
         ): void => {
             const card = document.createElement("div");
             card.title = sublabel;
@@ -4262,13 +4276,25 @@ export class EBCDrawer {
             };
             refresh();
             card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
-            ebcTagsCardRow.appendChild(card);
+            container.appendChild(card);
         };
 
-        makeTagCard("👤", "My Tag", "Your own EBC tag above your head (your screen only)", getBadgeEnabled, setBadgeEnabled);
-        makeTagCard("👥", "Others", "EBC tags above other players' heads", getShowOthersBadge, setShowOthersBadge);
+        makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled, ebcTagsCardRow);
+        makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge, ebcTagsCardRow);
 
         ebcTagsBody.appendChild(ebcTagsCardRow);
+
+        // ── Version display row ───────────────────────────────────────────────
+        const versionRowLbl = document.createElement("div");
+        versionRowLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:6px 0 4px;";
+        versionRowLbl.textContent = t("strip.versionDisplay");
+        ebcTagsBody.appendChild(versionRowLbl);
+
+        const versionCardRow = document.createElement("div");
+        versionCardRow.style.cssText = "display:flex;gap:7px;";
+        makeTagCard("v", t("strip.myVersion"), t("strip.myVersionSub"), getShowVersionBadge, setShowVersionBadge, versionCardRow);
+        makeTagCard("v", t("strip.othersVersion"), t("strip.othersVersionSub"), getShowOthersVersionBadge, setShowOthersVersionBadge, versionCardRow);
+        ebcTagsBody.appendChild(versionCardRow);
 
         // ── Badge Appearance ─────────────────────────────────────────────────
         const badgeDivider = document.createElement("div");
@@ -4276,54 +4302,67 @@ export class EBCDrawer {
         ebcTagsBody.appendChild(badgeDivider);
 
         const badgeAppLbl = document.createElement("div");
-        badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.08em;color:#9a6878;margin-bottom:6px;";
-        badgeAppLbl.textContent = "BADGE APPEARANCE";
+        badgeAppLbl.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
+        badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
         ebcTagsBody.appendChild(badgeAppLbl);
 
-        // ── Style picker: Text | Cat ─────────────────────────────────────────
-        const styleRow = document.createElement("div");
-        styleRow.style.cssText = "display:flex;gap:5px;margin-bottom:7px;";
+        // ── Style picker: Text | Cat (shared helper) ─────────────────────────
+        const EBC_SVG_14 = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 90 90" style="flex-shrink:0;vertical-align:middle"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
 
-        const makeStyleBtn = (styleName: BadgeStyle, icon: string, labelText: string): HTMLButtonElement => {
-            const btn = document.createElement("button");
-            btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
-            const refresh = (): void => {
-                const active = getBadgeStyle() === styleName;
-                btn.style.background    = active ? "#2e1020" : "#150a10";
-                btn.style.border        = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                btn.style.color         = active ? "#f0c0d8" : "#7a4a60";
-                btn.textContent         = `${icon} ${labelText}`;
+        // Builds a Text|Cat row and appends it to the given parent.
+        // getter/setter allow the same helper to drive both "mine" and "others'" rows.
+        const buildStyleRow = (
+            getter: () => BadgeStyle,
+            setter: (v: BadgeStyle) => void,
+        ): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
+
+            const makeBtn = (styleName: BadgeStyle, iconHtml: string, labelText: string): HTMLButtonElement => {
+                const btn = document.createElement("button");
+                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;display:inline-flex;align-items:center;justify-content:center;gap:5px;";
+                const iconWrap = document.createElement("span");
+                iconWrap.style.cssText = "line-height:0;flex-shrink:0;";
+                iconWrap.innerHTML = iconHtml;
+                const txtNode = document.createElement("span");
+                txtNode.textContent = labelText;
+                btn.appendChild(iconWrap);
+                btn.appendChild(txtNode);
+                const refresh = (): void => {
+                    const active = getter() === styleName;
+                    btn.style.background = active ? "#2e1020" : "#150a10";
+                    btn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                    btn.style.color      = active ? "#f0c0d8" : "#7a4a60";
+                };
+                refresh();
+                btn.addEventListener("click", () => {
+                    setter(styleName);
+                    // Refresh both buttons in this row
+                    row.querySelectorAll<HTMLButtonElement>("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                    refresh();
+                });
+                btn.addEventListener("ebc-refresh", refresh);
+                return btn;
             };
-            refresh();
-            btn.addEventListener("click", () => {
-                setBadgeStyle(styleName);
-                styleBtns.forEach(([, r]) => r());
-            });
-            return btn;
+
+            row.appendChild(makeBtn("text", "🏷", "Text"));
+            row.appendChild(makeBtn("cat",  EBC_SVG_14, "Cat"));
+            ebcTagsBody.appendChild(row);
         };
 
-        const styleBtns: [HTMLButtonElement, () => void][] = [];
-        const textBtn = makeStyleBtn("text", "🏷", "Text");
-        const catBtn  = makeStyleBtn("cat",  "🐱", "Cat");
-        const refreshTextBtn = (): void => {
-            const active = getBadgeStyle() === "text";
-            textBtn.style.background = active ? "#2e1020" : "#150a10";
-            textBtn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
-            textBtn.style.color      = active ? "#f0c0d8" : "#7a4a60";
-        };
-        const refreshCatBtn = (): void => {
-            const active = getBadgeStyle() === "cat";
-            catBtn.style.background = active ? "#2e1020" : "#150a10";
-            catBtn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
-            catBtn.style.color      = active ? "#f0c0d8" : "#7a4a60";
-        };
-        styleBtns.push([textBtn, refreshTextBtn], [catBtn, refreshCatBtn]);
-        textBtn.addEventListener("click", () => { setBadgeStyle("text"); refreshTextBtn(); refreshCatBtn(); });
-        catBtn.addEventListener("click",  () => { setBadgeStyle("cat");  refreshTextBtn(); refreshCatBtn(); });
-        refreshTextBtn(); refreshCatBtn();
-        styleRow.appendChild(textBtn);
-        styleRow.appendChild(catBtn);
-        ebcTagsBody.appendChild(styleRow);
+        // "Mine:" label
+        const myStyleLbl = document.createElement("div");
+        myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
+        myStyleLbl.textContent = t("strip.myStyle");
+        ebcTagsBody.appendChild(myStyleLbl);
+        buildStyleRow(getBadgeStyle, setBadgeStyle);
+
+        // "Others':" label
+        const othersStyleLbl = document.createElement("div");
+        othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
+        othersStyleLbl.textContent = t("strip.othersStyle");
+        ebcTagsBody.appendChild(othersStyleLbl);
+        buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
 
         // ── Scale slider ─────────────────────────────────────────────────────
         const scaleRow = document.createElement("div");
@@ -4331,7 +4370,7 @@ export class EBCDrawer {
 
         const scaleLbl = document.createElement("span");
         scaleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
-        scaleLbl.textContent = "Scale";
+        scaleLbl.textContent = t("strip.scale");
 
         const scaleSlider = document.createElement("input");
         scaleSlider.type  = "range";
@@ -4357,18 +4396,55 @@ export class EBCDrawer {
         scaleRow.appendChild(scaleVal);
         ebcTagsBody.appendChild(scaleRow);
 
+        // ── BG opacity slider ─────────────────────────────────────────────────
+        const makeOpacitySliderRow = (
+            labelKey: string,
+            getVal: () => number,
+            setVal: (v: number) => void,
+            titleHint: string,
+        ): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:28px;";
+            lbl.textContent = t(labelKey);
+            const slider = document.createElement("input");
+            slider.type  = "range";
+            slider.min   = "0";
+            slider.max   = "1";
+            slider.step  = "0.05";
+            slider.value = String(getVal());
+            slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            slider.title = titleHint;
+            const valLbl = document.createElement("span");
+            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+            valLbl.textContent = Math.round(getVal() * 100) + "%";
+            slider.addEventListener("input", () => {
+                const v = parseFloat(slider.value);
+                setVal(v);
+                valLbl.textContent = Math.round(v * 100) + "%";
+            });
+            row.appendChild(lbl);
+            row.appendChild(slider);
+            row.appendChild(valLbl);
+            ebcTagsBody.appendChild(row);
+        };
+
+        makeOpacitySliderRow("strip.bgOpacity",   getBadgeBgOpacity,   setBadgeBgOpacity,   "Background rectangle opacity (0 = transparent)");
+        makeOpacitySliderRow("strip.textOpacity",  getBadgeTextOpacity, setBadgeTextOpacity, "Text / icon opacity (0 = invisible)");
+
         // ── Position drag row ─────────────────────────────────────────────────
         const posRow = document.createElement("div");
         posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
 
         const posHint = document.createElement("span");
-        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex:1;line-height:1.35;";
-        posHint.textContent = "Drag badge on your character to reposition for everyone";
+        posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex:1;line-height:1.35;";
+        posHint.textContent = t("strip.dragHint");
 
         const dragBtn = document.createElement("button");
         const refreshDragBtn = (): void => {
             const on = getBadgeDragMode();
-            dragBtn.textContent = on ? "✓ Done" : "📍 Position";
+            dragBtn.textContent = on ? t("core.done") : t("strip.badgePosition");
             dragBtn.style.cssText = [
                 "font-family:'Trebuchet MS',serif",
                 "font-size:9px",
@@ -4406,7 +4482,7 @@ export class EBCDrawer {
         ebcTagsStrip.appendChild(ebcTagsBody);
 
         const updateEbcTagsCollapse = (): void => {
-            ebcTagsChev.textContent = ebcTagsCollapsed ? "Show ▶" : "Hide ▼";
+            ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
             ebcTagsBody.style.display = ebcTagsCollapsed ? "none" : "";
         };
         updateEbcTagsCollapse();
@@ -4416,6 +4492,18 @@ export class EBCDrawer {
             updateEbcTagsCollapse();
         });
 
+        // Wrap all panel children in .ebc-zoom-wrapper.
+        // applyPanelZoom() uses transform:scale() on this wrapper instead of
+        // CSS zoom on #emerybc-panel.  transform doesn't affect the slide
+        // container's layout, so #emerybc-panel never changes size and the
+        // slide transition never misfires — fixes the slider glitch.
+        const zoomWrapper = document.createElement("div");
+        zoomWrapper.className = "ebc-zoom-wrapper";
+        zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
+
+        // Flat flex column — applyPanelZoom always keeps width/height:100% so the
+        // wrapper has a definite height, giving .ebc-body (flex:1;min-height:0) a
+        // real constraint and making overflow-y:auto scroll correctly.
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(langRow);
@@ -4425,6 +4513,9 @@ export class EBCDrawer {
         panel.appendChild(ebcTagsStrip);
         panel.appendChild(body);
         panel.appendChild(footer);
+        // Move all panel children into the wrapper, then add wrapper to panel.
+        while (panel.firstChild) zoomWrapper.appendChild(panel.firstChild);
+        panel.appendChild(zoomWrapper);
         // (slideContainer/root/body already anchored early in setup — see above)
         this.applyPanelOpacity();
         this.applyPanelZoom();
@@ -4726,7 +4817,19 @@ export class EBCDrawer {
     // Skipped entirely when the user has pinned a custom position via drag.
     // Safe to call at any frequency — writes the DOM only when the value changes.
     private updateCrabsPosition(): void {
-        if (!this.rootEl || !this.positioned) return;
+        if (!this.rootEl) return;
+
+        // Heartbeat guard: BC's screen-transition code can set display:none on unknown
+        // DOM elements. Restore visibility within one 200 ms poller tick if that happens.
+        if (this.positioned && this.rootEl.style.display !== "block") {
+            this.rootEl.style.display = "block";
+        }
+
+        if (!this.positioned) {
+            // Haven't anchored to the chat log yet — keep retrying until we succeed.
+            this.syncToChat();
+            return;
+        }
         if (this.tabDragging) return; // don't interfere with an active drag
         const tabEl = this.rootEl.querySelector<HTMLElement>("#ebc-tab");
         if (!tabEl) return;
@@ -4862,31 +4965,26 @@ export class EBCDrawer {
             }
         }
 
-        // Try to position; if the chat log isn't laid out yet, retry next frame
-        const synced = this.syncToChat();
-        const showPanel = (el: HTMLElement) => {
-            // Suppress the slide transition for the very first reveal — switching
-            // from display:none to display:block can cause the browser to animate
-            // the transform from an unrendered state, making the panel flash visible.
-            if (!this.hasBeenShown) {
-                this.hasBeenShown = true;
-                if (this.panelEl) this.panelEl.style.transition = "none";
-                el.style.display = "block";
-                requestAnimationFrame(() => {
-                    if (this.panelEl) this.panelEl.style.transition = "";
-                });
-            } else {
-                el.style.display = "block";
-            }
-        };
-        if (synced) {
-            showPanel(this.rootEl);
+        // Always make the root visible immediately — do NOT gate on syncToChat().
+        // BC can temporarily clear or resize TextAreaChatLog during screen transitions
+        // (reconnect, room load, character menus) causing syncToChat() to fail, which
+        // previously left the root hidden indefinitely. Visibility and positioning are
+        // now separate concerns: show first, position best-effort.
+        if (!this.hasBeenShown) {
+            // Suppress the slide transition on the very first reveal — switching from
+            // display:none to display:block can cause the browser to animate the
+            // transform from an unrendered state, making the panel flash visible.
+            this.hasBeenShown = true;
+            if (this.panelEl) this.panelEl.style.transition = "none";
+            this.rootEl.style.display = "block";
+            requestAnimationFrame(() => { if (this.panelEl) this.panelEl.style.transition = ""; });
         } else {
-            requestAnimationFrame(() => {
-                if (this.syncToChat() && this.rootEl) {
-                    showPanel(this.rootEl);
-                }
-            });
+            this.rootEl.style.display = "block";
+        }
+
+        // Position against the chat log (best-effort; retry next frame if not ready yet).
+        if (!this.syncToChat()) {
+            requestAnimationFrame(() => { this.syncToChat(); });
         }
 
         if (!this.resizeObserver && typeof ResizeObserver !== "undefined") {
@@ -4992,33 +5090,32 @@ export class EBCDrawer {
         }
     }
 
-    /** Scale the entire EBC panel via the CSS zoom property.
+    /** Scale the entire EBC panel.
      *
-     * Zoom is applied to #emerybc-panel (the slide container) so the content
-     * fills the panel at every zoom level with no clipping and no background bleed.
+     * Applies transform:scale() to .ebc-zoom-wrapper (an inner div containing
+     * all panel content), NOT to #emerybc-panel (the slide container).
+     * transform doesn't affect layout outside the wrapper, so the slide
+     * container never changes size and its transition never misfires.
      *
-     * The catch: #emerybc-panel has `transition: transform ...` for its open/close
-     * animation, and that animation uses `translateX(calc(100% + 60px))`.  When
-     * zoom changes the element's rendered width, "100%" re-evaluates and the
-     * transition fires, making the panel appear to glitch-slide.
-     *
-     * Fix: suppress the transition inline for the single frame of the zoom change,
-     * force a reflow so the new zoom is committed, then restore the transition on
-     * the next rAF tick — before the next browser paint.  Normal open/close
-     * animations are completely unaffected.
+     * Inverse sizing (width/height = 100/scale %) ensures the scaled wrapper
+     * fills .ebc-panel exactly — no overflow, no clipping, no background bleed.
+     * Rapid slider changes are completely smooth since no layout reflow occurs
+     * on the outer container.
      */
     applyPanelZoom(scale = loadPanelZoom()): void {
-        const panelEl = this.panelEl;
-        if (!panelEl) return;
-        const s = panelEl.style as CSSStyleDeclaration & { zoom?: string; transition?: string };
-        // Disable the CSS transition so the zoom-induced width change doesn't
-        // re-trigger the translateX(calc(100% + 60px)) slide animation.
-        s.transition = "none";
-        s.zoom = scale === 1 ? "" : String(scale);
-        // Force a layout reflow so the zoom is committed before the next paint.
-        panelEl.getBoundingClientRect();
-        // Restore the transition on the next frame (after the frame is painted).
-        requestAnimationFrame(() => { s.transition = ""; });
+        const wrapper = this.rootEl?.querySelector(".ebc-zoom-wrapper") as HTMLElement | null;
+        if (!wrapper) return;
+        if (scale === 1) {
+            wrapper.style.transform = "";
+            wrapper.style.width     = "100%";  // must keep 100% — clearing to "" removes the
+            wrapper.style.height    = "100%";  // inline height, collapsing the wrapper to content
+        } else {                               // height and breaking flex scroll + footer layout.
+            // inv% × scale = 100% → scaled content fills .ebc-panel exactly.
+            const inv = (100 / scale).toFixed(4) + "%";
+            wrapper.style.transform = `scale(${scale})`;
+            wrapper.style.width     = inv;
+            wrapper.style.height    = inv;
+        }
     }
 
     /**
@@ -8104,32 +8201,7 @@ export class EBCDrawer {
                 parent.appendChild(btnRow);
             }
 
-            // Custom pose add
-            const customHint = document.createElement("div");
-            customHint.className = "ebc-import-hint";
-            customHint.style.marginTop = "3px";
-            customHint.textContent = "Custom pose key:";
-            parent.appendChild(customHint);
-
-            const customRow = document.createElement("div");
-            customRow.style.cssText = "display:flex;gap:5px;";
-            const customInp = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", placeholder: "e.g. Hogtied",
-                maxLength: 40,
-            }) as HTMLInputElement;
-            customInp.style.flex = "1";
-            const addCustomBtn = document.createElement("button");
-            addCustomBtn.className = "ebc-update-btn";
-            addCustomBtn.textContent = t("core.add");
-            addCustomBtn.addEventListener("click", () => {
-                const val = customInp.value.trim();
-                if (val) { poses.push(val); customInp.value = ""; renderList(); }
-            });
-            customRow.appendChild(customInp);
-            customRow.appendChild(addCustomBtn);
-            parent.appendChild(customRow);
-
-            // Add delay row after the custom row
+            // Add delay row after the pose buttons
             parent.appendChild(delayRowEl);
 
             return {
@@ -10531,7 +10603,7 @@ export class EBCDrawer {
         // Message row
         const afkMsgLbl = document.createElement("div");
         afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
-        afkMsgLbl.textContent = "Reply message";
+        afkMsgLbl.textContent = t("settings.afkReplyMsg");
         afkBody.appendChild(afkMsgLbl);
         const afkMsgArea = document.createElement("textarea");
         afkMsgArea.value = getAfkMessage();
@@ -10545,12 +10617,12 @@ export class EBCDrawer {
         // Hint
         const afkHintBeep = document.createElement("div");
         afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-        afkHintBeep.textContent = "Sends a beep reply when someone beeps you directly.";
+        afkHintBeep.textContent = t("settings.afkHintBeep");
         afkBody.appendChild(afkHintBeep);
 
         const afkHint = document.createElement("div");
         afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
-        afkHint.textContent = "One reply per person per 30 min. [AFK] prefix added automatically.";
+        afkHint.textContent = t("settings.afkHint");
         afkBody.appendChild(afkHint);
 
         const toggleAfkCollapsed = (): void => {
@@ -10611,7 +10683,7 @@ export class EBCDrawer {
         } else {
             const empty = document.createElement("div");
             empty.className = "ebc-empty";
-            empty.textContent = "No saved notes yet.";
+            empty.textContent = t("users.noSavedNotes");
             userNotesBody.appendChild(empty);
         }
 
@@ -11402,7 +11474,7 @@ export class EBCDrawer {
                     // Tags label
                     const tagsLbl = document.createElement("div");
                     tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
-                    tagsLbl.textContent = "Tags";
+                    tagsLbl.textContent = t("users.tags");
                     expand.appendChild(tagsLbl);
 
                     // Chips container
@@ -11528,7 +11600,7 @@ export class EBCDrawer {
                     // ── Inline note editor ─────────────────────────────────────
                     const noteLbl = document.createElement("div");
                     noteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:6px;margin-bottom:2px;";
-                    noteLbl.textContent = "Note";
+                    noteLbl.textContent = t("users.note");
                     expand.appendChild(noteLbl);
 
                     const noteWrap = document.createElement("div");
@@ -11697,7 +11769,7 @@ export class EBCDrawer {
         if (isSelf) {
             const selfNote = document.createElement("div");
             selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c8a84b;padding:2px 4px 4px 18px;";
-            selfNote.textContent = "That's you — notes on yourself are not supported.";
+            selfNote.textContent = t("users.notesOnSelf");
             container.appendChild(selfNote);
             return container;
         }
@@ -11884,16 +11956,16 @@ export class EBCDrawer {
 
             const touchLbl = document.createElement("span");
             touchLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-            touchLbl.textContent = "Phone / touch mode";
+            touchLbl.textContent = t("dev.touchMode");
 
             const touchAutoSpan = document.createElement("span");
             touchAutoSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:" + (isTouchDevice() ? "#80c060" : "#6a4a5e") + ";flex-shrink:0;";
-            touchAutoSpan.textContent = isTouchDevice() ? "(auto: on)" : "(auto: off)";
+            touchAutoSpan.textContent = isTouchDevice() ? t("dev.touchAutoOn") : t("dev.touchAutoOff");
 
             const touchForceBtn = document.createElement("button");
             const refreshTouchBtn = (): void => {
                 const forced = getForceTouchMode();
-                touchForceBtn.textContent = forced ? "Force ON" : "Force OFF";
+                touchForceBtn.textContent = forced ? t("dev.touchForceOn") : t("dev.touchForceOff");
                 touchForceBtn.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
                     "font-size:9px",
@@ -11926,7 +11998,7 @@ export class EBCDrawer {
 
             const opacityLbl = document.createElement("span");
             opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
-            opacityLbl.textContent = "Panel opacity";
+            opacityLbl.textContent = t("dev.panelOpacity");
 
             const opacitySlider = document.createElement("input");
             opacitySlider.type = "range";
@@ -11959,12 +12031,12 @@ export class EBCDrawer {
 
             const zoomLbl = document.createElement("span");
             zoomLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
-            zoomLbl.textContent = "Text size";
+            zoomLbl.textContent = t("dev.textSize");
 
             const zoomSlider = document.createElement("input");
             zoomSlider.type = "range";
             zoomSlider.min = "0.8";
-            zoomSlider.max = "1.5";
+            zoomSlider.max = "1.4";
             zoomSlider.step = "0.05";
             zoomSlider.value = String(loadPanelZoom());
             zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
@@ -11998,11 +12070,11 @@ export class EBCDrawer {
             presetRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
             const presetLbl = document.createElement("span");
             presetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
-            presetLbl.textContent = "Quick preset";
+            presetLbl.textContent = t("dev.quickPreset");
             const presetSel = document.createElement("select");
             presetSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
             const blankOpt = document.createElement("option");
-            blankOpt.value = ""; blankOpt.textContent = "— choose preset —";
+            blankOpt.value = ""; blankOpt.textContent = t("dev.choosePreset");
             presetSel.appendChild(blankOpt);
             for (const [key, preset] of Object.entries(EBC_THEME_PRESETS)) {
                 const opt = document.createElement("option");
@@ -12019,7 +12091,7 @@ export class EBCDrawer {
                 presetSel.value = ""; // reset dropdown back to placeholder
             });
             const resetBtn = document.createElement("button");
-            resetBtn.textContent = "Reset";
+            resetBtn.textContent = t("dev.resetTheme");
             resetBtn.title = "Reset to default theme";
             resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;";
             resetBtn.addEventListener("click", () => {
@@ -12049,7 +12121,7 @@ export class EBCDrawer {
 
             const subLbl = document.createElement("div");
             subLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;";
-            subLbl.textContent = "Colour slots";
+            subLbl.textContent = t("dev.colourSlots");
             cnt.appendChild(subLbl);
 
             const grid = document.createElement("div");
@@ -12087,7 +12159,7 @@ export class EBCDrawer {
             // ── Tab visibility ─────────────────────────────────────────────────
             const tabVisLbl = document.createElement("div");
             tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
-            tabVisLbl.textContent = "Visible tabs";
+            tabVisLbl.textContent = t("dev.visibleTabs");
             cnt.appendChild(tabVisLbl);
             const tabVisGrid = document.createElement("div");
             tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;";
@@ -12097,7 +12169,7 @@ export class EBCDrawer {
                     const chip = document.createElement("button");
                     chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
                     chip.textContent = (EBC_TAB_LABELS[tabId] ?? "DEV") + " 🔒";
-                    chip.title = "Dev tab is always visible and cannot be hidden";
+                    chip.title = t("dev.devTabLocked");
                     chip.disabled = true;
                     tabVisGrid.appendChild(chip);
                     continue;
@@ -12129,7 +12201,7 @@ export class EBCDrawer {
 
             const hotkeyTitle = document.createElement("div");
             hotkeyTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;margin-bottom:6px;letter-spacing:0.03em;";
-            hotkeyTitle.textContent = "⌨ Menu Hotkey";
+            hotkeyTitle.textContent = t("dev.menuHotkey");
             hotkeyWrap.appendChild(hotkeyTitle);
 
             const hotkeyRow = document.createElement("div");
@@ -12162,7 +12234,7 @@ export class EBCDrawer {
 
             const BTN = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
             const setHotkeyBtn = document.createElement("button");
-            setHotkeyBtn.textContent = "Set Key";
+            setHotkeyBtn.textContent = t("dev.setKey");
             setHotkeyBtn.style.cssText = BTN + "border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;";
             setHotkeyBtn.addEventListener("mouseenter", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#5a1c30"; });
             setHotkeyBtn.addEventListener("mouseleave", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#3a1020"; });
@@ -12177,7 +12249,7 @@ export class EBCDrawer {
             setHotkeyBtn.addEventListener("click", () => {
                 if (capturingHotkey) return;
                 capturingHotkey = true;
-                setHotkeyBtn.textContent = "Press a key…";
+                setHotkeyBtn.textContent = t("dev.pressKey");
                 setHotkeyBtn.style.background = "#4a1a2a";
                 setHotkeyBtn.style.color = "#ff9ab8";
                 setHotkeyBtn.style.borderColor = "#cf6f98";
@@ -12187,7 +12259,7 @@ export class EBCDrawer {
                     ev.stopPropagation();
                     if (ev.key !== "Escape") setMenuHotkey(ev.code);
                     capturingHotkey = false;
-                    setHotkeyBtn.textContent = "Set Key";
+                    setHotkeyBtn.textContent = t("dev.setKey");
                     setHotkeyBtn.style.background = "#3a1020";
                     setHotkeyBtn.style.color = "#cf6f98";
                     setHotkeyBtn.style.borderColor = "#7a3a50";
@@ -12205,7 +12277,7 @@ export class EBCDrawer {
 
             const hotkeyHint = document.createElement("div");
             hotkeyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a4a;margin-top:5px;";
-            hotkeyHint.textContent = "Press the key to open / close the EBC menu from anywhere in the game.";
+            hotkeyHint.textContent = t("dev.hotkeyHint");
             hotkeyWrap.appendChild(hotkeyHint);
             cnt.appendChild(hotkeyWrap);
         });
@@ -12233,7 +12305,7 @@ export class EBCDrawer {
                 if (found.length === 0) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
-                    hint.textContent = "No other EBC users detected in this room.";
+                    hint.textContent = t("dev.noEbcUsers");
                     presListEl.appendChild(hint);
                     return;
                 }
@@ -12266,7 +12338,7 @@ export class EBCDrawer {
             refreshPresence();
             const refreshBtn = document.createElement("button");
             refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-            refreshBtn.textContent = "↻ Refresh list";
+            refreshBtn.textContent = t("dev.refreshList");
             refreshBtn.addEventListener("click", refreshPresence);
             cnt.appendChild(refreshBtn);
         });
@@ -12280,10 +12352,10 @@ export class EBCDrawer {
             verInfo.style.cssText = "flex:1;min-width:0;";
             const verLbl = document.createElement("span");
             verLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;display:block;";
-            verLbl.textContent = "Show version in overhead badge";
+            verLbl.textContent = t("dev.showVersionBadge");
             const verHint = document.createElement("span");
             verHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-            verHint.textContent = "Shows EBC version above room members";
+            verHint.textContent = t("dev.showVersionHint");
             verInfo.appendChild(verLbl); verInfo.appendChild(verHint);
             const verToggle = document.createElement("button");
             const refreshVerToggle = (): void => {
@@ -12310,7 +12382,7 @@ export class EBCDrawer {
             cnt.appendChild(charLbl);
             const charHint = document.createElement("div");
             charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
-            charHint.textContent = "Dump raw appearance + property data for any room member.";
+            charHint.textContent = t("dev.charInspHint");
             cnt.appendChild(charHint);
             const charPickRow = document.createElement("div");
             charPickRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
@@ -12319,7 +12391,7 @@ export class EBCDrawer {
             const charInspBtn = document.createElement("button");
             charInspBtn.className = "ebc-create-btn";
             charInspBtn.style.cssText = "margin:0;padding:2px 10px;font-size:10px;";
-            charInspBtn.textContent = "Inspect";
+            charInspBtn.textContent = t("dev.inspect");
             charPickRow.appendChild(charSelect); charPickRow.appendChild(charInspBtn);
             cnt.appendChild(charPickRow);
             const charDump = document.createElement("pre");
@@ -12367,7 +12439,7 @@ export class EBCDrawer {
             // Addons Loaded
             const hookLbl = document.createElement("div");
             hookLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
-            hookLbl.textContent = "Addons Loaded";
+            hookLbl.textContent = t("dev.addonsLoaded");
             cnt.appendChild(hookLbl);
             const hookList = document.createElement("div");
             cnt.appendChild(hookList);
@@ -12380,7 +12452,7 @@ export class EBCDrawer {
                     if (!Array.isArray(mods) || mods.length === 0) {
                         const hint = document.createElement("div");
                         hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
-                        hint.textContent = "bcModSdk not available or no mods loaded.";
+                        hint.textContent = t("dev.noModsdk");
                         hookList.appendChild(hint); return;
                     }
                     for (const mod of mods) {
@@ -12416,7 +12488,7 @@ export class EBCDrawer {
             renderHooks();
             const hookRefreshBtn = document.createElement("button");
             hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-            hookRefreshBtn.textContent = "↻ Refresh";
+            hookRefreshBtn.textContent = t("dev.refresh");
             hookRefreshBtn.addEventListener("click", renderHooks);
             cnt.appendChild(hookRefreshBtn);
         });
