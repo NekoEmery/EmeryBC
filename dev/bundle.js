@@ -30791,7 +30791,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.1";
+    const MOD_VERSION = "2.10.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30802,6 +30802,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.10.2",
+            changes: [
+                "Fix: Cat badge style now draws the EBC cat-face SVG icon overhead instead of the 🐱 emoji. The SVG is loaded once via a Blob URL and cached as an HTMLImageElement so it renders identically on all browsers.",
+            ],
+        },
         {
             version: "2.10.1",
             changes: [
@@ -34723,6 +34729,29 @@
     let _playerCharTop = 0;
     let _playerCharZoom = 1;
     let _isDraggingBadge = false;
+    // ── EBC cat-face SVG image cache ──────────────────────────────────────────────
+    // Loaded once from a Blob URL; after the onload fires _ebcCatImgReady is true
+    // and subsequent calls to getEbcCatImg() return the cached HTMLImageElement.
+    const EBC_CAT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`;
+    let _ebcCatImg = null;
+    let _ebcCatImgReady = false;
+    function getEbcCatImg() {
+        if (_ebcCatImgReady)
+            return _ebcCatImg;
+        if (!_ebcCatImg) {
+            try {
+                const blob = new Blob([EBC_CAT_SVG], { type: "image/svg+xml" });
+                const url = URL.createObjectURL(blob);
+                _ebcCatImg = new Image();
+                _ebcCatImg.onload = () => { _ebcCatImgReady = true; };
+                _ebcCatImg.src = url;
+            }
+            catch ( /* ignore — fallback: image stays null until retry */_a) { /* ignore — fallback: image stays null until retry */ }
+        }
+        return null; // not ready yet on first call; ready on subsequent frames
+    }
+    // Trigger early load so the image is ready by the time any character renders.
+    getEbcCatImg();
     /** Returns the BC main canvas element, checking both the window global and DOM. */
     function getBCCanvas() {
         try {
@@ -34846,17 +34875,15 @@
         const x = left + offsetX * zoom;
         const y = top + offsetY * zoom;
         if (badgeStyle === "cat") {
-            // ── Cat-face emoji badge ──────────────────────────────────────────────
+            // ── EBC cat-face SVG badge ────────────────────────────────────────────
             const canvas = getBCCanvas();
             const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
-            if (ctx && badgeTextOp > 0) {
-                const fontSize = Math.max(12, Math.round(22 * zoom * userScale));
+            const img = getEbcCatImg();
+            if (ctx && img && badgeTextOp > 0) {
+                const size = Math.max(12, Math.round(22 * zoom * userScale));
                 ctx.save();
                 ctx.globalAlpha = badgeTextOp;
-                ctx.font = `${fontSize}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText("🐱", x, y);
+                ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
                 ctx.restore();
             }
         }
