@@ -338,6 +338,23 @@ function savePanelOpacity(v: number): void {
     try { localStorage.setItem(PANEL_OPACITY_KEY, String(Math.round(v * 100) / 100)); } catch { /* ignore */ }
 }
 
+// -- Panel zoom (persisted to localStorage) ------------------------------------
+// Scales the entire EBC panel (text, buttons, spacing — everything).
+// Range: 0.6 – 2.0. Default 1.0 (matches native BC text density).
+
+const PANEL_ZOOM_KEY = "EBC_panelZoom";
+
+function loadPanelZoom(): number {
+    try {
+        const v = parseFloat(localStorage.getItem(PANEL_ZOOM_KEY) ?? "1");
+        return isNaN(v) ? 1 : Math.max(0.6, Math.min(2, v));
+    } catch { return 1; }
+}
+
+function savePanelZoom(v: number): void {
+    try { localStorage.setItem(PANEL_ZOOM_KEY, String(Math.round(v * 100) / 100)); } catch { /* ignore */ }
+}
+
 // -- Styles --------------------------------------------------------------------
 
 const CSS = `
@@ -4410,6 +4427,7 @@ export class EBCDrawer {
         panel.appendChild(footer);
         // (slideContainer/root/body already anchored early in setup — see above)
         this.applyPanelOpacity();
+        this.applyPanelZoom();
 
         // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
         // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
@@ -4938,6 +4956,16 @@ export class EBCDrawer {
             panel.style.backdropFilter = "none";
             if (style.webkitBackdropFilter !== undefined) style.webkitBackdropFilter = "none";
         }
+    }
+
+    /** Scale the entire EBC panel via the CSS zoom property. */
+    applyPanelZoom(scale = loadPanelZoom()): void {
+        const panelEl = this.panelEl;
+        if (!panelEl) return;
+        // CSS zoom is Chromium-native and scales layout + rendering together.
+        // Unset when at default so the panel stays at its natural CSS size.
+        (panelEl.style as CSSStyleDeclaration & { zoom?: string }).zoom =
+            scale === 1 ? "" : String(scale);
     }
 
     /**
@@ -11871,6 +11899,39 @@ export class EBCDrawer {
             opacityRow.appendChild(opacitySlider);
             opacityRow.appendChild(opacityVal);
             cnt.appendChild(opacityRow);
+
+            // ── Panel zoom slider ─────────────────────────────────────────────
+            const zoomRow = document.createElement("div");
+            zoomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+
+            const zoomLbl = document.createElement("span");
+            zoomLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
+            zoomLbl.textContent = "Text size";
+
+            const zoomSlider = document.createElement("input");
+            zoomSlider.type = "range";
+            zoomSlider.min = "0.6";
+            zoomSlider.max = "2";
+            zoomSlider.step = "0.05";
+            zoomSlider.value = String(loadPanelZoom());
+            zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            zoomSlider.title = "Scale the entire EBC panel — 100% matches default, higher for larger text";
+
+            const zoomVal = document.createElement("span");
+            zoomVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;min-width:30px;text-align:right;flex-shrink:0;";
+            zoomVal.textContent = Math.round(loadPanelZoom() * 100) + "%";
+
+            zoomSlider.addEventListener("input", () => {
+                const v = parseFloat(zoomSlider.value);
+                zoomVal.textContent = Math.round(v * 100) + "%";
+                savePanelZoom(v);
+                this.applyPanelZoom(v);
+            });
+
+            zoomRow.appendChild(zoomLbl);
+            zoomRow.appendChild(zoomSlider);
+            zoomRow.appendChild(zoomVal);
+            cnt.appendChild(zoomRow);
 
             // Working copy of colours — mutated by pickers, written to storage on every change
             let liveColors = getCoreColors();
