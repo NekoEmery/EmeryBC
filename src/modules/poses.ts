@@ -47,6 +47,33 @@ export function applyPoses(poses: string[]): void {
     const wantsRelaxed = poses.includes("");
     const filtered = poses.filter(Boolean);
     const result   = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
+
+    // Prefer BC's PoseSetActive API (current BC) — it writes ActivePoseMapping which
+    // is the authoritative pose state in modern BC. Direct ActivePose assignment is the
+    // old approach and may be silently ignored in newer versions.
+    const psa = (window as unknown as Record<string, unknown>).PoseSetActive as
+        ((C: unknown, name: string | null, force?: boolean, rd?: boolean) => void) | undefined;
+
+    if (typeof psa === "function") {
+        try {
+            if (result.length === 0) {
+                // Clear everything (stand + relaxed)
+                psa(Player, null, true, false);
+            } else {
+                // First pose with forceChange=true resets the mapping; subsequent poses
+                // add into it without clobbering the first.
+                psa(Player, result[0], true, false);
+                for (let i = 1; i < result.length; i++) {
+                    psa(Player, result[i], false, false);
+                }
+            }
+        } catch { /* ignore */ }
+        // Push final state to server (PoseSetActive only does Push=false internally)
+        callBC(() => CharacterRefresh(Player, true));
+        return;
+    }
+
+    // Fallback: direct ActivePose assignment for older BC builds
     try { (Player as unknown as Record<string, unknown>).ActivePose = result; } catch { /* ignore */ }
     callBC(() => CharacterRefresh(Player, false));
     callBC(() => ChatRoomCharacterUpdate(Player));
