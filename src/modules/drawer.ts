@@ -9501,11 +9501,11 @@ export class EBCDrawer {
                         sel.className = "ebc-scene-type-sel";
                         sel.style.width = "90px";
                         sel.dataset.axis = dataAttr;
-                        // "None" option for arms axis
+                        // "Relaxed" option for arms axis (value="" = no arm pose)
                         if (dataAttr === "arms") {
                             const none = document.createElement("option");
                             none.value = "";
-                            none.textContent = "None";
+                            none.textContent = "Relaxed";
                             none.selected = currentKey === "";
                             sel.appendChild(none);
                         }
