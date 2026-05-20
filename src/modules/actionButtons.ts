@@ -424,6 +424,11 @@ export function resetSidebarPos(): void {
 
 let sidebarCollapsed = false;
 
+// Per-button cooldown — prevents spamming action emotes too fast.
+// Key: categoryIndex * 100 + buttonSlotIndex  →  timestamp of last fire (ms).
+const BUTTON_COOLDOWN_MS = 15_000;
+const _btnCooldowns = new Map<number, number>();
+
 // Drag state
 let isDragging = false;
 let dragAnchorMouseX = 0;
@@ -619,11 +624,20 @@ export function drawActionButtons(): void {
     }
 
     const buttons = getButtons();
+    const now = Date.now();
     for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
         if (!btn?.enabled || !btn.label) continue;
-        DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
-            btn.label, withAlpha(btn.color || "#c2185b", 0.90), "", btn.emote);
+        const cdKey     = idx * 100 + i;
+        const remainMs  = BUTTON_COOLDOWN_MS - (now - (_btnCooldowns.get(cdKey) ?? 0));
+        const onCooldown = remainMs > 0;
+        DrawButton(
+            sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE,
+            onCooldown ? Math.ceil(remainMs / 1000) + "s" : btn.label,
+            onCooldown ? withAlpha("#1a0a14", 0.88) : withAlpha(btn.color || "#c2185b", 0.90),
+            "",
+            onCooldown ? "" : btn.emote,
+        );
     }
 }
 
@@ -664,12 +678,16 @@ export function handleActionButtonClick(): boolean {
     }
 
     const buttons = getButtons();
+    const now = Date.now();
     for (let i = 0; i < buttons.length; i++) {
         const btn = buttons[i];
         if (!btn?.enabled || !btn.label) continue;
         const y = btnStartY + i * BTN_SIZE;
         if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
             my >= y         && my <= y + BTN_SIZE) {
+            const cdKey = idx * 100 + i;
+            if (now - (_btnCooldowns.get(cdKey) ?? 0) < BUTTON_COOLDOWN_MS) return true; // cooldown active — consume click, do nothing
+            _btnCooldowns.set(cdKey, now);
             const animOk = triggerLabelAnimation(btn.label);
             if (animOk) sendAction(btn.emote, btn.style ?? "action", btn.includeNameInAnnounce !== false);
             return true;
