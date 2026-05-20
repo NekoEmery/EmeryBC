@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.4.9
+// @version      3.5.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13217,7 +13217,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     position: absolute;
     right: 44px;   /* leave the 44px tab strip uncovered — tab is to our right */
     top: 0;
-    width: 390px;
+    width: min(390px, calc(100vw - 44px)); /* never overflow on narrow phone screens */
     height: 100%;  /* full chat log height — no vertical conflict with tab */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
@@ -15453,6 +15453,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-whisper-text { color: #d0a0b8; word-break: break-word; }
 .ebc-whisper-msg.out .ebc-whisper-text { color: #e8b0d0; }
 
+/* ── Creator paw glow animation (credits card) ──────────────────────────── */
+@keyframes ebc-paw-glow {
+    0%, 100% { opacity: 0.82; filter: drop-shadow(0 0 3px #c89030); }
+    50%       { opacity: 1.00; filter: drop-shadow(0 0 7px #ffd700) drop-shadow(0 0 3px #c89030); }
+}
+.ebc-creator-paw-img {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    animation: ebc-paw-glow 2.4s ease-in-out infinite;
+    vertical-align: middle;
+}
+
 /* ── Touch / phone mode ─────────────────────────────────────────────────── */
 /* Applied when #emerybc-panel has [data-touch] — auto on coarse-pointer     */
 /* devices (phones/tablets), or force-enabled from the DEV → Drawer Prefs.  */
@@ -15512,10 +15525,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
 #emerybc-panel[data-touch] .ebc-tabs {
     gap: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none !important;
+}
+#emerybc-panel[data-touch] .ebc-tabs::-webkit-scrollbar { display: none; }
+#emerybc-panel[data-touch] .ebc-tab-btn {
+    flex: 0 0 auto !important; /* don't shrink — allow horizontal scroll instead */
+    min-width: 48px !important;
 }
 
 #emerybc-panel[data-touch] .ebc-body {
     padding: 10px !important;
+    overflow-y: scroll !important; /* 'scroll' works more reliably than 'auto' on iOS */
+    -webkit-overflow-scrolling: touch; /* momentum scroll on older iOS */
 }
 
 #emerybc-panel[data-touch] .ebc-section-label {
@@ -30157,11 +30181,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     idElCreator.textContent = "#" + p.memberId;
                     idElCreator.title = "BC Member Number";
                     nameRow.appendChild(idElCreator);
-                    // Paw mark
-                    const pawMark = document.createElement("span");
-                    pawMark.style.cssText = "font-size:13px;line-height:1;filter:drop-shadow(0 0 3px #c89030);flex-shrink:0;";
-                    pawMark.textContent = "🐾";
-                    nameRow.appendChild(pawMark);
+                    // Paw mark — use the gold PNG if available, fall back to emoji
+                    if (EBCDrawer.pawDataUri) {
+                        const pawImg = document.createElement("img");
+                        pawImg.src = EBCDrawer.pawDataUri;
+                        pawImg.className = "ebc-creator-paw-img";
+                        pawImg.alt = "🐾";
+                        nameRow.appendChild(pawImg);
+                    }
+                    else {
+                        const pawMark = document.createElement("span");
+                        pawMark.style.cssText = "font-size:13px;line-height:1;filter:drop-shadow(0 0 3px #c89030);flex-shrink:0;";
+                        pawMark.textContent = "🐾";
+                        nameRow.appendChild(pawMark);
+                    }
                 }
                 else {
                     const idEl2 = document.createElement("span");
@@ -31471,6 +31504,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     EBCDrawer._instance = null;
+    /** Gold paw data URI — set from main.ts after EBC_PAW_DATA is defined. */
+    EBCDrawer.pawDataUri = "";
     // -- Interactive guide ─────────────────────────────────────────────────────
     // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
     EBCDrawer.GUIDE_STEPS = [
@@ -31571,7 +31606,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.4.9";
+    const MOD_VERSION = "3.5.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31582,6 +31617,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.5.0",
+            changes: [
+                "Credits: creator card now shows the animated gold paw PNG instead of a plain emoji.",
+                "Phone mode: panel width capped to screen width so it never clips on narrow devices.",
+                "Phone mode: tab row scrolls horizontally when tabs don't fit instead of clipping.",
+                "Phone mode: body uses overflow-y:scroll + -webkit-overflow-scrolling:touch for reliable iOS momentum scroll.",
+            ],
+        },
         {
             version: "3.4.9",
             changes: [
@@ -36255,6 +36299,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
+            EBCDrawer.pawDataUri = EBC_PAW_DATA;
             drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD);
             // Fire an initial visibility check in case the addon loads while the
             // player is already in a chat room (ChatRoomSync won't fire again).
