@@ -6,7 +6,7 @@ import { handlePoseComboCommand } from "./modules/poses";
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getBadgeScale, getBadgeOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode } from "./modules/settings";
+import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, getBadgeStyle, getBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.9.8";
+const MOD_VERSION = "2.9.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.9.9",
+        changes: [
+            "Feature: Badge BG and Text opacity are now two independent sliders. 'BG' controls the background rectangle transparency (0 = invisible background, text floats freely); 'Text' controls the label / emoji opacity. Both are available in the badge appearance section.",
+            "Fix: Drawer body could not scroll — flex child lacked min-height:0 which prevented it from shrinking past its content height when fixed elements above it were too tall.",
+            "Fix: Language row reverted to single-line (nowrap) using short abbreviations (EN/DE/etc.) with full name shown on hover, so it no longer wraps and steals vertical space from the scrollable body.",
+        ],
+    },
     {
         version: "2.9.8",
         changes: [
@@ -4071,9 +4079,10 @@ function drawPresenceMarker(args: unknown[]): void {
     // User-configured position offset + scale
     const offsetX   = getBadgeOffsetX();   // default 250 (char horiz centre)
     const offsetY   = getBadgeOffsetY();   // default 72  (below WCE name)
-    const userScale  = getBadgeScale();    // default 1.0
-    const badgeStyle  = getBadgeStyle();   // "text" | "cat"
-    const badgeOpacity = getBadgeOpacity(); // default 1.0
+    const userScale     = getBadgeScale();      // default 1.0
+    const badgeStyle    = getBadgeStyle();      // "text" | "cat"
+    const badgeBgOp     = getBadgeBgOpacity();  // default 1.0
+    const badgeTextOp   = getBadgeTextOpacity();// default 1.0
 
     const x = left + offsetX * zoom;
     const y = top  + offsetY * zoom;
@@ -4082,10 +4091,10 @@ function drawPresenceMarker(args: unknown[]): void {
         // ── Cat-face emoji badge ──────────────────────────────────────────────
         const canvas = getBCCanvas();
         const ctx = canvas?.getContext("2d");
-        if (ctx) {
+        if (ctx && badgeTextOp > 0) {
             const fontSize = Math.max(12, Math.round(22 * zoom * userScale));
             ctx.save();
-            ctx.globalAlpha  = badgeOpacity;
+            ctx.globalAlpha  = badgeTextOp;
             ctx.font         = `${fontSize}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
             ctx.textAlign    = "center";
             ctx.textBaseline = "middle";
@@ -4106,11 +4115,20 @@ function drawPresenceMarker(args: unknown[]): void {
         const badgeLeft = x - width  / 2;
         const badgeTop  = y - height / 2;
 
-        if (ctx) { ctx.save(); ctx.globalAlpha = badgeOpacity; }
-        DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
-        DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
-        DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
-        if (ctx) ctx.restore();
+        // Background rect — independent opacity
+        if (badgeBgOp > 0) {
+            if (ctx) { ctx.save(); ctx.globalAlpha = badgeBgOp; }
+            DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
+            DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
+            if (ctx) ctx.restore();
+        }
+
+        // Label text — independent opacity
+        if (badgeTextOp > 0) {
+            if (ctx) { ctx.save(); ctx.globalAlpha = badgeTextOp; }
+            DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
+            if (ctx) ctx.restore();
+        }
     }
 
     // ── Drag-mode handle (own character only) ─────────────────────────────────

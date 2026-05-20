@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeOpacity, setBadgeOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -147,7 +147,7 @@ import {
     clearWhisperLog, setWhisperUpdateCallback,
     type WhisperEntry,
 } from "./whisperLog";
-import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES } from "./i18n";
+import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES, LANG_LABELS } from "./i18n";
 
 // -- Shared UI helpers ---------------------------------------------------------
 
@@ -623,12 +623,14 @@ const CSS = `
     padding: 5px 8px;
     border-bottom: 1px solid #2a1020;
     background: rgba(15, 6, 12, 0.4);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
 }
 
 /* -- Body -- */
 .ebc-body {
     flex: 1;
+    min-height: 0; /* prevents flex children from refusing to shrink past content height */
     overflow-y: auto;
     padding: 7px;
     scrollbar-width: thin;
@@ -3535,7 +3537,8 @@ export class EBCDrawer {
             const pill = document.createElement("button");
             pill.dataset.lang = code;
             pill.className = "ebc-lang-pill"; // enables touch-mode CSS targeting
-            pill.textContent = LANG_NAMES[code];
+            pill.textContent = LANG_LABELS[code];
+            pill.title = LANG_NAMES[code]; // full name on hover
             pill.addEventListener("click", () => {
                 setLanguage(code);
                 refreshLangPills();
@@ -4377,37 +4380,42 @@ export class EBCDrawer {
         scaleRow.appendChild(scaleVal);
         ebcTagsBody.appendChild(scaleRow);
 
-        // ── Opacity slider ────────────────────────────────────────────────────
-        const opacityRow = document.createElement("div");
-        opacityRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+        // ── BG opacity slider ─────────────────────────────────────────────────
+        const makeOpacitySliderRow = (
+            labelKey: string,
+            getVal: () => number,
+            setVal: (v: number) => void,
+            titleHint: string,
+        ): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:28px;";
+            lbl.textContent = t(labelKey);
+            const slider = document.createElement("input");
+            slider.type  = "range";
+            slider.min   = "0";
+            slider.max   = "1";
+            slider.step  = "0.05";
+            slider.value = String(getVal());
+            slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            slider.title = titleHint;
+            const valLbl = document.createElement("span");
+            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+            valLbl.textContent = Math.round(getVal() * 100) + "%";
+            slider.addEventListener("input", () => {
+                const v = parseFloat(slider.value);
+                setVal(v);
+                valLbl.textContent = Math.round(v * 100) + "%";
+            });
+            row.appendChild(lbl);
+            row.appendChild(slider);
+            row.appendChild(valLbl);
+            ebcTagsBody.appendChild(row);
+        };
 
-        const opacityLbl = document.createElement("span");
-        opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
-        opacityLbl.textContent = t("strip.opacity");
-
-        const opacitySlider = document.createElement("input");
-        opacitySlider.type  = "range";
-        opacitySlider.min   = "0.1";
-        opacitySlider.max   = "1";
-        opacitySlider.step  = "0.05";
-        opacitySlider.value = String(getBadgeOpacity());
-        opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-        opacitySlider.title = "Badge opacity (1 = fully opaque)";
-
-        const opacityVal = document.createElement("span");
-        opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
-        opacityVal.textContent = Math.round(getBadgeOpacity() * 100) + "%";
-
-        opacitySlider.addEventListener("input", () => {
-            const v = parseFloat(opacitySlider.value);
-            setBadgeOpacity(v);
-            opacityVal.textContent = Math.round(v * 100) + "%";
-        });
-
-        opacityRow.appendChild(opacityLbl);
-        opacityRow.appendChild(opacitySlider);
-        opacityRow.appendChild(opacityVal);
-        ebcTagsBody.appendChild(opacityRow);
+        makeOpacitySliderRow("strip.bgOpacity",   getBadgeBgOpacity,   setBadgeBgOpacity,   "Background rectangle opacity (0 = transparent)");
+        makeOpacitySliderRow("strip.textOpacity",  getBadgeTextOpacity, setBadgeTextOpacity, "Text / icon opacity (0 = invisible)");
 
         // ── Position drag row ─────────────────────────────────────────────────
         const posRow = document.createElement("div");

@@ -384,18 +384,32 @@ export function setBadgeScale(v: number): void {
     try { const s = getStore(); if (s) { s.badgeScale = Math.max(0.3, Math.min(4, v)); syncSettings(); } } catch { /* ignore */ }
 }
 
-// -- Badge opacity -------------------------------------------------------------
-// Controls how transparent the overhead badge is. 1.0 = fully opaque, 0.1 = nearly invisible.
-// Range: 0.1 – 1.0. Default: 1.0.
+// -- Badge background opacity --------------------------------------------------
+// Controls how opaque the background rectangle of the text badge is.
+// 0.0 = fully transparent (text only), 1.0 = fully opaque. Default: 1.0.
 
-export function getBadgeOpacity(): number {
+export function getBadgeBgOpacity(): number {
     try {
-        const v = getStore()?.badgeOpacity;
-        return typeof v === "number" && v >= 0.1 && v <= 1 ? v : 1.0;
+        const v = getStore()?.badgeBgOpacity;
+        return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
     } catch { return 1.0; }
 }
-export function setBadgeOpacity(v: number): void {
-    try { const s = getStore(); if (s) { s.badgeOpacity = Math.max(0.1, Math.min(1, v)); syncSettings(); } } catch { /* ignore */ }
+export function setBadgeBgOpacity(v: number): void {
+    try { const s = getStore(); if (s) { s.badgeBgOpacity = Math.max(0, Math.min(1, v)); syncSettings(); } } catch { /* ignore */ }
+}
+
+// -- Badge text opacity --------------------------------------------------------
+// Controls how opaque the label text (or cat emoji) of the badge is.
+// 0.0 = invisible, 1.0 = fully opaque. Default: 1.0.
+
+export function getBadgeTextOpacity(): number {
+    try {
+        const v = getStore()?.badgeTextOpacity;
+        return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
+    } catch { return 1.0; }
+}
+export function setBadgeTextOpacity(v: number): void {
+    try { const s = getStore(); if (s) { s.badgeTextOpacity = Math.max(0, Math.min(1, v)); syncSettings(); } } catch { /* ignore */ }
 }
 
 // -- Badge position offset (character-relative) --------------------------------
