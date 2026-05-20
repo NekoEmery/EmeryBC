@@ -3169,59 +3169,7 @@ function saveStripTabFilter(key: string, tabs: Set<DrawerTab> | null): void {
     } catch { /* ignore */ }
 }
 
-/** Builds a compact tab-chip filter row and appends it to `container`. */
-function appendStripTabFilter(
-    container: HTMLElement,
-    storageKey: string,
-    onChanged: () => void,
-): void {
-    const divider = document.createElement("div");
-    divider.style.cssText = "height:1px;background:#2a1421;margin:6px 0 5px;";
-    container.appendChild(divider);
 
-    const lbl = document.createElement("div");
-    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#6a4060;text-transform:uppercase;margin-bottom:4px;";
-    lbl.textContent = "Visible on tabs:";
-    container.appendChild(lbl);
-
-    const chipRow = document.createElement("div");
-    chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
-
-    for (const tid of PINNED_STRIP_TABS) {
-        const chip = document.createElement("button");
-        chip.textContent = PINNED_TAB_SHORT[tid] ?? tid;
-        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;padding:2px 6px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
-        const refreshChip = (): void => {
-            const f = loadStripTabFilter(storageKey);
-            const on = !f || f.has(tid);
-            chip.style.background   = on ? "#2e1020" : "#150a10";
-            chip.style.border       = `1px solid ${on ? "#8a3458" : "#321220"}`;
-            chip.style.color        = on ? "#f0c0d8" : "#4a2838";
-        };
-        refreshChip();
-        chip.addEventListener("click", () => {
-            let f = loadStripTabFilter(storageKey);
-            if (!f) {
-                // Currently "all" — deselect this one tab
-                f = new Set(PINNED_STRIP_TABS);
-                f.delete(tid);
-            } else if (f.has(tid)) {
-                if (f.size <= 1) return; // keep at least one tab
-                f.delete(tid);
-            } else {
-                f.add(tid);
-                if (f.size >= PINNED_STRIP_TABS.length) f = null; // back to "all"
-            }
-            saveStripTabFilter(storageKey, f);
-            chipRow.querySelectorAll<HTMLButtonElement>("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
-            onChanged();
-        });
-        chip.addEventListener("ebc-refresh", refreshChip);
-        chipRow.appendChild(chip);
-    }
-
-    container.appendChild(chipRow);
-}
 
 const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
 
@@ -4232,8 +4180,6 @@ export class EBCDrawer {
             hint.textContent = t("strip.swHint");
             swInner.appendChild(hint);
 
-            // -- Tab visibility filter --
-            appendStripTabFilter(swInner, "EBC_swTabFilter", () => this.updatePinnedStrips());
         };
 
         // Toggle expand — rebuild inner content on every open
@@ -4555,9 +4501,6 @@ export class EBCDrawer {
         posRow.appendChild(dragBtn);
         posRow.appendChild(resetPosBtn);
         ebcTagsBody.appendChild(posRow);
-
-        // ── Tab visibility filter (EBC Tags strip) ────────────────────────────
-        appendStripTabFilter(ebcTagsBody, "EBC_tagsTabFilter", () => this.updatePinnedStrips());
 
         ebcTagsStrip.appendChild(ebcTagsBody);
 
@@ -12200,6 +12143,73 @@ export class EBCDrawer {
             zoomRow.appendChild(zoomSlider);
             zoomRow.appendChild(zoomVal);
             cnt.appendChild(zoomRow);
+
+            // ── Pinned strip tab visibility ───────────────────────────────────
+            const stripVisBox = document.createElement("div");
+            stripVisBox.style.cssText = "padding:7px 9px 9px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+
+            const stripVisTitle = document.createElement("div");
+            stripVisTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#c09098;margin-bottom:4px;";
+            stripVisTitle.textContent = "Pinned strip visibility";
+            stripVisBox.appendChild(stripVisTitle);
+
+            const stripVisDesc = document.createElement("div");
+            stripVisDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;line-height:1.5;margin-bottom:9px;";
+            stripVisDesc.textContent = "Choose which tabs show the Safewords and EBC Tag Settings strips at the top of the panel. Deselect a tab to hide that strip when you're on it.";
+            stripVisBox.appendChild(stripVisDesc);
+
+            // Helper: one labeled row of tab chips per pinned strip
+            const makeStripRow = (rowLabel: string, storageKey: string): void => {
+                const wrap = document.createElement("div");
+                wrap.style.cssText = "margin-bottom:8px;";
+
+                const lbl = document.createElement("div");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.05em;color:#9a6878;text-transform:uppercase;margin-bottom:5px;";
+                lbl.textContent = rowLabel;
+                wrap.appendChild(lbl);
+
+                const chipRow = document.createElement("div");
+                chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+
+                for (const tid of PINNED_STRIP_TABS) {
+                    const chip = document.createElement("button");
+                    chip.textContent = PINNED_TAB_SHORT[tid] ?? tid;
+                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 11px;border-radius:4px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                    const refreshChip = (): void => {
+                        const f = loadStripTabFilter(storageKey);
+                        const on = !f || f.has(tid);
+                        chip.style.background = on ? "#2e1020" : "#150a10";
+                        chip.style.border     = `1px solid ${on ? "#8a3458" : "#321220"}`;
+                        chip.style.color      = on ? "#f0c0d8" : "#4a2838";
+                    };
+                    refreshChip();
+                    chip.addEventListener("click", () => {
+                        let f = loadStripTabFilter(storageKey);
+                        if (!f) {
+                            f = new Set(PINNED_STRIP_TABS);
+                            f.delete(tid);
+                        } else if (f.has(tid)) {
+                            if (f.size <= 1) return; // keep at least one
+                            f.delete(tid);
+                        } else {
+                            f.add(tid);
+                            if (f.size >= PINNED_STRIP_TABS.length) f = null;
+                        }
+                        saveStripTabFilter(storageKey, f);
+                        chipRow.querySelectorAll<HTMLButtonElement>("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                        this.updatePinnedStrips();
+                    });
+                    chip.addEventListener("ebc-refresh", refreshChip);
+                    chipRow.appendChild(chip);
+                }
+
+                wrap.appendChild(chipRow);
+                stripVisBox.appendChild(wrap);
+            };
+
+            makeStripRow("Safewords", "EBC_swTabFilter");
+            makeStripRow("EBC Tag Settings", "EBC_tagsTabFilter");
+            cnt.appendChild(stripVisBox);
 
             // Working copy of colours — mutated by pickers, written to storage on every change
             let liveColors = getCoreColors();
