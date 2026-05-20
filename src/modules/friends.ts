@@ -128,20 +128,6 @@ export function getEBCVersion(memberNumber: number): string | null {
     return ebcVersionCache.get(memberNumber) ?? null;
 }
 
-// Returns all session-cached EBC users filtered to those currently in the room.
-export function getEBCUsersInRoom(): Array<{ memberNumber: number; name: string; version: string }> {
-    try {
-        const chars = (typeof ChatRoomCharacter !== "undefined" ? ChatRoomCharacter : []) as Array<{ MemberNumber?: unknown; Name?: unknown }>;
-        return chars
-            .filter(c => typeof c.MemberNumber === "number" && ebcVersionCache.has(c.MemberNumber as number))
-            .map(c => ({
-                memberNumber: c.MemberNumber as number,
-                name:         String(c.Name ?? c.MemberNumber),
-                version:      ebcVersionCache.get(c.MemberNumber as number)!,
-            }));
-    } catch { return []; }
-}
-
 export function updateOnlineFriends(entries: Array<Record<string, unknown>>): void {
     const prevOnline = new Set(onlineSet);
     onlineSet.clear();

@@ -92,7 +92,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, getEBCUsersInRoom, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { registerOpenBeepCallback } from "./macros";
 import { callBC, syncSettings } from "./bcUtils";
@@ -13019,50 +13019,6 @@ export class EBCDrawer {
         let renderRlog:   () => void = () => { /* populated below */ };
         let renderMsgLog: () => void = () => { /* populated below */ };
 
-        // ── EBC Users in Room ─────────────────────────────────────────────────
-        makeSection("EBC Users in Room", "EBC_devEBCUsersCollapsed", false, (cnt) => {
-            const renderEBCUsers = (): void => {
-                while (cnt.firstChild) cnt.removeChild(cnt.firstChild);
-                const users = getEBCUsersInRoom();
-
-                const refreshBtn = document.createElement("button");
-                refreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;background:transparent;border:1px solid #3a1928;border-radius:4px;padding:2px 8px;cursor:pointer;margin-bottom:6px;";
-                refreshBtn.textContent = "↻ Refresh";
-                refreshBtn.addEventListener("click", renderEBCUsers);
-                cnt.appendChild(refreshBtn);
-
-                if (!users.length) {
-                    const empty = document.createElement("div");
-                    empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4a58;padding:4px 2px;";
-                    empty.textContent = "No EBC users detected in room yet.";
-                    cnt.appendChild(empty);
-                    return;
-                }
-
-                for (const u of users) {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:5px;margin-bottom:3px;";
-
-                    const nameEl = document.createElement("span");
-                    nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f0d8e8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                    nameEl.textContent = u.name;
-
-                    const idEl = document.createElement("span");
-                    idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
-                    idEl.textContent = `#${u.memberNumber}`;
-
-                    const verEl = document.createElement("span");
-                    verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#cf6f98;flex-shrink:0;background:#2a0e1e;border:1px solid #6b3050;border-radius:4px;padding:1px 5px;";
-                    verEl.textContent = `v${u.version}`;
-
-                    row.appendChild(nameEl);
-                    row.appendChild(idEl);
-                    row.appendChild(verEl);
-                    cnt.appendChild(row);
-                }
-            };
-            renderEBCUsers();
-        });
 
         makeSection(t("dev.logs"), "EBC_devLogSectionCollapsed", true, (cnt) => {
             // -- shared helpers --
