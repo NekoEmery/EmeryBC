@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.9.9";
+const MOD_VERSION = "2.10.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.10.0",
+        changes: [
+            "Fix: Text badge now renders using direct canvas text so the font size scales correctly at any badge scale value — previously DrawTextFit had an internal size cap that made large badges look broken.",
+            "Fix: The always-visible chrome area (quick actions, safeword section, EBC tag strip) now has a scrollable max-height cap so its contents never push the main tab body off-screen. All tabs now reliably display their scrollable content area.",
+        ],
+    },
     {
         version: "2.9.9",
         changes: [
@@ -4123,11 +4130,17 @@ function drawPresenceMarker(args: unknown[]): void {
             if (ctx) ctx.restore();
         }
 
-        // Label text — independent opacity
-        if (badgeTextOp > 0) {
-            if (ctx) { ctx.save(); ctx.globalAlpha = badgeTextOp; }
-            DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
-            if (ctx) ctx.restore();
+        // Label text — direct canvas rendering so font size scales with badge height.
+        // DrawTextFit has an internal pixel cap that makes large badges look broken.
+        if (badgeTextOp > 0 && ctx) {
+            ctx.save();
+            ctx.globalAlpha  = badgeTextOp;
+            ctx.font         = `bold ${Math.max(8, Math.round(height * 0.66))}px "Trebuchet MS",sans-serif`;
+            ctx.fillStyle    = UI.accent;
+            ctx.textAlign    = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4);
+            ctx.restore();
         }
     }
 
