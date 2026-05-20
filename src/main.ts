@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.5.5";
+const MOD_VERSION = "3.5.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.5.6",
+        changes: [
+            "Credits: creator card now uses standard layout (same size as other cards) — gold paw PNG fills the avatar circle, CREATOR badge removed, member chip and heart decoration now match other cards.",
+            "Canvas paw: repositioned to centered above the character name (nameX - sz/2, nameY - sz - 3*zoom) instead of inline to the right.",
+        ],
+    },
     {
         version: "3.5.5",
         changes: [
@@ -4528,7 +4535,8 @@ function drawPresenceMarker(args: unknown[]): void {
             _pawCtx.globalAlpha = pulse;
             _pawCtx.shadowColor = "#ffd700";
             _pawCtx.shadowBlur  = sz * 0.8;
-            _pawCtx.drawImage(_pawImg, nameX + Math.round(54 * zoom), nameY - sz / 2, sz, sz);
+            // Draw centered horizontally above the character name
+            _pawCtx.drawImage(_pawImg, Math.round(nameX - sz / 2), Math.round(nameY - sz - 3 * zoom), sz, sz);
             _pawCtx.restore();
         }
     }

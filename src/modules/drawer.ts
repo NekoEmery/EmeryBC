@@ -2728,13 +2728,13 @@ const CSS = `
 .ebc-whisper-text { color: #d0a0b8; word-break: break-word; }
 .ebc-whisper-msg.out .ebc-whisper-text { color: #e8b0d0; }
 
-/* ── Creator paw (credits card) ─────────────────────────────────────────── */
+/* ── Creator paw (credits card avatar) ──────────────────────────────────── */
 .ebc-creator-paw-img {
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     display: block;
-    filter: drop-shadow(0 0 4px #c89030);
-    opacity: 0.88;
+    filter: drop-shadow(0 0 3px #c89030);
+    opacity: 0.9;
 }
 
 /* ── Touch / phone mode ─────────────────────────────────────────────────── */
@@ -17407,88 +17407,54 @@ export class EBCDrawer {
             card.className = "ebc-thanks-card";
 
             const isPawCard = p.memberId === 130267;
-            if (isPawCard) {
-                card.style.borderLeft = "4px solid #c89030";
-            }
+            if (isPawCard) card.style.borderLeft = "4px solid #c89030";
 
-            // Creator card: no avatar circle — avatar is only shown for other members
-            if (!isPawCard) {
-                const avatar = document.createElement("div");
-                avatar.className = "ebc-thanks-avatar";
+            // Avatar circle — paw PNG for creator, emoji for everyone else
+            const avatar = document.createElement("div");
+            avatar.className = "ebc-thanks-avatar";
+            if (isPawCard && EBCDrawer.pawDataUri) {
+                const pawImg = document.createElement("img");
+                pawImg.src = EBCDrawer.pawDataUri;
+                pawImg.className = "ebc-creator-paw-img";
+                pawImg.alt = "🐾";
+                avatar.appendChild(pawImg);
+            } else {
                 avatar.textContent = p.emoji;
-                card.appendChild(avatar);
             }
+            card.appendChild(avatar);
 
             const info = document.createElement("div");
             info.className = "ebc-thanks-info";
-            if (isPawCard) info.style.alignItems = "center"; // center paw + name row + text
 
             const nameRow = document.createElement("div");
-            nameRow.style.cssText = "display:flex;align-items:center;gap:6px;" + (isPawCard ? "justify-content:center;" : "");
+            nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
 
             const namEl = document.createElement("span");
             namEl.className = "ebc-thanks-name";
             namEl.textContent = p.name;
             const vipCredit = VIP_MEMBERS[p.memberId];
             if (vipCredit) applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
-
             nameRow.appendChild(namEl);
 
-            if (isPawCard) {
-                // Creator badge pill
-                const creatorBadge = document.createElement("span");
-                creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#1a0d02;background:#c89030;border-radius:3px;padding:1px 6px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;";
-                creatorBadge.textContent = "Creator";
-                nameRow.appendChild(creatorBadge);
-                // Member number chip (same as other cards)
-                const idElCreator = document.createElement("span");
-                idElCreator.className = "ebc-member-chip";
-                idElCreator.textContent = "#" + p.memberId;
-                idElCreator.title = "BC Member Number";
-                nameRow.appendChild(idElCreator);
-            } else {
-                const idEl2 = document.createElement("span");
-                idEl2.className = "ebc-member-chip";
-                idEl2.textContent = "#" + p.memberId;
-                idEl2.title = "BC Member Number";
-                nameRow.appendChild(idEl2);
-            }
+            const idEl = document.createElement("span");
+            idEl.className = "ebc-member-chip";
+            idEl.textContent = "#" + p.memberId;
+            idEl.title = "BC Member Number";
+            nameRow.appendChild(idEl);
 
             const reason = document.createElement("span");
             reason.className = "ebc-thanks-reason";
             reason.textContent = p.reason;
-            if (isPawCard) reason.style.textAlign = "center";
 
-            // Creator card only: paw centered above the name row
-            if (isPawCard) {
-                const pawWrap = document.createElement("div");
-                pawWrap.style.cssText = "display:flex;justify-content:center;margin-bottom:6px;";
-                if (EBCDrawer.pawDataUri) {
-                    const pawImg = document.createElement("img");
-                    pawImg.src = EBCDrawer.pawDataUri;
-                    pawImg.className = "ebc-creator-paw-img";
-                    pawImg.alt = "🐾";
-                    pawWrap.appendChild(pawImg);
-                } else {
-                    const pawMark = document.createElement("span");
-                    pawMark.style.cssText = "font-size:18px;line-height:1;filter:drop-shadow(0 0 4px #c89030);opacity:0.88;";
-                    pawMark.textContent = "🐾";
-                    pawWrap.appendChild(pawMark);
-                }
-                info.appendChild(pawWrap);
-            }
             info.appendChild(nameRow);
             info.appendChild(reason);
-
             card.appendChild(info);
 
-            // Right decoration — skip for the creator card (avatar already has the paw)
-            if (!isPawCard) {
-                const heart = document.createElement("span");
-                heart.className = "ebc-thanks-heart";
-                heart.textContent = p.heart;
-                card.appendChild(heart);
-            }
+            const heart = document.createElement("span");
+            heart.className = "ebc-thanks-heart";
+            heart.textContent = p.heart;
+            card.appendChild(heart);
+
             body.appendChild(card);
         }
     }
