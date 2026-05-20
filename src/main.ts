@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.6.8";
+const MOD_VERSION = "3.6.9";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.6.9",
+        changes: [
+            "Canvas paw: gap above name now equals paw size (min 8 px) instead of half paw size — keeps a full paw-height of clearance at all zoom levels so the paw no longer sinks into the name with 5+ players.",
+            "Dev tab: removed Quick Preset and per-colour picker section (was unreliable).",
+        ],
+    },
     {
         version: "3.6.5",
         changes: [
@@ -4533,11 +4540,11 @@ function drawPresenceMarker(args: unknown[]): void {
             //
             // BC bottom-aligns characters: feet stay near canvas Y=1000 while the character
             // shrinks upward as more players join. The name is at approximately
-            // top + 975*zoom. The gap "- 8*zoom" was too small at low zoom (→ 2px when
-            // 5+ players joined), causing the paw to merge into the name. Using a minimum
-            // gap of 8px ensures a consistently visible separation at every room size.
+            // top + 975*zoom. Using gap = sz (= paw size) keeps a full paw-height of
+            // clearance at every zoom level (12px at min zoom, 20px at zoom=1) so the
+            // paw never sinks into the name regardless of how many players are in the room.
             const sz  = Math.max(12, Math.round(20 * zoom));
-            const gap = Math.max(8, Math.round(sz * 0.5));   // ≥8px gap below paw to name
+            const gap = Math.max(8, sz);                      // gap = paw size → consistent clearance at all zoom levels
             const px  = Math.floor(left + 250 * zoom - sz / 2);
             const py  = Math.floor(top  + 975 * zoom - sz - gap);
             _pawCtx.save();
