@@ -623,12 +623,8 @@ const CSS = `
     padding: 5px 8px;
     border-bottom: 1px solid #2a1020;
     background: rgba(15, 6, 12, 0.4);
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none; /* Firefox */
-    touch-action: pan-x;
+    flex-wrap: wrap;
 }
-.ebc-lang-row::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
 /* -- Body -- */
 .ebc-body {
