@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.10.5
+// @version      2.10.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16862,10 +16862,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // that takes all remaining space between the header/tabBar/langRow and the
             // footer.  Because middleArea is flex:1;min-height:0, the footer (below it)
             // is ALWAYS visible regardless of how tall the chrome items become.
-            // overflow:hidden prevents chrome from stealing scroll events — the body
-            // inside still scrolls normally when the cursor is over it.
+            // NOTE: NO overflow property here — setting overflow:hidden on a flex container
+            // breaks nested scroll containers in Chrome (nested flex children with
+            // overflow-y:auto stop scrolling). overflow:visible is the default and correct.
             const middleArea = document.createElement("div");
-            middleArea.style.cssText = "flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;";
+            middleArea.style.cssText = "flex:1;min-height:0;display:flex;flex-direction:column;";
             middleArea.appendChild(quickActions);
             middleArea.appendChild(selfPickPanel);
             middleArea.appendChild(safewordRow);
@@ -30830,7 +30831,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.5";
+    const MOD_VERSION = "2.10.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30841,6 +30842,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.10.6",
+            changes: [
+                "Fix: Removed overflow:hidden from the middleArea container. Chrome has a known bug where overflow:hidden on a flex parent silently breaks overflow-y:auto scrolling on nested flex children — the body appeared correct in layout but its scroll context was never established. Removing overflow lets the body scroll normally. Footer visibility is guaranteed by the flex:1 layout, not by clipping.",
+            ],
+        },
         {
             version: "2.10.5",
             changes: [
