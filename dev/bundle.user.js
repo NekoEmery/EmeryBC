@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.5.9
+// @version      3.6.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1358,7 +1358,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const combo = {
             id: uid$5(),
             name: name.trim() || "Combo",
-            poses: poses.filter(Boolean),
+            poses: poses.filter(p => p != null), // keep "" (Relaxed arms marker)
             stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
             command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
             announceText: announceText.trim() || undefined,
@@ -1372,7 +1372,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         if (!combo)
             return;
         combo.name = name.trim() || combo.name;
-        combo.poses = poses.filter(Boolean);
+        combo.poses = poses.filter(p => p != null); // keep "" (Relaxed arms marker)
         combo.stepDelayMs = Math.max(50, Math.min(3000, stepDelayMs));
         combo.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
         combo.announceText = announceText.trim() || undefined;
@@ -31768,7 +31768,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.5.9";
+    const MOD_VERSION = "3.6.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31779,6 +31779,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.6.0",
+            changes: [
+                "Fix: Relaxed arms pose now saves correctly in pose combos — createCombo and updateCombo were using filter(Boolean) which stripped the empty-string Relaxed marker; changed to filter(p => p != null).",
+            ],
+        },
         {
             version: "3.5.9",
             changes: [
