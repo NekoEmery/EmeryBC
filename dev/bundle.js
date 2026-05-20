@@ -15616,39 +15616,54 @@
     position: relative;
     z-index: 2;
 }
+.ebc-guide-progress {
+    height: 3px;
+    background: #2a1020;
+    border-radius: 2px;
+    margin-top: 2px;
+    overflow: hidden;
+}
+.ebc-guide-progress-fill {
+    height: 100%;
+    background: #cf6f98;
+    border-radius: 2px;
+    transition: width 0.22s ease;
+}
 .ebc-guide-nav {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-top: 3px;
+    gap: 6px;
+    margin-top: 7px;
 }
-.ebc-guide-nav-btn {
+.ebc-guide-nav-prev {
+    flex-shrink: 0;
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
     font-weight: bold;
-    padding: 5px 14px;
+    padding: 6px 10px;
     border-radius: 5px;
     cursor: pointer;
-    border: 1px solid #5a2038;
-    background: #2e1020;
-    color: #f0a0c8;
+    border: 1px solid #4a2035;
+    background: transparent;
+    color: #9a6880;
+    transition: border-color 0.12s, color 0.12s;
+}
+.ebc-guide-nav-prev:hover { border-color: #cf6f98; color: #cf6f98; }
+.ebc-guide-nav-prev:disabled { opacity: 0.2; cursor: default; }
+.ebc-guide-nav-next {
+    flex: 1;
+    font-family: "Trebuchet MS", serif;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid #cf6f98;
+    background: #cf6f98;
+    color: #1a0812;
     transition: background 0.12s, border-color 0.12s;
 }
-.ebc-guide-nav-btn:hover { background: #3d1530; border-color: #cf6f98; }
-.ebc-guide-nav-btn:disabled { opacity: 0.25; cursor: default; }
-.ebc-guide-dots {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-}
-.ebc-guide-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #3a1928;
-    transition: background 0.15s, transform 0.15s;
-}
-.ebc-guide-dot.active { background: #cf6f98; transform: scale(1.3); }
+.ebc-guide-nav-next:hover { background: #e080aa; border-color: #e080aa; }
 .ebc-guide-btn {
     background: none;
     border: 1px solid #3a1928;
@@ -17470,24 +17485,25 @@
             textEl.className = "ebc-guide-text";
             EBCDrawer.parseGuideMarkup(step.text, textEl);
             card.appendChild(textEl);
-            // Nav row: prev · dots · next
+            // Progress bar
+            const progress = document.createElement("div");
+            progress.className = "ebc-guide-progress";
+            const fill = document.createElement("div");
+            fill.className = "ebc-guide-progress-fill";
+            fill.style.width = `${((this.guideStep + 1) / steps.length) * 100}%`;
+            progress.appendChild(fill);
+            card.appendChild(progress);
+            // Nav row: ghost Prev | filled Next
             const nav = document.createElement("div");
             nav.className = "ebc-guide-nav";
             const prevBtn = document.createElement("button");
-            prevBtn.className = "ebc-guide-nav-btn";
-            prevBtn.textContent = "← Prev";
+            prevBtn.className = "ebc-guide-nav-prev";
+            prevBtn.textContent = "← Back";
             if (this.guideStep === 0)
                 prevBtn.disabled = true;
             prevBtn.addEventListener("click", () => { this.guideStep--; this.renderGuideStep(); });
-            const dots = document.createElement("div");
-            dots.className = "ebc-guide-dots";
-            for (let i = 0; i < steps.length; i++) {
-                const dot = document.createElement("div");
-                dot.className = "ebc-guide-dot" + (i === this.guideStep ? " active" : "");
-                dots.appendChild(dot);
-            }
             const nextBtn = document.createElement("button");
-            nextBtn.className = "ebc-guide-nav-btn";
+            nextBtn.className = "ebc-guide-nav-next";
             if (this.guideStep === steps.length - 1) {
                 nextBtn.textContent = "Done ✓";
                 nextBtn.addEventListener("click", () => this.closeGuide());
@@ -17497,7 +17513,6 @@
                 nextBtn.addEventListener("click", () => { this.guideStep++; this.renderGuideStep(); });
             }
             nav.appendChild(prevBtn);
-            nav.appendChild(dots);
             nav.appendChild(nextBtn);
             card.appendChild(nav);
             // ── Spotlight UI elements this step is describing ─────────────────────
@@ -31526,7 +31541,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.9";
+    const MOD_VERSION = "3.4.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31537,6 +31552,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.4.0",
+            changes: [
+                "Guide: replaced the 13-dot progress indicator with a clean progress bar. Next is now a filled pink primary button; Back is a small ghost button — clear visual hierarchy so the action you want is obvious.",
+            ],
+        },
         {
             version: "3.3.9",
             changes: [
