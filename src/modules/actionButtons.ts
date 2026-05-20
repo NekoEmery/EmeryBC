@@ -426,7 +426,7 @@ let sidebarCollapsed = false;
 
 // Per-button cooldown — prevents spamming action emotes too fast.
 // Key: categoryIndex * 100 + buttonSlotIndex  →  timestamp of last fire (ms).
-const BUTTON_COOLDOWN_MS = 15_000;
+const BUTTON_COOLDOWN_MS = 5_000;
 const _btnCooldowns = new Map<number, number>();
 
 // Drag state
