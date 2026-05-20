@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.9.0
+// @version      2.9.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12728,7 +12728,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         var _a;
         try {
             const v = parseFloat((_a = localStorage.getItem(PANEL_ZOOM_KEY)) !== null && _a !== void 0 ? _a : "1");
-            return isNaN(v) ? 1 : Math.max(0.6, Math.min(2, v));
+            return isNaN(v) ? 1 : Math.max(0.8, Math.min(1.5, v));
         }
         catch (_b) {
             return 1;
@@ -16663,12 +16663,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const startTabX = tabRect.left;
                 const startTabY = tabRect.top;
                 let dragged = false;
+                let longPressed = false;
+                // Hold the tab for 5 seconds without dragging → emergency settings reset.
+                const lpTimer = setTimeout(() => {
+                    if (!dragged)
+                        longPressed = true;
+                }, 5000);
                 addPointerTracking((pos) => {
                     const dx = pos.clientX - start.clientX;
                     const dy = pos.clientY - start.clientY;
                     if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5)
                         return;
                     dragged = true;
+                    clearTimeout(lpTimer);
                     tab.style.cursor = "grabbing";
                     if (tab.style.position !== "fixed")
                         tab.style.position = "fixed";
@@ -16677,8 +16684,30 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     tab.style.left = `${newX}px`;
                     tab.style.top = `${newY}px`;
                 }, () => {
+                    clearTimeout(lpTimer);
                     tab.style.cursor = "";
                     this.tabDragging = false;
+                    if (longPressed) {
+                        // Emergency reset — shown after 5-second hold on the tab.
+                        showConfirmOverlay("Reset all EBC drawer settings?\n\nRestores the default position, text size, and panel opacity.", "Cancel", "Reset", () => {
+                            savePanelZoom(1);
+                            this.applyPanelZoom(1);
+                            savePanelOpacity(1);
+                            this.applyPanelOpacity(1);
+                            this.panelPosition = null;
+                            this.savePanelPosition(null);
+                            this.exitFreeMode();
+                            this.userTabOffset = null;
+                            this.lastCrabsBottom = -1;
+                            tab.style.position = "";
+                            tab.style.left = "";
+                            tab.style.top = "";
+                            this.saveTabOffset(null);
+                            this.updateCrabsPosition();
+                            this.rerender();
+                        });
+                        return;
+                    }
                     if (!dragged) {
                         this.toggle();
                         return;
@@ -24052,8 +24081,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 zoomLbl.textContent = "Text size";
                 const zoomSlider = document.createElement("input");
                 zoomSlider.type = "range";
-                zoomSlider.min = "0.6";
-                zoomSlider.max = "2";
+                zoomSlider.min = "0.8";
+                zoomSlider.max = "1.5";
                 zoomSlider.step = "0.05";
                 zoomSlider.value = String(loadPanelZoom());
                 zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
@@ -30593,7 +30622,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.9.0";
+    const MOD_VERSION = "2.9.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30604,6 +30633,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.9.1",
+            changes: [
+                "UX: Text size slider capped at 80%–150% (was 60%–200%) to prevent UI breakage at extreme values. Stored values outside this range are automatically clamped on load.",
+                "Feature: Emergency drawer reset — hold the EBC tab icon for 5 seconds and release to get a confirmation dialog that resets text size, panel opacity, and position all at once. Useful if the panel gets into an unusable state.",
+            ],
+        },
         {
             version: "2.9.0",
             changes: [
