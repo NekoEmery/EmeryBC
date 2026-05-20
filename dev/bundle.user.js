@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.5.4
+// @version      3.5.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15453,17 +15453,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-whisper-text { color: #d0a0b8; word-break: break-word; }
 .ebc-whisper-msg.out .ebc-whisper-text { color: #e8b0d0; }
 
-/* ── Creator paw glow animation (credits card) ──────────────────────────── */
-@keyframes ebc-paw-glow {
-    0%, 100% { opacity: 0.82; filter: drop-shadow(0 0 3px #c89030); }
-    50%       { opacity: 1.00; filter: drop-shadow(0 0 7px #ffd700) drop-shadow(0 0 3px #c89030); }
-}
+/* ── Creator paw (credits card) ─────────────────────────────────────────── */
 .ebc-creator-paw-img {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    animation: ebc-paw-glow 2.4s ease-in-out infinite;
-    vertical-align: middle;
+    width: 28px;
+    height: 28px;
+    display: block;
+    filter: drop-shadow(0 0 4px #c89030);
+    opacity: 0.88;
 }
 
 /* ── Touch / phone mode ─────────────────────────────────────────────────── */
@@ -30304,8 +30300,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
                 const info = document.createElement("div");
                 info.className = "ebc-thanks-info";
+                if (isPawCard)
+                    info.style.alignItems = "center"; // center paw + name row + text
                 const nameRow = document.createElement("div");
-                nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+                nameRow.style.cssText = "display:flex;align-items:center;gap:6px;" + (isPawCard ? "justify-content:center;" : "");
                 const namEl = document.createElement("span");
                 namEl.className = "ebc-thanks-name";
                 namEl.textContent = p.name;
@@ -30325,20 +30323,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     idElCreator.textContent = "#" + p.memberId;
                     idElCreator.title = "BC Member Number";
                     nameRow.appendChild(idElCreator);
-                    // Paw mark — use the gold PNG if available, fall back to emoji
-                    if (EBCDrawer.pawDataUri) {
-                        const pawImg = document.createElement("img");
-                        pawImg.src = EBCDrawer.pawDataUri;
-                        pawImg.className = "ebc-creator-paw-img";
-                        pawImg.alt = "🐾";
-                        nameRow.appendChild(pawImg);
-                    }
-                    else {
-                        const pawMark = document.createElement("span");
-                        pawMark.style.cssText = "font-size:13px;line-height:1;filter:drop-shadow(0 0 3px #c89030);flex-shrink:0;";
-                        pawMark.textContent = "🐾";
-                        nameRow.appendChild(pawMark);
-                    }
                 }
                 else {
                     const idEl2 = document.createElement("span");
@@ -30350,6 +30334,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const reason = document.createElement("span");
                 reason.className = "ebc-thanks-reason";
                 reason.textContent = p.reason;
+                if (isPawCard)
+                    reason.style.textAlign = "center";
+                // Creator card only: paw centered above the name row
+                if (isPawCard) {
+                    const pawWrap = document.createElement("div");
+                    pawWrap.style.cssText = "display:flex;justify-content:center;margin-bottom:6px;";
+                    if (EBCDrawer.pawDataUri) {
+                        const pawImg = document.createElement("img");
+                        pawImg.src = EBCDrawer.pawDataUri;
+                        pawImg.className = "ebc-creator-paw-img";
+                        pawImg.alt = "🐾";
+                        pawWrap.appendChild(pawImg);
+                    }
+                    else {
+                        const pawMark = document.createElement("span");
+                        pawMark.style.cssText = "font-size:18px;line-height:1;filter:drop-shadow(0 0 4px #c89030);opacity:0.88;";
+                        pawMark.textContent = "🐾";
+                        pawWrap.appendChild(pawMark);
+                    }
+                    info.appendChild(pawWrap);
+                }
                 info.appendChild(nameRow);
                 info.appendChild(reason);
                 card.appendChild(info);
@@ -31755,7 +31760,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.5.4";
+    const MOD_VERSION = "3.5.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31766,6 +31771,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.5.5",
+            changes: [
+                "Credits: creator paw moved above the name row and centered — no longer inline with the name chips.",
+                "Credits: removed the pulsing glow animation from the creator paw; now a subtle static drop-shadow (28px, opacity 0.88).",
+            ],
+        },
         {
             version: "3.5.4",
             changes: [
