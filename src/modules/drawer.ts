@@ -4958,14 +4958,33 @@ export class EBCDrawer {
         }
     }
 
-    /** Scale the entire EBC panel via the CSS zoom property. */
+    /** Scale the entire EBC panel via the CSS zoom property.
+     *
+     * We target .ebc-panel (the inner visual div) rather than #emerybc-panel
+     * (the slide container) because #emerybc-panel uses
+     * transform: translateX(calc(100% + 60px)) for its open/close animation.
+     * When zoom changes the container's rendered width, "100%" re-evaluates
+     * and the transition fires, causing the panel to visually glitch-slide.
+     *
+     * By zooming .ebc-panel instead, the slide container is never touched.
+     * We compensate with inverse sizing (width = 100/scale %) so the zoomed
+     * inner panel fills its parent exactly — no overflow, no clipping.
+     */
     applyPanelZoom(scale = loadPanelZoom()): void {
-        const panelEl = this.panelEl;
-        if (!panelEl) return;
-        // CSS zoom is Chromium-native and scales layout + rendering together.
-        // Unset when at default so the panel stays at its natural CSS size.
-        (panelEl.style as CSSStyleDeclaration & { zoom?: string }).zoom =
-            scale === 1 ? "" : String(scale);
+        const panel = this.rootEl?.querySelector(".ebc-panel") as HTMLElement | null;
+        if (!panel) return;
+        const s = panel.style as CSSStyleDeclaration & { zoom?: string };
+        if (scale === 1) {
+            s.zoom   = "";
+            panel.style.width  = "";
+            panel.style.height = "";
+        } else {
+            // inv% × zoom = 100% → content exactly fills the slide container.
+            const inv = (100 / scale).toFixed(4) + "%";
+            s.zoom   = String(scale);
+            panel.style.width  = inv;
+            panel.style.height = inv;
+        }
     }
 
     /**
