@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.4.0";
+const MOD_VERSION = "3.4.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.4.1",
+        changes: [
+            "Theme presets: removed emojis from preset names — they looked inconsistent in the native select dropdown.",
+            "Theme presets: the dropdown now remembers and shows the last applied preset instead of resetting to '-- choose preset --' after every selection. Reset button correctly resets back to Rose.",
+            "Theme presets: manually tweaking a colour slot now clears the active preset indicator (since the colours are no longer a pure preset).",
+            "Theme UI: preset row, colour picker labels, and tab visibility chips now use CSS variables so they update immediately when any theme is applied, without needing a tab switch.",
+        ],
+    },
     {
         version: "3.4.0",
         changes: [
