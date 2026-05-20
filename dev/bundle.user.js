@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.3.2
+// @version      3.3.3
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -14128,13 +14128,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     display: inline-block;
     font-family: "Trebuchet MS", serif;
     font-size: 9px;
-    font-weight: bold;
-    color: #d08898;
-    background: #2a0e1e;
-    border: 1px solid #6b3050;
-    border-radius: 4px;
-    padding: 1px 5px;
-    letter-spacing: 0.03em;
+    color: #7a5a6a;
+    letter-spacing: 0.02em;
     flex-shrink: 0;
     user-select: all;
 }
@@ -30039,6 +30034,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const card = document.createElement("div");
                 card.className = "ebc-thanks-card";
                 const isPawCard = p.memberId === 130267;
+                if (isPawCard) {
+                    // Subtle golden tint to mark the creator card
+                    card.style.cssText = "background:rgba(38,28,8,0.75);border-color:#5a3c10;";
+                }
                 const avatar = document.createElement("div");
                 avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
                 if (isPawCard) {
@@ -30066,11 +30065,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const reason = document.createElement("span");
                 reason.className = "ebc-thanks-reason";
                 reason.textContent = p.reason;
-                if (isPawCard) {
-                    const aboveName = makePawSvg(12);
-                    aboveName.style.cssText = "line-height:1;margin-bottom:2px;display:block;";
-                    info.appendChild(aboveName);
-                }
                 info.appendChild(nameRow);
                 info.appendChild(reason);
                 const heart = document.createElement("span");
@@ -31460,7 +31454,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.2";
+    const MOD_VERSION = "3.3.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31471,6 +31465,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.3",
+            changes: [
+                "Credits: removed the redundant small paw above Emery's name (the avatar circle already shows the golden paw — three paws was too cluttered). Emery's card gets a subtle golden-tinted background to mark her as creator instead. Member ID chip is now plain muted text instead of a pink bordered badge.",
+            ],
+        },
         {
             version: "3.3.2",
             changes: [
