@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.5.1
+// @version      3.5.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15539,7 +15539,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 #emerybc-panel[data-touch] .ebc-body {
     padding: 10px !important;
     overflow-y: scroll !important; /* 'scroll' works more reliably than 'auto' on iOS */
-    -webkit-overflow-scrolling: touch; /* momentum scroll on older iOS */
+    -webkit-overflow-scrolling: touch; /* momentum scroll on older iOS (no-op on iOS 13+) */
+    overscroll-behavior: contain; /* prevent scroll chaining to the page on modern iOS/Android */
 }
 
 #emerybc-panel[data-touch] .ebc-section-label {
@@ -15695,6 +15696,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     transition: border-color 0.12s, color 0.12s;
 }
 .ebc-guide-btn:hover { border-color: #cf6f98; color: #cf6f98; }
+.ebc-guide-action-btn {
+    width: 100%;
+    background: #2e0e22;
+    border: 1px solid #7a3858;
+    border-radius: 6px;
+    color: #dda0c0;
+    font-size: 10px;
+    font-weight: bold;
+    font-family: "Trebuchet MS", serif;
+    padding: 7px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.12s, border-color 0.12s;
+    margin-top: 2px;
+}
+.ebc-guide-action-btn:hover:not(:disabled) { background: #4a1535; border-color: #cf6f98; color: #f0b0d0; }
+.ebc-guide-action-btn:disabled { opacity: 0.65; cursor: default; }
 /* Highlighted keyword chips — the main teaching tool */
 .ebc-guide-hl {
     display: inline-block;
@@ -17515,6 +17533,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             textEl.className = "ebc-guide-text";
             EBCDrawer.parseGuideMarkup(step.text, textEl);
             card.appendChild(textEl);
+            // Optional interactive action button
+            if (step.action) {
+                const actBtn = document.createElement("button");
+                actBtn.className = "ebc-guide-action-btn";
+                actBtn.textContent = step.action.label;
+                const actionKind = step.action.kind;
+                actBtn.addEventListener("click", () => this.runGuideAction(actionKind, actBtn));
+                card.appendChild(actBtn);
+            }
             // Progress bar
             const progress = document.createElement("div");
             progress.className = "ebc-guide-progress";
@@ -17566,6 +17593,33 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (this.guideEl) {
                 this.guideEl.remove();
                 this.guideEl = null;
+            }
+        }
+        runGuideAction(kind, btn) {
+            if (kind === "create-sample-outfit") {
+                const cmd = "guidepreview";
+                if (getOutfits().some(o => o.command === cmd)) {
+                    btn.textContent = "Sample outfit already exists — scroll down in Outfits to find it!";
+                    btn.disabled = true;
+                    return;
+                }
+                const result = createOutfitFromCurrent(cmd, "Guide Preview", "", false, false);
+                if (result) {
+                    btn.textContent = "Created! Scroll down in the Outfits tab to see it.";
+                    btn.disabled = true;
+                    // Refresh the outfits tab so the new card is immediately visible
+                    if (this.currentTab === "outfits") {
+                        this.renderCurrentTab();
+                        // Re-apply spotlight since re-render replaces DOM
+                        window.setTimeout(() => this.spotlightEl("[data-guide-target='btn-new-outfit']"), 60);
+                    }
+                    else {
+                        this.switchTab("outfits");
+                    }
+                }
+                else {
+                    btn.textContent = "Could not save — try the + New Outfit button directly.";
+                }
             }
         }
         clearGuideSpotlights() {
@@ -22011,7 +22065,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const step = { type: currentType, delayMs: delay };
                     switch (currentType) {
                         case "pose":
-                            step.poses = posePoses.filter(Boolean);
+                            step.poses = posePoses.slice(); // preserve "" (Relaxed arms marker) — filter(Boolean) would strip it
                             break;
                         case "equip":
                         case "equip-restraint":
@@ -31530,19 +31584,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             tab: "outfits",
             label: "Outfits — Save & Apply Looks",
-            text: "Click [[💾 Save]] to store your current full appearance as a named preset.\nClick any saved outfit card to [[Apply]] it — restoring every clothing layer and colour instantly.\nUse [[✏]] to rename, [[🗑]] to delete, and the [[↑ ↓]] arrows to reorder your list.\n((Great for switching between different roleplay or casual looks in seconds.))",
+            text: "Click [[+ New Outfit from Current Look]] (the button highlighted in the panel) to save your full appearance as a named preset.\nOnce saved, click [[Apply]] on any outfit card to restore that look — all layers and colours instantly.\nEach card has [[Rename]], [[Delete]], and [[Up]] / [[Down]] arrow buttons to manage your list.\n((Use the button below to create a sample outfit you can apply, rename and delete right now.))",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
+            action: { label: "Create a sample outfit to practise with →", kind: "create-sample-outfit" },
         },
         {
             tab: "outfits",
             label: "Outfit Tags & Schedules",
-            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the [[🏷]] icon on any outfit card to assign tags — then filter by tag at the top of the list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day. Expand the [[Schedules]] section at the bottom of this tab to set one up.\n((You can also [[📤 Export]] outfits as codes and share them — use [[📥 Import]] to load a code someone sent you.))",
+            text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the tag icon on any outfit card to assign it tags — then use the filter at the top to narrow your list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day. Expand the [[Schedules]] section at the bottom of this tab to set one up.\n((You can also [[Export]] outfits as share-codes and send them to friends — use [[Import]] to load a code you received.))",
             spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
         },
         {
             tab: "buttons",
             label: "Action Buttons — Quick Commands",
-            text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] handle on a button card to reorder it. [[✏]] edits it, [[🗑]] deletes it.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
+            text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] grip on a button card to reorder it. Use the [[Edit]] and [[Delete]] icons to manage each one.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
@@ -31578,7 +31633,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             tab: null,
             label: "EBC Tag Settings Strip",
-            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use [[📍 Text]] and [[📍 Cat]] buttons to drag each badge to its exact position on screen.",
+            text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use the [[Pin Text]] and [[Pin Cat]] buttons to drag each badge to its exact on-screen position.",
             spotlight: ["[data-guide-target='strip-ebc-tags']"],
         },
         {
@@ -31590,7 +31645,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         {
             tab: null,
             label: "Tips & Tricks",
-            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[📤 Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
+            text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
         },
     ];
 
@@ -31614,7 +31669,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.5.1";
+    const MOD_VERSION = "3.5.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31625,6 +31680,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.5.2",
+            changes: [
+                "Scene sequencer: fixed Relaxed arms pose being stripped on save — the empty-string Relaxed marker is now preserved in step.poses.",
+                "Guide: outfits step now names the real button label, removes emoji chips, and adds a one-click 'Create sample outfit' button so users can practise apply/rename/delete immediately.",
+                "Guide: removed emoji from tags, buttons, EBC-tags, and tips steps; replaced with plain text equivalents.",
+                "Touch mode: added overscroll-behavior:contain to the panel body so scroll momentum stays inside the panel and doesn't chain to the page (fixes rubber-banding on modern iOS/Android).",
+            ],
+        },
         {
             version: "3.5.1",
             changes: [
