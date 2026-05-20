@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.10.7";
+const MOD_VERSION = "2.10.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.10.8",
+        changes: [
+            "Style picker buttons (Text / Cat) now show plain text only — removed the label icon and EBC SVG icon from those buttons.",
+            "EBC tag strip header renamed from 'EBC' to 'EBC Tag Settings'.",
+            "Cat badge: draws an orange rounded-rect outline around the cat icon when the player is on a dev build; no outline for normal users.",
+        ],
+    },
     {
         version: "2.10.7",
         changes: [
@@ -4169,6 +4177,25 @@ function drawPresenceMarker(args: unknown[]): void {
             ctx.save();
             ctx.globalAlpha = badgeTextOp;
             ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+            if (isDevUser) {
+                const bx = x - size / 2;
+                const by = y - size / 2;
+                const r  = size * 0.2;
+                ctx.strokeStyle = "#ff8800";
+                ctx.lineWidth   = Math.max(2, Math.round(size * 0.1));
+                ctx.beginPath();
+                ctx.moveTo(bx + r, by);
+                ctx.lineTo(bx + size - r, by);
+                ctx.arcTo(bx + size, by, bx + size, by + r, r);
+                ctx.lineTo(bx + size, by + size - r);
+                ctx.arcTo(bx + size, by + size, bx + size - r, by + size, r);
+                ctx.lineTo(bx + r, by + size);
+                ctx.arcTo(bx, by + size, bx, by + size - r, r);
+                ctx.lineTo(bx, by + r);
+                ctx.arcTo(bx, by, bx + r, by, r);
+                ctx.closePath();
+                ctx.stroke();
+            }
             ctx.restore();
         }
     } else {

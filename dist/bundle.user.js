@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.10.3
+// @version      2.10.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1865,6 +1865,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const s = getStore$7();
             if (s) {
                 s.badgeStyle = v;
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Others' badge style -------------------------------------------------------
+    // Client-side only: controls which badge style is drawn for OTHER players' badges
+    // on your screen. Independent from your own badge style. Defaults to "text".
+    function getOthersBadgeStyle() {
+        var _a;
+        try {
+            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.othersBadgeStyle) === "cat" ? "cat" : "text";
+        }
+        catch (_b) {
+            return "text";
+        }
+    }
+    function setOthersBadgeStyle(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.othersBadgeStyle = v;
                 syncSettings();
             }
         }
@@ -12569,6 +12591,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "strip.badgePosition": { en: "📍 Position", de: "📍 Position", zh: "📍 定位", fr: "📍 Position", es: "📍 Posición", ru: "📍 Позиция", ja: "📍 位置" },
         "strip.showChev": { en: "Show ▶", de: "Zeigen ▶", zh: "显示 ▶", fr: "Afficher ▶", es: "Mostrar ▶", ru: "Показать ▶", ja: "表示 ▶" },
         "strip.hideChev": { en: "Hide ▼", de: "Verbergen ▼", zh: "隐藏 ▼", fr: "Masquer ▼", es: "Ocultar ▼", ru: "Скрыть ▼", ja: "非表示 ▼" },
+        "strip.myStyle": { en: "My style", de: "Mein Stil", zh: "我的样式", fr: "Mon style", es: "Mi estilo", ru: "Мой стиль", ja: "自分のスタイル" },
+        "strip.othersStyle": { en: "Others' style", de: "Stil der anderen", zh: "他人样式", fr: "Style des autres", es: "Estilo de otros", ru: "Стиль других", ja: "他人のスタイル" },
         // ─── THEMES ────────────────────────────────────────────────────────────
         "theme.drawerBg": { en: "Drawer BG", de: "Schublade HG", zh: "面板背景", fr: "BG panneau", es: "Fondo panel", ru: "Фон панели", ja: "パネル背景" },
         "theme.cardBg": { en: "Card BG", de: "Karte HG", zh: "卡片背景", fr: "BG carte", es: "Fondo tarjeta", ru: "Фон карточки", ja: "カード背景" },
@@ -13150,14 +13174,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     overscroll-behavior: contain;
 }
 
+/* -- EBC tags strip body (scrollable, capped height so footer stays visible) -- */
+.ebc-tags-body {
+    max-height: 210px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cf6f98 #1a0814;
+}
+
 /* Unified scrollbar theme for all EBC scrollable areas */
 .ebc-body::-webkit-scrollbar,
+.ebc-tags-body::-webkit-scrollbar,
 .ebc-beep-win-history::-webkit-scrollbar { width: 5px; }
 .ebc-body::-webkit-scrollbar-track,
+.ebc-tags-body::-webkit-scrollbar-track,
 .ebc-beep-win-history::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb,
+.ebc-tags-body::-webkit-scrollbar-thumb,
 .ebc-beep-win-history::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb:hover,
+.ebc-tags-body::-webkit-scrollbar-thumb:hover,
 .ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
@@ -16571,7 +16608,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsHdrIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
             const ebcTagsHdrLabel = document.createElement("span");
             ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-            ebcTagsHdrLabel.textContent = "EBC";
+            ebcTagsHdrLabel.textContent = "EBC Tag Settings";
             ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
             ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
             // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
@@ -16580,8 +16617,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsHdr.appendChild(ebcTagsHdrLeft);
             ebcTagsHdr.appendChild(ebcTagsChev);
             ebcTagsStrip.appendChild(ebcTagsHdr);
-            // Body
+            // Body — capped height so footer is never pushed off-screen
             const ebcTagsBody = document.createElement("div");
+            ebcTagsBody.className = "ebc-tags-body";
             ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
             // Description line
             const ebcTagsDesc = document.createElement("div");
@@ -16652,59 +16690,47 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             badgeAppLbl.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
             badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
             ebcTagsBody.appendChild(badgeAppLbl);
-            // ── Style picker: Text | Cat ─────────────────────────────────────────
-            const styleRow = document.createElement("div");
-            styleRow.style.cssText = "display:flex;gap:5px;margin-bottom:7px;";
-            const EBC_SVG_14 = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 90 90" style="flex-shrink:0;vertical-align:middle"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
-            // iconHtml: raw HTML string for the icon (emoji or SVG); labelText: plain text label.
-            // Content is built once with DOM elements; refresh() only updates colours/borders.
-            const makeStyleBtn = (styleName, iconHtml, labelText) => {
-                const btn = document.createElement("button");
-                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;display:inline-flex;align-items:center;justify-content:center;gap:5px;";
-                // Build content once — innerHTML so SVG works; label as safe text node
-                const iconWrap = document.createElement("span");
-                iconWrap.style.cssText = "line-height:0;flex-shrink:0;";
-                iconWrap.innerHTML = iconHtml;
-                const textNode = document.createElement("span");
-                textNode.textContent = labelText;
-                btn.appendChild(iconWrap);
-                btn.appendChild(textNode);
-                const refresh = () => {
-                    const active = getBadgeStyle() === styleName;
-                    btn.style.background = active ? "#2e1020" : "#150a10";
-                    btn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                    btn.style.color = active ? "#f0c0d8" : "#7a4a60";
+            // Builds a Text|Cat row and appends it to the given parent.
+            // getter/setter allow the same helper to drive both "mine" and "others'" rows.
+            const buildStyleRow = (getter, setter) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
+                const makeBtn = (styleName, labelText) => {
+                    const btn = document.createElement("button");
+                    btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                    btn.textContent = labelText;
+                    const refresh = () => {
+                        const active = getter() === styleName;
+                        btn.style.background = active ? "#2e1020" : "#150a10";
+                        btn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                        btn.style.color = active ? "#f0c0d8" : "#7a4a60";
+                    };
+                    refresh();
+                    btn.addEventListener("click", () => {
+                        setter(styleName);
+                        // Refresh both buttons in this row
+                        row.querySelectorAll("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                        refresh();
+                    });
+                    btn.addEventListener("ebc-refresh", refresh);
+                    return btn;
                 };
-                refresh();
-                btn.addEventListener("click", () => {
-                    setBadgeStyle(styleName);
-                    styleBtns.forEach(([, r]) => r());
-                });
-                return btn;
+                row.appendChild(makeBtn("text", "Text"));
+                row.appendChild(makeBtn("cat", "Cat"));
+                ebcTagsBody.appendChild(row);
             };
-            const styleBtns = [];
-            const textBtn = makeStyleBtn("text", "🏷", "Text");
-            const catBtn = makeStyleBtn("cat", EBC_SVG_14, "Cat");
-            const refreshTextBtn = () => {
-                const active = getBadgeStyle() === "text";
-                textBtn.style.background = active ? "#2e1020" : "#150a10";
-                textBtn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                textBtn.style.color = active ? "#f0c0d8" : "#7a4a60";
-            };
-            const refreshCatBtn = () => {
-                const active = getBadgeStyle() === "cat";
-                catBtn.style.background = active ? "#2e1020" : "#150a10";
-                catBtn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                catBtn.style.color = active ? "#f0c0d8" : "#7a4a60";
-            };
-            styleBtns.push([textBtn, refreshTextBtn], [catBtn, refreshCatBtn]);
-            textBtn.addEventListener("click", () => { setBadgeStyle("text"); refreshTextBtn(); refreshCatBtn(); });
-            catBtn.addEventListener("click", () => { setBadgeStyle("cat"); refreshTextBtn(); refreshCatBtn(); });
-            refreshTextBtn();
-            refreshCatBtn();
-            styleRow.appendChild(textBtn);
-            styleRow.appendChild(catBtn);
-            ebcTagsBody.appendChild(styleRow);
+            // "Mine:" label
+            const myStyleLbl = document.createElement("div");
+            myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
+            myStyleLbl.textContent = t("strip.myStyle");
+            ebcTagsBody.appendChild(myStyleLbl);
+            buildStyleRow(getBadgeStyle, setBadgeStyle);
+            // "Others':" label
+            const othersStyleLbl = document.createElement("div");
+            othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
+            othersStyleLbl.textContent = t("strip.othersStyle");
+            ebcTagsBody.appendChild(othersStyleLbl);
+            buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
             // ── Scale slider ─────────────────────────────────────────────────────
             const scaleRow = document.createElement("div");
             scaleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
@@ -16824,6 +16850,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const zoomWrapper = document.createElement("div");
             zoomWrapper.className = "ebc-zoom-wrapper";
             zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
+            // Flat flex column — applyPanelZoom always keeps width/height:100% so the
+            // wrapper has a definite height, giving .ebc-body (flex:1;min-height:0) a
+            // real constraint and making overflow-y:auto scroll correctly.
             panel.appendChild(header);
             panel.appendChild(tabBar);
             panel.appendChild(langRow);
@@ -17448,10 +17477,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             if (scale === 1) {
                 wrapper.style.transform = "";
-                wrapper.style.width = "";
-                wrapper.style.height = "";
+                wrapper.style.width = "100%"; // must keep 100% — clearing to "" removes the
+                wrapper.style.height = "100%"; // inline height, collapsing the wrapper to content
             }
-            else {
+            else { // height and breaking flex scroll + footer layout.
                 // inv% × scale = 100% → scaled content fills .ebc-panel exactly.
                 const inv = (100 / scale).toFixed(4) + "%";
                 wrapper.style.transform = `scale(${scale})`;
@@ -30787,7 +30816,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.3";
+    const MOD_VERSION = "2.10.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30798,6 +30827,39 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.10.8",
+            changes: [
+                "Style picker buttons (Text / Cat) now show plain text only — removed the label icon and EBC SVG icon from those buttons.",
+                "EBC tag strip header renamed from 'EBC' to 'EBC Tag Settings'.",
+                "Cat badge: draws an orange rounded-rect outline around the cat icon when the player is on a dev build; no outline for normal users.",
+            ],
+        },
+        {
+            version: "2.10.7",
+            changes: [
+                "Fix: Root cause of broken scroll and missing footer identified and fixed. applyPanelZoom() was clearing the zoom-wrapper's height to '' at scale=1, removing its 100% height entirely. This caused the wrapper to collapse to content height with no flex constraint, so the body never scrolled (it just expanded) and the footer was pushed past the panel clip boundary. Fix: always keep width/height at 100% at scale=1 instead of clearing them. Reverted middleArea back to the clean flat flex layout — it is no longer needed.",
+            ],
+        },
+        {
+            version: "2.10.6",
+            changes: [
+                "Fix: Removed overflow:hidden from the middleArea container. Chrome has a known bug where overflow:hidden on a flex parent silently breaks overflow-y:auto scrolling on nested flex children — the body appeared correct in layout but its scroll context was never established. Removing overflow lets the body scroll normally. Footer visibility is guaranteed by the flex:1 layout, not by clipping.",
+            ],
+        },
+        {
+            version: "2.10.5",
+            changes: [
+                "Fix: Footer is now always visible on every page. Chrome elements (quick-actions, safewords, EBC strip) and the body are wrapped in a shared flex column (middleArea: flex:1; min-height:0; overflow:hidden). The footer lives outside that container so it can never be pushed off-screen regardless of chrome height or body content. This also eliminates scroll-event stealing — only the body scrolls, and only when the cursor is over it.",
+            ],
+        },
+        {
+            version: "2.10.4",
+            changes: [
+                "Fix: EBC tag strip body now has a max-height (210px, scrollable) so the footer is always visible regardless of how much badge-appearance content is expanded.",
+                "Feature: Added 'Others\\' style' picker in the EBC tag strip — independently choose Text or Cat style for other players' overhead badges on your screen.",
+            ],
+        },
         {
             version: "2.10.3",
             changes: [
@@ -34871,7 +34933,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const offsetX = getBadgeOffsetX(); // default 250 (char horiz centre)
         const offsetY = getBadgeOffsetY(); // default 72  (below WCE name)
         const userScale = getBadgeScale(); // default 1.0
-        const badgeStyle = getBadgeStyle(); // "text" | "cat"
+        const badgeStyle = isSelf ? getBadgeStyle() : getOthersBadgeStyle(); // per-target style
         const badgeBgOp = getBadgeBgOpacity(); // default 1.0
         const badgeTextOp = getBadgeTextOpacity(); // default 1.0
         const x = left + offsetX * zoom;
@@ -34886,6 +34948,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 ctx.save();
                 ctx.globalAlpha = badgeTextOp;
                 ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+                if (isDevUser) {
+                    const bx = x - size / 2;
+                    const by = y - size / 2;
+                    const r = size * 0.2;
+                    ctx.strokeStyle = "#ff8800";
+                    ctx.lineWidth = Math.max(2, Math.round(size * 0.1));
+                    ctx.beginPath();
+                    ctx.moveTo(bx + r, by);
+                    ctx.lineTo(bx + size - r, by);
+                    ctx.arcTo(bx + size, by, bx + size, by + r, r);
+                    ctx.lineTo(bx + size, by + size - r);
+                    ctx.arcTo(bx + size, by + size, bx + size - r, by + size, r);
+                    ctx.lineTo(bx + r, by + size);
+                    ctx.arcTo(bx, by + size, bx, by + size - r, r);
+                    ctx.lineTo(bx, by + r);
+                    ctx.arcTo(bx, by, bx + r, by, r);
+                    ctx.closePath();
+                    ctx.stroke();
+                }
                 ctx.restore();
             }
         }

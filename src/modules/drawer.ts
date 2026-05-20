@@ -4197,7 +4197,7 @@ export class EBCDrawer {
         ebcTagsHdrIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
         const ebcTagsHdrLabel = document.createElement("span");
         ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-        ebcTagsHdrLabel.textContent = "EBC";
+        ebcTagsHdrLabel.textContent = "EBC Tag Settings";
         ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
         ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
 
@@ -4318,16 +4318,10 @@ export class EBCDrawer {
             const row = document.createElement("div");
             row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
 
-            const makeBtn = (styleName: BadgeStyle, iconHtml: string, labelText: string): HTMLButtonElement => {
+            const makeBtn = (styleName: BadgeStyle, labelText: string): HTMLButtonElement => {
                 const btn = document.createElement("button");
-                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;display:inline-flex;align-items:center;justify-content:center;gap:5px;";
-                const iconWrap = document.createElement("span");
-                iconWrap.style.cssText = "line-height:0;flex-shrink:0;";
-                iconWrap.innerHTML = iconHtml;
-                const txtNode = document.createElement("span");
-                txtNode.textContent = labelText;
-                btn.appendChild(iconWrap);
-                btn.appendChild(txtNode);
+                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                btn.textContent = labelText;
                 const refresh = (): void => {
                     const active = getter() === styleName;
                     btn.style.background = active ? "#2e1020" : "#150a10";
@@ -4345,8 +4339,8 @@ export class EBCDrawer {
                 return btn;
             };
 
-            row.appendChild(makeBtn("text", "🏷", "Text"));
-            row.appendChild(makeBtn("cat",  EBC_SVG_14, "Cat"));
+            row.appendChild(makeBtn("text", "Text"));
+            row.appendChild(makeBtn("cat",  "Cat"));
             ebcTagsBody.appendChild(row);
         };
 
