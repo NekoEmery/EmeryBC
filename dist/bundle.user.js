@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.1.5
+// @version      3.1.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12531,6 +12531,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "users.typeMessage": { en: "Type a message...", de: "Nachricht eingeben...", zh: "输入消息...", fr: "Tapez un message...", es: "Escribe un mensaje...", ru: "Введите сообщение...", ja: "メッセージを入力..." },
         "users.reply": { en: "↩ reply", de: "↩ Antworten", zh: "↩ 回复", fr: "↩ répondre", es: "↩ responder", ru: "↩ ответить", ja: "↩ 返信" },
         "users.noConversation": { en: "No conversation yet.", de: "Noch keine Unterhaltung.", zh: "还没有对话。", fr: "Aucune conversation.", es: "Sin conversación aún.", ru: "Разговора пока нет.", ja: "まだ会話がありません。" },
+        "users.markSpecial": { en: "Mark as special friend (golden highlight)", de: "Als besonderen Freund markieren (goldene Hervorhebung)", zh: "标记为特别好友（金色高亮）", fr: "Marquer comme ami spécial (surbrillance dorée)", es: "Marcar como amigo especial (resaltado dorado)", ru: "Отметить как особого друга (золотая подсветка)", ja: "特別フレンドにマーク（ゴールドハイライト）" },
+        "users.removeSpecial": { en: "Remove from special friends", de: "Aus besonderen Freunden entfernen", zh: "从特别好友中移除", fr: "Retirer des amis spéciaux", es: "Quitar de amigos especiales", ru: "Убрать из особых друзей", ja: "特別フレンドから削除" },
         // ─── DEV TAB ───────────────────────────────────────────────────────────
         "dev.characterInspector": { en: "Character Inspector", de: "Charakter-Inspektor", zh: "角色检查器", fr: "Inspecteur de personnage", es: "Inspector de personaje", ru: "Инспектор персонажа", ja: "キャラクター検査ツール" },
         "dev.searchPlaceholder": { en: "Search name or #id…", de: "Name oder #ID suchen…", zh: "搜索名称或 #ID…", fr: "Chercher nom ou #id…", es: "Buscar nombre o #id…", ru: "Поиск по имени или #id…", ja: "名前または #id で検索…" },
@@ -14434,7 +14436,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 
 /* -- Friends section -- */
-.ebc-friend-wrap { margin-bottom: 3px; }
+.ebc-friend-wrap { margin-bottom: 3px; border: 1px solid transparent; border-radius: 5px; overflow: hidden; transition: background 0.2s, border-color 0.2s; }
 
 .ebc-friend-row {
     display: flex;
@@ -15659,6 +15661,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const borderLight = lighten(c.border, 0.35);
         const accentHover = lighten(c.accent, 0.15);
         const accentDim = darken(c.accent, 0.20);
+        // CSS custom properties injected on #emerybc-panel so every child element
+        // (including those using inline style.cssText with var(--ebc-xxx)) automatically
+        // reflects the active theme whenever injectStyles() is called.
+        const vars = `#emerybc-panel{` +
+            `--ebc-bg:${c.bg};--ebc-card:${c.card};--ebc-card-muted:${c.cardMuted};` +
+            `--ebc-bg-dark:${bgDark};--ebc-bg-darker:${bgDarker};--ebc-bg-mid:${bgMid};` +
+            `--ebc-border:${c.border};--ebc-border-light:${borderLight};` +
+            `--ebc-accent:${c.accent};--ebc-accent-hover:${accentHover};--ebc-accent-dim:${accentDim};` +
+            `--ebc-text-muted:${c.textMuted};--ebc-text-sub:${c.textSub};--ebc-text-bright:${c.textBright};` +
+            `--ebc-gold:${c.gold};}\n`;
         let css = CSS;
         css = css.split("#1a0d14").join(c.bg);
         css = css.split("#23101d").join(c.card);
@@ -15675,7 +15687,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         css = css.split("#c09098").join(c.textSub);
         css = css.split("#f7e6ee").join(c.textBright);
         css = css.split("#c9ab72").join(c.gold);
-        return css;
+        return vars + css;
     }
     // -- VIP members (highlighted in Notes tab when present in the room) -----------
     const VIP_MEMBERS = {
@@ -15776,56 +15788,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         catch ( /* ignore */_a) { /* ignore */ }
-    }
-    /** Builds a compact tab-chip filter row and appends it to `container`. */
-    function appendStripTabFilter(container, storageKey, onChanged) {
-        var _a;
-        const divider = document.createElement("div");
-        divider.style.cssText = "height:1px;background:#2a1421;margin:6px 0 5px;";
-        container.appendChild(divider);
-        const lbl = document.createElement("div");
-        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#6a4060;text-transform:uppercase;margin-bottom:4px;";
-        lbl.textContent = "Visible on tabs:";
-        container.appendChild(lbl);
-        const chipRow = document.createElement("div");
-        chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
-        for (const tid of PINNED_STRIP_TABS) {
-            const chip = document.createElement("button");
-            chip.textContent = (_a = PINNED_TAB_SHORT[tid]) !== null && _a !== void 0 ? _a : tid;
-            chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;padding:2px 6px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
-            const refreshChip = () => {
-                const f = loadStripTabFilter(storageKey);
-                const on = !f || f.has(tid);
-                chip.style.background = on ? "#2e1020" : "#150a10";
-                chip.style.border = `1px solid ${on ? "#8a3458" : "#321220"}`;
-                chip.style.color = on ? "#f0c0d8" : "#4a2838";
-            };
-            refreshChip();
-            chip.addEventListener("click", () => {
-                let f = loadStripTabFilter(storageKey);
-                if (!f) {
-                    // Currently "all" — deselect this one tab
-                    f = new Set(PINNED_STRIP_TABS);
-                    f.delete(tid);
-                }
-                else if (f.has(tid)) {
-                    if (f.size <= 1)
-                        return; // keep at least one tab
-                    f.delete(tid);
-                }
-                else {
-                    f.add(tid);
-                    if (f.size >= PINNED_STRIP_TABS.length)
-                        f = null; // back to "all"
-                }
-                saveStripTabFilter(storageKey, f);
-                chipRow.querySelectorAll("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
-                onChanged();
-            });
-            chip.addEventListener("ebc-refresh", refreshChip);
-            chipRow.appendChild(chip);
-        }
-        container.appendChild(chipRow);
     }
     const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
     class EBCDrawer {
@@ -16737,8 +16699,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
                 hint.textContent = t("strip.swHint");
                 swInner.appendChild(hint);
-                // -- Tab visibility filter --
-                appendStripTabFilter(swInner, "EBC_swTabFilter", () => this.updatePinnedStrips());
             };
             // Toggle expand — rebuild inner content on every open
             swHdr.addEventListener("click", () => {
@@ -16996,62 +16956,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             });
             const resetPosBtn = document.createElement("button");
             resetPosBtn.textContent = "⟳";
-            resetPosBtn.title = "Reset badge position to default";
+            resetPosBtn.title = "Reset icon and version text positions to default";
             resetPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;transition:background 0.12s,color 0.12s;";
             resetPosBtn.addEventListener("click", () => {
                 resetBadgePosition();
-                setBadgeOffsetX(getBadgeOffsetX()); // trigger sync
+                resetVersionTextPosition();
             });
             posRow.appendChild(posHint);
             posRow.appendChild(dragBtn);
             posRow.appendChild(resetPosBtn);
             ebcTagsBody.appendChild(posRow);
-            // ── Cat icon X/Y numeric inputs ───────────────────────────────────────
-            const makePosInputRow = (rowLabel, getX, setX, getY, setY, resetFn) => {
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:4px;";
-                const lbl = document.createElement("span");
-                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:30px;";
-                lbl.textContent = rowLabel;
-                const xLbl = document.createElement("span");
-                xLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
-                xLbl.textContent = "X";
-                const xIn = document.createElement("input");
-                xIn.type = "number";
-                xIn.min = "-500";
-                xIn.max = "1000";
-                xIn.step = "1";
-                xIn.value = String(getX());
-                xIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
-                xIn.addEventListener("input", () => setX(Number(xIn.value)));
-                const yLbl = document.createElement("span");
-                yLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex-shrink:0;";
-                yLbl.textContent = "Y";
-                const yIn = document.createElement("input");
-                yIn.type = "number";
-                yIn.min = "-200";
-                yIn.max = "900";
-                yIn.step = "1";
-                yIn.value = String(getY());
-                yIn.style.cssText = "width:48px;font-size:9px;background:#1a0a14;border:1px solid #4a2038;border-radius:3px;color:#cf6f98;text-align:center;padding:2px 4px;";
-                yIn.addEventListener("input", () => setY(Number(yIn.value)));
-                const resetBtn = document.createElement("button");
-                resetBtn.textContent = "⟳";
-                resetBtn.title = "Reset to default";
-                resetBtn.style.cssText = "font-size:12px;padding:2px 6px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;";
-                resetBtn.addEventListener("click", () => { resetFn(); xIn.value = String(getX()); yIn.value = String(getY()); });
-                row.appendChild(lbl);
-                row.appendChild(xLbl);
-                row.appendChild(xIn);
-                row.appendChild(yLbl);
-                row.appendChild(yIn);
-                row.appendChild(resetBtn);
-                ebcTagsBody.appendChild(row);
-            };
-            makePosInputRow("Icon", getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, resetBadgePosition);
-            makePosInputRow("Ver.", getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition);
-            // ── Tab visibility filter (EBC Tags strip) ────────────────────────────
-            appendStripTabFilter(ebcTagsBody, "EBC_tagsTabFilter", () => this.updatePinnedStrips());
             ebcTagsStrip.appendChild(ebcTagsBody);
             const updateEbcTagsCollapse = () => {
                 ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
@@ -23187,8 +23101,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const wrap = document.createElement("div");
                         wrap.className = "ebc-friend-wrap";
                         if (isSpecialFriend(num)) {
-                            wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
-                            wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                            wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
+                            wrap.style.borderColor = "rgba(255,200,50,0.55)";
                         }
                         const row = document.createElement("div");
                         row.className = "ebc-friend-row";
@@ -23264,7 +23178,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const ebcBadge = document.createElement("span");
                             ebcBadge.textContent = "EBC " + ebcVer;
                             ebcBadge.title = "Uses EmeryBC v" + ebcVer;
-                            ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
+                            ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
                             metaRow.appendChild(ebcBadge);
                         }
                         // Tag chips from friend list (if any)
@@ -23300,9 +23214,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const profBtn = document.createElement("button");
                         profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                         profBtn.title = "View profile";
-                        profBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#3a1428"; profBtn.style.borderColor = "#cf6f98"; });
-                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "#2a0e1e"; profBtn.style.borderColor = "#4c2537"; });
+                        profBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
+                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
                         profBtn.addEventListener("click", (e) => {
                             var _a;
                             e.stopPropagation();
@@ -23333,9 +23247,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const copyIdBtnR = document.createElement("button");
                         copyIdBtnR.innerHTML = COPY_SVG_R;
                         copyIdBtnR.title = `Copy ID: ${num}`;
-                        copyIdBtnR.style.cssText = "color:#cf6f98;background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
-                        copyIdBtnR.addEventListener("mouseenter", () => { copyIdBtnR.style.background = "#3a1428"; copyIdBtnR.style.borderColor = "#cf6f98"; });
-                        copyIdBtnR.addEventListener("mouseleave", () => { copyIdBtnR.style.background = "#2a0e1e"; copyIdBtnR.style.borderColor = "#4c2537"; copyIdBtnR.style.color = "#cf6f98"; });
+                        copyIdBtnR.style.cssText = "color:var(--ebc-accent);background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                        copyIdBtnR.addEventListener("mouseenter", () => { copyIdBtnR.style.background = "var(--ebc-bg-mid)"; copyIdBtnR.style.borderColor = "var(--ebc-accent)"; });
+                        copyIdBtnR.addEventListener("mouseleave", () => { copyIdBtnR.style.background = "var(--ebc-bg-darker)"; copyIdBtnR.style.borderColor = "var(--ebc-border-light)"; copyIdBtnR.style.color = "var(--ebc-accent)"; });
                         copyIdBtnR.addEventListener("click", (e) => {
                             e.stopPropagation();
                             try {
@@ -23344,7 +23258,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             catch ( /* ignore */_a) { /* ignore */ }
                             copyIdBtnR.style.color = "#a0d080";
                             copyIdBtnR.style.borderColor = "#a0d080";
-                            window.setTimeout(() => { copyIdBtnR.style.color = "#cf6f98"; copyIdBtnR.style.borderColor = "#4c2537"; }, 1200);
+                            window.setTimeout(() => { copyIdBtnR.style.color = "var(--ebc-accent)"; copyIdBtnR.style.borderColor = "var(--ebc-border-light)"; }, 1200);
                         });
                         // Build btnCol
                         const btnCol = document.createElement("div");
@@ -23380,8 +23294,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const refreshStarBtnR = () => {
                             const sp = isSpecialFriend(num);
                             starBtnR.textContent = sp ? "★" : "☆";
-                            starBtnR.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
-                            starBtnR.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                            starBtnR.title = sp ? t("users.removeSpecial") : t("users.markSpecial");
+                            starBtnR.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "var(--ebc-border)"};background:${sp ? "#1e1800" : "var(--ebc-bg-darker)"};color:${sp ? "#ffd700" : "var(--ebc-text-muted)"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
                         };
                         refreshStarBtnR();
                         starBtnR.addEventListener("click", (e) => {
@@ -23391,8 +23305,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             else
                                 addSpecialFriend(num);
                             const sp = isSpecialFriend(num);
-                            wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
-                            wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                            wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
+                            wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
                             refreshStarBtnR();
                         });
                         btnCol.appendChild(starBtnR);
@@ -23534,8 +23448,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const wrap = document.createElement("div");
                     wrap.className = "ebc-friend-wrap";
                     if (isSpecialFriend(num)) {
-                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
-                        wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
+                        wrap.style.borderColor = "rgba(255,200,50,0.55)";
                     }
                     // ── Row ────────────────────────────────────────────────────
                     const row = document.createElement("div");
@@ -23652,7 +23566,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ebcBadge = document.createElement("span");
                         ebcBadge.textContent = "EBC " + ebcVer;
                         ebcBadge.title = "Uses EmeryBC v" + ebcVer;
-                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:#2a0e1e;color:#cf6f98;border:1px solid #6b3048;";
+                        ebcBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;border-radius:3px;padding:1px 5px;flex-shrink:0;white-space:nowrap;background:var(--ebc-bg-darker);color:var(--ebc-accent);border:1px solid var(--ebc-border);";
                     }
                     // ── Tag display area (first tag + "+N more", hover = tooltip) ──
                     const tagArea = document.createElement("span");
@@ -23764,9 +23678,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const friendProfBtn = document.createElement("button");
                     friendProfBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                     friendProfBtn.title = "View profile";
-                    friendProfBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-                    friendProfBtn.addEventListener("mouseenter", () => { friendProfBtn.style.background = "#3a1428"; friendProfBtn.style.borderColor = "#cf6f98"; });
-                    friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "#2a0e1e"; friendProfBtn.style.borderColor = "#4c2537"; });
+                    friendProfBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                    friendProfBtn.addEventListener("mouseenter", () => { friendProfBtn.style.background = "var(--ebc-bg-mid)"; friendProfBtn.style.borderColor = "var(--ebc-accent)"; });
+                    friendProfBtn.addEventListener("mouseleave", () => { friendProfBtn.style.background = "var(--ebc-bg-darker)"; friendProfBtn.style.borderColor = "var(--ebc-border-light)"; });
                     friendProfBtn.addEventListener("click", async (e) => {
                         e.stopPropagation();
                         const w2 = window;
@@ -23849,9 +23763,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const copyIdBtn = document.createElement("button");
                     copyIdBtn.innerHTML = COPY_SVG;
                     copyIdBtn.title = `Copy ID: ${num}`;
-                    copyIdBtn.style.cssText = "color:#cf6f98;background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
-                    copyIdBtn.addEventListener("mouseenter", () => { copyIdBtn.style.background = "#3a1428"; copyIdBtn.style.borderColor = "#cf6f98"; });
-                    copyIdBtn.addEventListener("mouseleave", () => { copyIdBtn.style.background = "#2a0e1e"; copyIdBtn.style.borderColor = "#4c2537"; copyIdBtn.style.color = "#cf6f98"; });
+                    copyIdBtn.style.cssText = "color:var(--ebc-accent);background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+                    copyIdBtn.addEventListener("mouseenter", () => { copyIdBtn.style.background = "var(--ebc-bg-mid)"; copyIdBtn.style.borderColor = "var(--ebc-accent)"; });
+                    copyIdBtn.addEventListener("mouseleave", () => { copyIdBtn.style.background = "var(--ebc-bg-darker)"; copyIdBtn.style.borderColor = "var(--ebc-border-light)"; copyIdBtn.style.color = "var(--ebc-accent)"; });
                     copyIdBtn.addEventListener("click", (e) => {
                         e.stopPropagation();
                         try {
@@ -23860,7 +23774,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         catch ( /* ignore */_a) { /* ignore */ }
                         copyIdBtn.style.color = "#a0d080";
                         copyIdBtn.style.borderColor = "#a0d080";
-                        window.setTimeout(() => { copyIdBtn.style.color = "#cf6f98"; copyIdBtn.style.borderColor = "#4c2537"; }, 1200);
+                        window.setTimeout(() => { copyIdBtn.style.color = "var(--ebc-accent)"; copyIdBtn.style.borderColor = "var(--ebc-border-light)"; }, 1200);
                     });
                     // btnCol: friendProfBtn + beepBtn + starBtn + copyIdBtn
                     const btnCol = document.createElement("div");
@@ -23872,8 +23786,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const refreshStarBtn = () => {
                         const sp = isSpecialFriend(num);
                         starBtn.textContent = sp ? "★" : "☆";
-                        starBtn.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
-                        starBtn.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                        starBtn.title = sp ? t("users.removeSpecial") : t("users.markSpecial");
+                        starBtn.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "var(--ebc-border)"};background:${sp ? "#1e1800" : "var(--ebc-bg-darker)"};color:${sp ? "#ffd700" : "var(--ebc-text-muted)"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
                     };
                     refreshStarBtn();
                     starBtn.addEventListener("click", (e) => {
@@ -23883,8 +23797,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         else
                             addSpecialFriend(num);
                         const sp = isSpecialFriend(num);
-                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
-                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
+                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
                         refreshStarBtn();
                     });
                     btnCol.appendChild(starBtn);
@@ -24588,6 +24502,69 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 zoomRow.appendChild(zoomSlider);
                 zoomRow.appendChild(zoomVal);
                 cnt.appendChild(zoomRow);
+                // ── Pinned strip tab visibility ───────────────────────────────────
+                const stripVisBox = document.createElement("div");
+                stripVisBox.style.cssText = "padding:7px 9px 9px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+                const stripVisTitle = document.createElement("div");
+                stripVisTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#c09098;margin-bottom:4px;";
+                stripVisTitle.textContent = "Pinned strip visibility";
+                stripVisBox.appendChild(stripVisTitle);
+                const stripVisDesc = document.createElement("div");
+                stripVisDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;line-height:1.5;margin-bottom:9px;";
+                stripVisDesc.textContent = "Choose which tabs show the Safewords and EBC Tag Settings strips at the top of the panel. Deselect a tab to hide that strip when you're on it.";
+                stripVisBox.appendChild(stripVisDesc);
+                // Helper: one labeled row of tab chips per pinned strip
+                const makeStripRow = (rowLabel, storageKey) => {
+                    var _a;
+                    const wrap = document.createElement("div");
+                    wrap.style.cssText = "margin-bottom:8px;";
+                    const lbl = document.createElement("div");
+                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.05em;color:#9a6878;text-transform:uppercase;margin-bottom:5px;";
+                    lbl.textContent = rowLabel;
+                    wrap.appendChild(lbl);
+                    const chipRow = document.createElement("div");
+                    chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+                    for (const tid of PINNED_STRIP_TABS) {
+                        const chip = document.createElement("button");
+                        chip.textContent = (_a = PINNED_TAB_SHORT[tid]) !== null && _a !== void 0 ? _a : tid;
+                        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:4px 11px;border-radius:4px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                        const refreshChip = () => {
+                            const f = loadStripTabFilter(storageKey);
+                            const on = !f || f.has(tid);
+                            chip.style.background = on ? "#2e1020" : "#150a10";
+                            chip.style.border = `1px solid ${on ? "#8a3458" : "#321220"}`;
+                            chip.style.color = on ? "#f0c0d8" : "#4a2838";
+                        };
+                        refreshChip();
+                        chip.addEventListener("click", () => {
+                            let f = loadStripTabFilter(storageKey);
+                            if (!f) {
+                                f = new Set(PINNED_STRIP_TABS);
+                                f.delete(tid);
+                            }
+                            else if (f.has(tid)) {
+                                if (f.size <= 1)
+                                    return; // keep at least one
+                                f.delete(tid);
+                            }
+                            else {
+                                f.add(tid);
+                                if (f.size >= PINNED_STRIP_TABS.length)
+                                    f = null;
+                            }
+                            saveStripTabFilter(storageKey, f);
+                            chipRow.querySelectorAll("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                            this.updatePinnedStrips();
+                        });
+                        chip.addEventListener("ebc-refresh", refreshChip);
+                        chipRow.appendChild(chip);
+                    }
+                    wrap.appendChild(chipRow);
+                    stripVisBox.appendChild(wrap);
+                };
+                makeStripRow("Safewords", "EBC_swTabFilter");
+                makeStripRow("EBC Tag Settings", "EBC_tagsTabFilter");
+                cnt.appendChild(stripVisBox);
                 // Working copy of colours — mutated by pickers, written to storage on every change
                 let liveColors = getCoreColors();
                 // Helper: rebuild all picker values after a preset load / reset
@@ -24620,6 +24597,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     saveCoreColors(liveColors);
                     syncAllPickers(liveColors);
                     this.injectStyles();
+                    this.rerender(); // rebuild all rendered elements so inline styles pick up new vars
                     presetSel.value = ""; // reset dropdown back to placeholder
                 });
                 const resetBtn = document.createElement("button");
@@ -24632,6 +24610,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     syncAllPickers(liveColors);
                     presetSel.value = "";
                     this.injectStyles();
+                    this.rerender(); // rebuild all rendered elements so inline styles pick up default vars
                 });
                 presetRow.appendChild(presetLbl);
                 presetRow.appendChild(presetSel);
@@ -26196,9 +26175,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         const profBtn = document.createElement("button");
                         profBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="display:block;pointer-events:none;"><circle cx="8" cy="5" r="3" fill="#cf6f98"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#cf6f98"/></svg>`;
                         profBtn.title = "View profile";
-                        profBtn.style.cssText = "background:#2a0e1e;border:1px solid #4c2537;border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
-                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "#3a1428"; profBtn.style.borderColor = "#cf6f98"; });
-                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "#2a0e1e"; profBtn.style.borderColor = "#4c2537"; });
+                        profBtn.style.cssText = "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border-light);border-radius:5px;cursor:pointer;line-height:0;padding:4px 7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background 0.12s,border-color 0.12s;";
+                        profBtn.addEventListener("mouseenter", () => { profBtn.style.background = "var(--ebc-bg-mid)"; profBtn.style.borderColor = "var(--ebc-accent)"; });
+                        profBtn.addEventListener("mouseleave", () => { profBtn.style.background = "var(--ebc-bg-darker)"; profBtn.style.borderColor = "var(--ebc-border-light)"; });
                         profBtn.addEventListener("click", async () => {
                             const w = window;
                             const loadChar = w.InformationSheetLoadCharacter;
@@ -31110,7 +31089,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.1.5";
+    const MOD_VERSION = "3.1.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31121,6 +31100,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.1.8",
+            changes: [
+                "Special friends golden highlight fixed: added border to the friend-wrap container so the colored border actually shows, and raised gradient + border opacity so the gold tint is clearly visible.",
+                "Theme system: buildCSS() now emits CSS custom properties (--ebc-bg, --ebc-card, --ebc-accent, etc.) on #emerybc-panel so any inline style using var(--ebc-xxx) auto-updates when the theme changes. Key button and badge styles in the user list now use these vars. Applying a preset or resetting the theme also triggers a full re-render so the whole panel reflects the new colors.",
+                "Translations: special friend star button now uses t() for its tooltip text in all supported languages.",
+            ],
+        },
+        {
+            version: "3.1.7",
+            changes: [
+                "Moved pinned strip tab visibility controls from inside the Safewords and EBC Tag Settings panels to DEV → Drawer Prefs. The section is clearly labeled, includes a description, and uses larger toggle chips.",
+            ],
+        },
+        {
+            version: "3.1.6",
+            changes: [
+                "Creator paw: replaced hand-drawn canvas paw with a proper SVG paw icon (Font Awesome fa-paw paths, MIT licensed) loaded as a Blob image — same quality as the cat badge.",
+                "Badge drag: removed Icon X/Y and Ver. X/Y numeric input rows from the EBC Tag Settings panel. The drag button and combined reset button (⟳) remain.",
+            ],
+        },
         {
             version: "3.1.5",
             changes: [
@@ -35161,6 +35161,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // Trigger early load so the image is ready by the time any character renders.
     getEbcCatImg();
+    // ── EBC paw SVG image cache (creator mark) ────────────────────────────────────
+    // Font Awesome 6 "fa-paw" path, MIT licensed path data, colored gold.
+    const EBC_PAW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#ffd700" d="M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5 .3-86.2 32.6-96.8 70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3-14.3-70.1 10.2-84.1 59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5 0 46.3-30.6 88.4-76.2 92.2-17.6 1.5-34.7-3.5-53.9-9.2-15.7-4.7-32.8-9.9-51.9-9.9-19.1 0-36.2 5.2-51.9 9.9-19.2 5.7-36.3 10.7-53.9 9.2C57.6 519.6 27 477.5 27 431.2c0-10.4 1.6-20.8 5.2-30.5zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5 46.9 53.9 32.6 96.8-52.1 69.1-84.4 58.5zM421.6 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3 29.1 51.7 10.2 84.1-54 47.3-78.5 33.3z"/></svg>`;
+    let _ebcPawImg = null;
+    let _ebcPawImgReady = false;
+    function getEbcPawImg() {
+        if (_ebcPawImgReady)
+            return _ebcPawImg;
+        if (!_ebcPawImg) {
+            try {
+                const blob = new Blob([EBC_PAW_SVG], { type: "image/svg+xml" });
+                const url = URL.createObjectURL(blob);
+                _ebcPawImg = new Image();
+                _ebcPawImg.onload = () => { _ebcPawImgReady = true; };
+                _ebcPawImg.src = url;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        return null;
+    }
+    getEbcPawImg();
     /** Returns the BC main canvas element, checking both the window global and DOM. */
     function getBCCanvas() {
         try {
@@ -35422,31 +35443,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         if (isDevUser) {
             const canvas = getBCCanvas();
             const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
-            if (ctx && badgeTextOp > 0) {
+            const pawImg = getEbcPawImg();
+            if (ctx && badgeTextOp > 0 && pawImg) {
                 const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 900);
-                const sz = Math.max(8, Math.round(11 * zoom * userScale));
-                const px = x;
-                const py = y - sz * 2.4;
+                const sz = Math.max(9, Math.round(13 * zoom * userScale));
                 ctx.save();
-                ctx.globalAlpha = badgeTextOp * 0.88 * pulse;
-                ctx.fillStyle = "#ffd700";
+                ctx.globalAlpha = badgeTextOp * 0.9 * pulse;
                 ctx.shadowColor = "#ffa500";
-                ctx.shadowBlur = sz * 0.7;
-                // Main palm pad (ellipse)
-                ctx.beginPath();
-                ctx.ellipse(px, py + sz * 0.10, sz * 0.42, sz * 0.34, 0, 0, Math.PI * 2);
-                ctx.fill();
-                // Four toe pads
-                [
-                    [px - sz * 0.40, py - sz * 0.20, sz * 0.16],
-                    [px - sz * 0.15, py - sz * 0.43, sz * 0.17],
-                    [px + sz * 0.15, py - sz * 0.43, sz * 0.17],
-                    [px + sz * 0.40, py - sz * 0.20, sz * 0.16],
-                ].forEach(([tx, ty, tr]) => {
-                    ctx.beginPath();
-                    ctx.arc(tx, ty, tr, 0, Math.PI * 2);
-                    ctx.fill();
-                });
+                ctx.shadowBlur = sz * 0.65;
+                ctx.drawImage(pawImg, x - sz / 2, y - sz * 2.8, sz, sz);
                 ctx.restore();
             }
         }

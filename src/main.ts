@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.1.7";
+const MOD_VERSION = "3.1.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.1.8",
+        changes: [
+            "Special friends golden highlight fixed: added border to the friend-wrap container so the colored border actually shows, and raised gradient + border opacity so the gold tint is clearly visible.",
+            "Theme system: buildCSS() now emits CSS custom properties (--ebc-bg, --ebc-card, --ebc-accent, etc.) on #emerybc-panel so any inline style using var(--ebc-xxx) auto-updates when the theme changes. Key button and badge styles in the user list now use these vars. Applying a preset or resetting the theme also triggers a full re-render so the whole panel reflects the new colors.",
+            "Translations: special friend star button now uses t() for its tooltip text in all supported languages.",
+        ],
+    },
     {
         version: "3.1.7",
         changes: [
