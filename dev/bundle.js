@@ -22343,14 +22343,21 @@
             catch ( /* ignore */_a) { /* ignore */ }
         }
         // -- Notes tab -------------------------------------------------------------
-        /** Collapsible "📬 Messages" section prepended to the USERS tab. */
+        /**
+         * "MISSED MESSAGES" section at the top of the USERS tab.
+         * Only rendered when there are unread beeps — disappears completely once
+         * all conversations have been opened.
+         */
         renderMessagesDropdown(body) {
             var _a, _b;
+            // Nothing to show — hide the whole section
+            if (this.beepUnread.size === 0)
+                return;
             const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
             const totalUnread = [...this.beepUnread.values()].reduce((s, n) => s + n, 0);
             const history = getBeepHistory();
             const seenNums = new Set();
-            const convs = [];
+            const missed = [];
             for (let i = history.length - 1; i >= 0; i--) {
                 const e = history[i];
                 const partner = e.from === self ? e.to : e.from;
@@ -22359,126 +22366,43 @@
                 if (seenNums.has(partner))
                     continue;
                 seenNums.add(partner);
-                convs.push({
-                    num: partner, name: resolveName(partner),
-                    lastMsg: stripBeepMetadata(e.message), lastTs: e.ts,
-                    unread: (_b = this.beepUnread.get(partner)) !== null && _b !== void 0 ? _b : 0,
-                });
-                if (convs.length >= 60)
-                    break;
+                const unread = (_b = this.beepUnread.get(partner)) !== null && _b !== void 0 ? _b : 0;
+                if (unread > 0) {
+                    missed.push({
+                        num: partner, name: resolveName(partner),
+                        lastMsg: stripBeepMetadata(e.message), lastTs: e.ts,
+                        unread,
+                    });
+                }
             }
-            convs.sort((a, b) => {
-                if (a.unread > 0 && b.unread === 0)
-                    return -1;
-                if (a.unread === 0 && b.unread > 0)
-                    return 1;
-                return b.lastTs - a.lastTs;
-            });
-            // Persist collapsed state; auto-expand when there are unreads
-            const COLL_KEY = "EBC_messagesCollapsed";
-            let collapsed;
-            try {
-                const stored = localStorage.getItem(COLL_KEY);
-                collapsed = stored === null ? convs.length === 0 : stored === "1";
-            }
-            catch (_c) {
-                collapsed = convs.length === 0;
-            }
-            // Always expand when there are fresh unreads
-            if (totalUnread > 0)
-                collapsed = false;
+            // Sort most-recent missed first
+            missed.sort((a, b) => b.lastTs - a.lastTs);
             // ── Header ────────────────────────────────────────────────────────
             const hdr = document.createElement("div");
-            hdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;padding:4px 0 4px;";
-            const hdrLeft = document.createElement("div");
-            hdrLeft.style.cssText = "display:flex;align-items:center;gap:5px;";
-            const hdrIcon = document.createElement("span");
-            hdrIcon.style.cssText = "font-size:12px;line-height:1;";
-            hdrIcon.textContent = "📬";
-            hdrLeft.appendChild(hdrIcon);
+            hdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;";
             const hdrLbl = document.createElement("span");
             hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#8a5070;letter-spacing:0.08em;text-transform:uppercase;";
-            hdrLbl.textContent = "Messages";
-            hdrLeft.appendChild(hdrLbl);
-            if (totalUnread > 0) {
-                const unreadPill = document.createElement("span");
-                unreadPill.style.cssText = "background:#cf6f98;color:#fff;border-radius:8px;font-size:8px;font-weight:bold;padding:1px 5px;line-height:14px;";
-                unreadPill.textContent = String(totalUnread);
-                hdrLeft.appendChild(unreadPill);
-            }
-            hdr.appendChild(hdrLeft);
-            const hdrRight = document.createElement("div");
-            hdrRight.style.cssText = "display:flex;align-items:center;gap:5px;";
-            // Mark-all-read button (only when unreads exist)
-            if (totalUnread > 0) {
-                const markBtn = document.createElement("button");
-                markBtn.textContent = "✓ All read";
-                markBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
-                markBtn.addEventListener("mouseenter", () => { markBtn.style.color = "#cf6f98"; markBtn.style.borderColor = "#cf6f98"; });
-                markBtn.addEventListener("mouseleave", () => { markBtn.style.color = "#7a5a6a"; markBtn.style.borderColor = "#3a1928"; });
-                markBtn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    this.beepUnread.clear();
-                    this.refreshTabDot();
-                    this.rerender();
-                });
-                hdrRight.appendChild(markBtn);
-            }
-            const chevron = document.createElement("span");
-            chevron.style.cssText = "font-size:9px;color:#7a5060;transition:transform 0.15s;";
-            chevron.textContent = collapsed ? "▶" : "▼";
-            hdrRight.appendChild(chevron);
-            hdr.appendChild(hdrRight);
-            // ── Content panel ─────────────────────────────────────────────────
-            const panel = document.createElement("div");
-            panel.style.cssText = `overflow:hidden;transition:max-height 0.2s ease;max-height:${collapsed ? "0" : "800px"};`;
-            const toggle = () => {
-                collapsed = !collapsed;
-                panel.style.maxHeight = collapsed ? "0" : "800px";
-                chevron.textContent = collapsed ? "▶" : "▼";
-                try {
-                    localStorage.setItem(COLL_KEY, collapsed ? "1" : "0");
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-            };
-            hdr.addEventListener("click", toggle);
-            // ── Inner content ─────────────────────────────────────────────────
-            if (convs.length === 0) {
-                const empty = document.createElement("div");
-                empty.style.cssText = "text-align:center;color:#4a2838;font-size:10px;padding:10px 0 6px;font-family:'Trebuchet MS',serif;";
-                empty.textContent = "No conversations yet — beep someone below!";
-                panel.appendChild(empty);
-            }
-            else {
-                const unreadConvs = convs.filter(c => c.unread > 0);
-                const readConvs = convs.filter(c => c.unread === 0);
-                if (unreadConvs.length > 0) {
-                    const subHdr = document.createElement("div");
-                    subHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#6a3050;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 4px 2px;";
-                    subHdr.textContent = "Unread";
-                    panel.appendChild(subHdr);
-                    for (const c of unreadConvs)
-                        panel.appendChild(this.buildInboxCard(c.num, c.name, c.lastMsg, c.lastTs, c.unread));
-                }
-                if (readConvs.length > 0) {
-                    if (unreadConvs.length > 0) {
-                        const div = document.createElement("div");
-                        div.style.cssText = "height:1px;background:#221218;margin:5px 0 4px;";
-                        panel.appendChild(div);
-                        const subHdr = document.createElement("div");
-                        subHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#6a3050;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 4px 2px;";
-                        subHdr.textContent = "Recent";
-                        panel.appendChild(subHdr);
-                    }
-                    for (const c of readConvs)
-                        panel.appendChild(this.buildInboxCard(c.num, c.name, c.lastMsg, c.lastTs, 0));
-                }
+            hdrLbl.textContent = `MISSED MESSAGES (${totalUnread})`;
+            hdr.appendChild(hdrLbl);
+            const markBtn = document.createElement("button");
+            markBtn.textContent = "✓ Dismiss all";
+            markBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:2px 6px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+            markBtn.addEventListener("mouseenter", () => { markBtn.style.color = "#cf6f98"; markBtn.style.borderColor = "#cf6f98"; });
+            markBtn.addEventListener("mouseleave", () => { markBtn.style.color = "#7a5a6a"; markBtn.style.borderColor = "#3a1928"; });
+            markBtn.addEventListener("click", () => {
+                this.beepUnread.clear();
+                this.refreshTabDot();
+                this.rerender();
+            });
+            hdr.appendChild(markBtn);
+            body.appendChild(hdr);
+            // ── Missed message cards ───────────────────────────────────────────
+            for (const c of missed) {
+                body.appendChild(this.buildInboxCard(c.num, c.name, c.lastMsg, c.lastTs, c.unread));
             }
             // Divider between this section and AFK/friends below
             const divider = document.createElement("div");
-            divider.style.cssText = "height:1px;background:#2a1421;margin:6px 0 8px;";
-            body.appendChild(hdr);
-            body.appendChild(panel);
+            divider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 8px;";
             body.appendChild(divider);
         }
         renderNotes() {
@@ -30572,7 +30496,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.8.5";
+    const MOD_VERSION = "2.8.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30583,6 +30507,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.8.6",
+            changes: [
+                "UX: Missed Messages section — removed emoji from header, renamed to 'MISSED MESSAGES', section now completely hidden when there are no unread beeps, and each entry disappears individually as you open it (section vanishes when the last one is cleared).",
+            ],
+        },
         {
             version: "2.8.5",
             changes: [
