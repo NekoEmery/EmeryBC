@@ -107,7 +107,7 @@ export function createCombo(
     const combo: PoseCombo = {
         id: uid(),
         name: name.trim() || "Combo",
-        poses: poses.filter(Boolean),
+        poses: poses.filter(p => p != null),  // keep "" (Relaxed arms marker)
         stepDelayMs: Math.max(50, Math.min(3000, stepDelayMs)),
         command: command.toLowerCase().trim().replace(/\s+/g, "") || undefined,
         announceText: announceText.trim() || undefined,
@@ -128,7 +128,7 @@ export function updateCombo(
     const combo = list.find(c => c.id === id);
     if (!combo) return;
     combo.name = name.trim() || combo.name;
-    combo.poses = poses.filter(Boolean);
+    combo.poses = poses.filter(p => p != null);  // keep "" (Relaxed arms marker)
     combo.stepDelayMs = Math.max(50, Math.min(3000, stepDelayMs));
     combo.command = command.toLowerCase().trim().replace(/\s+/g, "") || undefined;
     combo.announceText = announceText.trim() || undefined;
