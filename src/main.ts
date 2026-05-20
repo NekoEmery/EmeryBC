@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.10.2";
+const MOD_VERSION = "2.10.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.10.3",
+        changes: [
+            "Fix: Removed the chromeWrap container introduced in v2.10.0 — its overflow-y:auto was stealing scroll wheel events from the main tab body, making all pages non-scrollable. Chrome elements (quick actions, safeword, EBC tags) are now direct flex children again, restoring correct body scrolling.",
+        ],
+    },
     {
         version: "2.10.2",
         changes: [

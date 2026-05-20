@@ -639,29 +639,14 @@ const CSS = `
     overscroll-behavior: contain;
 }
 
-/* -- Chrome wrap (always-visible controls: quick actions, safeword, EBC tags) -- */
-/* Capped at 40% of the panel so the main tab body always has room to display and scroll. */
-.ebc-chrome-wrap {
-    flex-shrink: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    max-height: 40%;
-    scrollbar-width: thin;
-    scrollbar-color: #cf6f98 #1a0814;
-}
-
 /* Unified scrollbar theme for all EBC scrollable areas */
 .ebc-body::-webkit-scrollbar,
-.ebc-chrome-wrap::-webkit-scrollbar,
 .ebc-beep-win-history::-webkit-scrollbar { width: 5px; }
 .ebc-body::-webkit-scrollbar-track,
-.ebc-chrome-wrap::-webkit-scrollbar-track,
 .ebc-beep-win-history::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb,
-.ebc-chrome-wrap::-webkit-scrollbar-thumb,
 .ebc-beep-win-history::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb:hover,
-.ebc-chrome-wrap::-webkit-scrollbar-thumb:hover,
 .ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
@@ -4499,20 +4484,14 @@ export class EBCDrawer {
         const zoomWrapper = document.createElement("div");
         zoomWrapper.className = "ebc-zoom-wrapper";
         zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
-        // Wrap the always-visible chrome controls in a scrollable container that is
-        // capped at 40% of the panel height.  This prevents the chrome from consuming
-        // so much vertical space that the main tab body (ebc-body) gets zero height.
-        const chromeWrap = document.createElement("div");
-        chromeWrap.className = "ebc-chrome-wrap";
-        chromeWrap.appendChild(quickActions);
-        chromeWrap.appendChild(selfPickPanel);
-        chromeWrap.appendChild(safewordRow);
-        chromeWrap.appendChild(ebcTagsStrip);
 
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(langRow);
-        panel.appendChild(chromeWrap);
+        panel.appendChild(quickActions);
+        panel.appendChild(selfPickPanel);
+        panel.appendChild(safewordRow);
+        panel.appendChild(ebcTagsStrip);
         panel.appendChild(body);
         panel.appendChild(footer);
         // Move all panel children into the wrapper, then add wrapper to panel.
