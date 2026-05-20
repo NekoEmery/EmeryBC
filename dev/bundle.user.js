@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.3.7
+// @version      3.3.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -10599,25 +10599,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getEBCVersion(memberNumber) {
         var _a;
         return (_a = ebcVersionCache.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
-    }
-    // Returns all session-cached EBC users filtered to those currently in the room.
-    function getEBCUsersInRoom() {
-        try {
-            const chars = (typeof ChatRoomCharacter !== "undefined" ? ChatRoomCharacter : []);
-            return chars
-                .filter(c => typeof c.MemberNumber === "number" && ebcVersionCache.has(c.MemberNumber))
-                .map(c => {
-                var _a;
-                return ({
-                    memberNumber: c.MemberNumber,
-                    name: String((_a = c.Name) !== null && _a !== void 0 ? _a : c.MemberNumber),
-                    version: ebcVersionCache.get(c.MemberNumber),
-                });
-            });
-        }
-        catch (_a) {
-            return [];
-        }
     }
     function updateOnlineFriends(entries) {
         const prevOnline = new Set(onlineSet);
@@ -25398,44 +25379,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             let renderRoom = () => { };
             let renderRlog = () => { };
             let renderMsgLog = () => { };
-            // ── EBC Users in Room ─────────────────────────────────────────────────
-            makeSection("EBC Users in Room", "EBC_devEBCUsersCollapsed", false, (cnt) => {
-                const renderEBCUsers = () => {
-                    while (cnt.firstChild)
-                        cnt.removeChild(cnt.firstChild);
-                    const users = getEBCUsersInRoom();
-                    const refreshBtn = document.createElement("button");
-                    refreshBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;background:transparent;border:1px solid #3a1928;border-radius:4px;padding:2px 8px;cursor:pointer;margin-bottom:6px;";
-                    refreshBtn.textContent = "↻ Refresh";
-                    refreshBtn.addEventListener("click", renderEBCUsers);
-                    cnt.appendChild(refreshBtn);
-                    if (!users.length) {
-                        const empty = document.createElement("div");
-                        empty.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#5a4a58;padding:4px 2px;";
-                        empty.textContent = "No EBC users detected in room yet.";
-                        cnt.appendChild(empty);
-                        return;
-                    }
-                    for (const u of users) {
-                        const row = document.createElement("div");
-                        row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:5px;margin-bottom:3px;";
-                        const nameEl = document.createElement("span");
-                        nameEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#f0d8e8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                        nameEl.textContent = u.name;
-                        const idEl = document.createElement("span");
-                        idEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;flex-shrink:0;";
-                        idEl.textContent = `#${u.memberNumber}`;
-                        const verEl = document.createElement("span");
-                        verEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;color:#cf6f98;flex-shrink:0;background:#2a0e1e;border:1px solid #6b3050;border-radius:4px;padding:1px 5px;";
-                        verEl.textContent = `v${u.version}`;
-                        row.appendChild(nameEl);
-                        row.appendChild(idEl);
-                        row.appendChild(verEl);
-                        cnt.appendChild(row);
-                    }
-                };
-                renderEBCUsers();
-            });
             makeSection(t("dev.logs"), "EBC_devLogSectionCollapsed", true, (cnt) => {
                 // -- shared helpers --
                 const fmtDuration = (ms) => {
@@ -31596,7 +31539,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.7";
+    const MOD_VERSION = "3.3.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31607,6 +31550,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.8",
+            changes: [
+                "DEV tab: removed 'EBC Users in Room' section.",
+            ],
+        },
         {
             version: "3.3.7",
             changes: [
