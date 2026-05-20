@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.2.4
+// @version      3.2.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12500,9 +12500,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "qa.removedN": { en: "✓ Removed {n} item(s).", de: "✓ {n} Element(e) entfernt.", zh: "✓ 已移除 {n} 件物品。", fr: "✓ {n} élément(s) retiré(s).", es: "✓ {n} elemento(s) quitado(s).", ru: "✓ Снято {n} предм.", ja: "✓ {n} 件を解除しました。" },
         "qa.unlockedN": { en: "✓ Unlocked {n} item(s).", de: "✓ {n} Element(e) entsperrt.", zh: "✓ 已解锁 {n} 件物品。", fr: "✓ {n} élément(s) déverrouillé(s).", es: "✓ {n} elemento(s) desbloqueado(s).", ru: "✓ Разблоков. {n} предм.", ja: "✓ {n} 件の錠前を外しました。" },
         // ─── SLOW LEAVE ────────────────────────────────────────────────────────
-        "sl.header": { en: "🚶 Slow Leave", de: "🚶 Langsam gehen", zh: "🚶 慢慢离开", fr: "🚶 Partir lentement", es: "🚶 Salida lenta", ru: "🚶 Медленный уход", ja: "🚶 ゆっくり退場" },
+        "sl.header": { en: "Slow Leave", de: "Langsam gehen", zh: "慢慢离开", fr: "Partir lentement", es: "Salida lenta", ru: "Медленный уход", ja: "ゆっくり退場" },
         "sl.durationTitle": { en: "Slow leave duration", de: "Dauer des langsamen Gehens", zh: "慢离开持续时间", fr: "Durée de la sortie lente", es: "Duración de salida lenta", ru: "Продолжительность медленного ухода", ja: "ゆっくり退場の所要時間" },
-        "sl.leave": { en: "🚶 Slow Leave", de: "🚶 Langsam gehen", zh: "🚶 慢慢离开", fr: "🚶 Partir lentement", es: "🚶 Salida lenta", ru: "🚶 Медленный уход", ja: "🚶 ゆっくり退場" },
+        "sl.leave": { en: "Slow Leave", de: "Langsam gehen", zh: "慢慢离开", fr: "Partir lentement", es: "Salida lenta", ru: "Медленный уход", ja: "ゆっくり退場" },
         "sl.leaveTitle": { en: "Wave goodbye and slowly head for the door", de: "Auf Wiedersehen winken und langsam zur Tür gehen", zh: "挥手告别，慢慢走向门口", fr: "Dire au revoir et se diriger lentement vers la porte", es: "Despedirse y caminar lentamente hacia la puerta", ru: "Помашите на прощание и медленно направьтесь к двери", ja: "手を振ってゆっくりドアへ向かう" },
         "sl.cancel": { en: "✕ Cancel Leave", de: "✕ Abbrechen", zh: "✕ 取消离开", fr: "✕ Annuler la sortie", es: "✕ Cancelar salida", ru: "✕ Отменить уход", ja: "✕ 退場をキャンセル" },
         "sl.seqHint": { en: "Sequence for this preset — edit to customise. Steps separated by |, duration placeholder @{DUR}", de: "Sequenz für dieses Preset — bearbeiten zum Anpassen. Schritte durch | getrennt, Dauer @{DUR}", zh: "此预设的序列——编辑以自定义。步骤以 | 分隔，时长占位符 @{DUR}", fr: "Séquence pour ce preset — modifier pour personnaliser. Étapes séparées par |, durée @{DUR}", es: "Secuencia para este preset — editar para personalizar. Pasos con |, marcador @{DUR}", ru: "Последовательность — редактировать для настройки. Шаги через |, длительность @{DUR}", ja: "このプリセットのシーケンス — 編集してカスタマイズ。ステップは | で区切り、時間は @{DUR}" },
@@ -27354,16 +27354,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 catch ( /* ignore */_a) { /* ignore */ }
             });
             body.appendChild(clearPoseBtn);
-            // ── Slow Leave ────────────────────────────────────────────────────────
-            const slLbl = document.createElement("div");
-            slLbl.className = "ebc-section-label";
-            slLbl.style.marginTop = "10px";
-            slLbl.textContent = t("sl.header");
-            body.appendChild(slLbl);
-            const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;margin-bottom:3px;";
+            // ── Slow Leave trigger button — lives with Useful Buttons ─────────────
             const slLeaveBtn = document.createElement("button");
             slLeaveBtn.className = "ebc-create-btn";
-            slLeaveBtn.style.cssText = "margin:4px 0 3px; width:100%;";
+            slLeaveBtn.style.cssText = "margin:4px 0 0; width:100%;";
             const seqRunning = isSeqRunning();
             slLeaveBtn.textContent = seqRunning ? t("sl.cancel") : t("sl.leave");
             slLeaveBtn.title = t("sl.leaveTitle");
@@ -27375,6 +27369,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 var _a, _b;
                 if (isSeqRunning()) {
                     cancelSequence();
+                    slLeaveBtn.textContent = t("sl.leave");
+                    slLeaveBtn.style.background = "";
+                    slLeaveBtn.style.color = "";
                     return;
                 }
                 const livePresets = getSlowLeavePresets();
@@ -27392,6 +27389,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 runSequence(seq);
             });
             body.appendChild(slLeaveBtn);
+            // ── Slow Leave editor — collapsible accordion card ────────────────────
+            const slEditorOpen = localStorage.getItem("EBC_slowLeaveEditorOpen") === "1";
+            const slEditorCard = document.createElement("div");
+            slEditorCard.style.cssText = "border:1px solid " + (slEditorOpen ? "#5a2840" : "#2a1421") + ";border-radius:7px;margin-top:6px;overflow:hidden;";
+            // Header row — click to expand/collapse
+            const slEditorHdr = document.createElement("div");
+            slEditorHdr.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 8px;background:" + (slEditorOpen ? "#2a0e1e" : "#1b0d17") + ";";
+            const slEditorChev = document.createElement("span");
+            slEditorChev.style.cssText = "font-size:9px;color:#7a5060;flex-shrink:0;";
+            slEditorChev.textContent = slEditorOpen ? "▼" : "▶";
+            const slEditorLbl = document.createElement("span");
+            slEditorLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;flex:1;";
+            slEditorLbl.textContent = t("sl.header");
+            slEditorHdr.appendChild(slEditorChev);
+            slEditorHdr.appendChild(slEditorLbl);
+            slEditorCard.appendChild(slEditorHdr);
+            // Editor body
+            const slEditorBody = document.createElement("div");
+            slEditorBody.style.cssText = "display:" + (slEditorOpen ? "flex" : "none") + ";flex-direction:column;gap:4px;padding:7px 8px 8px;";
+            const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
             const slPresetDropdown = document.createElement("select");
             slPresetDropdown.style.cssText = DD_CSS;
             const populateSlPresets = () => {
@@ -27417,11 +27434,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const pi = parseInt(slPresetDropdown.value, 10);
                 slSeqArea.value = (_b = (_a = lp[pi]) === null || _a === void 0 ? void 0 : _a.seq) !== null && _b !== void 0 ? _b : "";
             });
-            body.appendChild(slPresetDropdown);
+            slEditorBody.appendChild(slPresetDropdown);
             const slSeqArea = document.createElement("textarea");
             slSeqArea.rows = 3;
             slSeqArea.spellcheck = false;
-            slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;margin-bottom:3px;";
+            slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
             slSeqArea.title = t("sl.seqHint");
             const slSeqInitPresets = getSlowLeavePresets();
             const slSeqInitIdx = parseInt((_b = localStorage.getItem("EBC_slowLeavePreset")) !== null && _b !== void 0 ? _b : "0", 10);
@@ -27434,7 +27451,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     saveSlowLeavePresets(lp);
                 }
             });
-            body.appendChild(slSeqArea);
+            slEditorBody.appendChild(slSeqArea);
             const slDurRow = document.createElement("div");
             slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
             const slDurLbl = document.createElement("span");
@@ -27461,7 +27478,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             slDurRow.appendChild(slDurLbl);
             slDurRow.appendChild(slDurSlider);
             slDurRow.appendChild(slDurVal);
-            body.appendChild(slDurRow);
+            slEditorBody.appendChild(slDurRow);
+            slEditorCard.appendChild(slEditorBody);
+            body.appendChild(slEditorCard);
+            slEditorHdr.addEventListener("click", () => {
+                const open = slEditorBody.style.display === "none";
+                slEditorBody.style.display = open ? "flex" : "none";
+                slEditorChev.textContent = open ? "▼" : "▶";
+                slEditorHdr.style.background = open ? "#2a0e1e" : "#1b0d17";
+                slEditorCard.style.borderColor = open ? "#5a2840" : "#2a1421";
+                try {
+                    localStorage.setItem("EBC_slowLeaveEditorOpen", open ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            });
         }
         renderKittyTab() {
             var _a;
@@ -31271,7 +31301,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.2.4";
+    const MOD_VERSION = "3.2.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31282,6 +31312,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.2.5",
+            changes: [
+                "Slow Leave moved out of the quick-actions bar (no longer shown on every tab). It now lives as a plain button inside Useful Buttons. Below it is a collapsible accordion editor (same style as button category cards) for the preset dropdown, sequence textarea, and duration slider. The 🚶 emote has been removed from the button label.",
+            ],
+        },
         {
             version: "3.2.4",
             changes: [
