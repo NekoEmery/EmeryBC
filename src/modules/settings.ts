@@ -420,6 +420,7 @@ export function setOthersBadgeStyle(v: BadgeStyle): void {
 // -- Badge scale ---------------------------------------------------------------
 // Multiplier applied on top of the room zoom. 1.0 = default size.
 // Range: 0.3 – 4.0
+// Legacy single scale kept for migration; new code uses style-specific getters below.
 
 export function getBadgeScale(): number {
     try {
@@ -429,6 +430,30 @@ export function getBadgeScale(): number {
 }
 export function setBadgeScale(v: number): void {
     try { const s = getStore(); if (s) { s.badgeScale = Math.max(0.3, Math.min(4, v)); syncSettings(); } } catch { /* ignore */ }
+}
+
+// Per-style scales — Text and Cat can be sized independently.
+// Both fall back to the legacy `badgeScale` value on first use (migration).
+export function getTextBadgeScale(): number {
+    try {
+        const s = getStore();
+        const v = (s as Record<string, unknown>)?.textBadgeScale;
+        return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
+    } catch { return 1.0; }
+}
+export function setTextBadgeScale(v: number): void {
+    try { const s = getStore(); if (s) { (s as Record<string, unknown>).textBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100)); syncSettings(); } } catch { /* ignore */ }
+}
+
+export function getCatBadgeScale(): number {
+    try {
+        const s = getStore();
+        const v = (s as Record<string, unknown>)?.catBadgeScale;
+        return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
+    } catch { return 1.0; }
+}
+export function setCatBadgeScale(v: number): void {
+    try { const s = getStore(); if (s) { (s as Record<string, unknown>).catBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100)); syncSettings(); } } catch { /* ignore */ }
 }
 
 // -- Badge background opacity --------------------------------------------------

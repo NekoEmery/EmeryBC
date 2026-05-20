@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4373,37 +4373,52 @@ export class EBCDrawer {
         ebcTagsBody.appendChild(othersStyleLbl);
         buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
 
-        // ── Scale slider ─────────────────────────────────────────────────────
-        const scaleRow = document.createElement("div");
-        scaleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+        // ── Per-style scale sliders ──────────────────────────────────────────
+        // Text and Cat scales are independent so each style can be sized freely.
+        const makeScaleRow = (
+            labelText: string,
+            getVal: () => number,
+            setVal: (v: number) => void,
+        ): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:6px;";
 
-        const scaleLbl = document.createElement("span");
-        scaleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
-        scaleLbl.textContent = t("strip.scale");
+            const lbl = document.createElement("span");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:54px;";
+            lbl.textContent = labelText;
 
-        const scaleSlider = document.createElement("input");
-        scaleSlider.type  = "range";
-        scaleSlider.min   = "0.3";
-        scaleSlider.max   = "3";
-        scaleSlider.step  = "0.05";
-        scaleSlider.value = String(getBadgeScale());
-        scaleSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-        scaleSlider.title = "Badge size multiplier (1 = default)";
+            const slider = document.createElement("input");
+            slider.type  = "range";
+            slider.min   = "0.3";
+            slider.max   = "3";
+            slider.step  = "0.05";
+            slider.value = String(getVal());
+            slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            slider.title = "Scale multiplier (1.0 = default)";
 
-        const scaleVal = document.createElement("span");
-        scaleVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
-        scaleVal.textContent = getBadgeScale().toFixed(2) + "×";
+            const valLbl = document.createElement("span");
+            valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:32px;text-align:right;flex-shrink:0;";
+            valLbl.textContent = getVal().toFixed(2) + "×";
 
-        scaleSlider.addEventListener("input", () => {
-            const v = parseFloat(scaleSlider.value);
-            setBadgeScale(v);
-            scaleVal.textContent = v.toFixed(2) + "×";
-        });
+            slider.addEventListener("input", () => {
+                const v = parseFloat(slider.value);
+                setVal(v);
+                valLbl.textContent = v.toFixed(2) + "×";
+            });
 
-        scaleRow.appendChild(scaleLbl);
-        scaleRow.appendChild(scaleSlider);
-        scaleRow.appendChild(scaleVal);
-        ebcTagsBody.appendChild(scaleRow);
+            row.appendChild(lbl);
+            row.appendChild(slider);
+            row.appendChild(valLbl);
+            ebcTagsBody.appendChild(row);
+        };
+
+        const scaleSectionLbl = document.createElement("div");
+        scaleSectionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 5px;";
+        scaleSectionLbl.textContent = t("strip.scale");
+        ebcTagsBody.appendChild(scaleSectionLbl);
+
+        makeScaleRow(t("strip.styleBtnText"), getTextBadgeScale, setTextBadgeScale);
+        makeScaleRow(t("strip.styleBtnCat"),  getCatBadgeScale,  setCatBadgeScale);
 
         // ── BG opacity slider ─────────────────────────────────────────────────
         const makeOpacitySliderRow = (
