@@ -2074,6 +2074,53 @@
         setBadgeOffsetX(250);
         setBadgeOffsetY(72);
     }
+    // -- Cat badge position offset -------------------------------------------------
+    // Separate X/Y for the cat icon so it can be placed independently of the text badge.
+    // Falls back to the shared badgeOffsetX/Y on first use (migration).
+    function getCatBadgeOffsetX() {
+        try {
+            const s = getStore$7();
+            const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetX;
+            return typeof v === "number" ? Math.max(-500, Math.min(1000, v)) : getBadgeOffsetX();
+        }
+        catch (_a) {
+            return 250;
+        }
+    }
+    function setCatBadgeOffsetX(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.catBadgeOffsetX = Math.round(v);
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getCatBadgeOffsetY() {
+        try {
+            const s = getStore$7();
+            const v = s === null || s === void 0 ? void 0 : s.catBadgeOffsetY;
+            return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : getBadgeOffsetY();
+        }
+        catch (_a) {
+            return 72;
+        }
+    }
+    function setCatBadgeOffsetY(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.catBadgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v)));
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function resetCatBadgePosition() {
+        setCatBadgeOffsetX(250);
+        setCatBadgeOffsetY(72);
+    }
     // -- Version text offset (cat mode — drawn separately from cat icon) -----------
     // Independent X/Y position for the floating version label when badge style is
     // "cat" and version display is enabled. Defaults: X=250, Y=95 (just below cat).
@@ -16944,10 +16991,11 @@
             });
             const resetPosBtn = document.createElement("button");
             resetPosBtn.textContent = "⟳";
-            resetPosBtn.title = "Reset icon and version text positions to default";
+            resetPosBtn.title = "Reset all badge positions to default (text, cat, and version text)";
             resetPosBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #3a1928;background:#150a10;color:#7a5070;transition:background 0.12s,color 0.12s;";
             resetPosBtn.addEventListener("click", () => {
                 resetBadgePosition();
+                resetCatBadgePosition();
                 resetVersionTextPosition();
             });
             posRow.appendChild(posHint);
@@ -31185,7 +31233,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.2.2";
+    const MOD_VERSION = "3.2.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31196,6 +31244,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.2.3",
+            changes: [
+                "Cat badge position is now independent from the text badge position. Enabling drag mode and dragging the cat icon only moves the cat offset; switching to text style drags only the text badge. The ⟳ reset button resets all three positions (text badge, cat badge, version text).",
+            ],
+        },
         {
             version: "3.2.2",
             changes: [
@@ -35344,15 +35398,16 @@
             // Always consume in drag mode — prevents BC canvas click-through.
             consume();
             const pos = toCanvasPos(canvas, clientX, clientY);
-            // Check icon hit first
-            const bx = _playerCharLeft + getBadgeOffsetX() * _playerCharZoom;
-            const by = _playerCharTop + getBadgeOffsetY() * _playerCharZoom;
+            // Check icon hit — use style-specific offset so text and cat are dragged independently
+            const isCat = getBadgeStyle() === "cat";
+            const bx = _playerCharLeft + (isCat ? getCatBadgeOffsetX() : getBadgeOffsetX()) * _playerCharZoom;
+            const by = _playerCharTop + (isCat ? getCatBadgeOffsetY() : getBadgeOffsetY()) * _playerCharZoom;
             if (Math.abs(pos.x - bx) < HIT && Math.abs(pos.y - by) < HIT) {
                 _dragTarget = "icon";
                 return;
             }
             // Check version text hit (cat mode + version visible)
-            if (getBadgeStyle() === "cat" && getShowVersionBadge()) {
+            if (isCat && getShowVersionBadge()) {
                 const vx = _playerCharLeft + getVersionTextOffsetX() * _playerCharZoom;
                 const vy = _playerCharTop + getVersionTextOffsetY() * _playerCharZoom;
                 if (Math.abs(pos.x - vx) < HIT && Math.abs(pos.y - vy) < HIT) {
@@ -35369,8 +35424,14 @@
             const pos = toCanvasPos(canvas, clientX, clientY);
             if (_playerCharZoom > 0) {
                 if (_dragTarget === "icon") {
-                    setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
-                    setBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                    if (getBadgeStyle() === "cat") {
+                        setCatBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                        setCatBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                    }
+                    else {
+                        setBadgeOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
+                        setBadgeOffsetY((pos.y - _playerCharTop) / _playerCharZoom);
+                    }
                 }
                 else {
                     setVersionTextOffsetX((pos.x - _playerCharLeft) / _playerCharZoom);
@@ -35438,10 +35499,10 @@
         const label = isDevUser
             ? (showVer ? "dev | v" + verStr : "dev | EBC")
             : (showVer ? "v" + verStr : "EBC");
-        // User-configured position offset + scale
-        const offsetX = getBadgeOffsetX(); // default 250 (char horiz centre)
-        const offsetY = getBadgeOffsetY(); // default 72  (below WCE name)
-        const badgeStyle = isSelf ? getBadgeStyle() : getOthersBadgeStyle(); // per-target style
+        // User-configured position offset + scale — both are per-style
+        const badgeStyle = isSelf ? getBadgeStyle() : getOthersBadgeStyle();
+        const offsetX = badgeStyle === "cat" ? getCatBadgeOffsetX() : getBadgeOffsetX();
+        const offsetY = badgeStyle === "cat" ? getCatBadgeOffsetY() : getBadgeOffsetY();
         const userScale = badgeStyle === "cat" ? getCatBadgeScale() : getTextBadgeScale();
         const badgeBgOp = getBadgeBgOpacity(); // default 1.0
         const badgeTextOp = getBadgeTextOpacity(); // default 1.0
