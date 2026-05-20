@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.1.1";
+const MOD_VERSION = "3.1.2";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.1.2",
+        changes: [
+            "Remove cat SVG icon from the Badge Appearance section header — now shows a clean text label.",
+            "Creator mark: a pulsing gold crown (♛) is drawn above the creator's badge position in the chatroom canvas, visible only to EBC addon users.",
+            "Special friends: star (☆/★) button on every People in Room and Friends row — toggling marks that person with a golden gradient card highlight.",
+            "Fix: Relaxed arm pose (empty key) now works correctly in pose combos and scenes — it explicitly clears active arm poses instead of being silently dropped by filter(Boolean).",
+        ],
+    },
     {
         version: "3.1.1",
         changes: [
@@ -4273,6 +4282,26 @@ function drawPresenceMarker(args: unknown[]): void {
             ctx.textAlign    = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4);
+            ctx.restore();
+        }
+    }
+
+    // ── Creator mark — pulsing gold crown, visible only to EBC addon users ────
+    if (isDevUser) {
+        const canvas = getBCCanvas();
+        const ctx = canvas?.getContext("2d");
+        if (ctx && badgeTextOp > 0) {
+            const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 900);
+            const sz    = Math.max(8, Math.round(11 * zoom * userScale));
+            ctx.save();
+            ctx.globalAlpha  = badgeTextOp * 0.88 * pulse;
+            ctx.font         = `${sz}px serif`;
+            ctx.textAlign    = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle    = "#ffd700";
+            ctx.shadowColor  = "#ffa000";
+            ctx.shadowBlur   = sz * 0.85;
+            ctx.fillText("♛", x, y - sz * 2.4);
             ctx.restore();
         }
     }

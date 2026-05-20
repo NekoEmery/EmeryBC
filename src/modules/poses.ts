@@ -39,9 +39,15 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string }
     },
 ];
 
+const ARM_POSES = ["OverTheHead", "BackCuffs", "BackBoxTie", "Yoked"];
+
 export function applyPoses(poses: string[]): void {
+    // An explicit empty string ("") in the list means "Relaxed arms" —
+    // clear any active arm pose from the result set.
+    const wantsRelaxed = poses.includes("");
     const filtered = poses.filter(Boolean);
-    try { (Player as unknown as Record<string, unknown>).ActivePose = filtered; } catch { /* ignore */ }
+    const result   = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
+    try { (Player as unknown as Record<string, unknown>).ActivePose = result; } catch { /* ignore */ }
     callBC(() => CharacterRefresh(Player, false));
     callBC(() => ChatRoomCharacterUpdate(Player));
     callBC(() => ServerPlayerAppearanceSync());
@@ -51,14 +57,18 @@ export function applyPoses(poses: string[]): void {
 // Respects the exact order provided — the user controls sequencing via the editor.
 // e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
 export function applyPosesSequential(poses: string[], stepDelayMs = 420): void {
+    // Preserve empty strings — applyPoses handles the "Relaxed arms" case.
+    const wantsRelaxed = poses.includes("");
     const steps = poses.filter(Boolean);
     if (steps.length <= 1) {
-        applyPoses(steps);
+        // Pass original list so applyPoses sees the empty-string Relaxed marker.
+        applyPoses(wantsRelaxed ? [...steps, ""] : steps);
         return;
     }
     for (let i = 0; i < steps.length; i++) {
         const subset = steps.slice(0, i + 1);
-        window.setTimeout(() => applyPoses(subset), i * stepDelayMs);
+        // On the step where we'd apply Relaxed, include the marker.
+        window.setTimeout(() => applyPoses(wantsRelaxed ? [...subset, ""] : subset), i * stepDelayMs);
     }
 }
 

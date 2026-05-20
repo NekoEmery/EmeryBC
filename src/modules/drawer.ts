@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4293,8 +4293,8 @@ export class EBCDrawer {
         ebcTagsBody.appendChild(badgeDivider);
 
         const badgeAppLbl = document.createElement("div");
-        badgeAppLbl.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
-        badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
+        badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 6px;";
+        badgeAppLbl.textContent = t("strip.badgeAppearance");
         ebcTagsBody.appendChild(badgeAppLbl);
 
         // ── Style picker: Text | Cat (shared helper) ─────────────────────────
@@ -10768,6 +10768,10 @@ export class EBCDrawer {
 
                     const wrap = document.createElement("div");
                     wrap.className = "ebc-friend-wrap";
+                    if (isSpecialFriend(num)) {
+                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
+                        wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                    }
 
                     const row = document.createElement("div");
                     row.className = "ebc-friend-row";
@@ -10940,6 +10944,24 @@ export class EBCDrawer {
                         });
                         btnCol.appendChild(beepBtn);
                     }
+                    // Special friend star button
+                    const starBtnR = document.createElement("button");
+                    const refreshStarBtnR = (): void => {
+                        const sp = isSpecialFriend(num);
+                        starBtnR.textContent = sp ? "★" : "☆";
+                        starBtnR.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
+                        starBtnR.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                    };
+                    refreshStarBtnR();
+                    starBtnR.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        if (isSpecialFriend(num)) removeSpecialFriend(num); else addSpecialFriend(num);
+                        const sp = isSpecialFriend(num);
+                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
+                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                        refreshStarBtnR();
+                    });
+                    btnCol.appendChild(starBtnR);
                     btnCol.appendChild(copyIdBtnR);
 
                     // Assemble row
@@ -11081,6 +11103,10 @@ export class EBCDrawer {
                 // Wrapper holds both the row and the expand panel
                 const wrap = document.createElement("div");
                 wrap.className = "ebc-friend-wrap";
+                if (isSpecialFriend(num)) {
+                    wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)";
+                    wrap.style.borderColor = "rgba(255,200,50,0.22)";
+                }
 
                 // ── Row ────────────────────────────────────────────────────
                 const row = document.createElement("div");
@@ -11365,11 +11391,30 @@ export class EBCDrawer {
                     window.setTimeout(() => { copyIdBtn.style.color = "#cf6f98"; copyIdBtn.style.borderColor = "#4c2537"; }, 1200);
                 });
 
-                // btnCol: friendProfBtn + beepBtn + copyIdBtn
+                // btnCol: friendProfBtn + beepBtn + starBtn + copyIdBtn
                 const btnCol = document.createElement("div");
                 btnCol.style.cssText = "display:flex;align-items:center;gap:3px;flex-shrink:0;align-self:center;";
                 btnCol.appendChild(friendProfBtn);
                 btnCol.appendChild(beepBtn);
+
+                // Special friend star button
+                const starBtn = document.createElement("button");
+                const refreshStarBtn = (): void => {
+                    const sp = isSpecialFriend(num);
+                    starBtn.textContent = sp ? "★" : "☆";
+                    starBtn.title = sp ? "Remove from special friends" : "Mark as special friend (golden highlight)";
+                    starBtn.style.cssText = `font-size:13px;padding:2px 5px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid ${sp ? "#8a7010" : "#3a1928"};background:${sp ? "#1e1800" : "#150a10"};color:${sp ? "#ffd700" : "#5a4050"};transition:color 0.12s,border-color 0.12s,background 0.12s;`;
+                };
+                refreshStarBtn();
+                starBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (isSpecialFriend(num)) removeSpecialFriend(num); else addSpecialFriend(num);
+                    const sp = isSpecialFriend(num);
+                    wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.08) 0%, rgba(180,130,20,0.04) 100%)" : "";
+                    wrap.style.borderColor = sp ? "rgba(255,200,50,0.22)" : "";
+                    refreshStarBtn();
+                });
+                btnCol.appendChild(starBtn);
                 btnCol.appendChild(copyIdBtn);
 
                 // Assemble row

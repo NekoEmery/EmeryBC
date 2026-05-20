@@ -131,6 +131,42 @@ export function removeFromAntiRestraintWhitelist(group: string): void {
     setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
 }
 
+// -- Special friends ----------------------------------------------------------
+// Member numbers displayed with a golden gradient highlight in the People in
+// Room and Friends lists. Stored server-side so it persists across devices.
+
+export function getSpecialFriends(): number[] {
+    try {
+        const list = getStore()?.specialFriends;
+        return Array.isArray(list) ? (list as number[]) : [];
+    } catch { return []; }
+}
+
+export function isSpecialFriend(memberNumber: number): boolean {
+    return getSpecialFriends().includes(memberNumber);
+}
+
+export function addSpecialFriend(memberNumber: number): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        const list = getSpecialFriends();
+        if (!list.includes(memberNumber)) {
+            store.specialFriends = [...list, memberNumber];
+            syncSettings();
+        }
+    } catch { /* ignore */ }
+}
+
+export function removeSpecialFriend(memberNumber: number): void {
+    try {
+        const store = getStore();
+        if (!store) return;
+        store.specialFriends = getSpecialFriends().filter(n => n !== memberNumber);
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Anti-restraint confirm dialog ---------------------------------------------
 // When enabled, shows a confirm() prompt before auto-escaping so the user
 // can choose to accept the restraint instead. Off by default.
