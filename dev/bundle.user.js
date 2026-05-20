@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.6.8
+// @version      3.6.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15902,7 +15902,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     catch ( /* ignore */_a) { /* ignore */ } }
     // ── Drawer appearance / layout helpers ───────────────────────────────────
     const EBC_COLORS_KEY = "EBC_colors";
-    const EBC_PRESET_KEY = "EBC_activePreset";
     const EBC_HIDDEN_KEY = "EBC_hiddenTabs";
     const EBC_USER_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev"];
     const EBC_TAB_LABELS = {
@@ -15919,18 +15918,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         textSub: "#967281", // secondary labels & soft text
         textMuted: "#7a5a6a", // placeholders / inactive items
         gold: "#c9ab72", // gold / special accents
-    };
-    const EBC_THEME_PRESETS = {
-        // Each preset is fully cohesive — backgrounds tinted with the theme hue,
-        // accent is the primary colour, text & border complement it naturally.
-        rose: { name: "Rose (Default)", colors: DEFAULT_COLORS },
-        sakura: { name: "Sakura", colors: { bg: "#200e14", card: "#2e1520", cardMuted: "#190a0f", border: "#481a24", accent: "#e8608a", textBright: "#ffecf2", textSub: "#b87890", textMuted: "#906070", gold: "#e0b060" } },
-        lavender: { name: "Lavender", colors: { bg: "#120d1e", card: "#1e1532", cardMuted: "#0d0918", border: "#281a42", accent: "#9b6fcf", textBright: "#ece6f8", textSub: "#7868a0", textMuted: "#5a5278", gold: "#c8b46a" } },
-        ocean: { name: "Ocean", colors: { bg: "#0c1828", card: "#122034", cardMuted: "#081018", border: "#162e4c", accent: "#5a98c8", textBright: "#e0eef8", textSub: "#587898", textMuted: "#3e5870", gold: "#c0a860" } },
-        forest: { name: "Forest", colors: { bg: "#0c1a10", card: "#122018", cardMuted: "#080e0a", border: "#163422", accent: "#52b870", textBright: "#daf0e2", textSub: "#507860", textMuted: "#3e5e48", gold: "#aab840" } },
-        crimson: { name: "Crimson", colors: { bg: "#1c0c0c", card: "#2a1212", cardMuted: "#120808", border: "#3c1414", accent: "#c84848", textBright: "#f8e0e0", textSub: "#906060", textMuted: "#704848", gold: "#c89050" } },
-        amber: { name: "Amber", colors: { bg: "#1c1208", card: "#281808", cardMuted: "#120c04", border: "#3a2412", accent: "#d08030", textBright: "#f8ecd8", textSub: "#987050", textMuted: "#806848", gold: "#e8c040" } },
-        obsidian: { name: "Obsidian", colors: { bg: "#141618", card: "#1e2028", cardMuted: "#0e1014", border: "#28293a", accent: "#8090b8", textBright: "#e8eaf0", textSub: "#687080", textMuted: "#545a68", gold: "#a89058" } },
     };
     // ── Colour math helpers ───────────────────────────────────────────────────
     function hexToRgb(hex) {
@@ -15958,12 +15945,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch (_a) {
             return Object.assign({}, DEFAULT_COLORS);
         }
-    }
-    function saveCoreColors(c) {
-        try {
-            localStorage.setItem(EBC_COLORS_KEY, JSON.stringify(c));
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
     }
     function getHiddenTabs() {
         try {
@@ -24967,7 +24948,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             // ── Drawer Preferences ────────────────────────────────────────────────
             makeSection(t("dev.drawerPrefs"), "EBC_devAppearanceCollapsed", false, (cnt) => {
-                var _a, _b, _c;
+                var _a, _b;
                 // ── Touch / phone mode toggle (dev preview) ───────────────────────
                 const touchRow = document.createElement("div");
                 touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -25125,141 +25106,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 makeStripRow("Safewords", "EBC_swTabFilter");
                 makeStripRow("EBC Tag Settings", "EBC_tagsTabFilter");
                 cnt.appendChild(stripVisBox);
-                // Working copy of colours — mutated by pickers, written to storage on every change
-                let liveColors = getCoreColors();
-                // Helper: rebuild all picker values after a preset load / reset
-                const pickerSyncers = [];
-                const syncAllPickers = (c) => { for (const fn of pickerSyncers)
-                    fn(c); };
-                // ── Preset dropdown ────────────────────────────────────────────────
-                const presetRow = document.createElement("div");
-                presetRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 8px;background:var(--ebc-card);border:1px solid var(--ebc-border);border-radius:6px;";
-                const presetLbl = document.createElement("span");
-                presetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:var(--ebc-text-sub);flex:1;";
-                presetLbl.textContent = t("dev.quickPreset");
-                const presetSel = document.createElement("select");
-                presetSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:var(--ebc-card-muted);border:1px solid var(--ebc-border-light);border-radius:4px;color:var(--ebc-text-bright);padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
-                const blankOpt = document.createElement("option");
-                blankOpt.value = "";
-                blankOpt.textContent = t("dev.choosePreset");
-                presetSel.appendChild(blankOpt);
-                for (const [key, preset] of Object.entries(EBC_THEME_PRESETS)) {
-                    const opt = document.createElement("option");
-                    opt.value = key;
-                    opt.textContent = preset.name;
-                    presetSel.appendChild(opt);
-                }
-                // Restore the last active preset so the dropdown isn't always blank
-                try {
-                    presetSel.value = (_a = localStorage.getItem(EBC_PRESET_KEY)) !== null && _a !== void 0 ? _a : "";
-                }
-                catch ( /* ignore */_d) { /* ignore */ }
-                presetSel.addEventListener("change", () => {
-                    const preset = EBC_THEME_PRESETS[presetSel.value];
-                    if (!preset)
-                        return;
-                    liveColors = Object.assign({}, preset.colors);
-                    saveCoreColors(liveColors);
-                    try {
-                        localStorage.setItem(EBC_PRESET_KEY, presetSel.value);
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    syncAllPickers(liveColors);
-                    this.injectStyles();
-                    this.rerender();
-                });
-                const resetBtn = document.createElement("button");
-                resetBtn.textContent = t("dev.resetTheme");
-                resetBtn.title = "Reset to default theme";
-                resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid var(--ebc-border-light);border-radius:4px;color:var(--ebc-text-muted);cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;";
-                resetBtn.addEventListener("click", () => {
-                    liveColors = Object.assign({}, DEFAULT_COLORS);
-                    saveCoreColors(liveColors);
-                    try {
-                        localStorage.setItem(EBC_PRESET_KEY, "rose");
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    syncAllPickers(liveColors);
-                    presetSel.value = "rose";
-                    this.injectStyles();
-                    this.rerender();
-                });
-                presetRow.appendChild(presetLbl);
-                presetRow.appendChild(presetSel);
-                presetRow.appendChild(resetBtn);
-                cnt.appendChild(presetRow);
-                // ── Per-colour pickers (grouped) ───────────────────────────────────
-                // Three groups of three so it's obvious what each slot does.
-                const colorGroups = [
-                    {
-                        header: t("theme.groupBg"),
-                        fields: [
-                            { key: "bg", label: t("theme.panelBg"), hint: "Main drawer background — the darkest layer behind everything" },
-                            { key: "card", label: t("theme.cardBg"), hint: "Section & card backgrounds — the boxes containing content" },
-                            { key: "cardMuted", label: t("theme.inputBg"), hint: "Text fields, dropdowns & recessed surfaces" },
-                        ],
-                    },
-                    {
-                        header: t("theme.groupAccent"),
-                        fields: [
-                            { key: "accent", label: t("theme.buttons"), hint: "Active buttons, tab highlights & selected states" },
-                            { key: "border", label: t("theme.borders"), hint: "All dividing lines & card outlines" },
-                            { key: "gold", label: t("theme.gold"), hint: "Special labels, notices & gold-tinted accents" },
-                        ],
-                    },
-                    {
-                        header: t("theme.groupText"),
-                        fields: [
-                            { key: "textBright", label: t("theme.mainText"), hint: "Primary readable text — headings & body content" },
-                            { key: "textSub", label: t("theme.labelText"), hint: "Secondary labels & sub-headings" },
-                            { key: "textMuted", label: t("theme.dimText"), hint: "Placeholders, inactive & muted items" },
-                        ],
-                    },
-                ];
-                const subLbl = document.createElement("div");
-                subLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;";
-                subLbl.textContent = t("dev.colourSlots");
-                cnt.appendChild(subLbl);
-                for (const group of colorGroups) {
-                    const grpHdr = document.createElement("div");
-                    grpHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;letter-spacing:0.07em;color:#7a5a6a;margin:8px 0 4px;text-transform:uppercase;";
-                    grpHdr.textContent = group.header;
-                    cnt.appendChild(grpHdr);
-                    const grid = document.createElement("div");
-                    grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:2px;";
-                    for (const { key, label, hint } of group.fields) {
-                        const cell = document.createElement("div");
-                        cell.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px 5px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:5px;";
-                        const picker = document.createElement("input");
-                        picker.type = "color";
-                        picker.value = liveColors[key];
-                        picker.title = hint;
-                        picker.style.cssText = "width:28px;height:22px;padding:0;border:1px solid #4c2537;border-radius:3px;background:transparent;cursor:pointer;";
-                        const lbl = document.createElement("span");
-                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:var(--ebc-text-sub);text-align:center;line-height:1.3;";
-                        lbl.textContent = label;
-                        picker.addEventListener("input", () => {
-                            liveColors = Object.assign(Object.assign({}, liveColors), { [key]: picker.value });
-                            saveCoreColors(liveColors);
-                            try {
-                                localStorage.removeItem(EBC_PRESET_KEY);
-                            }
-                            catch ( /* ignore */_a) { /* ignore */ }
-                            if (presetSel)
-                                presetSel.value = "";
-                            this.injectStyles();
-                            // Repaint inline styles and panel bg so live changes are visible instantly
-                            this.repaintTheme();
-                            this.applyPanelOpacity();
-                        });
-                        // Register a syncer so preset/reset can update this picker's displayed value
-                        pickerSyncers.push((c) => { picker.value = c[key]; });
-                        cell.appendChild(picker);
-                        cell.appendChild(lbl);
-                        grid.appendChild(cell);
-                    }
-                    cnt.appendChild(grid);
-                }
                 // ── Tab visibility ─────────────────────────────────────────────────
                 const tabVisLbl = document.createElement("div");
                 tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
@@ -25272,7 +25118,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (tabId === "dev") {
                         const chip = document.createElement("button");
                         chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
-                        chip.textContent = ((_b = EBC_TAB_LABELS[tabId]) !== null && _b !== void 0 ? _b : "DEV") + " 🔒";
+                        chip.textContent = ((_a = EBC_TAB_LABELS[tabId]) !== null && _a !== void 0 ? _a : "DEV") + " 🔒";
                         chip.title = t("dev.devTabLocked");
                         chip.disabled = true;
                         tabVisGrid.appendChild(chip);
@@ -25281,7 +25127,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     const isVisible = !hiddenTabs.includes(tabId);
                     const chip = document.createElement("button");
                     chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
-                    chip.textContent = (_c = EBC_TAB_LABELS[tabId]) !== null && _c !== void 0 ? _c : tabId.toUpperCase();
+                    chip.textContent = (_b = EBC_TAB_LABELS[tabId]) !== null && _b !== void 0 ? _b : tabId.toUpperCase();
                     chip.dataset["tabId"] = tabId;
                     chip.addEventListener("click", () => {
                         const cur = getHiddenTabs();
@@ -31913,7 +31759,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.6.8";
+    const MOD_VERSION = "3.6.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31924,6 +31770,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.6.9",
+            changes: [
+                "Canvas paw: gap above name now equals paw size (min 8 px) instead of half paw size — keeps a full paw-height of clearance at all zoom levels so the paw no longer sinks into the name with 5+ players.",
+                "Dev tab: removed Quick Preset and per-colour picker section (was unreliable).",
+            ],
+        },
         {
             version: "3.6.5",
             changes: [
@@ -36406,11 +36259,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 //
                 // BC bottom-aligns characters: feet stay near canvas Y=1000 while the character
                 // shrinks upward as more players join. The name is at approximately
-                // top + 975*zoom. The gap "- 8*zoom" was too small at low zoom (→ 2px when
-                // 5+ players joined), causing the paw to merge into the name. Using a minimum
-                // gap of 8px ensures a consistently visible separation at every room size.
+                // top + 975*zoom. Using gap = sz (= paw size) keeps a full paw-height of
+                // clearance at every zoom level (12px at min zoom, 20px at zoom=1) so the
+                // paw never sinks into the name regardless of how many players are in the room.
                 const sz = Math.max(12, Math.round(20 * zoom));
-                const gap = Math.max(8, Math.round(sz * 0.5)); // ≥8px gap below paw to name
+                const gap = Math.max(8, sz); // gap = paw size → consistent clearance at all zoom levels
                 const px = Math.floor(left + 250 * zoom - sz / 2);
                 const py = Math.floor(top + 975 * zoom - sz - gap);
                 _pawCtx.save();
