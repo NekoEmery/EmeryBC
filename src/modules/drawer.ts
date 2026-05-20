@@ -2506,6 +2506,9 @@ const CSS = `
     font-size: 10px;
     font-family: "Trebuchet MS", serif;
     white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: background 0.14s, color 0.14s, border-color 0.14s;
 }
 .ebc-reset-loc-btn:hover { background: #4c2537; color: #f7e6ee; border-color: #cf6f98; }
@@ -2958,16 +2961,16 @@ const CSS = `
 .ebc-guide-nav-next:hover { background: #e080aa; border-color: #e080aa; }
 .ebc-guide-btn {
     background: none;
-    border: 1px solid #3a1928;
+    border: 1px solid #7a3858;
     border-radius: 4px;
-    color: #9a7888;
+    color: #cf6f98;
     font-size: 11px;
     padding: 3px 7px;
     cursor: pointer;
     font-family: "Trebuchet MS", serif;
     transition: border-color 0.12s, color 0.12s;
 }
-.ebc-guide-btn:hover { border-color: #cf6f98; color: #cf6f98; }
+.ebc-guide-btn:hover { border-color: #e080aa; color: #e080aa; }
 .ebc-guide-action-btn {
     width: 100%;
     background: #2e0e22;
@@ -17380,6 +17383,74 @@ export class EBCDrawer {
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        // ── Creator card (above "Special Thanks") ─────────────────────────────
+        const madeLbl = document.createElement("div");
+        madeLbl.className = "ebc-section-label";
+        madeLbl.textContent = t("credits.madeBy");
+        body.appendChild(madeLbl);
+
+        const creatorPerson = {
+            emoji: "🐾",
+            name: "Emery",
+            memberId: 130267,
+            reason: t("credits.emery"),
+            heart: "🐾",
+        };
+        (() => {
+            const p = creatorPerson;
+            const card = document.createElement("div");
+            card.className = "ebc-thanks-card";
+            card.style.borderLeft = "4px solid #c89030";
+
+            const avatar = document.createElement("div");
+            avatar.className = "ebc-thanks-avatar";
+            if (EBCDrawer.pawDataUri) {
+                const pawImg = document.createElement("img");
+                pawImg.src = EBCDrawer.pawDataUri;
+                pawImg.className = "ebc-creator-paw-img";
+                pawImg.alt = "🐾";
+                avatar.appendChild(pawImg);
+            } else {
+                avatar.textContent = p.emoji;
+            }
+            card.appendChild(avatar);
+
+            const info = document.createElement("div");
+            info.className = "ebc-thanks-info";
+
+            const nameRow = document.createElement("div");
+            nameRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+
+            const namEl = document.createElement("span");
+            namEl.className = "ebc-thanks-name";
+            namEl.textContent = p.name;
+            const vipCredit = VIP_MEMBERS[p.memberId];
+            if (vipCredit) applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
+            nameRow.appendChild(namEl);
+
+            const idEl = document.createElement("span");
+            idEl.className = "ebc-member-chip";
+            idEl.textContent = "#" + p.memberId;
+            idEl.title = "BC Member Number";
+            nameRow.appendChild(idEl);
+
+            const reason = document.createElement("span");
+            reason.className = "ebc-thanks-reason";
+            reason.textContent = p.reason;
+
+            info.appendChild(nameRow);
+            info.appendChild(reason);
+            card.appendChild(info);
+
+            const heart = document.createElement("span");
+            heart.className = "ebc-thanks-heart";
+            heart.textContent = p.heart;
+            card.appendChild(heart);
+
+            body.appendChild(card);
+        })();
+
+        // ── Special Thanks section ─────────────────────────────────────────────
         const credLbl = document.createElement("div");
         credLbl.className = "ebc-section-label";
         credLbl.textContent = t("credits.specialThanks");
@@ -17395,13 +17466,6 @@ export class EBCDrawer {
         body.appendChild(intro);
 
         const people = [
-            {
-                emoji: "🐾",
-                name: "Emery",
-                memberId: 130267,
-                reason: t("credits.emery"),
-                heart: "🐾",
-            },
             {
                 emoji: "🎀",
                 name: "Sin",
@@ -17436,21 +17500,10 @@ export class EBCDrawer {
             const card = document.createElement("div");
             card.className = "ebc-thanks-card";
 
-            const isPawCard = p.memberId === 130267;
-            if (isPawCard) card.style.borderLeft = "4px solid #c89030";
-
-            // Avatar circle — paw PNG for creator, emoji for everyone else
+            // Avatar circle
             const avatar = document.createElement("div");
             avatar.className = "ebc-thanks-avatar";
-            if (isPawCard && EBCDrawer.pawDataUri) {
-                const pawImg = document.createElement("img");
-                pawImg.src = EBCDrawer.pawDataUri;
-                pawImg.className = "ebc-creator-paw-img";
-                pawImg.alt = "🐾";
-                avatar.appendChild(pawImg);
-            } else {
-                avatar.textContent = p.emoji;
-            }
+            avatar.textContent = p.emoji;
             card.appendChild(avatar);
 
             const info = document.createElement("div");
