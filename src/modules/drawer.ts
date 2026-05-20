@@ -4293,15 +4293,26 @@ export class EBCDrawer {
         const styleRow = document.createElement("div");
         styleRow.style.cssText = "display:flex;gap:5px;margin-bottom:7px;";
 
-        const makeStyleBtn = (styleName: BadgeStyle, icon: string, labelText: string): HTMLButtonElement => {
+        const EBC_SVG_14 = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 90 90" style="flex-shrink:0;vertical-align:middle"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
+
+        // iconHtml: raw HTML string for the icon (emoji or SVG); labelText: plain text label.
+        // Content is built once with DOM elements; refresh() only updates colours/borders.
+        const makeStyleBtn = (styleName: BadgeStyle, iconHtml: string, labelText: string): HTMLButtonElement => {
             const btn = document.createElement("button");
-            btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;";
+            btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;display:inline-flex;align-items:center;justify-content:center;gap:5px;";
+            // Build content once — innerHTML so SVG works; label as safe text node
+            const iconWrap = document.createElement("span");
+            iconWrap.style.cssText = "line-height:0;flex-shrink:0;";
+            iconWrap.innerHTML = iconHtml;
+            const textNode = document.createElement("span");
+            textNode.textContent = labelText;
+            btn.appendChild(iconWrap);
+            btn.appendChild(textNode);
             const refresh = (): void => {
                 const active = getBadgeStyle() === styleName;
-                btn.style.background    = active ? "#2e1020" : "#150a10";
-                btn.style.border        = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                btn.style.color         = active ? "#f0c0d8" : "#7a4a60";
-                btn.textContent         = `${icon} ${labelText}`;
+                btn.style.background = active ? "#2e1020" : "#150a10";
+                btn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                btn.style.color      = active ? "#f0c0d8" : "#7a4a60";
             };
             refresh();
             btn.addEventListener("click", () => {
@@ -4313,7 +4324,7 @@ export class EBCDrawer {
 
         const styleBtns: [HTMLButtonElement, () => void][] = [];
         const textBtn = makeStyleBtn("text", "🏷", "Text");
-        const catBtn  = makeStyleBtn("cat",  "🐱", "Cat");
+        const catBtn  = makeStyleBtn("cat",  EBC_SVG_14, "Cat");
         const refreshTextBtn = (): void => {
             const active = getBadgeStyle() === "text";
             textBtn.style.background = active ? "#2e1020" : "#150a10";
