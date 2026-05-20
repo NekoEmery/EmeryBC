@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "2.9.4";
+const MOD_VERSION = "2.9.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "2.9.5",
+        changes: [
+            "Fix: drawer icon could vanish entirely (requiring opening wardrobe/profile to recover). Root cause: the chatroom branch of updateVisibility() only set display:block when syncToChat() succeeded — if BC temporarily zeroed or removed TextAreaChatLog during a screen transition the root stayed hidden indefinitely. Fix: visibility is now always restored immediately; syncToChat() is used for positioning only. A 200 ms heartbeat in the CRABS poller additionally restores the root within one tick if any external code hides it again.",
+        ],
+    },
     {
         version: "2.9.4",
         changes: [
