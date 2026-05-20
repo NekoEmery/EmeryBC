@@ -111,22 +111,42 @@ export function applyPoses(poses: string[]): void {
 }
 
 // Apply poses one-by-one in the given order with a delay between each step.
-// Respects the exact order provided — the user controls sequencing via the editor.
-// e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
+// Each entry in `poses` is one step:
+//   - a body-pose key ("Kneel", "AllFours", …) → replaces the body slot
+//   - an arm-pose key ("BackBoxTie", "Yoked", …) → replaces the arm slot
+//   - ""  (Relaxed marker)                       → clears the arm slot
+// State is cumulative: every step passes the full [body?, arm?] snapshot to
+// applyPoses, so the animation builds up correctly regardless of which steps
+// include a Relaxed ("") entry.
 export function applyPosesSequential(poses: string[], stepDelayMs = 420): void {
-    // Preserve empty strings — applyPoses handles the "Relaxed arms" case.
     const safeList = Array.isArray(poses) ? poses : [];
-    const wantsRelaxed = safeList.includes("");
-    const steps = safeList.filter(Boolean);
+    if (safeList.length === 0) { applyPoses([]); return; }
+
+    // Build a concrete pose-state snapshot for each step.
+    let bodyPose: string | null = null;
+    let armPose:  string | null = null;
+    const steps: string[][] = [];
+
+    for (const p of safeList) {
+        if (p === "") {
+            armPose = null;            // Relaxed: clear arm slot
+        } else if (ARM_POSES.includes(p)) {
+            armPose = p;               // replace arm pose
+        } else {
+            bodyPose = p;              // replace body pose
+        }
+        steps.push([
+            ...(bodyPose !== null ? [bodyPose] : []),
+            ...(armPose  !== null ? [armPose]  : []),
+        ]);
+    }
+
     if (steps.length <= 1) {
-        // Pass original list so applyPoses sees the empty-string Relaxed marker.
-        applyPoses(wantsRelaxed ? [...steps, ""] : steps);
+        applyPoses(steps[0] ?? []);
         return;
     }
     for (let i = 0; i < steps.length; i++) {
-        const subset = steps.slice(0, i + 1);
-        // On each step include the Relaxed marker if needed so arm pose is cleared.
-        window.setTimeout(() => applyPoses(wantsRelaxed ? [...subset, ""] : subset), i * stepDelayMs);
+        window.setTimeout(() => applyPoses(steps[i]), i * stepDelayMs);
     }
 }
 

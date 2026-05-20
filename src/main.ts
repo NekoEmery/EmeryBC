@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.7.5";
+const MOD_VERSION = "3.7.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.7.6",
+        changes: [
+            "Fix: pose combos with a Relaxed step now work correctly. Root cause: applyPosesSequential was stripping all arm poses from every step whenever any '' entry appeared in the list, so a combo like [Kneel, BackBoxTie, ''] would end up applying only Kneel. Rewrote the function to track a cumulative body+arm state per step so '' just clears the arm slot at that point without affecting other steps.",
+        ],
+    },
     {
         version: "3.7.5",
         changes: [
