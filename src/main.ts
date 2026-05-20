@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.3.4";
+const MOD_VERSION = "3.3.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.3.5",
+        changes: [
+            "Guide overlay: text area now has max-height 110px with a thin scrollbar, so the card never covers more than a fixed strip at the bottom — the menu behind it stays visible.",
+            "Guide spotlight: whenever the guide is on a step for a specific tab, that tab button pulses with a glowing pink outline so you know exactly where to look. Slow Leave step also spotlights the Useful Buttons header and the Slow Leave button; Poses step spotlights the + New combo button.",
+        ],
+    },
     {
         version: "3.3.4",
         changes: [

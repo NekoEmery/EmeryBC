@@ -15595,6 +15595,25 @@
     font-size: 11px;
     color: #e0c8d8;
     line-height: 1.65;
+    max-height: 110px;
+    overflow-y: auto;
+    padding-right: 3px;
+}
+.ebc-guide-text::-webkit-scrollbar { width: 3px; }
+.ebc-guide-text::-webkit-scrollbar-track { background: transparent; }
+.ebc-guide-text::-webkit-scrollbar-thumb { background: #4c2537; border-radius: 2px; }
+/* Spotlight: pulsing outline placed on UI elements the guide is currently describing */
+@keyframes ebc-guide-spot-pulse {
+    0%,100% { box-shadow: 0 0 0 2px rgba(207,111,152,0.2), 0 0 0px rgba(207,111,152,0); }
+    50%     { box-shadow: 0 0 0 3px rgba(207,111,152,0.7), 0 0 14px rgba(207,111,152,0.3); }
+}
+.ebc-guide-spotlight {
+    outline: 2px solid rgba(207,111,152,0.85) !important;
+    outline-offset: 2px;
+    border-radius: 4px;
+    animation: ebc-guide-spot-pulse 1.5s ease-in-out infinite;
+    position: relative;
+    z-index: 2;
 }
 .ebc-guide-nav {
     display: flex;
@@ -17392,6 +17411,9 @@
             }
         }
         renderGuideStep() {
+            var _a, _b;
+            // Clear spotlights from the previous step before building the new one
+            this.clearGuideSpotlights();
             const card = this.guideEl;
             if (!card)
                 return;
@@ -17459,10 +17481,39 @@
             nav.appendChild(dots);
             nav.appendChild(nextBtn);
             card.appendChild(nav);
+            // ── Spotlight UI elements this step is describing ─────────────────────
+            // Tab button: whenever the guide is on a tab-specific step, glow the tab
+            if (step.tab) {
+                const tabIdMap = { anims: "poses" };
+                const tabBtnId = (_a = tabIdMap[step.tab]) !== null && _a !== void 0 ? _a : step.tab;
+                // Delay slightly so the tab re-render finishes before we add the class
+                window.setTimeout(() => this.spotlightEl(`#ebc-tab-${tabBtnId}`), 60);
+            }
+            // Additional per-step element spotlights
+            if ((_b = step.spotlight) === null || _b === void 0 ? void 0 : _b.length) {
+                window.setTimeout(() => {
+                    for (const sel of step.spotlight)
+                        this.spotlightEl(sel);
+                }, 80);
+            }
         }
         closeGuide() {
+            this.clearGuideSpotlights();
             if (this.guideEl)
                 this.guideEl.style.display = "none";
+        }
+        clearGuideSpotlights() {
+            var _a;
+            (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelectorAll(".ebc-guide-spotlight").forEach(el => el.classList.remove("ebc-guide-spotlight"));
+        }
+        spotlightEl(selector) {
+            var _a;
+            try {
+                const el = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector(selector);
+                if (el)
+                    el.classList.add("ebc-guide-spotlight");
+            }
+            catch ( /* ignore invalid selector */_b) { /* ignore invalid selector */ }
         }
         // -- Tab switching ---------------------------------------------------------
         stopDevLogPoller() {
@@ -21234,6 +21285,7 @@
             const newComboToggle = document.createElement("button");
             newComboToggle.className = "ebc-new-outfit-btn";
             newComboToggle.textContent = t("anims.newCombo");
+            newComboToggle.dataset.guideTarget = "btn-new-combo";
             combosCnt.appendChild(newComboToggle);
             const newComboForm = document.createElement("div");
             newComboForm.className = "ebc-new-form";
@@ -27399,6 +27451,7 @@
             usefulLbl.className = "ebc-section-label";
             usefulLbl.style.marginTop = "10px";
             usefulLbl.textContent = t("buttons.usefulButtons");
+            usefulLbl.dataset.guideTarget = "section-useful-btns";
             body.appendChild(usefulLbl);
             const oocBtn = document.createElement("button");
             oocBtn.className = "ebc-create-btn";
@@ -27448,6 +27501,7 @@
             const seqRunning = isSeqRunning();
             slLeaveBtn.textContent = seqRunning ? t("sl.cancel") : t("sl.leave");
             slLeaveBtn.title = t("sl.leaveTitle");
+            slLeaveBtn.dataset.guideTarget = "btn-slow-leave";
             if (seqRunning) {
                 slLeaveBtn.style.background = "#4a1a2a";
                 slLeaveBtn.style.color = "#ff8aaa";
@@ -31387,11 +31441,13 @@
             tab: "buttons",
             label: "🚶 Slow Leave",
             text: "[[Slow Leave]] is in the [[Useful Buttons]] section — it sends a scripted departure sequence to the room before you leave, so it feels natural and in-character.\nClick the [[Slow Leave]] button to start the sequence.\nExpand the [[▶ Slow Leave]] accordion below the button to customise:\n  • [[Preset]] — pick a pre-written departure style\n  • [[Sequence]] — the text sent to the room\n  • [[Duration]] — time (in seconds) between messages",
+            spotlight: ["[data-guide-target='section-useful-btns']", "[data-guide-target='btn-slow-leave']"],
         },
         {
             tab: "anims",
             label: "🎭 Poses & Animations",
             text: "Pose combos chain multiple pose changes together with delays — perfect for transition animations or emote sequences.\nClick [[+ New combo]] to create one, add steps with poses or emotes, then assign a [[/command]] name.\nType [[/yourcommand]] directly in the BC chat box to trigger it — no need to open the menu.\n((Combos can mix [[Pose]] steps and [[Emote]] steps so messages appear alongside pose changes.))",
+            spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "notes",
@@ -31445,7 +31501,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.4";
+    const MOD_VERSION = "3.3.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31456,6 +31512,13 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.5",
+            changes: [
+                "Guide overlay: text area now has max-height 110px with a thin scrollbar, so the card never covers more than a fixed strip at the bottom — the menu behind it stays visible.",
+                "Guide spotlight: whenever the guide is on a step for a specific tab, that tab button pulses with a glowing pink outline so you know exactly where to look. Slow Leave step also spotlights the Useful Buttons header and the Slow Leave button; Poses step spotlights the + New combo button.",
+            ],
+        },
         {
             version: "3.3.4",
             changes: [
