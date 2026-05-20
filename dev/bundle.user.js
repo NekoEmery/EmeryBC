@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.9.6
+// @version      2.9.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13107,12 +13107,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     padding: 5px 8px;
     border-bottom: 1px solid #2a1020;
     background: rgba(15, 6, 12, 0.4);
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none; /* Firefox */
-    touch-action: pan-x;
+    flex-wrap: wrap;
 }
-.ebc-lang-row::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
 /* -- Body -- */
 .ebc-body {
@@ -30774,7 +30770,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.9.6";
+    const MOD_VERSION = "2.9.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30785,6 +30781,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.9.7",
+            changes: [
+                "Fix: Japanese language pill was hidden — the language row used flex-wrap:nowrap so the 7th pill overflowed off-screen with no visible scrollbar. Row now wraps to a second line when all pills don't fit.",
+            ],
+        },
         {
             version: "2.9.6",
             changes: [
