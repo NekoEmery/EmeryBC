@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.1.2";
+const MOD_VERSION = "3.1.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.1.3",
+        changes: [
+            "Fix: Relaxed arm pose now works in pose combos and scenes. Three bugs fixed: (1) Relaxed button was hidden in the combo step quick-add grid; (2) getPoses() was stripping the empty-string Relaxed marker before saving; (3) the scene step Arms dropdown onChange was also filtering it out with filter(Boolean).",
+        ],
+    },
     {
         version: "3.1.2",
         changes: [

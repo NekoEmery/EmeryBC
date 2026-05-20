@@ -8218,7 +8218,9 @@ export class EBCDrawer {
                 const btnRow = document.createElement("div");
                 btnRow.className = "ebc-pose-add-grid";
                 for (const p of group.poses) {
-                    if (!p.key) continue;
+                    // Body: skip empty key (Stand = clear all, not a useful combo step)
+                    // Arms: keep empty key — it's "Relaxed", a valid step
+                    if (!p.key && group.group !== "Arms") continue;
                     const btn = document.createElement("button");
                     btn.className = "ebc-pose-add-btn";
                     btn.textContent = `+ ${p.label}`;
@@ -8233,7 +8235,7 @@ export class EBCDrawer {
             parent.appendChild(delayRowEl);
 
             return {
-                getPoses: () => poses.filter(Boolean),
+                getPoses: () => [...poses], // keep "" (Relaxed) — applyPoses handles it
                 getDelay: () => Number(delayInp.value),
             };
         };
@@ -8953,7 +8955,8 @@ export class EBCDrawer {
                         sel.addEventListener("change", () => {
                             const bKey = (fieldsEl.querySelector("[data-axis='body']") as HTMLSelectElement | null)?.value ?? "";
                             const aKey = (fieldsEl.querySelector("[data-axis='arms']") as HTMLSelectElement | null)?.value ?? "";
-                            posePoses = [bKey, aKey].filter(Boolean);
+                            // Keep "" for arms (Relaxed) — applyPoses strips arm poses when it sees ""
+                            posePoses = [bKey, aKey];
                         });
                         wrap.appendChild(lbl);
                         wrap.appendChild(sel);
