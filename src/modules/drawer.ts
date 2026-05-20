@@ -88,7 +88,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintWhitelist, addToAntiRestraintWhitelist, removeFromAntiRestraintWhitelist, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, resetBadgePosition } from "./settings";
 import { snapshotPlayerRestraints, getItemKey, getItemDisplayName } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -639,14 +639,27 @@ const CSS = `
     overscroll-behavior: contain;
 }
 
+/* -- EBC tags strip body (scrollable, capped height so footer stays visible) -- */
+.ebc-tags-body {
+    max-height: 210px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cf6f98 #1a0814;
+}
+
 /* Unified scrollbar theme for all EBC scrollable areas */
 .ebc-body::-webkit-scrollbar,
+.ebc-tags-body::-webkit-scrollbar,
 .ebc-beep-win-history::-webkit-scrollbar { width: 5px; }
 .ebc-body::-webkit-scrollbar-track,
+.ebc-tags-body::-webkit-scrollbar-track,
 .ebc-beep-win-history::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb,
+.ebc-tags-body::-webkit-scrollbar-thumb,
 .ebc-beep-win-history::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb:hover,
+.ebc-tags-body::-webkit-scrollbar-thumb:hover,
 .ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
@@ -4196,8 +4209,9 @@ export class EBCDrawer {
         ebcTagsHdr.appendChild(ebcTagsChev);
         ebcTagsStrip.appendChild(ebcTagsHdr);
 
-        // Body
+        // Body — capped height so footer is never pushed off-screen
         const ebcTagsBody = document.createElement("div");
+        ebcTagsBody.className = "ebc-tags-body";
         ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
 
         // Description line
@@ -4292,61 +4306,63 @@ export class EBCDrawer {
         badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
         ebcTagsBody.appendChild(badgeAppLbl);
 
-        // ── Style picker: Text | Cat ─────────────────────────────────────────
-        const styleRow = document.createElement("div");
-        styleRow.style.cssText = "display:flex;gap:5px;margin-bottom:7px;";
-
+        // ── Style picker: Text | Cat (shared helper) ─────────────────────────
         const EBC_SVG_14 = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 90 90" style="flex-shrink:0;vertical-align:middle"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
 
-        // iconHtml: raw HTML string for the icon (emoji or SVG); labelText: plain text label.
-        // Content is built once with DOM elements; refresh() only updates colours/borders.
-        const makeStyleBtn = (styleName: BadgeStyle, iconHtml: string, labelText: string): HTMLButtonElement => {
-            const btn = document.createElement("button");
-            btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;display:inline-flex;align-items:center;justify-content:center;gap:5px;";
-            // Build content once — innerHTML so SVG works; label as safe text node
-            const iconWrap = document.createElement("span");
-            iconWrap.style.cssText = "line-height:0;flex-shrink:0;";
-            iconWrap.innerHTML = iconHtml;
-            const textNode = document.createElement("span");
-            textNode.textContent = labelText;
-            btn.appendChild(iconWrap);
-            btn.appendChild(textNode);
-            const refresh = (): void => {
-                const active = getBadgeStyle() === styleName;
-                btn.style.background = active ? "#2e1020" : "#150a10";
-                btn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                btn.style.color      = active ? "#f0c0d8" : "#7a4a60";
+        // Builds a Text|Cat row and appends it to the given parent.
+        // getter/setter allow the same helper to drive both "mine" and "others'" rows.
+        const buildStyleRow = (
+            getter: () => BadgeStyle,
+            setter: (v: BadgeStyle) => void,
+        ): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
+
+            const makeBtn = (styleName: BadgeStyle, iconHtml: string, labelText: string): HTMLButtonElement => {
+                const btn = document.createElement("button");
+                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;display:inline-flex;align-items:center;justify-content:center;gap:5px;";
+                const iconWrap = document.createElement("span");
+                iconWrap.style.cssText = "line-height:0;flex-shrink:0;";
+                iconWrap.innerHTML = iconHtml;
+                const txtNode = document.createElement("span");
+                txtNode.textContent = labelText;
+                btn.appendChild(iconWrap);
+                btn.appendChild(txtNode);
+                const refresh = (): void => {
+                    const active = getter() === styleName;
+                    btn.style.background = active ? "#2e1020" : "#150a10";
+                    btn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                    btn.style.color      = active ? "#f0c0d8" : "#7a4a60";
+                };
+                refresh();
+                btn.addEventListener("click", () => {
+                    setter(styleName);
+                    // Refresh both buttons in this row
+                    row.querySelectorAll<HTMLButtonElement>("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                    refresh();
+                });
+                btn.addEventListener("ebc-refresh", refresh);
+                return btn;
             };
-            refresh();
-            btn.addEventListener("click", () => {
-                setBadgeStyle(styleName);
-                styleBtns.forEach(([, r]) => r());
-            });
-            return btn;
+
+            row.appendChild(makeBtn("text", "🏷", "Text"));
+            row.appendChild(makeBtn("cat",  EBC_SVG_14, "Cat"));
+            ebcTagsBody.appendChild(row);
         };
 
-        const styleBtns: [HTMLButtonElement, () => void][] = [];
-        const textBtn = makeStyleBtn("text", "🏷", "Text");
-        const catBtn  = makeStyleBtn("cat",  EBC_SVG_14, "Cat");
-        const refreshTextBtn = (): void => {
-            const active = getBadgeStyle() === "text";
-            textBtn.style.background = active ? "#2e1020" : "#150a10";
-            textBtn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
-            textBtn.style.color      = active ? "#f0c0d8" : "#7a4a60";
-        };
-        const refreshCatBtn = (): void => {
-            const active = getBadgeStyle() === "cat";
-            catBtn.style.background = active ? "#2e1020" : "#150a10";
-            catBtn.style.border     = `1px solid ${active ? "#8a3458" : "#321220"}`;
-            catBtn.style.color      = active ? "#f0c0d8" : "#7a4a60";
-        };
-        styleBtns.push([textBtn, refreshTextBtn], [catBtn, refreshCatBtn]);
-        textBtn.addEventListener("click", () => { setBadgeStyle("text"); refreshTextBtn(); refreshCatBtn(); });
-        catBtn.addEventListener("click",  () => { setBadgeStyle("cat");  refreshTextBtn(); refreshCatBtn(); });
-        refreshTextBtn(); refreshCatBtn();
-        styleRow.appendChild(textBtn);
-        styleRow.appendChild(catBtn);
-        ebcTagsBody.appendChild(styleRow);
+        // "Mine:" label
+        const myStyleLbl = document.createElement("div");
+        myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
+        myStyleLbl.textContent = t("strip.myStyle");
+        ebcTagsBody.appendChild(myStyleLbl);
+        buildStyleRow(getBadgeStyle, setBadgeStyle);
+
+        // "Others':" label
+        const othersStyleLbl = document.createElement("div");
+        othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
+        othersStyleLbl.textContent = t("strip.othersStyle");
+        ebcTagsBody.appendChild(othersStyleLbl);
+        buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
 
         // ── Scale slider ─────────────────────────────────────────────────────
         const scaleRow = document.createElement("div");

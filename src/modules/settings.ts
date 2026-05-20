@@ -359,7 +359,7 @@ export function clearPeopleMet(): void {
 
 // -- Badge style ---------------------------------------------------------------
 // "text": the classic EBC rectangle badge
-// "cat":  a cat-face emoji drawn directly on the canvas at the badge position
+// "cat":  a cat-face SVG icon drawn on the canvas at the badge position
 
 export type BadgeStyle = "text" | "cat";
 
@@ -368,6 +368,17 @@ export function getBadgeStyle(): BadgeStyle {
 }
 export function setBadgeStyle(v: BadgeStyle): void {
     try { const s = getStore(); if (s) { s.badgeStyle = v; syncSettings(); } } catch { /* ignore */ }
+}
+
+// -- Others' badge style -------------------------------------------------------
+// Client-side only: controls which badge style is drawn for OTHER players' badges
+// on your screen. Independent from your own badge style. Defaults to "text".
+
+export function getOthersBadgeStyle(): BadgeStyle {
+    try { return getStore()?.othersBadgeStyle === "cat" ? "cat" : "text"; } catch { return "text"; }
+}
+export function setOthersBadgeStyle(v: BadgeStyle): void {
+    try { const s = getStore(); if (s) { s.othersBadgeStyle = v; syncSettings(); } } catch { /* ignore */ }
 }
 
 // -- Badge scale ---------------------------------------------------------------
