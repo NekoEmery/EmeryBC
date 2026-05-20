@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.9.3
+// @version      2.9.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1866,6 +1866,29 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const s = getStore$7();
             if (s) {
                 s.badgeScale = Math.max(0.3, Math.min(4, v));
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Badge opacity -------------------------------------------------------------
+    // Controls how transparent the overhead badge is. 1.0 = fully opaque, 0.1 = nearly invisible.
+    // Range: 0.1 – 1.0. Default: 1.0.
+    function getBadgeOpacity() {
+        var _a;
+        try {
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeOpacity;
+            return typeof v === "number" && v >= 0.1 && v <= 1 ? v : 1.0;
+        }
+        catch (_b) {
+            return 1.0;
+        }
+    }
+    function setBadgeOpacity(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.badgeOpacity = Math.max(0.1, Math.min(1, v));
                 syncSettings();
             }
         }
@@ -12487,6 +12510,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "strip.othersSub": { en: "EBC tags above other players' heads", de: "EBC-Etiketten über anderen Spielerköpfen", zh: "其他玩家头顶上方的 EBC 标签", fr: "Tags EBC au-dessus des têtes des autres joueurs", es: "Tags EBC sobre las cabezas de otros jugadores", ru: "EBC-теги над головами других игроков", ja: "他プレイヤーの頭上のEBCタグ" },
         "strip.badgeAppearance": { en: "BADGE APPEARANCE", de: "ABZEICHEN-AUSSEHEN", zh: "徽标外观", fr: "APPARENCE DU BADGE", es: "APARIENCIA DE LA INSIGNIA", ru: "ВНЕШНИЙ ВИД ЗНАЧКА", ja: "バッジ外観" },
         "strip.scale": { en: "Scale", de: "Größe", zh: "缩放", fr: "Taille", es: "Tamaño", ru: "Размер", ja: "スケール" },
+        "strip.opacity": { en: "Opacity", de: "Deckkraft", zh: "不透明度", fr: "Opacité", es: "Opacidad", ru: "Прозрачность", ja: "不透明度" },
         "strip.dragHint": { en: "Drag badge on your character to reposition for everyone", de: "Abzeichen auf deinen Charakter ziehen, um es für alle neu zu positionieren", zh: "在你的角色上拖动徽标以为所有人重新定位", fr: "Faire glisser le badge sur votre personnage pour le repositionner pour tous", es: "Arrastra la insignia en tu personaje para reposicionarla para todos", ru: "Перетащите значок на вашего персонажа, чтобы переместить его для всех", ja: "キャラクター上でバッジをドラッグして全員の位置を変更" },
         "strip.badgePosition": { en: "📍 Position", de: "📍 Position", zh: "📍 定位", fr: "📍 Position", es: "📍 Posición", ru: "📍 Позиция", ja: "📍 位置" },
         "strip.showChev": { en: "Show ▶", de: "Zeigen ▶", zh: "显示 ▶", fr: "Afficher ▶", es: "Mostrar ▶", ru: "Показать ▶", ja: "表示 ▶" },
@@ -16562,8 +16586,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             badgeDivider.style.cssText = "height:1px;background:#2a1421;margin:8px 0 7px;";
             ebcTagsBody.appendChild(badgeDivider);
             const badgeAppLbl = document.createElement("div");
-            badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.08em;color:#9a6878;margin-bottom:6px;";
-            badgeAppLbl.textContent = t("strip.badgeAppearance");
+            badgeAppLbl.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
+            badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
             ebcTagsBody.appendChild(badgeAppLbl);
             // ── Style picker: Text | Cat ─────────────────────────────────────────
             const styleRow = document.createElement("div");
@@ -16634,11 +16658,37 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             scaleRow.appendChild(scaleSlider);
             scaleRow.appendChild(scaleVal);
             ebcTagsBody.appendChild(scaleRow);
+            // ── Opacity slider ────────────────────────────────────────────────────
+            const opacityRow = document.createElement("div");
+            opacityRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+            const opacityLbl = document.createElement("span");
+            opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
+            opacityLbl.textContent = t("strip.opacity");
+            const opacitySlider = document.createElement("input");
+            opacitySlider.type = "range";
+            opacitySlider.min = "0.1";
+            opacitySlider.max = "1";
+            opacitySlider.step = "0.05";
+            opacitySlider.value = String(getBadgeOpacity());
+            opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+            opacitySlider.title = "Badge opacity (1 = fully opaque)";
+            const opacityVal = document.createElement("span");
+            opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+            opacityVal.textContent = Math.round(getBadgeOpacity() * 100) + "%";
+            opacitySlider.addEventListener("input", () => {
+                const v = parseFloat(opacitySlider.value);
+                setBadgeOpacity(v);
+                opacityVal.textContent = Math.round(v * 100) + "%";
+            });
+            opacityRow.appendChild(opacityLbl);
+            opacityRow.appendChild(opacitySlider);
+            opacityRow.appendChild(opacityVal);
+            ebcTagsBody.appendChild(opacityRow);
             // ── Position drag row ─────────────────────────────────────────────────
             const posRow = document.createElement("div");
             posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
             const posHint = document.createElement("span");
-            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex:1;line-height:1.35;";
+            posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex:1;line-height:1.35;";
             posHint.textContent = t("strip.dragHint");
             const dragBtn = document.createElement("button");
             const refreshDragBtn = () => {
@@ -30684,7 +30734,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.9.3";
+    const MOD_VERSION = "2.9.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30695,6 +30745,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.9.4",
+            changes: [
+                "Feature: Badge opacity slider — control how transparent the overhead EBC badge is (10%–100%), stored per-character alongside scale.",
+                "UX: 'BADGE APPEARANCE' section header replaced with the EBC cat-face logo icon for a cleaner look.",
+                "UX: Drag-to-position hint text is now a more readable pink-rose colour (#c09098) instead of the hard-to-read dark muted shade it was before.",
+            ],
+        },
         {
             version: "2.9.3",
             changes: [
@@ -34680,6 +34738,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const offsetY = getBadgeOffsetY(); // default 72  (below WCE name)
         const userScale = getBadgeScale(); // default 1.0
         const badgeStyle = getBadgeStyle(); // "text" | "cat"
+        const badgeOpacity = getBadgeOpacity(); // default 1.0
         const x = left + offsetX * zoom;
         const y = top + offsetY * zoom;
         if (badgeStyle === "cat") {
@@ -34689,6 +34748,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (ctx) {
                 const fontSize = Math.max(12, Math.round(22 * zoom * userScale));
                 ctx.save();
+                ctx.globalAlpha = badgeOpacity;
                 ctx.font = `${fontSize}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
@@ -34698,6 +34758,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         else {
             // ── Text badge (original style) ───────────────────────────────────────
+            const canvas = getBCCanvas();
+            const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
             const baseW = isDevUser
                 ? (showVer ? 78 : 58)
                 : (showVer ? 50 : 34);
@@ -34706,9 +34768,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const height = Math.max(baseH * 0.6, baseH * zoom * userScale);
             const badgeLeft = x - width / 2;
             const badgeTop = y - height / 2;
+            if (ctx) {
+                ctx.save();
+                ctx.globalAlpha = badgeOpacity;
+            }
             DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
             DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
             DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
+            if (ctx)
+                ctx.restore();
         }
         // ── Drag-mode handle (own character only) ─────────────────────────────────
         if (isSelf && getBadgeDragMode()) {
