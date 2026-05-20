@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.4.4
+// @version      3.4.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -31560,7 +31560,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.4.4";
+    const MOD_VERSION = "3.4.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31571,6 +31571,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.4.5",
+            changes: [
+                "Creator mark: replaced the gold Font Awesome paw SVG with a custom 64x64 PNG (transparent background) embedded as a data URI — crisper at all zoom levels with no blob-URL async loading.",
+            ],
+        },
         {
             version: "3.4.4",
             changes: [
@@ -35804,9 +35810,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     // Trigger early load so the image is ready by the time any character renders.
     getEbcCatImg();
-    // ── EBC paw SVG image cache (creator mark) ────────────────────────────────────
-    // Font Awesome 6 "fa-paw" path, MIT licensed path data, colored gold.
-    const EBC_PAW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#ffd700" d="M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5 .3-86.2 32.6-96.8 70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3-14.3-70.1 10.2-84.1 59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5 0 46.3-30.6 88.4-76.2 92.2-17.6 1.5-34.7-3.5-53.9-9.2-15.7-4.7-32.8-9.9-51.9-9.9-19.1 0-36.2 5.2-51.9 9.9-19.2 5.7-36.3 10.7-53.9 9.2C57.6 519.6 27 477.5 27 431.2c0-10.4 1.6-20.8 5.2-30.5zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5 46.9 53.9 32.6 96.8-52.1 69.1-84.4 58.5zM421.6 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3 29.1 51.7 10.2 84.1-54 47.3-78.5 33.3z"/></svg>`;
+    // ── EBC paw image cache (creator mark) ────────────────────────────────────────
+    // Custom paw PNG — 64x64, transparent background, embedded as data URI.
+    const EBC_PAW_DATA = "data:image/png;base64,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";
     let _ebcPawImg = null;
     let _ebcPawImgReady = false;
     function getEbcPawImg() {
@@ -35814,11 +35820,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return _ebcPawImg;
         if (!_ebcPawImg) {
             try {
-                const blob = new Blob([EBC_PAW_SVG], { type: "image/svg+xml" });
-                const url = URL.createObjectURL(blob);
                 _ebcPawImg = new Image();
                 _ebcPawImg.onload = () => { _ebcPawImgReady = true; };
-                _ebcPawImg.src = url;
+                _ebcPawImg.src = EBC_PAW_DATA;
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
