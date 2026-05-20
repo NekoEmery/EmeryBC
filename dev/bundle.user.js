@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.4.1
+// @version      3.4.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -14119,6 +14119,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     height: 44px !important;
     border-color: #b07010 !important;
     background: #26180a !important;
+    overflow: hidden;
     animation: ebc-paw-ring 2.6s ease-in-out infinite;
 }
 @keyframes ebc-paw-ring {
@@ -20879,7 +20880,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Helper: build an ordered pose step editor.
             // Returns { getPoses, getDelay } so the caller reads values at save-time.
             const buildPoseOrderEditor = (parent, initialPoses, initialDelay = 420) => {
-                const poses = initialPoses.filter(Boolean).slice();
+                // Use filter(p => p != null) instead of filter(Boolean) so that
+                // "" (the Relaxed/clear-arms step) is preserved.
+                const poses = initialPoses.filter(p => p != null).slice();
                 // -- Step list --------------------------------------------------------
                 const listEl = document.createElement("div");
                 listEl.className = "ebc-step-list";
@@ -31577,7 +31580,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.4.1";
+    const MOD_VERSION = "3.4.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31588,6 +31591,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.4.2",
+            changes: [
+                "Credits: fixed golden glow bleeding outside the paw avatar circle — added overflow:hidden so the drop-shadow stays clipped to the circle boundary.",
+                "Poses: fixed Relaxed step being silently dropped when reopening a combo editor. filter(Boolean) was stripping the empty string key used for Relaxed; changed to filter(p => p != null) so it's preserved.",
+            ],
+        },
         {
             version: "3.4.1",
             changes: [
