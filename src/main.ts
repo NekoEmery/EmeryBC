@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.5.6";
+const MOD_VERSION = "3.5.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.5.7",
+        changes: [
+            "Guide: spotlight elements now cycle one at a time as the user clicks Next — each highlighted element is shown individually before advancing to the next step.",
+            "Guide: steps with multiple spotlights show a row of dots indicating which element is currently highlighted and how many are left.",
+            "Guide: Back button now steps back through spotlight sub-steps before returning to the previous guide step.",
+            "Guide: clicking Done at the end (or ✕) closes the main panel automatically.",
+        ],
+    },
     {
         version: "3.5.6",
         changes: [

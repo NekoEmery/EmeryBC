@@ -3462,6 +3462,7 @@ export class EBCDrawer {
     // Interactive guide overlay
     private guideEl: HTMLElement | null = null;
     private guideStep = 0;
+    private guideSpotlightIndex = 0; // which spotlight in the current step is active
     // Category dropdown in quick actions bar
     // DEV tab auto-refresh poller
     private devLogPoller: ReturnType<typeof window.setInterval> | null = null;
@@ -4954,8 +4955,9 @@ export class EBCDrawer {
         side.style.top  = `${top}px`;
 
         document.body.appendChild(side);
-        this.guideEl   = side;
-        this.guideStep = 0;
+        this.guideEl            = side;
+        this.guideStep          = 0;
+        this.guideSpotlightIndex = 0;
         this.renderGuideStep();
     }
 
@@ -5011,8 +5013,13 @@ export class EBCDrawer {
         const step  = steps[this.guideStep];
         if (!step) return;
 
-        // Switch to the relevant tab
-        if (step.tab && step.tab !== this.currentTab) {
+        const spotCount = step.spotlight?.length ?? 0;
+        // Clamp spotlight index in case we arrived from a step with more spotlights
+        if (this.guideSpotlightIndex >= spotCount) this.guideSpotlightIndex = 0;
+        const spotIdx = this.guideSpotlightIndex;
+
+        // Switch to the relevant tab (only on first spotlight of the step)
+        if (spotIdx === 0 && step.tab && step.tab !== this.currentTab) {
             this.switchTab(step.tab);
         }
 
@@ -5020,8 +5027,8 @@ export class EBCDrawer {
         card.style.display = "";
 
         // Top row: step counter + close
-        const top = document.createElement("div");
-        top.className = "ebc-guide-top";
+        const topRow = document.createElement("div");
+        topRow.className = "ebc-guide-top";
 
         const stepLbl = document.createElement("span");
         stepLbl.className = "ebc-guide-step-lbl";
@@ -5033,9 +5040,9 @@ export class EBCDrawer {
         closeX.title = "Close guide";
         closeX.addEventListener("click", () => this.closeGuide());
 
-        top.appendChild(stepLbl);
-        top.appendChild(closeX);
-        card.appendChild(top);
+        topRow.appendChild(stepLbl);
+        topRow.appendChild(closeX);
+        card.appendChild(topRow);
 
         // Section label
         const tabLbl = document.createElement("div");
@@ -5049,7 +5056,20 @@ export class EBCDrawer {
         EBCDrawer.parseGuideMarkup(step.text, textEl);
         card.appendChild(textEl);
 
-        // Progress bar
+        // Spotlight dots — shown when the step has multiple spotlights
+        // One dot per spotlight; the active dot is accent-coloured
+        if (spotCount > 1) {
+            const dotsRow = document.createElement("div");
+            dotsRow.style.cssText = "display:flex;justify-content:center;gap:5px;margin:4px 0 2px;";
+            for (let i = 0; i < spotCount; i++) {
+                const dot = document.createElement("span");
+                dot.style.cssText = `width:6px;height:6px;border-radius:50%;display:inline-block;transition:background 0.15s;background:${i === spotIdx ? "#cf6f98" : "#3a1928"};`;
+                dotsRow.appendChild(dot);
+            }
+            card.appendChild(dotsRow);
+        }
+
+        // Progress bar (reflects step progress, not spotlight sub-step)
         const progress = document.createElement("div");
         progress.className = "ebc-guide-progress";
         const fill = document.createElement("div");
@@ -5065,17 +5085,41 @@ export class EBCDrawer {
         const prevBtn = document.createElement("button");
         prevBtn.className = "ebc-guide-nav-prev";
         prevBtn.textContent = "← Back";
-        if (this.guideStep === 0) prevBtn.disabled = true;
-        prevBtn.addEventListener("click", () => { this.guideStep--; this.renderGuideStep(); });
+        // Back is disabled on the very first spotlight of the very first step
+        if (this.guideStep === 0 && spotIdx === 0) prevBtn.disabled = true;
+        prevBtn.addEventListener("click", () => {
+            if (spotIdx > 0) {
+                // Back within spotlight sub-steps
+                this.guideSpotlightIndex--;
+            } else {
+                // Back to previous step, land on its last spotlight
+                this.guideStep--;
+                const prev = steps[this.guideStep];
+                this.guideSpotlightIndex = prev?.spotlight?.length ? prev.spotlight.length - 1 : 0;
+            }
+            this.renderGuideStep();
+        });
 
+        const isLastSpot = spotIdx >= spotCount - 1;
+        const isLastStep = this.guideStep === steps.length - 1;
         const nextBtn = document.createElement("button");
         nextBtn.className = "ebc-guide-nav-next";
-        if (this.guideStep === steps.length - 1) {
+        if (isLastStep && isLastSpot) {
             nextBtn.textContent = "Done ✓";
-            nextBtn.addEventListener("click", () => this.closeGuide());
+            nextBtn.addEventListener("click", () => this.closeGuide(true));
+        } else if (!isLastSpot) {
+            nextBtn.textContent = "Next →";
+            nextBtn.addEventListener("click", () => {
+                this.guideSpotlightIndex++;
+                this.renderGuideStep();
+            });
         } else {
             nextBtn.textContent = "Next →";
-            nextBtn.addEventListener("click", () => { this.guideStep++; this.renderGuideStep(); });
+            nextBtn.addEventListener("click", () => {
+                this.guideStep++;
+                this.guideSpotlightIndex = 0;
+                this.renderGuideStep();
+            });
         }
 
         nav.appendChild(prevBtn);
@@ -5087,26 +5131,28 @@ export class EBCDrawer {
         if (step.tab) {
             const tabIdMap: Record<string, string> = { anims: "poses" };
             const tabBtnId = tabIdMap[step.tab] ?? step.tab;
-            // Delay slightly so the tab re-render finishes before we add the class
             window.setTimeout(() => this.spotlightEl(`#ebc-tab-${tabBtnId}`), 60);
         }
-        // Additional per-step element spotlights
-        if (step.spotlight?.length) {
+        // Spotlight only the current sub-step element (one at a time)
+        if (spotCount > 0) {
             window.setTimeout(() => {
-                for (const sel of step.spotlight!) this.spotlightEl(sel);
+                this.spotlightEl(step.spotlight![spotIdx]);
             }, 80);
         }
-        // Auto-expand collapsible sections so users can see the content immediately
-        if (step.autoExpand?.length) {
+        // Auto-expand only on first entry to the step (spotIdx === 0)
+        if (spotIdx === 0 && step.autoExpand?.length) {
             window.setTimeout(() => {
                 for (const sel of step.autoExpand!) this.expandGuideTarget(sel);
             }, 120);
         }
     }
 
-    private closeGuide(): void {
+    /** Close the guide overlay. Pass `andClosePanel = true` when the user
+     *  intentionally finishes the guide — the main panel is closed too. */
+    private closeGuide(andClosePanel = false): void {
         this.clearGuideSpotlights();
         if (this.guideEl) { this.guideEl.remove(); this.guideEl = null; }
+        if (andClosePanel) this.close();
     }
 
     /**
