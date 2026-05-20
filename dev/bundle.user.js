@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.1.4
+// @version      3.1.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -15743,6 +15743,90 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         document.addEventListener("touchend", endH);
         return cleanup;
     }
+    // ── Pinned-strip tab-filter helpers ──────────────────────────────────────────
+    // Each pinned section (Safewords, EBC Tags) stores a Set of tab IDs it should
+    // appear on.  null / absent key = "all tabs" (default).  Written to localStorage
+    // so it survives panel re-builds without touching server-side ExtensionSettings.
+    const PINNED_STRIP_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev", "dom"];
+    const PINNED_TAB_SHORT = {
+        outfits: "OUT", buttons: "BTN", anims: "ANM",
+        notes: "USR", thanks: "CRD", dev: "DEV", dom: "DOM",
+    };
+    function loadStripTabFilter(key) {
+        try {
+            const v = localStorage.getItem(key);
+            if (!v)
+                return null;
+            const arr = JSON.parse(v);
+            if (arr.length >= PINNED_STRIP_TABS.length)
+                return null; // treat as "all"
+            return new Set(arr);
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    function saveStripTabFilter(key, tabs) {
+        try {
+            if (!tabs || tabs.size >= PINNED_STRIP_TABS.length) {
+                localStorage.removeItem(key);
+            }
+            else {
+                localStorage.setItem(key, JSON.stringify([...tabs]));
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Builds a compact tab-chip filter row and appends it to `container`. */
+    function appendStripTabFilter(container, storageKey, onChanged) {
+        var _a;
+        const divider = document.createElement("div");
+        divider.style.cssText = "height:1px;background:#2a1421;margin:6px 0 5px;";
+        container.appendChild(divider);
+        const lbl = document.createElement("div");
+        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#6a4060;text-transform:uppercase;margin-bottom:4px;";
+        lbl.textContent = "Visible on tabs:";
+        container.appendChild(lbl);
+        const chipRow = document.createElement("div");
+        chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+        for (const tid of PINNED_STRIP_TABS) {
+            const chip = document.createElement("button");
+            chip.textContent = (_a = PINNED_TAB_SHORT[tid]) !== null && _a !== void 0 ? _a : tid;
+            chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;padding:2px 6px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+            const refreshChip = () => {
+                const f = loadStripTabFilter(storageKey);
+                const on = !f || f.has(tid);
+                chip.style.background = on ? "#2e1020" : "#150a10";
+                chip.style.border = `1px solid ${on ? "#8a3458" : "#321220"}`;
+                chip.style.color = on ? "#f0c0d8" : "#4a2838";
+            };
+            refreshChip();
+            chip.addEventListener("click", () => {
+                let f = loadStripTabFilter(storageKey);
+                if (!f) {
+                    // Currently "all" — deselect this one tab
+                    f = new Set(PINNED_STRIP_TABS);
+                    f.delete(tid);
+                }
+                else if (f.has(tid)) {
+                    if (f.size <= 1)
+                        return; // keep at least one tab
+                    f.delete(tid);
+                }
+                else {
+                    f.add(tid);
+                    if (f.size >= PINNED_STRIP_TABS.length)
+                        f = null; // back to "all"
+                }
+                saveStripTabFilter(storageKey, f);
+                chipRow.querySelectorAll("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                onChanged();
+            });
+            chip.addEventListener("ebc-refresh", refreshChip);
+            chipRow.appendChild(chip);
+        }
+        container.appendChild(chipRow);
+    }
     const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
     class EBCDrawer {
         // -- Persist open beep windows across sessions -----------------------------
@@ -15824,6 +15908,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.slDurSlider = null;
             this.slDurVal = null;
             this.selectedWhisperPartner = null; // used by whisper log in DEV tab
+            // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
+            this.safewordRowEl = null;
+            this.ebcTagsStripEl = null;
             // i18n — references to static header/tab/qa elements updated by updateStaticTranslations()
             this._langUnsubscribe = null;
             this._langPillsRefresh = null;
@@ -16456,6 +16543,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Safeword permanent row (always visible, any tab)
             const safewordRow = document.createElement("div");
             safewordRow.style.cssText = "display:flex;flex-direction:column;flex-shrink:0;border-top:1px solid #2a1421;background:rgba(12,4,10,0.6);";
+            this.safewordRowEl = safewordRow;
             // Header row — one line, always visible
             const swHdr = document.createElement("div");
             swHdr.style.cssText = "display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;user-select:none;";
@@ -16649,6 +16737,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
                 hint.textContent = t("strip.swHint");
                 swInner.appendChild(hint);
+                // -- Tab visibility filter --
+                appendStripTabFilter(swInner, "EBC_swTabFilter", () => this.updatePinnedStrips());
             };
             // Toggle expand — rebuild inner content on every open
             swHdr.addEventListener("click", () => {
@@ -16690,6 +16780,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_e) { /* ignore */ }
             const ebcTagsStrip = document.createElement("div");
             ebcTagsStrip.style.cssText = "flex-shrink:0;border-bottom:1px solid #2a1421;background:#1a0d16;";
+            this.ebcTagsStripEl = ebcTagsStrip;
             // Header row — clickable to collapse
             const ebcTagsHdr = document.createElement("div");
             ebcTagsHdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:5px 10px 4px;cursor:pointer;user-select:none;transition:background 0.1s;";
@@ -16959,6 +17050,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             };
             makePosInputRow("Icon", getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, resetBadgePosition);
             makePosInputRow("Ver.", getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition);
+            // ── Tab visibility filter (EBC Tags strip) ────────────────────────────
+            appendStripTabFilter(ebcTagsBody, "EBC_tagsTabFilter", () => this.updatePinnedStrips());
             ebcTagsStrip.appendChild(ebcTagsBody);
             const updateEbcTagsCollapse = () => {
                 ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
@@ -17000,6 +17093,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // (slideContainer/root/body already anchored early in setup — see above)
             this.applyPanelOpacity();
             this.applyPanelZoom();
+            this.updatePinnedStrips();
             // Events — tab supports both click (toggle) and drag (reposition anywhere on screen).
             // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
             // Works with both mouse and touch input via addPointerDown / addPointerTracking.
@@ -17543,6 +17637,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     el.className = "ebc-tab-btn" + (tab === name ? " ebc-tab-active" : "");
             }
             this.renderCurrentTab();
+            try {
+                this.updatePinnedStrips();
+            }
+            catch ( /* ignore */_c) { /* ignore */ }
         }
         renderCurrentTab() {
             if (this.currentTab === "outfits")
@@ -17563,6 +17661,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 this.renderPuppy();
             else if (this.currentTab === "kitty")
                 this.renderKittyTab();
+        }
+        /** Show or hide each pinned strip based on the active tab and the stored filter. */
+        updatePinnedStrips() {
+            const tab = this.currentTab;
+            if (this.safewordRowEl) {
+                const f = loadStripTabFilter("EBC_swTabFilter");
+                this.safewordRowEl.style.display = (!f || f.has(tab)) ? "flex" : "none";
+            }
+            if (this.ebcTagsStripEl) {
+                const f = loadStripTabFilter("EBC_tagsTabFilter");
+                this.ebcTagsStripEl.style.display = (!f || f.has(tab)) ? "" : "none";
+            }
         }
         /**
          * Apply the stored panel opacity to the .ebc-panel element.
@@ -31000,7 +31110,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.1.4";
+    const MOD_VERSION = "3.1.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31011,6 +31121,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.1.5",
+            changes: [
+                "Pinned strip tab visibility: each strip (Safewords, EBC Tag Settings) now has a compact 'Visible on tabs' chip row in its settings panel. Toggle individual tab chips (OUT / BTN / ANM / USR / CRD / DEV / DOM) to hide the strip on tabs where you don't need it. Settings are per-device (localStorage) and persist across sessions.",
+            ],
+        },
         {
             version: "3.1.4",
             changes: [
