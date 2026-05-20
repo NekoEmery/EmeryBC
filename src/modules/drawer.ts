@@ -3356,12 +3356,6 @@ export class EBCDrawer {
     // Tag tooltip — kept at instance level so it survives list rebuilds
     private tagTooltipEl: HTMLElement | null = null;
     private tagTooltipMoveListener: ((e: MouseEvent) => void) | null = null;
-    private slowLeaveBtn: HTMLButtonElement | null = null;
-    private slCollapseHdr: HTMLElement | null = null;
-    private slCollapseBody: HTMLElement | null = null;
-    private slPresetDropdown: HTMLSelectElement | null = null;
-    private slDurSlider: HTMLInputElement | null = null;
-    private slDurVal: HTMLSpanElement | null = null;
     private selectedWhisperPartner: number | null = null; // used by whisper log in DEV tab
     // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
     private safewordRowEl: HTMLElement | null = null;
@@ -3391,8 +3385,6 @@ export class EBCDrawer {
         qaConfirmLbl?: HTMLSpanElement;
         qaConfirmToggle?: HTMLButtonElement;
         pickBtn?: HTMLButtonElement;
-        slCollapseHdr?: HTMLElement;
-        slLeaveBtn?: HTMLButtonElement;
     } = {};
 
     constructor(version = "", isDev = false) {
@@ -3794,134 +3786,6 @@ export class EBCDrawer {
         selfPickToggle.addEventListener("mouseleave", () => { if (selfPickPanel.style.display === "none") selfPickToggle.style.color = "#7a4a5e"; });
         quickActions.appendChild(selfPickToggle);
 
-        // ── Slow Leave — collapsible block ────────────────────────────────────
-        // Outer wrapper, hidden when not in a chatroom
-        const slWrap = document.createElement("div");
-        slWrap.style.cssText = "display:none;flex-direction:column;width:100%;";
-        quickActions.appendChild(slWrap);
-
-        // Collapse header row: click to expand/collapse
-        const slCollapseHdr = document.createElement("div");
-        slCollapseHdr.style.cssText = "display:flex;align-items:center;gap:4px;width:100%;cursor:pointer;padding:3px 0;user-select:none;";
-        const slHdrLbl = document.createElement("span");
-        slHdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-        slHdrLbl.textContent = t("sl.header");
-        this._i18nRefs.slCollapseHdr = slCollapseHdr;
-        const slHdrArrow = document.createElement("span");
-        slHdrArrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5060;flex-shrink:0;";
-        slHdrArrow.textContent = "▼";
-        slCollapseHdr.appendChild(slHdrLbl);
-        slCollapseHdr.appendChild(slHdrArrow);
-        slWrap.appendChild(slCollapseHdr);
-        this.slCollapseHdr = slCollapseHdr;
-
-        // Collapsible body
-        const slCollapseBody = document.createElement("div");
-        const slExpanded = localStorage.getItem("EBC_slowLeaveOpen") === "1";
-        slCollapseBody.style.cssText = `display:${slExpanded ? "flex" : "none"};flex-direction:column;gap:3px;padding:4px 0 2px;`;
-        slHdrArrow.textContent = slExpanded ? "▲" : "▼";
-        slWrap.appendChild(slCollapseBody);
-        this.slCollapseBody = slCollapseBody;
-
-        slCollapseHdr.addEventListener("click", () => {
-            const open = slCollapseBody.style.display === "none";
-            slCollapseBody.style.display = open ? "flex" : "none";
-            slHdrArrow.textContent = open ? "▲" : "▼";
-            try { localStorage.setItem("EBC_slowLeaveOpen", open ? "1" : "0"); } catch { /* ignore */ }
-        });
-
-        // Slow Leave action button
-        const slowLeaveBtn = document.createElement("button");
-        slowLeaveBtn.className = "ebc-action-btn";
-        slowLeaveBtn.textContent = t("sl.leave");
-        slowLeaveBtn.title = t("sl.leaveTitle");
-        slowLeaveBtn.style.cssText = "width:100%;";
-        this._i18nRefs.slLeaveBtn = slowLeaveBtn;
-        slowLeaveBtn.addEventListener("click", () => {
-            if (isSeqRunning()) {
-                cancelSequence();
-                return;
-            }
-            const livePresets = getSlowLeavePresets();
-            const durMs = Math.max(500, (parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10)) * 1000);
-            const pIdx  = Math.min(livePresets.length - 1, Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10)));
-            const seq   = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
-            setSeqDoneCallback(() => {
-                slowLeaveBtn.textContent = t("sl.leave");
-                slowLeaveBtn.style.background = "";
-                slowLeaveBtn.style.color = "";
-            });
-            slowLeaveBtn.textContent = t("sl.cancel");
-            slowLeaveBtn.style.background = "#4a1a2a";
-            slowLeaveBtn.style.color = "#ff8aaa";
-            runSequence(seq);
-        });
-        slCollapseBody.appendChild(slowLeaveBtn);
-        this.slowLeaveBtn = slowLeaveBtn;
-
-        // Preset selector
-        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;";
-        const slPresetDropdown = document.createElement("select");
-        slPresetDropdown.style.cssText = DD_CSS;
-        const populateSlPresets = (): void => {
-            while (slPresetDropdown.firstChild) slPresetDropdown.removeChild(slPresetDropdown.firstChild);
-            getSlowLeavePresets().forEach((p, i) => {
-                const o = document.createElement("option"); o.value = String(i); o.textContent = p.label; slPresetDropdown.appendChild(o);
-            });
-            slPresetDropdown.value = localStorage.getItem("EBC_slowLeavePreset") ?? "0";
-        };
-        populateSlPresets();
-        slPresetDropdown.addEventListener("change", () => {
-            try { localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value); } catch { /* ignore */ }
-            // Update seq textarea
-            const lp = getSlowLeavePresets();
-            const pi = parseInt(slPresetDropdown.value, 10);
-            slSeqArea.value = lp[pi]?.seq ?? "";
-        });
-        slCollapseBody.appendChild(slPresetDropdown);
-        this.slPresetDropdown = slPresetDropdown;
-
-        // Seq textarea — lets the user customise the selected preset's sequence
-        const slSeqArea = document.createElement("textarea");
-        slSeqArea.rows = 3;
-        slSeqArea.spellcheck = false;
-        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;";
-        slSeqArea.title = t("sl.seqHint");
-        const slSeqInitPresets = getSlowLeavePresets();
-        const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
-        slSeqArea.value = slSeqInitPresets[slSeqInitIdx]?.seq ?? "";
-        slSeqArea.addEventListener("change", () => {
-            const lp = getSlowLeavePresets();
-            const pi = parseInt(slPresetDropdown.value, 10);
-            if (pi >= 0 && pi < lp.length) {
-                lp[pi].seq = slSeqArea.value;
-                saveSlowLeavePresets(lp);
-            }
-        });
-        slCollapseBody.appendChild(slSeqArea);
-
-        // Duration slider
-        const slDurRow = document.createElement("div");
-        slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
-        const slDurLbl = document.createElement("span");
-        slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
-        slDurLbl.textContent = "⏱";
-        slDurLbl.title = "Slow leave duration";
-        const slDurSlider = document.createElement("input");
-        slDurSlider.type = "range"; slDurSlider.min = "2"; slDurSlider.max = "30"; slDurSlider.step = "1";
-        slDurSlider.value = localStorage.getItem("EBC_slowLeaveDuration") ?? "5";
-        slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-        const slDurVal = document.createElement("span");
-        slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
-        slDurVal.textContent = slDurSlider.value + "s";
-        slDurSlider.addEventListener("input", () => {
-            slDurVal.textContent = slDurSlider.value + "s";
-            try { localStorage.setItem("EBC_slowLeaveDuration", slDurSlider.value); } catch { /* ignore */ }
-        });
-        slDurRow.appendChild(slDurLbl); slDurRow.appendChild(slDurSlider); slDurRow.appendChild(slDurVal);
-        slCollapseBody.appendChild(slDurRow);
-        this.slDurSlider = slDurSlider;
-        this.slDurVal = slDurVal;
 
         // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
         const selfPickPanel = document.createElement("div");
@@ -4354,7 +4218,7 @@ export class EBCDrawer {
         ebcTagsHdrLeft.style.cssText = "display:flex;align-items:center;gap:6px;";
         const ebcTagsHdrLabel = document.createElement("span");
         ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-        ebcTagsHdrLabel.textContent = "EBC Tag Settings";
+        ebcTagsHdrLabel.textContent = t("dev.ebcTags");
         ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
 
         // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
@@ -4423,7 +4287,7 @@ export class EBCDrawer {
                 cardDot.style.background = on ? "#d06090" : "#4a2038";
                 cardStatus.style.background = on ? "#3d1228" : "#1e0c16";
                 cardStatus.style.color = on ? "#f0a0c8" : "#6a4050";
-                cardStatusText.textContent = on ? "ON" : "OFF";
+                cardStatusText.textContent = on ? t("core.on") : t("core.off");
             };
             refresh();
             card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
@@ -4490,8 +4354,8 @@ export class EBCDrawer {
                 return btn;
             };
 
-            row.appendChild(makeBtn("text", "Text"));
-            row.appendChild(makeBtn("cat",  "Cat"));
+            row.appendChild(makeBtn("text", t("strip.styleBtnText")));
+            row.appendChild(makeBtn("cat",  t("strip.styleBtnCat")));
             ebcTagsBody.appendChild(row);
         };
 
@@ -5158,22 +5022,6 @@ export class EBCDrawer {
         // drawer is first built, so we refresh any toggles that depend on them.
         try { this.refreshConfirmToggle?.(); } catch { /* ignore */ }
         try { this.refreshSwEnableBtn?.();   } catch { /* ignore */ }
-
-        this.updateSlowLeaveVisibility();
-    }
-
-    private updateSlowLeaveVisibility(): void {
-        if (!this.slowLeaveBtn) return;
-        const inRoom = typeof CurrentScreen !== "undefined" && CurrentScreen === "ChatRoom";
-        // Show/hide the outer collapsible wrapper
-        const wrapper = this.slCollapseHdr?.parentElement;
-        if (wrapper) wrapper.style.display = inRoom ? "flex" : "none";
-        // Reset button label if no sequence is currently running
-        if (!isSeqRunning()) {
-            this.slowLeaveBtn.textContent = "🚶 Slow Leave";
-            this.slowLeaveBtn.style.background = "";
-            this.slowLeaveBtn.style.color = "";
-        }
     }
 
     // -- Interactive guide ─────────────────────────────────────────────────────
@@ -5479,16 +5327,6 @@ export class EBCDrawer {
         if (r.qaConfirmLbl) r.qaConfirmLbl.textContent = t("qa.confirmBeforeEscaping");
         if (r.qaConfirmToggle) this.refreshConfirmToggle?.();
         if (r.pickBtn) { r.pickBtn.textContent = t("qa.pickRestraints"); r.pickBtn.title = t("qa.pickTitle"); }
-        // Slow leave header label (first child span)
-        if (r.slCollapseHdr) {
-            const lbl = r.slCollapseHdr.querySelector("span") as HTMLSpanElement | null;
-            if (lbl) lbl.textContent = t("sl.header");
-        }
-        // Slow leave button (only if not currently running)
-        if (r.slLeaveBtn && !isSeqRunning()) {
-            r.slLeaveBtn.textContent = t("sl.leave");
-            r.slLeaveBtn.title = t("sl.leaveTitle");
-        }
     }
 
     // -- Timer -----------------------------------------------------------------
@@ -15128,6 +14966,102 @@ export class EBCDrawer {
             } catch { /* ignore */ }
         });
         body.appendChild(clearPoseBtn);
+
+        // ── Slow Leave ────────────────────────────────────────────────────────
+        const slLbl = document.createElement("div");
+        slLbl.className = "ebc-section-label";
+        slLbl.style.marginTop = "10px";
+        slLbl.textContent = t("sl.header");
+        body.appendChild(slLbl);
+
+        const DD_CSS = "width:100%;font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:2px 4px;cursor:pointer;box-sizing:border-box;margin-bottom:3px;";
+
+        const slLeaveBtn = document.createElement("button");
+        slLeaveBtn.className = "ebc-create-btn";
+        slLeaveBtn.style.cssText = "margin:4px 0 3px; width:100%;";
+        const seqRunning = isSeqRunning();
+        slLeaveBtn.textContent = seqRunning ? t("sl.cancel") : t("sl.leave");
+        slLeaveBtn.title = t("sl.leaveTitle");
+        if (seqRunning) {
+            slLeaveBtn.style.background = "#4a1a2a";
+            slLeaveBtn.style.color = "#ff8aaa";
+        }
+        slLeaveBtn.addEventListener("click", () => {
+            if (isSeqRunning()) {
+                cancelSequence();
+                return;
+            }
+            const livePresets = getSlowLeavePresets();
+            const durMs = Math.max(500, (parseInt(localStorage.getItem("EBC_slowLeaveDuration") ?? "5", 10)) * 1000);
+            const pIdx  = Math.min(livePresets.length - 1, Math.max(0, parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10)));
+            const seq   = livePresets[pIdx].seq.replace("{DUR}", String(durMs));
+            setSeqDoneCallback(() => {
+                slLeaveBtn.textContent = t("sl.leave");
+                slLeaveBtn.style.background = "";
+                slLeaveBtn.style.color = "";
+            });
+            slLeaveBtn.textContent = t("sl.cancel");
+            slLeaveBtn.style.background = "#4a1a2a";
+            slLeaveBtn.style.color = "#ff8aaa";
+            runSequence(seq);
+        });
+        body.appendChild(slLeaveBtn);
+
+        const slPresetDropdown = document.createElement("select");
+        slPresetDropdown.style.cssText = DD_CSS;
+        const populateSlPresets = (): void => {
+            while (slPresetDropdown.firstChild) slPresetDropdown.removeChild(slPresetDropdown.firstChild);
+            getSlowLeavePresets().forEach((p, i) => {
+                const o = document.createElement("option"); o.value = String(i); o.textContent = p.label; slPresetDropdown.appendChild(o);
+            });
+            slPresetDropdown.value = localStorage.getItem("EBC_slowLeavePreset") ?? "0";
+        };
+        populateSlPresets();
+        slPresetDropdown.addEventListener("change", () => {
+            try { localStorage.setItem("EBC_slowLeavePreset", slPresetDropdown.value); } catch { /* ignore */ }
+            const lp = getSlowLeavePresets();
+            const pi = parseInt(slPresetDropdown.value, 10);
+            slSeqArea.value = lp[pi]?.seq ?? "";
+        });
+        body.appendChild(slPresetDropdown);
+
+        const slSeqArea = document.createElement("textarea");
+        slSeqArea.rows = 3;
+        slSeqArea.spellcheck = false;
+        slSeqArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;color:#c09098;border:1px solid #3a1928;border-radius:3px;padding:3px 4px;resize:vertical;min-height:42px;margin-bottom:3px;";
+        slSeqArea.title = t("sl.seqHint");
+        const slSeqInitPresets = getSlowLeavePresets();
+        const slSeqInitIdx = parseInt(localStorage.getItem("EBC_slowLeavePreset") ?? "0", 10);
+        slSeqArea.value = slSeqInitPresets[slSeqInitIdx]?.seq ?? "";
+        slSeqArea.addEventListener("change", () => {
+            const lp = getSlowLeavePresets();
+            const pi = parseInt(slPresetDropdown.value, 10);
+            if (pi >= 0 && pi < lp.length) {
+                lp[pi].seq = slSeqArea.value;
+                saveSlowLeavePresets(lp);
+            }
+        });
+        body.appendChild(slSeqArea);
+
+        const slDurRow = document.createElement("div");
+        slDurRow.style.cssText = "display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;";
+        const slDurLbl = document.createElement("span");
+        slDurLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;user-select:none;";
+        slDurLbl.textContent = "⏱";
+        slDurLbl.title = t("sl.header");
+        const slDurSlider = document.createElement("input");
+        slDurSlider.type = "range"; slDurSlider.min = "2"; slDurSlider.max = "30"; slDurSlider.step = "1";
+        slDurSlider.value = localStorage.getItem("EBC_slowLeaveDuration") ?? "5";
+        slDurSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+        const slDurVal = document.createElement("span");
+        slDurVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:24px;text-align:right;flex-shrink:0;";
+        slDurVal.textContent = slDurSlider.value + "s";
+        slDurSlider.addEventListener("input", () => {
+            slDurVal.textContent = slDurSlider.value + "s";
+            try { localStorage.setItem("EBC_slowLeaveDuration", slDurSlider.value); } catch { /* ignore */ }
+        });
+        slDurRow.appendChild(slDurLbl); slDurRow.appendChild(slDurSlider); slDurRow.appendChild(slDurVal);
+        body.appendChild(slDurRow);
 
     }
 

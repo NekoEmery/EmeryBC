@@ -473,10 +473,10 @@ export function setBadgeOffsetX(v: number): void {
 }
 
 export function getBadgeOffsetY(): number {
-    try { const v = getStore()?.badgeOffsetY; return typeof v === "number" ? Math.max(-200, Math.min(900, v)) : 72; } catch { return 72; }
+    try { const v = getStore()?.badgeOffsetY; return typeof v === "number" ? Math.max(-200, Math.min(1500, v)) : 72; } catch { return 72; }
 }
 export function setBadgeOffsetY(v: number): void {
-    try { const s = getStore(); if (s) { s.badgeOffsetY = Math.round(v); syncSettings(); } } catch { /* ignore */ }
+    try { const s = getStore(); if (s) { s.badgeOffsetY = Math.max(-200, Math.min(1500, Math.round(v))); syncSettings(); } } catch { /* ignore */ }
 }
 
 export function resetBadgePosition(): void {

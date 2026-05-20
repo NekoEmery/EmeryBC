@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.2.0";
+const MOD_VERSION = "3.2.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.2.1",
+        changes: [
+            "EBC Tag Settings: fixed all untranslated strings — section header, ON/OFF status chips, and Text/Cat style-picker buttons now all use t() with full 7-language coverage.",
+            "Slow Leave moved from the persistent quick-actions bar (visible on all tabs) into the BUTTONS tab under the Useful Buttons section. It no longer appears everywhere.",
+            "Badge Y-axis offset maximum raised from 900 to 1500, giving enough range to drag the badge all the way down to the character name line.",
+        ],
+    },
     {
         version: "3.2.0",
         changes: [
