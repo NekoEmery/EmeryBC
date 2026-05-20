@@ -30017,10 +30017,12 @@
                 const card = document.createElement("div");
                 card.className = "ebc-thanks-card";
                 const isPawCard = p.memberId === 130267;
+                // Creator card: golden left-border accent, no background tint
                 if (isPawCard) {
-                    // Subtle golden tint to mark the creator card
-                    card.style.cssText = "background:rgba(38,28,8,0.75);border-color:#5a3c10;";
+                    card.style.borderLeftColor = "#c89030";
+                    card.style.borderLeftWidth = "3px";
                 }
+                // Avatar circle — paw SVG for creator, emoji for everyone else
                 const avatar = document.createElement("div");
                 avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
                 if (isPawCard) {
@@ -30039,25 +30041,31 @@
                 const vipCredit = VIP_MEMBERS[p.memberId];
                 if (vipCredit)
                     applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
-                const idEl2 = document.createElement("span");
-                idEl2.className = "ebc-member-chip";
-                idEl2.textContent = "#" + p.memberId;
-                idEl2.title = "BC Member Number";
-                nameRow.appendChild(namEl);
-                nameRow.appendChild(idEl2);
+                // Creator gets a small golden "Creator" label; others get a muted member ID
+                if (isPawCard) {
+                    const creatorBadge = document.createElement("span");
+                    creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#c89030;letter-spacing:0.06em;text-transform:uppercase;";
+                    creatorBadge.textContent = "Creator";
+                    nameRow.appendChild(namEl);
+                    nameRow.appendChild(creatorBadge);
+                }
+                else {
+                    const idEl2 = document.createElement("span");
+                    idEl2.className = "ebc-member-chip";
+                    idEl2.textContent = "#" + p.memberId;
+                    idEl2.title = "BC Member Number";
+                    nameRow.appendChild(namEl);
+                    nameRow.appendChild(idEl2);
+                }
                 const reason = document.createElement("span");
                 reason.className = "ebc-thanks-reason";
                 reason.textContent = p.reason;
                 info.appendChild(nameRow);
                 info.appendChild(reason);
+                // Right decoration — plain emoji for everyone (SVG at this size looks like a blob)
                 const heart = document.createElement("span");
                 heart.className = "ebc-thanks-heart";
-                if (isPawCard) {
-                    heart.appendChild(makePawSvg(18));
-                }
-                else {
-                    heart.textContent = p.heart;
-                }
+                heart.textContent = p.heart;
                 card.appendChild(avatar);
                 card.appendChild(info);
                 card.appendChild(heart);
@@ -31437,7 +31445,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.3";
+    const MOD_VERSION = "3.3.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31448,6 +31456,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.4",
+            changes: [
+                "Credits: simplified Emery's card — golden paw SVG stays in the avatar circle (with animated golden ring), right side uses the plain 🐾 emoji like other cards use their heart emoji (SVG blob at 18px looked bad). Replaced the member ID chip with a small gold 'Creator' label. Card gets a golden left-border accent.",
+            ],
+        },
         {
             version: "3.3.3",
             changes: [
