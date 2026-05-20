@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.6.4";
+const MOD_VERSION = "3.6.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,7 +37,7 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "3.6.4",
+        version: "3.6.5",
         changes: [
             "Friends list: added sort dropdown — Status (default), ★ Starred first, A→Z, Z→A, Friends longest, Friends newest. Choice persists across sessions.",
         ],

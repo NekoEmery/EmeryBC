@@ -44,8 +44,9 @@ const ARM_POSES = ["OverTheHead", "BackCuffs", "BackBoxTie", "Yoked"];
 export function applyPoses(poses: string[]): void {
     // An explicit empty string ("") in the list means "Relaxed arms" —
     // clear any active arm pose from the result set.
-    const wantsRelaxed = poses.includes("");
-    const filtered = poses.filter(Boolean);
+    const safeList = Array.isArray(poses) ? poses : [];
+    const wantsRelaxed = safeList.includes("");
+    const filtered = safeList.filter(Boolean);
     const result   = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
 
     // Prefer BC's PoseSetActive API (current BC) — it writes ActivePoseMapping which
@@ -75,7 +76,7 @@ export function applyPoses(poses: string[]): void {
 
     // Fallback: direct ActivePose assignment for older BC builds
     try { (Player as unknown as Record<string, unknown>).ActivePose = result; } catch { /* ignore */ }
-    callBC(() => CharacterRefresh(Player, false));
+    callBC(() => CharacterRefresh(Player, true));
     callBC(() => ChatRoomCharacterUpdate(Player));
     callBC(() => ServerPlayerAppearanceSync());
 }
@@ -85,8 +86,9 @@ export function applyPoses(poses: string[]): void {
 // e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
 export function applyPosesSequential(poses: string[], stepDelayMs = 420): void {
     // Preserve empty strings — applyPoses handles the "Relaxed arms" case.
-    const wantsRelaxed = poses.includes("");
-    const steps = poses.filter(Boolean);
+    const safeList = Array.isArray(poses) ? poses : [];
+    const wantsRelaxed = safeList.includes("");
+    const steps = safeList.filter(Boolean);
     if (steps.length <= 1) {
         // Pass original list so applyPoses sees the empty-string Relaxed marker.
         applyPoses(wantsRelaxed ? [...steps, ""] : steps);
@@ -94,7 +96,7 @@ export function applyPosesSequential(poses: string[], stepDelayMs = 420): void {
     }
     for (let i = 0; i < steps.length; i++) {
         const subset = steps.slice(0, i + 1);
-        // On the step where we'd apply Relaxed, include the marker.
+        // On each step include the Relaxed marker if needed so arm pose is cleared.
         window.setTimeout(() => applyPoses(wantsRelaxed ? [...subset, ""] : subset), i * stepDelayMs);
     }
 }
@@ -114,7 +116,12 @@ function uid(): string { return Math.random().toString(36).slice(2, 9); }
 
 function load(): PoseCombo[] {
     const list = getStore().poseCombos;
-    return Array.isArray(list) ? (list as PoseCombo[]) : [];
+    if (!Array.isArray(list)) return [];
+    // Sanitize each combo — old data may have undefined/null poses array
+    return (list as PoseCombo[]).map(c => ({
+        ...c,
+        poses: Array.isArray(c.poses) ? c.poses : [],
+    }));
 }
 
 function saveCombos(list: PoseCombo[]): void {
@@ -170,9 +177,10 @@ export function deleteCombo(id: string): void {
 // and the ▶ apply button in the drawer so announce always fires either way.
 export function applyCombo(combo: PoseCombo): void {
     const delay = combo.stepDelayMs ?? 420;
-    applyPosesSequential(combo.poses, delay);
+    applyPosesSequential(combo.poses ?? [], delay);
 
-    const totalMs = combo.poses.length > 1 ? (combo.poses.length - 1) * delay + 80 : 80;
+    const poseCount = Array.isArray(combo.poses) ? combo.poses.length : 0;
+    const totalMs = poseCount > 1 ? (poseCount - 1) * delay + 80 : 80;
     if (combo.announceText?.trim()) {
         window.setTimeout(() => {
             try {
