@@ -1926,6 +1926,7 @@
     // -- Badge scale ---------------------------------------------------------------
     // Multiplier applied on top of the room zoom. 1.0 = default size.
     // Range: 0.3 – 4.0
+    // Legacy single scale kept for migration; new code uses style-specific getters below.
     function getBadgeScale() {
         var _a;
         try {
@@ -1936,11 +1937,43 @@
             return 1.0;
         }
     }
-    function setBadgeScale(v) {
+    // Per-style scales — Text and Cat can be sized independently.
+    // Both fall back to the legacy `badgeScale` value on first use (migration).
+    function getTextBadgeScale() {
+        try {
+            const s = getStore$7();
+            const v = s === null || s === void 0 ? void 0 : s.textBadgeScale;
+            return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
+        }
+        catch (_a) {
+            return 1.0;
+        }
+    }
+    function setTextBadgeScale(v) {
         try {
             const s = getStore$7();
             if (s) {
-                s.badgeScale = Math.max(0.3, Math.min(4, v));
+                s.textBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function getCatBadgeScale() {
+        try {
+            const s = getStore$7();
+            const v = s === null || s === void 0 ? void 0 : s.catBadgeScale;
+            return typeof v === "number" && v >= 0.3 && v <= 4 ? v : getBadgeScale();
+        }
+        catch (_a) {
+            return 1.0;
+        }
+    }
+    function setCatBadgeScale(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.catBadgeScale = Math.max(0.3, Math.min(4, Math.round(v * 100) / 100));
                 syncSettings();
             }
         }
@@ -16815,32 +16848,41 @@
             othersStyleLbl.textContent = t("strip.othersStyle");
             ebcTagsBody.appendChild(othersStyleLbl);
             buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
-            // ── Scale slider ─────────────────────────────────────────────────────
-            const scaleRow = document.createElement("div");
-            scaleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
-            const scaleLbl = document.createElement("span");
-            scaleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
-            scaleLbl.textContent = t("strip.scale");
-            const scaleSlider = document.createElement("input");
-            scaleSlider.type = "range";
-            scaleSlider.min = "0.3";
-            scaleSlider.max = "3";
-            scaleSlider.step = "0.05";
-            scaleSlider.value = String(getBadgeScale());
-            scaleSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            scaleSlider.title = "Badge size multiplier (1 = default)";
-            const scaleVal = document.createElement("span");
-            scaleVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
-            scaleVal.textContent = getBadgeScale().toFixed(2) + "×";
-            scaleSlider.addEventListener("input", () => {
-                const v = parseFloat(scaleSlider.value);
-                setBadgeScale(v);
-                scaleVal.textContent = v.toFixed(2) + "×";
-            });
-            scaleRow.appendChild(scaleLbl);
-            scaleRow.appendChild(scaleSlider);
-            scaleRow.appendChild(scaleVal);
-            ebcTagsBody.appendChild(scaleRow);
+            // ── Per-style scale sliders ──────────────────────────────────────────
+            // Text and Cat scales are independent so each style can be sized freely.
+            const makeScaleRow = (labelText, getVal, setVal) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:6px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:54px;";
+                lbl.textContent = labelText;
+                const slider = document.createElement("input");
+                slider.type = "range";
+                slider.min = "0.3";
+                slider.max = "3";
+                slider.step = "0.05";
+                slider.value = String(getVal());
+                slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+                slider.title = "Scale multiplier (1.0 = default)";
+                const valLbl = document.createElement("span");
+                valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:32px;text-align:right;flex-shrink:0;";
+                valLbl.textContent = getVal().toFixed(2) + "×";
+                slider.addEventListener("input", () => {
+                    const v = parseFloat(slider.value);
+                    setVal(v);
+                    valLbl.textContent = v.toFixed(2) + "×";
+                });
+                row.appendChild(lbl);
+                row.appendChild(slider);
+                row.appendChild(valLbl);
+                ebcTagsBody.appendChild(row);
+            };
+            const scaleSectionLbl = document.createElement("div");
+            scaleSectionLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.08em;color:#6a4060;text-transform:uppercase;margin:2px 0 5px;";
+            scaleSectionLbl.textContent = t("strip.scale");
+            ebcTagsBody.appendChild(scaleSectionLbl);
+            makeScaleRow(t("strip.styleBtnText"), getTextBadgeScale, setTextBadgeScale);
+            makeScaleRow(t("strip.styleBtnCat"), getCatBadgeScale, setCatBadgeScale);
             // ── BG opacity slider ─────────────────────────────────────────────────
             const makeOpacitySliderRow = (labelKey, getVal, setVal, titleHint) => {
                 const row = document.createElement("div");
@@ -31143,7 +31185,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.2.1";
+    const MOD_VERSION = "3.2.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31154,6 +31196,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.2.2",
+            changes: [
+                "EBC Tag Settings: Text and Cat badge styles now each have their own independent scale slider. Existing scale value migrates automatically — both start at whatever you had set before.",
+            ],
+        },
         {
             version: "3.2.1",
             changes: [
@@ -35393,8 +35441,8 @@
         // User-configured position offset + scale
         const offsetX = getBadgeOffsetX(); // default 250 (char horiz centre)
         const offsetY = getBadgeOffsetY(); // default 72  (below WCE name)
-        const userScale = getBadgeScale(); // default 1.0
         const badgeStyle = isSelf ? getBadgeStyle() : getOthersBadgeStyle(); // per-target style
+        const userScale = badgeStyle === "cat" ? getCatBadgeScale() : getTextBadgeScale();
         const badgeBgOp = getBadgeBgOpacity(); // default 1.0
         const badgeTextOp = getBadgeTextOpacity(); // default 1.0
         const x = left + offsetX * zoom;
