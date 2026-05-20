@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.9.8
+// @version      2.9.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1893,24 +1893,47 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // -- Badge opacity -------------------------------------------------------------
-    // Controls how transparent the overhead badge is. 1.0 = fully opaque, 0.1 = nearly invisible.
-    // Range: 0.1 – 1.0. Default: 1.0.
-    function getBadgeOpacity() {
+    // -- Badge background opacity --------------------------------------------------
+    // Controls how opaque the background rectangle of the text badge is.
+    // 0.0 = fully transparent (text only), 1.0 = fully opaque. Default: 1.0.
+    function getBadgeBgOpacity() {
         var _a;
         try {
-            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeOpacity;
-            return typeof v === "number" && v >= 0.1 && v <= 1 ? v : 1.0;
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeBgOpacity;
+            return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
         }
         catch (_b) {
             return 1.0;
         }
     }
-    function setBadgeOpacity(v) {
+    function setBadgeBgOpacity(v) {
         try {
             const s = getStore$7();
             if (s) {
-                s.badgeOpacity = Math.max(0.1, Math.min(1, v));
+                s.badgeBgOpacity = Math.max(0, Math.min(1, v));
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Badge text opacity --------------------------------------------------------
+    // Controls how opaque the label text (or cat emoji) of the badge is.
+    // 0.0 = invisible, 1.0 = fully opaque. Default: 1.0.
+    function getBadgeTextOpacity() {
+        var _a;
+        try {
+            const v = (_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.badgeTextOpacity;
+            return typeof v === "number" && v >= 0 && v <= 1 ? v : 1.0;
+        }
+        catch (_b) {
+            return 1.0;
+        }
+    }
+    function setBadgeTextOpacity(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.badgeTextOpacity = Math.max(0, Math.min(1, v));
                 syncSettings();
             }
         }
@@ -12190,6 +12213,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // i18n.ts — Internationalisation for EmeryBC.
     // Language preference is stored in localStorage (fast, device-local, no server sync needed).
     const LANG_CODES = ["en", "de", "zh", "fr", "es", "ru", "ja"];
+    const LANG_LABELS = {
+        en: "EN", de: "DE", zh: "中文", fr: "FR", es: "ES", ru: "RU", ja: "日本語",
+    };
     const LANG_NAMES = {
         en: "English", de: "Deutsch", zh: "中文", fr: "Français", es: "Español", ru: "Русский", ja: "日本語",
     };
@@ -12537,7 +12563,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "strip.othersSub": { en: "EBC tags above other players' heads", de: "EBC-Etiketten über anderen Spielerköpfen", zh: "其他玩家头顶上方的 EBC 标签", fr: "Tags EBC au-dessus des têtes des autres joueurs", es: "Tags EBC sobre las cabezas de otros jugadores", ru: "EBC-теги над головами других игроков", ja: "他プレイヤーの頭上のEBCタグ" },
         "strip.badgeAppearance": { en: "BADGE APPEARANCE", de: "ABZEICHEN-AUSSEHEN", zh: "徽标外观", fr: "APPARENCE DU BADGE", es: "APARIENCIA DE LA INSIGNIA", ru: "ВНЕШНИЙ ВИД ЗНАЧКА", ja: "バッジ外観" },
         "strip.scale": { en: "Scale", de: "Größe", zh: "缩放", fr: "Taille", es: "Tamaño", ru: "Размер", ja: "スケール" },
-        "strip.opacity": { en: "Opacity", de: "Deckkraft", zh: "不透明度", fr: "Opacité", es: "Opacidad", ru: "Прозрачность", ja: "不透明度" },
+        "strip.bgOpacity": { en: "BG", de: "HG", zh: "背景", fr: "Fond", es: "Fondo", ru: "Фон", ja: "背景" },
+        "strip.textOpacity": { en: "Text", de: "Text", zh: "文字", fr: "Texte", es: "Texto", ru: "Текст", ja: "テキスト" },
         "strip.dragHint": { en: "Drag badge on your character to reposition for everyone", de: "Abzeichen auf deinen Charakter ziehen, um es für alle neu zu positionieren", zh: "在你的角色上拖动徽标以为所有人重新定位", fr: "Faire glisser le badge sur votre personnage pour le repositionner pour tous", es: "Arrastra la insignia en tu personaje para reposicionarla para todos", ru: "Перетащите значок на вашего персонажа, чтобы переместить его для всех", ja: "キャラクター上でバッジをドラッグして全員の位置を変更" },
         "strip.badgePosition": { en: "📍 Position", de: "📍 Position", zh: "📍 定位", fr: "📍 Position", es: "📍 Posición", ru: "📍 Позиция", ja: "📍 位置" },
         "strip.showChev": { en: "Show ▶", de: "Zeigen ▶", zh: "显示 ▶", fr: "Afficher ▶", es: "Mostrar ▶", ru: "Показать ▶", ja: "表示 ▶" },
@@ -13107,12 +13134,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     padding: 5px 8px;
     border-bottom: 1px solid #2a1020;
     background: rgba(15, 6, 12, 0.4);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
 }
 
 /* -- Body -- */
 .ebc-body {
     flex: 1;
+    min-height: 0; /* prevents flex children from refusing to shrink past content height */
     overflow-y: auto;
     padding: 7px;
     scrollbar-width: thin;
@@ -15935,7 +15964,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const pill = document.createElement("button");
                 pill.dataset.lang = code;
                 pill.className = "ebc-lang-pill"; // enables touch-mode CSS targeting
-                pill.textContent = LANG_NAMES[code];
+                pill.textContent = LANG_LABELS[code];
+                pill.title = LANG_NAMES[code]; // full name on hover
                 pill.addEventListener("click", () => {
                     setLanguage(code);
                     refreshLangPills();
@@ -16701,32 +16731,36 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             scaleRow.appendChild(scaleSlider);
             scaleRow.appendChild(scaleVal);
             ebcTagsBody.appendChild(scaleRow);
-            // ── Opacity slider ────────────────────────────────────────────────────
-            const opacityRow = document.createElement("div");
-            opacityRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
-            const opacityLbl = document.createElement("span");
-            opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
-            opacityLbl.textContent = t("strip.opacity");
-            const opacitySlider = document.createElement("input");
-            opacitySlider.type = "range";
-            opacitySlider.min = "0.1";
-            opacitySlider.max = "1";
-            opacitySlider.step = "0.05";
-            opacitySlider.value = String(getBadgeOpacity());
-            opacitySlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
-            opacitySlider.title = "Badge opacity (1 = fully opaque)";
-            const opacityVal = document.createElement("span");
-            opacityVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
-            opacityVal.textContent = Math.round(getBadgeOpacity() * 100) + "%";
-            opacitySlider.addEventListener("input", () => {
-                const v = parseFloat(opacitySlider.value);
-                setBadgeOpacity(v);
-                opacityVal.textContent = Math.round(v * 100) + "%";
-            });
-            opacityRow.appendChild(opacityLbl);
-            opacityRow.appendChild(opacitySlider);
-            opacityRow.appendChild(opacityVal);
-            ebcTagsBody.appendChild(opacityRow);
+            // ── BG opacity slider ─────────────────────────────────────────────────
+            const makeOpacitySliderRow = (labelKey, getVal, setVal, titleHint) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;min-width:28px;";
+                lbl.textContent = t(labelKey);
+                const slider = document.createElement("input");
+                slider.type = "range";
+                slider.min = "0";
+                slider.max = "1";
+                slider.step = "0.05";
+                slider.value = String(getVal());
+                slider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
+                slider.title = titleHint;
+                const valLbl = document.createElement("span");
+                valLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#cf6f98;min-width:28px;text-align:right;flex-shrink:0;";
+                valLbl.textContent = Math.round(getVal() * 100) + "%";
+                slider.addEventListener("input", () => {
+                    const v = parseFloat(slider.value);
+                    setVal(v);
+                    valLbl.textContent = Math.round(v * 100) + "%";
+                });
+                row.appendChild(lbl);
+                row.appendChild(slider);
+                row.appendChild(valLbl);
+                ebcTagsBody.appendChild(row);
+            };
+            makeOpacitySliderRow("strip.bgOpacity", getBadgeBgOpacity, setBadgeBgOpacity, "Background rectangle opacity (0 = transparent)");
+            makeOpacitySliderRow("strip.textOpacity", getBadgeTextOpacity, setBadgeTextOpacity, "Text / icon opacity (0 = invisible)");
             // ── Position drag row ─────────────────────────────────────────────────
             const posRow = document.createElement("div");
             posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
@@ -30780,7 +30814,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.9.8";
+    const MOD_VERSION = "2.9.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30791,6 +30825,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.9.9",
+            changes: [
+                "Feature: Badge BG and Text opacity are now two independent sliders. 'BG' controls the background rectangle transparency (0 = invisible background, text floats freely); 'Text' controls the label / emoji opacity. Both are available in the badge appearance section.",
+                "Fix: Drawer body could not scroll — flex child lacked min-height:0 which prevented it from shrinking past its content height when fixed elements above it were too tall.",
+                "Fix: Language row reverted to single-line (nowrap) using short abbreviations (EN/DE/etc.) with full name shown on hover, so it no longer wraps and steals vertical space from the scrollable body.",
+            ],
+        },
         {
             version: "2.9.8",
             changes: [
@@ -34809,17 +34851,18 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const offsetY = getBadgeOffsetY(); // default 72  (below WCE name)
         const userScale = getBadgeScale(); // default 1.0
         const badgeStyle = getBadgeStyle(); // "text" | "cat"
-        const badgeOpacity = getBadgeOpacity(); // default 1.0
+        const badgeBgOp = getBadgeBgOpacity(); // default 1.0
+        const badgeTextOp = getBadgeTextOpacity(); // default 1.0
         const x = left + offsetX * zoom;
         const y = top + offsetY * zoom;
         if (badgeStyle === "cat") {
             // ── Cat-face emoji badge ──────────────────────────────────────────────
             const canvas = getBCCanvas();
             const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
-            if (ctx) {
+            if (ctx && badgeTextOp > 0) {
                 const fontSize = Math.max(12, Math.round(22 * zoom * userScale));
                 ctx.save();
-                ctx.globalAlpha = badgeOpacity;
+                ctx.globalAlpha = badgeTextOp;
                 ctx.font = `${fontSize}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
@@ -34839,15 +34882,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const height = Math.max(baseH * 0.6, baseH * zoom * userScale);
             const badgeLeft = x - width / 2;
             const badgeTop = y - height / 2;
-            if (ctx) {
-                ctx.save();
-                ctx.globalAlpha = badgeOpacity;
+            // Background rect — independent opacity
+            if (badgeBgOp > 0) {
+                if (ctx) {
+                    ctx.save();
+                    ctx.globalAlpha = badgeBgOp;
+                }
+                DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
+                DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
+                if (ctx)
+                    ctx.restore();
             }
-            DrawRect(badgeLeft, badgeTop, width, height, "rgba(25,11,19,0.72)");
-            DrawEmptyRect(badgeLeft, badgeTop, width, height, "rgba(76,37,55,0.85)", 1);
-            DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
-            if (ctx)
-                ctx.restore();
+            // Label text — independent opacity
+            if (badgeTextOp > 0) {
+                if (ctx) {
+                    ctx.save();
+                    ctx.globalAlpha = badgeTextOp;
+                }
+                DrawTextFit(label, badgeLeft + width / 2, badgeTop + height / 2 + 1, width - 4, UI.accent);
+                if (ctx)
+                    ctx.restore();
+            }
         }
         // ── Drag-mode handle (own character only) ─────────────────────────────────
         if (isSelf && getBadgeDragMode()) {
