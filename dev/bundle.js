@@ -1287,18 +1287,16 @@
         const wantsRelaxed = safeList.includes("");
         const filtered = safeList.filter(Boolean);
         const result = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
-        // 1. Update BC's internal pose state.
-        //    Prefer PoseSetActive (BC R107+) which writes ActivePoseMapping — the
-        //    canonical pose state in modern BC.  Fall back to direct ActivePose
-        //    assignment for older builds.
-        const psa = window.PoseSetActive;
+        const win = window;
+        const psa = win.PoseSetActive;
+        const pfn = win.AssetPoseFindName;
+        // 1a. PoseSetActive (BC R107+) — sets ActivePoseMapping the canonical way.
         if (typeof psa === "function") {
             try {
                 if (result.length === 0) {
                     psa(Player, null, true, false);
                 }
                 else {
-                    // force=true on first call resets mapping; subsequent calls add into it
                     psa(Player, result[0], true, false);
                     for (let i = 1; i < result.length; i++) {
                         psa(Player, result[i], false, false);
@@ -1307,18 +1305,38 @@
             }
             catch ( /* ignore */_a) { /* ignore */ }
         }
-        else {
+        // 1b. Also set ActivePoseMapping directly via AssetPoseFindName.
+        //     This is the critical belt-and-suspenders step: PoseSetActive can silently
+        //     return early (e.g. pose not found) without throwing, leaving the mapping
+        //     unchanged.  Every subsequent CharacterRefresh then recomputes ActivePose
+        //     from that unchanged (empty) mapping and wipes the pose we tried to set.
+        //     Setting the mapping ourselves guarantees CharacterRefresh always sees the
+        //     correct categories regardless of whether PoseSetActive succeeded.
+        if (typeof pfn === "function") {
+            try {
+                const mapping = {};
+                for (const p of result) {
+                    const data = pfn(p);
+                    if (data === null || data === void 0 ? void 0 : data.Category)
+                        mapping[data.Category] = p;
+                }
+                Player.ActivePoseMapping =
+                    result.length === 0 ? {} : mapping;
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+        }
+        else if (typeof psa !== "function") {
+            // Truly old BC (no PoseSetActive, no AssetPoseFindName): direct ActivePose assignment.
             try {
                 Player.ActivePose =
                     result.length > 0 ? result : null;
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
         }
-        // 2. Local visual refresh only — Push=false so we don't double-send.
+        // 2. Local visual refresh — Push=false, we push below.
         callBC(() => CharacterRefresh(Player, false));
-        // 3. Push to room via ServerSend directly, the same approach the sequence
-        //    runner in actionButtons.ts uses (known to work).  This is more reliable
-        //    than CharacterRefresh(Push=true) which may drop ActivePose in some BC versions.
+        // 3. Push to room via direct ServerSend (same approach as sequence runner in
+        //    actionButtons.ts which is known to work).
         try {
             if (Player.OnlineID != null) {
                 ServerSend("ChatRoomCharacterUpdate", {
@@ -1328,7 +1346,7 @@
                 });
             }
         }
-        catch ( /* ignore */_c) { /* ignore */ }
+        catch ( /* ignore */_d) { /* ignore */ }
     }
     // Apply poses one-by-one in the given order with a delay between each step.
     // Respects the exact order provided — the user controls sequencing via the editor.
@@ -3229,6 +3247,47 @@
         canvas.addEventListener("mousedown", onDown);
         canvas.addEventListener("touchstart", onDown, { passive: false });
     }
+    /**
+     * Draw a cooldown button at (x, y) with a dimmed label, large countdown
+     * number, and a fill-bar progress indicator along the bottom edge.
+     */
+    function drawCooldownButton(x, y, size, label, remainMs) {
+        // Dark background + subtle border
+        DrawRect(x, y, size, size, "rgba(10,3,8,0.92)");
+        DrawEmptyRect(x, y, size, size, "#2a0e1a", 1);
+        const canvas = document.getElementById("MainCanvas");
+        const ctx = canvas === null || canvas === void 0 ? void 0 : canvas.getContext("2d");
+        if (ctx) {
+            ctx.save();
+            ctx.textAlign = "center";
+            // Dimmed label at the top so the user knows which button this is
+            ctx.font = "bold 11px arial";
+            ctx.textBaseline = "top";
+            ctx.fillStyle = "#3a1525";
+            ctx.fillText(label.length > 5 ? label.slice(0, 5) : label, x + size / 2, y + 4);
+            // Countdown number centred — bright pink, large
+            const secs = Math.ceil(remainMs / 1000);
+            ctx.font = "bold 20px arial";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#cf6f98";
+            ctx.fillText(String(secs), x + size / 2, y + size / 2 + 4);
+            // Fill-bar: dark trough then pink fill growing left→right as cooldown drains
+            const barH = 3;
+            const barX = x + 2;
+            const barY = y + size - barH - 2;
+            const barW = size - 4;
+            const filled = (1 - remainMs / BUTTON_COOLDOWN_MS) * barW;
+            ctx.fillStyle = "#1a080f";
+            ctx.fillRect(barX, barY, barW, barH);
+            ctx.fillStyle = "#cf6f98";
+            ctx.fillRect(barX, barY, Math.max(0, Math.min(barW, filled)), barH);
+            ctx.restore();
+        }
+        else {
+            // Canvas context unavailable — simple text fallback
+            DrawTextFit(Math.ceil(remainMs / 1000) + "s", x + size / 2, y + size / 2, size - 4, "#cf6f98");
+        }
+    }
     /** Converts a 6-digit hex color to rgba() with the given alpha (0–1). */
     function withAlpha(hex, alpha) {
         const h = hex.replace("#", "");
@@ -3303,7 +3362,12 @@
             const cdKey = idx * 100 + i;
             const remainMs = BUTTON_COOLDOWN_MS - (now - ((_a = _btnCooldowns.get(cdKey)) !== null && _a !== void 0 ? _a : 0));
             const onCooldown = remainMs > 0;
-            DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE, onCooldown ? Math.ceil(remainMs / 1000) + "s" : btn.label, onCooldown ? withAlpha("#1a0a14", 0.88) : withAlpha(btn.color || "#c2185b", 0.90), "", onCooldown ? "" : btn.emote);
+            if (onCooldown) {
+                drawCooldownButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
+            }
+            else {
+                DrawButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90), "", btn.emote);
+            }
         }
     }
     function handleActionButtonClick() {
@@ -31766,7 +31830,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.7.2";
+    const MOD_VERSION = "3.7.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31778,9 +31842,16 @@
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "3.7.3",
+            changes: [
+                "Fix: pose combos/buttons now correctly maintain the set pose. Root cause: PoseSetActive can silently return early (no throw) if the pose lookup fails, leaving ActivePoseMapping unchanged. Every CharacterRefresh then recomputes ActivePose from that empty mapping and wipes the pose. Fix: also set ActivePoseMapping directly via AssetPoseFindName so all subsequent refreshes see the correct categories.",
+                "Action button cooldown display: replaced '12s' plain text with a custom canvas button — dimmed label at top, large pink countdown number in centre, fill-bar progress indicator along the bottom edge.",
+            ],
+        },
+        {
             version: "3.7.2",
             changes: [
-                "Fix: pose combos (and single-click pose buttons) now reliably push to the room. Replaced the unreliable CharacterRefresh(Push=true) path with a direct ServerSend('ChatRoomCharacterUpdate') — the same approach used by the sequence runner which is known to work.",
+                "Fix: pose application now pushes to room via direct ServerSend instead of CharacterRefresh(Push=true).",
             ],
         },
         {
