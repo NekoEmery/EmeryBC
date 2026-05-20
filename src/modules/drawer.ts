@@ -1377,6 +1377,34 @@ const CSS = `
     user-select: none;
 }
 
+/* Golden paw icon used on Emery's credits card (avatar + right decoration) */
+.ebc-thanks-paw-icon {
+    display: inline-block;
+    font-size: inherit;
+    filter: sepia(1) saturate(5) hue-rotate(-10deg) brightness(1.25)
+            drop-shadow(0 0 5px rgba(255, 175, 30, 0.7));
+    animation: ebc-paw-flash 2.6s ease-in-out infinite;
+}
+@keyframes ebc-paw-flash {
+    0%, 100% {
+        filter: sepia(1) saturate(4) hue-rotate(-10deg) brightness(1.15)
+                drop-shadow(0 0 4px rgba(240, 160, 20, 0.55));
+    }
+    50% {
+        filter: sepia(1) saturate(7) hue-rotate(-12deg) brightness(1.55)
+                drop-shadow(0 0 14px rgba(255, 210, 50, 1));
+    }
+}
+.ebc-thanks-avatar-paw {
+    border-color: #b07010 !important;
+    background: #26180a !important;
+    animation: ebc-paw-ring 2.6s ease-in-out infinite;
+}
+@keyframes ebc-paw-ring {
+    0%, 100% { box-shadow: 0 0 6px  rgba(200, 130, 10, 0.35); border-color: #b07010; }
+    50%       { box-shadow: 0 0 16px rgba(255, 200, 40, 0.85); border-color: #f0c030; }
+}
+
 .ebc-member-chip {
     display: inline-block;
     font-family: "Trebuchet MS", serif;
@@ -17042,7 +17070,7 @@ export class EBCDrawer {
                 name: "Emery",
                 memberId: 130267,
                 reason: t("credits.emery"),
-                heart: "🎀",
+                heart: "🐾",
             },
             {
                 emoji: "🎀",
@@ -17078,9 +17106,19 @@ export class EBCDrawer {
             const card = document.createElement("div");
             card.className = "ebc-thanks-card";
 
+            const isPawCard = p.memberId === 130267;
+
             const avatar = document.createElement("div");
-            avatar.className = "ebc-thanks-avatar";
-            avatar.textContent = p.emoji;
+            avatar.className = "ebc-thanks-avatar" + (isPawCard ? " ebc-thanks-avatar-paw" : "");
+            if (isPawCard) {
+                // Wrap emoji in a span so the CSS filter/animation applies cleanly
+                const pawSpan = document.createElement("span");
+                pawSpan.className = "ebc-thanks-paw-icon";
+                pawSpan.textContent = p.emoji;
+                avatar.appendChild(pawSpan);
+            } else {
+                avatar.textContent = p.emoji;
+            }
 
             const info = document.createElement("div");
             info.className = "ebc-thanks-info";
@@ -17111,7 +17149,14 @@ export class EBCDrawer {
 
             const heart = document.createElement("span");
             heart.className = "ebc-thanks-heart";
-            heart.textContent = p.heart;
+            if (isPawCard) {
+                const pawSpan = document.createElement("span");
+                pawSpan.className = "ebc-thanks-paw-icon";
+                pawSpan.textContent = p.heart;
+                heart.appendChild(pawSpan);
+            } else {
+                heart.textContent = p.heart;
+            }
 
             card.appendChild(avatar);
             card.appendChild(info);
