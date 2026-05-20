@@ -14510,6 +14510,7 @@
 
 /* -- Friends section -- */
 .ebc-friend-wrap { margin-bottom: 3px; border: 1px solid transparent; border-radius: 5px; overflow: hidden; transition: background 0.2s, border-color 0.2s; }
+.ebc-friend-wrap.ebc-friend-starred { border-left: 3px solid rgba(255, 200, 50, 0.8); }
 
 .ebc-friend-row {
     display: flex;
@@ -15436,17 +15437,13 @@
 .ebc-whisper-text { color: #d0a0b8; word-break: break-word; }
 .ebc-whisper-msg.out .ebc-whisper-text { color: #e8b0d0; }
 
-/* ── Creator paw glow animation (credits card) ──────────────────────────── */
-@keyframes ebc-paw-glow {
-    0%, 100% { opacity: 0.82; filter: drop-shadow(0 0 3px #c89030); }
-    50%       { opacity: 1.00; filter: drop-shadow(0 0 7px #ffd700) drop-shadow(0 0 3px #c89030); }
-}
+/* ── Creator paw (credits card avatar) ──────────────────────────────────── */
 .ebc-creator-paw-img {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    animation: ebc-paw-glow 2.4s ease-in-out infinite;
-    vertical-align: middle;
+    width: 22px;
+    height: 22px;
+    display: block;
+    filter: drop-shadow(0 0 3px #c89030);
+    opacity: 0.9;
 }
 
 /* ── Touch / phone mode ─────────────────────────────────────────────────── */
@@ -16150,6 +16147,7 @@
             // Interactive guide overlay
             this.guideEl = null;
             this.guideStep = 0;
+            this.guideSpotlightIndex = 0; // which spotlight in the current step is active
             // Category dropdown in quick actions bar
             // DEV tab auto-refresh poller
             this.devLogPoller = null;
@@ -17434,6 +17432,7 @@
             document.body.appendChild(side);
             this.guideEl = side;
             this.guideStep = 0;
+            this.guideSpotlightIndex = 0;
             this.renderGuideStep();
         }
         // Parses simple inline markup in guide text:
@@ -17476,7 +17475,7 @@
             }
         }
         renderGuideStep() {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             // Clear spotlights from the previous step before building the new one
             this.clearGuideSpotlights();
             const card = this.guideEl;
@@ -17486,15 +17485,20 @@
             const step = steps[this.guideStep];
             if (!step)
                 return;
-            // Switch to the relevant tab
-            if (step.tab && step.tab !== this.currentTab) {
+            const spotCount = (_b = (_a = step.spotlight) === null || _a === void 0 ? void 0 : _a.length) !== null && _b !== void 0 ? _b : 0;
+            // Clamp spotlight index in case we arrived from a step with more spotlights
+            if (this.guideSpotlightIndex >= spotCount)
+                this.guideSpotlightIndex = 0;
+            const spotIdx = this.guideSpotlightIndex;
+            // Switch to the relevant tab (only on first spotlight of the step)
+            if (spotIdx === 0 && step.tab && step.tab !== this.currentTab) {
                 this.switchTab(step.tab);
             }
             card.innerHTML = "";
             card.style.display = "";
             // Top row: step counter + close
-            const top = document.createElement("div");
-            top.className = "ebc-guide-top";
+            const topRow = document.createElement("div");
+            topRow.className = "ebc-guide-top";
             const stepLbl = document.createElement("span");
             stepLbl.className = "ebc-guide-step-lbl";
             stepLbl.textContent = `Step ${this.guideStep + 1} / ${steps.length}`;
@@ -17503,9 +17507,9 @@
             closeX.textContent = "✕";
             closeX.title = "Close guide";
             closeX.addEventListener("click", () => this.closeGuide());
-            top.appendChild(stepLbl);
-            top.appendChild(closeX);
-            card.appendChild(top);
+            topRow.appendChild(stepLbl);
+            topRow.appendChild(closeX);
+            card.appendChild(topRow);
             // Section label
             const tabLbl = document.createElement("div");
             tabLbl.className = "ebc-guide-tab-lbl";
@@ -17516,7 +17520,19 @@
             textEl.className = "ebc-guide-text";
             EBCDrawer.parseGuideMarkup(step.text, textEl);
             card.appendChild(textEl);
-            // Progress bar
+            // Spotlight dots — shown when the step has multiple spotlights
+            // One dot per spotlight; the active dot is accent-coloured
+            if (spotCount > 1) {
+                const dotsRow = document.createElement("div");
+                dotsRow.style.cssText = "display:flex;justify-content:center;gap:5px;margin:4px 0 2px;";
+                for (let i = 0; i < spotCount; i++) {
+                    const dot = document.createElement("span");
+                    dot.style.cssText = `width:6px;height:6px;border-radius:50%;display:inline-block;transition:background 0.15s;background:${i === spotIdx ? "#cf6f98" : "#3a1928"};`;
+                    dotsRow.appendChild(dot);
+                }
+                card.appendChild(dotsRow);
+            }
+            // Progress bar (reflects step progress, not spotlight sub-step)
             const progress = document.createElement("div");
             progress.className = "ebc-guide-progress";
             const fill = document.createElement("div");
@@ -17530,18 +17546,45 @@
             const prevBtn = document.createElement("button");
             prevBtn.className = "ebc-guide-nav-prev";
             prevBtn.textContent = "← Back";
-            if (this.guideStep === 0)
+            // Back is disabled on the very first spotlight of the very first step
+            if (this.guideStep === 0 && spotIdx === 0)
                 prevBtn.disabled = true;
-            prevBtn.addEventListener("click", () => { this.guideStep--; this.renderGuideStep(); });
+            prevBtn.addEventListener("click", () => {
+                var _a;
+                if (spotIdx > 0) {
+                    // Back within spotlight sub-steps
+                    this.guideSpotlightIndex--;
+                }
+                else {
+                    // Back to previous step, land on its last spotlight
+                    this.guideStep--;
+                    const prev = steps[this.guideStep];
+                    this.guideSpotlightIndex = ((_a = prev === null || prev === void 0 ? void 0 : prev.spotlight) === null || _a === void 0 ? void 0 : _a.length) ? prev.spotlight.length - 1 : 0;
+                }
+                this.renderGuideStep();
+            });
+            const isLastSpot = spotIdx >= spotCount - 1;
+            const isLastStep = this.guideStep === steps.length - 1;
             const nextBtn = document.createElement("button");
             nextBtn.className = "ebc-guide-nav-next";
-            if (this.guideStep === steps.length - 1) {
+            if (isLastStep && isLastSpot) {
                 nextBtn.textContent = "Done ✓";
-                nextBtn.addEventListener("click", () => this.closeGuide());
+                nextBtn.addEventListener("click", () => this.closeGuide(true));
+            }
+            else if (!isLastSpot) {
+                nextBtn.textContent = "Next →";
+                nextBtn.addEventListener("click", () => {
+                    this.guideSpotlightIndex++;
+                    this.renderGuideStep();
+                });
             }
             else {
                 nextBtn.textContent = "Next →";
-                nextBtn.addEventListener("click", () => { this.guideStep++; this.renderGuideStep(); });
+                nextBtn.addEventListener("click", () => {
+                    this.guideStep++;
+                    this.guideSpotlightIndex = 0;
+                    this.renderGuideStep();
+                });
             }
             nav.appendChild(prevBtn);
             nav.appendChild(nextBtn);
@@ -17550,31 +17593,33 @@
             // Tab button: whenever the guide is on a tab-specific step, glow the tab
             if (step.tab) {
                 const tabIdMap = { anims: "poses" };
-                const tabBtnId = (_a = tabIdMap[step.tab]) !== null && _a !== void 0 ? _a : step.tab;
-                // Delay slightly so the tab re-render finishes before we add the class
+                const tabBtnId = (_c = tabIdMap[step.tab]) !== null && _c !== void 0 ? _c : step.tab;
                 window.setTimeout(() => this.spotlightEl(`#ebc-tab-${tabBtnId}`), 60);
             }
-            // Additional per-step element spotlights
-            if ((_b = step.spotlight) === null || _b === void 0 ? void 0 : _b.length) {
+            // Spotlight only the current sub-step element (one at a time)
+            if (spotCount > 0) {
                 window.setTimeout(() => {
-                    for (const sel of step.spotlight)
-                        this.spotlightEl(sel);
+                    this.spotlightEl(step.spotlight[spotIdx]);
                 }, 80);
             }
-            // Auto-expand collapsible sections so users can see the content immediately
-            if ((_c = step.autoExpand) === null || _c === void 0 ? void 0 : _c.length) {
+            // Auto-expand only on first entry to the step (spotIdx === 0)
+            if (spotIdx === 0 && ((_d = step.autoExpand) === null || _d === void 0 ? void 0 : _d.length)) {
                 window.setTimeout(() => {
                     for (const sel of step.autoExpand)
                         this.expandGuideTarget(sel);
                 }, 120);
             }
         }
-        closeGuide() {
+        /** Close the guide overlay. Pass `andClosePanel = true` when the user
+         *  intentionally finishes the guide — the main panel is closed too. */
+        closeGuide(andClosePanel = false) {
             this.clearGuideSpotlights();
             if (this.guideEl) {
                 this.guideEl.remove();
                 this.guideEl = null;
             }
+            if (andClosePanel)
+                this.close();
         }
         /**
          * Expand a collapsible section identified by its data-guide-target attribute.
@@ -23540,10 +23585,8 @@
                         const name = resolveName(num) || nameRaw;
                         const wrap = document.createElement("div");
                         wrap.className = "ebc-friend-wrap";
-                        if (isSpecialFriend(num)) {
-                            wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
-                            wrap.style.borderColor = "rgba(255,200,50,0.55)";
-                        }
+                        if (isSpecialFriend(num))
+                            wrap.classList.add("ebc-friend-starred");
                         const row = document.createElement("div");
                         row.className = "ebc-friend-row";
                         // Green dot — in room
@@ -23745,8 +23788,7 @@
                             else
                                 addSpecialFriend(num);
                             const sp = isSpecialFriend(num);
-                            wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
-                            wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
+                            wrap.classList.toggle("ebc-friend-starred", sp);
                             refreshStarBtnR();
                         });
                         btnCol.appendChild(starBtnR);
@@ -23888,10 +23930,8 @@
                     // Wrapper holds both the row and the expand panel
                     const wrap = document.createElement("div");
                     wrap.className = "ebc-friend-wrap";
-                    if (isSpecialFriend(num)) {
-                        wrap.style.background = "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)";
-                        wrap.style.borderColor = "rgba(255,200,50,0.55)";
-                    }
+                    if (isSpecialFriend(num))
+                        wrap.classList.add("ebc-friend-starred");
                     // ── Row ────────────────────────────────────────────────────
                     const row = document.createElement("div");
                     row.className = "ebc-friend-row" + (pinned ? " pinned" : "");
@@ -24238,8 +24278,7 @@
                         else
                             addSpecialFriend(num);
                         const sp = isSpecialFriend(num);
-                        wrap.style.background = sp ? "linear-gradient(135deg, rgba(255,200,50,0.18) 0%, rgba(180,130,20,0.10) 100%)" : "";
-                        wrap.style.borderColor = sp ? "rgba(255,200,50,0.55)" : "";
+                        wrap.classList.toggle("ebc-friend-starred", sp);
                         refreshStarBtn();
                     });
                     btnCol.appendChild(starBtn);
@@ -30275,16 +30314,22 @@
                 const card = document.createElement("div");
                 card.className = "ebc-thanks-card";
                 const isPawCard = p.memberId === 130267;
-                if (isPawCard) {
+                if (isPawCard)
                     card.style.borderLeft = "4px solid #c89030";
+                // Avatar circle — paw PNG for creator, emoji for everyone else
+                const avatar = document.createElement("div");
+                avatar.className = "ebc-thanks-avatar";
+                if (isPawCard && EBCDrawer.pawDataUri) {
+                    const pawImg = document.createElement("img");
+                    pawImg.src = EBCDrawer.pawDataUri;
+                    pawImg.className = "ebc-creator-paw-img";
+                    pawImg.alt = "🐾";
+                    avatar.appendChild(pawImg);
                 }
-                // Creator card: no avatar circle — avatar is only shown for other members
-                if (!isPawCard) {
-                    const avatar = document.createElement("div");
-                    avatar.className = "ebc-thanks-avatar";
+                else {
                     avatar.textContent = p.emoji;
-                    card.appendChild(avatar);
                 }
+                card.appendChild(avatar);
                 const info = document.createElement("div");
                 info.className = "ebc-thanks-info";
                 const nameRow = document.createElement("div");
@@ -30296,53 +30341,21 @@
                 if (vipCredit)
                     applyGradientText(namEl, vipCredit.gradient[0], vipCredit.gradient[1]);
                 nameRow.appendChild(namEl);
-                if (isPawCard) {
-                    // Creator badge pill
-                    const creatorBadge = document.createElement("span");
-                    creatorBadge.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;color:#1a0d02;background:#c89030;border-radius:3px;padding:1px 6px;letter-spacing:0.05em;text-transform:uppercase;flex-shrink:0;";
-                    creatorBadge.textContent = "Creator";
-                    nameRow.appendChild(creatorBadge);
-                    // Member number chip (same as other cards)
-                    const idElCreator = document.createElement("span");
-                    idElCreator.className = "ebc-member-chip";
-                    idElCreator.textContent = "#" + p.memberId;
-                    idElCreator.title = "BC Member Number";
-                    nameRow.appendChild(idElCreator);
-                    // Paw mark — use the gold PNG if available, fall back to emoji
-                    if (EBCDrawer.pawDataUri) {
-                        const pawImg = document.createElement("img");
-                        pawImg.src = EBCDrawer.pawDataUri;
-                        pawImg.className = "ebc-creator-paw-img";
-                        pawImg.alt = "🐾";
-                        nameRow.appendChild(pawImg);
-                    }
-                    else {
-                        const pawMark = document.createElement("span");
-                        pawMark.style.cssText = "font-size:13px;line-height:1;filter:drop-shadow(0 0 3px #c89030);flex-shrink:0;";
-                        pawMark.textContent = "🐾";
-                        nameRow.appendChild(pawMark);
-                    }
-                }
-                else {
-                    const idEl2 = document.createElement("span");
-                    idEl2.className = "ebc-member-chip";
-                    idEl2.textContent = "#" + p.memberId;
-                    idEl2.title = "BC Member Number";
-                    nameRow.appendChild(idEl2);
-                }
+                const idEl = document.createElement("span");
+                idEl.className = "ebc-member-chip";
+                idEl.textContent = "#" + p.memberId;
+                idEl.title = "BC Member Number";
+                nameRow.appendChild(idEl);
                 const reason = document.createElement("span");
                 reason.className = "ebc-thanks-reason";
                 reason.textContent = p.reason;
                 info.appendChild(nameRow);
                 info.appendChild(reason);
                 card.appendChild(info);
-                // Right decoration — skip for the creator card (avatar already has the paw)
-                if (!isPawCard) {
-                    const heart = document.createElement("span");
-                    heart.className = "ebc-thanks-heart";
-                    heart.textContent = p.heart;
-                    card.appendChild(heart);
-                }
+                const heart = document.createElement("span");
+                heart.className = "ebc-thanks-heart";
+                heart.textContent = p.heart;
+                card.appendChild(heart);
                 body.appendChild(card);
             }
         }
@@ -31738,7 +31751,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.5.4";
+    const MOD_VERSION = "3.5.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31749,6 +31762,41 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.5.9",
+            changes: [
+                "Canvas paw: increased size (20*zoom) and moved higher above character name (8*zoom gap) for better visibility.",
+            ],
+        },
+        {
+            version: "3.5.8",
+            changes: [
+                "Users tab: favourited (★) friend cards now show a gold left-side tab stripe instead of a full gradient background and border — cleaner and less visually noisy.",
+            ],
+        },
+        {
+            version: "3.5.7",
+            changes: [
+                "Guide: spotlight elements now cycle one at a time as the user clicks Next — each highlighted element is shown individually before advancing to the next step.",
+                "Guide: steps with multiple spotlights show a row of dots indicating which element is currently highlighted and how many are left.",
+                "Guide: Back button now steps back through spotlight sub-steps before returning to the previous guide step.",
+                "Guide: clicking Done at the end (or ✕) closes the main panel automatically.",
+            ],
+        },
+        {
+            version: "3.5.6",
+            changes: [
+                "Credits: creator card now uses standard layout (same size as other cards) — gold paw PNG fills the avatar circle, CREATOR badge removed, member chip and heart decoration now match other cards.",
+                "Canvas paw: repositioned to centered above the character name (nameX - sz/2, nameY - sz - 3*zoom) instead of inline to the right.",
+            ],
+        },
+        {
+            version: "3.5.5",
+            changes: [
+                "Credits: creator paw moved above the name row and centered — no longer inline with the name chips.",
+                "Credits: removed the pulsing glow animation from the creator paw; now a subtle static drop-shadow (28px, opacity 0.88).",
+            ],
+        },
         {
             version: "3.5.4",
             changes: [
@@ -36209,16 +36257,16 @@
             if (_pawCtx && _pawImg) {
                 // Pulse stays between 0.72 and 1.0 — never fades to near-invisible
                 const pulse = 0.86 + 0.14 * Math.sin(Date.now() / 1200);
-                const sz = Math.max(10, Math.round(16 * zoom));
+                const sz = Math.max(12, Math.round(20 * zoom));
                 // BC draws the character name at CharTop + 975 * Zoom.
-                // x offset 54*zoom puts the paw ~8px past the right edge of a typical 6-char name.
                 const nameX = left + 250 * zoom;
                 const nameY = top + 975 * zoom;
                 _pawCtx.save();
                 _pawCtx.globalAlpha = pulse;
                 _pawCtx.shadowColor = "#ffd700";
                 _pawCtx.shadowBlur = sz * 0.8;
-                _pawCtx.drawImage(_pawImg, nameX + Math.round(54 * zoom), nameY - sz / 2, sz, sz);
+                // Draw centered horizontally, higher above the character name
+                _pawCtx.drawImage(_pawImg, Math.round(nameX - sz / 2), Math.round(nameY - sz - 8 * zoom), sz, sz);
                 _pawCtx.restore();
             }
         }
