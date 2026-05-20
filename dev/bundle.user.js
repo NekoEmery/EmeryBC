@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.6.7
+// @version      3.6.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16175,6 +16175,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.offlineFriendsCollapsed = true;
             this.roomPeopleCollapsed = false;
             this.friendSort = "status"; // persisted in localStorage as EBC_friendSort
+            // Tracks what colors were last written into inline styles by repaintTheme() so that
+            // a reverse pass can revert them when switching/resetting to a different theme.
+            this._lastPaintedColors = Object.assign({}, DEFAULT_COLORS);
             this.lastRect = { top: -1, width: -1, height: -1, right: -1 };
             this.lastCrabsBottom = -1;
             this.crabsPoller = null;
@@ -17828,66 +17831,119 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
          */
         repaintTheme() {
             const c = getCoreColors();
-            // Nothing to rewrite when theme equals defaults — inline styles already use those values
-            if (c.bg === DEFAULT_COLORS.bg && c.card === DEFAULT_COLORS.card &&
-                c.cardMuted === DEFAULT_COLORS.cardMuted && c.border === DEFAULT_COLORS.border &&
-                c.accent === DEFAULT_COLORS.accent && c.textBright === DEFAULT_COLORS.textBright &&
-                c.textSub === DEFAULT_COLORS.textSub && c.textMuted === DEFAULT_COLORS.textMuted &&
-                c.gold === DEFAULT_COLORS.gold)
-                return;
+            const last = this._lastPaintedColors;
             const root = this.rootEl;
             if (!root)
                 return;
-            const bgDark = darken(c.bg, 0.18);
-            const bgDarker = darken(c.bg, 0.30);
-            const bgMid = lighten(c.bg, 0.45);
-            const borderLight = lighten(c.border, 0.35);
-            const accentHover = lighten(c.accent, 0.15);
-            const accentDim = darken(c.accent, 0.20);
-            // Hex literal replacements — same mapping as buildCSS()
-            const hexMap = [
-                ["#1b0d17", c.bg], ["#2a1421", c.card],
-                ["#190b13", c.cardMuted], ["#1a0d14", c.cardMuted],
-                ["#1e0d1a", bgDark], ["#130810", bgDark],
-                ["#100810", bgDarker], ["#2d1422", bgMid],
-                ["#3a1928", c.border], ["#4c2537", borderLight],
-                ["#cf6f98", c.accent], ["#e085ad", accentHover],
-                ["#a85678", accentDim], ["#7a5a6a", c.textMuted],
-                ["#967281", c.textSub], ["#9a7888", c.textSub],
-                ["#f7e6ee", c.textBright], ["#c9ab72", c.gold],
-            ];
-            // rgba component replacements — JS inline styles use "rgba(r,g,b,alpha)"
-            // Build from the known DEFAULT_COLORS rgb values → themed rgb values
-            const [dbR, dbG, dbB] = hexToRgb(DEFAULT_COLORS.bg); // 27, 13, 23
-            const [dcR, dcG, dcB] = hexToRgb(DEFAULT_COLORS.card); // 42, 20, 33
-            const [br, bg, bb] = hexToRgb(c.bg);
-            const [cr, cg, cb] = hexToRgb(c.card);
-            const rgbaMap = [];
-            if (c.bg !== DEFAULT_COLORS.bg) {
-                rgbaMap.push([`rgba(${dbR},${dbG},${dbB},`, `rgba(${br},${bg},${bb},`]);
-                rgbaMap.push([`rgba(${dbR}, ${dbG}, ${dbB},`, `rgba(${br}, ${bg}, ${bb},`]);
-            }
-            if (c.card !== DEFAULT_COLORS.card) {
-                rgbaMap.push([`rgba(${dcR},${dcG},${dcB},`, `rgba(${cr},${cg},${cb},`]);
-                rgbaMap.push([`rgba(${dcR}, ${dcG}, ${dcB},`, `rgba(${cr}, ${cg}, ${cb},`]);
-            }
-            root.querySelectorAll("[style]").forEach(raw => {
-                const el = raw;
-                const orig = el.getAttribute("style");
-                if (!orig)
-                    return;
-                let s = orig;
-                for (const [from, to] of hexMap) {
-                    if (s.includes(from))
-                        s = s.split(from).join(to);
-                }
-                for (const [from, to] of rgbaMap) {
-                    if (s.includes(from))
-                        s = s.split(from).join(to);
-                }
-                if (s !== orig)
-                    el.setAttribute("style", s);
+            const isDefault = (x) => x.bg === DEFAULT_COLORS.bg && x.card === DEFAULT_COLORS.card &&
+                x.cardMuted === DEFAULT_COLORS.cardMuted && x.border === DEFAULT_COLORS.border &&
+                x.accent === DEFAULT_COLORS.accent && x.textBright === DEFAULT_COLORS.textBright &&
+                x.textSub === DEFAULT_COLORS.textSub && x.textMuted === DEFAULT_COLORS.textMuted &&
+                x.gold === DEFAULT_COLORS.gold;
+            const atDefault = isDefault(c);
+            const lastDefault = isDefault(last);
+            // Nothing to do when target and last-painted are both defaults (DOM already correct).
+            if (atDefault && lastDefault)
+                return;
+            // Compute derived shades for any CoreColors object.
+            const mkDerived = (x) => ({
+                bgDark: darken(x.bg, 0.18),
+                bgDarker: darken(x.bg, 0.30),
+                bgMid: lighten(x.bg, 0.45),
+                borderLight: lighten(x.border, 0.35),
+                accentHover: lighten(x.accent, 0.15),
+                accentDim: darken(x.accent, 0.20),
             });
+            // Apply a hex+rgba replacement map to every inline-styled element in the panel.
+            const applyMap = (hexMap, rgbaMap) => {
+                root.querySelectorAll("[style]").forEach(raw => {
+                    const el = raw;
+                    const orig = el.getAttribute("style");
+                    if (!orig)
+                        return;
+                    let s = orig;
+                    for (const [from, to] of hexMap) {
+                        if (from !== to && s.includes(from))
+                            s = s.split(from).join(to);
+                    }
+                    for (const [from, to] of rgbaMap) {
+                        if (from !== to && s.includes(from))
+                            s = s.split(from).join(to);
+                    }
+                    if (s !== orig)
+                        el.setAttribute("style", s);
+                });
+            };
+            // -- Pass 1: reverse last painted colors → DEFAULT -----------------------
+            // Required when the DOM contains non-default hex values from a previous preset.
+            // Freshly built elements (default colors) are unaffected because their values
+            // don't match any last.X entry that differs from DEFAULT_COLORS.
+            if (!lastDefault) {
+                const ld = mkDerived(last);
+                const dd = mkDerived(DEFAULT_COLORS);
+                const revHex = [
+                    [last.bg, DEFAULT_COLORS.bg],
+                    [last.card, DEFAULT_COLORS.card],
+                    [last.cardMuted, DEFAULT_COLORS.cardMuted],
+                    [ld.bgDark, dd.bgDark],
+                    [ld.bgDarker, dd.bgDarker],
+                    [ld.bgMid, dd.bgMid],
+                    [last.border, DEFAULT_COLORS.border],
+                    [ld.borderLight, dd.borderLight],
+                    [last.accent, DEFAULT_COLORS.accent],
+                    [ld.accentHover, dd.accentHover],
+                    [ld.accentDim, dd.accentDim],
+                    [last.textMuted, DEFAULT_COLORS.textMuted],
+                    [last.textSub, DEFAULT_COLORS.textSub],
+                    [last.textBright, DEFAULT_COLORS.textBright],
+                    [last.gold, DEFAULT_COLORS.gold],
+                ];
+                const [lbR, lbG, lbB] = hexToRgb(last.bg);
+                const [lcR, lcG, lcB] = hexToRgb(last.card);
+                const [dbR, dbG, dbB] = hexToRgb(DEFAULT_COLORS.bg);
+                const [dcR, dcG, dcB] = hexToRgb(DEFAULT_COLORS.card);
+                const revRgba = [];
+                if (last.bg !== DEFAULT_COLORS.bg) {
+                    revRgba.push([`rgba(${lbR},${lbG},${lbB},`, `rgba(${dbR},${dbG},${dbB},`]);
+                    revRgba.push([`rgba(${lbR}, ${lbG}, ${lbB},`, `rgba(${dbR}, ${dbG}, ${dbB},`]);
+                }
+                if (last.card !== DEFAULT_COLORS.card) {
+                    revRgba.push([`rgba(${lcR},${lcG},${lcB},`, `rgba(${dcR},${dcG},${dcB},`]);
+                    revRgba.push([`rgba(${lcR}, ${lcG}, ${lcB},`, `rgba(${dcR}, ${dcG}, ${dcB},`]);
+                }
+                applyMap(revHex, revRgba);
+            }
+            // -- Pass 2: apply new colors DEFAULT → c --------------------------------
+            // Skipped when resetting to default (DOM is already at defaults after pass 1).
+            if (!atDefault) {
+                const cd = mkDerived(c);
+                const fwdHex = [
+                    ["#1b0d17", c.bg], ["#2a1421", c.card],
+                    ["#190b13", c.cardMuted], ["#1a0d14", c.cardMuted],
+                    ["#1e0d1a", cd.bgDark], ["#130810", cd.bgDark],
+                    ["#100810", cd.bgDarker], ["#2d1422", cd.bgMid],
+                    ["#3a1928", c.border], ["#4c2537", cd.borderLight],
+                    ["#cf6f98", c.accent], ["#e085ad", cd.accentHover],
+                    ["#a85678", cd.accentDim], ["#7a5a6a", c.textMuted],
+                    ["#967281", c.textSub], ["#9a7888", c.textSub],
+                    ["#f7e6ee", c.textBright], ["#c9ab72", c.gold],
+                ];
+                const [dbR, dbG, dbB] = hexToRgb(DEFAULT_COLORS.bg);
+                const [dcR, dcG, dcB] = hexToRgb(DEFAULT_COLORS.card);
+                const [br, bg, bb] = hexToRgb(c.bg);
+                const [cr, cg, cb] = hexToRgb(c.card);
+                const fwdRgba = [];
+                if (c.bg !== DEFAULT_COLORS.bg) {
+                    fwdRgba.push([`rgba(${dbR},${dbG},${dbB},`, `rgba(${br},${bg},${bb},`]);
+                    fwdRgba.push([`rgba(${dbR}, ${dbG}, ${dbB},`, `rgba(${br}, ${bg}, ${bb},`]);
+                }
+                if (c.card !== DEFAULT_COLORS.card) {
+                    fwdRgba.push([`rgba(${dcR},${dcG},${dcB},`, `rgba(${cr},${cg},${cb},`]);
+                    fwdRgba.push([`rgba(${dcR}, ${dcG}, ${dcB},`, `rgba(${cr}, ${cg}, ${cb},`]);
+                }
+                applyMap(fwdHex, fwdRgba);
+            }
+            this._lastPaintedColors = Object.assign({}, c);
         }
         /** Scale the entire EBC panel.
          *
@@ -31857,7 +31913,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.6.7";
+    const MOD_VERSION = "3.6.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
