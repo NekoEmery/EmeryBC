@@ -12425,6 +12425,55 @@
         "sw.graceActive": { en: "Grace active", de: "Schonfrist aktiv", zh: "宽限期已激活", fr: "Grâce active", es: "Gracia activa", ru: "Льготный период активен", ja: "猶予期間有効中" },
         "sw.graceRemaining": { en: "Grace: {time}", de: "Schonfrist: {time}", zh: "宽限期：{time}", fr: "Grâce : {time}", es: "Gracia: {time}", ru: "Льгота: {time}", ja: "猶予：{time}" },
         "sw.endGrace": { en: "End grace", de: "Schonfrist beenden", zh: "结束宽限期", fr: "Terminer la grâce", es: "Terminar la gracia", ru: "Завершить льготу", ja: "猶予を終了" },
+        // ─── DEV PREFERENCES ───────────────────────────────────────────────────
+        "dev.touchMode": { en: "Phone / touch mode", de: "Handy / Touch-Modus", zh: "手机 / 触屏模式", fr: "Mode téléphone / tactile", es: "Modo teléfono / táctil", ru: "Режим телефона/касания", ja: "スマホ / タッチモード" },
+        "dev.touchAutoOn": { en: "(auto: on)", de: "(auto: an)", zh: "（自动：开）", fr: "(auto : oui)", es: "(auto: sí)", ru: "(авто: вкл)", ja: "（自動：ON）" },
+        "dev.touchAutoOff": { en: "(auto: off)", de: "(auto: aus)", zh: "（自动：关）", fr: "(auto : non)", es: "(auto: no)", ru: "(авто: выкл)", ja: "（自動：OFF）" },
+        "dev.touchForceOn": { en: "Force ON", de: "Erzwingen AN", zh: "强制开启", fr: "Forcer OUI", es: "Forzar SÍ", ru: "Принуд. ВКЛ", ja: "強制ON" },
+        "dev.touchForceOff": { en: "Force OFF", de: "Erzwingen AUS", zh: "强制关闭", fr: "Forcer NON", es: "Forzar NO", ru: "Принуд. ВЫКЛ", ja: "強制OFF" },
+        "dev.panelOpacity": { en: "Panel opacity", de: "Panel-Transparenz", zh: "面板透明度", fr: "Opacité du panneau", es: "Opacidad del panel", ru: "Прозрачность панели", ja: "パネルの不透明度" },
+        "dev.textSize": { en: "Text size", de: "Textgröße", zh: "文字大小", fr: "Taille du texte", es: "Tamaño de texto", ru: "Размер текста", ja: "文字サイズ" },
+        "dev.quickPreset": { en: "Quick preset", de: "Schnell-Preset", zh: "快速预设", fr: "Préset rapide", es: "Preset rápido", ru: "Быстрый пресет", ja: "クイックプリセット" },
+        "dev.choosePreset": { en: "— choose preset —", de: "— Preset wählen —", zh: "— 选择预设 —", fr: "— choisir un préset —", es: "— elegir preset —", ru: "— выбрать пресет —", ja: "— プリセットを選択 —" },
+        "dev.resetTheme": { en: "Reset", de: "Zurücksetzen", zh: "重置", fr: "Réinitialiser", es: "Restablecer", ru: "Сбросить", ja: "リセット" },
+        "dev.colourSlots": { en: "Colour slots", de: "Farbfelder", zh: "颜色槽", fr: "Emplacements couleur", es: "Ranuras de color", ru: "Слоты цветов", ja: "カラースロット" },
+        "dev.visibleTabs": { en: "Visible tabs", de: "Sichtbare Tabs", zh: "可见标签页", fr: "Onglets visibles", es: "Pestañas visibles", ru: "Видимые вкладки", ja: "表示するタブ" },
+        "dev.devTabLocked": { en: "Dev tab is always visible and cannot be hidden", de: "Dev-Tab ist immer sichtbar und kann nicht ausgeblendet werden", zh: "Dev 标签页始终可见，无法隐藏", fr: "L'onglet Dev est toujours visible et ne peut pas être masqué", es: "La pestaña Dev siempre es visible y no puede ocultarse", ru: "Вкладка Dev всегда видна и не может быть скрыта", ja: "DEVタブは常に表示され、非表示にできません" },
+        "dev.menuHotkey": { en: "⌨ Menu Hotkey", de: "⌨ Menü-Shortcut", zh: "⌨ 菜单快捷键", fr: "⌨ Raccourci menu", es: "⌨ Atajo de menú", ru: "⌨ Горячая клавиша меню", ja: "⌨ メニューショートカット" },
+        "dev.setKey": { en: "Set Key", de: "Taste setzen", zh: "设置按键", fr: "Définir touche", es: "Establecer tecla", ru: "Задать клавишу", ja: "キー設定" },
+        "dev.pressKey": { en: "Press a key…", de: "Taste drücken…", zh: "按下一个键…", fr: "Appuyez sur une touche…", es: "Pulsa una tecla…", ru: "Нажмите клавишу…", ja: "キーを押してください…" },
+        "dev.hotkeyHint": { en: "Press the key to open / close the EBC menu from anywhere in the game.", de: "Diese Taste öffnet / schließt das EBC-Menü von überall im Spiel.", zh: "在游戏中的任何位置按此键可打开/关闭 EBC 菜单。", fr: "Appuyez sur cette touche pour ouvrir / fermer le menu EBC depuis n'importe où.", es: "Pulsa la tecla para abrir / cerrar el menú EBC desde cualquier lugar del juego.", ru: "Нажмите клавишу чтобы открыть/закрыть меню EBC из любого места в игре.", ja: "ゲーム内のどこからでもこのキーでEBCメニューを開閉できます。" },
+        "dev.noEbcUsers": { en: "No other EBC users detected in this room.", de: "Keine anderen EBC-Nutzer in diesem Raum erkannt.", zh: "此房间内未检测到其他 EBC 用户。", fr: "Aucun autre utilisateur EBC détecté dans cette salle.", es: "No se detectaron otros usuarios EBC en esta sala.", ru: "Других пользователей EBC в комнате не обнаружено.", ja: "このルームに他のEBCユーザーは検出されませんでした。" },
+        "dev.refreshList": { en: "↻ Refresh list", de: "↻ Liste aktualisieren", zh: "↻ 刷新列表", fr: "↻ Actualiser la liste", es: "↻ Actualizar lista", ru: "↻ Обновить список", ja: "↻ リスト更新" },
+        "dev.showVersionBadge": { en: "Show version in overhead badge", de: "Version im Overhead-Badge anzeigen", zh: "在头顶徽标中显示版本", fr: "Afficher la version dans le badge", es: "Mostrar versión en la insignia", ru: "Показывать версию в значке", ja: "頭上バッジにバージョンを表示" },
+        "dev.showVersionHint": { en: "Shows EBC version above room members", de: "Zeigt EBC-Version über Raummitgliedern", zh: "在房间成员上方显示 EBC 版本", fr: "Affiche la version EBC au-dessus des membres", es: "Muestra la versión EBC sobre los miembros", ru: "Показывает версию EBC над членами комнаты", ja: "ルームメンバーの上にEBCバージョンを表示" },
+        "dev.charInspHint": { en: "Dump raw appearance + property data for any room member.", de: "Rohe Aussehens- und Eigenschaftsdaten für Raummitglieder.", zh: "转储任意房间成员的原始外观与属性数据。", fr: "Extraire les données brutes d'apparence d'un membre.", es: "Vuelca datos brutos de apariencia de un miembro.", ru: "Вывод сырых данных внешности любого члена комнаты.", ja: "ルームメンバーの生の外観データを出力します。" },
+        "dev.inspect": { en: "Inspect", de: "Inspizieren", zh: "检查", fr: "Inspecter", es: "Inspeccionar", ru: "Инспектировать", ja: "検査" },
+        "dev.addonsLoaded": { en: "Addons Loaded", de: "Geladene Addons", zh: "已加载的插件", fr: "Extensions chargées", es: "Addons cargados", ru: "Загруженные аддоны", ja: "ロード済みアドオン" },
+        "dev.noModsdk": { en: "bcModSdk not available or no mods loaded.", de: "bcModSdk nicht verfügbar oder keine Mods geladen.", zh: "bcModSdk 不可用或未加载任何模组。", fr: "bcModSdk non disponible ou aucun mod chargé.", es: "bcModSdk no disponible o sin mods cargados.", ru: "bcModSdk недоступен или моды не загружены.", ja: "bcModSdkが利用できないか、MODが読み込まれていません。" },
+        "dev.refresh": { en: "↻ Refresh", de: "↻ Aktualisieren", zh: "↻ 刷新", fr: "↻ Actualiser", es: "↻ Actualizar", ru: "↻ Обновить", ja: "↻ 更新" },
+        // ─── AFK / NOTES SETTINGS ──────────────────────────────────────────────
+        "settings.afkReplyMsg": { en: "Reply message", de: "Antwortnachricht", zh: "回复消息", fr: "Message de réponse", es: "Mensaje de respuesta", ru: "Сообщение ответа", ja: "返信メッセージ" },
+        "settings.afkHintBeep": { en: "Sends a beep reply when someone beeps you directly.", de: "Sendet eine Beep-Antwort, wenn jemand dich direkt anpiept.", zh: "当有人直接给你发 Beep 时，发送 Beep 回复。", fr: "Envoie une réponse beep quand quelqu'un vous beep directement.", es: "Envía una respuesta beep cuando alguien te hace beep directamente.", ru: "Отправляет ответный бип при прямом бипе.", ja: "誰かが直接ビープを送ってきたときにビープで自動返信します。" },
+        "settings.afkHint": { en: "One reply per person per 30 min. [AFK] prefix added automatically.", de: "Eine Antwort pro Person alle 30 Min. [AFK]-Präfix wird automatisch hinzugefügt.", zh: "每人每 30 分钟最多回复一次。自动添加 [AFK] 前缀。", fr: "Une réponse par personne par 30 min. Préfixe [AFK] ajouté automatiquement.", es: "Una respuesta por persona cada 30 min. Prefijo [AFK] añadido automáticamente.", ru: "Один ответ на человека в 30 мин. Префикс [AFK] добавляется автоматически.", ja: "1人につき30分に1回まで。[AFK]プレフィックスが自動的に追加されます。" },
+        "users.noSavedNotes": { en: "No saved notes yet.", de: "Noch keine Notizen gespeichert.", zh: "还没有保存任何笔记。", fr: "Aucune note sauvegardée.", es: "No hay notas guardadas aún.", ru: "Заметок пока нет.", ja: "メモがまだ保存されていません。" },
+        "users.tags": { en: "Tags", de: "Etiketten", zh: "标签", fr: "Tags", es: "Etiquetas", ru: "Теги", ja: "タグ" },
+        "users.note": { en: "Note", de: "Notiz", zh: "笔记", fr: "Note", es: "Nota", ru: "Заметка", ja: "メモ" },
+        "users.notesOnSelf": { en: "That's you — notes on yourself are not supported.", de: "Das bist du — Notizen über dich selbst werden nicht unterstützt.", zh: "这是你自己——不支持对自己做笔记。", fr: "C'est vous — les notes sur vous-même ne sont pas prises en charge.", es: "Eso eres tú — las notas sobre ti mismo no son compatibles.", ru: "Это вы — заметки о себе не поддерживаются.", ja: "これはあなた自身です — 自分へのメモはサポートされていません。" },
+        // ─── EBC TAG STRIP & SAFEWORDS ─────────────────────────────────────────
+        "strip.safewords": { en: "SAFEWORDS", de: "SICHERHEITSWÖRTER", zh: "安全词", fr: "MOTS DE SÉCURITÉ", es: "PALABRAS DE SEGURIDAD", ru: "СТОП-СЛОВА", ja: "セーフワード" },
+        "strip.graceUnit": { en: "min  (0 = indefinite)", de: "Min  (0 = unbegrenzt)", zh: "分钟（0 = 无限）", fr: "min  (0 = illimité)", es: "min  (0 = indefinido)", ru: "мин  (0 = бессрочно)", ja: "分（0 = 無制限）" },
+        "strip.swHint": { en: "Type your word alone (or word!) in chat + Enter to trigger.", de: "Gib dein Wort allein (oder Wort!) im Chat ein + Enter zum Auslösen.", zh: "在聊天中单独输入你的词（或词!）+ Enter 以触发。", fr: "Tapez votre mot seul (ou mot!) dans le chat + Entrée pour déclencher.", es: "Escribe tu palabra sola (o ¡palabra!) en el chat + Enter para activar.", ru: "Введите слово одно (или слово!) в чат + Enter для активации.", ja: "チャットでその言葉だけ（または言葉！）を入力してEnterで発動します。" },
+        "strip.tagToggles": { en: "EBC Tag Toggles", de: "EBC-Etikett-Schalter", zh: "EBC 标签开关", fr: "Bascules de tag EBC", es: "Interruptores de tag EBC", ru: "Переключатели EBC-тегов", ja: "EBCタグ切替" },
+        "strip.tagToggleDesc": { en: "Controls whose EBC overhead tags you see. Only affects your own screen — others always see your tag regardless.", de: "Steuert, wessen EBC-Tags du siehst. Betrifft nur deinen Bildschirm — andere sehen deinen Tag immer.", zh: "控制你看到谁的 EBC 头顶标签。仅影响你的屏幕——其他人始终可以看到你的标签。", fr: "Contrôle les tags EBC que vous voyez. N'affecte que votre écran — les autres voient toujours votre tag.", es: "Controla qué tags EBC ves. Solo afecta tu pantalla — otros siempre ven tu tag.", ru: "Управляет тем, чьи EBC-теги вы видите. Влияет только на ваш экран — другие всегда видят ваш тег.", ja: "表示するEBCタグを制御します。自分の画面にのみ影響します — 他のユーザーは常にあなたのタグを見ています。" },
+        "strip.myTagSub": { en: "Your own EBC tag above your head (your screen only)", de: "Dein eigenes EBC-Etikett über deinem Kopf (nur dein Bildschirm)", zh: "你头顶上方的自己的 EBC 标签（仅你的屏幕）", fr: "Votre propre tag EBC au-dessus de votre tête (votre écran seulement)", es: "Tu propio tag EBC sobre tu cabeza (solo tu pantalla)", ru: "Ваш EBC-тег над головой (только ваш экран)", ja: "自分の頭上のEBCタグ（自分の画面のみ）" },
+        "strip.othersSub": { en: "EBC tags above other players' heads", de: "EBC-Etiketten über anderen Spielerköpfen", zh: "其他玩家头顶上方的 EBC 标签", fr: "Tags EBC au-dessus des têtes des autres joueurs", es: "Tags EBC sobre las cabezas de otros jugadores", ru: "EBC-теги над головами других игроков", ja: "他プレイヤーの頭上のEBCタグ" },
+        "strip.badgeAppearance": { en: "BADGE APPEARANCE", de: "ABZEICHEN-AUSSEHEN", zh: "徽标外观", fr: "APPARENCE DU BADGE", es: "APARIENCIA DE LA INSIGNIA", ru: "ВНЕШНИЙ ВИД ЗНАЧКА", ja: "バッジ外観" },
+        "strip.scale": { en: "Scale", de: "Größe", zh: "缩放", fr: "Taille", es: "Tamaño", ru: "Размер", ja: "スケール" },
+        "strip.dragHint": { en: "Drag badge on your character to reposition for everyone", de: "Abzeichen auf deinen Charakter ziehen, um es für alle neu zu positionieren", zh: "在你的角色上拖动徽标以为所有人重新定位", fr: "Faire glisser le badge sur votre personnage pour le repositionner pour tous", es: "Arrastra la insignia en tu personaje para reposicionarla para todos", ru: "Перетащите значок на вашего персонажа, чтобы переместить его для всех", ja: "キャラクター上でバッジをドラッグして全員の位置を変更" },
+        "strip.badgePosition": { en: "📍 Position", de: "📍 Position", zh: "📍 定位", fr: "📍 Position", es: "📍 Posición", ru: "📍 Позиция", ja: "📍 位置" },
+        "strip.showChev": { en: "Show ▶", de: "Zeigen ▶", zh: "显示 ▶", fr: "Afficher ▶", es: "Mostrar ▶", ru: "Показать ▶", ja: "表示 ▶" },
+        "strip.hideChev": { en: "Hide ▼", de: "Verbergen ▼", zh: "隐藏 ▼", fr: "Masquer ▼", es: "Ocultar ▼", ru: "Скрыть ▼", ja: "非表示 ▼" },
         // ─── THEMES ────────────────────────────────────────────────────────────
         "theme.drawerBg": { en: "Drawer BG", de: "Schublade HG", zh: "面板背景", fr: "BG panneau", es: "Fondo panel", ru: "Фон панели", ja: "パネル背景" },
         "theme.cardBg": { en: "Card BG", de: "Karte HG", zh: "卡片背景", fr: "BG carte", es: "Fondo tarjeta", ru: "Фон карточки", ja: "カード背景" },
@@ -16189,7 +16238,7 @@
             swIcon.style.cssText = "font-size:11px;flex-shrink:0;";
             const swLabel = document.createElement("span");
             swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.05em;flex:1;";
-            swLabel.textContent = "SAFEWORDS";
+            swLabel.textContent = t("strip.safewords");
             // Grace active indicator (hidden unless grace is running)
             const swGraceTag = document.createElement("span");
             swGraceTag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;padding:1px 5px;border-radius:3px;background:#3a0e1e;color:#cf6f98;border:1px solid #6b2040;flex-shrink:0;display:none;";
@@ -16364,7 +16413,7 @@
                 });
                 const graceDurUnit = document.createElement("span");
                 graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-                graceDurUnit.textContent = "min  (0 = indefinite)";
+                graceDurUnit.textContent = t("strip.graceUnit");
                 graceDurRow.appendChild(graceDurLbl);
                 graceDurRow.appendChild(graceDurInp);
                 graceDurRow.appendChild(graceDurUnit);
@@ -16372,7 +16421,7 @@
                 // -- Hint --
                 const hint = document.createElement("div");
                 hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
-                hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger.";
+                hint.textContent = t("strip.swHint");
                 swInner.appendChild(hint);
             };
             // Toggle expand — rebuild inner content on every open
@@ -16428,7 +16477,7 @@
             ebcTagsHdrIcon.style.fontSize = "10px";
             const ebcTagsHdrLabel = document.createElement("span");
             ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-            ebcTagsHdrLabel.textContent = "EBC Tag Toggles";
+            ebcTagsHdrLabel.textContent = t("strip.tagToggles");
             ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
             ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
             // "Hide ▼" / "Show ▶" hint — makes it obvious it's collapsible
@@ -16443,7 +16492,7 @@
             // Description line
             const ebcTagsDesc = document.createElement("div");
             ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
-            ebcTagsDesc.textContent = "Controls whose EBC overhead tags you see. Only affects your own screen — others always see your tag regardless.";
+            ebcTagsDesc.textContent = t("strip.tagToggleDesc");
             ebcTagsBody.appendChild(ebcTagsDesc);
             // Card row
             const ebcTagsCardRow = document.createElement("div");
@@ -16488,8 +16537,8 @@
                 card.addEventListener("click", () => { setVal(!getVal()); refresh(); });
                 ebcTagsCardRow.appendChild(card);
             };
-            makeTagCard("👤", "My Tag", "Your own EBC tag above your head (your screen only)", getBadgeEnabled, setBadgeEnabled);
-            makeTagCard("👥", "Others", "EBC tags above other players' heads", getShowOthersBadge, setShowOthersBadge);
+            makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled);
+            makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge);
             ebcTagsBody.appendChild(ebcTagsCardRow);
             // ── Badge Appearance ─────────────────────────────────────────────────
             const badgeDivider = document.createElement("div");
@@ -16497,7 +16546,7 @@
             ebcTagsBody.appendChild(badgeDivider);
             const badgeAppLbl = document.createElement("div");
             badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.08em;color:#9a6878;margin-bottom:6px;";
-            badgeAppLbl.textContent = "BADGE APPEARANCE";
+            badgeAppLbl.textContent = t("strip.badgeAppearance");
             ebcTagsBody.appendChild(badgeAppLbl);
             // ── Style picker: Text | Cat ─────────────────────────────────────────
             const styleRow = document.createElement("div");
@@ -16547,7 +16596,7 @@
             scaleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
             const scaleLbl = document.createElement("span");
             scaleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
-            scaleLbl.textContent = "Scale";
+            scaleLbl.textContent = t("strip.scale");
             const scaleSlider = document.createElement("input");
             scaleSlider.type = "range";
             scaleSlider.min = "0.3";
@@ -16573,11 +16622,11 @@
             posRow.style.cssText = "display:flex;align-items:center;gap:5px;";
             const posHint = document.createElement("span");
             posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex:1;line-height:1.35;";
-            posHint.textContent = "Drag badge on your character to reposition for everyone";
+            posHint.textContent = t("strip.dragHint");
             const dragBtn = document.createElement("button");
             const refreshDragBtn = () => {
                 const on = getBadgeDragMode();
-                dragBtn.textContent = on ? "✓ Done" : "📍 Position";
+                dragBtn.textContent = on ? t("core.done") : t("strip.badgePosition");
                 dragBtn.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
                     "font-size:9px",
@@ -16611,7 +16660,7 @@
             ebcTagsBody.appendChild(posRow);
             ebcTagsStrip.appendChild(ebcTagsBody);
             const updateEbcTagsCollapse = () => {
-                ebcTagsChev.textContent = ebcTagsCollapsed ? "Show ▶" : "Hide ▼";
+                ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
                 ebcTagsBody.style.display = ebcTagsCollapsed ? "none" : "";
             };
             updateEbcTagsCollapse();
@@ -22613,7 +22662,7 @@
             // Message row
             const afkMsgLbl = document.createElement("div");
             afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
-            afkMsgLbl.textContent = "Reply message";
+            afkMsgLbl.textContent = t("settings.afkReplyMsg");
             afkBody.appendChild(afkMsgLbl);
             const afkMsgArea = document.createElement("textarea");
             afkMsgArea.value = getAfkMessage();
@@ -22626,11 +22675,11 @@
             // Hint
             const afkHintBeep = document.createElement("div");
             afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-            afkHintBeep.textContent = "Sends a beep reply when someone beeps you directly.";
+            afkHintBeep.textContent = t("settings.afkHintBeep");
             afkBody.appendChild(afkHintBeep);
             const afkHint = document.createElement("div");
             afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
-            afkHint.textContent = "One reply per person per 30 min. [AFK] prefix added automatically.";
+            afkHint.textContent = t("settings.afkHint");
             afkBody.appendChild(afkHint);
             const toggleAfkCollapsed = () => {
                 afkCollapsed = !afkCollapsed;
@@ -22690,7 +22739,7 @@
             else {
                 const empty = document.createElement("div");
                 empty.className = "ebc-empty";
-                empty.textContent = "No saved notes yet.";
+                empty.textContent = t("users.noSavedNotes");
                 userNotesBody.appendChild(empty);
             }
             body.appendChild(userNotesBody);
@@ -23524,7 +23573,7 @@
                         // Tags label
                         const tagsLbl = document.createElement("div");
                         tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
-                        tagsLbl.textContent = "Tags";
+                        tagsLbl.textContent = t("users.tags");
                         expand.appendChild(tagsLbl);
                         // Chips container
                         const chipsEl = document.createElement("div");
@@ -23653,7 +23702,7 @@
                         // ── Inline note editor ─────────────────────────────────────
                         const noteLbl = document.createElement("div");
                         noteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:6px;margin-bottom:2px;";
-                        noteLbl.textContent = "Note";
+                        noteLbl.textContent = t("users.note");
                         expand.appendChild(noteLbl);
                         const noteWrap = document.createElement("div");
                         noteWrap.style.cssText = "position:relative;";
@@ -23829,7 +23878,7 @@
             if (isSelf) {
                 const selfNote = document.createElement("div");
                 selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c8a84b;padding:2px 4px 4px 18px;";
-                selfNote.textContent = "That's you — notes on yourself are not supported.";
+                selfNote.textContent = t("users.notesOnSelf");
                 container.appendChild(selfNote);
                 return container;
             }
@@ -24007,14 +24056,14 @@
                 touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
                 const touchLbl = document.createElement("span");
                 touchLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-                touchLbl.textContent = "Phone / touch mode";
+                touchLbl.textContent = t("dev.touchMode");
                 const touchAutoSpan = document.createElement("span");
                 touchAutoSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:" + (isTouchDevice() ? "#80c060" : "#6a4a5e") + ";flex-shrink:0;";
-                touchAutoSpan.textContent = isTouchDevice() ? "(auto: on)" : "(auto: off)";
+                touchAutoSpan.textContent = isTouchDevice() ? t("dev.touchAutoOn") : t("dev.touchAutoOff");
                 const touchForceBtn = document.createElement("button");
                 const refreshTouchBtn = () => {
                     const forced = getForceTouchMode();
-                    touchForceBtn.textContent = forced ? "Force ON" : "Force OFF";
+                    touchForceBtn.textContent = forced ? t("dev.touchForceOn") : t("dev.touchForceOff");
                     touchForceBtn.style.cssText = [
                         "font-family:'Trebuchet MS',serif",
                         "font-size:9px",
@@ -24047,7 +24096,7 @@
                 opacityRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
                 const opacityLbl = document.createElement("span");
                 opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
-                opacityLbl.textContent = "Panel opacity";
+                opacityLbl.textContent = t("dev.panelOpacity");
                 const opacitySlider = document.createElement("input");
                 opacitySlider.type = "range";
                 opacitySlider.min = "0.1";
@@ -24074,7 +24123,7 @@
                 zoomRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
                 const zoomLbl = document.createElement("span");
                 zoomLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
-                zoomLbl.textContent = "Text size";
+                zoomLbl.textContent = t("dev.textSize");
                 const zoomSlider = document.createElement("input");
                 zoomSlider.type = "range";
                 zoomSlider.min = "0.8";
@@ -24107,12 +24156,12 @@
                 presetRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
                 const presetLbl = document.createElement("span");
                 presetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
-                presetLbl.textContent = "Quick preset";
+                presetLbl.textContent = t("dev.quickPreset");
                 const presetSel = document.createElement("select");
                 presetSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
                 const blankOpt = document.createElement("option");
                 blankOpt.value = "";
-                blankOpt.textContent = "— choose preset —";
+                blankOpt.textContent = t("dev.choosePreset");
                 presetSel.appendChild(blankOpt);
                 for (const [key, preset] of Object.entries(EBC_THEME_PRESETS)) {
                     const opt = document.createElement("option");
@@ -24131,7 +24180,7 @@
                     presetSel.value = ""; // reset dropdown back to placeholder
                 });
                 const resetBtn = document.createElement("button");
-                resetBtn.textContent = "Reset";
+                resetBtn.textContent = t("dev.resetTheme");
                 resetBtn.title = "Reset to default theme";
                 resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;";
                 resetBtn.addEventListener("click", () => {
@@ -24159,7 +24208,7 @@
                 ];
                 const subLbl = document.createElement("div");
                 subLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;";
-                subLbl.textContent = "Colour slots";
+                subLbl.textContent = t("dev.colourSlots");
                 cnt.appendChild(subLbl);
                 const grid = document.createElement("div");
                 grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px;";
@@ -24189,7 +24238,7 @@
                 // ── Tab visibility ─────────────────────────────────────────────────
                 const tabVisLbl = document.createElement("div");
                 tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
-                tabVisLbl.textContent = "Visible tabs";
+                tabVisLbl.textContent = t("dev.visibleTabs");
                 cnt.appendChild(tabVisLbl);
                 const tabVisGrid = document.createElement("div");
                 tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;";
@@ -24199,7 +24248,7 @@
                         const chip = document.createElement("button");
                         chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
                         chip.textContent = ((_a = EBC_TAB_LABELS[tabId]) !== null && _a !== void 0 ? _a : "DEV") + " 🔒";
-                        chip.title = "Dev tab is always visible and cannot be hidden";
+                        chip.title = t("dev.devTabLocked");
                         chip.disabled = true;
                         tabVisGrid.appendChild(chip);
                         continue;
@@ -24230,7 +24279,7 @@
                 hotkeyWrap.style.cssText = "margin-top:8px;padding:8px 10px;border:1px solid #3a1928;border-radius:6px;background:rgba(20,8,16,0.5);";
                 const hotkeyTitle = document.createElement("div");
                 hotkeyTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;margin-bottom:6px;letter-spacing:0.03em;";
-                hotkeyTitle.textContent = "⌨ Menu Hotkey";
+                hotkeyTitle.textContent = t("dev.menuHotkey");
                 hotkeyWrap.appendChild(hotkeyTitle);
                 const hotkeyRow = document.createElement("div");
                 hotkeyRow.style.cssText = "display:flex;align-items:center;gap:8px;";
@@ -24260,7 +24309,7 @@
                 refreshHotkeyDisplay();
                 const BTN = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
                 const setHotkeyBtn = document.createElement("button");
-                setHotkeyBtn.textContent = "Set Key";
+                setHotkeyBtn.textContent = t("dev.setKey");
                 setHotkeyBtn.style.cssText = BTN + "border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;";
                 setHotkeyBtn.addEventListener("mouseenter", () => { if (!capturingHotkey)
                     setHotkeyBtn.style.background = "#5a1c30"; });
@@ -24276,7 +24325,7 @@
                     if (capturingHotkey)
                         return;
                     capturingHotkey = true;
-                    setHotkeyBtn.textContent = "Press a key…";
+                    setHotkeyBtn.textContent = t("dev.pressKey");
                     setHotkeyBtn.style.background = "#4a1a2a";
                     setHotkeyBtn.style.color = "#ff9ab8";
                     setHotkeyBtn.style.borderColor = "#cf6f98";
@@ -24288,7 +24337,7 @@
                         if (ev.key !== "Escape")
                             setMenuHotkey(ev.code);
                         capturingHotkey = false;
-                        setHotkeyBtn.textContent = "Set Key";
+                        setHotkeyBtn.textContent = t("dev.setKey");
                         setHotkeyBtn.style.background = "#3a1020";
                         setHotkeyBtn.style.color = "#cf6f98";
                         setHotkeyBtn.style.borderColor = "#7a3a50";
@@ -24304,7 +24353,7 @@
                 hotkeyWrap.appendChild(hotkeyRow);
                 const hotkeyHint = document.createElement("div");
                 hotkeyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a4a;margin-top:5px;";
-                hotkeyHint.textContent = "Press the key to open / close the EBC menu from anywhere in the game.";
+                hotkeyHint.textContent = t("dev.hotkeyHint");
                 hotkeyWrap.appendChild(hotkeyHint);
                 cnt.appendChild(hotkeyWrap);
             });
@@ -24335,7 +24384,7 @@
                     if (found.length === 0) {
                         const hint = document.createElement("div");
                         hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
-                        hint.textContent = "No other EBC users detected in this room.";
+                        hint.textContent = t("dev.noEbcUsers");
                         presListEl.appendChild(hint);
                         return;
                     }
@@ -24370,7 +24419,7 @@
                 refreshPresence();
                 const refreshBtn = document.createElement("button");
                 refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-                refreshBtn.textContent = "↻ Refresh list";
+                refreshBtn.textContent = t("dev.refreshList");
                 refreshBtn.addEventListener("click", refreshPresence);
                 cnt.appendChild(refreshBtn);
             });
@@ -24383,10 +24432,10 @@
                 verInfo.style.cssText = "flex:1;min-width:0;";
                 const verLbl = document.createElement("span");
                 verLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;display:block;";
-                verLbl.textContent = "Show version in overhead badge";
+                verLbl.textContent = t("dev.showVersionBadge");
                 const verHint = document.createElement("span");
                 verHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-                verHint.textContent = "Shows EBC version above room members";
+                verHint.textContent = t("dev.showVersionHint");
                 verInfo.appendChild(verLbl);
                 verInfo.appendChild(verHint);
                 const verToggle = document.createElement("button");
@@ -24414,7 +24463,7 @@
                 cnt.appendChild(charLbl);
                 const charHint = document.createElement("div");
                 charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
-                charHint.textContent = "Dump raw appearance + property data for any room member.";
+                charHint.textContent = t("dev.charInspHint");
                 cnt.appendChild(charHint);
                 const charPickRow = document.createElement("div");
                 charPickRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
@@ -24423,7 +24472,7 @@
                 const charInspBtn = document.createElement("button");
                 charInspBtn.className = "ebc-create-btn";
                 charInspBtn.style.cssText = "margin:0;padding:2px 10px;font-size:10px;";
-                charInspBtn.textContent = "Inspect";
+                charInspBtn.textContent = t("dev.inspect");
                 charPickRow.appendChild(charSelect);
                 charPickRow.appendChild(charInspBtn);
                 cnt.appendChild(charPickRow);
@@ -24482,7 +24531,7 @@
                 // Addons Loaded
                 const hookLbl = document.createElement("div");
                 hookLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
-                hookLbl.textContent = "Addons Loaded";
+                hookLbl.textContent = t("dev.addonsLoaded");
                 cnt.appendChild(hookLbl);
                 const hookList = document.createElement("div");
                 cnt.appendChild(hookList);
@@ -24497,7 +24546,7 @@
                         if (!Array.isArray(mods) || mods.length === 0) {
                             const hint = document.createElement("div");
                             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
-                            hint.textContent = "bcModSdk not available or no mods loaded.";
+                            hint.textContent = t("dev.noModsdk");
                             hookList.appendChild(hint);
                             return;
                         }
@@ -24536,7 +24585,7 @@
                 renderHooks();
                 const hookRefreshBtn = document.createElement("button");
                 hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-                hookRefreshBtn.textContent = "↻ Refresh";
+                hookRefreshBtn.textContent = t("dev.refresh");
                 hookRefreshBtn.addEventListener("click", renderHooks);
                 cnt.appendChild(hookRefreshBtn);
             });
@@ -30618,7 +30667,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.9.2";
+    const MOD_VERSION = "2.9.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30629,6 +30678,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.9.3",
+            changes: [
+                "i18n: Full translation pass — DEV → Drawer Preferences (phone/touch mode, panel opacity, text size, quick preset, colour slots, visible tabs, menu hotkey), EBC tag strip (SAFEWORDS label, tag toggles, badge appearance, scale, drag-to-position), AFK section (reply message, hints), and Users/Notes tab (tags, note, self-note). All new strings translated into all 7 languages (EN/DE/ZH/FR/ES/RU/JA).",
+            ],
+        },
         {
             version: "2.9.2",
             changes: [

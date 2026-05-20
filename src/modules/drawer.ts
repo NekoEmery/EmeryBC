@@ -3903,7 +3903,7 @@ export class EBCDrawer {
 
         const swLabel = document.createElement("span");
         swLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.05em;flex:1;";
-        swLabel.textContent = "SAFEWORDS";
+        swLabel.textContent = t("strip.safewords");
 
         // Grace active indicator (hidden unless grace is running)
         const swGraceTag = document.createElement("span");
@@ -4120,7 +4120,7 @@ export class EBCDrawer {
             });
             const graceDurUnit = document.createElement("span");
             graceDurUnit.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-            graceDurUnit.textContent = "min  (0 = indefinite)";
+            graceDurUnit.textContent = t("strip.graceUnit");
             graceDurRow.appendChild(graceDurLbl);
             graceDurRow.appendChild(graceDurInp);
             graceDurRow.appendChild(graceDurUnit);
@@ -4129,7 +4129,7 @@ export class EBCDrawer {
             // -- Hint --
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a6878;line-height:1.45;padding-top:2px;";
-            hint.textContent = "Type your word alone (or word!) in chat + Enter to trigger.";
+            hint.textContent = t("strip.swHint");
             swInner.appendChild(hint);
         };
 
@@ -4185,7 +4185,7 @@ export class EBCDrawer {
         ebcTagsHdrIcon.style.fontSize = "10px";
         const ebcTagsHdrLabel = document.createElement("span");
         ebcTagsHdrLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.06em;color:#c8809a;";
-        ebcTagsHdrLabel.textContent = "EBC Tag Toggles";
+        ebcTagsHdrLabel.textContent = t("strip.tagToggles");
         ebcTagsHdrLeft.appendChild(ebcTagsHdrIcon);
         ebcTagsHdrLeft.appendChild(ebcTagsHdrLabel);
 
@@ -4204,7 +4204,7 @@ export class EBCDrawer {
         // Description line
         const ebcTagsDesc = document.createElement("div");
         ebcTagsDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;line-height:1.45;margin-bottom:7px;padding-top:5px;";
-        ebcTagsDesc.textContent = "Controls whose EBC overhead tags you see. Only affects your own screen — others always see your tag regardless.";
+        ebcTagsDesc.textContent = t("strip.tagToggleDesc");
         ebcTagsBody.appendChild(ebcTagsDesc);
 
         // Card row
@@ -4265,8 +4265,8 @@ export class EBCDrawer {
             ebcTagsCardRow.appendChild(card);
         };
 
-        makeTagCard("👤", "My Tag", "Your own EBC tag above your head (your screen only)", getBadgeEnabled, setBadgeEnabled);
-        makeTagCard("👥", "Others", "EBC tags above other players' heads", getShowOthersBadge, setShowOthersBadge);
+        makeTagCard("👤", t("strip.myTag"), t("strip.myTagSub"), getBadgeEnabled, setBadgeEnabled);
+        makeTagCard("👥", t("strip.others"), t("strip.othersSub"), getShowOthersBadge, setShowOthersBadge);
 
         ebcTagsBody.appendChild(ebcTagsCardRow);
 
@@ -4277,7 +4277,7 @@ export class EBCDrawer {
 
         const badgeAppLbl = document.createElement("div");
         badgeAppLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.08em;color:#9a6878;margin-bottom:6px;";
-        badgeAppLbl.textContent = "BADGE APPEARANCE";
+        badgeAppLbl.textContent = t("strip.badgeAppearance");
         ebcTagsBody.appendChild(badgeAppLbl);
 
         // ── Style picker: Text | Cat ─────────────────────────────────────────
@@ -4331,7 +4331,7 @@ export class EBCDrawer {
 
         const scaleLbl = document.createElement("span");
         scaleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7080;flex-shrink:0;";
-        scaleLbl.textContent = "Scale";
+        scaleLbl.textContent = t("strip.scale");
 
         const scaleSlider = document.createElement("input");
         scaleSlider.type  = "range";
@@ -4363,12 +4363,12 @@ export class EBCDrawer {
 
         const posHint = document.createElement("span");
         posHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5070;flex:1;line-height:1.35;";
-        posHint.textContent = "Drag badge on your character to reposition for everyone";
+        posHint.textContent = t("strip.dragHint");
 
         const dragBtn = document.createElement("button");
         const refreshDragBtn = (): void => {
             const on = getBadgeDragMode();
-            dragBtn.textContent = on ? "✓ Done" : "📍 Position";
+            dragBtn.textContent = on ? t("core.done") : t("strip.badgePosition");
             dragBtn.style.cssText = [
                 "font-family:'Trebuchet MS',serif",
                 "font-size:9px",
@@ -4406,7 +4406,7 @@ export class EBCDrawer {
         ebcTagsStrip.appendChild(ebcTagsBody);
 
         const updateEbcTagsCollapse = (): void => {
-            ebcTagsChev.textContent = ebcTagsCollapsed ? "Show ▶" : "Hide ▼";
+            ebcTagsChev.textContent = ebcTagsCollapsed ? t("strip.showChev") : t("strip.hideChev");
             ebcTagsBody.style.display = ebcTagsCollapsed ? "none" : "";
         };
         updateEbcTagsCollapse();
@@ -10541,7 +10541,7 @@ export class EBCDrawer {
         // Message row
         const afkMsgLbl = document.createElement("div");
         afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
-        afkMsgLbl.textContent = "Reply message";
+        afkMsgLbl.textContent = t("settings.afkReplyMsg");
         afkBody.appendChild(afkMsgLbl);
         const afkMsgArea = document.createElement("textarea");
         afkMsgArea.value = getAfkMessage();
@@ -10555,12 +10555,12 @@ export class EBCDrawer {
         // Hint
         const afkHintBeep = document.createElement("div");
         afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-        afkHintBeep.textContent = "Sends a beep reply when someone beeps you directly.";
+        afkHintBeep.textContent = t("settings.afkHintBeep");
         afkBody.appendChild(afkHintBeep);
 
         const afkHint = document.createElement("div");
         afkHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-style:italic;";
-        afkHint.textContent = "One reply per person per 30 min. [AFK] prefix added automatically.";
+        afkHint.textContent = t("settings.afkHint");
         afkBody.appendChild(afkHint);
 
         const toggleAfkCollapsed = (): void => {
@@ -10621,7 +10621,7 @@ export class EBCDrawer {
         } else {
             const empty = document.createElement("div");
             empty.className = "ebc-empty";
-            empty.textContent = "No saved notes yet.";
+            empty.textContent = t("users.noSavedNotes");
             userNotesBody.appendChild(empty);
         }
 
@@ -11412,7 +11412,7 @@ export class EBCDrawer {
                     // Tags label
                     const tagsLbl = document.createElement("div");
                     tagsLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:1px;";
-                    tagsLbl.textContent = "Tags";
+                    tagsLbl.textContent = t("users.tags");
                     expand.appendChild(tagsLbl);
 
                     // Chips container
@@ -11538,7 +11538,7 @@ export class EBCDrawer {
                     // ── Inline note editor ─────────────────────────────────────
                     const noteLbl = document.createElement("div");
                     noteLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-top:6px;margin-bottom:2px;";
-                    noteLbl.textContent = "Note";
+                    noteLbl.textContent = t("users.note");
                     expand.appendChild(noteLbl);
 
                     const noteWrap = document.createElement("div");
@@ -11707,7 +11707,7 @@ export class EBCDrawer {
         if (isSelf) {
             const selfNote = document.createElement("div");
             selfNote.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c8a84b;padding:2px 4px 4px 18px;";
-            selfNote.textContent = "That's you — notes on yourself are not supported.";
+            selfNote.textContent = t("users.notesOnSelf");
             container.appendChild(selfNote);
             return container;
         }
@@ -11894,16 +11894,16 @@ export class EBCDrawer {
 
             const touchLbl = document.createElement("span");
             touchLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex:1;user-select:none;";
-            touchLbl.textContent = "Phone / touch mode";
+            touchLbl.textContent = t("dev.touchMode");
 
             const touchAutoSpan = document.createElement("span");
             touchAutoSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:" + (isTouchDevice() ? "#80c060" : "#6a4a5e") + ";flex-shrink:0;";
-            touchAutoSpan.textContent = isTouchDevice() ? "(auto: on)" : "(auto: off)";
+            touchAutoSpan.textContent = isTouchDevice() ? t("dev.touchAutoOn") : t("dev.touchAutoOff");
 
             const touchForceBtn = document.createElement("button");
             const refreshTouchBtn = (): void => {
                 const forced = getForceTouchMode();
-                touchForceBtn.textContent = forced ? "Force ON" : "Force OFF";
+                touchForceBtn.textContent = forced ? t("dev.touchForceOn") : t("dev.touchForceOff");
                 touchForceBtn.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
                     "font-size:9px",
@@ -11936,7 +11936,7 @@ export class EBCDrawer {
 
             const opacityLbl = document.createElement("span");
             opacityLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
-            opacityLbl.textContent = "Panel opacity";
+            opacityLbl.textContent = t("dev.panelOpacity");
 
             const opacitySlider = document.createElement("input");
             opacitySlider.type = "range";
@@ -11969,7 +11969,7 @@ export class EBCDrawer {
 
             const zoomLbl = document.createElement("span");
             zoomLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;user-select:none;";
-            zoomLbl.textContent = "Text size";
+            zoomLbl.textContent = t("dev.textSize");
 
             const zoomSlider = document.createElement("input");
             zoomSlider.type = "range";
@@ -12008,11 +12008,11 @@ export class EBCDrawer {
             presetRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 8px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:6px;";
             const presetLbl = document.createElement("span");
             presetLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#c09098;flex:1;";
-            presetLbl.textContent = "Quick preset";
+            presetLbl.textContent = t("dev.quickPreset");
             const presetSel = document.createElement("select");
             presetSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #4c2537;border-radius:4px;color:#f7e6ee;padding:3px 6px;cursor:pointer;outline:none;flex-shrink:0;";
             const blankOpt = document.createElement("option");
-            blankOpt.value = ""; blankOpt.textContent = "— choose preset —";
+            blankOpt.value = ""; blankOpt.textContent = t("dev.choosePreset");
             presetSel.appendChild(blankOpt);
             for (const [key, preset] of Object.entries(EBC_THEME_PRESETS)) {
                 const opt = document.createElement("option");
@@ -12029,7 +12029,7 @@ export class EBCDrawer {
                 presetSel.value = ""; // reset dropdown back to placeholder
             });
             const resetBtn = document.createElement("button");
-            resetBtn.textContent = "Reset";
+            resetBtn.textContent = t("dev.resetTheme");
             resetBtn.title = "Reset to default theme";
             resetBtn.style.cssText = "flex-shrink:0;background:transparent;border:1px solid #4c2537;border-radius:4px;color:#7a5a6a;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:9px;padding:5px 9px;";
             resetBtn.addEventListener("click", () => {
@@ -12059,7 +12059,7 @@ export class EBCDrawer {
 
             const subLbl = document.createElement("div");
             subLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;";
-            subLbl.textContent = "Colour slots";
+            subLbl.textContent = t("dev.colourSlots");
             cnt.appendChild(subLbl);
 
             const grid = document.createElement("div");
@@ -12097,7 +12097,7 @@ export class EBCDrawer {
             // ── Tab visibility ─────────────────────────────────────────────────
             const tabVisLbl = document.createElement("div");
             tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
-            tabVisLbl.textContent = "Visible tabs";
+            tabVisLbl.textContent = t("dev.visibleTabs");
             cnt.appendChild(tabVisLbl);
             const tabVisGrid = document.createElement("div");
             tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;";
@@ -12107,7 +12107,7 @@ export class EBCDrawer {
                     const chip = document.createElement("button");
                     chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
                     chip.textContent = (EBC_TAB_LABELS[tabId] ?? "DEV") + " 🔒";
-                    chip.title = "Dev tab is always visible and cannot be hidden";
+                    chip.title = t("dev.devTabLocked");
                     chip.disabled = true;
                     tabVisGrid.appendChild(chip);
                     continue;
@@ -12139,7 +12139,7 @@ export class EBCDrawer {
 
             const hotkeyTitle = document.createElement("div");
             hotkeyTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;color:#cf6f98;margin-bottom:6px;letter-spacing:0.03em;";
-            hotkeyTitle.textContent = "⌨ Menu Hotkey";
+            hotkeyTitle.textContent = t("dev.menuHotkey");
             hotkeyWrap.appendChild(hotkeyTitle);
 
             const hotkeyRow = document.createElement("div");
@@ -12172,7 +12172,7 @@ export class EBCDrawer {
 
             const BTN = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:5px 14px;border-radius:5px;cursor:pointer;flex-shrink:0;transition:background 0.12s;";
             const setHotkeyBtn = document.createElement("button");
-            setHotkeyBtn.textContent = "Set Key";
+            setHotkeyBtn.textContent = t("dev.setKey");
             setHotkeyBtn.style.cssText = BTN + "border:1px solid #7a3a50;background:#3a1020;color:#cf6f98;";
             setHotkeyBtn.addEventListener("mouseenter", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#5a1c30"; });
             setHotkeyBtn.addEventListener("mouseleave", () => { if (!capturingHotkey) setHotkeyBtn.style.background = "#3a1020"; });
@@ -12187,7 +12187,7 @@ export class EBCDrawer {
             setHotkeyBtn.addEventListener("click", () => {
                 if (capturingHotkey) return;
                 capturingHotkey = true;
-                setHotkeyBtn.textContent = "Press a key…";
+                setHotkeyBtn.textContent = t("dev.pressKey");
                 setHotkeyBtn.style.background = "#4a1a2a";
                 setHotkeyBtn.style.color = "#ff9ab8";
                 setHotkeyBtn.style.borderColor = "#cf6f98";
@@ -12197,7 +12197,7 @@ export class EBCDrawer {
                     ev.stopPropagation();
                     if (ev.key !== "Escape") setMenuHotkey(ev.code);
                     capturingHotkey = false;
-                    setHotkeyBtn.textContent = "Set Key";
+                    setHotkeyBtn.textContent = t("dev.setKey");
                     setHotkeyBtn.style.background = "#3a1020";
                     setHotkeyBtn.style.color = "#cf6f98";
                     setHotkeyBtn.style.borderColor = "#7a3a50";
@@ -12215,7 +12215,7 @@ export class EBCDrawer {
 
             const hotkeyHint = document.createElement("div");
             hotkeyHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#5a3a4a;margin-top:5px;";
-            hotkeyHint.textContent = "Press the key to open / close the EBC menu from anywhere in the game.";
+            hotkeyHint.textContent = t("dev.hotkeyHint");
             hotkeyWrap.appendChild(hotkeyHint);
             cnt.appendChild(hotkeyWrap);
         });
@@ -12243,7 +12243,7 @@ export class EBCDrawer {
                 if (found.length === 0) {
                     const hint = document.createElement("div");
                     hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
-                    hint.textContent = "No other EBC users detected in this room.";
+                    hint.textContent = t("dev.noEbcUsers");
                     presListEl.appendChild(hint);
                     return;
                 }
@@ -12276,7 +12276,7 @@ export class EBCDrawer {
             refreshPresence();
             const refreshBtn = document.createElement("button");
             refreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-            refreshBtn.textContent = "↻ Refresh list";
+            refreshBtn.textContent = t("dev.refreshList");
             refreshBtn.addEventListener("click", refreshPresence);
             cnt.appendChild(refreshBtn);
         });
@@ -12290,10 +12290,10 @@ export class EBCDrawer {
             verInfo.style.cssText = "flex:1;min-width:0;";
             const verLbl = document.createElement("span");
             verLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f7e6ee;display:block;";
-            verLbl.textContent = "Show version in overhead badge";
+            verLbl.textContent = t("dev.showVersionBadge");
             const verHint = document.createElement("span");
             verHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
-            verHint.textContent = "Shows EBC version above room members";
+            verHint.textContent = t("dev.showVersionHint");
             verInfo.appendChild(verLbl); verInfo.appendChild(verHint);
             const verToggle = document.createElement("button");
             const refreshVerToggle = (): void => {
@@ -12320,7 +12320,7 @@ export class EBCDrawer {
             cnt.appendChild(charLbl);
             const charHint = document.createElement("div");
             charHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
-            charHint.textContent = "Dump raw appearance + property data for any room member.";
+            charHint.textContent = t("dev.charInspHint");
             cnt.appendChild(charHint);
             const charPickRow = document.createElement("div");
             charPickRow.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
@@ -12329,7 +12329,7 @@ export class EBCDrawer {
             const charInspBtn = document.createElement("button");
             charInspBtn.className = "ebc-create-btn";
             charInspBtn.style.cssText = "margin:0;padding:2px 10px;font-size:10px;";
-            charInspBtn.textContent = "Inspect";
+            charInspBtn.textContent = t("dev.inspect");
             charPickRow.appendChild(charSelect); charPickRow.appendChild(charInspBtn);
             cnt.appendChild(charPickRow);
             const charDump = document.createElement("pre");
@@ -12377,7 +12377,7 @@ export class EBCDrawer {
             // Addons Loaded
             const hookLbl = document.createElement("div");
             hookLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;font-weight:bold;text-transform:uppercase;letter-spacing:0.05em;margin:8px 0 4px;";
-            hookLbl.textContent = "Addons Loaded";
+            hookLbl.textContent = t("dev.addonsLoaded");
             cnt.appendChild(hookLbl);
             const hookList = document.createElement("div");
             cnt.appendChild(hookList);
@@ -12390,7 +12390,7 @@ export class EBCDrawer {
                     if (!Array.isArray(mods) || mods.length === 0) {
                         const hint = document.createElement("div");
                         hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;padding:4px 2px;";
-                        hint.textContent = "bcModSdk not available or no mods loaded.";
+                        hint.textContent = t("dev.noModsdk");
                         hookList.appendChild(hint); return;
                     }
                     for (const mod of mods) {
@@ -12426,7 +12426,7 @@ export class EBCDrawer {
             renderHooks();
             const hookRefreshBtn = document.createElement("button");
             hookRefreshBtn.style.cssText = "width:100%;background:transparent;border:1px dashed #4c2537;border-radius:5px;color:#7a4a5e;cursor:pointer;font-family:'Trebuchet MS',serif;font-size:10px;padding:3px 0;transition:background 0.14s,color 0.12s;margin-top:3px;";
-            hookRefreshBtn.textContent = "↻ Refresh";
+            hookRefreshBtn.textContent = t("dev.refresh");
             hookRefreshBtn.addEventListener("click", renderHooks);
             cnt.appendChild(hookRefreshBtn);
         });
