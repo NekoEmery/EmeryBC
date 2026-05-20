@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.3.9";
+const MOD_VERSION = "3.4.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.4.0",
+        changes: [
+            "Guide: replaced the 13-dot progress indicator with a clean progress bar. Next is now a filled pink primary button; Back is a small ghost button — clear visual hierarchy so the action you want is obvious.",
+        ],
+    },
     {
         version: "3.3.9",
         changes: [
