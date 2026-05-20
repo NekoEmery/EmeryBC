@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.6.4
+// @version      3.6.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1300,8 +1300,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function applyPoses(poses) {
         // An explicit empty string ("") in the list means "Relaxed arms" —
         // clear any active arm pose from the result set.
-        const wantsRelaxed = poses.includes("");
-        const filtered = poses.filter(Boolean);
+        const safeList = Array.isArray(poses) ? poses : [];
+        const wantsRelaxed = safeList.includes("");
+        const filtered = safeList.filter(Boolean);
         const result = wantsRelaxed ? filtered.filter(p => !ARM_POSES.includes(p)) : filtered;
         // Prefer BC's PoseSetActive API (current BC) — it writes ActivePoseMapping which
         // is the authoritative pose state in modern BC. Direct ActivePose assignment is the
@@ -1332,7 +1333,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             Player.ActivePose = result;
         }
         catch ( /* ignore */_b) { /* ignore */ }
-        callBC(() => CharacterRefresh(Player, false));
+        callBC(() => CharacterRefresh(Player, true));
         callBC(() => ChatRoomCharacterUpdate(Player));
         callBC(() => ServerPlayerAppearanceSync());
     }
@@ -1341,8 +1342,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // e.g. [Kneel, BackCuffs] → applies [Kneel] first, waits stepDelayMs, then [Kneel, BackCuffs].
     function applyPosesSequential(poses, stepDelayMs = 420) {
         // Preserve empty strings — applyPoses handles the "Relaxed arms" case.
-        const wantsRelaxed = poses.includes("");
-        const steps = poses.filter(Boolean);
+        const safeList = Array.isArray(poses) ? poses : [];
+        const wantsRelaxed = safeList.includes("");
+        const steps = safeList.filter(Boolean);
         if (steps.length <= 1) {
             // Pass original list so applyPoses sees the empty-string Relaxed marker.
             applyPoses(wantsRelaxed ? [...steps, ""] : steps);
@@ -1350,7 +1352,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         for (let i = 0; i < steps.length; i++) {
             const subset = steps.slice(0, i + 1);
-            // On the step where we'd apply Relaxed, include the marker.
+            // On each step include the Relaxed marker if needed so arm pose is cleared.
             window.setTimeout(() => applyPoses(wantsRelaxed ? [...subset, ""] : subset), i * stepDelayMs);
         }
     }
@@ -1372,7 +1374,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function uid$5() { return Math.random().toString(36).slice(2, 9); }
     function load$1() {
         const list = getStore$8().poseCombos;
-        return Array.isArray(list) ? list : [];
+        if (!Array.isArray(list))
+            return [];
+        // Sanitize each combo — old data may have undefined/null poses array
+        return list.map(c => (Object.assign(Object.assign({}, c), { poses: Array.isArray(c.poses) ? c.poses : [] })));
     }
     function saveCombos(list) {
         getStore$8().poseCombos = list;
@@ -1409,11 +1414,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // Apply a combo (animation + announce text). Used by both the chat command handler
     // and the ▶ apply button in the drawer so announce always fires either way.
     function applyCombo(combo) {
-        var _a, _b;
+        var _a, _b, _c;
         const delay = (_a = combo.stepDelayMs) !== null && _a !== void 0 ? _a : 420;
-        applyPosesSequential(combo.poses, delay);
-        const totalMs = combo.poses.length > 1 ? (combo.poses.length - 1) * delay + 80 : 80;
-        if ((_b = combo.announceText) === null || _b === void 0 ? void 0 : _b.trim()) {
+        applyPosesSequential((_b = combo.poses) !== null && _b !== void 0 ? _b : [], delay);
+        const poseCount = Array.isArray(combo.poses) ? combo.poses.length : 0;
+        const totalMs = poseCount > 1 ? (poseCount - 1) * delay + 80 : 80;
+        if ((_c = combo.announceText) === null || _c === void 0 ? void 0 : _c.trim()) {
             window.setTimeout(() => {
                 try {
                     ServerSend("ChatRoomChat", {
@@ -31851,7 +31857,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.6.4";
+    const MOD_VERSION = "3.6.5";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31863,7 +31869,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "3.6.4",
+            version: "3.6.5",
             changes: [
                 "Friends list: added sort dropdown — Status (default), ★ Starred first, A→Z, Z→A, Friends longest, Friends newest. Choice persists across sessions.",
             ],
