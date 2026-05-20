@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.4.7
+// @version      3.5.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13217,7 +13217,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     position: absolute;
     right: 44px;   /* leave the 44px tab strip uncovered — tab is to our right */
     top: 0;
-    width: 390px;
+    width: min(390px, calc(100vw - 44px)); /* never overflow on narrow phone screens */
     height: 100%;  /* full chat log height — no vertical conflict with tab */
     transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
                 opacity   0.35s cubic-bezier(0.25, 1, 0.5, 1),
@@ -15453,6 +15453,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 .ebc-whisper-text { color: #d0a0b8; word-break: break-word; }
 .ebc-whisper-msg.out .ebc-whisper-text { color: #e8b0d0; }
 
+/* ── Creator paw glow animation (credits card) ──────────────────────────── */
+@keyframes ebc-paw-glow {
+    0%, 100% { opacity: 0.82; filter: drop-shadow(0 0 3px #c89030); }
+    50%       { opacity: 1.00; filter: drop-shadow(0 0 7px #ffd700) drop-shadow(0 0 3px #c89030); }
+}
+.ebc-creator-paw-img {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    animation: ebc-paw-glow 2.4s ease-in-out infinite;
+    vertical-align: middle;
+}
+
 /* ── Touch / phone mode ─────────────────────────────────────────────────── */
 /* Applied when #emerybc-panel has [data-touch] — auto on coarse-pointer     */
 /* devices (phones/tablets), or force-enabled from the DEV → Drawer Prefs.  */
@@ -15512,10 +15525,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
 #emerybc-panel[data-touch] .ebc-tabs {
     gap: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none !important;
+}
+#emerybc-panel[data-touch] .ebc-tabs::-webkit-scrollbar { display: none; }
+#emerybc-panel[data-touch] .ebc-tab-btn {
+    flex: 0 0 auto !important; /* don't shrink — allow horizontal scroll instead */
+    min-width: 48px !important;
 }
 
 #emerybc-panel[data-touch] .ebc-body {
     padding: 10px !important;
+    overflow-y: scroll !important; /* 'scroll' works more reliably than 'auto' on iOS */
+    -webkit-overflow-scrolling: touch; /* momentum scroll on older iOS */
 }
 
 #emerybc-panel[data-touch] .ebc-section-label {
@@ -15840,27 +15864,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         notes: "USERS", thanks: "CREDITS", dev: "DEV",
     };
     const DEFAULT_COLORS = {
-        bg: "#1a0d14",
-        card: "#23101d",
-        cardMuted: "#1b0d17",
-        border: "#3a1928",
-        accent: "#cf6f98",
-        textBright: "#f7e6ee",
-        textSub: "#c09098",
-        textMuted: "#7a5a6a",
-        gold: "#c9ab72",
+        bg: "#1b0d17", // main panel + most element backgrounds
+        card: "#2a1421", // card / hover / section backgrounds
+        cardMuted: "#190b13", // input fields / recessed surfaces
+        border: "#3a1928", // all dividing lines & outlines
+        accent: "#cf6f98", // tabs, buttons, highlights
+        textBright: "#f7e6ee", // primary readable text
+        textSub: "#967281", // secondary labels & soft text
+        textMuted: "#7a5a6a", // placeholders / inactive items
+        gold: "#c9ab72", // gold / special accents
     };
     const EBC_THEME_PRESETS = {
         // Each preset is fully cohesive — backgrounds tinted with the theme hue,
         // accent is the primary colour, text & border complement it naturally.
         rose: { name: "Rose (Default)", colors: DEFAULT_COLORS },
-        sakura: { name: "Sakura", colors: { bg: "#1c0e12", card: "#281419", cardMuted: "#220f15", border: "#481a24", accent: "#e8608a", textBright: "#ffecf2", textSub: "#d8a0b0", textMuted: "#906070", gold: "#e0b060" } },
-        lavender: { name: "Lavender", colors: { bg: "#0e0b1a", card: "#150f28", cardMuted: "#120c22", border: "#281a42", accent: "#9b6fcf", textBright: "#ece6f8", textSub: "#9888c0", textMuted: "#5a5278", gold: "#c8b46a" } },
-        ocean: { name: "Ocean", colors: { bg: "#0a1220", card: "#0e1c30", cardMuted: "#0c1828", border: "#162e4c", accent: "#5a98c8", textBright: "#e0eef8", textSub: "#789ab8", textMuted: "#3e5870", gold: "#c0a860" } },
-        forest: { name: "Forest", colors: { bg: "#091410", card: "#0d1e16", cardMuted: "#0b1812", border: "#163422", accent: "#52b870", textBright: "#daf0e2", textSub: "#70a880", textMuted: "#3e5e48", gold: "#aab840" } },
-        crimson: { name: "Crimson", colors: { bg: "#180a0a", card: "#221010", cardMuted: "#1c0c0c", border: "#3c1414", accent: "#c84848", textBright: "#f8e0e0", textSub: "#b87878", textMuted: "#704848", gold: "#c89050" } },
-        amber: { name: "Amber", colors: { bg: "#150e06", card: "#201508", cardMuted: "#1a1006", border: "#3a2412", accent: "#d08030", textBright: "#f8ecd8", textSub: "#c09870", textMuted: "#806848", gold: "#e8c040" } },
-        obsidian: { name: "Obsidian", colors: { bg: "#111216", card: "#1a1c22", cardMuted: "#151720", border: "#28293a", accent: "#8090b8", textBright: "#e8eaf0", textSub: "#8890a0", textMuted: "#545a68", gold: "#a89058" } },
+        sakura: { name: "Sakura", colors: { bg: "#200e14", card: "#2e1520", cardMuted: "#190a0f", border: "#481a24", accent: "#e8608a", textBright: "#ffecf2", textSub: "#b87890", textMuted: "#906070", gold: "#e0b060" } },
+        lavender: { name: "Lavender", colors: { bg: "#120d1e", card: "#1e1532", cardMuted: "#0d0918", border: "#281a42", accent: "#9b6fcf", textBright: "#ece6f8", textSub: "#7868a0", textMuted: "#5a5278", gold: "#c8b46a" } },
+        ocean: { name: "Ocean", colors: { bg: "#0c1828", card: "#122034", cardMuted: "#081018", border: "#162e4c", accent: "#5a98c8", textBright: "#e0eef8", textSub: "#587898", textMuted: "#3e5870", gold: "#c0a860" } },
+        forest: { name: "Forest", colors: { bg: "#0c1a10", card: "#122018", cardMuted: "#080e0a", border: "#163422", accent: "#52b870", textBright: "#daf0e2", textSub: "#507860", textMuted: "#3e5e48", gold: "#aab840" } },
+        crimson: { name: "Crimson", colors: { bg: "#1c0c0c", card: "#2a1212", cardMuted: "#120808", border: "#3c1414", accent: "#c84848", textBright: "#f8e0e0", textSub: "#906060", textMuted: "#704848", gold: "#c89050" } },
+        amber: { name: "Amber", colors: { bg: "#1c1208", card: "#281808", cardMuted: "#120c04", border: "#3a2412", accent: "#d08030", textBright: "#f8ecd8", textSub: "#987050", textMuted: "#806848", gold: "#e8c040" } },
+        obsidian: { name: "Obsidian", colors: { bg: "#141618", card: "#1e2028", cardMuted: "#0e1014", border: "#28293a", accent: "#8090b8", textBright: "#e8eaf0", textSub: "#687080", textMuted: "#545a68", gold: "#a89058" } },
     };
     // ── Colour math helpers ───────────────────────────────────────────────────
     function hexToRgb(hex) {
@@ -15929,20 +15953,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             `--ebc-text-muted:${c.textMuted};--ebc-text-sub:${c.textSub};--ebc-text-bright:${c.textBright};` +
             `--ebc-gold:${c.gold};}\n`;
         let css = CSS;
-        css = css.split("#1a0d14").join(c.bg);
-        css = css.split("#23101d").join(c.card);
-        css = css.split("#1b0d17").join(c.cardMuted);
-        css = css.split("#130810").join(bgDark);
+        // ── Backgrounds ──────────────────────────────────────────────────────────
+        css = css.split("#1b0d17").join(c.bg); // panel bg & most element bg
+        css = css.split("#2a1421").join(c.card); // card / hover / section bg
+        css = css.split("#190b13").join(c.cardMuted); // input / recessed bg
+        css = css.split("#1a0d14").join(c.cardMuted); // scene-step / extra dark bg
+        css = css.split("#1e0d1a").join(bgDark); // toast header / overlay bg
+        css = css.split("#130810").join(bgDark); // darkened panel bg
         css = css.split("#100810").join(bgDarker);
         css = css.split("#2d1422").join(bgMid);
+        // ── Borders ──────────────────────────────────────────────────────────────
         css = css.split("#3a1928").join(c.border);
         css = css.split("#4c2537").join(borderLight);
+        // ── Accent ───────────────────────────────────────────────────────────────
         css = css.split("#cf6f98").join(c.accent);
         css = css.split("#e085ad").join(accentHover);
         css = css.split("#a85678").join(accentDim);
+        // ── Text ─────────────────────────────────────────────────────────────────
         css = css.split("#7a5a6a").join(c.textMuted);
-        css = css.split("#c09098").join(c.textSub);
+        css = css.split("#967281").join(c.textSub); // soft labels / placeholder text
+        css = css.split("#9a7888").join(c.textSub); // footer & muted element text
         css = css.split("#f7e6ee").join(c.textBright);
+        // ── Gold ─────────────────────────────────────────────────────────────────
         css = css.split("#c9ab72").join(c.gold);
         return vars + css;
     }
@@ -30157,11 +30189,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     idElCreator.textContent = "#" + p.memberId;
                     idElCreator.title = "BC Member Number";
                     nameRow.appendChild(idElCreator);
-                    // Paw mark
-                    const pawMark = document.createElement("span");
-                    pawMark.style.cssText = "font-size:13px;line-height:1;filter:drop-shadow(0 0 3px #c89030);flex-shrink:0;";
-                    pawMark.textContent = "🐾";
-                    nameRow.appendChild(pawMark);
+                    // Paw mark — use the gold PNG if available, fall back to emoji
+                    if (EBCDrawer.pawDataUri) {
+                        const pawImg = document.createElement("img");
+                        pawImg.src = EBCDrawer.pawDataUri;
+                        pawImg.className = "ebc-creator-paw-img";
+                        pawImg.alt = "🐾";
+                        nameRow.appendChild(pawImg);
+                    }
+                    else {
+                        const pawMark = document.createElement("span");
+                        pawMark.style.cssText = "font-size:13px;line-height:1;filter:drop-shadow(0 0 3px #c89030);flex-shrink:0;";
+                        pawMark.textContent = "🐾";
+                        nameRow.appendChild(pawMark);
+                    }
                 }
                 else {
                     const idEl2 = document.createElement("span");
@@ -31471,82 +31512,84 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
     }
     EBCDrawer._instance = null;
+    /** Gold paw data URI — set from main.ts after EBC_PAW_DATA is defined. */
+    EBCDrawer.pawDataUri = "";
     // -- Interactive guide ─────────────────────────────────────────────────────
     // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
     EBCDrawer.GUIDE_STEPS = [
         {
             tab: null,
-            label: "✨ Welcome to EBC",
+            label: "Welcome to EBC",
             text: "This guide walks you through every feature step by step.\nThe menu will switch tabs automatically as you go — just hit [[Next →]].\n((EBC adds outfit saving, action buttons, pose animations, friend notes, and custom name tags above players' heads.))",
         },
         {
             tab: null,
-            label: "🔑 Opening & Moving the Menu",
+            label: "Opening & Moving the Menu",
             text: "Press your [[Hotkey]] (set in DEV → Preferences) to open and close the menu instantly from anywhere.\nDrag the [[⠿]] handle in the header to move the panel to any spot on screen.\n[[↻]] refreshes your friend list and room data.  [[✕]] closes the panel.\n((The [[?]] button in the header re-opens this guide any time.))",
         },
         {
             tab: "outfits",
-            label: "👗 Outfits — Save & Apply Looks",
+            label: "Outfits — Save & Apply Looks",
             text: "Click [[💾 Save]] to store your current full appearance as a named preset.\nClick any saved outfit card to [[Apply]] it — restoring every clothing layer and colour instantly.\nUse [[✏]] to rename, [[🗑]] to delete, and the [[↑ ↓]] arrows to reorder your list.\n((Great for switching between different roleplay or casual looks in seconds.))",
             spotlight: ["[data-guide-target='btn-new-outfit']"],
         },
         {
             tab: "outfits",
-            label: "🏷 Outfit Tags & Schedules",
+            label: "Outfit Tags & Schedules",
             text: "Create [[Tags]] to organise outfits into groups (e.g. Casual, Events, Roleplay).\nClick the [[🏷]] icon on any outfit card to assign tags — then filter by tag at the top of the list.\n[[Schedules]] let EBC auto-switch your outfit at set times of day. Expand the [[Schedules]] section at the bottom of this tab to set one up.\n((You can also [[📤 Export]] outfits as codes and share them — use [[📥 Import]] to load a code someone sent you.))",
             spotlight: ["[data-guide-target='section-outfit-tags']", "[data-guide-target='section-schedules']"],
         },
         {
             tab: "buttons",
-            label: "🎛 Action Buttons — Quick Commands",
+            label: "Action Buttons — Quick Commands",
             text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] handle on a button card to reorder it. [[✏]] edits it, [[🗑]] deletes it.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
             tab: "buttons",
-            label: "🚶 Slow Leave",
+            label: "Slow Leave",
             text: "[[Slow Leave]] is in the [[Useful Buttons]] section — it sends a scripted departure sequence to the room before you leave, so it feels natural and in-character.\nClick the [[Slow Leave]] button to start the sequence.\nExpand the [[▶ Slow Leave]] accordion below the button to customise:\n  • [[Preset]] — pick a pre-written departure style\n  • [[Sequence]] — the text sent to the room\n  • [[Duration]] — time (in seconds) between messages",
             spotlight: ["[data-guide-target='section-useful-btns']", "[data-guide-target='btn-slow-leave']"],
         },
         {
             tab: "anims",
-            label: "🎭 Poses & Animations",
+            label: "Poses & Animations",
             text: "Pose combos chain multiple pose changes together with delays — perfect for transition animations or emote sequences.\nClick [[+ New combo]] to create one, add steps with poses or emotes, then assign a [[/command]] name.\nType [[/yourcommand]] directly in the BC chat box to trigger it — no need to open the menu.\n((Combos can mix [[Pose]] steps and [[Emote]] steps so messages appear alongside pose changes.))",
             spotlight: ["[data-guide-target='btn-new-combo']"],
         },
         {
             tab: "notes",
-            label: "👥 Users & Friends",
+            label: "Users & Friends",
             text: "The Users tab shows everyone in your current room plus your friends list.\nClick [[★]] on any person to highlight them with a golden nameplate — perfect for marking close friends.\nExpand a person's card to [[💬 Whisper]] them, copy their [[#ID]], or open their [[Profile]].\n((The [[People Met]] history in DEV → Logs persists between sessions — a permanent address book of everyone you've encountered.))",
             spotlight: ["[data-guide-target='section-room-people']"],
         },
         {
             tab: "dev",
-            label: "⚙ DEV — Preferences & Themes",
+            label: "DEV — Preferences & Themes",
             text: "[[Quick Preset]] lets you apply a full colour theme instantly — try Rose, Midnight, Ocean and more.\nAdjust [[Panel Opacity]] and [[Zoom]] to suit your screen size.\nSet a [[Hotkey]] so you can open/close the menu with a single key press.\n[[Visible Tabs]] hides tabs you don't use, keeping the menu clean.\n((The [[Pinned strip visibility]] section lets you choose which tabs show the Safewords and EBC Tag Settings strips.))",
             spotlight: ["[data-guide-target='section-dev-prefs']"],
         },
         {
             tab: "dev",
-            label: "📋 DEV — Logs & History",
+            label: "DEV — Logs & History",
             text: "[[Whisper Log]] — every whisper sent and received this session.\n[[Current Room]] — who is in your room right now, with member IDs.\n[[Rooms Visited]] — all rooms you've entered this session.\n[[Restraint Log]] — when items were applied or removed.\n[[People Met]] — persists between sessions, a permanent record of everyone you've encountered.\n((All logs are session-only except People Met, which saves to BC's extension settings.))",
             spotlight: ["[data-guide-target='section-dev-logs']"],
         },
         {
             tab: null,
-            label: "🏷 EBC Tag Settings Strip",
+            label: "EBC Tag Settings Strip",
             text: "The [[EBC TAG SETTINGS]] bar is pinned above the tab area — click its header to expand it.\n[[My tag]] — shows your custom badge above your own head.\n[[Others]] — shows badges above other EBC users' heads.\nChoose [[Text]] (flat name pill) or [[Cat]] (cat-face icon) style for yourself and others independently.\n[[Scale]] sliders resize each style separately. Use [[📍 Text]] and [[📍 Cat]] buttons to drag each badge to its exact position on screen.",
             spotlight: ["[data-guide-target='strip-ebc-tags']"],
         },
         {
             tab: null,
-            label: "🛡 Safewords Strip",
+            label: "Safewords Strip",
             text: "The [[SAFEWORDS]] bar is always pinned at the top of the panel — reachable instantly no matter which tab you're on.\nSet up to [[3 safewords]] — clicking one sends a pre-written safety message to the room immediately.\nConfigure a [[Grace period]] (in minutes) to prevent accidental taps, and enable a [[Confirm step]] for extra safety.\n((Both the Safewords and EBC Tags strips can be hidden per-tab in [[DEV → Pinned strip visibility]].))",
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
         {
             tab: null,
-            label: "💡 Tips & Tricks",
+            label: "Tips & Tricks",
             text: "• Type [[/command]] in BC chat to trigger a pose combo by name.\n• Press your [[Hotkey]] (DEV → Preferences) to open/close the menu instantly.\n• Drag the [[⠿]] handle in the header to move the panel anywhere on screen.\n• [[↻]] refreshes your room list and friend data.\n• The [[?]] button in the header reopens this guide any time.\n• Use [[📤 Export]] on outfits to share them as codes with friends.\n((Tip: keep the Safewords strip visible on all tabs — you never know when you'll need it quickly.))",
         },
     ];
@@ -31571,7 +31614,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.4.7";
+    const MOD_VERSION = "3.5.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31582,6 +31625,35 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.5.1",
+            changes: [
+                "Theme system: corrected DEFAULT_COLORS hex values to match the actual CSS constants (panel bg, card, card-muted, soft text were all mismatched and doing nothing).",
+                "Theme system: overhauled buildCSS() replacement table — added missing card/cardMuted/textSub mappings, removed dead entries, fixed bg slot that was hitting the wrong target.",
+                "Theme presets: updated all non-rose presets with corrected bg/card/cardMuted/textSub values so color changes now visibly apply.",
+            ],
+        },
+        {
+            version: "3.5.0",
+            changes: [
+                "Credits: creator card now shows the animated gold paw PNG instead of a plain emoji.",
+                "Phone mode: panel width capped to screen width so it never clips on narrow devices.",
+                "Phone mode: tab row scrolls horizontally when tabs don't fit instead of clipping.",
+                "Phone mode: body uses overflow-y:scroll + -webkit-overflow-scrolling:touch for reliable iOS momentum scroll.",
+            ],
+        },
+        {
+            version: "3.4.9",
+            changes: [
+                "Creator paw: tightened position (76*zoom gap) and raised minimum opacity to 0.72 so it never fades to near-invisible.",
+            ],
+        },
+        {
+            version: "3.4.8",
+            changes: [
+                "Guide: removed all emoji from step labels.",
+            ],
+        },
         {
             version: "3.4.7",
             changes: [
@@ -35986,16 +36058,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const _pawCtx = _pawCanvas === null || _pawCanvas === void 0 ? void 0 : _pawCanvas.getContext("2d");
             const _pawImg = getEbcPawImg();
             if (_pawCtx && _pawImg) {
-                const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 800);
+                // Pulse stays between 0.72 and 1.0 — never fades to near-invisible
+                const pulse = 0.86 + 0.14 * Math.sin(Date.now() / 1200);
                 const sz = Math.max(10, Math.round(16 * zoom));
-                // Place paw to the right of the name text so it does not overlap
+                // Place paw to the right of the name, centred on the name baseline
                 const nameX = left + 250 * zoom;
                 const nameY = top + 960 * zoom;
                 _pawCtx.save();
-                _pawCtx.globalAlpha = 0.90 * pulse;
+                _pawCtx.globalAlpha = pulse;
                 _pawCtx.shadowColor = "#ffd700";
                 _pawCtx.shadowBlur = sz * 0.8;
-                _pawCtx.drawImage(_pawImg, nameX + Math.round(90 * zoom), nameY - sz / 2 - Math.round(6 * zoom), sz, sz);
+                _pawCtx.drawImage(_pawImg, nameX + Math.round(76 * zoom), nameY - sz / 2, sz, sz);
                 _pawCtx.restore();
             }
         }
@@ -36242,6 +36315,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
+            EBCDrawer.pawDataUri = EBC_PAW_DATA;
             drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD);
             // Fire an initial visibility check in case the addon loads while the
             // player is already in a chat room (ChatRoomSync won't fire again).

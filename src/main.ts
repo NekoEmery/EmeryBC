@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.5.0";
+const MOD_VERSION = "3.5.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.5.1",
+        changes: [
+            "Theme system: corrected DEFAULT_COLORS hex values to match the actual CSS constants (panel bg, card, card-muted, soft text were all mismatched and doing nothing).",
+            "Theme system: overhauled buildCSS() replacement table — added missing card/cardMuted/textSub mappings, removed dead entries, fixed bg slot that was hitting the wrong target.",
+            "Theme presets: updated all non-rose presets with corrected bg/card/cardMuted/textSub values so color changes now visibly apply.",
+        ],
+    },
     {
         version: "3.5.0",
         changes: [
