@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.10.6
+// @version      2.10.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16858,24 +16858,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const zoomWrapper = document.createElement("div");
             zoomWrapper.className = "ebc-zoom-wrapper";
             zoomWrapper.style.cssText = "transform-origin:top left;display:flex;flex-direction:column;width:100%;height:100%;";
-            // middleArea: wraps all chrome elements + body in a single flex column
-            // that takes all remaining space between the header/tabBar/langRow and the
-            // footer.  Because middleArea is flex:1;min-height:0, the footer (below it)
-            // is ALWAYS visible regardless of how tall the chrome items become.
-            // NOTE: NO overflow property here — setting overflow:hidden on a flex container
-            // breaks nested scroll containers in Chrome (nested flex children with
-            // overflow-y:auto stop scrolling). overflow:visible is the default and correct.
-            const middleArea = document.createElement("div");
-            middleArea.style.cssText = "flex:1;min-height:0;display:flex;flex-direction:column;";
-            middleArea.appendChild(quickActions);
-            middleArea.appendChild(selfPickPanel);
-            middleArea.appendChild(safewordRow);
-            middleArea.appendChild(ebcTagsStrip);
-            middleArea.appendChild(body);
+            // Flat flex column — applyPanelZoom always keeps width/height:100% so the
+            // wrapper has a definite height, giving .ebc-body (flex:1;min-height:0) a
+            // real constraint and making overflow-y:auto scroll correctly.
             panel.appendChild(header);
             panel.appendChild(tabBar);
             panel.appendChild(langRow);
-            panel.appendChild(middleArea);
+            panel.appendChild(quickActions);
+            panel.appendChild(selfPickPanel);
+            panel.appendChild(safewordRow);
+            panel.appendChild(ebcTagsStrip);
+            panel.appendChild(body);
             panel.appendChild(footer);
             // Move all panel children into the wrapper, then add wrapper to panel.
             while (panel.firstChild)
@@ -17492,10 +17485,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             if (scale === 1) {
                 wrapper.style.transform = "";
-                wrapper.style.width = "";
-                wrapper.style.height = "";
+                wrapper.style.width = "100%"; // must keep 100% — clearing to "" removes the
+                wrapper.style.height = "100%"; // inline height, collapsing the wrapper to content
             }
-            else {
+            else { // height and breaking flex scroll + footer layout.
                 // inv% × scale = 100% → scaled content fills .ebc-panel exactly.
                 const inv = (100 / scale).toFixed(4) + "%";
                 wrapper.style.transform = `scale(${scale})`;
@@ -30831,7 +30824,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.6";
+    const MOD_VERSION = "2.10.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30842,6 +30835,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.10.7",
+            changes: [
+                "Fix: Root cause of broken scroll and missing footer identified and fixed. applyPanelZoom() was clearing the zoom-wrapper's height to '' at scale=1, removing its 100% height entirely. This caused the wrapper to collapse to content height with no flex constraint, so the body never scrolled (it just expanded) and the footer was pushed past the panel clip boundary. Fix: always keep width/height at 100% at scale=1 instead of clearing them. Reverted middleArea back to the clean flat flex layout — it is no longer needed.",
+            ],
+        },
         {
             version: "2.10.6",
             changes: [
