@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      2.10.3
+// @version      2.10.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1865,6 +1865,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const s = getStore$7();
             if (s) {
                 s.badgeStyle = v;
+                syncSettings();
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    // -- Others' badge style -------------------------------------------------------
+    // Client-side only: controls which badge style is drawn for OTHER players' badges
+    // on your screen. Independent from your own badge style. Defaults to "text".
+    function getOthersBadgeStyle() {
+        var _a;
+        try {
+            return ((_a = getStore$7()) === null || _a === void 0 ? void 0 : _a.othersBadgeStyle) === "cat" ? "cat" : "text";
+        }
+        catch (_b) {
+            return "text";
+        }
+    }
+    function setOthersBadgeStyle(v) {
+        try {
+            const s = getStore$7();
+            if (s) {
+                s.othersBadgeStyle = v;
                 syncSettings();
             }
         }
@@ -12569,6 +12591,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "strip.badgePosition": { en: "📍 Position", de: "📍 Position", zh: "📍 定位", fr: "📍 Position", es: "📍 Posición", ru: "📍 Позиция", ja: "📍 位置" },
         "strip.showChev": { en: "Show ▶", de: "Zeigen ▶", zh: "显示 ▶", fr: "Afficher ▶", es: "Mostrar ▶", ru: "Показать ▶", ja: "表示 ▶" },
         "strip.hideChev": { en: "Hide ▼", de: "Verbergen ▼", zh: "隐藏 ▼", fr: "Masquer ▼", es: "Ocultar ▼", ru: "Скрыть ▼", ja: "非表示 ▼" },
+        "strip.myStyle": { en: "My style", de: "Mein Stil", zh: "我的样式", fr: "Mon style", es: "Mi estilo", ru: "Мой стиль", ja: "自分のスタイル" },
+        "strip.othersStyle": { en: "Others' style", de: "Stil der anderen", zh: "他人样式", fr: "Style des autres", es: "Estilo de otros", ru: "Стиль других", ja: "他人のスタイル" },
         // ─── THEMES ────────────────────────────────────────────────────────────
         "theme.drawerBg": { en: "Drawer BG", de: "Schublade HG", zh: "面板背景", fr: "BG panneau", es: "Fondo panel", ru: "Фон панели", ja: "パネル背景" },
         "theme.cardBg": { en: "Card BG", de: "Karte HG", zh: "卡片背景", fr: "BG carte", es: "Fondo tarjeta", ru: "Фон карточки", ja: "カード背景" },
@@ -13150,14 +13174,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     overscroll-behavior: contain;
 }
 
+/* -- EBC tags strip body (scrollable, capped height so footer stays visible) -- */
+.ebc-tags-body {
+    max-height: 210px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cf6f98 #1a0814;
+}
+
 /* Unified scrollbar theme for all EBC scrollable areas */
 .ebc-body::-webkit-scrollbar,
+.ebc-tags-body::-webkit-scrollbar,
 .ebc-beep-win-history::-webkit-scrollbar { width: 5px; }
 .ebc-body::-webkit-scrollbar-track,
+.ebc-tags-body::-webkit-scrollbar-track,
 .ebc-beep-win-history::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb,
+.ebc-tags-body::-webkit-scrollbar-thumb,
 .ebc-beep-win-history::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
 .ebc-body::-webkit-scrollbar-thumb:hover,
+.ebc-tags-body::-webkit-scrollbar-thumb:hover,
 .ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
 
@@ -16580,8 +16617,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             ebcTagsHdr.appendChild(ebcTagsHdrLeft);
             ebcTagsHdr.appendChild(ebcTagsChev);
             ebcTagsStrip.appendChild(ebcTagsHdr);
-            // Body
+            // Body — capped height so footer is never pushed off-screen
             const ebcTagsBody = document.createElement("div");
+            ebcTagsBody.className = "ebc-tags-body";
             ebcTagsBody.style.cssText = "padding:0 10px 9px;background:#1a0d16;";
             // Description line
             const ebcTagsDesc = document.createElement("div");
@@ -16652,59 +16690,55 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             badgeAppLbl.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:6px;";
             badgeAppLbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 90 90" style="flex-shrink:0"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
             ebcTagsBody.appendChild(badgeAppLbl);
-            // ── Style picker: Text | Cat ─────────────────────────────────────────
-            const styleRow = document.createElement("div");
-            styleRow.style.cssText = "display:flex;gap:5px;margin-bottom:7px;";
+            // ── Style picker: Text | Cat (shared helper) ─────────────────────────
             const EBC_SVG_14 = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 90 90" style="flex-shrink:0;vertical-align:middle"><rect x="8" y="8" width="74" height="74" rx="18" fill="#2a1421" stroke="#cf6f98" stroke-width="4"/><path d="M28 30 L37 18 L45 31 L53 18 L62 30" fill="#cf6f98"/><circle cx="34" cy="43" r="4" fill="#f7e6ee"/><circle cx="56" cy="43" r="4" fill="#f7e6ee"/><path d="M38 56 Q45 63 52 56" stroke="#f7e6ee" stroke-width="4" fill="none" stroke-linecap="round"/></svg>';
-            // iconHtml: raw HTML string for the icon (emoji or SVG); labelText: plain text label.
-            // Content is built once with DOM elements; refresh() only updates colours/borders.
-            const makeStyleBtn = (styleName, iconHtml, labelText) => {
-                const btn = document.createElement("button");
-                btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;display:inline-flex;align-items:center;justify-content:center;gap:5px;";
-                // Build content once — innerHTML so SVG works; label as safe text node
-                const iconWrap = document.createElement("span");
-                iconWrap.style.cssText = "line-height:0;flex-shrink:0;";
-                iconWrap.innerHTML = iconHtml;
-                const textNode = document.createElement("span");
-                textNode.textContent = labelText;
-                btn.appendChild(iconWrap);
-                btn.appendChild(textNode);
-                const refresh = () => {
-                    const active = getBadgeStyle() === styleName;
-                    btn.style.background = active ? "#2e1020" : "#150a10";
-                    btn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                    btn.style.color = active ? "#f0c0d8" : "#7a4a60";
+            // Builds a Text|Cat row and appends it to the given parent.
+            // getter/setter allow the same helper to drive both "mine" and "others'" rows.
+            const buildStyleRow = (getter, setter) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;gap:5px;margin-bottom:5px;";
+                const makeBtn = (styleName, iconHtml, labelText) => {
+                    const btn = document.createElement("button");
+                    btn.style.cssText = "flex:1;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;border-radius:6px;cursor:pointer;padding:5px 4px;transition:background 0.12s,border-color 0.12s,color 0.12s;display:inline-flex;align-items:center;justify-content:center;gap:5px;";
+                    const iconWrap = document.createElement("span");
+                    iconWrap.style.cssText = "line-height:0;flex-shrink:0;";
+                    iconWrap.innerHTML = iconHtml;
+                    const txtNode = document.createElement("span");
+                    txtNode.textContent = labelText;
+                    btn.appendChild(iconWrap);
+                    btn.appendChild(txtNode);
+                    const refresh = () => {
+                        const active = getter() === styleName;
+                        btn.style.background = active ? "#2e1020" : "#150a10";
+                        btn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
+                        btn.style.color = active ? "#f0c0d8" : "#7a4a60";
+                    };
+                    refresh();
+                    btn.addEventListener("click", () => {
+                        setter(styleName);
+                        // Refresh both buttons in this row
+                        row.querySelectorAll("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
+                        refresh();
+                    });
+                    btn.addEventListener("ebc-refresh", refresh);
+                    return btn;
                 };
-                refresh();
-                btn.addEventListener("click", () => {
-                    setBadgeStyle(styleName);
-                    styleBtns.forEach(([, r]) => r());
-                });
-                return btn;
+                row.appendChild(makeBtn("text", "🏷", "Text"));
+                row.appendChild(makeBtn("cat", EBC_SVG_14, "Cat"));
+                ebcTagsBody.appendChild(row);
             };
-            const styleBtns = [];
-            const textBtn = makeStyleBtn("text", "🏷", "Text");
-            const catBtn = makeStyleBtn("cat", EBC_SVG_14, "Cat");
-            const refreshTextBtn = () => {
-                const active = getBadgeStyle() === "text";
-                textBtn.style.background = active ? "#2e1020" : "#150a10";
-                textBtn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                textBtn.style.color = active ? "#f0c0d8" : "#7a4a60";
-            };
-            const refreshCatBtn = () => {
-                const active = getBadgeStyle() === "cat";
-                catBtn.style.background = active ? "#2e1020" : "#150a10";
-                catBtn.style.border = `1px solid ${active ? "#8a3458" : "#321220"}`;
-                catBtn.style.color = active ? "#f0c0d8" : "#7a4a60";
-            };
-            styleBtns.push([textBtn, refreshTextBtn], [catBtn, refreshCatBtn]);
-            textBtn.addEventListener("click", () => { setBadgeStyle("text"); refreshTextBtn(); refreshCatBtn(); });
-            catBtn.addEventListener("click", () => { setBadgeStyle("cat"); refreshTextBtn(); refreshCatBtn(); });
-            refreshTextBtn();
-            refreshCatBtn();
-            styleRow.appendChild(textBtn);
-            styleRow.appendChild(catBtn);
-            ebcTagsBody.appendChild(styleRow);
+            // "Mine:" label
+            const myStyleLbl = document.createElement("div");
+            myStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-bottom:3px;";
+            myStyleLbl.textContent = t("strip.myStyle");
+            ebcTagsBody.appendChild(myStyleLbl);
+            buildStyleRow(getBadgeStyle, setBadgeStyle);
+            // "Others':" label
+            const othersStyleLbl = document.createElement("div");
+            othersStyleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;font-weight:bold;letter-spacing:0.06em;color:#8a5070;text-transform:uppercase;margin-top:4px;margin-bottom:3px;";
+            othersStyleLbl.textContent = t("strip.othersStyle");
+            ebcTagsBody.appendChild(othersStyleLbl);
+            buildStyleRow(getOthersBadgeStyle, setOthersBadgeStyle);
             // ── Scale slider ─────────────────────────────────────────────────────
             const scaleRow = document.createElement("div");
             scaleRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:7px;";
@@ -30787,7 +30821,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "2.10.3";
+    const MOD_VERSION = "2.10.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -30798,6 +30832,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "2.10.4",
+            changes: [
+                "Fix: EBC tag strip body now has a max-height (210px, scrollable) so the footer is always visible regardless of how much badge-appearance content is expanded.",
+                "Feature: Added 'Others\\' style' picker in the EBC tag strip — independently choose Text or Cat style for other players' overhead badges on your screen.",
+            ],
+        },
         {
             version: "2.10.3",
             changes: [
@@ -34871,7 +34912,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const offsetX = getBadgeOffsetX(); // default 250 (char horiz centre)
         const offsetY = getBadgeOffsetY(); // default 72  (below WCE name)
         const userScale = getBadgeScale(); // default 1.0
-        const badgeStyle = getBadgeStyle(); // "text" | "cat"
+        const badgeStyle = isSelf ? getBadgeStyle() : getOthersBadgeStyle(); // per-target style
         const badgeBgOp = getBadgeBgOpacity(); // default 1.0
         const badgeTextOp = getBadgeTextOpacity(); // default 1.0
         const x = left + offsetX * zoom;
