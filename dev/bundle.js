@@ -12762,14 +12762,19 @@
         "strip.styleBtnText": { en: "Text", de: "Text", zh: "文字", fr: "Texte", es: "Texto", ru: "Текст", ja: "テキスト" },
         "strip.styleBtnCat": { en: "Cat", de: "Katze", zh: "猫", fr: "Chat", es: "Gato", ru: "Кошка", ja: "猫" },
         // ─── THEMES ────────────────────────────────────────────────────────────
-        "theme.drawerBg": { en: "Drawer BG", de: "Schublade HG", zh: "面板背景", fr: "BG panneau", es: "Fondo panel", ru: "Фон панели", ja: "パネル背景" },
-        "theme.cardBg": { en: "Card BG", de: "Karte HG", zh: "卡片背景", fr: "BG carte", es: "Fondo tarjeta", ru: "Фон карточки", ja: "カード背景" },
-        "theme.insetBg": { en: "Inset BG", de: "Eingebettetes HG", zh: "内嵌背景", fr: "BG incrusté", es: "Fondo interior", ru: "Фон вставки", ja: "インセット背景" },
-        "theme.border": { en: "Border", de: "Rahmen", zh: "边框", fr: "Bordure", es: "Borde", ru: "Граница", ja: "ボーダー" },
-        "theme.accent": { en: "Accent", de: "Akzent", zh: "强调色", fr: "Accent", es: "Acento", ru: "Акцент", ja: "アクセント" },
-        "theme.gold": { en: "Gold", de: "Gold", zh: "金色", fr: "Or", es: "Dorado", ru: "Золото", ja: "ゴールド" },
-        "theme.text": { en: "Text", de: "Text", zh: "文字", fr: "Texte", es: "Texto", ru: "Текст", ja: "テキスト" },
-        "theme.subtext": { en: "Subtext", de: "Untertext", zh: "副文字", fr: "Sous-texte", es: "Subtexto", ru: "Подтекст", ja: "サブテキスト" },
+        // Group headers
+        "theme.groupBg": { en: "Backgrounds", de: "Hintergründe", zh: "背景", fr: "Arrière-plans", es: "Fondos", ru: "Фоны", ja: "背景" },
+        "theme.groupAccent": { en: "Accents", de: "Akzente", zh: "强调", fr: "Accents", es: "Acentos", ru: "Акценты", ja: "アクセント" },
+        "theme.groupText": { en: "Text", de: "Text", zh: "文字", fr: "Texte", es: "Texto", ru: "Текст", ja: "テキスト" },
+        // Slot labels — named by what they visually affect, not their technical role
+        "theme.panelBg": { en: "Panel BG", de: "Panel HG", zh: "面板背景", fr: "Fond panneau", es: "Fondo panel", ru: "Фон панели", ja: "パネル背景" },
+        "theme.cardBg": { en: "Card BG", de: "Karte HG", zh: "卡片背景", fr: "Fond carte", es: "Fondo tarjeta", ru: "Фон карточки", ja: "カード背景" },
+        "theme.inputBg": { en: "Input BG", de: "Eingabe HG", zh: "输入背景", fr: "Fond saisie", es: "Fondo entrada", ru: "Фон поля", ja: "入力背景" },
+        "theme.buttons": { en: "Buttons/Tabs", de: "Buttons/Tabs", zh: "按钮/标签", fr: "Boutons/Onglets", es: "Botones/Pestañas", ru: "Кнопки/Вкладки", ja: "ボタン/タブ" },
+        "theme.borders": { en: "Borders", de: "Rahmen", zh: "边框", fr: "Bordures", es: "Bordes", ru: "Границы", ja: "ボーダー" },
+        "theme.gold": { en: "Gold Details", de: "Gold-Details", zh: "金色细节", fr: "Détails dorés", es: "Detalles dorados", ru: "Золотые детали", ja: "ゴールド詳細" },
+        "theme.mainText": { en: "Main Text", de: "Haupttext", zh: "主文字", fr: "Texte principal", es: "Texto principal", ru: "Основной текст", ja: "メインテキスト" },
+        "theme.labelText": { en: "Label Text", de: "Beschriftung", zh: "标签文字", fr: "Texte étiquette", es: "Texto etiqueta", ru: "Текст метки", ja: "ラベルテキスト" },
         "theme.dimText": { en: "Dim Text", de: "Gedimmter Text", zh: "暗文字", fr: "Texte atténué", es: "Texto atenuado", ru: "Приглушённый текст", ja: "薄いテキスト" },
     };
     // ---------------------------------------------------------------------------
@@ -15820,12 +15825,16 @@
         gold: "#c9ab72",
     };
     const EBC_THEME_PRESETS = {
-        default: { name: "Default (Pink)", colors: DEFAULT_COLORS },
-        purple: { name: "Purple", colors: { bg: "#0e0d1a", card: "#13102a", cardMuted: "#110d20", border: "#241940", accent: "#9b6fcf", textBright: "#ece6f7", textSub: "#9890c0", textMuted: "#5a5a7a", gold: "#c9c07a" } },
-        blue: { name: "Blue", colors: { bg: "#0d1220", card: "#101b2e", cardMuted: "#0d1525", border: "#1e3050", accent: "#6fa8cf", textBright: "#e6eff7", textSub: "#90a8c0", textMuted: "#5a6a7a", gold: "#c9c47a" } },
-        green: { name: "Green", colors: { bg: "#0d1a10", card: "#102312", cardMuted: "#0d1b0f", border: "#193a20", accent: "#6fcf88", textBright: "#e6f7e8", textSub: "#90c098", textMuted: "#5a7a5e", gold: "#c9c47a" } },
-        red: { name: "Red", colors: { bg: "#1a0d0d", card: "#231010", cardMuted: "#1b0d0d", border: "#3a1919", accent: "#cf6f6f", textBright: "#f7e6e6", textSub: "#c09090", textMuted: "#7a5a5a", gold: "#c9ab72" } },
-        dark: { name: "Dark (Mono)", colors: { bg: "#141414", card: "#1e1e1e", cardMuted: "#181818", border: "#2e2e2e", accent: "#a0a0a0", textBright: "#e0e0e0", textSub: "#999999", textMuted: "#666666", gold: "#a89050" } },
+        // Each preset is fully cohesive — backgrounds tinted with the theme hue,
+        // accent is the primary colour, text & border complement it naturally.
+        rose: { name: "🌸 Rose (Default)", colors: DEFAULT_COLORS },
+        sakura: { name: "🌺 Sakura", colors: { bg: "#1c0e12", card: "#281419", cardMuted: "#220f15", border: "#481a24", accent: "#e8608a", textBright: "#ffecf2", textSub: "#d8a0b0", textMuted: "#906070", gold: "#e0b060" } },
+        lavender: { name: "💜 Lavender", colors: { bg: "#0e0b1a", card: "#150f28", cardMuted: "#120c22", border: "#281a42", accent: "#9b6fcf", textBright: "#ece6f8", textSub: "#9888c0", textMuted: "#5a5278", gold: "#c8b46a" } },
+        ocean: { name: "🌊 Ocean", colors: { bg: "#0a1220", card: "#0e1c30", cardMuted: "#0c1828", border: "#162e4c", accent: "#5a98c8", textBright: "#e0eef8", textSub: "#789ab8", textMuted: "#3e5870", gold: "#c0a860" } },
+        forest: { name: "🌿 Forest", colors: { bg: "#091410", card: "#0d1e16", cardMuted: "#0b1812", border: "#163422", accent: "#52b870", textBright: "#daf0e2", textSub: "#70a880", textMuted: "#3e5e48", gold: "#aab840" } },
+        crimson: { name: "🔴 Crimson", colors: { bg: "#180a0a", card: "#221010", cardMuted: "#1c0c0c", border: "#3c1414", accent: "#c84848", textBright: "#f8e0e0", textSub: "#b87878", textMuted: "#704848", gold: "#c89050" } },
+        amber: { name: "🟡 Amber", colors: { bg: "#150e06", card: "#201508", cardMuted: "#1a1006", border: "#3a2412", accent: "#d08030", textBright: "#f8ecd8", textSub: "#c09870", textMuted: "#806848", gold: "#e8c040" } },
+        obsidian: { name: "🖤 Obsidian", colors: { bg: "#111216", card: "#1a1c22", cardMuted: "#151720", border: "#28293a", accent: "#8090b8", textBright: "#e8eaf0", textSub: "#8890a0", textMuted: "#545a68", gold: "#a89058" } },
     };
     // ── Colour math helpers ───────────────────────────────────────────────────
     function hexToRgb(hex) {
@@ -22764,9 +22773,18 @@
             sendBtn.textContent = "Send";
             // Emoji picker
             const EMOJIS = [
+                // Faces — happy & expressive
                 "😊", "😄", "😂", "🥰", "😍", "😘", "😜", "😏", "🤔", "😳",
-                "😭", "😢", "👉", "👈", "👀", "💕", "💖", "❤️", "🎉", "✨",
-                "🌸", "🍑", "🐱", "🐾", "🌙", "💤", "😺", "🥺", "🙈", "🐰",
+                // Faces — sad, shy & silly
+                "😭", "😢", "🥹", "😇", "😋", "🤭", "🫠", "🤣", "😅", "🫣",
+                // Gestures & reactions
+                "👉", "👈", "👀", "🙌", "🫶", "🤗", "🙈", "🥺", "👋", "😬",
+                // Hearts
+                "💕", "💖", "❤️", "💗", "💜", "💙", "💚", "🧡", "💛", "💝",
+                // Sparkle & celebration
+                "✨", "🎉", "🎊", "💫", "🌟", "⭐", "🎀", "🎵", "👑", "🌈",
+                // Cute animals & nature
+                "🌸", "🍑", "🐾", "🐱", "🐰", "🦊", "🦋", "🌙", "💤", "🍭",
             ];
             const emojiPicker = document.createElement("div");
             emojiPicker.className = "ebc-emoji-picker";
@@ -24720,47 +24738,69 @@
                 presetRow.appendChild(presetSel);
                 presetRow.appendChild(resetBtn);
                 cnt.appendChild(presetRow);
-                // ── Per-colour pickers ─────────────────────────────────────────────
-                const colorFields = [
-                    { key: "bg", label: t("theme.drawerBg"), hint: "Main panel background" },
-                    { key: "card", label: t("theme.cardBg"), hint: "Section / card backgrounds" },
-                    { key: "cardMuted", label: t("theme.insetBg"), hint: "Text inputs, textareas, recessed surfaces" },
-                    { key: "border", label: t("theme.border"), hint: "All border lines" },
-                    { key: "accent", label: t("theme.accent"), hint: "Buttons, highlights, active states" },
-                    { key: "gold", label: t("theme.gold"), hint: "Gold highlights, notices & labels" },
-                    { key: "textBright", label: t("theme.text"), hint: "Primary readable text" },
-                    { key: "textSub", label: t("theme.subtext"), hint: "Secondary / label text" },
-                    { key: "textMuted", label: t("theme.dimText"), hint: "Inactive, placeholder & muted text" },
+                // ── Per-colour pickers (grouped) ───────────────────────────────────
+                // Three groups of three so it's obvious what each slot does.
+                const colorGroups = [
+                    {
+                        header: t("theme.groupBg"),
+                        fields: [
+                            { key: "bg", label: t("theme.panelBg"), hint: "Main drawer background — the darkest layer behind everything" },
+                            { key: "card", label: t("theme.cardBg"), hint: "Section & card backgrounds — the boxes containing content" },
+                            { key: "cardMuted", label: t("theme.inputBg"), hint: "Text fields, dropdowns & recessed surfaces" },
+                        ],
+                    },
+                    {
+                        header: t("theme.groupAccent"),
+                        fields: [
+                            { key: "accent", label: t("theme.buttons"), hint: "Active buttons, tab highlights & selected states" },
+                            { key: "border", label: t("theme.borders"), hint: "All dividing lines & card outlines" },
+                            { key: "gold", label: t("theme.gold"), hint: "Special labels, notices & gold-tinted accents" },
+                        ],
+                    },
+                    {
+                        header: t("theme.groupText"),
+                        fields: [
+                            { key: "textBright", label: t("theme.mainText"), hint: "Primary readable text — headings & body content" },
+                            { key: "textSub", label: t("theme.labelText"), hint: "Secondary labels & sub-headings" },
+                            { key: "textMuted", label: t("theme.dimText"), hint: "Placeholders, inactive & muted items" },
+                        ],
+                    },
                 ];
                 const subLbl = document.createElement("div");
                 subLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:5px;";
                 subLbl.textContent = t("dev.colourSlots");
                 cnt.appendChild(subLbl);
-                const grid = document.createElement("div");
-                grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px;";
-                for (const { key, label, hint } of colorFields) {
-                    const cell = document.createElement("div");
-                    cell.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 7px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:5px;";
-                    const picker = document.createElement("input");
-                    picker.type = "color";
-                    picker.value = liveColors[key];
-                    picker.title = hint;
-                    picker.style.cssText = "width:24px;height:20px;padding:0;border:1px solid #4c2537;border-radius:3px;background:transparent;cursor:pointer;flex-shrink:0;";
-                    const lbl = document.createElement("span");
-                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09098;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                    lbl.textContent = label;
-                    picker.addEventListener("input", () => {
-                        liveColors = Object.assign(Object.assign({}, liveColors), { [key]: picker.value });
-                        saveCoreColors(liveColors);
-                        this.injectStyles();
-                    });
-                    // Register a syncer so preset/reset can update this picker's displayed value
-                    pickerSyncers.push((c) => { picker.value = c[key]; });
-                    cell.appendChild(picker);
-                    cell.appendChild(lbl);
-                    grid.appendChild(cell);
+                for (const group of colorGroups) {
+                    const grpHdr = document.createElement("div");
+                    grpHdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;letter-spacing:0.07em;color:#7a5a6a;margin:8px 0 4px;text-transform:uppercase;";
+                    grpHdr.textContent = group.header;
+                    cnt.appendChild(grpHdr);
+                    const grid = document.createElement("div");
+                    grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:2px;";
+                    for (const { key, label, hint } of group.fields) {
+                        const cell = document.createElement("div");
+                        cell.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px 5px;background:rgba(42,20,33,0.4);border:1px solid #2a1020;border-radius:5px;";
+                        const picker = document.createElement("input");
+                        picker.type = "color";
+                        picker.value = liveColors[key];
+                        picker.title = hint;
+                        picker.style.cssText = "width:28px;height:22px;padding:0;border:1px solid #4c2537;border-radius:3px;background:transparent;cursor:pointer;";
+                        const lbl = document.createElement("span");
+                        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#c09098;text-align:center;line-height:1.3;";
+                        lbl.textContent = label;
+                        picker.addEventListener("input", () => {
+                            liveColors = Object.assign(Object.assign({}, liveColors), { [key]: picker.value });
+                            saveCoreColors(liveColors);
+                            this.injectStyles();
+                        });
+                        // Register a syncer so preset/reset can update this picker's displayed value
+                        pickerSyncers.push((c) => { picker.value = c[key]; });
+                        cell.appendChild(picker);
+                        cell.appendChild(lbl);
+                        grid.appendChild(cell);
+                    }
+                    cnt.appendChild(grid);
                 }
-                cnt.appendChild(grid);
                 // ── Tab visibility ─────────────────────────────────────────────────
                 const tabVisLbl = document.createElement("div");
                 tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;margin-bottom:4px;";
@@ -31403,7 +31443,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.3.0";
+    const MOD_VERSION = "3.3.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31414,6 +31454,14 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.3.1",
+            changes: [
+                "Theme presets: replaced the 6 loosely-coloured presets with 8 fully cohesive themes — Rose (default), Sakura, Lavender, Ocean, Forest, Crimson, Amber, Obsidian. Each has backgrounds, borders, text and accent all tinted consistently around the same hue.",
+                "Colour slots: reorganised the 9 colour pickers into three labelled groups (Backgrounds / Accents / Text) with 3 slots each displayed in a 3-column grid. Each slot is renamed to describe what it visually affects ('Panel BG', 'Card BG', 'Input BG', 'Buttons/Tabs', 'Borders', 'Gold Details', 'Main Text', 'Label Text', 'Dim Text').",
+                "Beep chat: emoji picker expanded from 30 to 60 emojis, covering happy/sad faces, gestures, hearts, sparkle/celebration, and cute animals/nature.",
+            ],
+        },
         {
             version: "3.3.0",
             changes: [
