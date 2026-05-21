@@ -8860,80 +8860,22 @@ export class EBCDrawer {
             };
         };
 
-        // ── Active pose status bar ─────────────────────────────────────────────
-        const statusBar = document.createElement("div");
-        statusBar.style.cssText = [
-            "background:#190b13",
-            "border-radius:6px",
-            "padding:5px 8px",
-            "margin-bottom:8px",
-            "display:flex",
-            "align-items:center",
-            "gap:6px",
-            "flex-wrap:wrap",
-        ].join(";");
+        // ── Poses (collapsible) ───────────────────────────────────────────────
+        const posesCnt = makeCollapse(t("anims.poses"), "EBC_posesCollapsed", false);
 
-        const statusLbl = document.createElement("span");
-        statusLbl.style.cssText = "color:#cbaab7;font-size:10px;font-weight:600;";
-        statusLbl.textContent = "NOW:";
-        statusBar.appendChild(statusLbl);
-
-        if (currentPoses.length === 0) {
-            const pill = document.createElement("span");
-            pill.style.cssText = "background:#cf6f98;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;";
-            pill.textContent = "Standing";
-            statusBar.appendChild(pill);
-        } else {
-            for (const p of currentPoses) {
-                const pill = document.createElement("span");
-                pill.style.cssText = "background:#cf6f98;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;";
-                // Find the human label for this key
-                let label = p;
-                for (const g of KNOWN_POSES) {
-                    const found = g.poses.find(x => x.key === p);
-                    if (found) { label = found.label; break; }
-                }
-                pill.textContent = label;
-                statusBar.appendChild(pill);
-            }
-        }
-
-        // Clear all button
-        if (currentPoses.length > 0) {
-            const clearBtn = document.createElement("button");
-            clearBtn.style.cssText = "margin-left:auto;font-size:10px;padding:2px 7px;";
-            clearBtn.className = "ebc-outfit-del";
-            clearBtn.textContent = "Stand";
-            clearBtn.title = "Clear all poses";
-            clearBtn.addEventListener("click", () => {
-                applyPoses([]);
-                this.rerender(150);
-            });
-            statusBar.appendChild(clearBtn);
-        }
-        body.appendChild(statusBar);
-
-        // ── Hint ──────────────────────────────────────────────────────────────
-        const hint = document.createElement("div");
-        hint.className = "ebc-import-hint";
-        hint.style.marginBottom = "6px";
-        hint.textContent = t("anims.poseHint");
-        body.appendChild(hint);
-
-        // ── Preset grids ──────────────────────────────────────────────────────
         for (const group of KNOWN_POSES) {
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
+            lbl.style.marginTop = "4px";
             lbl.textContent = group.group.toUpperCase();
-            body.appendChild(lbl);
+            posesCnt.appendChild(lbl);
 
             const grid = document.createElement("div");
             grid.className = "ebc-pose-grid";
-            body.appendChild(grid);
+            posesCnt.appendChild(grid);
 
             for (const preset of group.poses) {
                 const btn = document.createElement("button");
-                const presetPoses = preset.key ? [preset.key] : [];
                 const armKeys = KNOWN_POSES.find(g => g.group === "Arms")?.poses.map(p => p.key).filter(Boolean) ?? [];
                 const isActive = preset.key === "" && group.group === "Arms"
                     ? !currentPoses.some(p => armKeys.includes(p))

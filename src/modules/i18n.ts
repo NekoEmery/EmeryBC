@@ -191,6 +191,7 @@ const S: Record<string, T> = {
     "buttons.boopedN":           { en: "Booped {n}!",                 de: "{n} gestupst!",                 zh: "戳了 {n} 个！",     fr: "Touché {n} !",                  es: "¡Tocado a {n}!",               ru: "Потыкали {n}!",               ja: "{n} 人をビープしました！"  },
 
     // ─── ANIMS TAB ─────────────────────────────────────────────────────────
+    "anims.poses":         { en: "Poses",               de: "Posen",                   zh: "姿势",              fr: "Poses",                     es: "Poses",                    ru: "Позы",                    ja: "ポーズ"                    },
     "anims.poseCombos":    { en: "Pose Combos",        de: "Pose-Kombinationen",      zh: "姿势组合",          fr: "Combos de poses",           es: "Combos de poses",          ru: "Комбинации поз",          ja: "ポーズコンボ"              },
     "anims.noCombos":      { en: "No combos saved.",   de: "Keine Kombos gespeichert.", zh: "尚未保存任何组合。", fr: "Aucun combo sauvegardé.", es: "No hay combos guardados.", ru: "Комбинаций не сохранено.", ja: "コンボが保存されていません。" },
     "anims.newCombo":      { en: "+ New Pose Combo",   de: "+ Neue Pose-Kombination",  zh: "+ 新建姿势组合",    fr: "+ Nouveau combo de poses",  es: "+ Nuevo combo de poses",   ru: "+ Новая комбинация поз",   ja: "+ 新規ポーズコンボ"        },
