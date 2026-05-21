@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.7.9
+// @version      3.8.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -12750,6 +12750,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "buttons.noFriendsHere": { en: "No friends here~", de: "Keine Freunde hier~", zh: "房间里没有朋友~", fr: "Aucun ami ici~", es: "No hay amigos aquí~", ru: "Здесь нет друзей~", ja: "フレンドがいません~" },
         "buttons.boopedN": { en: "Booped {n}!", de: "{n} gestupst!", zh: "戳了 {n} 个！", fr: "Touché {n} !", es: "¡Tocado a {n}!", ru: "Потыкали {n}!", ja: "{n} 人をビープしました！" },
         // ─── ANIMS TAB ─────────────────────────────────────────────────────────
+        "anims.poses": { en: "Poses", de: "Posen", zh: "姿势", fr: "Poses", es: "Poses", ru: "Позы", ja: "ポーズ" },
         "anims.poseCombos": { en: "Pose Combos", de: "Pose-Kombinationen", zh: "姿势组合", fr: "Combos de poses", es: "Combos de poses", ru: "Комбинации поз", ja: "ポーズコンボ" },
         "anims.noCombos": { en: "No combos saved.", de: "Keine Kombos gespeichert.", zh: "尚未保存任何组合。", fr: "Aucun combo sauvegardé.", es: "No hay combos guardados.", ru: "Комбинаций не сохранено.", ja: "コンボが保存されていません。" },
         "anims.newCombo": { en: "+ New Pose Combo", de: "+ Neue Pose-Kombination", zh: "+ 新建姿势组合", fr: "+ Nouveau combo de poses", es: "+ Nuevo combo de poses", ru: "+ Новая комбинация поз", ja: "+ 新規ポーズコンボ" },
@@ -21464,77 +21465,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     getAnnounce: () => annInp.value,
                 };
             };
-            // ── Active pose status bar ─────────────────────────────────────────────
-            const statusBar = document.createElement("div");
-            statusBar.style.cssText = [
-                "background:#190b13",
-                "border-radius:6px",
-                "padding:5px 8px",
-                "margin-bottom:8px",
-                "display:flex",
-                "align-items:center",
-                "gap:6px",
-                "flex-wrap:wrap",
-            ].join(";");
-            const statusLbl = document.createElement("span");
-            statusLbl.style.cssText = "color:#cbaab7;font-size:10px;font-weight:600;";
-            statusLbl.textContent = "NOW:";
-            statusBar.appendChild(statusLbl);
-            if (currentPoses.length === 0) {
-                const pill = document.createElement("span");
-                pill.style.cssText = "background:#cf6f98;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;";
-                pill.textContent = "Standing";
-                statusBar.appendChild(pill);
-            }
-            else {
-                for (const p of currentPoses) {
-                    const pill = document.createElement("span");
-                    pill.style.cssText = "background:#cf6f98;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;";
-                    // Find the human label for this key
-                    let label = p;
-                    for (const g of KNOWN_POSES) {
-                        const found = g.poses.find(x => x.key === p);
-                        if (found) {
-                            label = found.label;
-                            break;
-                        }
-                    }
-                    pill.textContent = label;
-                    statusBar.appendChild(pill);
-                }
-            }
-            // Clear all button
-            if (currentPoses.length > 0) {
-                const clearBtn = document.createElement("button");
-                clearBtn.style.cssText = "margin-left:auto;font-size:10px;padding:2px 7px;";
-                clearBtn.className = "ebc-outfit-del";
-                clearBtn.textContent = "Stand";
-                clearBtn.title = "Clear all poses";
-                clearBtn.addEventListener("click", () => {
-                    applyPoses([]);
-                    this.rerender(150);
-                });
-                statusBar.appendChild(clearBtn);
-            }
-            body.appendChild(statusBar);
-            // ── Hint ──────────────────────────────────────────────────────────────
-            const hint = document.createElement("div");
-            hint.className = "ebc-import-hint";
-            hint.style.marginBottom = "6px";
-            hint.textContent = t("anims.poseHint");
-            body.appendChild(hint);
-            // ── Preset grids ──────────────────────────────────────────────────────
+            // ── Poses (collapsible) ───────────────────────────────────────────────
+            const posesCnt = makeCollapse(t("anims.poses"), "EBC_posesCollapsed", false);
             for (const group of KNOWN_POSES) {
                 const lbl = document.createElement("div");
                 lbl.className = "ebc-section-label";
+                lbl.style.marginTop = "4px";
                 lbl.textContent = group.group.toUpperCase();
-                body.appendChild(lbl);
+                posesCnt.appendChild(lbl);
                 const grid = document.createElement("div");
                 grid.className = "ebc-pose-grid";
-                body.appendChild(grid);
+                posesCnt.appendChild(grid);
                 for (const preset of group.poses) {
                     const btn = document.createElement("button");
-                    preset.key ? [preset.key] : [];
                     const armKeys = (_c = (_b = KNOWN_POSES.find(g => g.group === "Arms")) === null || _b === void 0 ? void 0 : _b.poses.map(p => p.key).filter(Boolean)) !== null && _c !== void 0 ? _c : [];
                     const isActive = preset.key === "" && group.group === "Arms"
                         ? !currentPoses.some(p => armKeys.includes(p))
@@ -31948,7 +31891,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.7.9";
+    const MOD_VERSION = "3.8.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31959,6 +31902,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.0",
+            changes: [
+                "Anims tab: Body and Arms pose grids are now inside a collapsible 'Poses' section. The NOW status bar has been removed.",
+            ],
+        },
         {
             version: "3.7.9",
             changes: [
