@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.3.4";
+const MOD_VERSION = "4.3.5";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.3.5",
+        changes: [
+            "Expression Sequences: fixed ▶ and ✎ buttons — they were using undefined CSS classes and rendered unstyled. Now use the same styled button classes as pose combos (ebc-wear-btn / ebc-edit-btn).",
+            "Expression Presets: added ↺ button on each preset row to overwrite the preset with your current live face expression (with confirm dialog).",
+        ],
+    },
     {
         version: "4.3.4",
         changes: [

@@ -9601,7 +9601,8 @@ export class EBCDrawer {
             }
 
             const seqPlayBtn = document.createElement("button");
-            seqPlayBtn.className = "ebc-combo-apply-btn";
+            seqPlayBtn.className = "ebc-wear-btn";
+            seqPlayBtn.style.padding = "3px 8px";
             seqPlayBtn.textContent = "▶";
             seqPlayBtn.title = "Play sequence";
             seqPlayBtn.disabled = seq.steps.length === 0;
@@ -9619,8 +9620,8 @@ export class EBCDrawer {
             seqEditor.className = "ebc-combo-editor";
 
             const seqEditBtn = document.createElement("button");
-            seqEditBtn.className = "ebc-combo-edit-btn";
-            seqEditBtn.textContent = "✎";
+            seqEditBtn.className = "ebc-edit-btn";
+            seqEditBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
             seqEditBtn.title = "Edit sequence";
 
             let seqDelPend = false;
@@ -18030,6 +18031,25 @@ export class EBCDrawer {
                 applyBtn.title = "Apply this preset";
                 applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
 
+                const updateExprBtn = document.createElement("button");
+                updateExprBtn.className = "ebc-update-btn";
+                updateExprBtn.style.cssText += "font-size:11px;padding:2px 6px;";
+                updateExprBtn.textContent = "↺";
+                updateExprBtn.title = "Overwrite this preset with your current face expression";
+                updateExprBtn.addEventListener("click", () => {
+                    showConfirmOverlay(
+                        `Overwrite "${preset.name}" with your current face?`,
+                        "Cancel", "Update",
+                        () => {
+                            const captured = captureCurrentExpression(preset.name);
+                            const all = getExpressionPresets();
+                            const pi = all.findIndex(p => p.id === preset.id);
+                            if (pi !== -1) { all[pi] = { ...all[pi], groups: captured.groups }; saveExpressionPresets(all); }
+                            this.rerender();
+                        }
+                    );
+                });
+
                 const nameEl = document.createElement("input");
                 nameEl.type = "text";
                 nameEl.value = preset.name;
@@ -18067,6 +18087,7 @@ export class EBCDrawer {
                 });
 
                 pRow.appendChild(applyBtn);
+                pRow.appendChild(updateExprBtn);
                 pRow.appendChild(nameEl);
                 pRow.appendChild(defaultBtn);
                 pRow.appendChild(delBtn);
