@@ -5842,39 +5842,44 @@ export class EBCDrawer {
         posRow.appendChild(resetPosBtn);
         ebcTagsBody.appendChild(posRow);
 
-        // ── Tag share ─────────────────────────────────────────────────────────
-        const TAG_CODE_PREFIX = "EBC-TAGS-v1:";
+        // ── Badge settings share ──────────────────────────────────────────────
+        // Exports/imports ALL overhead-badge display settings (style, scale,
+        // offsets, opacity, visibility toggles) so you can share your exact
+        // tag layout with someone else or restore it after a reinstall.
+        const BADGE_CODE_PREFIX = "EBC-BADGE-v1:";
 
-        const exportTagsCode = (): string => {
+        // The complete list of ExtensionSettings keys that make up badge display.
+        const BADGE_KEYS = [
+            "badgeEnabled", "showOthersBadge", "showVersionBadge", "showOthersVersionBadge",
+            "badgeStyle", "othersBadgeStyle",
+            "badgeScale", "textBadgeScale", "catBadgeScale",
+            "badgeBgOpacity", "badgeTextOpacity",
+            "badgeOffsetX", "badgeOffsetY",
+            "catBadgeOffsetX", "catBadgeOffsetY",
+            "versionTextOffsetX", "versionTextOffsetY",
+        ] as const;
+
+        const exportBadgeCode = (): string => {
             try {
                 const store = (Player.ExtensionSettings.EmeryBC as Record<string, unknown> | undefined) ?? {};
-                const tags = store.friendTags as Record<string, unknown> | undefined;
-                if (!tags || Object.keys(tags).length === 0) return "";
-                return TAG_CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify({ tags }))));
+                const settings: Record<string, unknown> = {};
+                for (const k of BADGE_KEYS) {
+                    if (k in store) settings[k] = store[k];
+                }
+                return BADGE_CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(settings))));
             } catch { return ""; }
         };
 
-        const importTagsCode = (code: string): number => {
+        const importBadgeCode = (code: string): void => {
             const trimmed = code.trim();
-            if (!trimmed.startsWith(TAG_CODE_PREFIX)) throw new Error("Invalid");
-            const json = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(TAG_CODE_PREFIX.length))))) as { tags?: Record<string, unknown> };
-            const incoming = json?.tags;
+            if (!trimmed.startsWith(BADGE_CODE_PREFIX)) throw new Error("Invalid");
+            const incoming = JSON.parse(decodeURIComponent(escape(atob(trimmed.slice(BADGE_CODE_PREFIX.length))))) as Record<string, unknown>;
             if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) throw new Error("Invalid");
             const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-            if (!store.friendTags || typeof store.friendTags !== "object") store.friendTags = {};
-            const existing = store.friendTags as Record<string, unknown>;
-            let count = 0;
-            for (const [numStr, list] of Object.entries(incoming)) {
-                if (!Array.isArray(list)) continue;
-                const valid = (list as unknown[]).filter((t): t is { text: string; color: string } =>
-                    !!t && typeof t === "object" &&
-                    typeof (t as Record<string, unknown>).text === "string" &&
-                    typeof (t as Record<string, unknown>).color === "string"
-                );
-                if (valid.length > 0) { existing[numStr] = valid; count++; }
+            for (const k of BADGE_KEYS) {
+                if (k in incoming) store[k] = incoming[k];
             }
             syncSettings();
-            return count;
         };
 
         const tagShareWrap = document.createElement("div");
@@ -5884,7 +5889,7 @@ export class EBCDrawer {
         tagShareHeaderRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:0 4px 3px;";
         const tagShareLbl = document.createElement("div");
         tagShareLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#9a6878;flex:1;";
-        tagShareLbl.textContent = "Tag settings";
+        tagShareLbl.textContent = "Share badge settings";
 
         const mkShareBtn = (label: string, title: string): HTMLButtonElement => {
             const b = document.createElement("button");
@@ -5894,8 +5899,8 @@ export class EBCDrawer {
             b.addEventListener("mouseleave", () => { b.style.color = "#9a6878"; b.style.borderColor = "#3a1928"; });
             return b;
         };
-        const exportTagBtn = mkShareBtn("⬆ Export", "Copy a share code containing all your tag assignments");
-        const importTagBtn = mkShareBtn("⬇ Import", "Paste someone else's share code to load their tag assignments");
+        const exportTagBtn = mkShareBtn("⬆ Export", "Copy a code with your full badge layout (style, scale, position, opacity, toggles)");
+        const importTagBtn = mkShareBtn("⬇ Import", "Paste a badge settings code to apply someone else's layout");
         tagShareHeaderRow.appendChild(tagShareLbl);
         tagShareHeaderRow.appendChild(exportTagBtn);
         tagShareHeaderRow.appendChild(importTagBtn);
@@ -5919,7 +5924,7 @@ export class EBCDrawer {
         const importTagPanel = document.createElement("div");
         importTagPanel.style.cssText = "display:none;padding:0 4px 6px;";
         const importTagTA = document.createElement("textarea");
-        importTagTA.placeholder = "Paste EBC-TAGS-v1:… code here"; importTagTA.rows = 3;
+        importTagTA.placeholder = "Paste EBC-BADGE-v1:… code here"; importTagTA.rows = 3;
         importTagTA.style.cssText = "width:100%;box-sizing:border-box;font-size:10px;font-family:monospace;background:#0e070d;border:1px solid #3a1928;color:#cf6f98;border-radius:4px;padding:4px;resize:none;margin-bottom:4px;";
         importTagTA.addEventListener("keydown", e => e.stopPropagation());
         const importApplyBtn = document.createElement("button");
@@ -5931,12 +5936,12 @@ export class EBCDrawer {
         importStatusEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;margin-left:6px;";
         importApplyBtn.addEventListener("click", () => {
             try {
-                const n = importTagsCode(importTagTA.value);
-                importStatusEl.textContent = `✓ Imported tags for ${n} member${n !== 1 ? "s" : ""}`;
+                importBadgeCode(importTagTA.value);
+                importStatusEl.textContent = "✓ Badge settings applied";
                 importStatusEl.style.color = "#a0d080";
                 importTagTA.value = "";
                 window.setTimeout(() => { importStatusEl.textContent = ""; }, 3000);
-                try { this.refreshFriendList(); } catch { /* ignore */ }
+                this.rerender();
             } catch {
                 importStatusEl.textContent = "✗ Invalid code";
                 importStatusEl.style.color = "#ff6060";
@@ -5955,8 +5960,7 @@ export class EBCDrawer {
             exportTagPanel.style.display = "none";
             importTagPanel.style.display  = "none";
             if (!isOpen) {
-                const code = exportTagsCode();
-                exportTagTA.value = code || "(no tags saved yet)";
+                exportTagTA.value = exportBadgeCode();
                 exportTagPanel.style.display = "";
             }
         });

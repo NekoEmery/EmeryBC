@@ -17,13 +17,13 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC, syncSettings } from "./modules/bcUtils";
+import { callBC } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.3.2";
+const MOD_VERSION = "4.3.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.3.3",
+        changes: [
+            "EBC Tag Settings strip: fixed Export/Import — it now exports and imports your actual overhead badge display settings (style, scale, position offsets, opacity, visibility toggles), not friend labels. Code format changed to EBC-BADGE-v1. Removed the incorrectly seeded friend tags from v4.3.1.",
+        ],
+    },
     {
         version: "4.3.2",
         changes: [
@@ -5012,28 +5018,6 @@ function drawPresenceMarker(args: unknown[]): void {
     }
 }
 
-// Default friend tags — seeded once on first run if no tags exist yet.
-// Members with plain-string legacy entries get wrapped with a neutral colour.
-const DEFAULT_FRIEND_TAGS: Record<string, Array<{ text: string; color: string }>> = {
-    "80":     [{ text: "BC Asset Dev", color: "#9a6878" }],
-    "124961": [{ text: "Horny boi...", color: "#9a6878" }],
-    "143776": [{ text: "BC DEV",       color: "#40a0b8" }],
-    "230466": [{ text: "Owner",        color: "#e06060" }],
-};
-
-function seedDefaultTags(): void {
-    try {
-        if (!Player?.ExtensionSettings) return;
-        if (!Player.ExtensionSettings.EmeryBC) Player.ExtensionSettings.EmeryBC = {};
-        const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
-        // Only seed if no tags have been saved at all yet
-        const existing = store.friendTags;
-        if (existing && typeof existing === "object" && Object.keys(existing as object).length > 0) return;
-        store.friendTags = structuredClone(DEFAULT_FRIEND_TAGS);
-        syncSettings();
-    } catch { /* ignore — Player may not be ready yet */ }
-}
-
 function showRoomLoadNotice(): void {
     if (noticeShown) return;
     noticeShown = true;
@@ -5108,8 +5092,6 @@ function init(): void {
         window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); } catch { /* ignore */ } }, 600);
         // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
         migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => {});
-        // Seed default friend tags on first run (no-op if tags already exist)
-        window.setTimeout(() => { try { seedDefaultTags(); } catch { /* ignore */ } }, 1200);
     } catch (err) {
         console.warn("[EBC] Drawer failed to initialise:", err);
     }
