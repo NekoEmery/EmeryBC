@@ -15788,10 +15788,10 @@ export class EBCDrawer {
                 const labelInp = document.createElement("input");
                 labelInp.className = "ebc-slot-label";
                 labelInp.type = "text";
-                labelInp.maxLength = 6;
+                labelInp.maxLength = 16;
                 labelInp.placeholder = "Label";
                 labelInp.value = btn.label;
-                labelInp.title = "Button label (max 6 chars)";
+                labelInp.title = "Button label (max 16 chars)";
 
                 // Colour preview dot + hex text input; dot opens floating picker
                 const colorWrap = document.createElement("span");
@@ -16016,7 +16016,7 @@ export class EBCDrawer {
                 });
 
                 labelInp.addEventListener("input", () => {
-                    btns[idx].label = labelInp.value.trim().slice(0, 6);
+                    btns[idx].label = labelInp.value.trim().slice(0, 16);
                 });
 
                 colorInp.addEventListener("input", () => {

@@ -577,7 +577,7 @@ function drawCooldownButton(
         ctx.font = "bold 11px arial";
         ctx.textBaseline = "top";
         ctx.fillStyle = "#3a1525";
-        ctx.fillText(label.length > 5 ? label.slice(0, 5) : label, x + size / 2, y + 4);
+        ctx.fillText(label.length > 8 ? label.slice(0, 8) : label, x + size / 2, y + 4);
 
         // Countdown number centred — bright pink, large
         const secs = Math.ceil(remainMs / 1000);
