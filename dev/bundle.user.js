@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.2.7
+// @version      4.2.8
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -21337,17 +21337,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 window.setTimeout(() => setAllDisabled(false), 500);
             });
             updateBtn.addEventListener("click", () => {
-                setAllDisabled(true);
-                const ok = saveCurrentAppearanceToRestraint(r.id);
-                if (!ok) {
-                    setAllDisabled(false);
-                    return;
-                }
-                updateBtn.textContent = t("core.saved");
-                window.setTimeout(() => {
-                    updateBtn.textContent = t("core.update");
-                    setAllDisabled(false);
-                }, 1200);
+                showConfirmOverlay(`Overwrite "${r.displayName}" with your current restraints?`, "Cancel", "Update", () => {
+                    setAllDisabled(true);
+                    const ok = saveCurrentAppearanceToRestraint(r.id);
+                    if (!ok) {
+                        setAllDisabled(false);
+                        return;
+                    }
+                    updateBtn.textContent = t("core.saved");
+                    window.setTimeout(() => {
+                        updateBtn.textContent = t("core.update");
+                        setAllDisabled(false);
+                    }, 1200);
+                });
             });
             editBtn.addEventListener("click", () => {
                 const willOpen = !editPanel.classList.contains("open");
@@ -21928,10 +21930,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 // Command + Announce
                 const { getCommand, getAnnounce } = buildComboOptions(editor, (_e = combo.command) !== null && _e !== void 0 ? _e : "", (_f = combo.announceText) !== null && _f !== void 0 ? _f : "");
                 // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
-                topSaveBtn.addEventListener("click", () => {
-                    updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                    this.rerender();
-                });
+                const doSaveCombo = () => {
+                    showConfirmOverlay(`Save changes to "${combo.name}"?`, "Cancel", "Save", () => {
+                        updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
+                        this.rerender();
+                    });
+                };
+                topSaveBtn.addEventListener("click", doSaveCombo);
                 topSaveBar.appendChild(topSaveBtn);
                 // Full save button at the bottom too
                 const saveBar = document.createElement("div");
@@ -21940,10 +21945,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const savComboBtn = document.createElement("button");
                 savComboBtn.className = "ebc-create-btn";
                 savComboBtn.textContent = t("outfits.saveChanges");
-                savComboBtn.addEventListener("click", () => {
-                    updateCombo(combo.id, eNameInp.value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                    this.rerender();
-                });
+                savComboBtn.addEventListener("click", doSaveCombo);
                 saveBar.appendChild(savComboBtn);
                 editor.appendChild(saveBar);
                 editBtn.addEventListener("click", () => {
@@ -23100,20 +23102,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 stepsLbl.textContent = "Steps:";
                 editor.appendChild(stepsLbl);
                 const { getSteps } = buildSceneEditor(editor, scene.steps);
-                topSaveBtn.addEventListener("click", () => {
-                    updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                    this.rerender();
-                });
+                const doSaveScene = () => {
+                    showConfirmOverlay(`Save changes to "${scene.name}"?`, "Cancel", "Save", () => {
+                        updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
+                        this.rerender();
+                    });
+                };
+                topSaveBtn.addEventListener("click", doSaveScene);
                 const botSaveBar = document.createElement("div");
                 botSaveBar.className = "ebc-editor-save-bar";
                 botSaveBar.style.marginTop = "2px";
                 const botSaveBtn = document.createElement("button");
                 botSaveBtn.className = "ebc-create-btn";
                 botSaveBtn.textContent = t("outfits.saveChanges");
-                botSaveBtn.addEventListener("click", () => {
-                    updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                    this.rerender();
-                });
+                botSaveBtn.addEventListener("click", doSaveScene);
                 botSaveBar.appendChild(botSaveBtn);
                 editor.appendChild(botSaveBar);
                 editBtn.addEventListener("click", () => {
@@ -32322,7 +32324,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.2.7";
+    const MOD_VERSION = "4.2.8";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32333,6 +32335,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.8",
+            changes: [
+                "Confirm dialogs: all destructive overwrites now require confirmation before applying. Restraint set Update button now shows the same confirm overlay as Outfit Update. Pose combo Save Changes and Scene Save Changes also prompt before overwriting.",
+            ],
+        },
         {
             version: "4.2.7",
             changes: [
