@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.1.6
+// @version      4.1.7
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -27859,10 +27859,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             const exprLine = document.createElement("div");
                             exprLine.style.cssText = "display:flex;gap:4px;align-items:center;padding:2px 0;";
                             const exprLineLbl = document.createElement("span");
-                            exprLineLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;color:#7a5a7a;flex-shrink:0;";
+                            exprLineLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#cf6f98;flex-shrink:0;font-weight:bold;";
                             exprLineLbl.textContent = "Face:";
                             const exprLineSel = document.createElement("select");
-                            exprLineSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:8px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#c0a0c8;padding:1px 4px;outline:none;flex:1;min-width:0;";
+                            exprLineSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex:1;min-width:0;";
                             const exprLineNone = document.createElement("option");
                             exprLineNone.value = "";
                             exprLineNone.textContent = "— no face —";
@@ -27879,7 +27879,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                             ];
                             const exprLineDurSel = document.createElement("select");
                             exprLineDurSel.title = "How long to hold this face before reverting (keep = stay forever)";
-                            exprLineDurSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#c0a0c8;padding:1px 4px;outline:none;flex-shrink:0;max-width:52px;";
+                            exprLineDurSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#e8c8e8;padding:1px 4px;outline:none;flex-shrink:0;max-width:52px;";
                             for (const [lbl3, ms3] of EXPR_LINE_DUR) {
                                 const exprLineDurOpt = document.createElement("option");
                                 exprLineDurOpt.value = String(ms3);
@@ -32282,7 +32282,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.1.6";
+    const MOD_VERSION = "4.1.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32293,6 +32293,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.1.7",
+            changes: [
+                "Buttons tab: 'Face:' label now bright pink (#cf6f98) and bold at 10px instead of dim muted 8px. Face preset and duration dropdowns also bumped to 10px with lighter text (#e8c8e8) for readability.",
+            ],
+        },
         {
             version: "4.1.6",
             changes: [
