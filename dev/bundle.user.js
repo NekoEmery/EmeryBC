@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.8.5
+// @version      3.8.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -16307,6 +16307,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this.offlineFriendsCollapsed = true;
             this.roomPeopleCollapsed = false;
             this.friendSort = "status"; // persisted in localStorage as EBC_friendSort
+            this.friendSearch = ""; // live search query — not persisted
             // Tracks what colors were last written into inline styles by repaintTheme() so that
             // a reverse pass can revert them when switching/resetting to a different theme.
             this._lastPaintedColors = Object.assign({}, DEFAULT_COLORS);
@@ -24121,12 +24122,46 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     lblF.appendChild(markReadBtn);
                 }
                 body.appendChild(lblF);
+                // ── Search input ───────────────────────────────────────────────────
+                const searchRow = document.createElement("div");
+                searchRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 0 6px;";
+                const searchInput = document.createElement("input");
+                searchInput.type = "text";
+                searchInput.placeholder = "🔍 Search friends…";
+                searchInput.value = this.friendSearch;
+                searchInput.className = "ebc-form-input";
+                searchInput.style.cssText = "flex:1;min-width:0;font-size:10px;padding:4px 8px;";
+                searchInput.addEventListener("input", () => {
+                    this.friendSearch = searchInput.value;
+                    try {
+                        this.renderFriendRows(body);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                });
+                const clearSearchBtn = document.createElement("button");
+                clearSearchBtn.textContent = "×";
+                clearSearchBtn.title = "Clear search";
+                clearSearchBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;line-height:1;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#7a5a6a;cursor:pointer;flex-shrink:0;transition:color 0.12s,border-color 0.12s;" + (this.friendSearch ? "" : "display:none;");
+                clearSearchBtn.addEventListener("mouseenter", () => { clearSearchBtn.style.color = "#cf6f98"; clearSearchBtn.style.borderColor = "#cf6f98"; });
+                clearSearchBtn.addEventListener("mouseleave", () => { clearSearchBtn.style.color = "#7a5a6a"; clearSearchBtn.style.borderColor = "#3a1928"; });
+                clearSearchBtn.addEventListener("click", () => {
+                    this.friendSearch = "";
+                    try {
+                        this.renderFriendRows(body);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                });
+                searchRow.appendChild(searchInput);
+                searchRow.appendChild(clearSearchBtn);
+                body.appendChild(searchRow);
                 // Preset tag colours
                 const TAG_COLORS = ["#cf6f98", "#e06060", "#e09040", "#c8b840", "#5aaa70", "#40a0b8", "#7060d0", "#a060c0"];
                 // Sort friends according to selected mode
                 const statusOrder = (n) => { var _a; return ((_a = { room: 0, online: 1, away: 2 }[getFriendStatus(n)]) !== null && _a !== void 0 ? _a : 2); };
                 const nameOf = (n) => resolveName(n).toLowerCase();
                 const sinceOf = (n) => { var _a; return (_a = getFriendSince(n)) !== null && _a !== void 0 ? _a : (this.friendSort === "since_old" ? Infinity : -Infinity); };
+                // True when a friend has a real cached name (not just "#123456")
+                const hasRealName = (n) => resolveName(n) !== `#${n}`;
                 const sorted = [...friendList].sort((a, b) => {
                     // Pinned friends always bubble to the top regardless of sort mode
                     const pa = isFriendPinned(a) ? 0 : 1;
@@ -24156,9 +24191,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         }
                     }
                 });
-                // Split into always-visible (pinned or online/room) and offline
-                const activeFriends = sorted.filter(n => isFriendPinned(n) || getFriendStatus(n) !== "away");
-                const offlineFriends = sorted.filter(n => !isFriendPinned(n) && getFriendStatus(n) === "away");
+                // Build search filter — matches name or member number, case-insensitive
+                const query = this.friendSearch.trim().toLowerCase();
+                const matchesSearch = (n) => {
+                    if (!query)
+                        return true;
+                    return resolveName(n).toLowerCase().includes(query) || String(n).includes(query);
+                };
+                // Split into always-visible (pinned or online/room) and offline.
+                // Within offline: named friends (real cached name) sort before number-only entries.
+                const activeFriends = sorted.filter(n => (isFriendPinned(n) || getFriendStatus(n) !== "away") && matchesSearch(n));
+                const offlineFriends = sorted
+                    .filter(n => !isFriendPinned(n) && getFriendStatus(n) === "away" && matchesSearch(n))
+                    .sort((a, b) => (hasRealName(a) ? 0 : 1) - (hasRealName(b) ? 0 : 1));
                 // Tooltip helpers — use instance-level refs so rebuilds don't orphan tooltips
                 const hideTooltip = () => {
                     var _a;
@@ -24875,11 +24920,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     buildFriendRow(num, body);
                 // Offline toggle header + collapsible section
                 if (offlineFriends.length > 0) {
-                    // Restore persisted collapsed state
-                    try {
-                        this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
-                    }
-                    catch ( /* ignore */_e) { /* ignore */ }
+                    // Auto-expand when a search query is active so results are always visible
+                    if (query)
+                        this.offlineFriendsCollapsed = false;
+                    // Restore persisted collapsed state (only when no active search)
+                    else
+                        try {
+                            this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
+                        }
+                        catch ( /* ignore */_e) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -24890,7 +24939,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         arrow.textContent = col ? "▶" : "▼";
                         const lbl = document.createElement("span");
                         lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#8a6070;flex:1;";
-                        lbl.textContent = `Offline (${offlineFriends.length})`;
+                        lbl.textContent = query ? `Offline — ${offlineFriends.length} match${offlineFriends.length === 1 ? "" : "es"}` : `Offline (${offlineFriends.length})`;
                         offlineToggle.appendChild(arrow);
                         offlineToggle.appendChild(lbl);
                         offlineContainer.style.display = col ? "none" : "block";
@@ -31991,7 +32040,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.5";
+    const MOD_VERSION = "3.8.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32002,6 +32051,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.6",
+            changes: [
+                "Friends list: search input added — filters by name or member number in real time, auto-expands the offline section when a query is active.",
+                "Friends list: offline friends with a real cached name now sort above number-only entries (friends you've never seen whose name is just '#123456').",
+            ],
+        },
         {
             version: "3.8.5",
             changes: [
