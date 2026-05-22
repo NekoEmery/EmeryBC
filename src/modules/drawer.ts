@@ -17286,16 +17286,16 @@ export class EBCDrawer {
         saveDiv1.style.margin = "8px 0 6px";
         body.appendChild(saveDiv1);
 
-        const saveRow = document.createElement("div");
-        saveRow.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:5px;";
         const captureInput = Object.assign(document.createElement("input"), {
             type: "text", maxLength: 30, placeholder: "Preset name…",
         }) as HTMLInputElement;
         captureInput.className = "ebc-form-input";
-        captureInput.style.cssText = "flex:1;min-width:0;font-size:9px;";
+        captureInput.style.cssText = "width:100%;box-sizing:border-box;font-size:9px;margin-bottom:4px;";
+        body.appendChild(captureInput);
+
         const savePresetBtn = document.createElement("button");
         savePresetBtn.className = "ebc-create-btn";
-        savePresetBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:3px 8px;";
+        savePresetBtn.style.cssText = "width:100%;box-sizing:border-box;font-size:9px;padding:3px 8px;margin-bottom:5px;";
         savePresetBtn.textContent = "💾 Save face";
         savePresetBtn.addEventListener("click", () => {
             const name = captureInput.value.trim() || "Preset";
@@ -17303,9 +17303,7 @@ export class EBCDrawer {
             captureInput.value = "";
             this.rerender();
         });
-        saveRow.appendChild(captureInput);
-        saveRow.appendChild(savePresetBtn);
-        body.appendChild(saveRow);
+        body.appendChild(savePresetBtn);
 
         const clearAllBtn = document.createElement("button");
         clearAllBtn.className = "ebc-btn-footer-btn";
