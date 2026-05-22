@@ -23574,8 +23574,6 @@
                 row.appendChild(btn);
                 return row;
             };
-            // OOC mode
-            chatSettingsBody.appendChild(mkToggleRow("OOC mode", getOocEnabled, (v) => setOocEnabled(v)));
             // Mute beep sounds
             chatSettingsBody.appendChild(mkToggleRow("Mute beep sounds", getBeepMuted, (v) => setBeepMuted(v)));
             // Show beeps in BC chat (inverted: suppressed=true means hidden from chat)
@@ -32080,7 +32078,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.3";
+    const MOD_VERSION = "3.9.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
