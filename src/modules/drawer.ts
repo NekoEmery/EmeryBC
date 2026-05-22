@@ -9273,15 +9273,16 @@ export class EBCDrawer {
     private renderScenes(body: HTMLElement): void {
         const STEP_TYPE_LABELS: Record<StepType, string> = {
             pose: "Pose",
-            equip: "Equip",                      // legacy — kept for backward compat
-            "equip-restraint": "Equip Restraint",
-            "equip-clothes":   "Equip Item (clothes, props…)",
+            equip: "Equip Item",                 // primary equip type — searches all groups
+            "equip-restraint": "Equip Restraint", // legacy label (backward compat display only)
+            "equip-clothes":   "Equip Item (clothes, props…)", // legacy label
             unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
             expression: "Expression",
         };
-        // New steps use the split types; "equip" is injected into the dropdown only when
-        // an existing step was saved with the old type (see typeSelect construction below).
-        const ALL_STEP_TYPES: StepType[] = ["pose", "equip-restraint", "equip-clothes", "unequip", "emote", "chat", "wait", "expression"];
+        // "equip" is the primary equip type (searches all groups via the search box).
+        // "equip-restraint" and "equip-clothes" are legacy — injected into the dropdown
+        // only when an existing step was saved with one of those types.
+        const ALL_STEP_TYPES: StepType[] = ["pose", "equip", "unequip", "emote", "chat", "wait", "expression"];
 
         const bodyPoses = KNOWN_POSES.find(g => g.group === "Body")?.poses ?? [];
         const armPoses  = KNOWN_POSES.find(g => g.group === "Arms")?.poses ?? [];
@@ -9444,10 +9445,12 @@ export class EBCDrawer {
 
             const typeSelect = document.createElement("select");
             typeSelect.className = "ebc-scene-type-sel";
-            // Build the type list; if this step was saved with the old "equip" type inject it
-            // so the dropdown shows the correct selection rather than defaulting to another type.
-            const stepTypes: StepType[] = initStep.type === "equip"
-                ? (["equip", ...ALL_STEP_TYPES] as StepType[])
+            // Build the type list. Legacy split types ("equip-restraint", "equip-clothes") are
+            // injected only when an existing step was saved with one of those types so the
+            // dropdown shows the correct label. New steps always use the unified "equip" type.
+            const isLegacyEquip = initStep.type === "equip-restraint" || initStep.type === "equip-clothes";
+            const stepTypes: StepType[] = isLegacyEquip
+                ? ([initStep.type, ...ALL_STEP_TYPES] as StepType[])
                 : ALL_STEP_TYPES;
             for (const t of stepTypes) {
                 const opt = document.createElement("option");

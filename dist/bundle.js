@@ -2572,16 +2572,6 @@
             return [];
         }
     }
-    function saveExpressionTriggers(triggers) {
-        try {
-            const store = getStore$6();
-            if (!store)
-                return;
-            store.expressionTriggers = triggers;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
     // -- Timed expression revert ---------------------------------------------------
     let _revertTimer = null;
     function cancelExpressionRevert() {
@@ -21875,15 +21865,16 @@
             var _a, _b, _c, _d, _e;
             const STEP_TYPE_LABELS = {
                 pose: "Pose",
-                equip: "Equip", // legacy — kept for backward compat
-                "equip-restraint": "Equip Restraint",
-                "equip-clothes": "Equip Clothes",
+                equip: "Equip Item", // primary equip type — searches all groups
+                "equip-restraint": "Equip Restraint", // legacy label (backward compat display only)
+                "equip-clothes": "Equip Item (clothes, props…)", // legacy label
                 unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
                 expression: "Expression",
             };
-            // New steps use the split types; "equip" is injected into the dropdown only when
-            // an existing step was saved with the old type (see typeSelect construction below).
-            const ALL_STEP_TYPES = ["pose", "equip-restraint", "equip-clothes", "unequip", "emote", "chat", "wait", "expression"];
+            // "equip" is the primary equip type (searches all groups via the search box).
+            // "equip-restraint" and "equip-clothes" are legacy — injected into the dropdown
+            // only when an existing step was saved with one of those types.
+            const ALL_STEP_TYPES = ["pose", "equip", "unequip", "emote", "chat", "wait", "expression"];
             const bodyPoses = (_b = (_a = KNOWN_POSES.find(g => g.group === "Body")) === null || _a === void 0 ? void 0 : _a.poses) !== null && _b !== void 0 ? _b : [];
             const armPoses = (_d = (_c = KNOWN_POSES.find(g => g.group === "Arms")) === null || _c === void 0 ? void 0 : _c.poses) !== null && _d !== void 0 ? _d : [];
             const getAllGroups = (filter) => {
@@ -22024,10 +22015,12 @@
                 header.className = "ebc-scene-step-header";
                 const typeSelect = document.createElement("select");
                 typeSelect.className = "ebc-scene-type-sel";
-                // Build the type list; if this step was saved with the old "equip" type inject it
-                // so the dropdown shows the correct selection rather than defaulting to another type.
-                const stepTypes = initStep.type === "equip"
-                    ? ["equip", ...ALL_STEP_TYPES]
+                // Build the type list. Legacy split types ("equip-restraint", "equip-clothes") are
+                // injected only when an existing step was saved with one of those types so the
+                // dropdown shows the correct label. New steps always use the unified "equip" type.
+                const isLegacyEquip = initStep.type === "equip-restraint" || initStep.type === "equip-clothes";
+                const stepTypes = isLegacyEquip
+                    ? [initStep.type, ...ALL_STEP_TYPES]
                     : ALL_STEP_TYPES;
                 for (const t of stepTypes) {
                     const opt = document.createElement("option");
@@ -22167,6 +22160,92 @@
                             : type === "equip-clothes" ? "clothes"
                                 : undefined;
                         const groups = getAllGroups(grpFilter);
+                        // ── Item search ────────────────────────────────────────────────────────
+                        const searchWrap = document.createElement("div");
+                        searchWrap.style.cssText = "position:relative;margin-bottom:5px;";
+                        const searchInp = document.createElement("input");
+                        searchInp.className = "ebc-form-input";
+                        searchInp.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;padding:3px 8px 3px 26px;";
+                        searchInp.placeholder = "Search items…";
+                        searchInp.title = "Type any item name to find it instantly — no need to browse slots";
+                        const searchIcon = document.createElement("span");
+                        searchIcon.textContent = "🔍";
+                        searchIcon.style.cssText = "position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:11px;pointer-events:none;line-height:1;";
+                        const resultsList = document.createElement("div");
+                        resultsList.style.cssText = [
+                            "display:none;position:absolute;z-index:10000;top:calc(100% + 2px);left:0;right:0;",
+                            "max-height:200px;overflow-y:auto;",
+                            "background:#1a0815;border:1px solid #4a2535;border-radius:5px;",
+                            "box-shadow:0 4px 14px rgba(0,0,0,0.7);",
+                        ].join("");
+                        let flatItems = null;
+                        const getFlatItems = () => {
+                            if (flatItems)
+                                return flatItems;
+                            flatItems = [];
+                            for (const g of groups) {
+                                for (const a of getGroupAssets(g.name)) {
+                                    flatItems.push({ group: g.name, groupDesc: g.desc, asset: a.name, assetDesc: a.desc });
+                                }
+                            }
+                            return flatItems;
+                        };
+                        const showResults = (q) => {
+                            while (resultsList.firstChild)
+                                resultsList.removeChild(resultsList.firstChild);
+                            if (!q) {
+                                resultsList.style.display = "none";
+                                return;
+                            }
+                            resultsList.style.display = "";
+                            const matches = getFlatItems().filter(it => it.assetDesc.toLowerCase().includes(q) ||
+                                it.asset.toLowerCase().includes(q) ||
+                                it.groupDesc.toLowerCase().includes(q)).slice(0, 20);
+                            if (matches.length === 0) {
+                                const noRes = document.createElement("div");
+                                noRes.style.cssText = "padding:6px 10px;font-size:11px;color:#7a5060;font-family:'Trebuchet MS',serif;";
+                                noRes.textContent = "No items found";
+                                resultsList.appendChild(noRes);
+                                return;
+                            }
+                            for (const it of matches) {
+                                const resRow = document.createElement("div");
+                                resRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;border-bottom:1px solid #200a18;";
+                                resRow.addEventListener("mouseenter", () => { resRow.style.background = "#2e0e20"; });
+                                resRow.addEventListener("mouseleave", () => { resRow.style.background = ""; });
+                                const assetLabel = document.createElement("span");
+                                assetLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0d0f0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                                assetLabel.textContent = it.assetDesc;
+                                const groupLabel = document.createElement("span");
+                                groupLabel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5070;flex-shrink:0;";
+                                groupLabel.textContent = it.groupDesc;
+                                resRow.appendChild(assetLabel);
+                                resRow.appendChild(groupLabel);
+                                resRow.addEventListener("mousedown", (e) => {
+                                    e.preventDefault();
+                                    groupSel.value = it.group;
+                                    equipGroup = it.group;
+                                    updateAssetSel(it.asset);
+                                    searchInp.value = "";
+                                    resultsList.style.display = "none";
+                                });
+                                resultsList.appendChild(resRow);
+                            }
+                        };
+                        let searchTimer = null;
+                        searchInp.addEventListener("input", () => {
+                            if (searchTimer)
+                                clearTimeout(searchTimer);
+                            searchTimer = setTimeout(() => showResults(searchInp.value.trim().toLowerCase()), 80);
+                        });
+                        searchInp.addEventListener("blur", () => { setTimeout(() => { resultsList.style.display = "none"; }, 160); });
+                        searchInp.addEventListener("focus", () => { if (searchInp.value.trim())
+                            showResults(searchInp.value.trim().toLowerCase()); });
+                        stopKeys(searchInp);
+                        searchWrap.appendChild(searchIcon);
+                        searchWrap.appendChild(searchInp);
+                        searchWrap.appendChild(resultsList);
+                        fieldsEl.appendChild(searchWrap);
                         const row1 = document.createElement("div");
                         row1.className = "ebc-scene-fields-row";
                         // Asset dropdown (created first so updateAssetSel can reference it)
@@ -22206,7 +22285,11 @@
                         const groupSel = document.createElement("select");
                         groupSel.className = "ebc-scene-type-sel";
                         groupSel.style.cssText = "flex:1;width:auto;max-width:130px;";
-                        groupSel.title = "Item slot";
+                        groupSel.title = type === "equip-clothes"
+                            ? "Slot — includes all non-restraint items: clothes, accessories, props, laptops, etc."
+                            : type === "equip-restraint"
+                                ? "Slot — restraint items only (cuffs, gags, collars…)"
+                                : "Item slot";
                         {
                             const ph = document.createElement("option");
                             ph.value = "";
@@ -23043,12 +23126,23 @@
         }
         openBeepWindow(memberNumber, startMinimized = false) {
             var _a;
-            // If window already open for this member, refresh history and focus
+            // If window already open for this member, snap it to center, restore it, refresh and focus
             const existing = this.beepWins.get(memberNumber);
             if (existing) {
-                const refresh = existing.el._refresh;
+                const el = existing.el;
+                // Un-minimize first so we can measure real height
+                const restoreFn = el._restoreMin;
+                restoreFn === null || restoreFn === void 0 ? void 0 : restoreFn();
+                // Snap to viewport center
+                const winW = el.offsetWidth || 300;
+                const winH = el.offsetHeight || 400;
+                el.style.left = `${Math.max(0, Math.round((window.innerWidth - winW) / 2))}px`;
+                el.style.bottom = `${Math.max(0, Math.round((window.innerHeight - winH) / 2))}px`;
+                el.style.right = "";
+                el.style.top = "";
+                const refresh = el._refresh;
                 refresh === null || refresh === void 0 ? void 0 : refresh();
-                (_a = existing.el.querySelector(".ebc-beep-win-input")) === null || _a === void 0 ? void 0 : _a.focus();
+                (_a = el.querySelector(".ebc-beep-win-input")) === null || _a === void 0 ? void 0 : _a.focus();
                 return;
             }
             this.beepUnread.delete(memberNumber);
@@ -23161,6 +23255,17 @@
                     catch ( /* ignore */_a) { /* ignore */ }
                 }
             });
+            // Store a restore helper so the re-open / center logic can un-minimize without needing
+            // a direct reference to minimizeBtn.
+            win._restoreMin = () => {
+                const entry = this.beepWins.get(memberNumber);
+                if (!entry || !entry.minimized)
+                    return;
+                entry.minimized = false;
+                win.classList.remove("minimized");
+                minimizeBtn.textContent = "–";
+                minimizeBtn.title = "Minimize";
+            };
             const closeBtn = document.createElement("button");
             closeBtn.className = "ebc-beep-win-hbtn ebc-beep-win-close";
             closeBtn.textContent = "×";
@@ -23257,17 +23362,21 @@
                     bottom: Math.max(0, Math.min(bottom, Math.max(0, window.innerHeight - winH))),
                 };
             };
-            try {
-                const saved = localStorage.getItem(savedPosKey);
-                if (saved) {
-                    const { left, bottom } = JSON.parse(saved);
-                    const clamped = clampBeepPos(left, bottom);
-                    win.style.left = `${clamped.left}px`;
-                    win.style.bottom = `${clamped.bottom}px`;
-                    win.style.right = "";
+            // Only restore saved position when session-restoring minimized windows.
+            // Fresh user-initiated opens always appear centred (done after body.appendChild below).
+            if (startMinimized) {
+                try {
+                    const saved = localStorage.getItem(savedPosKey);
+                    if (saved) {
+                        const { left, bottom } = JSON.parse(saved);
+                        const clamped = clampBeepPos(left, bottom);
+                        win.style.left = `${clamped.left}px`;
+                        win.style.bottom = `${clamped.bottom}px`;
+                        win.style.right = "";
+                    }
                 }
+                catch ( /* ignore — use default offset position */_b) { /* ignore — use default offset position */ }
             }
-            catch ( /* ignore — use default offset position */_b) { /* ignore — use default offset position */ }
             // Make header draggable — anchored by bottom so expanding grows upward.
             // Saves position to localStorage on drag release so it persists across relogins.
             // Works with both mouse and touch via addPointerDown / addPointerTracking.
@@ -23458,6 +23567,17 @@
             footer.appendChild(sendBtn);
             win.appendChild(footer);
             document.body.appendChild(win);
+            // Centre new user-initiated windows after layout so offsetWidth/Height are real.
+            if (!startMinimized) {
+                window.requestAnimationFrame(() => {
+                    const winW = win.offsetWidth || 300;
+                    const winH = win.offsetHeight || 400;
+                    win.style.left = `${Math.max(0, Math.round((window.innerWidth - winW) / 2))}px`;
+                    win.style.bottom = `${Math.max(0, Math.round((window.innerHeight - winH) / 2))}px`;
+                    win.style.right = "";
+                    win.style.top = "";
+                });
+            }
             input.focus();
             // Store renderHistory so incoming beeps can trigger a refresh
             win._refresh = renderHistory;
@@ -30543,177 +30663,6 @@
                 }
                 body.appendChild(presetList);
             }
-            // ── Triggers section ──────────────────────────────────────────────────
-            // Collapsible. Fires a preset when outgoing chat contains a match string.
-            {
-                const divEl = document.createElement("div");
-                divEl.className = "ebc-divider";
-                divEl.style.margin = "10px 0 6px";
-                body.appendChild(divEl);
-                let trigCollapsed = true;
-                try {
-                    const v = localStorage.getItem("EBC_exprTriggersCollapsed");
-                    if (v !== null)
-                        trigCollapsed = v === "1";
-                }
-                catch ( /* ignore */_b) { /* ignore */ }
-                const trigHdr = document.createElement("div");
-                trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
-                const trigChev = document.createElement("span");
-                trigChev.style.cssText = `${F}11px;color:#d0a0d8;min-width:10px;`;
-                const trigLbl = document.createElement("span");
-                trigLbl.className = "ebc-section-label";
-                trigLbl.style.cssText = "margin:0;font-size:11px;color:#d0a0d8;";
-                trigLbl.textContent = "TRIGGERS";
-                const trigHint = document.createElement("span");
-                trigHint.style.cssText = `${F}11px;color:#b090c0;margin-left:4px;`;
-                trigHint.textContent = "apply preset when you send a message";
-                trigHdr.appendChild(trigChev);
-                trigHdr.appendChild(trigLbl);
-                trigHdr.appendChild(trigHint);
-                body.appendChild(trigHdr);
-                const trigBody = document.createElement("div");
-                const updateTrigChev = () => {
-                    trigChev.textContent = trigCollapsed ? "▶" : "▼";
-                    trigBody.style.display = trigCollapsed ? "none" : "";
-                };
-                updateTrigChev();
-                trigHdr.addEventListener("click", () => {
-                    trigCollapsed = !trigCollapsed;
-                    try {
-                        localStorage.setItem("EBC_exprTriggersCollapsed", trigCollapsed ? "1" : "0");
-                    }
-                    catch ( /* ignore */_a) { /* ignore */ }
-                    updateTrigChev();
-                });
-                body.appendChild(trigBody);
-                // Render trigger list
-                const renderTrigList = () => {
-                    var _a, _b;
-                    while (trigBody.firstChild)
-                        trigBody.removeChild(trigBody.firstChild);
-                    const triggers = getExpressionTriggers();
-                    const allPresets = getExpressionPresets();
-                    if (triggers.length === 0) {
-                        const emptyNote = document.createElement("div");
-                        emptyNote.style.cssText = `${F}11px;color:#b090c0;padding:4px 0;`;
-                        emptyNote.textContent = "No triggers yet.";
-                        trigBody.appendChild(emptyNote);
-                    }
-                    else {
-                        const trigList = document.createElement("div");
-                        trigList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:8px;";
-                        for (const trig of triggers) {
-                            const presetName = (_b = (_a = allPresets.find(p => p.id === trig.presetId)) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : "?";
-                            const durStr = trig.durationMs > 0 ? `${Math.round(trig.durationMs / 1000)} s` : "∞";
-                            const tRow = document.createElement("div");
-                            tRow.style.cssText = "display:flex;align-items:center;gap:5px;background:rgba(28,10,35,0.6);border:1px solid #2a1440;border-radius:5px;padding:3px 7px;";
-                            const tInfo = document.createElement("span");
-                            tInfo.style.cssText = `${F}11px;color:#c0a0d8;flex:1;min-width:0;`;
-                            tInfo.innerHTML = "";
-                            const namePart = document.createElement("b");
-                            namePart.style.color = "#d0b0e8";
-                            namePart.textContent = trig.name || "Trigger";
-                            const restPart = document.createTextNode(`: when msg contains "${trig.matchText}" → ${presetName} (${durStr})`);
-                            tInfo.appendChild(namePart);
-                            tInfo.appendChild(restPart);
-                            const tDel = document.createElement("button");
-                            tDel.className = "ebc-outfit-del";
-                            tDel.textContent = "×";
-                            tDel.title = "Delete trigger";
-                            tDel.addEventListener("click", () => {
-                                saveExpressionTriggers(getExpressionTriggers().filter(t => t.id !== trig.id));
-                                renderTrigList();
-                            });
-                            tRow.appendChild(tInfo);
-                            tRow.appendChild(tDel);
-                            trigList.appendChild(tRow);
-                        }
-                        trigBody.appendChild(trigList);
-                    }
-                    // Add trigger form
-                    const formLbl = document.createElement("div");
-                    formLbl.style.cssText = `${F}11px;color:#7a5a9e;font-weight:bold;margin-bottom:4px;`;
-                    formLbl.textContent = "New trigger";
-                    trigBody.appendChild(formLbl);
-                    const INP_CSS = `${F}11px;background:#1b0d17;border:1px solid #3a1928;border-radius:3px;color:#f7e6ee;padding:2px 5px;outline:none;`;
-                    // Row 1: name + match text
-                    const formRow1 = document.createElement("div");
-                    formRow1.style.cssText = "display:flex;gap:4px;margin-bottom:4px;";
-                    const nameInp = document.createElement("input");
-                    nameInp.className = "ebc-form-input";
-                    nameInp.style.cssText = INP_CSS + "width:70px;flex-shrink:0;";
-                    nameInp.type = "text";
-                    nameInp.maxLength = 20;
-                    nameInp.placeholder = "Label…";
-                    const matchInp = document.createElement("input");
-                    matchInp.className = "ebc-form-input";
-                    matchInp.style.cssText = INP_CSS + "flex:1;min-width:0;";
-                    matchInp.type = "text";
-                    matchInp.maxLength = 60;
-                    matchInp.placeholder = "match text (e.g. whimpers)";
-                    formRow1.appendChild(nameInp);
-                    formRow1.appendChild(matchInp);
-                    trigBody.appendChild(formRow1);
-                    // Row 2: preset picker + duration
-                    const formRow2 = document.createElement("div");
-                    formRow2.style.cssText = "display:flex;gap:4px;margin-bottom:6px;align-items:center;";
-                    const presetSel = document.createElement("select");
-                    presetSel.style.cssText = INP_CSS + "flex:1;min-width:0;";
-                    const emptyOpt = document.createElement("option");
-                    emptyOpt.value = "";
-                    emptyOpt.textContent = "— pick preset —";
-                    presetSel.appendChild(emptyOpt);
-                    for (const p of getExpressionPresets()) {
-                        const opt = document.createElement("option");
-                        opt.value = p.id;
-                        opt.textContent = p.name;
-                        presetSel.appendChild(opt);
-                    }
-                    const TRIG_DUR_OPTS = [
-                        ["♾ keep", 0], ["3 s", 3000], ["5 s", 5000],
-                        ["10 s", 10000], ["30 s", 30000], ["1 min", 60000],
-                    ];
-                    const durSel = document.createElement("select");
-                    durSel.style.cssText = INP_CSS + "flex-shrink:0;max-width:60px;cursor:pointer;";
-                    durSel.title = "How long to hold this face before reverting (♾ = keep forever)";
-                    for (const [label, ms] of TRIG_DUR_OPTS) {
-                        const o = document.createElement("option");
-                        o.value = String(ms);
-                        o.textContent = label;
-                        if (ms === 5000)
-                            o.selected = true;
-                        durSel.appendChild(o);
-                    }
-                    formRow2.appendChild(presetSel);
-                    formRow2.appendChild(durSel);
-                    trigBody.appendChild(formRow2);
-                    const addTrigBtn = document.createElement("button");
-                    addTrigBtn.className = "ebc-create-btn";
-                    addTrigBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
-                    addTrigBtn.textContent = "+ Add Trigger";
-                    addTrigBtn.addEventListener("click", () => {
-                        const match = matchInp.value.trim();
-                        const presetId = presetSel.value;
-                        if (!match || !presetId) {
-                            addTrigBtn.textContent = "Fill in match text and preset!";
-                            window.setTimeout(() => { addTrigBtn.textContent = "+ Add Trigger"; }, 1500);
-                            return;
-                        }
-                        const newTrig = {
-                            id: Math.random().toString(36).slice(2, 9),
-                            name: nameInp.value.trim() || match.slice(0, 15),
-                            matchText: match,
-                            presetId,
-                            durationMs: parseInt(durSel.value) || 0,
-                        };
-                        saveExpressionTriggers([...getExpressionTriggers(), newTrig]);
-                        renderTrigList();
-                    });
-                    trigBody.appendChild(addTrigBtn);
-                };
-                renderTrigList();
-            }
         }
         renderThanks() {
             var _a;
@@ -32265,7 +32214,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.1.8";
+    const MOD_VERSION = "4.2.3";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32276,6 +32225,36 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.3",
+            changes: [
+                "Scenes — Equip steps: unified into a single 'Equip Item' type that searches ALL item groups at once. No more split between 'Equip Restraint' and 'Equip Item (clothes, props…)' — one search box finds anything. Legacy steps saved with the old types still load and display correctly.",
+            ],
+        },
+        {
+            version: "4.2.2",
+            changes: [
+                "Scenes — Equip steps: added a 🔍 item search box above the slot/item dropdowns. Type any part of an item's name and a live dropdown shows up to 20 matches with the item name and its slot. Clicking a result auto-selects both the slot and the item — no need to browse categories manually.",
+            ],
+        },
+        {
+            version: "4.2.1",
+            changes: [
+                "Scenes: renamed 'Equip Clothes' step type to 'Equip Item (clothes, props…)' to make it clear this step covers ALL non-restraint items — clothing, accessories, props, laptops, and any other new BC items. Slot dropdown now shows a tooltip describing what each equip type includes.",
+            ],
+        },
+        {
+            version: "4.2.0",
+            changes: [
+                "Chat windows: clicking the 💬 button beside a friend now snaps the beep window to the centre of the screen and restores it if minimised. New windows also open centred instead of anchored to the bottom-right corner. Session-restored windows still reload at their last saved position.",
+            ],
+        },
+        {
+            version: "4.1.9",
+            changes: [
+                "Expressions (Anims tab): removed the Triggers section entirely.",
+            ],
+        },
         {
             version: "4.1.8",
             changes: [

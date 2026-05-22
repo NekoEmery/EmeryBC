@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.2.2";
+const MOD_VERSION = "4.2.3";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.2.3",
+        changes: [
+            "Scenes — Equip steps: unified into a single 'Equip Item' type that searches ALL item groups at once. No more split between 'Equip Restraint' and 'Equip Item (clothes, props…)' — one search box finds anything. Legacy steps saved with the old types still load and display correctly.",
+        ],
+    },
     {
         version: "4.2.2",
         changes: [
