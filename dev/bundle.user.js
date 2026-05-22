@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.8.9
+// @version      3.9.0
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -24094,7 +24094,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 searchRow.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 0 6px;";
                 const searchInput = document.createElement("input");
                 searchInput.type = "text";
-                searchInput.placeholder = "🔍 Search friends…";
+                searchInput.placeholder = "Search friends…";
                 searchInput.value = this.friendSearch;
                 searchInput.className = "ebc-form-input";
                 searchInput.style.cssText = "flex:1;min-width:0;font-size:10px;padding:4px 8px;";
@@ -32007,7 +32007,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.9";
+    const MOD_VERSION = "3.9.0";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32018,6 +32018,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.9.0",
+            changes: [
+                "Friends list: removed the 🔍 emoji from the search input placeholder — plain text only.",
+            ],
+        },
         {
             version: "3.8.9",
             changes: [
