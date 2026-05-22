@@ -564,9 +564,10 @@ export function initDragListener(): void {
 function drawActionButton(
     x: number, y: number, size: number,
     label: string, bgColor: string,
+    hoverText = "",
 ): void {
     // BC handles background + hover effect; empty label so it draws no text
-    DrawButton(x, y, size, size, "", bgColor, "", "");
+    DrawButton(x, y, size, size, "", bgColor, "", hoverText);
 
     const canvas = document.getElementById("MainCanvas") as HTMLCanvasElement | null;
     const ctx = canvas?.getContext("2d");
@@ -734,7 +735,7 @@ export function drawActionButtons(): void {
             drawCooldownButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
         } else {
             drawActionButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE,
-                btn.label, withAlpha(btn.color || "#c2185b", 0.90));
+                btn.label, withAlpha(btn.color || "#c2185b", 0.90), btn.emote);
         }
     }
 }

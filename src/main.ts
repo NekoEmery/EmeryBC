@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.4.9";
+const MOD_VERSION = "4.5.0";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.5.0",
+        changes: [
+            "Action buttons: fixed hover effect — BC's hover highlight was missing because HoverText was being passed as empty string. Now passes btn.emote as the tooltip/hover trigger to DrawButton, restoring the highlight on mouseover.",
+        ],
+    },
     {
         version: "4.4.9",
         changes: [
