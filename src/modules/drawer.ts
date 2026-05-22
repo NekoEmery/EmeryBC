@@ -9697,15 +9697,6 @@ export class EBCDrawer {
             seqRow.appendChild(seqDelBtn);
 
             // ── Inline editor ─────────────────────────────────────────────────
-            const seqTopSaveBar = document.createElement("div");
-            seqTopSaveBar.className = "ebc-editor-save-bar";
-            const seqTopSaveBtn = document.createElement("button");
-            seqTopSaveBtn.className = "ebc-create-btn";
-            seqTopSaveBtn.style.cssText = "font-size:11px;padding:2px 10px;";
-            seqTopSaveBtn.textContent = t("outfits.saveChanges");
-            seqTopSaveBar.appendChild(seqTopSaveBtn);
-            seqEditor.appendChild(seqTopSaveBar);
-
             const seqNameInp = document.createElement("input") as HTMLInputElement;
             seqNameInp.type = "text"; seqNameInp.maxLength = 40; seqNameInp.value = seq.name;
             seqNameInp.className = "ebc-form-input";
@@ -9741,7 +9732,6 @@ export class EBCDrawer {
                     }
                 );
             };
-            seqTopSaveBtn.addEventListener("click", doSaveSeq);
 
             const seqBotSaveBar = document.createElement("div");
             seqBotSaveBar.className = "ebc-editor-save-bar";

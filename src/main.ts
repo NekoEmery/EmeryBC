@@ -17,13 +17,13 @@ import { UI } from "./modules/ui";
 import { addBeepEntry, cacheName, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC } from "./modules/bcUtils";
+import { callBC, syncSettings } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.3.7";
+const MOD_VERSION = "4.3.8";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.3.8",
+        changes: [
+            "Expression Sequences: removed the redundant top 'Save Changes' bar — only the bottom one remains.",
+            "Default badge settings: on first load, if no badge settings have been configured yet, EBC now seeds the preferred defaults (cat style, correct offsets, show own badge, hide version labels).",
+        ],
+    },
     {
         version: "4.3.7",
         changes: [
@@ -5064,6 +5071,36 @@ function tryHookFunction(
     }
 }
 
+// Seed default badge display settings on first run.
+// Only applied if the player has never configured badge settings (badgeEnabled key absent).
+function seedDefaultBadgeSettings(): void {
+    try {
+        if (!Player?.ExtensionSettings?.EmeryBC) return;
+        const store = Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+        if ("badgeEnabled" in store) return; // already configured — do not overwrite
+        Object.assign(store, {
+            badgeEnabled: true,
+            showOthersBadge: true,
+            showVersionBadge: false,
+            showOthersVersionBadge: false,
+            badgeStyle: "cat",
+            othersBadgeStyle: "cat",
+            badgeScale: 1,
+            textBadgeScale: 0.95,
+            catBadgeScale: 1.45,
+            badgeBgOpacity: 1,
+            badgeTextOpacity: 1,
+            badgeOffsetX: 257,
+            badgeOffsetY: 953,
+            catBadgeOffsetX: 353,
+            catBadgeOffsetY: 21,
+            versionTextOffsetX: 353,
+            versionTextOffsetY: 55,
+        });
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 function init(): void {
     const modAPI = bcModSdk.registerMod(
         { name: MOD_NAME, fullName: "EmeryBC", version: MOD_VERSION },
@@ -5119,6 +5156,8 @@ function init(): void {
         window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); } catch { /* ignore */ } }, 600);
         // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
         migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => {});
+        // Seed default badge settings for first-time users.
+        window.setTimeout(() => { try { seedDefaultBadgeSettings(); } catch { /* ignore */ } }, 1500);
     } catch (err) {
         console.warn("[EBC] Drawer failed to initialise:", err);
     }
