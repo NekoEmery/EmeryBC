@@ -5894,9 +5894,9 @@ export class EBCDrawer {
         const mkShareBtn = (label: string, title: string): HTMLButtonElement => {
             const b = document.createElement("button");
             b.textContent = label; b.title = title;
-            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:transparent;color:#9a6878;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
-            b.addEventListener("mouseenter", () => { b.style.color = "#cf6f98"; b.style.borderColor = "#cf6f98"; });
-            b.addEventListener("mouseleave", () => { b.style.color = "#9a6878"; b.style.borderColor = "#3a1928"; });
+            b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:2px 7px;border-radius:4px;border:1px solid #3a1928;background:#150a10;color:#7a5070;cursor:pointer;flex-shrink:0;transition:background 0.12s,color 0.12s;";
+            b.addEventListener("mouseenter", () => { b.style.background = "#3a1928"; b.style.color = "#cf6f98"; });
+            b.addEventListener("mouseleave", () => { b.style.background = "#150a10"; b.style.color = "#7a5070"; b.style.borderColor = "#3a1928"; });
             return b;
         };
         const exportTagBtn = mkShareBtn("⬆ Export", "Copy a code with your full badge layout (style, scale, position, opacity, toggles)");
