@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.1.1
+// @version      4.1.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -30424,16 +30424,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             saveDiv1.className = "ebc-divider";
             saveDiv1.style.margin = "8px 0 6px";
             body.appendChild(saveDiv1);
-            const saveRow = document.createElement("div");
-            saveRow.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:5px;";
             const captureInput = Object.assign(document.createElement("input"), {
                 type: "text", maxLength: 30, placeholder: "Preset name…",
             });
             captureInput.className = "ebc-form-input";
-            captureInput.style.cssText = "flex:1;min-width:0;font-size:9px;";
+            captureInput.style.cssText = "width:100%;box-sizing:border-box;font-size:9px;margin-bottom:4px;";
+            body.appendChild(captureInput);
             const savePresetBtn = document.createElement("button");
             savePresetBtn.className = "ebc-create-btn";
-            savePresetBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:3px 8px;";
+            savePresetBtn.style.cssText = "width:100%;box-sizing:border-box;font-size:9px;padding:3px 8px;margin-bottom:5px;";
             savePresetBtn.textContent = "💾 Save face";
             savePresetBtn.addEventListener("click", () => {
                 const name = captureInput.value.trim() || "Preset";
@@ -30441,9 +30440,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 captureInput.value = "";
                 this.rerender();
             });
-            saveRow.appendChild(captureInput);
-            saveRow.appendChild(savePresetBtn);
-            body.appendChild(saveRow);
+            body.appendChild(savePresetBtn);
             const clearAllBtn = document.createElement("button");
             clearAllBtn.className = "ebc-btn-footer-btn";
             clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:9px;";
@@ -32251,7 +32248,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.1.1";
+    const MOD_VERSION = "4.1.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32262,6 +32259,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.1.2",
+            changes: [
+                "Expressions face builder: preset name input moved above the Save face button so it takes the full panel width.",
+            ],
+        },
         {
             version: "4.1.1",
             changes: [
