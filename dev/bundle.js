@@ -31299,6 +31299,7 @@
             savePresetBtn.className = "ebc-create-btn";
             savePresetBtn.style.cssText = "width:100%;box-sizing:border-box;font-size:11px;padding:3px 8px;margin-bottom:5px;";
             savePresetBtn.textContent = "💾 Save face";
+            savePresetBtn.setAttribute("data-guide-target", "btn-save-face");
             savePresetBtn.addEventListener("click", () => {
                 const name = captureInput.value.trim() || "Preset";
                 saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
@@ -31512,6 +31513,7 @@
             newTrigToggle.className = "ebc-create-btn";
             newTrigToggle.style.cssText = "width:100%;margin-top:6px;";
             newTrigToggle.textContent = "＋ New Trigger";
+            newTrigToggle.setAttribute("data-guide-target", "btn-new-trigger");
             const newTrigForm = document.createElement("div");
             newTrigForm.style.cssText = "display:none;flex-direction:column;gap:5px;padding:8px;background:rgba(15,5,12,0.7);border:1px solid #2a1421;border-radius:0 0 6px 6px;margin-top:-2px;";
             // Match text
@@ -33086,7 +33088,7 @@
         {
             tab: "buttons",
             label: "Action Buttons — Quick Commands",
-            text: "Buttons let you fire BC commands, emotes, poses, or expressions with a single tap.\nClick [[+ Add button]] to create one and choose a type: [[Emote]], [[Command]], [[Pose]], or [[Expression]].\nDrag the [[⠿]] grip on a button card to reorder it. Use the [[Edit]] and [[Delete]] icons to manage each one.\n[[Categories]] (the row above the buttons) let you group buttons — click a category name to filter to just that group.",
+            text: "Buttons send actions or emotes to the room with a single tap — great for quick reactions like nods, waves and poses.\nEach button has a label (up to [[16 characters]]), a hex colour, and the chat text to send. Choose style: [[action]] (Name text), [[emote]] (* Name text *), or [[sequence]] (pipe-separated multi-step).\nLink an [[Expression Preset]] to a button so your face changes automatically when you press it.\n[[Categories]] group buttons into named tabs — switch between them using the arrow chips on the sidebar.",
             spotlight: ["[data-guide-target='btn-add-category']"],
         },
         {
@@ -33100,6 +33102,18 @@
             label: "Poses & Animations",
             text: "Pose combos chain multiple pose changes together with delays — perfect for transition animations or emote sequences.\nClick [[+ New combo]] to create one, add steps with poses or emotes, then assign a [[/command]] name.\nType [[/yourcommand]] directly in the BC chat box to trigger it — no need to open the menu.\n((Combos can mix [[Pose]] steps and [[Emote]] steps so messages appear alongside pose changes.))",
             spotlight: ["[data-guide-target='btn-new-combo']"],
+        },
+        {
+            tab: "anims",
+            label: "Expression Presets",
+            text: "Save your facial expressions as named presets so you can restore any look with one click.\nUse BC's own face controls (the face icon in the top menu) to set blush, eyes, mouth etc, then click [[💾 Save face]] to capture it.\nMark one preset as [[Default]] — the [[↺ Reset face]] button always jumps back to it, and you can enable [[Auto-apply on room join]] so your default face loads automatically every time you enter a room.\n((Presets can also be linked to outfits or fired from action buttons and scenes.))",
+            spotlight: ["[data-guide-target='btn-save-face']"],
+        },
+        {
+            tab: "anims",
+            label: "Chat Triggers",
+            text: "Chat triggers fire a face preset automatically when your outgoing message contains a match phrase — no button press needed.\nClick [[＋ New Trigger]] and fill in:\n  • [[Contains]] — the phrase that fires it (e.g. >:3, >_<)\n  • [[Apply]] — which expression preset activates\n  • [[Hold]] — how long the face stays before reverting (0 = keep forever)\nType the phrase naturally in chat and the face swaps with it instantly.\n((Case-insensitive. Triggers work on action messages, emotes and regular chat.))",
+            spotlight: ["[data-guide-target='btn-new-trigger']"],
         },
         {
             tab: "notes",
@@ -33161,7 +33175,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.5.1";
+    const MOD_VERSION = "4.5.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -33172,6 +33186,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.5.2",
+            changes: [
+                "Docs: in-app guide updated — new steps for Expression Presets and Chat Triggers, Action Buttons step updated to mention 16-char labels and expression linking. README fully rewritten to cover all current features.",
+            ],
+        },
         {
             version: "4.5.1",
             changes: [
