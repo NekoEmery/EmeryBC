@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.1.6";
+const MOD_VERSION = "4.1.7";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.1.7",
+        changes: [
+            "Buttons tab: 'Face:' label now bright pink (#cf6f98) and bold at 10px instead of dim muted 8px. Face preset and duration dropdowns also bumped to 10px with lighter text (#e8c8e8) for readability.",
+        ],
+    },
     {
         version: "4.1.6",
         changes: [
