@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.2.8
+// @version      4.2.9
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -30666,9 +30666,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 "<b style=\"color:#cf6f98;\">How to make a face:</b><br>" +
                     "Use BC's own expression controls in-game (the face icon in the top menu) to set your blush, eyes, mouth etc, " +
                     "then click <b style=\"color:#cf6f98;\">💾 Save face</b> below to capture it as a named preset.<br><br>" +
-                    "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, fired automatically from " +
-                    "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>, " +
-                    "or triggered when you <b style=\"color:#d0a0d8;\">send a matching chat message</b> (see Triggers below).";
+                    "Presets can be <b style=\"color:#e8d0d8;\">applied manually</b>, or fired automatically from " +
+                    "<b style=\"color:#d0a0d8;\">action buttons</b> or <b style=\"color:#d0a0d8;\">scenes</b>.";
             body.appendChild(infoBox);
             // ── Save & Clear ──────────────────────────────────────────────────────────
             const captureInput = Object.assign(document.createElement("input"), {
@@ -32324,7 +32323,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.2.8";
+    const MOD_VERSION = "4.2.9";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32335,6 +32334,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.2.9",
+            changes: [
+                "Expressions tab: removed stale help text claiming presets can be triggered by a matching chat message — that feature doesn't exist. Info box now correctly states presets can be applied manually or fired from action buttons / scenes.",
+            ],
+        },
         {
             version: "4.2.8",
             changes: [
