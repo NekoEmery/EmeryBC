@@ -21782,6 +21782,9 @@
             // ── SCENES (collapsible) ─────────────────────────────────────────────
             const scenesCnt = makeCollapse(t("anims.scenes"), "EBC_scenesCollapsed", false);
             this.renderScenes(scenesCnt);
+            // ── EXPRESSIONS (collapsible) ────────────────────────────────────────
+            const exprCnt = makeCollapse("Expressions", "EBC_animsExprsCollapsed", true);
+            this.renderExpressions(exprCnt);
         }
         renderScenes(body) {
             var _a, _b, _c, _d, _e;
@@ -32087,7 +32090,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.6";
+    const MOD_VERSION = "3.9.7";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
