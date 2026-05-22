@@ -33023,7 +33023,7 @@
         {
             version: "4.4.0",
             changes: [
-                "Samsung Galaxy / Android phone fixes: broadened touch detection to also check navigator.maxTouchPoints so Samsung builds that misreport pointer:fine still get touch mode. Upgraded touch event guards to stopImmediatePropagation in both capture and bubble phases so BC's canvas handlers cannot override panel scroll. Moved -webkit-overflow-scrolling:touch and overflow-y:scroll to the base body style (not just touch mode). Added touch-action:pan-y to the panel container itself.",
+                "Android phone fixes: broadened touch detection to also check navigator.maxTouchPoints so builds that misreport pointer:fine still get touch mode. Upgraded touch event guards to stopImmediatePropagation in both capture and bubble phases so BC's canvas handlers cannot override panel scroll. Moved -webkit-overflow-scrolling:touch and overflow-y:scroll to the base body style (not just touch mode). Added touch-action:pan-y to the panel container itself.",
             ],
         },
         {
