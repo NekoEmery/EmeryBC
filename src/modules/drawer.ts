@@ -685,7 +685,7 @@ const CSS = `
     padding: 5px 8px;
     border-bottom: 1px solid #2a1020;
     background: rgba(15, 6, 12, 0.4);
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     overflow: hidden;
 }
 
@@ -2885,9 +2885,9 @@ const CSS = `
 }
 
 #emerybc-panel[data-touch] .ebc-lang-pill {
-    font-size: 13px !important;
-    padding: 9px 16px !important;
-    min-height: 38px !important;
+    font-size: 12px !important;
+    padding: 7px 12px !important;
+    min-height: 34px !important;
 }
 
 #emerybc-panel[data-touch] .ebc-header {
