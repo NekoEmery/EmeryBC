@@ -1021,7 +1021,7 @@ const CSS = `
 
 .ebc-slot-label {
     flex-shrink: 0;
-    width: 52px;
+    width: 65px;
     background: #1b0d17;
     border: 1px solid #4c2537;
     border-radius: 4px;
@@ -1031,7 +1031,6 @@ const CSS = `
     padding: 2px 4px;
     outline: none;
     transition: border-color 0.14s;
-    text-transform: uppercase;
 }
 
 .ebc-slot-label:focus { border-color: #cf6f98; }
@@ -16167,7 +16166,7 @@ export class EBCDrawer {
                 const lInp = row.querySelector<HTMLInputElement>(".ebc-slot-label");
                 const cInp = row.querySelector<HTMLInputElement>(".ebc-slot-color");
                 const eInp = row.querySelector<HTMLInputElement>(".ebc-slot-emote");
-                if (lInp) btns[i].label = lInp.value.trim().slice(0, 6);
+                if (lInp) btns[i].label = lInp.value.trim().slice(0, 16);
                 if (cInp) btns[i].color = normalizeHex(cInp.value);
                 if (eInp && btns[i].style !== "seq") btns[i].emote = eInp.value;
             });

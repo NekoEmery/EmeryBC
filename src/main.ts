@@ -23,7 +23,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.4.5";
+const MOD_VERSION = "4.4.6";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -37,6 +37,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.4.6",
+        changes: [
+            "Buttons tab: fixed capitalization mismatch — the label input was styled with CSS text-transform:uppercase so it appeared all-caps in the panel while the sidebar showed the real stored value. Removed the forced uppercase; labels now display exactly as typed in both places. Also widened the label input field slightly and fixed a missed slice(0,6) cap in the save-flush path.",
+        ],
+    },
     {
         version: "4.4.5",
         changes: [
