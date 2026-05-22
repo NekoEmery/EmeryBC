@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "3.8.0";
+const MOD_VERSION = "3.8.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "3.8.1",
+        changes: [
+            "Tablet/phone: panel now automatically opens in free-float mode centered on screen instead of trying to anchor to BC's desktop chat-log layout (which is completely wrong on mobile).",
+            "Free-float panel width is now responsive — uses up to calc(100vw - 16px) on narrow screens.",
+            "Panel position clamping updated to always keep the panel reachable on any screen size.",
+        ],
+    },
     {
         version: "3.8.0",
         changes: [

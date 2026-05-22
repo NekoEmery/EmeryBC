@@ -2473,11 +2473,16 @@ const CSS = `
     position: fixed !important;
     right: auto !important;
     top: auto;           /* no !important — inline style.top must win during drag */
+    width: min(390px, calc(100vw - 16px)) !important;
     height: min(80vh, 650px) !important;
     border-radius: 10px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     transition: opacity 0.18s !important;
     transform: none !important;
+}
+/* On touch devices, use more vertical space so the panel is usable */
+#emerybc-panel[data-touch].ebc-free-mode {
+    height: min(90vh, 700px) !important;
 }
 #emerybc-panel.ebc-free-mode.ebc-closed {
     opacity: 0 !important;
@@ -4625,10 +4630,9 @@ export class EBCDrawer {
             if (v && typeof v.x === "number" && typeof v.y === "number") {
                 // Clamp to current viewport so a position saved on a wider/taller screen
                 // doesn't put the panel off-screen on the next load.
-                const pW = this.panelEl?.offsetWidth  || 360;
-                const pH = this.panelEl?.offsetHeight || 200;
+                const pW = Math.min(390, window.innerWidth - 16);
                 const x = Math.max(0, Math.min(window.innerWidth  - pW, v.x));
-                const y = Math.max(0, Math.min(window.innerHeight - Math.min(pH, 80), v.y));
+                const y = Math.max(0, Math.min(window.innerHeight - 80, v.y));
                 return { x, y };
             }
             return null;
@@ -4639,8 +4643,9 @@ export class EBCDrawer {
         if (!this.panelEl) return;
         const w = window.innerWidth;
         const h = window.innerHeight;
-        const x = Math.max(0, Math.min(w - 100, pos.x));
-        const y = Math.max(0, Math.min(h - 100, pos.y));
+        const pW = Math.min(390, w - 16);
+        const x = Math.max(0, Math.min(w - pW, pos.x));
+        const y = Math.max(0, Math.min(h - 80, pos.y));
         this.panelEl.classList.add("ebc-free-mode");
         this.panelEl.style.left = `${x}px`;
         this.panelEl.style.top  = `${y}px`;
@@ -18712,6 +18717,18 @@ export class EBCDrawer {
             if (saved !== null) {
                 this.panelPosition = saved;
                 this.enterFreeMode(saved);
+            } else if (isTouchDevice()) {
+                // Touch devices (tablet/phone): anchor mode relies on BC's desktop chat-log
+                // layout which is completely different on mobile — auto-center the panel
+                // in free-float mode so it's always reachable and positioned sensibly.
+                const pW = this.panelEl.offsetWidth  || Math.min(390, window.innerWidth - 16);
+                const pH = this.panelEl.offsetHeight || Math.min(520, window.innerHeight - 20);
+                const pos = {
+                    x: Math.max(8, Math.round((window.innerWidth  - pW) / 2)),
+                    y: Math.max(8, Math.round((window.innerHeight - pH) / 4)),
+                };
+                this.panelPosition = pos;
+                this.enterFreeMode(pos);
             }
         }
 
