@@ -1,6 +1,6 @@
 # EBC — EmeryBC
 
-A [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfits, action buttons, friends management, poses, scenes, palettes, and a bunch of quality-of-life tools packed into a sliding drawer on the right side of the chat screen.
+A [Bondage Club](https://www.bondageprojects.com/) addon by **Emery** — outfits, action buttons, expression presets, friends management, poses, scenes, palettes, and a bunch of quality-of-life tools packed into a sliding drawer on the right side of the chat screen.
 
 ---
 
@@ -37,9 +37,10 @@ Builds are deployed automatically via GitHub Actions on every push.
 - [🎽 Outfits](#-outfits)
 - [⛓️ Restraint Sets](#️-restraint-sets)
 - [🔘 Action Buttons](#-action-buttons)
+- [😊 Expression Presets & Chat Triggers](#-expression-presets--chat-triggers)
 - [💬 Buttons & Toggles](#-buttons--toggles)
 - [🛡️ Anti-Restraint](#️-anti-restraint)
-- [🧍 Poses](#-poses)
+- [🧍 Poses & Animations](#-poses--animations)
 - [🎨 Palettes & Colors](#-palettes--colors)
 - [🎬 Scenes](#-scenes)
 - [👥 Users & Friends](#-users--friends)
@@ -69,6 +70,7 @@ Save full outfit sets and load them with a custom `/command` in chat.
 - **Preserve clothing** — keep current clothing layers when loading a restraint-focused outfit
 - **Announce text** — emote sent to the room on load, e.g. `switches into dom mode`
 - **Nickname / Title override** — automatically change your displayed name and title when the outfit loads
+- **Expression preset** — link a face preset so your expression changes automatically when the outfit loads
 - **Outfit tags** — colour-coded labels to organise outfits (e.g. "casual", "formal", "scene")
 
 **Other outfit tools**
@@ -88,19 +90,59 @@ Same options as outfits: command, display name, announce text, tags, reorder, ex
 
 ## 🔘 Action Buttons
 
-Up to 20 configurable quick-action buttons drawn on the side of the chatroom.
+Up to 20 configurable quick-action buttons drawn on the side of the chatroom. The sidebar is draggable and collapsible.
 
-Each button sends an action or emote to the room when clicked. The sidebar is draggable and collapsible.
+Each button sends an action or emote to the room when clicked.
 
 **Per-button settings**
-- Label (up to 6 characters shown on the button)
-- Hex color
-- Action text (what comes after your name, e.g. `waves goodbye`)
-- Style — `action` `( )`, `emote` `* *`, or `sequence`
-- Enable / disable toggle
+- **Label** — up to 16 characters, displayed on the button (text is auto-scaled to fit)
+- **Hex color** — custom background colour per button
+- **Action text** — what comes after your name, e.g. `waves goodbye`
+- **Style** — `action` `( )`, `emote` `* *`, or `sequence` (pipe-separated multi-step)
+- **Expression preset** — optionally fire a face preset alongside the action, with an optional revert timer
 - **Name in announce** — include or exclude your name from the message (action style only)
+- **Enable / disable** toggle
 
-**Categories** — group buttons into named tabs and switch between them with the arrow chips on the sidebar. Each category has its own set of buttons.
+**Sequences** — pipe-separate multiple steps to chain poses and messages with delays. Steps can be pose names, `!action text`, `*emote text`, or `leaveroom`.
+
+**Categories** — group buttons into named tabs and switch between them with the arrow chips on the sidebar. Each category has its own set of buttons and slot count.
+
+---
+
+## 😊 Expression Presets & Chat Triggers
+
+Save your facial expressions as named presets and apply them instantly.
+
+### Expression Presets
+
+1. Use BC's face controls (the face icon in the top menu) to set blush, eyes, mouth etc.
+2. Open EBC → **Anims** tab → **Expressions** section
+3. Type a name and click **💾 Save face**
+
+**Managing presets**
+- **Apply** — restore that face immediately
+- **Update** — overwrite the preset with your current expression
+- **Default** — mark one preset as your default face
+  - The **↺ Reset face** button always jumps back to the default
+  - Enable **Auto-apply on room join** so your default face loads automatically every time you enter a room
+
+**Using presets elsewhere**
+- Link a preset to an **outfit** — the face changes when you load the outfit
+- Add a preset step to an **action button** — the face fires when you press the button (with optional revert timer)
+- Use presets inside **expression sequences** — chain multiple face changes with delays
+- Trigger presets automatically with **Chat Triggers**
+
+### Chat Triggers
+
+Automatically apply a face preset when your outgoing chat message contains a match phrase.
+
+1. Open EBC → **Anims** tab → **Expressions** section → **＋ New Trigger**
+2. Fill in:
+   - **Contains** — the phrase that fires it (case-insensitive, e.g. `>:3`, `>_<`)
+   - **Apply** — which preset activates
+   - **Hold** — how long the face stays before reverting (0 = keep forever)
+
+Type the phrase naturally in chat and the face swaps with it instantly. Works on actions, emotes, and regular chat messages.
 
 ---
 
@@ -113,8 +155,10 @@ Found in the **Buttons** tab of the EBC drawer.
 | **OOC Mode** | Prefixes every chat message with `(` so it reads as out-of-character. Commands, emotes, and already-OOC messages are never modified. |
 | **Safeword** | One-click safeword button. Configure the word in settings. |
 | **AFK Auto-Reply** | Sends a custom beep reply when someone messages you after X minutes of inactivity (default 10 min). 30-minute cooldown per sender to avoid spam. |
-| **Beep Mute** | Silences all incoming beeps without leaving the room. |
+| **Beep Mute** | Silences all incoming beeps globally. |
 | **Suppress Native Beep** | Stops plain beeps from also showing in BC's main chat log when EBC's IM handles them. |
+
+**Per-person beep muting** — inside any IM / beep conversation window, tap the 🔔 icon in the header to mute that specific person. Tap again (🔇) to unmute. Session-only.
 
 ---
 
@@ -131,13 +175,15 @@ Automatically remove any restraint applied to you by someone else.
 
 ---
 
-## 🧍 Poses
+## 🧍 Poses & Animations
 
 Quick-access pose combo buttons — apply a full set of BC poses in one click.
 
 - Create named combos from any combination of BC poses
 - Apply combos from the drawer or define a slash command for each
 - Edit and delete combos
+
+**Expression sequences** — chain multiple face presets together with configurable delays per step. Assign a `/command` name and trigger them from chat. Useful for animated facial reactions.
 
 ---
 
@@ -261,7 +307,7 @@ Customisation options found in the **Dev** tab under *Drawer Appearance*.
 
 **Overhead EBC badge** — broadcasts a small `EBC` tag above your character's head to other EBC users. Optionally show your version number. Both toggleable from Settings.
 
-**IM / Beep window** — threaded beep conversations with message history, unread badges, and timestamps per person.
+**IM / Beep window** — threaded beep conversations with message history, unread badges, timestamps, and per-person mute (🔔/🔇) per person.
 
 **Timers** — passive counters in the drawer:
 - ⏱ Time online this session
@@ -286,7 +332,7 @@ Customisation options found in the **Dev** tab under *Drawer Appearance*.
 | `/ebc updates on` | | Re-enable automatic update notifications |
 | `/ebc updates off` | | Silence automatic update notifications |
 
-Outfit, restraint set, pose, and scene commands are defined per-item.
+Outfit, restraint set, pose combo, and scene commands are defined per-item in their respective editors.
 
 ---
 
