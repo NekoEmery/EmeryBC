@@ -8670,14 +8670,20 @@ export class EBCDrawer {
         });
 
         updateBtn.addEventListener("click", () => {
-            setAllDisabled(true);
-            const ok = saveCurrentAppearanceToRestraint(r.id);
-            if (!ok) { setAllDisabled(false); return; }
-            updateBtn.textContent = t("core.saved");
-            window.setTimeout(() => {
-                updateBtn.textContent = t("core.update");
-                setAllDisabled(false);
-            }, 1200);
+            showConfirmOverlay(
+                `Overwrite "${r.displayName}" with your current restraints?`,
+                "Cancel", "Update",
+                () => {
+                    setAllDisabled(true);
+                    const ok = saveCurrentAppearanceToRestraint(r.id);
+                    if (!ok) { setAllDisabled(false); return; }
+                    updateBtn.textContent = t("core.saved");
+                    window.setTimeout(() => {
+                        updateBtn.textContent = t("core.update");
+                        setAllDisabled(false);
+                    }, 1200);
+                }
+            );
         });
 
         editBtn.addEventListener("click", () => {
@@ -9295,10 +9301,17 @@ export class EBCDrawer {
             );
 
             // Wire top save button now that getPoses/getDelay/getCommand/getAnnounce exist
-            topSaveBtn.addEventListener("click", () => {
-                updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                this.rerender();
-            });
+            const doSaveCombo = (): void => {
+                showConfirmOverlay(
+                    `Save changes to "${combo.name}"?`,
+                    "Cancel", "Save",
+                    () => {
+                        updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
+                        this.rerender();
+                    }
+                );
+            };
+            topSaveBtn.addEventListener("click", doSaveCombo);
             topSaveBar.appendChild(topSaveBtn);
 
             // Full save button at the bottom too
@@ -9308,10 +9321,7 @@ export class EBCDrawer {
             const savComboBtn = document.createElement("button");
             savComboBtn.className = "ebc-create-btn";
             savComboBtn.textContent = t("outfits.saveChanges");
-            savComboBtn.addEventListener("click", () => {
-                updateCombo(combo.id, (eNameInp as HTMLInputElement).value, getPoses(), getCommand(), getAnnounce(), getDelay());
-                this.rerender();
-            });
+            savComboBtn.addEventListener("click", doSaveCombo);
             saveBar.appendChild(savComboBtn);
             editor.appendChild(saveBar);
 
@@ -10540,10 +10550,17 @@ export class EBCDrawer {
 
             const { getSteps } = buildSceneEditor(editor, scene.steps);
 
-            topSaveBtn.addEventListener("click", () => {
-                updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                this.rerender();
-            });
+            const doSaveScene = (): void => {
+                showConfirmOverlay(
+                    `Save changes to "${scene.name}"?`,
+                    "Cancel", "Save",
+                    () => {
+                        updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
+                        this.rerender();
+                    }
+                );
+            };
+            topSaveBtn.addEventListener("click", doSaveScene);
 
             const botSaveBar = document.createElement("div");
             botSaveBar.className = "ebc-editor-save-bar";
@@ -10551,10 +10568,7 @@ export class EBCDrawer {
             const botSaveBtn = document.createElement("button");
             botSaveBtn.className = "ebc-create-btn";
             botSaveBtn.textContent = t("outfits.saveChanges");
-            botSaveBtn.addEventListener("click", () => {
-                updateScene(scene.id, eNameInp.value, getSteps(), eCmdInp.value);
-                this.rerender();
-            });
+            botSaveBtn.addEventListener("click", doSaveScene);
             botSaveBar.appendChild(botSaveBtn);
             editor.appendChild(botSaveBar);
 
