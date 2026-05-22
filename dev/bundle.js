@@ -3452,6 +3452,14 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    function resetSidebarPos() {
+        sidebarX = SIDEBAR_DEFAULT_X;
+        sidebarY = SIDEBAR_DEFAULT_Y;
+        try {
+            localStorage.removeItem(SIDEBAR_POS_KEY);
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     let sidebarCollapsed = false;
     // Per-button spam cooldown.
     // Up to SPAM_FREE_PRESSES consecutive rapid presses are allowed; the next press
@@ -28013,8 +28021,18 @@
             importToggleBtn.className = "ebc-btn-footer-btn";
             importToggleBtn.textContent = t("core.import");
             importToggleBtn.title = "Load a shared button config";
+            const resetPosBtn = document.createElement("button");
+            resetPosBtn.className = "ebc-btn-footer-btn";
+            resetPosBtn.textContent = "📌 Reset pos";
+            resetPosBtn.title = "Move the action buttons panel back to its default on-screen position";
+            resetPosBtn.addEventListener("click", () => {
+                resetSidebarPos();
+                resetPosBtn.textContent = "✓ Moved!";
+                window.setTimeout(() => { resetPosBtn.textContent = "📌 Reset pos"; }, 1500);
+            });
             ioRow.appendChild(exportBtn);
             ioRow.appendChild(importToggleBtn);
+            ioRow.appendChild(resetPosBtn);
             activeBodyEl.appendChild(ioRow);
             // Import panel (collapsible)
             const importPanel = document.createElement("div");
@@ -32350,7 +32368,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.1.3";
+    const MOD_VERSION = "4.1.4";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32361,6 +32379,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.1.4",
+            changes: [
+                "Buttons tab: added '📌 Reset pos' button (in the Export/Import row) to snap the action buttons sidebar back to its default on-screen position when it has been dragged off-screen.",
+            ],
+        },
         {
             version: "4.1.3",
             changes: [
