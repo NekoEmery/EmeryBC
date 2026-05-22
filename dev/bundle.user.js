@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      3.8.1
+// @version      3.8.2
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -13172,21 +13172,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // -- Panel opacity (persisted to localStorage) --------------------------------
     const PANEL_OPACITY_KEY = "EBC_panelOpacity";
     // ── Touch / phone mode ─────────────────────────────────────────────────────
-    // Auto-detected via pointer media query; can be forced on in the DEV tab for
-    // desktop preview. When active, a data-touch attribute is placed on the panel
-    // container and CSS !important overrides raise all tap target sizes.
+    // Auto-detected via pointer media query; can be forced on/off in the DEV tab.
+    // "1" = force ON (desktop preview), "0" = force OFF (override on real tablets),
+    // absent = auto (use device detection).  When active, a data-touch attribute is
+    // placed on the panel container and CSS !important overrides raise tap targets.
     const TOUCH_MODE_FORCE_KEY = "EBC_forceTouchMode";
     function isTouchDevice() {
         try {
             return window.matchMedia("(pointer: coarse)").matches;
-        }
-        catch (_a) {
-            return false;
-        }
-    }
-    function getForceTouchMode() {
-        try {
-            return localStorage.getItem(TOUCH_MODE_FORCE_KEY) === "1";
         }
         catch (_a) {
             return false;
@@ -13199,7 +13192,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     function isTouchModeActive() {
-        return isTouchDevice() || getForceTouchMode();
+        try {
+            const v = localStorage.getItem(TOUCH_MODE_FORCE_KEY);
+            if (v === "1")
+                return true; // explicitly forced ON
+            if (v === "0")
+                return false; // explicitly forced OFF — beats device detection
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return isTouchDevice(); // fall back to hardware detection
     }
     function applyTouchMode(panelEl) {
         if (isTouchModeActive())
@@ -25056,8 +25057,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 touchAutoSpan.textContent = isTouchDevice() ? t("dev.touchAutoOn") : t("dev.touchAutoOff");
                 const touchForceBtn = document.createElement("button");
                 const refreshTouchBtn = () => {
-                    const forced = getForceTouchMode();
-                    touchForceBtn.textContent = forced ? t("dev.touchForceOn") : t("dev.touchForceOff");
+                    const active = isTouchModeActive();
+                    touchForceBtn.textContent = active ? t("dev.touchForceOn") : t("dev.touchForceOff");
                     touchForceBtn.style.cssText = [
                         "font-family:'Trebuchet MS',serif",
                         "font-size:9px",
@@ -25066,16 +25067,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         "border-radius:4px",
                         "cursor:pointer",
                         "flex-shrink:0",
-                        "border:1px solid " + (forced ? "#cf6f98" : "#3a1928"),
-                        "background:" + (forced ? "#4a1f30" : "#100508"),
-                        "color:" + (forced ? "#f7e6ee" : "#7a5070"),
+                        "border:1px solid " + (active ? "#cf6f98" : "#3a1928"),
+                        "background:" + (active ? "#4a1f30" : "#100508"),
+                        "color:" + (active ? "#f7e6ee" : "#7a5070"),
                         "transition:background 0.14s,color 0.14s,border-color 0.14s",
                     ].join(";");
                 };
                 refreshTouchBtn();
                 touchForceBtn.addEventListener("click", () => {
                     var _a;
-                    setForceTouchMode(!getForceTouchMode());
+                    // Toggle based on the ACTUAL current state so the button always
+                    // reflects reality — on real touch devices isTouchDevice() is true,
+                    // so only an explicit "0" can turn touch mode OFF.
+                    setForceTouchMode(!isTouchModeActive());
                     refreshTouchBtn();
                     const panelEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#emerybc-panel");
                     if (panelEl)
@@ -31708,7 +31712,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     this.panelPosition = saved;
                     this.enterFreeMode(saved);
                 }
-                else if (isTouchDevice()) {
+                else if (isTouchModeActive()) {
                     // Touch devices (tablet/phone): anchor mode relies on BC's desktop chat-log
                     // layout which is completely different on mobile — auto-center the panel
                     // in free-float mode so it's always reachable and positioned sensibly.
@@ -31908,7 +31912,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.8.1";
+    const MOD_VERSION = "3.8.2";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -31919,6 +31923,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "3.8.2",
+            changes: [
+                "Fix: Phone mode toggle now actually works on real touch devices. Previously isTouchModeActive() always returned true on tablets (device detection won), so toggling it OFF had no effect. An explicit force-off ('0') now beats device detection.",
+            ],
+        },
         {
             version: "3.8.1",
             changes: [
