@@ -9275,7 +9275,7 @@ export class EBCDrawer {
             pose: "Pose",
             equip: "Equip",                      // legacy — kept for backward compat
             "equip-restraint": "Equip Restraint",
-            "equip-clothes":   "Equip Clothes",
+            "equip-clothes":   "Equip Item (clothes, props…)",
             unequip: "Unequip", emote: "Emote", chat: "Chat", wait: "Wait",
             expression: "Expression",
         };
@@ -9626,7 +9626,11 @@ export class EBCDrawer {
                     const groupSel = document.createElement("select");
                     groupSel.className = "ebc-scene-type-sel";
                     groupSel.style.cssText = "flex:1;width:auto;max-width:130px;";
-                    groupSel.title = "Item slot";
+                    groupSel.title = type === "equip-clothes"
+                        ? "Slot — includes all non-restraint items: clothes, accessories, props, laptops, etc."
+                        : type === "equip-restraint"
+                        ? "Slot — restraint items only (cuffs, gags, collars…)"
+                        : "Item slot";
                     {
                         const ph = document.createElement("option");
                         ph.value = ""; ph.textContent = "— pick slot —";

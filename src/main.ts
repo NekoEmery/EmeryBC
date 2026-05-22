@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.2.0";
+const MOD_VERSION = "4.2.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.2.1",
+        changes: [
+            "Scenes: renamed 'Equip Clothes' step type to 'Equip Item (clothes, props…)' to make it clear this step covers ALL non-restraint items — clothing, accessories, props, laptops, and any other new BC items. Slot dropdown now shows a tooltip describing what each equip type includes.",
+        ],
+    },
     {
         version: "4.2.0",
         changes: [
