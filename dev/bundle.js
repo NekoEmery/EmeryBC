@@ -31152,7 +31152,7 @@
                     const updateExprBtn = document.createElement("button");
                     updateExprBtn.className = "ebc-update-btn";
                     updateExprBtn.style.cssText += "font-size:11px;padding:2px 6px;";
-                    updateExprBtn.textContent = "↺";
+                    updateExprBtn.textContent = "Override";
                     updateExprBtn.title = "Overwrite this preset with your current face expression";
                     updateExprBtn.addEventListener("click", () => {
                         showConfirmOverlay(`Overwrite "${preset.name}" with your current face?`, "Cancel", "Update", () => {
@@ -32928,7 +32928,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.3.5";
+    const MOD_VERSION = "4.3.6";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32939,6 +32939,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.6",
+            changes: [
+                "Expression Presets: renamed ↺ button label to 'Override'.",
+            ],
+        },
         {
             version: "4.3.5",
             changes: [
