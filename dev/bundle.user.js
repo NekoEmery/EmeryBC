@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      4.3.0
+// @version      4.3.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -31111,8 +31111,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const clearAllBtn = document.createElement("button");
             clearAllBtn.className = "ebc-btn-footer-btn";
             clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:11px;";
-            clearAllBtn.textContent = "✕  Clear all expressions";
+            clearAllBtn.textContent = "↺  Reset face expression";
+            clearAllBtn.title = "Apply your default face preset (★), or clear all expressions if none is set";
             clearAllBtn.addEventListener("click", () => {
+                const defaultId = getDefaultExprPresetId();
+                if (defaultId) {
+                    const def = getExpressionPresets().find(p => p.id === defaultId);
+                    if (def) {
+                        applyExpressionPreset(def);
+                        this.rerender(150);
+                        return;
+                    }
+                }
+                // No default set — clear all groups back to neutral
                 for (const g of EXPR_GROUPS) {
                     try {
                         applyExprGroup(g, null);
@@ -32744,7 +32755,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "4.3.0";
+    const MOD_VERSION = "4.3.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32755,6 +32766,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.3.1",
+            changes: [
+                "Default friend tags: seeded on first run if no tags exist yet (BC Asset Dev, Horny boi, BC DEV, Owner with their colours).",
+                "Expressions tab: renamed 'Clear all expressions' button to 'Reset face expression'. Now applies the default face preset (★) if one is set, and only falls back to clearing all groups if no default is saved.",
+            ],
+        },
         {
             version: "4.3.0",
             changes: [
@@ -37699,6 +37717,30 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
     }
+    // Default friend tags — seeded once on first run if no tags exist yet.
+    // Members with plain-string legacy entries get wrapped with a neutral colour.
+    const DEFAULT_FRIEND_TAGS = {
+        "80": [{ text: "BC Asset Dev", color: "#9a6878" }],
+        "124961": [{ text: "Horny boi...", color: "#9a6878" }],
+        "143776": [{ text: "BC DEV", color: "#40a0b8" }],
+        "230466": [{ text: "Owner", color: "#e06060" }],
+    };
+    function seedDefaultTags() {
+        try {
+            if (!(Player === null || Player === void 0 ? void 0 : Player.ExtensionSettings))
+                return;
+            if (!Player.ExtensionSettings.EmeryBC)
+                Player.ExtensionSettings.EmeryBC = {};
+            const store = Player.ExtensionSettings.EmeryBC;
+            // Only seed if no tags have been saved at all yet
+            const existing = store.friendTags;
+            if (existing && typeof existing === "object" && Object.keys(existing).length > 0)
+                return;
+            store.friendTags = structuredClone(DEFAULT_FRIEND_TAGS);
+            syncSettings();
+        }
+        catch ( /* ignore — Player may not be ready yet */_a) { /* ignore — Player may not be ready yet */ }
+    }
     function showRoomLoadNotice() {
         if (noticeShown)
             return;
@@ -37780,6 +37822,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             catch ( /* ignore */_a) { /* ignore */ } }, 600);
             // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
             migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => { });
+            // Seed default friend tags on first run (no-op if tags already exist)
+            window.setTimeout(() => { try {
+                seedDefaultTags();
+            }
+            catch ( /* ignore */_a) { /* ignore */ } }, 1200);
         }
         catch (err) {
             console.warn("[EBC] Drawer failed to initialise:", err);
