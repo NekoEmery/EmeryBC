@@ -3342,6 +3342,10 @@ function addPointerDown(
 }
 
 // Add move+end listeners to document for both mouse and touch, returning a cleanup fn.
+// Touch listeners use the CAPTURE phase so they fire before any stopPropagation()
+// calls lower in the tree (e.g. the slideContainer's stopTouch guard that prevents
+// BC from calling preventDefault on scroll events — without capture, those guards
+// eat the touchmove before it ever reaches our drag handler).
 function addPointerTracking(
     onMove: (pos: { clientX: number; clientY: number }) => void,
     onEnd:  (pos: { clientX: number; clientY: number }) => void,
@@ -3357,13 +3361,13 @@ function addPointerTracking(
     const cleanup = (): void => {
         document.removeEventListener("mousemove", moveH);
         document.removeEventListener("mouseup",   endH);
-        document.removeEventListener("touchmove", moveH);
-        document.removeEventListener("touchend",  endH);
+        document.removeEventListener("touchmove", moveH, { capture: true } as EventListenerOptions);
+        document.removeEventListener("touchend",  endH,  { capture: true } as EventListenerOptions);
     };
     document.addEventListener("mousemove", moveH);
     document.addEventListener("mouseup",   endH);
-    document.addEventListener("touchmove", moveH, { passive: false });
-    document.addEventListener("touchend",  endH);
+    document.addEventListener("touchmove", moveH, { passive: false, capture: true });
+    document.addEventListener("touchend",  endH,  { capture: true });
     return cleanup;
 }
 
