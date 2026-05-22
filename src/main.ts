@@ -22,7 +22,7 @@ import { LUCY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import bcModSdk from "bondage-club-mod-sdk";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "4.1.0";
+const MOD_VERSION = "4.1.1";
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -36,6 +36,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "4.1.1",
+        changes: [
+            "Expressions (Anims tab): completely reworked the UI. Replaced the dropdown-based picker with a live face-builder — each expression group (Blush, Eyes, Eyes R, Mouth, Eyebrows, Fluids, Emoticon, Tears) now shows a row of clickable buttons. Clicking a button applies the expression immediately and highlights the active choice in pink. A '—' button at the start of each row clears that group. Save current face as a named preset with the name input + Save button. Presets section (shown when presets exist) lists saved faces with ✓ Apply, inline rename, ★ default, × delete. Triggers section is unchanged.",
+        ],
+    },
     {
         version: "3.9.1",
         changes: [

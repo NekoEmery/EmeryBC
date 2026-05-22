@@ -12331,6 +12331,61 @@
             return null;
         }
     }
+    // -- Expression option discovery -----------------------------------------------
+    // Query BC's runtime Asset array for all expression options in a group.
+    // Falls back to a hardcoded list if the global isn't available.
+    const EXPR_FALLBACK = {
+        Blush: ["Low", "Medium", "High", "VeryHigh", "Extreme", "ShortBreath"],
+        Emoticon: [
+            "Afk", "Whisper", "Sleep", "Hearts", "Tear", "Hearing", "Confusion",
+            "Exclamation", "Annoyed", "Read", "RaisedHand", "Spectator",
+            "ThumbsDown", "ThumbsUp", "LoveRope", "LoveGag", "LoveLock",
+            "Wardrobe", "Gaming",
+        ],
+        Eyebrows: ["Raised", "Lowered", "OneRaised", "Harsh", "Angry", "Soft"],
+        Eyes: [
+            "Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd",
+            "Heart", "HeartPink", "LewdHeart", "LewdHeartPink",
+            "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared",
+        ],
+        Eyes2: [
+            "Closed", "Dazed", "Shy", "Sad", "Horny", "Lewd", "VeryLewd",
+            "Heart", "HeartPink", "LewdHeart", "LewdHeartPink",
+            "Dizzy", "Daydream", "ShylyHappy", "Angry", "Surprised", "Scared",
+        ],
+        Fluids: [
+            "DroolLow", "DroolMedium", "DroolHigh", "DroolSides", "DroolMessy",
+            "DroolTearsLow", "DroolTearsMedium", "DroolTearsHigh",
+            "DroolTearsMessy", "DroolTearsSides",
+            "TearsHigh", "TearsMedium", "TearsLow",
+        ],
+        Mouth: [
+            "Frown", "Sad", "Pained", "Angry", "HalfOpen", "Open",
+            "Ahegao", "Moan", "TonguePinch", "LipBite",
+            "Happy", "Devious", "Laughing", "Grin", "Smirk", "Pout",
+        ],
+        Tears: ["Crying", "HeavyCrying", "Tear1", "Tear2", "Tear3"],
+    };
+    function getExprGroupOptions(group) {
+        var _a, _b;
+        try {
+            const bcAsset = window.Asset;
+            if (Array.isArray(bcAsset)) {
+                const family = (_a = Player === null || Player === void 0 ? void 0 : Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
+                // Family lives on the Group in BC, not on the Asset itself.
+                // Accept any asset whose group name matches and whose group family
+                // is either the player's family or unset (shared assets).
+                const opts = bcAsset
+                    .filter(a => a.Group.Name === group &&
+                    (a.Group.Family === family || !a.Group.Family))
+                    .map(a => a.Name);
+                if (opts.length > 0)
+                    return opts;
+            }
+        }
+        catch ( /* fall through */_c) { /* fall through */ }
+        return (_b = EXPR_FALLBACK[group]) !== null && _b !== void 0 ? _b : [];
+    }
     // -- Single-expression apply ---------------------------------------------------
     // Uses CharacterSetFacialExpression (BC's proper API) if available,
     // otherwise falls back to direct Appearance manipulation.
@@ -13134,6 +13189,59 @@
         { label: "🐱 All fours", poses: ["AllFours"] },
         { label: "🙌 Hands up", poses: ["OverTheHead"] },
     ];
+    /**
+     * Normalise a string for fuzzy search:
+     *  1. NFKD decomposition — collapses full-width/circled/squared compatibility
+     *     chars and splits diacritics into combining marks.
+     *  2. Strip combining diacritical marks → é→e, ñ→n, ü→u …
+     *  3. Map Mathematical Alphanumeric Symbol code-points (U+1D400-U+1D7C3) back
+     *     to their plain ASCII equivalents — covers every style BC players use:
+     *     Bold, Italic, Bold Italic, Script, Bold Script, Fraktur, Double-struck,
+     *     Sans-serif (regular / Bold / Italic / Bold Italic), and Monospace.
+     *
+     * Result is NOT lowercased — callers should chain .toLowerCase() as needed.
+     */
+    function normalizeForSearch(s) {
+        if (!s)
+            return s;
+        try {
+            s = s.normalize("NFKD");
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        // Strip combining diacritical marks
+        s = s.replace(/[̀-ͯ᷀-᷿⃐-⃿]/g, "");
+        // Mathematical Alphanumeric Symbols: each style has a capital block (A-Z)
+        // followed (or preceded by 26 chars) by a lowercase block (a-z).
+        // Format: [capitalBlockStart, lowercaseBlockStart]
+        const MATH_STYLES = [
+            [0x1D400, 0x1D41A], // Bold
+            [0x1D434, 0x1D44E], // Italic
+            [0x1D468, 0x1D482], // Bold Italic
+            [0x1D49C, 0x1D4B6], // Script
+            [0x1D4D0, 0x1D4EA], // Bold Script   ← 𝓓𝓙 lives here
+            [0x1D504, 0x1D51E], // Fraktur
+            [0x1D538, 0x1D552], // Double-struck
+            [0x1D56C, 0x1D586], // Bold Fraktur
+            [0x1D5A0, 0x1D5BA], // Sans-serif
+            [0x1D5D4, 0x1D5EE], // Sans-serif Bold
+            [0x1D608, 0x1D622], // Sans-serif Italic
+            [0x1D63C, 0x1D656], // Sans-serif Bold Italic
+            [0x1D670, 0x1D68A], // Monospace
+        ];
+        return [...s].map(ch => {
+            var _a;
+            const cp = (_a = ch.codePointAt(0)) !== null && _a !== void 0 ? _a : 0;
+            if (cp < 0x1D400 || cp > 0x1D7C3)
+                return ch;
+            for (const [cap, low] of MATH_STYLES) {
+                if (cp >= cap && cp < cap + 26)
+                    return String.fromCharCode(65 + cp - cap); // → A-Z
+                if (cp >= low && cp < low + 26)
+                    return String.fromCharCode(97 + cp - low); // → a-z
+            }
+            return ch;
+        }).join("");
+    }
     function getGroupAssets(group) {
         try {
             const w = window;
@@ -21782,6 +21890,9 @@
             // ── SCENES (collapsible) ─────────────────────────────────────────────
             const scenesCnt = makeCollapse(t("anims.scenes"), "EBC_scenesCollapsed", false);
             this.renderScenes(scenesCnt);
+            // ── EXPRESSIONS (collapsible) ────────────────────────────────────────
+            const exprCnt = makeCollapse("Expressions", "EBC_animsExprsCollapsed", true);
+            this.renderExpressions(exprCnt);
         }
         renderScenes(body) {
             var _a, _b, _c, _d, _e;
@@ -22015,52 +22126,61 @@
                     while (fieldsEl.firstChild)
                         fieldsEl.removeChild(fieldsEl.firstChild);
                     if (type === "pose") {
-                        const row = document.createElement("div");
-                        row.className = "ebc-scene-fields-row";
-                        const makeAxisDropdown = (label, poses, currentKey, dataAttr) => {
-                            const wrap = document.createElement("div");
-                            wrap.style.cssText = "display:flex;align-items:center;gap:4px;";
-                            const lbl = document.createElement("span");
-                            lbl.style.cssText = "font-size:10px;color:#9a6878;";
-                            lbl.textContent = label + ":";
-                            const sel = document.createElement("select");
-                            sel.className = "ebc-scene-type-sel";
-                            sel.style.width = "90px";
-                            sel.dataset.axis = dataAttr;
-                            // "Relaxed" option for arms axis (value="" = no arm pose)
-                            if (dataAttr === "arms") {
-                                const none = document.createElement("option");
-                                none.value = "";
-                                none.textContent = "Relaxed";
-                                none.selected = currentKey === "";
-                                sel.appendChild(none);
-                            }
-                            for (const p of poses) {
-                                if (dataAttr === "body" || p.key !== "") {
-                                    const opt = document.createElement("option");
-                                    opt.value = p.key;
-                                    opt.textContent = p.label;
-                                    opt.selected = p.key === currentKey;
-                                    sel.appendChild(opt);
-                                }
-                            }
-                            sel.addEventListener("change", () => {
-                                var _a, _b, _c, _d;
-                                const bKey = (_b = (_a = fieldsEl.querySelector("[data-axis='body']")) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : "";
-                                const aKey = (_d = (_c = fieldsEl.querySelector("[data-axis='arms']")) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : "";
-                                // Keep "" for arms (Relaxed) — applyPoses strips arm poses when it sees ""
-                                posePoses = [bKey, aKey];
-                            });
-                            wrap.appendChild(lbl);
-                            wrap.appendChild(sel);
-                            row.appendChild(wrap);
-                            return sel;
+                        const poseGridWrap = document.createElement("div");
+                        poseGridWrap.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+                        let curBody = (_a = posePoses.find(k => bodyPoses.some(p => p.key === k))) !== null && _a !== void 0 ? _a : "";
+                        let curArms = (_b = posePoses.find(k => armPoses.some(p => p.key === k && p.key !== ""))) !== null && _b !== void 0 ? _b : "";
+                        const POSE_BTN = "font-family:'Trebuchet MS',serif;font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
+                        const POSE_ON = "background:#4a1f30;border:1px solid #cf6f98;color:#f7e6ee;";
+                        const POSE_OFF = "background:#1b0d17;border:1px solid #3a1928;color:#9a6878;";
+                        const poseBodyBtns = new Map();
+                        const poseArmBtns = new Map();
+                        const syncPoseHighlight = () => {
+                            for (const [k, b] of poseBodyBtns)
+                                b.style.cssText = POSE_BTN + (k === curBody ? POSE_ON : POSE_OFF);
+                            for (const [k, b] of poseArmBtns)
+                                b.style.cssText = POSE_BTN + (k === curArms ? POSE_ON : POSE_OFF);
+                            // Build posePoses without stray "" so Stand+arm works correctly in applyPoses
+                            const parts = [];
+                            if (curBody !== "")
+                                parts.push(curBody);
+                            if (curArms !== "")
+                                parts.push(curArms);
+                            posePoses = parts;
                         };
-                        const curBody = (_a = posePoses.find(k => bodyPoses.some(p => p.key === k))) !== null && _a !== void 0 ? _a : "";
-                        const curArms = (_b = posePoses.find(k => armPoses.some(p => p.key === k && p.key !== ""))) !== null && _b !== void 0 ? _b : "";
-                        makeAxisDropdown("Body", bodyPoses, curBody, "body");
-                        makeAxisDropdown("Arms", armPoses, curArms, "arms");
-                        fieldsEl.appendChild(row);
+                        const makePoseGroup = (label, poses, isArms) => {
+                            const lbl = document.createElement("div");
+                            lbl.style.cssText = "font-size:9px;color:#8a4460;font-family:'Trebuchet MS',serif;margin-top:2px;";
+                            lbl.textContent = label;
+                            poseGridWrap.appendChild(lbl);
+                            const row = document.createElement("div");
+                            row.style.cssText = "display:flex;flex-wrap:wrap;gap:3px;";
+                            for (const p of poses) {
+                                const btn = document.createElement("button");
+                                btn.textContent = p.label;
+                                btn.addEventListener("click", () => {
+                                    if (isArms) {
+                                        curArms = p.key;
+                                    }
+                                    else {
+                                        curBody = p.key;
+                                    }
+                                    syncPoseHighlight();
+                                });
+                                if (isArms) {
+                                    poseArmBtns.set(p.key, btn);
+                                }
+                                else {
+                                    poseBodyBtns.set(p.key, btn);
+                                }
+                                row.appendChild(btn);
+                            }
+                            poseGridWrap.appendChild(row);
+                        };
+                        makePoseGroup("BODY", bodyPoses, false);
+                        makePoseGroup("ARMS", armPoses, true);
+                        syncPoseHighlight();
+                        fieldsEl.appendChild(poseGridWrap);
                     }
                     else if (type === "equip" || type === "equip-restraint" || type === "equip-clothes") {
                         const grpFilter = type === "equip-restraint" ? "restraint"
@@ -23529,50 +23649,90 @@
                 body.removeChild(body.firstChild);
             // ── Messages dropdown ─────────────────────────────────────────────────
             this.renderMessagesDropdown(body);
-            // ── AFK auto-reply ────────────────────────────────────────────────────
+            // ── Chat & Notifications ──────────────────────────────────────────────
+            let chatSettingsCollapsed = true;
+            try {
+                chatSettingsCollapsed = localStorage.getItem("EBC_chatSettingsCollapsed") !== "0";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            const chatSettingsHeader = document.createElement("div");
+            chatSettingsHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
+            const chatSettingsLbl = document.createElement("div");
+            chatSettingsLbl.className = "ebc-section-label";
+            chatSettingsLbl.style.margin = "0";
+            chatSettingsLbl.textContent = "Chat and notifications";
+            const chatSettingsChevron = document.createElement("span");
+            chatSettingsChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
+            chatSettingsHeader.appendChild(chatSettingsLbl);
+            chatSettingsHeader.appendChild(chatSettingsChevron);
+            body.appendChild(chatSettingsHeader);
+            const chatSettingsBody = document.createElement("div");
+            chatSettingsBody.style.cssText = "padding:6px 0 2px 0;display:flex;flex-direction:column;gap:7px;";
+            // Helper: build a [label ......... ON/OFF] toggle row
+            const mkToggleRow = (label, getVal, setVal, onAfterToggle) => {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:8px;";
+                const lbl = document.createElement("span");
+                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
+                lbl.textContent = label;
+                const btn = document.createElement("button");
+                const refresh = () => {
+                    const on = getVal();
+                    btn.textContent = on ? t("core.on") : t("core.off");
+                    btn.style.cssText = [
+                        "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
+                        "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                        "background:" + (on ? "#4a1f30" : "#100508"),
+                        "color:" + (on ? "#f7e6ee" : "#4c2537"),
+                        "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                    ].join(";");
+                };
+                refresh();
+                btn.addEventListener("click", () => { setVal(!getVal()); refresh(); });
+                row.appendChild(lbl);
+                row.appendChild(btn);
+                return row;
+            };
+            // Mute beep sounds
+            chatSettingsBody.appendChild(mkToggleRow("Mute beep sounds", getBeepMuted, (v) => setBeepMuted(v)));
+            // Show beeps in BC chat (inverted: suppressed=true means hidden from chat)
+            chatSettingsBody.appendChild(mkToggleRow("Show beeps in BC chat", () => !getSuppressNativeBeep(), (v) => {
+                setSuppressNativeBeep(!v);
+                // keep the icon in any open beep windows in sync
+                for (const { el } of this.beepWins.values()) {
+                    const fn = el._refreshSuppressBtn;
+                    try {
+                        fn === null || fn === void 0 ? void 0 : fn();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                }
+            }));
+            // ── AFK sub-section (nested collapsible) ──────────────────────────────
+            const afkSubDiv = document.createElement("div");
+            afkSubDiv.className = "ebc-divider";
+            afkSubDiv.style.margin = "2px 0";
+            chatSettingsBody.appendChild(afkSubDiv);
             let afkCollapsed = true;
             try {
                 afkCollapsed = localStorage.getItem("EBC_afkCollapsed") !== "0";
             }
-            catch ( /* ignore */_b) { /* ignore */ }
-            const afkHeader = document.createElement("div");
-            afkHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
-            const afkLbl = document.createElement("div");
-            afkLbl.className = "ebc-section-label";
-            afkLbl.style.margin = "0";
-            afkLbl.textContent = t("settings.afkAutoReply");
+            catch ( /* ignore */_c) { /* ignore */ }
+            const afkSubHeader = document.createElement("div");
+            afkSubHeader.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;";
+            const afkSubLbl = document.createElement("span");
+            afkSubLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;font-weight:bold;";
+            afkSubLbl.textContent = t("settings.afkAutoReply");
             const afkChevron = document.createElement("span");
             afkChevron.style.cssText = "font-size:10px;color:#7a5060;cursor:pointer;padding:0 4px;";
-            afkHeader.appendChild(afkLbl);
-            afkHeader.appendChild(afkChevron);
-            body.appendChild(afkHeader);
+            afkSubHeader.appendChild(afkSubLbl);
+            afkSubHeader.appendChild(afkChevron);
+            chatSettingsBody.appendChild(afkSubHeader);
             const afkBody = document.createElement("div");
-            afkBody.style.cssText = "padding:6px 0 2px 0;display:flex;flex-direction:column;gap:7px;";
-            // ON/OFF row
-            const afkToggleRow = document.createElement("div");
-            afkToggleRow.style.cssText = "display:flex;align-items:center;gap:8px;";
-            const afkToggleLbl = document.createElement("span");
-            afkToggleLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;flex:1;";
-            afkToggleLbl.textContent = t("users.autoReplyWhenAfk");
-            const afkToggleBtn = document.createElement("button");
-            const refreshAfkToggle = () => {
-                const on = getAfkEnabled();
-                afkToggleBtn.textContent = on ? t("core.on") : t("core.off");
-                afkToggleBtn.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:9px", "font-weight:bold",
-                    "padding:1px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
-                    "background:" + (on ? "#4a1f30" : "#100508"),
-                    "color:" + (on ? "#f7e6ee" : "#4c2537"),
-                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
-                ].join(";");
-            };
-            refreshAfkToggle();
-            afkToggleBtn.addEventListener("click", () => { setAfkEnabled(!getAfkEnabled()); refreshAfkToggle(); });
-            afkToggleRow.appendChild(afkToggleLbl);
-            afkToggleRow.appendChild(afkToggleBtn);
-            afkBody.appendChild(afkToggleRow);
-            // Threshold — label row + h/m/s inputs on separate row
+            afkBody.style.cssText = "padding:4px 0 0 0;display:flex;flex-direction:column;gap:7px;";
+            // AFK ON/OFF
+            afkBody.appendChild(mkToggleRow(t("users.autoReplyWhenAfk"), getAfkEnabled, (v) => setAfkEnabled(v)));
+            // Threshold — label row + h/m/s inputs
             const afkThreshLbl = document.createElement("div");
             afkThreshLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;margin-bottom:4px;";
             afkThreshLbl.textContent = t("settings.idleThreshold");
@@ -23586,7 +23746,6 @@
                 inp.min = "0";
                 inp.max = String(max);
                 inp.style.cssText = inputCss;
-                // format as 2-digit on blur
                 inp.addEventListener("blur", () => {
                     const v = Math.max(0, Math.min(max, parseInt(inp.value, 10) || 0));
                     inp.value = String(v).padStart(2, "0");
@@ -23630,7 +23789,7 @@
             afkThreshRow.appendChild(sLbl);
             afkBody.appendChild(afkThreshLbl);
             afkBody.appendChild(afkThreshRow);
-            // Message row
+            // Message
             const afkMsgLbl = document.createElement("div");
             afkMsgLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a6878;";
             afkMsgLbl.textContent = t("settings.afkReplyMsg");
@@ -23643,7 +23802,7 @@
             afkMsgArea.style.cssText = "width:100%;box-sizing:border-box;font-family:'Trebuchet MS',serif;font-size:10px;padding:4px 6px;border-radius:4px;border:1px solid #3a1928;background:#130810;color:#f7e6ee;resize:vertical;";
             afkMsgArea.addEventListener("change", () => { setAfkMessage(afkMsgArea.value); });
             afkBody.appendChild(afkMsgArea);
-            // Hint
+            // Hints
             const afkHintBeep = document.createElement("div");
             afkHintBeep.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a5a6a;";
             afkHintBeep.textContent = t("settings.afkHintBeep");
@@ -23663,19 +23822,33 @@
             };
             afkChevron.textContent = afkCollapsed ? "▲" : "▼";
             afkBody.style.display = afkCollapsed ? "none" : "flex";
-            afkHeader.addEventListener("click", toggleAfkCollapsed);
-            body.appendChild(afkBody);
+            afkSubHeader.addEventListener("click", toggleAfkCollapsed);
+            chatSettingsBody.appendChild(afkBody);
+            // Outer collapse/expand
+            const toggleChatSettings = () => {
+                chatSettingsCollapsed = !chatSettingsCollapsed;
+                chatSettingsBody.style.display = chatSettingsCollapsed ? "none" : "flex";
+                chatSettingsChevron.textContent = chatSettingsCollapsed ? "▲" : "▼";
+                try {
+                    localStorage.setItem("EBC_chatSettingsCollapsed", chatSettingsCollapsed ? "1" : "0");
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            chatSettingsChevron.textContent = chatSettingsCollapsed ? "▲" : "▼";
+            chatSettingsBody.style.display = chatSettingsCollapsed ? "none" : "flex";
+            chatSettingsHeader.addEventListener("click", toggleChatSettings);
+            body.appendChild(chatSettingsBody);
             // ── Divider ───────────────────────────────────────────────────────────
-            const afkDiv = document.createElement("div");
-            afkDiv.className = "ebc-divider";
-            body.appendChild(afkDiv);
+            const chatSettingsDiv = document.createElement("div");
+            chatSettingsDiv.className = "ebc-divider";
+            body.appendChild(chatSettingsDiv);
             const notes = getNotes();
             // ── Collapsible "User Notes" header ──────────────────────────────────
             let userNotesCollapsed = true;
             try {
                 userNotesCollapsed = localStorage.getItem("EBC_userNotesCollapsed") !== "0";
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
             const userNotesHeaderRow = document.createElement("div");
             userNotesHeaderRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;";
             const userNotesLbl = document.createElement("div");
@@ -24115,12 +24288,27 @@
                 searchInput.value = this.friendSearch;
                 searchInput.className = "ebc-form-input";
                 searchInput.style.cssText = "flex:1;min-width:0;font-size:10px;padding:4px 8px;";
+                searchInput.dataset.ebcRole = "friend-search";
+                // Prevent BC's document-level key handler stealing focus while typing
+                searchInput.addEventListener("keydown", (e) => { e.stopPropagation(); });
                 searchInput.addEventListener("input", () => {
+                    var _a, _b;
                     this.friendSearch = searchInput.value;
+                    // Capture cursor position before the rebuild destroys this element
+                    const sel = [(_a = searchInput.selectionStart) !== null && _a !== void 0 ? _a : 0, (_b = searchInput.selectionEnd) !== null && _b !== void 0 ? _b : 0];
                     try {
                         this.renderFriendRows(body);
                     }
-                    catch ( /* ignore */_a) { /* ignore */ }
+                    catch ( /* ignore */_c) { /* ignore */ }
+                    // Restore focus + cursor to the freshly-created search input
+                    const reborn = body.querySelector('[data-ebc-role="friend-search"]');
+                    if (reborn) {
+                        reborn.focus();
+                        try {
+                            reborn.setSelectionRange(sel[0], sel[1]);
+                        }
+                        catch ( /* ignore */_d) { /* ignore */ }
+                    }
                 });
                 const clearSearchBtn = document.createElement("button");
                 clearSearchBtn.textContent = "×";
@@ -24134,6 +24322,9 @@
                         this.renderFriendRows(body);
                     }
                     catch ( /* ignore */_a) { /* ignore */ }
+                    const reborn = body.querySelector('[data-ebc-role="friend-search"]');
+                    if (reborn)
+                        reborn.focus();
                 });
                 searchRow.appendChild(searchInput);
                 searchRow.appendChild(clearSearchBtn);
@@ -24175,12 +24366,15 @@
                         }
                     }
                 });
-                // Build search filter — matches name or member number, case-insensitive
-                const query = this.friendSearch.trim().toLowerCase();
+                // Build search filter — matches name or member number, case-insensitive.
+                // normalizeForSearch strips diacritics and maps fancy Unicode letters
+                // (𝓓𝓙, 𝕯𝕵, 𝗗𝗝 …) to their plain ASCII equivalents so "dj" finds "𝓓𝓙".
+                const query = normalizeForSearch(this.friendSearch.trim()).toLowerCase();
                 const matchesSearch = (n) => {
                     if (!query)
                         return true;
-                    return resolveName(n).toLowerCase().includes(query) || String(n).includes(query);
+                    const normName = normalizeForSearch(resolveName(n)).toLowerCase();
+                    return normName.includes(query) || String(n).includes(this.friendSearch.trim());
                 };
                 // Split into always-visible (pinned or online/room) and offline.
                 // Within offline: named friends (real cached name) sort before number-only entries.
@@ -26503,9 +26697,10 @@
                         while (listEl.firstChild)
                             listEl.removeChild(listEl.firstChild);
                         const all = getPeopleMet();
-                        const q = searchInp.value.trim().toLowerCase();
+                        const rawQ = searchInp.value.trim();
+                        const q = normalizeForSearch(rawQ).toLowerCase();
                         const filtered = q
-                            ? all.filter(p => p.name.toLowerCase().includes(q) || String(p.n).includes(q))
+                            ? all.filter(p => normalizeForSearch(p.name).toLowerCase().includes(q) || String(p.n).includes(rawQ))
                             : all;
                         countLbl.textContent = `${filtered.length} / ${all.length} people`;
                         if (filtered.length === 0) {
@@ -30127,7 +30322,7 @@
             body.appendChild(exprWrap2);
         }
         renderExpressions(container) {
-            var _a, _b, _c;
+            var _a, _b;
             const body = container !== null && container !== void 0 ? container : (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-body");
             if (!body)
                 return;
@@ -30136,65 +30331,139 @@
                     body.removeChild(body.firstChild);
             }
             const F = "font-family:'Trebuchet MS',serif;font-size:";
-            const BTN_BASE = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;`;
-            // ── Presets section ───────────────────────────────────────────────────
-            const presetsLbl = document.createElement("div");
-            presetsLbl.className = "ebc-section-label";
-            presetsLbl.textContent = "Presets";
-            body.appendChild(presetsLbl);
-            const defaultId = getDefaultExprPresetId();
-            const presets = getExpressionPresets();
-            if (presets.length === 0) {
-                const hint = document.createElement("div");
-                hint.style.cssText = `${F}9px;color:#6a4a5e;margin-bottom:6px;`;
-                hint.textContent = "No presets yet — save your current face below.";
-                body.appendChild(hint);
-            }
-            else {
-                // Quick-apply dropdown
-                const quickRow = document.createElement("div");
-                quickRow.style.cssText = "display:flex;gap:5px;margin-bottom:6px;align-items:center;";
-                const quickSel = document.createElement("select");
-                quickSel.className = "ebc-form-input";
-                quickSel.style.cssText += "flex:1;min-width:0;font-size:9px;";
-                const qPh = document.createElement("option");
-                qPh.value = "";
-                qPh.textContent = "— pick face to apply —";
-                qPh.disabled = true;
-                qPh.selected = true;
-                quickSel.appendChild(qPh);
-                for (const p of presets) {
-                    const o = document.createElement("option");
-                    o.value = p.id;
-                    o.textContent = p.name;
-                    quickSel.appendChild(o);
+            // Helper: read currently active expression for a group
+            const getActiveExpr = (group) => {
+                var _a;
+                try {
+                    const it = Player.Appearance.find((i) => i.Asset.Group.Name === group);
+                    if (!it)
+                        return null;
+                    const pExpr = (_a = it.Property) === null || _a === void 0 ? void 0 : _a.Expression;
+                    return pExpr || it.Asset.Name || null;
                 }
-                const quickApplyBtn = document.createElement("button");
-                quickApplyBtn.className = "ebc-create-btn";
-                quickApplyBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:3px 8px;";
-                quickApplyBtn.textContent = "✓ Apply";
-                quickApplyBtn.addEventListener("click", () => {
-                    const p = presets.find(pr => pr.id === quickSel.value);
-                    if (p) {
-                        applyExpressionPreset(p);
-                        this.rerender(150);
+                catch (_b) {
+                    return null;
+                }
+            };
+            // ── FACE BUILDER ─────────────────────────────────────────────────────────
+            const builderLbl = document.createElement("div");
+            builderLbl.className = "ebc-section-label";
+            builderLbl.textContent = "FACE BUILDER";
+            builderLbl.style.marginBottom = "5px";
+            body.appendChild(builderLbl);
+            const hintEl = document.createElement("div");
+            hintEl.style.cssText = `${F}8px;color:#5a3a5a;margin-bottom:7px;`;
+            hintEl.textContent = "Click any button to apply live. — = clear that group.";
+            body.appendChild(hintEl);
+            for (const group of EXPR_GROUPS) {
+                const groupRow = document.createElement("div");
+                groupRow.style.cssText = "display:flex;align-items:flex-start;gap:4px;margin-bottom:4px;";
+                const lbl = document.createElement("div");
+                lbl.style.cssText = `${F}8px;color:#9a6aaa;flex-shrink:0;width:44px;padding-top:3px;text-align:right;`;
+                lbl.textContent = (_b = EXPR_GROUP_LABELS[group]) !== null && _b !== void 0 ? _b : group;
+                groupRow.appendChild(lbl);
+                const btnGrid = document.createElement("div");
+                btnGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0;";
+                const currentExpr = getActiveExpr(group);
+                const allBtns = [];
+                const setHighlight = (active) => {
+                    for (const b of allBtns) {
+                        const on = b === active;
+                        b.style.background = on ? "#5a1e3a" : "#16081a";
+                        b.style.borderColor = on ? "#cf6f98" : "#361525";
+                        b.style.color = on ? "#f7c0d8" : "#7a4a6e";
                     }
-                });
-                quickRow.appendChild(quickSel);
-                quickRow.appendChild(quickApplyBtn);
-                body.appendChild(quickRow);
+                };
+                const mkExprBtn = (name) => {
+                    var _a;
+                    const btn = document.createElement("button");
+                    btn.textContent = name !== null && name !== void 0 ? name : "—";
+                    btn.title = name !== null && name !== void 0 ? name : `Clear ${(_a = EXPR_GROUP_LABELS[group]) !== null && _a !== void 0 ? _a : group}`;
+                    const isActive = name === null ? currentExpr === null : name === currentExpr;
+                    btn.style.cssText = `${F}8px;padding:1px 5px;border-radius:3px;cursor:pointer;flex-shrink:0;font-family:'Trebuchet MS',serif;` +
+                        (isActive
+                            ? "background:#5a1e3a;border:1px solid #cf6f98;color:#f7c0d8;"
+                            : "background:#16081a;border:1px solid #361525;color:#7a4a6e;");
+                    btn.addEventListener("click", () => {
+                        applyExprGroup(group, name);
+                        setHighlight(btn);
+                    });
+                    return btn;
+                };
+                // "—" (clear) button first, then all expression options
+                const noneBtn = mkExprBtn(null);
+                allBtns.push(noneBtn);
+                btnGrid.appendChild(noneBtn);
+                for (const opt of getExprGroupOptions(group)) {
+                    const b = mkExprBtn(opt);
+                    allBtns.push(b);
+                    btnGrid.appendChild(b);
+                }
+                groupRow.appendChild(btnGrid);
+                body.appendChild(groupRow);
+            }
+            // ── Save & Clear ──────────────────────────────────────────────────────────
+            const saveDiv1 = document.createElement("div");
+            saveDiv1.className = "ebc-divider";
+            saveDiv1.style.margin = "8px 0 6px";
+            body.appendChild(saveDiv1);
+            const saveRow = document.createElement("div");
+            saveRow.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:5px;";
+            const captureInput = Object.assign(document.createElement("input"), {
+                type: "text", maxLength: 30, placeholder: "Preset name…",
+            });
+            captureInput.className = "ebc-form-input";
+            captureInput.style.cssText = "flex:1;min-width:0;font-size:9px;";
+            const savePresetBtn = document.createElement("button");
+            savePresetBtn.className = "ebc-create-btn";
+            savePresetBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:3px 8px;";
+            savePresetBtn.textContent = "💾 Save face";
+            savePresetBtn.addEventListener("click", () => {
+                const name = captureInput.value.trim() || "Preset";
+                saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
+                captureInput.value = "";
+                this.rerender();
+            });
+            saveRow.appendChild(captureInput);
+            saveRow.appendChild(savePresetBtn);
+            body.appendChild(saveRow);
+            const clearAllBtn = document.createElement("button");
+            clearAllBtn.className = "ebc-btn-footer-btn";
+            clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:9px;";
+            clearAllBtn.textContent = "✕  Clear all expressions";
+            clearAllBtn.addEventListener("click", () => {
+                for (const g of EXPR_GROUPS) {
+                    try {
+                        applyExprGroup(g, null);
+                    }
+                    catch ( /* skip */_a) { /* skip */ }
+                }
+                this.rerender(150);
+            });
+            body.appendChild(clearAllBtn);
+            // ── Presets ───────────────────────────────────────────────────────────────
+            const presets = getExpressionPresets();
+            if (presets.length > 0) {
+                const presetDiv = document.createElement("div");
+                presetDiv.className = "ebc-divider";
+                presetDiv.style.margin = "8px 0 5px";
+                body.appendChild(presetDiv);
+                const presetsLbl = document.createElement("div");
+                presetsLbl.className = "ebc-section-label";
+                presetsLbl.textContent = "PRESETS";
+                presetsLbl.style.marginBottom = "5px";
+                body.appendChild(presetsLbl);
+                const defaultId = getDefaultExprPresetId();
                 const presetList = document.createElement("div");
-                presetList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;";
+                presetList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:4px;";
                 for (const preset of presets) {
                     const pRow = document.createElement("div");
                     pRow.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(30,10,25,0.6);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;";
-                    // ✓ Apply
                     const applyBtn = document.createElement("button");
-                    applyBtn.style.cssText = BTN_BASE + "border:1px solid #5a2840;background:#3a1020;color:#cf6f98;";
-                    applyBtn.textContent = "✓";
+                    applyBtn.style.cssText = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
+                    applyBtn.textContent = "✓ Apply";
                     applyBtn.title = "Apply this preset";
                     applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
-                    // Name — editable inline; click to rename
                     const nameEl = document.createElement("input");
                     nameEl.type = "text";
                     nameEl.value = preset.name;
@@ -30216,25 +30485,20 @@
                             saveExpressionPresets(all);
                         }
                     });
-                    // ★ Default
                     const isDefault = preset.id === defaultId;
                     const defaultBtn = document.createElement("button");
                     defaultBtn.style.cssText = `${F}12px;background:none;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;color:${isDefault ? "#f0c040" : "#4a3040"};`;
                     defaultBtn.textContent = "★";
-                    defaultBtn.title = isDefault
-                        ? "This is your default face — click to unset"
-                        : "Set as default face (reverts here after timed expressions)";
+                    defaultBtn.title = isDefault ? "Default face — click to unset" : "Set as default face";
                     defaultBtn.addEventListener("click", () => {
                         setDefaultExprPresetId(isDefault ? null : preset.id);
                         this.rerender();
                     });
-                    // × Delete
                     const delBtn = document.createElement("button");
                     delBtn.className = "ebc-outfit-del";
                     delBtn.textContent = "×";
                     delBtn.title = "Delete preset";
                     delBtn.addEventListener("click", () => {
-                        // Remove preset; if it was the default, clear the default too
                         if (preset.id === getDefaultExprPresetId())
                             setDefaultExprPresetId(null);
                         saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
@@ -30248,61 +30512,6 @@
                 }
                 body.appendChild(presetList);
             }
-            // ── Live face preview: shows what expressions are currently active ──
-            {
-                const activeParts = [];
-                for (const g of EXPR_GROUPS) {
-                    try {
-                        const it = Player.Appearance.find((i) => i.Asset.Group.Name === g);
-                        if (it) {
-                            const pExpr = (_b = it.Property) === null || _b === void 0 ? void 0 : _b.Expression;
-                            const n = pExpr || it.Asset.Name;
-                            if (n)
-                                activeParts.push(`${(_c = EXPR_GROUP_LABELS[g]) !== null && _c !== void 0 ? _c : g}: ${n}`);
-                        }
-                    }
-                    catch ( /* skip group */_d) { /* skip group */ }
-                }
-                const facePreview = document.createElement("div");
-                facePreview.style.cssText = `${F}8px;color:#7a5080;margin-bottom:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`;
-                facePreview.title = activeParts.length ? activeParts.join(", ") : "No expressions set";
-                facePreview.textContent = activeParts.length
-                    ? `Now: ${activeParts.join(" · ")}`
-                    : "Now: (no expressions set)";
-                body.appendChild(facePreview);
-            }
-            // Save current face as preset — name on its own row, button below
-            const captureInput = Object.assign(document.createElement("input"), {
-                className: "ebc-form-input", type: "text", maxLength: 30, placeholder: t("expr.presetNamePlaceholder"),
-            });
-            captureInput.style.cssText = "width:100%;box-sizing:border-box;margin-bottom:4px;";
-            const captureBtn = document.createElement("button");
-            captureBtn.className = "ebc-create-btn";
-            captureBtn.style.cssText = "width:100%;font-size:9px;padding:4px 8px;box-sizing:border-box;margin-bottom:8px;";
-            captureBtn.textContent = t("expr.saveFace");
-            captureBtn.addEventListener("click", () => {
-                const name = captureInput.value.trim() || "Preset";
-                saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
-                captureInput.value = "";
-                this.rerender();
-            });
-            body.appendChild(captureInput);
-            body.appendChild(captureBtn);
-            // Clear all button
-            const clearBtn = document.createElement("button");
-            clearBtn.className = "ebc-btn-footer-btn";
-            clearBtn.style.cssText = "width:100%;margin-bottom:10px;font-size:9px;";
-            clearBtn.textContent = t("dev.clearExpressions");
-            clearBtn.addEventListener("click", () => {
-                for (const g of EXPR_GROUPS) {
-                    try {
-                        applyExprGroup(g, null);
-                    }
-                    catch ( /* skip */_a) { /* skip */ }
-                }
-                this.rerender(150);
-            });
-            body.appendChild(clearBtn);
             // ── Triggers section ──────────────────────────────────────────────────
             // Collapsible. Fires a preset when outgoing chat contains a match string.
             {
@@ -30316,7 +30525,7 @@
                     if (v !== null)
                         trigCollapsed = v === "1";
                 }
-                catch ( /* ignore */_e) { /* ignore */ }
+                catch ( /* ignore */_c) { /* ignore */ }
                 const trigHdr = document.createElement("div");
                 trigHdr.style.cssText = "display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;padding:3px 0;";
                 const trigChev = document.createElement("span");
@@ -32025,7 +32234,7 @@
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "3.9.2";
+    const MOD_VERSION = "4.1.1";
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Members already recorded in "people met" this session — avoids redundant server syncs
@@ -32036,6 +32245,12 @@
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "4.1.1",
+            changes: [
+                "Expressions (Anims tab): completely reworked the UI. Replaced the dropdown-based picker with a live face-builder — each expression group (Blush, Eyes, Eyes R, Mouth, Eyebrows, Fluids, Emoticon, Tears) now shows a row of clickable buttons. Clicking a button applies the expression immediately and highlights the active choice in pink. A '—' button at the start of each row clears that group. Save current face as a named preset with the name input + Save button. Presets section (shown when presets exist) lists saved faces with ✓ Apply, inline rename, ★ default, × delete. Triggers section is unchanged.",
+            ],
+        },
         {
             version: "3.9.1",
             changes: [
@@ -36664,12 +36879,14 @@
                 // top + 975*zoom. Using gap = sz (= paw size) keeps a full paw-height of
                 // clearance at every zoom level (12px at min zoom, 20px at zoom=1) so the
                 // paw never sinks into the name regardless of how many players are in the room.
-                const sz = Math.max(12, Math.round(20 * zoom));
+                const sz = Math.max(16, Math.round(28 * zoom));
                 const gap = Math.max(8, sz); // gap = paw size → consistent clearance at all zoom levels
                 const px = Math.floor(left + 250 * zoom - sz / 2);
                 const py = Math.floor(top + 975 * zoom - sz - gap);
                 _pawCtx.save();
-                _pawCtx.globalAlpha = 0.9;
+                _pawCtx.globalAlpha = 0.92;
+                _pawCtx.shadowColor = "rgba(255, 185, 0, 0.85)";
+                _pawCtx.shadowBlur = Math.round(sz * 0.55);
                 _pawCtx.drawImage(_pawImg, px, py, sz, sz);
                 _pawCtx.restore();
             }

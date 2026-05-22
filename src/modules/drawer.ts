@@ -135,7 +135,7 @@ import {
 } from "./kitty";
 import {
     EXPR_GROUPS, EXPR_GROUP_LABELS,
-    applyExprGroup,
+    applyExprGroup, getExprGroupOptions,
     getExpressionPresets, saveExpressionPresets,
     captureCurrentExpression, applyExpressionPreset,
     getDefaultExprPresetId, setDefaultExprPresetId,
@@ -17203,63 +17203,148 @@ export class EBCDrawer {
         if (!container) { while (body.firstChild) body.removeChild(body.firstChild); }
 
         const F = "font-family:'Trebuchet MS',serif;font-size:";
-        const BTN_BASE = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;`;
 
-        // ── Presets section ───────────────────────────────────────────────────
-        const presetsLbl = document.createElement("div");
-        presetsLbl.className = "ebc-section-label";
-        presetsLbl.textContent = "Presets";
-        body.appendChild(presetsLbl);
+        // Helper: read currently active expression for a group
+        const getActiveExpr = (group: string): string | null => {
+            try {
+                const it = (Player.Appearance as Item[]).find((i: Item) => i.Asset.Group.Name === group);
+                if (!it) return null;
+                const pExpr = (it.Property as Record<string, unknown> | undefined)?.Expression as string | undefined;
+                return pExpr || it.Asset.Name || null;
+            } catch { return null; }
+        };
 
-        const defaultId = getDefaultExprPresetId();
-        const presets = getExpressionPresets();
+        // ── FACE BUILDER ─────────────────────────────────────────────────────────
+        const builderLbl = document.createElement("div");
+        builderLbl.className = "ebc-section-label";
+        builderLbl.textContent = "FACE BUILDER";
+        builderLbl.style.marginBottom = "5px";
+        body.appendChild(builderLbl);
 
-        if (presets.length === 0) {
-            const hint = document.createElement("div");
-            hint.style.cssText = `${F}9px;color:#6a4a5e;margin-bottom:6px;`;
-            hint.textContent = "No presets yet — save your current face below.";
-            body.appendChild(hint);
-        } else {
-            // Quick-apply dropdown
-            const quickRow = document.createElement("div");
-            quickRow.style.cssText = "display:flex;gap:5px;margin-bottom:6px;align-items:center;";
-            const quickSel = document.createElement("select");
-            quickSel.className = "ebc-form-input";
-            quickSel.style.cssText += "flex:1;min-width:0;font-size:9px;";
-            const qPh = document.createElement("option");
-            qPh.value = ""; qPh.textContent = "— pick face to apply —"; qPh.disabled = true; qPh.selected = true;
-            quickSel.appendChild(qPh);
-            for (const p of presets) {
-                const o = document.createElement("option"); o.value = p.id; o.textContent = p.name;
-                quickSel.appendChild(o);
+        const hintEl = document.createElement("div");
+        hintEl.style.cssText = `${F}8px;color:#5a3a5a;margin-bottom:7px;`;
+        hintEl.textContent = "Click any button to apply live. — = clear that group.";
+        body.appendChild(hintEl);
+
+        for (const group of EXPR_GROUPS) {
+            const groupRow = document.createElement("div");
+            groupRow.style.cssText = "display:flex;align-items:flex-start;gap:4px;margin-bottom:4px;";
+
+            const lbl = document.createElement("div");
+            lbl.style.cssText = `${F}8px;color:#9a6aaa;flex-shrink:0;width:44px;padding-top:3px;text-align:right;`;
+            lbl.textContent = EXPR_GROUP_LABELS[group] ?? group;
+            groupRow.appendChild(lbl);
+
+            const btnGrid = document.createElement("div");
+            btnGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:2px;flex:1;min-width:0;";
+
+            const currentExpr = getActiveExpr(group);
+            const allBtns: HTMLButtonElement[] = [];
+
+            const setHighlight = (active: HTMLButtonElement): void => {
+                for (const b of allBtns) {
+                    const on = b === active;
+                    b.style.background  = on ? "#5a1e3a" : "#16081a";
+                    b.style.borderColor = on ? "#cf6f98" : "#361525";
+                    b.style.color       = on ? "#f7c0d8" : "#7a4a6e";
+                }
+            };
+
+            const mkExprBtn = (name: string | null): HTMLButtonElement => {
+                const btn = document.createElement("button");
+                btn.textContent = name ?? "—";
+                btn.title = name ?? `Clear ${EXPR_GROUP_LABELS[group] ?? group}`;
+                const isActive = name === null ? currentExpr === null : name === currentExpr;
+                btn.style.cssText = `${F}8px;padding:1px 5px;border-radius:3px;cursor:pointer;flex-shrink:0;font-family:'Trebuchet MS',serif;` +
+                    (isActive
+                        ? "background:#5a1e3a;border:1px solid #cf6f98;color:#f7c0d8;"
+                        : "background:#16081a;border:1px solid #361525;color:#7a4a6e;");
+                btn.addEventListener("click", () => {
+                    applyExprGroup(group, name);
+                    setHighlight(btn);
+                });
+                return btn;
+            };
+
+            // "—" (clear) button first, then all expression options
+            const noneBtn = mkExprBtn(null);
+            allBtns.push(noneBtn);
+            btnGrid.appendChild(noneBtn);
+            for (const opt of getExprGroupOptions(group)) {
+                const b = mkExprBtn(opt);
+                allBtns.push(b);
+                btnGrid.appendChild(b);
             }
-            const quickApplyBtn = document.createElement("button");
-            quickApplyBtn.className = "ebc-create-btn";
-            quickApplyBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:3px 8px;";
-            quickApplyBtn.textContent = "✓ Apply";
-            quickApplyBtn.addEventListener("click", () => {
-                const p = presets.find(pr => pr.id === quickSel.value);
-                if (p) { applyExpressionPreset(p); this.rerender(150); }
-            });
-            quickRow.appendChild(quickSel);
-            quickRow.appendChild(quickApplyBtn);
-            body.appendChild(quickRow);
 
+            groupRow.appendChild(btnGrid);
+            body.appendChild(groupRow);
+        }
+
+        // ── Save & Clear ──────────────────────────────────────────────────────────
+        const saveDiv1 = document.createElement("div");
+        saveDiv1.className = "ebc-divider";
+        saveDiv1.style.margin = "8px 0 6px";
+        body.appendChild(saveDiv1);
+
+        const saveRow = document.createElement("div");
+        saveRow.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:5px;";
+        const captureInput = Object.assign(document.createElement("input"), {
+            type: "text", maxLength: 30, placeholder: "Preset name…",
+        }) as HTMLInputElement;
+        captureInput.className = "ebc-form-input";
+        captureInput.style.cssText = "flex:1;min-width:0;font-size:9px;";
+        const savePresetBtn = document.createElement("button");
+        savePresetBtn.className = "ebc-create-btn";
+        savePresetBtn.style.cssText = "flex-shrink:0;font-size:9px;padding:3px 8px;";
+        savePresetBtn.textContent = "💾 Save face";
+        savePresetBtn.addEventListener("click", () => {
+            const name = captureInput.value.trim() || "Preset";
+            saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
+            captureInput.value = "";
+            this.rerender();
+        });
+        saveRow.appendChild(captureInput);
+        saveRow.appendChild(savePresetBtn);
+        body.appendChild(saveRow);
+
+        const clearAllBtn = document.createElement("button");
+        clearAllBtn.className = "ebc-btn-footer-btn";
+        clearAllBtn.style.cssText = "width:100%;margin-bottom:4px;font-size:9px;";
+        clearAllBtn.textContent = "✕  Clear all expressions";
+        clearAllBtn.addEventListener("click", () => {
+            for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } }
+            this.rerender(150);
+        });
+        body.appendChild(clearAllBtn);
+
+        // ── Presets ───────────────────────────────────────────────────────────────
+        const presets = getExpressionPresets();
+        if (presets.length > 0) {
+            const presetDiv = document.createElement("div");
+            presetDiv.className = "ebc-divider";
+            presetDiv.style.margin = "8px 0 5px";
+            body.appendChild(presetDiv);
+
+            const presetsLbl = document.createElement("div");
+            presetsLbl.className = "ebc-section-label";
+            presetsLbl.textContent = "PRESETS";
+            presetsLbl.style.marginBottom = "5px";
+            body.appendChild(presetsLbl);
+
+            const defaultId = getDefaultExprPresetId();
             const presetList = document.createElement("div");
-            presetList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:6px;";
+            presetList.style.cssText = "display:flex;flex-direction:column;gap:3px;margin-bottom:4px;";
 
             for (const preset of presets) {
                 const pRow = document.createElement("div");
                 pRow.style.cssText = "display:flex;align-items:center;gap:4px;background:rgba(30,10,25,0.6);border:1px solid #2a1421;border-radius:5px;padding:3px 6px;";
 
-                // ✓ Apply
                 const applyBtn = document.createElement("button");
-                applyBtn.style.cssText = BTN_BASE + "border:1px solid #5a2840;background:#3a1020;color:#cf6f98;";
-                applyBtn.textContent = "✓";
+                applyBtn.style.cssText = `${F}9px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;border:1px solid #5a2840;background:#3a1020;color:#cf6f98;`;
+                applyBtn.textContent = "✓ Apply";
                 applyBtn.title = "Apply this preset";
                 applyBtn.addEventListener("click", () => { applyExpressionPreset(preset); this.rerender(150); });
 
-                // Name — editable inline; click to rename
                 const nameEl = document.createElement("input");
                 nameEl.type = "text";
                 nameEl.value = preset.name;
@@ -17276,26 +17361,21 @@ export class EBCDrawer {
                     if (pi !== -1 && trimmed !== all[pi].name) { all[pi] = { ...all[pi], name: trimmed }; saveExpressionPresets(all); }
                 });
 
-                // ★ Default
                 const isDefault = preset.id === defaultId;
                 const defaultBtn = document.createElement("button");
                 defaultBtn.style.cssText = `${F}12px;background:none;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;color:${isDefault ? "#f0c040" : "#4a3040"};`;
                 defaultBtn.textContent = "★";
-                defaultBtn.title = isDefault
-                    ? "This is your default face — click to unset"
-                    : "Set as default face (reverts here after timed expressions)";
+                defaultBtn.title = isDefault ? "Default face — click to unset" : "Set as default face";
                 defaultBtn.addEventListener("click", () => {
                     setDefaultExprPresetId(isDefault ? null : preset.id);
                     this.rerender();
                 });
 
-                // × Delete
                 const delBtn = document.createElement("button");
                 delBtn.className = "ebc-outfit-del";
                 delBtn.textContent = "×";
                 delBtn.title = "Delete preset";
                 delBtn.addEventListener("click", () => {
-                    // Remove preset; if it was the default, clear the default too
                     if (preset.id === getDefaultExprPresetId()) setDefaultExprPresetId(null);
                     saveExpressionPresets(getExpressionPresets().filter(p => p.id !== preset.id));
                     this.rerender();
@@ -17309,57 +17389,6 @@ export class EBCDrawer {
             }
             body.appendChild(presetList);
         }
-
-        // ── Live face preview: shows what expressions are currently active ──
-        {
-            const activeParts: string[] = [];
-            for (const g of EXPR_GROUPS) {
-                try {
-                    const it = (Player.Appearance as Item[]).find((i: Item) => i.Asset.Group.Name === g);
-                    if (it) {
-                        const pExpr = (it.Property as Record<string, unknown> | undefined)?.Expression as string | undefined;
-                        const n = pExpr || it.Asset.Name;
-                        if (n) activeParts.push(`${EXPR_GROUP_LABELS[g] ?? g}: ${n}`);
-                    }
-                } catch { /* skip group */ }
-            }
-            const facePreview = document.createElement("div");
-            facePreview.style.cssText = `${F}8px;color:#7a5080;margin-bottom:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`;
-            facePreview.title = activeParts.length ? activeParts.join(", ") : "No expressions set";
-            facePreview.textContent = activeParts.length
-                ? `Now: ${activeParts.join(" · ")}`
-                : "Now: (no expressions set)";
-            body.appendChild(facePreview);
-        }
-
-        // Save current face as preset — name on its own row, button below
-        const captureInput = Object.assign(document.createElement("input"), {
-            className: "ebc-form-input", type: "text", maxLength: 30, placeholder: t("expr.presetNamePlaceholder"),
-        }) as HTMLInputElement;
-        captureInput.style.cssText = "width:100%;box-sizing:border-box;margin-bottom:4px;";
-        const captureBtn = document.createElement("button");
-        captureBtn.className = "ebc-create-btn";
-        captureBtn.style.cssText = "width:100%;font-size:9px;padding:4px 8px;box-sizing:border-box;margin-bottom:8px;";
-        captureBtn.textContent = t("expr.saveFace");
-        captureBtn.addEventListener("click", () => {
-            const name = captureInput.value.trim() || "Preset";
-            saveExpressionPresets([...getExpressionPresets(), captureCurrentExpression(name)]);
-            captureInput.value = "";
-            this.rerender();
-        });
-        body.appendChild(captureInput);
-        body.appendChild(captureBtn);
-
-        // Clear all button
-        const clearBtn = document.createElement("button");
-        clearBtn.className = "ebc-btn-footer-btn";
-        clearBtn.style.cssText = "width:100%;margin-bottom:10px;font-size:9px;";
-        clearBtn.textContent = t("dev.clearExpressions");
-        clearBtn.addEventListener("click", () => {
-            for (const g of EXPR_GROUPS) { try { applyExprGroup(g, null); } catch { /* skip */ } }
-            this.rerender(150);
-        });
-        body.appendChild(clearBtn);
 
         // ── Triggers section ──────────────────────────────────────────────────
         // Collapsible. Fires a preset when outgoing chat contains a match string.
